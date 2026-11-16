@@ -20,9 +20,9 @@ interface Data {
 }
 
 export class ButtonPlugin implements IPlugin<number, Data> {
-  tagName = "marimo-button";
+  public tagName = "marimo-button";
 
-  validator = z.object({
+  public validator = z.object({
     label: z.string(),
     kind: zodIntent,
     disabled: z.boolean().default(false),
@@ -31,7 +31,7 @@ export class ButtonPlugin implements IPlugin<number, Data> {
     keyboardShortcut: z.string().optional(),
   });
 
-  render(props: IPluginProps<number, Data>): JSX.Element {
+  public render(props: IPluginProps<number, Data>): JSX.Element {
     const {
       data: { disabled, kind, label, fullWidth, tooltip, keyboardShortcut },
     } = props;

@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { describe, expect, test, vi } from "vitest";
@@ -40,6 +42,7 @@ function getOpts() {
     enableAI: false,
     cellActions: {
       toggleHideCode: namedFunction("toggleHideCode"),
+      askAiAboutCell: namedFunction("askAiAboutCell"),
       aiCellCompletion: namedFunction("aiCellCompletion"),
       createManyBelow: namedFunction("createManyBelow"),
       onRun: namedFunction("onRun"),
@@ -48,10 +51,10 @@ function getOpts() {
       afterToggleSQL: namedFunction("afterToggleSQL"),
     } as unknown as CodemirrorCellActions,
     completionConfig: {
+      ...defaultUserConfig().completion,
       activate_on_typing: false,
       signature_hint_on_typing: false,
       copilot: false,
-      codeium_api_key: null,
     },
     keymapConfig: {
       preset: "default",
@@ -59,13 +62,12 @@ function getOpts() {
     },
     lspConfig: {
       pylsp: {
+        ...defaultUserConfig().language_servers.pylsp,
         enabled: false,
       },
-      diagnostics: {
-        enabled: false,
-      },
+      diagnostics: { ...defaultUserConfig().diagnostics, enabled: false },
     },
-    diagnosticsConfig: {},
+    diagnosticsConfig: { ...defaultUserConfig().diagnostics },
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
     displayConfig: { reference_highlighting: false, code_lens: true },
@@ -100,7 +102,7 @@ function getDuplicateKeymaps(state: EditorState) {
     (keymap) => keymap,
   );
   const duplicates = Objects.fromEntries(
-    Object.entries(groupBy).filter(([key, value]) => value.length > 1),
+    Object.entries(groupBy).filter(([_key, value]) => value.length > 1),
   );
   return duplicates;
 }
@@ -198,22 +200,22 @@ test("go to definition falls through to lower-priority LSP keymap", () => {
 test("placeholder adds another extension", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
-    .getExtension(
-      opts.cellId,
-      opts.completionConfig,
-      opts.hotkeys,
-      "marimo-import",
-      opts.lspConfig,
-    )
+    .getExtension({
+      cellId: opts.cellId,
+      completionConfig: opts.completionConfig,
+      hotkeys: opts.hotkeys,
+      placeholderType: "marimo-import",
+      lspConfig: opts.lspConfig,
+    })
     .flat();
   const withoutAI = new PythonLanguageAdapter()
-    .getExtension(
-      opts.cellId,
-      opts.completionConfig,
-      opts.hotkeys,
-      "none",
-      opts.lspConfig,
-    )
+    .getExtension({
+      cellId: opts.cellId,
+      completionConfig: opts.completionConfig,
+      hotkeys: opts.hotkeys,
+      placeholderType: "none",
+      lspConfig: opts.lspConfig,
+    })
     .flat();
   expect(withAI.length - 1).toBe(withoutAI.length);
 });
@@ -221,22 +223,53 @@ test("placeholder adds another extension", () => {
 test("ai adds more extensions", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
-    .getExtension(
-      opts.cellId,
-      opts.completionConfig,
-      opts.hotkeys,
-      "ai",
-      opts.lspConfig,
-    )
+    .getExtension({
+      cellId: opts.cellId,
+      completionConfig: opts.completionConfig,
+      hotkeys: opts.hotkeys,
+      placeholderType: "ai",
+      lspConfig: opts.lspConfig,
+    })
     .flat();
   const withoutAI = new PythonLanguageAdapter()
-    .getExtension(
-      opts.cellId,
-      opts.completionConfig,
-      opts.hotkeys,
-      "none",
-      opts.lspConfig,
-    )
+    .getExtension({
+      cellId: opts.cellId,
+      completionConfig: opts.completionConfig,
+      hotkeys: opts.hotkeys,
+      placeholderType: "none",
+      lspConfig: opts.lspConfig,
+    })
     .flat();
   expect(withAI.length - 2).toBe(withoutAI.length);
+});
+
+test("empty-cell AI action opens chat without invoking the local refactor prompt", () => {
+  const askAiAboutCell = vi.fn();
+  const aiCellCompletion = vi.fn();
+  const view = new EditorView({
+    state: EditorState.create({
+      doc: "",
+      extensions: setup({
+        showPlaceholder: true,
+        enableAI: false,
+        enableAIChat: true,
+        cellActions: {
+          ...getOpts().cellActions,
+          askAiAboutCell,
+          aiCellCompletion,
+        },
+      }),
+    }),
+  });
+  try {
+    const button = view.dom.querySelector<HTMLButtonElement>(
+      ".cm-clickable-placeholder",
+    );
+    expect(button?.textContent).toBe("generate with AI");
+    button?.click();
+    expect(askAiAboutCell).toHaveBeenCalledOnce();
+    expect(aiCellCompletion).not.toHaveBeenCalled();
+  } finally {
+    view.destroy();
+  }
 });

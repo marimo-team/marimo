@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._secrets.load_dotenv import (
     _drop_quotes,
@@ -13,6 +14,7 @@ from marimo._secrets.load_dotenv import (
     load_to_environ,
     parse_dotenv,
     read_dotenv_with_fallback,
+    resolve_dotenv_value,
 )
 
 if TYPE_CHECKING:
@@ -74,6 +76,53 @@ def test_parse_dotenv_nonexistent():
     assert env_dict == {}
 
 
+def test_read_dotenv_nonexistent_warns_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "missing.env"
+    other_path = tmp_path / "other.env"
+    with _loggers.capture_output() as (_, _, records):
+        for _ in range(3):
+            assert read_dotenv_with_fallback(str(path)) == {}
+            assert read_dotenv_with_fallback("./missing.env") == {}
+            assert read_dotenv_with_fallback(str(other_path)) == {}
+    assert [(record.levelname, record.getMessage()) for record in records] == [
+        ("WARNING", f"Dotenv file not found: {path}"),
+        ("WARNING", f"Dotenv file not found: {other_path}"),
+    ]
+
+
+def test_read_dotenv_nonexistent_in_different_directories_warns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with _loggers.capture_output() as (_, _, records):
+        for name in ("first", "second"):
+            directory = tmp_path / name
+            directory.mkdir()
+            monkeypatch.chdir(directory)
+            assert read_dotenv_with_fallback(".env") == {}
+    assert [record.getMessage() for record in records] == [
+        f"Dotenv file not found: {tmp_path / 'first' / '.env'}",
+        f"Dotenv file not found: {tmp_path / 'second' / '.env'}",
+    ]
+
+
+def test_read_dotenv_after_missing_file_created(tmp_path: Path) -> None:
+    path = tmp_path / ".env"
+    with _loggers.capture_output() as (_, _, records):
+        assert read_dotenv_with_fallback(str(path)) == {}
+        path.write_text("KEY=first\n", encoding="utf-8")
+        assert read_dotenv_with_fallback(str(path)) == {"KEY": "first"}
+        path.write_text("KEY=second\n", encoding="utf-8")
+        assert read_dotenv_with_fallback(str(path)) == {"KEY": "second"}
+        path.unlink()
+        assert read_dotenv_with_fallback(str(path)) == {}
+    assert [record.getMessage() for record in records] == [
+        f"Dotenv file not found: {path}"
+    ]
+
+
 def test_load_to_environ():
     env_dict = {"TEST_KEY": "test_value"}
     load_to_environ(env_dict)
@@ -98,6 +147,97 @@ def test_read_dotenv_with_fallback(tmp_path: Path):
 
     env_dict = read_dotenv_with_fallback(str(env_file))
     assert env_dict == {"TEST_KEY": "test_value"}
+
+
+def test_read_dotenv_interpolates_from_environment(tmp_path: Path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "FROM_ENV=${BASE}/env\nLOCAL=local\nFROM_FILE=${LOCAL}/file",
+        encoding="utf-8",
+    )
+
+    env_dict = read_dotenv_with_fallback(
+        str(env_file), environment={"BASE": "base"}
+    )
+
+    assert env_dict == {
+        "FROM_ENV": "base/env",
+        "LOCAL": "local",
+        "FROM_FILE": "local/file",
+    }
+
+
+def test_read_dotenv_interpolates_duplicate_assignments_in_order(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "A=first\nB=${A}\nA=second\nC=${A}",
+        encoding="utf-8",
+    )
+
+    env_dict = read_dotenv_with_fallback(str(env_file), environment={})
+
+    assert env_dict == {
+        "A": "second",
+        "B": "first",
+        "C": "second",
+    }
+
+
+def test_resolve_dotenv_value_preserves_precedence_and_interpolation(
+    tmp_path: Path,
+) -> None:
+    first_env = tmp_path / ".env.first"
+    first_env.write_text(
+        "BASE=first\nENV_WINS=first",
+        encoding="utf-8",
+    )
+    second_env = tmp_path / ".env.second"
+    second_env.write_text(
+        "BASE=second\nDERIVED=${BASE}/second\nENV_WINS=second",
+        encoding="utf-8",
+    )
+
+    resolved = resolve_dotenv_value(
+        "DERIVED",
+        [str(first_env), str(second_env)],
+        {"ENV_WINS": "environment"},
+    )
+
+    assert resolved == "first/second"
+
+
+def test_resolve_dotenv_value_stops_after_environment_value(
+    tmp_path: Path,
+) -> None:
+    unreadable = tmp_path / "not-a-file"
+    unreadable.mkdir()
+
+    resolved = resolve_dotenv_value(
+        "API_KEY",
+        [str(unreadable)],
+        {"API_KEY": "environment"},
+    )
+
+    assert resolved == "environment"
+
+
+def test_resolve_dotenv_value_stops_after_first_dotenv_value(
+    tmp_path: Path,
+) -> None:
+    first_env = tmp_path / ".env.first"
+    first_env.write_text("API_KEY=first", encoding="utf-8")
+    unreadable = tmp_path / "not-a-file"
+    unreadable.mkdir()
+
+    resolved = resolve_dotenv_value(
+        "API_KEY",
+        [str(first_env), str(unreadable)],
+        {},
+    )
+
+    assert resolved == "first"
 
 
 ROUND_TRIP_VALUES = [

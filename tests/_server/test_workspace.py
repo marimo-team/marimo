@@ -45,14 +45,15 @@ class TestNotebookWorkspace(unittest.TestCase):
     def setUp(self):
         # Create a temporary directory
         self.test_dir = tempfile.mkdtemp()
-        # Create temporary files
-        self.test_file1 = tempfile.NamedTemporaryFile(
+        # Keep file objects on self because tests use their `.name` paths
+        # after setup; each handle is closed immediately after writing.
+        self.test_file1 = tempfile.NamedTemporaryFile(  # noqa: SIM115
             delete=False, dir=self.test_dir, suffix=".py"
         )
-        self.test_file2 = tempfile.NamedTemporaryFile(
+        self.test_file2 = tempfile.NamedTemporaryFile(  # noqa: SIM115
             delete=False, dir=self.test_dir, suffix=".py"
         )
-        self.test_file_3 = tempfile.NamedTemporaryFile(
+        self.test_file_3 = tempfile.NamedTemporaryFile(  # noqa: SIM115
             delete=False, dir=self.test_dir, suffix=".md"
         )
         # Write to the temporary files
@@ -66,7 +67,7 @@ class TestNotebookWorkspace(unittest.TestCase):
         # Create a nested directory and file
         self.nested_dir = os.path.join(self.test_dir, "nested")
         os.mkdir(self.nested_dir)
-        self.nested_file = tempfile.NamedTemporaryFile(
+        self.nested_file = tempfile.NamedTemporaryFile(  # noqa: SIM115
             delete=False, dir=self.nested_dir, suffix=".py"
         )
         self.nested_file.write(file_contents.encode())
@@ -748,6 +749,28 @@ def test_lazy_router_respects_max_files(tmp_path: Path):
     finally:
         # Restore original value
         DirectoryScanner.MAX_FILES = original_max_files
+
+
+def test_lazy_router_reports_truncated_scan(tmp_path: Path):
+    """Deeply nested notebooks are omitted, and the workspace says so (#10064)."""
+    deep = tmp_path.joinpath("a", "b", "c", "d", "e", "f")
+    deep.mkdir(parents=True)
+    (deep / "app.py").write_text(file_contents)
+
+    router = DirectoryWorkspace(str(tmp_path), include_markdown=False)
+
+    # The notebook sits past DirectoryScanner.MAX_DEPTH, so nothing is listed.
+    assert router.files == []
+    assert router.is_truncated
+
+
+def test_lazy_router_not_truncated_for_shallow_tree(tmp_path: Path):
+    (tmp_path / "app.py").write_text(file_contents)
+
+    router = DirectoryWorkspace(str(tmp_path), include_markdown=False)
+
+    assert len(router.files) == 1
+    assert not router.is_truncated
 
 
 def test_lazy_router_skips_common_dirs(tmp_path: Path):

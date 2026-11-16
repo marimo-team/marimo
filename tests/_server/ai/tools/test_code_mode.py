@@ -86,3 +86,47 @@ def test_references_capability_exposes_deferred_reference_bundles() -> None:
         "Improving, optimizing" in by_id["notebook-improvements"].description
     )
     assert "Custom widgets" in by_id["rich-representations"].description
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    "output",
+    [
+        "cG5n",
+        "{'image/png': 'cG5n'}",
+        "data:image/png;base64,cG5n\n",
+        "data:image/png;base64,invalid!",
+        "data:image/png;base64,cG5",
+        "data:image/png;base64,é",
+    ],
+)
+async def test_execute_code_preserves_unsupported_png_output(
+    output: str,
+) -> None:
+    from marimo._ai._tools.types import CodeExecutionResult
+    from marimo._server.ai.tools.code_mode import build_execute_code_toolset
+
+    original = CodeExecutionResult(
+        success=True,
+        output=output,
+        output_mimetype="image/png",
+        stdout=["capture finished"],
+        stderr=["warning"],
+    )
+    with (
+        patch(
+            "marimo._server.ai.tools.code_mode.get_code_mode_credentials",
+            return_value=("http://localhost:2718", None),
+        ),
+        patch("marimo._server.ai.tools.code_mode.AppState"),
+        patch(
+            "marimo._server.ai.tools.code_mode.run_scratchpad_code",
+            new=AsyncMock(return_value=original),
+        ),
+    ):
+        toolset = build_execute_code_toolset(MagicMock(), MagicMock())
+        execute_code = cast(
+            Callable[[str], Awaitable[object]],
+            toolset.tools["execute_code"].function,
+        )
+        assert await execute_code("capture()") is original

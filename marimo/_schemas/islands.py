@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 ISLANDS_JSON_SCRIPT_TYPE: str = "application/vnd.marimo.islands+json"
 ISLANDS_JSON_SCHEMA_VERSION: Literal[1] = 1
@@ -20,4 +20,5 @@ class MarimoIslandCellPayload(TypedDict):
 class MarimoIslandPayload(TypedDict):
     schemaVersion: Literal[1]
     appId: str
+    dependencies: NotRequired[list[str]]
     cells: list[MarimoIslandCellPayload]

@@ -6,10 +6,7 @@
 ```python
 @app.cell
 def __():
-    mo.video(
-        src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
-        controls=False,
-    )
+    mo.video(src="https://docs.marimo.io/_static/readme-ui.mp4")
     return
 ```
 

@@ -60,6 +60,7 @@ const RecoveryModal = (props: {
   // NB: we use markdown class to have sane styling for list, paragraph
   return (
     <DialogContent className="w-fit">
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Handle Escape from any control within the recovery form. */}
       <form
         onSubmit={(e) => {
           e.preventDefault();

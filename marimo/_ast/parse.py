@@ -55,11 +55,11 @@ def ast_parse(
 
 
 def split_source_lines(text: str) -> list[str]:
-    """Split source into lines the way `ast`/`tokenize` count them.
+    r"""Split source into lines the way `ast`/`tokenize` count them.
 
-    Unlike `str.splitlines()`, this only treats `\\n`, `\\r`, and `\\r\\n` as
-    line breaks. `str.splitlines()` additionally splits on `\\f`, `\\v`, the
-    `\\x1c`-`\\x1e` separators, and Unicode line separators.
+    Unlike `str.splitlines()`, this only treats `\n`, `\r`, and `\r\n` as
+    line breaks. `str.splitlines()` additionally splits on `\f`, `\v`, the
+    `\x1c`-`\x1e` separators, and Unicode line separators.
     """
     return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
 
@@ -318,6 +318,10 @@ class Extractor:
                 else:
                     end_lineno = node.body[-1].lineno - 1
                     end_col_offset = None
+        else:
+            # The last statement's own end offset stops short of a comment
+            # that shares its line.
+            end_col_offset = len(self.lines[end_lineno - 1])
 
         # NB. node.[end_]lineno only captures the starting line of the
         # captured node, same with col_offset.
@@ -354,9 +358,11 @@ class Extractor:
                 new_end -= 1
                 break
             if new_end > end_lineno:
-                cell_code += "\n".join(
+                trailing_code = "\n".join(
                     self.lines[end_lineno : new_end + 1]
                 ).rstrip()
+                if trailing_code:
+                    cell_code += "\n" + trailing_code
                 end_lineno = new_end - 1
 
         if end_col_offset is None:

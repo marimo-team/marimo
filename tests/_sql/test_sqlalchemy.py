@@ -10,7 +10,11 @@ import pytest
 
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine, safe_execute
+from marimo._sql.engines.sqlalchemy import (
+    SQLAlchemyEngine,
+    _index_by_table_name,
+    safe_execute,
+)
 from marimo._sql.engines.types import (
     EngineCatalog,
     QueryEngine,
@@ -106,6 +110,50 @@ def sqlite_engine_meta() -> sa.Engine:
         "INSERT INTO information_schema.tables VALUES ('tables')",
         engine=engine,
     )
+
+    return engine
+
+
+@pytest.fixture
+def sqlite_engine_with_view() -> sa.Engine:
+    """Create a SQLite database with tables and views in two schemas."""
+
+    import sqlalchemy as sa
+    from sqlalchemy import text
+
+    engine = sa.create_engine("sqlite:///:memory:")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE test (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text("CREATE VIEW test_view AS SELECT id, name FROM test")
+        )
+        conn.execute(text("ATTACH ':memory:' AS my_schema"))
+        conn.execute(
+            text(
+                """
+                CREATE TABLE my_schema.test2 (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE VIEW my_schema.test2_view AS "
+                "SELECT id, name FROM my_schema.test2"
+            )
+        )
 
     return engine
 
@@ -304,6 +352,14 @@ def get_expected_schema(schema_name: str, table_name: str) -> Schema:
     )
 
 
+def get_expected_view(view_name: str) -> DataTable:
+    "Expected reflection of a view over a `get_expected_table` table."
+    view = get_expected_table(view_name)
+    view.type = "view"
+    view.primary_keys = []
+    return view
+
+
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_engine_get_table_details(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_table method."""
@@ -386,6 +442,120 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     assert len(tables) == 1
     expected_table = get_expected_table("test", False)
     assert tables[0] == expected_table
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_get_tables_with_views(
+    sqlite_engine_with_view: sa.Engine,
+) -> None:
+    """Views keep type='view' and full details on the batched path."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine_with_view, engine_name=VariableName("test_sqlite")
+    )
+    tables = engine.get_tables_in_schema(
+        schema="main", database=UNUSED_DB_NAME, include_table_details=True
+    )
+    assert tables == [
+        get_expected_table("test"),
+        get_expected_view("test_view"),
+    ]
+
+    tables = engine.get_tables_in_schema(
+        schema="my_schema",
+        database=UNUSED_DB_NAME,
+        include_table_details=True,
+    )
+    assert tables == [
+        get_expected_table("test2"),
+        get_expected_view("test2_view"),
+    ]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_match_per_table_details(
+    sqlite_engine_with_view: sa.Engine,
+) -> None:
+    """Batched reflection returns the same tables as per-table reflection."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine_with_view, engine_name=VariableName("test_sqlite")
+    )
+    batched = engine.get_tables_in_schema(
+        schema="main", database=UNUSED_DB_NAME, include_table_details=True
+    )
+    with mock.patch.object(
+        engine, "_get_batched_table_details", return_value=None
+    ):
+        per_table = engine.get_tables_in_schema(
+            schema="main",
+            database=UNUSED_DB_NAME,
+            include_table_details=True,
+        )
+    assert batched == per_table
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_avoid_per_table_reflection(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """No per-table reflection runs when the batch covers every table."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+    with mock.patch.object(
+        engine, "_get_columns", wraps=engine._get_columns
+    ) as spy:
+        tables = engine.get_tables_in_schema(
+            schema="main",
+            database=UNUSED_DB_NAME,
+            include_table_details=True,
+        )
+    assert tables == [get_expected_table("test")]
+    spy.assert_not_called()
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_fall_back_when_multi_reflection_raises(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """A failing batch logs one warning and falls back per table."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+    with (
+        mock.patch.object(
+            engine.inspector,
+            "get_multi_columns",
+            side_effect=RuntimeError("boom"),
+        ),
+        mock.patch("marimo._sql.engines.sqlalchemy.LOGGER") as mock_logger,
+    ):
+        tables = engine.get_tables_in_schema(
+            schema="main",
+            database=UNUSED_DB_NAME,
+            include_table_details=True,
+        )
+    assert tables == [get_expected_table("test")]
+    mock_logger.warning.assert_called_once_with(
+        "Failed to get batched columns", exc_info=True
+    )
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_nonexistent_schema_skips_batched_reflection(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """A schema with no tables returns [] without attempting a batch."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+    with mock.patch.object(engine, "_get_batched_table_details") as batched:
+        tables = engine.get_tables_in_schema(
+            schema="non_existent",
+            database=UNUSED_DB_NAME,
+            include_table_details=True,
+        )
+    assert tables == []
+    batched.assert_not_called()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -732,6 +902,209 @@ def test_sqlalchemy_engine_get_cursor_metadata(
         assert metadata["sql_statement_type"] == "Query / Unknown"
 
 
+@pytest.mark.requires("sqlalchemy", "polars")
+@pytest.mark.parametrize("output_format", ["polars", "lazy-polars", "auto"])
+@pytest.mark.parametrize(
+    "values",
+    [
+        [None] * 100 + [0.5],
+        [None] * 1000 + ["late", None],
+        [1] * 100 + ["late"],
+        [1] * 100 + [1e100],
+    ],
+    ids=[
+        "late-float",
+        "late-string-after-nulls",
+        "late-string-after-ints",
+        "integer-overflow",
+    ],
+)
+def test_sqlalchemy_schema_inference_fallback(
+    empty_sqlite_engine: sa.Engine,
+    output_format: str,
+    values: list[float | str | None],
+) -> None:
+    import polars as pl
+    import sqlalchemy as sa
+    from polars.testing import assert_frame_equal
+
+    with empty_sqlite_engine.begin() as connection:
+        connection.execute(sa.text("CREATE TABLE source (value)"))
+        connection.execute(sa.text("CREATE TABLE destination (value)"))
+        connection.execute(
+            sa.text("INSERT INTO source VALUES (:value)"),
+            [{"value": value} for value in values],
+        )
+        rows = connection.execute(
+            sa.text("SELECT value FROM source ORDER BY rowid")
+        ).fetchall()
+
+    with pytest.raises(
+        pl.exceptions.ComputeError, match="infer_schema_length"
+    ):
+        pl.DataFrame(rows)
+    expected = pl.DataFrame(rows, infer_schema_length=None)
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    executed = mock.Mock()
+    sa.event.listen(empty_sqlite_engine, "before_cursor_execute", executed)
+    try:
+        with mock.patch.object(
+            engine, "sql_output_format", return_value=output_format
+        ):
+            result = engine.execute(
+                "INSERT INTO destination SELECT value FROM source ORDER BY rowid "
+                "RETURNING value"
+            )
+        executed.assert_called_once()
+    finally:
+        sa.event.remove(empty_sqlite_engine, "before_cursor_execute", executed)
+
+    if output_format == "lazy-polars":
+        assert isinstance(result, pl.LazyFrame)
+        result = result.collect()
+    assert_frame_equal(result, expected)
+    with empty_sqlite_engine.connect() as connection:
+        assert connection.execute(
+            sa.text("SELECT COUNT(*) FROM destination")
+        ).scalar_one() == len(values)
+
+
+@pytest.mark.requires("sqlalchemy", "polars")
+@pytest.mark.parametrize(
+    "query",
+    [
+        "SELECT 1 AS value",
+        "SELECT NULL AS value",
+        "SELECT 1 AS value WHERE 0",
+    ],
+    ids=["valid", "all-null", "empty"],
+)
+def test_sqlalchemy_schema_inference_fast_path(
+    empty_sqlite_engine: sa.Engine, query: str
+) -> None:
+    import polars as pl
+    import sqlalchemy as sa
+    from polars.testing import assert_frame_equal
+
+    with empty_sqlite_engine.connect() as connection:
+        expected = pl.DataFrame(connection.execute(sa.text(query)).fetchall())
+
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    with (
+        mock.patch.object(engine, "sql_output_format", return_value="polars"),
+        mock.patch.object(pl, "DataFrame", wraps=pl.DataFrame) as constructor,
+    ):
+        result = engine.execute(query)
+        constructor.assert_called_once()
+        assert constructor.call_args.kwargs == {}
+    assert_frame_equal(result, expected)
+
+
+@pytest.mark.requires("sqlalchemy", "polars")
+@pytest.mark.parametrize(
+    "error_type", ["ComputeError", "SchemaError", "ValueError"]
+)
+def test_sqlalchemy_schema_inference_unrelated_error(
+    empty_sqlite_engine: sa.Engine, error_type: str
+) -> None:
+    import polars as pl
+
+    error = (
+        ValueError("unrelated error")
+        if error_type == "ValueError"
+        else getattr(pl.exceptions, error_type)("unrelated error")
+    )
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    with (
+        mock.patch.object(engine, "sql_output_format", return_value="polars"),
+        mock.patch.object(pl, "DataFrame", side_effect=error) as constructor,
+        pytest.raises(type(error)) as exc_info,
+    ):
+        engine.execute("SELECT 1 AS value")
+    assert exc_info.value is error
+    constructor.assert_called_once()
+
+
+@pytest.mark.requires("sqlalchemy", "polars", "pandas")
+@pytest.mark.parametrize("output_format", ["polars", "lazy-polars", "auto"])
+@pytest.mark.parametrize(
+    "message",
+    ["cannot construct a common type", "increase infer_schema_length"],
+)
+def test_sqlalchemy_schema_inference_retry_failure(
+    empty_sqlite_engine: sa.Engine, output_format: str, message: str
+) -> None:
+    import pandas as pd
+    import polars as pl
+    from pandas.testing import assert_frame_equal
+
+    error = pl.exceptions.ComputeError(message)
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    with (
+        mock.patch.object(
+            engine, "sql_output_format", return_value=output_format
+        ),
+        mock.patch.object(
+            pl,
+            "DataFrame",
+            side_effect=[
+                pl.exceptions.ComputeError(
+                    "consider increasing `infer_schema_length`"
+                ),
+                error,
+            ],
+        ) as constructor,
+    ):
+        if output_format == "auto":
+            result = engine.execute("SELECT 1 AS value")
+            assert_frame_equal(result, pd.DataFrame({"value": [1]}))
+        else:
+            with pytest.raises(pl.exceptions.ComputeError) as exc_info:
+                engine.execute("SELECT 1 AS value")
+            assert exc_info.value is error
+
+    assert constructor.call_count == 2
+    assert constructor.call_args.kwargs == {"infer_schema_length": None}
+    assert (
+        constructor.call_args_list[0].args[0] is constructor.call_args.args[0]
+    )
+
+
+@pytest.mark.requires("sqlalchemy", "polars", "pandas")
+@pytest.mark.parametrize("output_format", ["polars", "lazy-polars", "auto"])
+def test_sqlalchemy_schema_inference_incompatible_types(
+    empty_sqlite_engine: sa.Engine, output_format: str
+) -> None:
+    import pandas as pd
+    import polars as pl
+    from pandas.testing import assert_frame_equal
+
+    query = """
+        WITH RECURSIVE numbers(n) AS (
+            SELECT 0 UNION ALL SELECT n + 1 FROM numbers WHERE n < 100
+        )
+        SELECT CASE WHEN n < 100 THEN 1 ELSE X'FF' END AS value
+        FROM numbers ORDER BY n
+    """
+    engine = SQLAlchemyEngine(empty_sqlite_engine)
+    with mock.patch.object(
+        engine, "sql_output_format", return_value=output_format
+    ):
+        if output_format == "auto":
+            result = engine.execute(query)
+            assert_frame_equal(
+                result, pd.DataFrame({"value": [1] * 100 + [b"\xff"]})
+            )
+        else:
+            with pytest.raises(
+                pl.exceptions.ComputeError, match="infer_schema_length"
+            ) as exc_info:
+                engine.execute(query)
+            assert isinstance(
+                exc_info.value.__cause__, pl.exceptions.SchemaError
+            )
+
+
 # ------------------------
 # Decoracotors
 # ------------------------
@@ -874,6 +1247,10 @@ def make_engine():
         rows=None,
         pk_constraint=None,
         indexes=None,
+        multi_columns=None,
+        multi_pk_constraint=None,
+        multi_indexes=None,
+        supports_multi=True,
         inspector=True,
     ):
         if columns is None:
@@ -907,6 +1284,23 @@ def make_engine():
                 "constrained_columns": []
             }
             mock_inspector.get_indexes.return_value = indexes or []
+            if supports_multi:
+                # Empty dicts by default so tests exercise the per-table
+                # fallback instead of passing on bare MagicMock returns.
+                mock_inspector.get_multi_columns.return_value = (
+                    multi_columns or {}
+                )
+                mock_inspector.get_multi_pk_constraint.return_value = (
+                    multi_pk_constraint or {}
+                )
+                mock_inspector.get_multi_indexes.return_value = (
+                    multi_indexes or {}
+                )
+            else:
+                # Simulate SQLAlchemy < 2.0, where hasattr(...) is False
+                del mock_inspector.get_multi_columns
+                del mock_inspector.get_multi_pk_constraint
+                del mock_inspector.get_multi_indexes
 
         # -- Mock SQLAlchemy engine --
         mock_sa_engine = mock.MagicMock()
@@ -930,9 +1324,11 @@ def make_engine():
         # Uses *_args, **_kwargs to match any signature the real
         # method may have (e.g. database parameter) without
         # global side effects.
+        inspector_contexts = []
+
         @contextmanager
         def fake_get_inspector(database=None):
-            _ = database  # ignore parameter
+            inspector_contexts.append(database)
             yield mock_inspector
 
         engine._get_inspector = fake_get_inspector
@@ -940,6 +1336,7 @@ def make_engine():
         # Expose mocks for test assertions
         engine._mock_inspector = mock_inspector
         engine._mock_conn = mock_conn
+        engine._mock_inspector_contexts = inspector_contexts
 
         return engine
 
@@ -1028,6 +1425,45 @@ def test_get_inspector_yields_existing_inspector_for_non_use_database_dialect():
     mock_sa_engine.connect.assert_not_called()
 
 
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_tables_in_schema_reuses_connection():
+    import sqlalchemy as sa
+
+    mock_inspector = mock.MagicMock()
+    mock_inspector.get_table_names.return_value = ["users"]
+    mock_inspector.get_view_names.return_value = []
+    mock_inspector.get_multi_columns.return_value = {
+        ("public", "users"): [{"name": "id", "type": sa.INTEGER()}]
+    }
+    mock_inspector.get_multi_pk_constraint.return_value = {
+        ("public", "users"): {"constrained_columns": ["id"]}
+    }
+    mock_inspector.get_multi_indexes.return_value = {("public", "users"): []}
+
+    mock_connection = mock.MagicMock()
+    mock_sa_engine = mock.MagicMock()
+    mock_sa_engine.dialect.name = "snowflake"
+    mock_sa_engine.url.database = "MY_DB"
+    mock_sa_engine.connect.return_value.__enter__.return_value = (
+        mock_connection
+    )
+
+    with mock.patch("sqlalchemy.inspect", return_value=mock_inspector):
+        engine = SQLAlchemyEngine(
+            mock_sa_engine, engine_name=VariableName("test")
+        )
+        tables = engine.get_tables_in_schema(
+            schema="public",
+            database="MY_DB",
+            include_table_details=True,
+        )
+
+    assert [table.name for table in tables] == ["users"]
+    mock_sa_engine.connect.assert_called_once_with()
+    executed = mock_connection.execute.call_args[0][0]
+    assert str(executed) == 'USE DATABASE "MY_DB"'
+
+
 # ------------------------------------------------------------------ #
 #  _get_schema_names
 # ------------------------------------------------------------------ #
@@ -1045,101 +1481,192 @@ def test_get_schema_names_no_inspector(make_engine):
     assert engine._get_schema_names("MY_DB") == []
 
 
-# ------------------------------------------------------------------ #
-#  _get_table_names
-# ------------------------------------------------------------------ #
-
-
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_table_names(make_engine):
+def test_get_table_details_reuses_inspector_context(make_engine):
+    import sqlalchemy as sa
+
     engine = make_engine(
-        table_names=["users", "orders"], view_names=["active_users"]
+        table_columns=[{"name": "id", "type": sa.INTEGER()}],
+        pk_constraint={"constrained_columns": ["id"]},
     )
-    tables, views = engine._get_table_names(schema="public", database="MY_DB")
-    assert tables == ["users", "orders"]
-    assert views == ["active_users"]
 
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_table_names_no_inspector(make_engine):
-    engine = make_engine(inspector=False)
-    assert engine._get_table_names(schema="public", database="MY_DB") == (
-        [],
-        [],
+    table = engine.get_table_details(
+        table_name="users",
+        schema_name="public",
+        database_name="MY_DB",
     )
+
+    assert table is not None
+    assert table.primary_keys == ["id"]
+    assert len(engine._mock_inspector_contexts) == 1
 
 
 # ------------------------------------------------------------------ #
-#  _get_columns
+#  _get_batched_table_details
 # ------------------------------------------------------------------ #
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_columns(make_engine):
-    cols = [
-        {"name": "id", "type": "INTEGER"},
-        {"name": "name", "type": "TEXT"},
+def test_batched_details_uses_multi_reflection(make_engine):
+    """Details come from get_multi_* calls on a single inspector."""
+    import sqlalchemy as sa
+    from sqlalchemy.engine.reflection import ObjectKind, ObjectScope
+
+    engine = make_engine(
+        table_names=["users"],
+        view_names=["active_users"],
+        multi_columns={
+            ("public", "users"): [{"name": "id", "type": sa.INTEGER()}],
+            ("public", "active_users"): [{"name": "id", "type": sa.INTEGER()}],
+        },
+        multi_pk_constraint={
+            ("public", "users"): {"constrained_columns": ["id"]}
+        },
+        multi_indexes={
+            ("public", "users"): [{"column_names": ["id"], "name": "idx"}]
+        },
+    )
+    tables = engine.get_tables_in_schema(
+        schema="public", database="MY_DB", include_table_details=True
+    )
+
+    assert [(t.name, t.type) for t in tables] == [
+        ("users", "table"),
+        ("active_users", "view"),
     ]
-    engine = make_engine(table_columns=cols)
-    result = engine._get_columns("users", schema="public", database="MY_DB")
-    assert result == cols
+    assert tables[0].primary_keys == ["id"]
+    assert tables[0].indexes == ["id"]
+    # Missing PK/index entries fall back to [] like per-table reflection
+    assert tables[1].primary_keys == []
+    assert tables[1].indexes == []
 
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_columns_no_inspector(make_engine):
-    engine = make_engine(inspector=False)
-    assert (
-        engine._get_columns("users", schema="public", database="MY_DB") is None
+    engine._mock_inspector.get_multi_columns.assert_called_once_with(
+        schema="public",
+        filter_names=["users", "active_users"],
+        kind=ObjectKind.ANY,
+        scope=ObjectScope.ANY,
     )
-
-
-# ------------------------------------------------------------------ #
-#  _fetch_primary_keys
-# ------------------------------------------------------------------ #
+    for multi_method in (
+        engine._mock_inspector.get_multi_pk_constraint,
+        engine._mock_inspector.get_multi_indexes,
+    ):
+        multi_method.assert_called_once_with(
+            schema="public",
+            filter_names=["users"],
+            kind=ObjectKind.ANY,
+            scope=ObjectScope.ANY,
+        )
+    engine._mock_inspector.get_columns.assert_not_called()
+    engine._mock_inspector.get_pk_constraint.assert_not_called()
+    engine._mock_inspector.get_indexes.assert_not_called()
+    assert len(engine._mock_inspector_contexts) == 1
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_fetch_primary_keys(make_engine):
+def test_batched_details_without_multi_support(make_engine):
+    """Inspectors without get_multi_* fall back per table, silently."""
+    import sqlalchemy as sa
+
     engine = make_engine(
-        pk_constraint={"constrained_columns": ["id", "tenant_id"]}
+        table_names=["users"],
+        table_columns=[{"name": "id", "type": sa.INTEGER()}],
+        pk_constraint={"constrained_columns": ["id"]},
+        supports_multi=False,
     )
-    result = engine._fetch_primary_keys(
-        "users", schema="public", database="MY_DB"
+    with mock.patch("marimo._sql.engines.sqlalchemy.LOGGER") as mock_logger:
+        tables = engine.get_tables_in_schema(
+            schema="public", database="MY_DB", include_table_details=True
+        )
+
+    assert [(t.name, t.type) for t in tables] == [("users", "table")]
+    assert tables[0].primary_keys == ["id"]
+    engine._mock_inspector.get_columns.assert_called_once_with(
+        "users", schema="public"
     )
-    assert result == ["id", "tenant_id"]
+    mock_logger.warning.assert_not_called()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_fetch_primary_keys_no_inspector(make_engine):
-    engine = make_engine(inspector=False)
-    result = engine._fetch_primary_keys(
-        "users", schema="public", database="MY_DB"
-    )
-    assert result == []
+def test_batched_details_isolates_metadata_failures(make_engine):
+    """Bulk metadata failures reuse batched columns and the same inspector."""
+    import sqlalchemy as sa
 
-
-# ------------------------------------------------------------------ #
-#  _fetch_indexes
-# ------------------------------------------------------------------ #
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_fetch_indexes(make_engine):
     engine = make_engine(
-        indexes=[
-            {"column_names": ["email"], "name": "idx_email", "unique": True},
-            {"column_names": ["name"], "name": "idx_name", "unique": False},
-        ]
+        table_names=["users"],
+        view_names=["active_users"],
+        multi_columns={
+            ("public", "users"): [{"name": "id", "type": sa.INTEGER()}],
+            ("public", "active_users"): [{"name": "id", "type": sa.INTEGER()}],
+        },
+        pk_constraint={"constrained_columns": ["id"]},
+        indexes=[{"column_names": ["id"], "name": "idx"}],
     )
-    result = engine._fetch_indexes("users", schema="public", database="MY_DB")
-    assert result == ["email", "name"]
+    engine._mock_inspector.get_multi_pk_constraint.side_effect = RuntimeError
+    engine._mock_inspector.get_multi_indexes.side_effect = RuntimeError
+
+    tables = engine.get_tables_in_schema(
+        schema="public", database="MY_DB", include_table_details=True
+    )
+
+    assert [(table.name, table.type) for table in tables] == [
+        ("users", "table"),
+        ("active_users", "view"),
+    ]
+    assert tables[0].primary_keys == ["id"]
+    assert tables[0].indexes == ["id"]
+    assert tables[1].primary_keys == []
+    assert tables[1].indexes == []
+    engine._mock_inspector.get_columns.assert_not_called()
+    engine._mock_inspector.get_pk_constraint.assert_called_once_with(
+        "users", schema="public"
+    )
+    engine._mock_inspector.get_indexes.assert_called_once_with(
+        "users", schema="public"
+    )
+    assert len(engine._mock_inspector_contexts) == 1
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_fetch_indexes_no_inspector(make_engine):
-    engine = make_engine(inspector=False)
-    result = engine._fetch_indexes("users", schema="public", database="MY_DB")
-    assert result == []
+def test_batched_details_straggler_falls_back_per_table(make_engine):
+    """A table missing from the batch is fetched per table."""
+    import sqlalchemy as sa
+
+    engine = make_engine(
+        table_names=["users", "orders"],
+        table_columns=[{"name": "id", "type": sa.INTEGER()}],
+        multi_columns={
+            ("public", "users"): [{"name": "id", "type": sa.INTEGER()}]
+        },
+    )
+    tables = engine.get_tables_in_schema(
+        schema="public", database="MY_DB", include_table_details=True
+    )
+
+    assert [t.name for t in tables] == ["users", "orders"]
+    engine._mock_inspector.get_columns.assert_called_once_with(
+        "orders", schema="public"
+    )
+    assert len(engine._mock_inspector_contexts) == 1
+
+
+# ------------------------------------------------------------------ #
+#  _index_by_table_name (module-level, no mocking needed)
+# ------------------------------------------------------------------ #
+
+
+def test_index_by_table_name():
+    reflected = {
+        ("main", "users"): [{"name": "id"}],
+        (None, "orders"): [{"name": "total"}],
+    }
+    assert _index_by_table_name(reflected) == {
+        "users": [{"name": "id"}],
+        "orders": [{"name": "total"}],
+    }
+
+
+def test_index_by_table_name_empty():
+    assert _index_by_table_name({}) == {}
 
 
 # ------------------------------------------------------------------ #
@@ -1282,3 +1809,15 @@ def test_snowflake_get_database_names_delegates(make_engine):
 
     mocked.assert_called_once()
     assert result == expected
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_default_database_queried_when_not_in_url(make_engine):
+    """Snowflake falls back to querying the current database when the
+    connection URL has no database (e.g. engines built with `creator=`)."""
+    engine = make_engine(default_database=None)
+    engine._mock_conn.execute.return_value.fetchone.return_value = ("MY_DB",)
+
+    assert engine.get_default_database() == "MY_DB"
+    executed_sql = engine._mock_conn.execute.call_args[0][0]
+    assert str(executed_sql) == "SELECT current_database()"

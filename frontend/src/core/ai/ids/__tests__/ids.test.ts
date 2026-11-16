@@ -26,7 +26,6 @@ describe("AiModelId", () => {
         "google",
         "ollama",
         "bedrock",
-        "github",
       ];
 
       providers.forEach((provider) => {
@@ -66,12 +65,6 @@ describe("AiModelId", () => {
         const modelId = AiModelId.parse("bedrock/titan-text");
         expect(modelId.providerId).toBe("bedrock");
         expect(modelId.shortModelId).toBe("titan-text");
-      });
-
-      it("should parse github qualified id", () => {
-        const modelId = AiModelId.parse("github/gpt-4o");
-        expect(modelId.providerId).toBe("github");
-        expect(modelId.shortModelId).toBe("gpt-4o");
       });
 
       it("should handle multiple slashes", () => {
@@ -178,7 +171,6 @@ describe("AiModelId", () => {
         "google",
         "ollama",
         "bedrock",
-        "github",
       ];
 
       providers.forEach((provider) => {

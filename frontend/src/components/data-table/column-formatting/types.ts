@@ -13,6 +13,7 @@ export const formatOptions = {
   number: ["Auto", "Percent", "Scientific", "Engineering", "Integer"],
   string: ["Uppercase", "Lowercase", "Capitalize", "Title"],
   boolean: ["Yes/No", "On/Off"],
+  geometry: [],
   unknown: [],
 } as const satisfies Record<DataType, string[]>;
 
@@ -38,8 +39,7 @@ export interface ColumnFormattingInstance {
   setColumnFormatting: (value?: FormatOption) => void;
   getColumnFormatting?: () => FormatOption | undefined;
   getCanFormat?: () => boolean;
-  // oxlint-disable-next-line typescript/no-explicit-any
-  applyColumnFormatting: (value: any) => any;
+  applyColumnFormatting: (value: unknown) => unknown;
 }
 
 // Use declaration merging to add APIs and state types

@@ -17,6 +17,7 @@ import threading
 import typing
 
 from marimo import _loggers
+from marimo._config.config import parse_config
 from marimo._messaging.thread_local_streams import install_thread_local_proxies
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import runtime
@@ -188,7 +189,8 @@ def _handle_create_kernel(
                     is_edit_mode=False,
                     configs=cmd.configs,
                     app_metadata=cmd.app_metadata,
-                    user_config=cmd.user_config,
+                    user_config=parse_config(cmd.user_config),
+                    config_overrides=cmd.config_overrides,
                     virtual_file_storage=cmd.virtual_file_storage,
                     redirect_console_to_browser=cmd.redirect_console_to_browser,
                     interrupt_queue=None,
@@ -250,7 +252,9 @@ def app_host_main(args: AppHostArgs) -> None:
 
     if sys.platform != "win32":
         os.setsid()
-        start_parent_poller(args.parent_pid)
+        # The direct parent may be a launcher such as uv; also probe
+        # the server pid so its ungraceful death is still detected.
+        start_parent_poller(os.getppid(), ancestor_pid=args.parent_pid)
 
     _loggers.set_level(args.log_level)
     LOGGER.debug(

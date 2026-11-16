@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from marimo._messaging.notification import BannerNotification
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
     CacheMode,
@@ -68,7 +69,8 @@ class TestHeartbeatExtension:
 
         task = extension.heartbeat_task
         extension.on_detach()
-        await asyncio.sleep(0.1)
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
         assert task.cancelled()
 
@@ -85,9 +87,17 @@ class TestHeartbeatExtension:
             ),
         )
         extension = HeartbeatExtension()
+        closed = asyncio.Event()
+        mock_session.close.side_effect = closed.set
         extension.on_attach(mock_session, event_bus)
 
-        await asyncio.sleep(1.5)
+        try:
+            await asyncio.wait_for(closed.wait(), timeout=10)
+        finally:
+            extension.on_detach()
+            assert extension.heartbeat_task is not None
+            with pytest.raises(asyncio.CancelledError):
+                await extension.heartbeat_task
 
         mock_session.close.assert_called_once()
         # A persistent banner is broadcast before the session closes, so the
@@ -99,7 +109,6 @@ class TestHeartbeatExtension:
         assert banner.action == "restart"
         assert "out of memory" in banner.description
         assert "restart" in banner.description.lower()
-        extension.on_detach()
 
 
 class TestCachingExtension:
@@ -220,7 +229,7 @@ class TestNotificationListenerExtension:
         return manager
 
     @patch("marimo._session.extensions.extensions.ConnectionDistributor")
-    def test_lifecycle(
+    async def test_lifecycle(
         self, mock_dist, mock_session, event_bus, kernel_manager, queue_manager
     ) -> None:
         """Test distributor creation, start, and stop."""
@@ -239,6 +248,26 @@ class TestNotificationListenerExtension:
 
         mock_distributor.stop.assert_called_once()
         assert extension.distributor is None
+
+    @patch("marimo._session.extensions.extensions.ConnectionDistributor")
+    async def test_detach_drops_pending_notifications(
+        self, mock_dist, mock_session, event_bus, kernel_manager, queue_manager
+    ) -> None:
+        extension = NotificationListenerExtension(
+            kernel_manager, queue_manager
+        )
+        extension.on_attach(mock_session, event_bus)
+        enqueue = mock_dist.return_value.add_consumer.call_args.args[0]
+        enqueue(
+            serialize_kernel_message(
+                BannerNotification(title="Queued", description="")
+            )
+        )
+
+        extension.on_detach()
+        await asyncio.sleep(0)
+
+        mock_session.notify.assert_not_called()
 
     def test_uses_correct_distributor_type(
         self, kernel_manager, queue_manager, queue_manager_with_stream
@@ -346,13 +375,18 @@ class TestSessionViewExtension:
 
     def test_command_added_to_view(self, mock_session, event_bus) -> None:
         """Test that commands are added to session view."""
-        from marimo._runtime.commands import ExecuteCellsCommand
+        from marimo._runtime.commands import (
+            ExecuteCellCommand,
+            ExecuteCellsCommand,
+        )
 
         extension = SessionViewExtension()
         extension.on_attach(mock_session, event_bus)
 
         cmd = ExecuteCellsCommand(
-            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("cell1"), code="x = 1")
+            ]
         )
         extension.on_received_command(mock_session, cmd, None)
 
@@ -378,18 +412,6 @@ class TestSessionViewExtension:
         mock_session.session_view.add_control_request.assert_not_called()
         extension.on_detach()
 
-    def test_stdin_added_to_view(self, mock_session, event_bus) -> None:
-        """Test that stdin is added to session view."""
-        extension = SessionViewExtension()
-        extension.on_attach(mock_session, event_bus)
-
-        extension.on_received_stdin(mock_session, "test input")
-
-        mock_session.session_view.add_stdin.assert_called_once_with(
-            "test input"
-        )
-        extension.on_detach()
-
     def test_notification_added_to_view(self, mock_session, event_bus) -> None:
         """Test that notifications are added to session view."""
         extension = SessionViewExtension()
@@ -411,7 +433,6 @@ class TestQueueExtension:
     def queue_manager(self):
         manager = Mock()
         manager.put_control_request = Mock()
-        manager.put_input = Mock()
         return manager
 
     def test_lifecycle(self, mock_session, event_bus, queue_manager) -> None:
@@ -432,29 +453,22 @@ class TestQueueExtension:
         self, mock_session, event_bus, queue_manager
     ) -> None:
         """Test that commands are added to queue."""
-        from marimo._runtime.commands import ExecuteCellsCommand
+        from marimo._runtime.commands import (
+            ExecuteCellCommand,
+            ExecuteCellsCommand,
+        )
 
         extension = QueueExtension(queue_manager)
         extension.on_attach(mock_session, event_bus)
 
         cmd = ExecuteCellsCommand(
-            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("cell1"), code="x = 1")
+            ]
         )
         extension.on_received_command(mock_session, cmd, None)
 
         queue_manager.put_control_request.assert_called_once_with(cmd)
-        extension.on_detach()
-
-    def test_stdin_added_to_queue(
-        self, mock_session, event_bus, queue_manager
-    ) -> None:
-        """Test that stdin is added to queue."""
-        extension = QueueExtension(queue_manager)
-        extension.on_attach(mock_session, event_bus)
-
-        extension.on_received_stdin(mock_session, "test input")
-
-        queue_manager.put_input.assert_called_once_with("test input")
         extension.on_detach()
 
 
@@ -477,14 +491,19 @@ class TestReplayExtension:
 
     def test_execute_command_replayed(self, mock_session, event_bus) -> None:
         """Test that ExecuteCellsCommand is replayed with notifications."""
-        from marimo._runtime.commands import ExecuteCellsCommand
+        from marimo._runtime.commands import (
+            ExecuteCellCommand,
+            ExecuteCellsCommand,
+        )
 
         mock_session.notify = Mock()
         extension = ReplayExtension()
         extension.on_attach(mock_session, event_bus)
 
         cmd = ExecuteCellsCommand(
-            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("cell1"), code="x = 1")
+            ]
         )
         extension.on_received_command(mock_session, cmd, None)
 
@@ -618,15 +637,15 @@ class TestEventBusEmitSafety:
         listener_a = Mock()
         listener_b = Mock()
 
-        listener_a.on_received_stdin = lambda _s, _t: (
+        listener_a.on_notification_sent = lambda _s, _t: (
             calls.append("a"),
             bus.unsubscribe(listener_a),
         )
-        listener_b.on_received_stdin = lambda _s, _t: calls.append("b")
+        listener_b.on_notification_sent = lambda _s, _t: calls.append("b")
 
         bus.subscribe(listener_a)
         bus.subscribe(listener_b)
-        bus.emit_received_stdin(Mock(), "hi")
+        bus.emit_notification_sent(Mock(), Mock())
 
         # Both were called even though a unsubscribed itself mid-emit
         assert calls == ["a", "b"]

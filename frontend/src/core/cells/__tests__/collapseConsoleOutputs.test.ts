@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { StatefulOutputMessage } from "@/components/editor/output/ansi-reduce";
+import type { ConsoleOutputMessage } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import {
   collapseConsoleOutputs,
@@ -279,6 +280,59 @@ describe("collapseConsoleOutputs", () => {
     expect(result[0].data).toContain("Streaming output truncated");
   });
 
+  it("keeps the first id when collapsing outputs", () => {
+    const consoleOutputs = [
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "Hello ",
+        timestamp: 0,
+        id: 7,
+      },
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "World",
+        timestamp: 0,
+        id: 8,
+      },
+    ] satisfies ConsoleOutputMessage[];
+    const result = collapseConsoleOutputs(consoleOutputs);
+    expect(result).toHaveLength(1);
+    expect(result[0].data).toBe("Hello World");
+    expect((result[0] as ConsoleOutputMessage).id).toBe(7);
+  });
+
+  it("keeps ids on outputs that survive truncation", () => {
+    const consoleOutputs = [
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "one\ntwo",
+        timestamp: 0,
+        id: 1,
+      },
+      {
+        mimetype: "text/plain",
+        channel: "stderr",
+        data: "three\nfour",
+        timestamp: 0,
+        id: 2,
+      },
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "five",
+        timestamp: 0,
+        id: 3,
+      },
+    ] satisfies ConsoleOutputMessage[];
+    const result = collapseConsoleOutputs(consoleOutputs, 3);
+    const ids = result.map((output) => (output as ConsoleOutputMessage).id);
+    expect(result[0].data).toContain("Streaming output truncated");
+    expect(ids).toEqual([undefined, 2, 3]);
+  });
+
   describe("ANSI escape sequences", () => {
     it("should handle cursor movement with collapse", () => {
       const consoleOutputs: OutputMessage[] = [
@@ -367,6 +421,39 @@ describe("collapseConsoleOutputs", () => {
       expect(consoleOutputs[0].data).toBe("Processing: |██████████| 100/100");
     });
 
+    it("should preserve nested progress lines across flushed writes", () => {
+      let consoleOutputs: OutputMessage[] = [
+        {
+          mimetype: "text/plain",
+          channel: "stderr",
+          data: "outer: 0%",
+          timestamp: 0,
+        },
+      ];
+      const append = (data: string) => {
+        consoleOutputs = collapseConsoleOutputs([
+          ...consoleOutputs,
+          {
+            mimetype: "text/plain",
+            channel: "stderr",
+            data,
+            timestamp: 0,
+          },
+        ]);
+      };
+
+      // tqdm flushes each of these writes independently.
+      append("\n");
+      append("\rinner: 0%");
+      append("\u001B[A");
+      expect(consoleOutputs[0].data).toBe("outer: 0%\ninner: 0%");
+
+      append("\n");
+      append("\rinner: 1%");
+      append("\u001B[A");
+      expect(consoleOutputs[0].data).toBe("outer: 0%\ninner: 1%");
+    });
+
     it("should handle cursor up/down movements", () => {
       // Test that cursor movements within a single message are handled
       const consoleOutputs: OutputMessage[] = [
@@ -379,8 +466,8 @@ describe("collapseConsoleOutputs", () => {
       ];
 
       const result = collapseConsoleOutputs(consoleOutputs);
-      // After moving up 1 line and writing "Modified", Line 2 gets overwritten
-      expect(result[0].data).toBe("Line 1\nModified");
+      // Moving the cursor does not erase the lines below it.
+      expect(result[0].data).toBe("Line 1\nModified\n");
     });
 
     it("should handle clear screen sequence", () => {
@@ -671,4 +758,19 @@ describe("collapseConsoleOutputs", () => {
       expect(result).not.toBeInstanceOf(StatefulOutputMessage);
     });
   });
+});
+
+it("keeps a prompt's input id when the entry becomes stateful", () => {
+  const prompt: OutputMessage = {
+    channel: "stdin",
+    mimetype: "text/plain",
+    data: "Name: ",
+    timestamp: 1,
+    input_id: "prompt-1",
+  };
+
+  const [collapsed] = collapseConsoleOutputs([prompt]);
+
+  expect(collapsed.input_id).toBe("prompt-1");
+  expect(collapsed.channel).toBe("stdin");
 });

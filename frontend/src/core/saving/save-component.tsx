@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { useAtom, useAtomValue, useStore } from "jotai";
 import { SaveIcon } from "lucide-react";
 import { useState } from "react";
 import { FilenameInput } from "@/components/editor/header/filename-input";
@@ -20,31 +20,41 @@ import {
 import { Label } from "../../components/ui/label";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
-import { getCellConfigs, getNotebook, useNotebook } from "../cells/cells";
+import { toast } from "@/components/ui/use-toast";
+import { getNotebook } from "../cells/cells";
 import { notebookCells } from "../cells/utils";
 import { formatAll } from "../codemirror/format";
 import { autoSaveConfigAtom } from "../config/config";
 import { useAutoExport } from "../export/hooks";
-import { getSerializedLayout, layoutStateAtom } from "../layout/layout";
-import { kioskModeAtom } from "../mode";
+import { getSerializedLayout } from "../layout/layout";
+import { layoutStateAtom } from "../layout/state";
 import { connectionAtom } from "../network/connection";
+import { canEditAtom } from "@/core/notebook";
 import { useRequestClient } from "../network/requests";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 import { filenameAtom } from "./file-state";
 import { useFilename, useUpdateFilename } from "./filename";
-import { lastSavedNotebookAtom, needsSaveAtom } from "./state";
+import { useNotebookDocumentSave } from "./document";
+import { documentVersionAtom, needsSaveAtom, savedLayoutAtom } from "./state";
 import { useAutoSave } from "./useAutoSave";
 
-interface SaveNotebookProps {
-  kioskMode: boolean;
+let notebookSaveQueue: Promise<void> = Promise.resolve();
+
+export function enqueueNotebookSave<T>(save: () => Promise<T>): Promise<T> {
+  const result = notebookSaveQueue.then(save);
+  notebookSaveQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
 }
 
-export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
+export const SaveComponent = () => {
   const filename = useFilename();
   const needsSave = useAtomValue(needsSaveAtom);
-  const closed = useAtomValue(connectionAtom).state === WebSocketState.CLOSED;
+  const closed = useAtomValue(connectionAtom).state === ConnectionState.CLOSED;
   const { saveOrNameNotebook, saveIfNotebookIsPersistent } = useSaveNotebook();
-  useAutoSaveNotebook({ onSave: saveIfNotebookIsPersistent, kioskMode });
+  useAutoSaveNotebook({ onSave: saveIfNotebookIsPersistent });
 
   useAutoExport();
 
@@ -89,67 +99,55 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
 };
 
 export function useSaveNotebook() {
-  const { sendSave } = useRequestClient();
+  const { saveLayout } = useRequestClient();
+  const saveDocument = useNotebookDocumentSave();
   const { openModal, closeModal, openAlert } = useImperativeModal();
-  const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
   const updateFilename = useUpdateFilename();
   const store = useStore();
 
-  // Save the notebook with the given filename
-  const saveNotebook = useEvent(
-    async (filename: string, userInitiated: boolean) => {
+  // Save the notebook the host has a file for.
+  const saveNotebook = useEvent((userInitiated: boolean) =>
+    enqueueNotebookSave(async () => {
       const connection = store.get(connectionAtom);
       const autoSaveConfig = store.get(autoSaveConfigAtom);
-      const kioskMode = store.get(kioskModeAtom);
-
-      if (kioskMode) {
-        return;
-      }
 
       // Don't save if we are not connected to a kernel
-      if (connection.state !== WebSocketState.OPEN) {
+      if (connection.state !== ConnectionState.OPEN) {
         openAlert("Failed to save notebook: not connected to a kernel.");
         return;
       }
 
-      Logger.log("saving to ", filename);
+      // The host may not let this consumer edit, or may not have said yet.
+      if (!store.get(canEditAtom)) {
+        return;
+      }
 
       if (userInitiated && autoSaveConfig.format_on_save) {
         Logger.log("formatting notebook (onSave)");
         await formatAll();
       }
 
-      // Grab the latest notebook state, after formatting
-      const notebook = getNotebook();
-      const cells = notebookCells(notebook);
-      const cellIds = cells.map((cell) => cell.id);
-      const codes = cells.map((cell) => cell.code);
-      const cellNames = cells.map((cell) => cell.name);
-      const configs = getCellConfigs(notebook);
-      const layout = store.get(layoutStateAtom);
-
-      // Don't save if there are no cells
-      if (codes.length === 0) {
+      if (notebookCells(getNotebook()).length === 0) {
         return;
       }
 
-      await sendSave({
-        cellIds: cellIds,
-        codes,
-        names: cellNames,
-        filename,
-        configs,
-        layout: getSerializedLayout(),
-        persist: true,
-      });
-
-      setLastSavedNotebook({
-        names: cellNames,
-        codes,
-        configs,
-        layout,
-      });
-    },
+      // The notebook is the host's document plus a layout the editor keeps
+      // beside it. TODO: fold the layout into the host document.
+      const layout = store.get(layoutStateAtom);
+      try {
+        await saveLayout({ layout: getSerializedLayout() });
+        await saveDocument();
+      } catch (error) {
+        Logger.error("Failed to save notebook", error);
+        toast({
+          title: "Failed to save",
+          description: error instanceof Error ? error.message : String(error),
+          variant: "danger",
+        });
+        return;
+      }
+      store.set(savedLayoutAtom, layout);
+    }),
   );
 
   // Save the notebook with the current filename, only if the filename exists
@@ -158,16 +156,16 @@ export function useSaveNotebook() {
     const connection = store.get(connectionAtom);
     if (
       isNamedPersistentFile(filename) &&
-      connection.state === WebSocketState.OPEN
+      connection.state === ConnectionState.OPEN
     ) {
-      saveNotebook(filename, userInitiated);
+      saveNotebook(userInitiated);
     }
   });
 
   const handleSaveDialog = (pythonFilename: string) => {
     updateFilename(pythonFilename).then((name) => {
       if (name !== null) {
-        saveNotebook(name, true);
+        saveNotebook(true);
       }
     });
   };
@@ -181,7 +179,7 @@ export function useSaveNotebook() {
     // Filename does not exist and we are connected to a kernel
     if (
       !isNamedPersistentFile(filename) &&
-      connection.state !== WebSocketState.CLOSED
+      connection.state !== ConnectionState.CLOSED
     ) {
       openModal(<SaveDialog onClose={closeModal} onSave={handleSaveDialog} />);
     }
@@ -208,29 +206,20 @@ export function isNamedPersistentFile(
   );
 }
 
-export function useAutoSaveNotebook(opts: {
-  onSave: () => void;
-  kioskMode: boolean;
-}) {
+export function useAutoSaveNotebook(opts: { onSave: () => void }) {
   const autoSaveConfig = useAtomValue(autoSaveConfigAtom);
-  const notebook = useNotebook();
+  const canEdit = useAtomValue(canEditAtom);
   const [connection] = useAtom(connectionAtom);
   const needsSave = useAtomValue(needsSaveAtom);
-
-  const cells = notebookCells(notebook);
-  const codes = cells.map((cell) => cell.code);
-  const cellNames = cells.map((cell) => cell.name);
-  const configs = getCellConfigs(notebook);
+  const version = useAtomValue(documentVersionAtom);
 
   useAutoSave({
     onSave: opts.onSave,
     needsSave: needsSave,
-    codes: codes,
-    cellConfigs: configs,
-    cellNames: cellNames,
+    version,
     connStatus: connection,
     config: autoSaveConfig,
-    kioskMode: opts.kioskMode,
+    canEdit,
   });
 }
 

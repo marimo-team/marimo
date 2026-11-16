@@ -14,7 +14,9 @@ from marimo._ast.app import App
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.input import dropdown
 from marimo._runtime.commands import ExecuteCellCommand
+from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.side_effect import SideEffect
 from marimo._save.cache import Cache
 from marimo._save.stubs.module_stub import ModuleStub
 from marimo._save.stubs.ui_element_stub import UIElementStub
@@ -988,6 +990,37 @@ class TestCacheDecorator:
 
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
+
+    async def test_call_off_cell_records_no_side_effect(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Called after its cell returned, as from a plain thread that restored
+        # the kernel context. No cell runs, so there is no cell to
+        # mark for cache invalidation, and the call still works.
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def double(x):
+                        return x * 2
+                    """
+                ),
+            ]
+        )
+        ctx = get_context()
+        assert ctx.cell_id is None
+
+        assert k.globals["double"](2) == 4
+        assert k.globals["double"](2) == 4
+        assert k.globals["double"].hits == 1
+        assert not any(
+            isinstance(item, SideEffect)
+            for items in ctx.cell_lifecycle_registry.registry.values()
+            for item in items
+        )
 
     async def test_basic_cache(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -1980,7 +2013,7 @@ class TestCacheDecorator:
         assert not k.stdout.messages, k.stdout
         # Throw a warning for flake edge case where cache is evicted earlier
         # than expected.
-        if k.globals["fib"].hits in (10,):
+        if k.globals["fib"].hits == 10:
             warnings.warn(
                 "Known flaky edge case for cache rerun.", stacklevel=1
             )
@@ -2168,7 +2201,6 @@ class TestCacheDecorator:
             f()
             assert f.hits == 0
             assert f.base_block.execution_refs == {"ns"}
-            return
 
     @staticmethod
     def test_execution_hash_same_block(app) -> None:
@@ -2210,7 +2242,6 @@ class TestCacheDecorator:
             assert f.base_block.context_refs == {"ns"}, (
                 f.base_block.context_refs
             )
-            return
 
     @staticmethod
     def test_execution_hash_diff_block(app) -> None:
@@ -2244,7 +2275,6 @@ class TestCacheDecorator:
         def __(f):
             f()
             assert f.base_block.execution_refs == {"ns", "z"}
-            return
 
     @staticmethod
     def test_content_hash_define_after(app) -> None:
@@ -2282,7 +2312,6 @@ class TestCacheDecorator:
                 f.base_block.execution_refs
             )
             assert f.base_block.missing == {"ns"}, f.base_block.missing
-            return
 
     @staticmethod
     def test_execution_hash_same_block_fails() -> None:
@@ -2321,7 +2350,6 @@ class TestCacheDecorator:
         @app.cell
         def _(f):
             f()
-            return
 
         # Cannot hash the cell of the unhashable content, so it should fail
         with pytest.raises(TypeError):
@@ -2353,7 +2381,6 @@ class TestCacheDecorator:
             random.seed(1)
             assert a == g("hello")
             assert a != g("world")
-            return
 
     @staticmethod
     def test_shadowed_kwargs(app) -> None:
@@ -2383,7 +2410,6 @@ class TestCacheDecorator:
             assert g.hits == 1
             assert g() == "hello"
             assert g.hits == 2
-            return
 
     @staticmethod
     def test_shadowed_state(app) -> None:
@@ -2395,7 +2421,8 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state, set_state = mo.state(None)
+            # Keep this public name to exercise cache argument shadowing.
+            state, _set_state = mo.state(None)  # noqa: RUF059
 
             @mo.cache
             def g(state):
@@ -2407,7 +2434,6 @@ class TestCacheDecorator:
         @app.cell
         def __(v):
             assert v == 3
-            return
 
     @staticmethod
     def test_shadowed_state_redefined(app) -> None:
@@ -2419,7 +2445,7 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state, set_state = mo.state(None)
+            state, _set_state = mo.state(None)
 
             @mo.cache
             def g():
@@ -2433,7 +2459,6 @@ class TestCacheDecorator:
         @app.cell
         def __(v):
             assert v == 3
-            return
 
     @staticmethod
     def test_internal_shadowed(app) -> None:
@@ -2445,18 +2470,20 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state0, set_state0 = mo.state(1)
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(10)
+            state0, _set_state0 = mo.state(1)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(10)
 
-            state, set_state = mo.state(100)
+            # Keep this public name to exercise global cell-name resolution.
+            state, _set_state = mo.state(100)  # noqa: RUF059
 
             @mo.cache
             def h(state):
                 x = state()
 
                 def g():
-                    global state
+                    # Exercise global lookup instead of capturing h's argument.
+                    global state  # noqa: PLW0602
 
                     def f(state):
                         return x + state()
@@ -2480,11 +2507,11 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state0, set_state0 = mo.state(1)
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(10)
+            state0, _set_state0 = mo.state(1)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(10)
 
-            state, set_state = mo.state(100)
+            state, _set_state = mo.state(100)
 
             # Example of a case where things start to get very tricky. There
             # comes a point where you might also have to capture frame levels
@@ -2516,11 +2543,11 @@ class TestCacheDecorator:
 
         @app.cell
         def __(mo):
-            state1, set_state1 = mo.state(1)
-            state2, set_state2 = mo.state(2)
+            state1, _set_state1 = mo.state(1)
+            state2, _set_state2 = mo.state(2)
 
             # Here as a var for shadowing
-            state, set_state = mo.state(3)
+            state, _set_state = mo.state(3)  # noqa: RUF059
 
             @mo.cache
             def g(state):
@@ -2540,7 +2567,6 @@ class TestCacheDecorator:
             assert state1() == a == A
             assert state2() == b == B
             assert state() == 3
-            return
 
     @staticmethod
     def test_shadowed_ui(app) -> None:
@@ -2564,7 +2590,6 @@ class TestCacheDecorator:
         @app.cell
         def __(v):
             assert v == 3
-            return
 
     @staticmethod
     def test_cache_with_mutation_after_def(app) -> None:
@@ -2637,7 +2662,6 @@ class TestCacheDecorator:
             with ThreadPoolExecutor(max_workers=2) as executor:
                 future = executor.submit(inner, extension)
                 assert future.result() == 5
-            return
 
     @pytest.mark.skipif(
         not DependencyManager.pandas.has(),
@@ -2749,6 +2773,34 @@ class TestPersistentCache:
         )
         assert not k.stdout.messages, k.stdout
         assert not k.stderr.messages, k.stderr
+
+    async def test_lazy_def_named_ui_keeps_ui_state(
+        self, k: Kernel, tmp_path
+    ) -> None:
+        # A def named `ui` must not overwrite the blob that holds the UI
+        # elements.
+        cell = ExecuteCellCommand(
+            cell_id="cached",
+            code=textwrap.dedent(f"""
+            import marimo as mo
+            from marimo._save.loaders.lazy import LazyLoader
+
+            with mo.persistent_cache(
+                "lazy_ui", save_path="{tmp_path.as_posix()}", method="lazy"
+            ) as cache:
+                slider = mo.ui.slider(0, 10, value=3)
+                ui = [1, 2, 3]
+            LazyLoader.flush_all()
+            """),
+        )
+        await k.run([cell])
+        assert not k.globals["cache"]._cache.hit
+        await k.run([cell])
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["cache"]._cache.hit
+        assert k.globals["ui"] == [1, 2, 3]
+        assert k.globals["slider"].value == 3
 
 
 class TestCacheStatistics:
@@ -2948,6 +3000,36 @@ class TestAsyncCacheDecorator:
         assert k.globals["b"] == 55
         # Should have cache hits like the sync version
         assert k.globals["async_fib"].hits == 9
+
+    async def test_async_call_off_cell_records_no_side_effect(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Awaited after its cell returned, so no cell runs and there is no
+        # cell to mark for cache invalidation. The call still works.
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    async def double(x):
+                        return x * 2
+                    """
+                ),
+            ]
+        )
+        ctx = get_context()
+        assert ctx.cell_id is None
+
+        assert await k.globals["double"](2) == 4
+        assert await k.globals["double"](2) == 4
+        assert k.globals["double"].hits == 1
+        assert not any(
+            isinstance(item, SideEffect)
+            for items in ctx.cell_lifecycle_registry.registry.values()
+            for item in items
+        )
 
     async def test_async_lru_cache(
         self, k: Kernel, exec_req: ExecReqProvider

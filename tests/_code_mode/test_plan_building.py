@@ -214,7 +214,7 @@ class TestCombined:
 
 class TestValidation:
     def test_delete_and_update_same_cell(self) -> None:
-        with pytest.raises(ValueError, match="delete.*update"):
+        with pytest.raises(ValueError, match=r"delete.*update"):
             _validate_ops(
                 [
                     _UpdateOp(cell_id=CellId_t("a"), code="x"),
@@ -223,7 +223,7 @@ class TestValidation:
             )
 
     def test_update_and_delete_same_cell(self) -> None:
-        with pytest.raises(ValueError, match="update.*delete"):
+        with pytest.raises(ValueError, match=r"update.*delete"):
             _validate_ops(
                 [
                     _DeleteOp(cell_id=CellId_t("a")),
@@ -232,7 +232,7 @@ class TestValidation:
             )
 
     def test_delete_and_move_same_cell(self) -> None:
-        with pytest.raises(ValueError, match="delete.*move"):
+        with pytest.raises(ValueError, match=r"delete.*move"):
             _validate_ops(
                 [
                     _MoveOp(cell_id=CellId_t("a"), after=CellId_t("b")),

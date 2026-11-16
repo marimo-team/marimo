@@ -1,14 +1,39 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
+from marimo._config.deprecations import warn_deprecated_fields
+from marimo._config.provenance import ConfigLayer, ConfigSource
 from marimo._utils.toml import toml_reader
 
 LOGGER = _loggers.marimo_logger()
+
+
+class ConfigReader(ABC):
+    """Read explicitly supplied settings without filling in defaults.
+
+    Sources parse and normalize their own values. Precedence and computed
+    defaults are handled separately by the configuration manager.
+    """
+
+    @abstractmethod
+    def read(self) -> PartialMarimoConfig:
+        """Read a sparse, unmasked configuration from this source."""
+
+    @property
+    def source(self) -> ConfigSource:
+        return "override"
+
+    def read_layer(self) -> ConfigLayer:
+        """Read sparse settings and their sources, without validating inherited fields."""
+        layer = ConfigLayer(self.read(), self.source)
+        warn_deprecated_fields(layer)
+        return layer
 
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:
@@ -22,7 +47,7 @@ def read_pyproject_marimo_config(
     """Read the marimo tool config from a pyproject.toml file."""
     pyproject_config = toml_reader.read(pyproject_path)
     marimo_tool_config = get_marimo_config_from_pyproject_dict(
-        pyproject_config
+        pyproject_config, location=str(pyproject_path)
     )
     if marimo_tool_config is None:
         return None
@@ -30,27 +55,32 @@ def read_pyproject_marimo_config(
     return marimo_tool_config
 
 
+def _pop_nested_key(root: dict[str, Any], key_path: tuple[str, ...]) -> bool:
+    """Delete `root[key_path...]` if present. Returns whether it was deleted."""
+    current = root
+    for key in key_path[:-1]:
+        nxt = current.get(key)
+        if not isinstance(nxt, dict):
+            return False
+        current = nxt
+    if key_path[-1] in current:
+        del current[key_path[-1]]
+        return True
+    return False
+
+
 def sanitize_pyproject_dict(
     pyproject_dict: dict[str, Any], keys: tuple[tuple[str, ...], ...]
 ) -> dict[str, Any]:
     """Sanitize the pyproject.toml dictionary by removing specified keys."""
     for key_path in keys:
-        current_level = pyproject_dict
-        missing_intermediate = False
-        for key in key_path[:-1]:
-            if key in current_level and isinstance(current_level[key], dict):
-                current_level = current_level[key]
-            else:
-                missing_intermediate = True
-                break
-        if missing_intermediate:
-            continue
-        if current_level and key_path[-1] in current_level:
+        # NB. each key_path is independent — a missing parent skips that path
+        # rather than aborting the rest.
+        if _pop_nested_key(pyproject_dict, key_path):
             LOGGER.warning(
                 "%s in script metadata is ignored for security reasons",
                 ".".join(key_path),
             )
-            del current_level[key_path[-1]]
     return pyproject_dict
 
 
@@ -116,17 +146,81 @@ def allowlist_script_config(
     return pyproject_dict
 
 
+# We typically do not strip pyproject configuration keys on the basis that a
+# malicious project can provide behavior as bad as, if not worse than, our options.
+# However, we are reserving these keys for potential TOFU-style trust anchors.
+# Reporters, do not read into this as a security guarantee for stripping
+# project options. See https://docs.marimo.io/security/#project-files for
+# more discussion.
+#
+#   signing              trusting a key is a code-execution grant, because a
+#                        cache restore is `pickle.loads`
+#   cache.verification   whether signatures are checked at all
+#
+# Both are anchored only in trusted user/environment config.
+_UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
+    ("server", "session_secret"),
+    ("signing",),
+    ("cache", "verification"),
+    ("cache", "loader"),
+)
+
+# `cache.store` is not a trust anchor on its own: the verifying loaders check
+# the bytes it returns before unpickling, and the unsigned `PickleLoader`
+# refuses a store it can identify as untrusted. That identification works by
+# looking for the store in the config *overrides*, which covers the project and
+# script layers. A workspace `.marimo.toml` loads as the user layer instead, so
+# it never appears there — the loader cannot tell it apart from a store the
+# operator chose. Strip it for that layer rather than leave an unidentifiable
+# store behind.
+_UNTRUSTED_USER_LAYER_KEYS: tuple[tuple[str, ...], ...] = (
+    *_UNTRUSTED_MARIMO_KEYS,
+    ("cache", "store"),
+)
+
+
+def strip_untrusted_config(
+    config: PartialMarimoConfig, *, is_user_layer: bool = False
+) -> PartialMarimoConfig:
+    """Drop security-sensitive settings from an untrusted config layer.
+
+    Mutates and returns `config`. A cloned repo's `pyproject.toml`, a shared
+    notebook's PEP 723 header, and a workspace-discovered `.marimo.toml` are all
+    untrusted origin: cloning a repo or opening a notebook is not consent to
+    that repo's author choosing whose signed cache you unpickle.
+
+    Set `is_user_layer` for the workspace `.marimo.toml`, which additionally
+    loses `cache.store`.
+    """
+    keys = (
+        _UNTRUSTED_USER_LAYER_KEYS if is_user_layer else _UNTRUSTED_MARIMO_KEYS
+    )
+    sanitized = cast(dict[str, Any], config)
+    for key_path in keys:
+        if _pop_nested_key(sanitized, key_path):
+            LOGGER.warning(
+                "Ignored %s from a configuration file that travels with the "
+                "code. Set it in your user configuration instead.",
+                ".".join(key_path),
+            )
+    return config
+
+
 def get_marimo_config_from_pyproject_dict(
     pyproject_dict: dict[str, Any],
+    *,
+    location: str | None = None,
 ) -> PartialMarimoConfig | None:
     """Get the marimo config from a pyproject.toml dictionary."""
     marimo_tool_config = _get_tool_dict(pyproject_dict).get("marimo", None)
     if marimo_tool_config is None:
         return None
     if not isinstance(marimo_tool_config, dict):
-        LOGGER.warning(
-            "pyproject.toml contains invalid marimo config: %s",
-            marimo_tool_config,
+        LOGGER.error(
+            "Ignoring marimo configuration in %s: 'tool.marimo' must be a table, got %s.",
+            location or "pyproject.toml/script metadata",
+            type(marimo_tool_config).__name__,
+            extra={"omit_log_prefix": True},
         )
         return None
     return cast(PartialMarimoConfig, marimo_tool_config)

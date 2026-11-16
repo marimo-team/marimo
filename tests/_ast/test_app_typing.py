@@ -242,3 +242,73 @@ class TestBatchTyping:
     assert_type(parameters.value, dict[str, object])
 """
         )
+
+
+class TestDictionaryTyping:
+    def test_dictionary_accepts_covariant_dict(self) -> None:
+        # dict is invariant, so a dict[str, checkbox] was rejected for the old
+        # dict[str, UIElement] param; widening it to a covariant Mapping accepts
+        # a dict of UIElement subclasses. Regression guard for #10653.
+        _check_pyright(
+            _PREAMBLE
+            + """
+    checks: dict[str, mo.ui.checkbox] = {"a": mo.ui.checkbox()}
+    d = mo.ui.dictionary(checks)
+    assert_type(d.value, dict[str, object])
+"""
+        )
+
+    def test_validate_and_clone_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            """
+            import marimo as mo
+            from marimo._plugins.ui._impl.batch import validate_and_clone
+
+            checks: dict[str, mo.ui.checkbox] = {"a": mo.ui.checkbox()}
+            _cloned = validate_and_clone(checks)
+            """
+        )
+
+
+class TestContainerTyping:
+    # dict is invariant, so a dict[str, Html] was rejected for the old
+    # dict[str, object] params; widening them to a covariant Mapping accepts
+    # a dict of any value type. Regression guard for #10631.
+    def test_tabs_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    panes: dict[str, mo.Html] = {"a": mo.md("x")}
+    t = mo.ui.tabs(panes)
+    assert_type(t.value, str)
+"""
+        )
+
+    def test_accordion_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    panes: dict[str, mo.Html] = {"a": mo.md("x")}
+    assert_type(mo.accordion(panes), mo.accordion)
+"""
+        )
+
+    def test_deprecated_tabs_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    panes: dict[str, mo.Html] = {"a": mo.md("x")}
+    assert_type(mo.tabs(panes), mo.Html)
+"""
+        )
+
+    def test_routes_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    from collections.abc import Callable
+
+    pages: dict[str, Callable[[], mo.Html]] = {"#/": lambda: mo.md("x")}
+    assert_type(mo.routes(pages), mo.routes)
+"""
+        )

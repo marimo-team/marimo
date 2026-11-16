@@ -8,24 +8,22 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
     mo.ui.code_editor("print(2 + 2)", min_height=50)
-    return
 
 
 @app.cell
 def _(mo):
     mo.ui.code_editor("SELECT * FROM table;", language="sql", theme="light")
-    return
 
 
 @app.cell(hide_code=True)
-def _(languages, mo):
+def _(languages: list[str], mo):
     language_select = mo.ui.dropdown(
         languages,
         value="javascript",
@@ -38,13 +36,12 @@ def _(languages, mo):
 
 
 @app.cell
-def _(language_select, mo, samples, theme_select):
+def _(language_select, mo, samples: dict[str, str], theme_select):
     mo.ui.code_editor(
         samples[language_select.value],
         language=language_select.value,
         theme=theme_select.value,
     )
-    return
 
 
 @app.cell
@@ -67,6 +64,7 @@ def _():
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

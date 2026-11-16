@@ -17,11 +17,14 @@ Avoid individual property assertions, opt for full object comparisons.
 from inline_snapshot import snapshot
 from dirty_equals import IsStr
 
+
 def test_function():
-    assert func() == snapshot({
-        "prop1": IsStr(),
-        "prop2": "some string",
-    })
+    assert func() == snapshot(
+        {
+            "prop1": IsStr(),
+            "prop2": "some string",
+        }
+    )
 ```
 
 ## Code Style
@@ -37,5 +40,6 @@ Heavy dependencies must be imported lazily
 ```python
 def get_dataframe():
     import pandas as pd  # altair, duckdb, numpy, polars, pyarrow, sqlglot, etc.
+
     return pd.DataFrame()
 ```

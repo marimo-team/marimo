@@ -7,11 +7,49 @@ import {
   vegaLoadData,
   vegaLoader,
 } from "../loader";
+import { getVegaFieldTypes } from "../utils";
 
 const { ZERO_WIDTH_SPACE, replacePeriodsInColumnNames, uniquifyColumnNames } =
   exportedForTesting;
 
 describe("vega loader", () => {
+  it("parses infinities only in explicitly numeric CSV fields", async () => {
+    vi.spyOn(vegaLoader, "load").mockResolvedValue(
+      "value,label,id\ninf,inf,1\n-inf,-inf,2\n+inf,+inf,3\n2.5,002.5,4\n,,5\nNaN,NaN,6\n",
+    );
+
+    const data = await vegaLoadData("chart.csv", {
+      type: "csv",
+      parse: { value: "number", label: "string", id: "integer" },
+    });
+
+    expect(data).toEqual([
+      { value: Infinity, label: "inf", id: 1 },
+      { value: -Infinity, label: "-inf", id: 2 },
+      { value: Infinity, label: "+inf", id: 3 },
+      { value: 2.5, label: "002.5", id: 4 },
+      { value: null, label: null, id: 5 },
+      { value: Number.NaN, label: "NaN", id: 6 },
+    ]);
+  });
+
+  it("preserves the table's large integer and infinity handling", async () => {
+    vi.spyOn(vegaLoader, "load").mockResolvedValue(
+      "id,value\n9007199254740993,inf\n9007199254740995,-inf\n",
+    );
+
+    const data = await vegaLoadData(
+      "table.csv",
+      { type: "csv", parse: { id: "integer", value: "number" } },
+      { handleBigIntAndNumberLike: true },
+    );
+
+    expect(data).toEqual([
+      { id: BigInt("9007199254740993"), value: "inf" },
+      { id: BigInt("9007199254740995"), value: "-inf" },
+    ]);
+  });
+
   it("should parse csv data with dates", async () => {
     const csvData = `
 active,username,id
@@ -102,15 +140,32 @@ yield_error,yield_center
     `);
   });
 
-  it.each(DATA_TYPES)("should handle %s data-type", async (type) => {
-    const csvData = "name,value_column\nAlice,1";
+  it.each(DATA_TYPES.filter((type) => type !== "geometry"))(
+    "should handle %s data-type",
+    async (type) => {
+      const csvData = "name,value_column\nAlice,1";
+      vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+      const result = await vegaLoadData(csvData, {
+        type: "csv",
+        parse: { value_column: type },
+      });
+      expect(result.length).toEqual(1);
+    },
+  );
+
+  it("should parse geometry as a WKT string", async () => {
+    const csvData = "name,value_column\nAlice,POINT (0 0)";
     vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const fieldTypes = getVegaFieldTypes({ value_column: "geometry" });
+    expect(fieldTypes).toEqual({ value_column: "string" });
 
     const result = await vegaLoadData(csvData, {
       type: "csv",
-      parse: { value_column: type },
+      parse: fieldTypes,
     });
-    expect(result.length).toEqual(1);
+    expect(result).toEqual([{ name: "Alice", value_column: "POINT (0 0)" }]);
   });
 
   it("should parse csv data with out of bound integers", async () => {
@@ -452,7 +507,7 @@ Bob.Jones,25
     `);
   });
 
-  it.skip("should handle arrow files", async () => {
+  it.fails("should handle arrow files", async () => {
     // Create a small arrow file with schema and one empty record batch
     const arrowData = new Uint8Array([
       0x41,

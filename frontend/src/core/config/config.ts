@@ -1,8 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { dequal } from "dequal";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import { merge } from "lodash-es";
+import { selectAtom } from "jotai/vanilla/utils";
+import { cloneDeep, get, has, isPlainObject, mergeWith, set } from "lodash-es";
 import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
 import { type Platform, resolvePlatform } from "../hotkeys/shortcuts";
+import { confirmedDocumentAtom } from "../session/active-notebook";
 import { store } from "../state/jotai";
 import {
   type AppConfig,
@@ -10,6 +13,50 @@ import {
   parseAppConfig,
   type UserConfig,
 } from "./config-schema";
+
+/**
+ * Combine configuration sources in priority order, with later sources winning.
+ * Arrays and shortcut maps replace earlier values so removed entries stay removed.
+ * Provider and signer maps replace their keys, while retained records inherit
+ * unspecified fields (for example, a provider's API key).
+ * These rules match backend resolution so the editor and kernel use the same settings.
+ */
+// TODO(MO-8400): Resolve configuration on the backend and send resolved values
+// with provenance, instead of duplicating source merging in the frontend.
+export function mergeConfig<T extends object>(...sources: object[]): T {
+  const result = {};
+  for (const source of sources) {
+    const replacements = [
+      "keymap.overrides",
+      "ai.custom_providers",
+      "signing.trusted_signers",
+    ]
+      .filter((path) => has(source, path))
+      .map((path) => {
+        const previous = get(result, path);
+        const incoming = get(source, path);
+        const value =
+          path !== "keymap.overrides" && isPlainObject(incoming)
+            ? Object.fromEntries(
+                Object.entries(incoming).map(([key, value]) => [
+                  key,
+                  isPlainObject(previous?.[key]) && isPlainObject(value)
+                    ? { ...previous[key], ...(value as object) }
+                    : value,
+                ]),
+              )
+            : incoming;
+        return { path, value };
+      });
+    mergeWith(result, source, (_obj: unknown, src: unknown) => {
+      return Array.isArray(src) ? [...src] : undefined;
+    });
+    for (const { path, value } of replacements) {
+      set(result, path, cloneDeep(value));
+    }
+  }
+  return result as T;
+}
 
 /**
  * Atom for storing the user config.
@@ -21,7 +68,7 @@ export const configOverridesAtom = atom<{}>({});
 export const resolvedMarimoConfigAtom = atom<UserConfig>((get) => {
   const overrides = get(configOverridesAtom);
   const userConfig = get(userConfigAtom);
-  return merge({}, userConfig, overrides);
+  return mergeConfig(userConfig, overrides);
 });
 
 export const autoInstantiateAtom = atom((get) => {
@@ -121,19 +168,30 @@ export function isAiFeatureEnabled(config: UserConfig) {
 }
 
 /**
- * Atom for storing the app config.
+ * The app config the page was served with, as the server wrote it.
+ *
+ * The host document carries the current one; this holds its place until
+ * that document arrives. It goes once every page carries its document.
  */
-export const appConfigAtom = atom<AppConfig>(parseAppConfig({}));
+export const pageAppConfigAtom = atom<unknown>({});
 
-/**
- * Returns the app config.
- */
-export function useAppConfig() {
-  return useAtom(appConfigAtom);
-}
+/** The app config record in force, stable while its contents are. */
+const appConfigRecordAtom = selectAtom(
+  atom(
+    (get) =>
+      get(confirmedDocumentAtom)?.revision.app_config ?? get(pageAppConfigAtom),
+  ),
+  (record) => record,
+  dequal,
+);
 
-export function useSetAppConfig() {
-  return useSetAtom(appConfigAtom);
+/** The notebook's app config, as the host document carries it. */
+export const appConfigAtom = atom((get) =>
+  parseAppConfig(get(appConfigRecordAtom)),
+);
+
+export function useAppConfig(): AppConfig {
+  return useAtomValue(appConfigAtom);
 }
 
 export function getAppConfig() {

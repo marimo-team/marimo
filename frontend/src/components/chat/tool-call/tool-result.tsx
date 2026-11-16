@@ -21,9 +21,9 @@ function isUninformative(value: unknown): boolean {
 const SuccessResultSchema = z.looseObject({
   status: z.string().default("success"),
   auth_required: z.boolean().default(false),
-  action_url: z.any(),
-  next_steps: z.any(),
-  meta: z.any(),
+  action_url: z.any().optional(),
+  next_steps: z.any().optional(),
+  meta: z.any().optional(),
   message: z.string().nullish(),
 });
 
@@ -47,7 +47,7 @@ const PrettySuccessResult: React.FC<{ data: SuccessResult }> = ({ data }) => {
           Tool Result
         </h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 bg-(--grass-2) text-(--grass-11) rounded-full font-medium capitalize">
+          <span className="text-xs text-muted-foreground capitalize">
             {status}
           </span>
           {auth_required && (

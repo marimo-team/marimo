@@ -60,12 +60,12 @@ export class EventBuffer<T> {
   private processEvents: () => void;
   private blockDuration: number;
 
-  constructor(processEvents: () => void, blockDuration = 200) {
+  public constructor(processEvents: () => void, blockDuration = 200) {
     this.processEvents = processEvents;
     this.blockDuration = blockDuration;
   }
 
-  add(event: T) {
+  public add(event: T) {
     this.buffer.push(event);
     this.flush();
   }
@@ -83,6 +83,7 @@ export class EventBuffer<T> {
       clearTimeout(this.timeout);
     }
     this.timeout = window.setTimeout(() => {
+      this.timeout = null;
       this.isBlocked = false;
       if (this.buffer.length > 0) {
         this.flush();
@@ -90,15 +91,31 @@ export class EventBuffer<T> {
     }, this.blockDuration);
   }
 
-  size() {
+  public size() {
     return this.buffer.length;
   }
 
-  clear() {
+  public clear() {
     this.buffer = [];
   }
 
-  getAndClear() {
+  /**
+   * Cancel the pending timer, flushing any events still held by the block
+   * window so the last user interaction is not lost.
+   */
+  public dispose() {
+    if (this.timeout !== null) {
+      clearTimeout(this.timeout);
+      this.timeout = null;
+    }
+    this.isBlocked = false;
+    if (this.buffer.length > 0) {
+      this.processEvents();
+    }
+    this.clear();
+  }
+
+  public getAndClear() {
     const events = this.buffer;
     this.buffer = [];
     return events;

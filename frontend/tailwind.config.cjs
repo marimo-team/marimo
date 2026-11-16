@@ -5,7 +5,11 @@ const { fontFamily } = require("tailwindcss/defaultTheme");
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: ["class"],
+  // Resolved-light namespaces override the host page's dark class.
+  darkMode: [
+    "variant",
+    "&:is(.dark *):not(:where(.marimo.light, .marimo.light *))",
+  ],
   content: ["./src/**/*.{ts,tsx,mdx}"],
   theme: {
     container: {
@@ -44,6 +48,10 @@ module.exports = {
         destructive: {
           DEFAULT:
             "color-mix(in srgb, var(--destructive), transparent calc((1 - <alpha-value>) * 100%))",
+          hover:
+            "color-mix(in srgb, var(--destructive-hover), transparent calc((1 - <alpha-value>) * 100%))",
+          border:
+            "color-mix(in srgb, var(--destructive-border), transparent calc((1 - <alpha-value>) * 100%))",
           foreground:
             "color-mix(in srgb, var(--destructive-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
@@ -52,6 +60,16 @@ module.exports = {
             "color-mix(in srgb, var(--error), transparent calc((1 - <alpha-value>) * 100%))",
           foreground:
             "color-mix(in srgb, var(--error-foreground), transparent calc((1 - <alpha-value>) * 100%))",
+        },
+        success: {
+          DEFAULT:
+            "color-mix(in srgb, var(--success), transparent calc((1 - <alpha-value>) * 100%))",
+          hover:
+            "color-mix(in srgb, var(--success-hover), transparent calc((1 - <alpha-value>) * 100%))",
+          border:
+            "color-mix(in srgb, var(--success-border), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--success-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         stale: "var(--stale)",
         muted: {
@@ -71,8 +89,14 @@ module.exports = {
             "color-mix(in srgb, var(--action), transparent calc((1 - <alpha-value>) * 100%))",
           hover:
             "color-mix(in srgb, var(--action-hover), transparent calc((1 - <alpha-value>) * 100%))",
+          border:
+            "color-mix(in srgb, var(--action-border), transparent calc((1 - <alpha-value>) * 100%))",
           foreground:
             "color-mix(in srgb, var(--action-foreground), transparent calc((1 - <alpha-value>) * 100%))",
+        },
+        "search-highlight": {
+          DEFAULT:
+            "color-mix(in srgb, var(--search-highlight), transparent calc((1 - <alpha-value>) * 100%))",
         },
         popover: {
           DEFAULT:
@@ -112,10 +136,6 @@ module.exports = {
           "99%": { opacity: 0 },
           "100%": { opacity: 1 },
         },
-        "ellipsis-dot": {
-          "0%, 100%": { opacity: "0.3" },
-          "50%": { opacity: "1" },
-        },
         slide: {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(400%)" },
@@ -124,16 +144,20 @@ module.exports = {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(400%)" },
         },
+        shimmer: {
+          "0%": { backgroundPosition: "100% 0" },
+          "100%": { backgroundPosition: "-100% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "delayed-show-200": "delayed-show 200ms ease-out",
         "delayed-show-400": "delayed-show 400ms ease-out",
-        "ellipsis-dot": "ellipsis-dot 400ms ease-in-out infinite",
         slide: "slide 1.5s ease-in-out infinite",
         "progress-indeterminate":
           "progress-indeterminate 1.5s ease-in-out infinite",
+        shimmer: "shimmer 2s linear infinite",
       },
       gridTemplateColumns: {
         "auto-fit": "repeat(auto-fit, minmax(0, 1fr))",

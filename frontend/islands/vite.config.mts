@@ -7,8 +7,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import topLevelAwait from "vite-plugin-top-level-await";
-import wasm from "vite-plugin-wasm";
+import { createViteLogger, reactCompilerConfig } from "../vite.shared.mts";
 import packageJson from "../package.json";
 
 const execFileAsync = promisify(execFile);
@@ -66,10 +65,6 @@ window.$RefreshSig$ = () => (type) => type;</script>
   };
 };
 
-const ReactCompilerConfig = {
-  target: "19",
-};
-
 function getMarimoVersion(): string {
   try {
     return execFileSync("uv", ["run", "marimo", "--version"]).toString().trim();
@@ -80,15 +75,13 @@ function getMarimoVersion(): string {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  customLogger: createViteLogger(),
   resolve: {
     tsconfigPaths: true,
-    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+    dedupe: ["react", "react-dom"],
     alias: [
-      // Islands run read-only and never render the slide code editor, so
-      // swap `SlideCellView` for a no-op stub. This keeps CodeMirror, the
-      // Codeium adapter, and `@bufbuild/protobuf` out of the islands bundle
-      // (the latter contains a `process.env.BUF_BIGINT_DISABLE` literal
-      // that `islands/validate.sh` otherwise flags).
+      // Read-only islands never render the slide code editor. Keep its
+      // CodeMirror dependencies out of the islands bundle.
       {
         find: "@/components/slides/slide-cell-view",
         replacement: path.resolve(
@@ -97,9 +90,6 @@ export default defineConfig({
         ),
       },
     ],
-  },
-  experimental: {
-    enableNativePlugin: true,
   },
   worker: {
     format: "es",
@@ -124,16 +114,9 @@ export default defineConfig({
   plugins: [
     htmlDevPlugin(),
     react({
-      babel: {
-        presets: ["@babel/preset-typescript"],
-        plugins: [
-          ["@babel/plugin-proposal-decorators", { legacy: true }],
-          ["babel-plugin-react-compiler", ReactCompilerConfig],
-        ],
-      },
+      // React Compiler backed by Oxc (oxc-transform-react)
+      compiler: reactCompilerConfig,
     }),
-    wasm(),
-    topLevelAwait(),
   ],
   build: {
     emptyOutDir: true,

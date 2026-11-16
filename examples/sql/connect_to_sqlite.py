@@ -1,12 +1,13 @@
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.11"
 # dependencies = [
 #     "duckdb==1.1.1",
 #     "marimo",
 #     "polars==1.18.0",
 #     "pyarrow==18.1.0",
 #     "requests==2.32.3",
-#     "sqlglot==26.7.0",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 # ]
 # ///
 

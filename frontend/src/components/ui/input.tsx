@@ -17,6 +17,10 @@ export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   endAdornment?: React.ReactNode;
 };
 
+const DEFAULT_SEARCH_ICON = (
+  <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+);
+
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, endAdornment, ...props }, ref) => {
     const icon = props.icon;
@@ -120,7 +124,7 @@ export const SearchInput = React.forwardRef<
     {
       className,
       rootClassName,
-      icon = <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />,
+      icon = DEFAULT_SEARCH_ICON,
       clearable = true,
       ...props
     },

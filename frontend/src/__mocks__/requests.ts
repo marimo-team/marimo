@@ -17,21 +17,15 @@ export const MockRequestClient = {
       sendModelValue: vi.fn().mockResolvedValue({}),
       sendRename: vi.fn().mockResolvedValue({}),
       sendRestart: vi.fn().mockResolvedValue({}),
-      sendDocumentTransaction: vi.fn().mockResolvedValue({}),
-      sendSave: vi.fn().mockResolvedValue({}),
+      saveLayout: vi.fn().mockResolvedValue({}),
       sendCopy: vi.fn().mockResolvedValue({}),
-      sendStdin: vi.fn().mockResolvedValue({}),
       sendFormat: vi.fn().mockResolvedValue({ codes: {} }),
-      sendInterrupt: vi.fn().mockResolvedValue({}),
       sendShutdown: vi.fn().mockResolvedValue({}),
-      sendRun: vi.fn().mockResolvedValue({}),
       sendRunScratchpad: vi.fn().mockResolvedValue({}),
       sendInstantiate: vi.fn().mockResolvedValue({}),
-      sendDeleteCell: vi.fn().mockResolvedValue({}),
       sendCodeCompletionRequest: vi.fn().mockResolvedValue({ items: [] }),
       saveUserConfig: vi.fn().mockResolvedValue({}),
       saveAppConfig: vi.fn().mockResolvedValue({}),
-      saveCellConfig: vi.fn().mockResolvedValue({}),
       sendFunctionRequest: vi.fn().mockResolvedValue({}),
       sendInstallMissingPackages: vi.fn().mockResolvedValue({}),
       readCode: vi.fn().mockResolvedValue({ contents: "" }),
@@ -48,6 +42,7 @@ export const MockRequestClient = {
       getEnvironmentInfo: vi
         .fn()
         .mockRejectedValue(new Error("Environment information unavailable")),
+      getFileRoots: vi.fn().mockResolvedValue({ roots: [] }),
       sendPdb: vi.fn().mockResolvedValue({}),
       sendSetBreakpoints: vi.fn().mockResolvedValue({}),
       sendListFiles: vi.fn().mockResolvedValue({ files: [] }),
@@ -100,6 +95,10 @@ export const MockRequestClient = {
           },
         ],
       }),
+      installExportRequirements: vi.fn().mockResolvedValue({
+        source: "server",
+        formats: [],
+      }),
       exportAsHTML: vi.fn().mockResolvedValue({
         contents: "",
         filename: "notebook.html",
@@ -131,8 +130,20 @@ export const MockRequestClient = {
       updateCellOutputs: vi.fn().mockResolvedValue({}),
       addPackage: vi.fn().mockResolvedValue({}),
       removePackage: vi.fn().mockResolvedValue({}),
-      getPackageList: vi.fn().mockResolvedValue({ packages: [] }),
-      getDependencyTree: vi.fn().mockResolvedValue({}),
+      getPackageList: vi.fn().mockResolvedValue({
+        packages: [],
+      }),
+      getSandbox: vi
+        .fn()
+        .mockResolvedValue({ backend: null, manifest: null, filename: null }),
+      updateManifest: vi
+        .fn()
+        .mockResolvedValue({ backend: null, manifest: null, filename: null }),
+      syncSandbox: vi.fn().mockResolvedValue({ success: true }),
+      getDependencyTree: vi.fn().mockResolvedValue({
+        tree: null,
+        context: { kind: "package-manager", name: "pip" },
+      }),
       listSecretKeys: vi.fn().mockResolvedValue({ keys: [] }),
       writeSecret: vi.fn().mockResolvedValue({}),
       invokeAiTool: vi.fn().mockResolvedValue({}),

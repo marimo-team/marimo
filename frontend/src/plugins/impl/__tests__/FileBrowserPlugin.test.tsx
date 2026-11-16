@@ -1,12 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
+import { CellNotInitializedError } from "@/utils/errors";
 import type { IPluginProps } from "../../types";
-import { FileBrowserPlugin } from "../FileBrowserPlugin";
+import { FileBrowser, FileBrowserPlugin } from "../FileBrowserPlugin";
 
 interface MockFile {
   id: string;
@@ -80,6 +88,98 @@ beforeAll(() => {
   store.set(initialModeAtom, "edit");
 });
 
+describe("FileBrowserPlugin session cache recovery", () => {
+  it("delays the initial loading overlay and hides it when listing completes", async () => {
+    vi.useFakeTimers();
+    try {
+      let resolveListing: (value: {
+        files: MockFile[];
+        total_count: number;
+        is_truncated: boolean;
+      }) => void = () => undefined;
+      const listDirectory = vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveListing = resolve;
+          }),
+      );
+      const { unmount } = renderBrowser({ list_directory: listDirectory });
+
+      await act(async () => {
+        vi.advanceTimersByTime(199);
+      });
+      expect(screen.queryByText("Listing files...")).not.toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.getByText("Listing files...")).toBeInTheDocument();
+
+      await act(async () => {
+        resolveListing({
+          files: FILES,
+          total_count: FILES.length,
+          is_truncated: false,
+        });
+      });
+      expect(screen.queryByText("Listing files...")).not.toBeInTheDocument();
+      expect(screen.getByText("docs")).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText("Listing files...")).not.toBeInTheDocument();
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries a failed cached listing when the plugin resets", async () => {
+    const host = document.createElement("marimo-file-browser");
+    const wrapper = document.createElement("marimo-ui-element");
+    wrapper.setAttribute("random-id", "cached-id");
+    wrapper.append(host);
+
+    const props = {
+      initialPath: "/home/user",
+      filetypes: [],
+      selectionMode: "directory",
+      multiple: false,
+      label: "Pick folder",
+      restrictNavigation: false,
+      value: [],
+      setValue: vi.fn(),
+      host,
+    };
+    const error = new CellNotInitializedError();
+    const cachedListDirectory = vi.fn().mockRejectedValue(error);
+    const { rerender } = render(
+      <FileBrowser {...props} list_directory={cachedListDirectory} />,
+    );
+    expect(await screen.findByText(error.message)).toBeInTheDocument();
+
+    // PluginSlot recreates the RPC functions on reset, even when the path
+    // and the host's attributes are unchanged.
+    const liveListDirectory = mockListDirectory(FILES);
+    rerender(<FileBrowser {...props} list_directory={liveListDirectory} />);
+
+    expect(await screen.findByText("docs")).toBeInTheDocument();
+    expect(screen.queryByText(error.message)).not.toBeInTheDocument();
+    expect(liveListDirectory.mock.calls).toEqual([[{ path: "/home/user" }]]);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select docs" }));
+    expect(props.setValue).toHaveBeenCalledWith([
+      { ...FILES[0], id: FILES[0].path },
+    ]);
+
+    fireEvent.keyDown(screen.getAllByRole("row")[0], { key: "End" });
+    rerender(
+      <FileBrowser {...props} list_directory={mockListDirectory([FILES[0]])} />,
+    );
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
+    expect(screen.getAllByRole("row")[0]).toHaveAttribute("tabindex", "0");
+  });
+});
+
 describe("FileBrowserPlugin keyboard accessibility", () => {
   it("renders a row per file plus the parent row", async () => {
     renderBrowser();
@@ -138,7 +238,7 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
     const docsRow = docs.closest('[role="row"]')!;
     fireEvent.keyDown(docsRow, { key: "ArrowDown" }); // move active off the parent
     fireEvent.click(docs); // navigate into "docs"
-    await screen.findByText("docs"); // listing reloads (mock returns same files)
+    await within(screen.getByRole("grid")).findByText("docs"); // listing reloads (mock returns same files)
     const rows = screen.getAllByRole("row");
     expect(rows[0]).toHaveAttribute("tabindex", "0");
     // the focused row must match the only tabbable row
@@ -312,3 +412,80 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
 function rowFor(name: string): HTMLElement {
   return screen.getByText(name).closest('[role="row"]') as HTMLElement;
 }
+
+describe("FileBrowserPlugin breadcrumbs", () => {
+  function breadcrumbs() {
+    return within(
+      screen.getByRole("navigation", { name: "Current directory" }),
+    );
+  }
+
+  it("renders a crumb per ancestor with the current directory last", async () => {
+    renderBrowser();
+    await screen.findByText("docs");
+    const items = breadcrumbs().getAllByRole("listitem");
+    expect(items.map((li) => li.textContent)).toEqual(["/", "home", "user"]);
+    expect(breadcrumbs().getByRole("button", { name: "user" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      breadcrumbs().getByRole("button", { name: "home" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("keeps focus on a crumb after navigating to it", async () => {
+    const { listDirectory } = renderBrowser();
+    await screen.findByText("docs");
+    const home = breadcrumbs().getByRole("button", { name: "home" });
+    home.focus();
+    fireEvent.click(home);
+    await waitFor(() =>
+      expect(listDirectory).toHaveBeenLastCalledWith({ path: "/home" }),
+    );
+    const current = breadcrumbs().getByRole("button", { name: "home" });
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current).toBe(home);
+    expect(current).toHaveFocus();
+  });
+
+  it("does not reload when the current crumb is clicked", async () => {
+    const { listDirectory } = renderBrowser();
+    await screen.findByText("docs");
+    fireEvent.click(breadcrumbs().getByRole("button", { name: "user" }));
+    expect(listDirectory).toHaveBeenCalledTimes(1);
+  });
+
+  it("navigates to an ancestor when a crumb is clicked", async () => {
+    const { listDirectory } = renderBrowser();
+    await screen.findByText("docs");
+    fireEvent.click(breadcrumbs().getByRole("button", { name: "home" }));
+    await waitFor(() =>
+      expect(listDirectory).toHaveBeenLastCalledWith({ path: "/home" }),
+    );
+    fireEvent.click(breadcrumbs().getByRole("button", { name: "/" }));
+    await waitFor(() =>
+      expect(listDirectory).toHaveBeenLastCalledWith({ path: "/" }),
+    );
+  });
+
+  it("hides ancestors outside the initial path when navigation is restricted", async () => {
+    render(
+      <FileBrowser
+        initialPath="/home/user"
+        filetypes={[]}
+        selectionMode="all"
+        multiple={true}
+        label={null}
+        restrictNavigation={true}
+        value={[]}
+        setValue={vi.fn()}
+        host={document.createElement("div")}
+        list_directory={mockListDirectory(FILES)}
+      />,
+    );
+    await screen.findByText("docs");
+    const items = breadcrumbs().getAllByRole("listitem");
+    expect(items.map((li) => li.textContent)).toEqual(["user"]);
+  });
+});

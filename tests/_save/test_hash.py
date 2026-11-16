@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import dataclasses
 import os
 import subprocess
 import sys
 import textwrap
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -18,6 +19,11 @@ from marimo._runtime.commands import ExecuteStaleCellsCommand
 from marimo._runtime.runtime import Kernel
 from marimo._save.hash import BlockHasher
 from tests.conftest import ExecReqProvider
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from marimo._runtime.dataflow import DirectedGraph
 
 
 class TestHash:
@@ -58,7 +64,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "RSccsMCC0dBqvdcnBN1mdxlvKUr4zzR_qupKBW_P_qE"
+            expected_hash = "Qjd-Of0rz70rXMuxdcVvFRvT96WFt-vVqJxDOQ5f5IU"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -528,16 +534,12 @@ class TestHash:
                 _ = sleep
                 return 42
 
-            return
-
         @app.cell
         def _(mo, time):
             @mo.cache
             def module():
                 _ = time.sleep
                 return 42
-
-            return
 
         @app.cell
         def _(direct, module):
@@ -796,7 +798,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "zLpFb6ANG99kP-4yWoH4zdV_FfrUodnEom1tILpF55c"
+            expected_hash = "_ci06ALDK_jmGaPqiuCb27B7XKVYx9_ptO_uc0KM16k"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -849,7 +851,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "IaLyzmZZ4nwXMveSQjMVAa682QAyd2O90iSeHJvlb44"
+            expected_hash = "cAXrntOIgirrLZhFtll7g0J8jZ8SbCi0eFUS8CX80xw"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -902,7 +904,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "6EJfKOu_iB6jpSTtCnUV1kjYy2u96m_w_3VzOUOn5Hg"
+            expected_hash = "FUTSSYa2_hOk6MeTTrrSJGtoPw0jNi_sl9_8mhl_e4s"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -962,7 +964,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "QIjIEzceYIH7WIvdIasBLceU3Ad40kYqTCSBnUmJZV4"
+            expected_hash = "xxzFiLDQpVGtV2GRcbXmsxSIkIWBaLZ3hHpEHxfJ1PA"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -1002,7 +1004,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "1eEgTTthH-FyKbziqYse1ITogQUMat0JW1meFZtMWCI"
+            expected_hash = "Dmsvz-jhSXWM6KJmNSuGSQw3g7exOctsfRyyyaOnzaA"
             return MockLoader, persistent_cache, expected_hash, DNA, copy
 
         @app.cell
@@ -1040,7 +1042,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "ycCqtVaQAODpfHyimtlbxj1TIQB3WtLnhDIGq59yiqw"
+            expected_hash = "4ERGkPoTZ4PHHjoLiQL8kKZMubtVOci2prJPtitADxo"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1104,7 +1106,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "C9MbH1ov4US2mrm_T_clm4VpI9WT97tg5BGEpOAbF1g"
+            expected_hash = "okFuWhbuYo5zTN4so_JJtRDgXjwcGJO_g9PwUrYsFq8"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1145,7 +1147,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "DtWHQ972QmRo2kBlzgoGQDi-bRnRknWZsSFk_rT4lRA"
+            expected_hash = "3P7C_VVSy-3SUBLObosBMb254TpdkngpMNrttAyayrU"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -1202,7 +1204,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "1HlOXWU-oQ5MNB5B9YRNLnHcn3I8sngJvLuHV_ICLGY"
+            expected_hash = "-xemFqty19uKABGO0MxKG9-2rnPWNNnZNf1UDoNAD_I"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -1222,6 +1224,32 @@ class TestDataHash:
                 f"expected_hash != {_cache._cache.hash}"
             )
             assert _A == 28
+            return (two,)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not DependencyManager.has("pyarrow"),
+        reason="optional dependencies not installed",
+    )
+    def test_pyarrow_string_table(app) -> None:
+        @app.cell
+        def load() -> tuple[Any]:
+            import pyarrow as pa
+
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            return MockLoader, persistent_cache, pa
+
+        @app.cell
+        def two(MockLoader, persistent_cache, pa) -> tuple[int]:
+            _a = pa.table({"A": [2, 8, 18], "B": ["a", "b", "c"]})
+
+            with persistent_cache(name="two", _loader=MockLoader()) as _cache:
+                _A = _a.column("A").to_pylist()
+
+            assert _cache._cache.cache_type == "ContextExecutionPath"
+            assert _A == [2, 8, 18]
             return (two,)
 
 
@@ -1626,6 +1654,7 @@ class TestSideEffects:
         assert hashes[0] != hashes[1]
 
     @staticmethod
+    @pytest.mark.usefixtures("cleanup_watchers")
     async def test_side_effect_file(
         k: Kernel, exec_req: ExecReqProvider, tmp_path
     ) -> None:
@@ -1691,11 +1720,36 @@ class TestSideEffects:
         assert non_primitive[1] == 1 == v
 
     @staticmethod
+    @pytest.mark.usefixtures("cleanup_watchers")
     async def test_side_effect_directory(
-        k: Kernel, exec_req: ExecReqProvider, tmp_path
+        k: Kernel,
+        exec_req: ExecReqProvider,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        control_requests = []
-        k.enqueue_control_request = lambda req: control_requests.append(req)  # type: ignore
+        from marimo._runtime.commands import CommandMessage
+        from marimo._runtime.watch import _directory
+
+        loop = asyncio.get_running_loop()
+        watcher_ready = asyncio.Event()
+        request_received = asyncio.Event()
+        control_requests: list[CommandMessage] = []
+        original_hashable_walk = _directory.hashable_walk
+
+        def hashable_walk(
+            path: Path,
+        ) -> set[tuple[Path, tuple[str], tuple[str]]]:
+            structure = original_hashable_walk(path)
+            # The watcher must capture its baseline before we change the directory.
+            loop.call_soon_threadsafe(watcher_ready.set)
+            return structure
+
+        def enqueue_control_request(request: CommandMessage) -> None:
+            control_requests.append(request)
+            loop.call_soon_threadsafe(request_received.set)
+
+        monkeypatch.setattr(_directory, "hashable_walk", hashable_walk)
+        k.enqueue_control_request = enqueue_control_request
         await k.run(
             [
                 exec_req.get(
@@ -1739,8 +1793,9 @@ class TestSideEffects:
                 """),
             ]
         )
+        await asyncio.wait_for(watcher_ready.wait(), timeout=5)
         (tmp_path / "test_dir" / "test.txt").write_text("test")
-        await asyncio.sleep(0.25)
+        await asyncio.wait_for(request_received.wait(), timeout=5)
         assert len(control_requests) == 1
         assert isinstance(control_requests[0], ExecuteStaleCellsCommand)
         assert k.graph.cells[r.cell_id].stale
@@ -1757,6 +1812,7 @@ class TestSideEffects:
         assert non_primitive[1] == 1 == v
 
     @staticmethod
+    @pytest.mark.usefixtures("cleanup_watchers")
     async def test_side_effect_file_ref(
         k: Kernel, exec_req: ExecReqProvider, tmp_path
     ) -> None:
@@ -2635,7 +2691,8 @@ class TestSetLiteralDeterminism:
         from marimo._save.hash import hash_module
 
         def fn(x: object) -> bool:
-            return x in {"A"}
+            # Keep the singleton set: this test inspects its frozenset constant.
+            return x in {"A"}  # noqa: FURB171
 
         code = fn.__code__
         singleton = next(c for c in code.co_consts if isinstance(c, frozenset))
@@ -2892,3 +2949,179 @@ def test_signed_stateful_bytes_unpicklable_raises() -> None:
     hasher = BlockHasher.__new__(BlockHasher)
     with pytest.raises(TypeError, match="neither"):
         hasher._signed_stateful_bytes(lambda: None, "ui")
+
+
+NOTEBOOK_WITH_SETUP = """import marimo
+
+app = marimo.App()
+
+with app.setup:
+    import marimo as mo
+
+
+@app.cell
+def _():
+    _private = 3
+    base = _private * 2
+    return
+
+
+@app.cell
+def _(base):
+    derived = base + len(mo.__name__)
+    return
+"""
+
+
+def _static_graph(notebook: Path) -> DirectedGraph:
+    """The graph a notebook compiles to, without running it."""
+    from marimo._ast.app import InternalApp
+    from marimo._ast.load import load_app
+
+    app = load_app(str(notebook))
+    assert app is not None
+    return InternalApp(app).graph
+
+
+def _path_hashes(graph: DirectedGraph) -> set[str]:
+    from marimo._save.hash import hash_cell_closure
+
+    return {hash_cell_closure(cell_id, graph).hex() for cell_id in graph.cells}
+
+
+def _path_hash_of(graph: DirectedGraph, name: str) -> str:
+    """The digest of the cell defining `name`."""
+    from marimo._save.hash import hash_cell_closure
+
+    (cell_id,) = [
+        cell_id for cell_id, cell in graph.cells.items() if name in cell.defs
+    ]
+    return hash_cell_closure(cell_id, graph).hex()
+
+
+def _write_notebook(path: Path, *cells: str) -> Path:
+    path.write_text(
+        "import marimo\n\napp = marimo.App()\n\n\n" + "\n\n".join(cells),
+        encoding="utf-8",
+    )
+    return path
+
+
+class TestPathHash:
+    """The static digest a manifest records cache entries under."""
+
+    @staticmethod
+    def test_stable_across_loads(tmp_path: Path) -> None:
+        notebook = tmp_path / "nb.py"
+        notebook.write_text(NOTEBOOK_WITH_SETUP, encoding="utf-8")
+        first = _path_hashes(_static_graph(notebook))
+        second = _path_hashes(_static_graph(notebook))
+        assert first == second
+        assert len(first) == 3
+
+    @staticmethod
+    async def test_kernel_and_static_graphs_agree(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path: Path
+    ) -> None:
+        """A running kernel and a compiled file must produce one digest. If
+        they differ, prune reads live code as dead. Private definitions are
+        mangled by cell id, which differs between the two."""
+        notebook = tmp_path / "nb.py"
+        notebook.write_text(NOTEBOOK_WITH_SETUP, encoding="utf-8")
+
+        await k.run(
+            [
+                exec_req.get("import marimo as mo"),
+                exec_req.get("_private = 3\nbase = _private * 2"),
+                exec_req.get("derived = base + len(mo.__name__)"),
+            ]
+        )
+        assert not k.stderr.messages
+        assert _path_hashes(k.graph) == _path_hashes(_static_graph(notebook))
+
+    @staticmethod
+    def test_only_an_ancestor_edit_moves_a_digest(tmp_path: Path) -> None:
+        """A stable digest is how prune tells that the code which produced
+        an entry is still there. Only the code the entry depends on moves
+        it. A digest that followed the rest of the notebook lets any edit
+        make entries produced by untouched code look dead."""
+
+        def digests(name: str, *cells: str) -> tuple[str, str]:
+            graph = _static_graph(_write_notebook(tmp_path / name, *cells))
+            return _path_hash_of(graph, "a"), _path_hash_of(graph, "c")
+
+        cells = [
+            "@app.cell\ndef _():\n    a = 1\n    return\n",
+            "@app.cell\ndef _():\n    b = 2\n    return\n",
+            "@app.cell\ndef _(a):\n    c = a + 1\n    return\n",
+        ]
+        base_a, base_c = digests("base.py", *cells)
+
+        unrelated = list(cells)
+        unrelated[1] = "@app.cell\ndef _():\n    b = 3\n    return\n"
+        assert digests("unrelated.py", *unrelated) == (base_a, base_c)
+
+        # `c` reads `a`, so it is downstream of it and no part of its closure.
+        downstream = list(cells)
+        downstream[2] = "@app.cell\ndef _(a):\n    c = a + 2\n    return\n"
+        assert digests("downstream.py", *downstream)[0] == base_a
+
+        ancestor = list(cells)
+        ancestor[0] = "@app.cell\ndef _():\n    a = 2\n    return\n"
+        edited_a, edited_c = digests("ancestor.py", *ancestor)
+        assert edited_a != base_a
+        assert edited_c != base_c
+
+    @staticmethod
+    def test_ancestor_order_does_not_matter(tmp_path: Path) -> None:
+        cells = [
+            "@app.cell\ndef _():\n    a = 1\n    return\n",
+            "@app.cell\ndef _():\n    b = 2\n    return\n",
+            "@app.cell\ndef _(a, b):\n    c = a + b\n    return\n",
+        ]
+        forward = _write_notebook(tmp_path / "forward.py", *cells)
+        swapped = _write_notebook(
+            tmp_path / "swapped.py", cells[1], cells[0], cells[2]
+        )
+        assert _path_hashes(_static_graph(forward)) == _path_hashes(
+            _static_graph(swapped)
+        )
+
+    @staticmethod
+    async def test_property_tracks_the_defining_cell(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from marimo._save.hash import hash_cell_closure
+
+        base = exec_req.get("value = 1")
+        await k.run([base, exec_req.get("doubled = value * 2")])
+        assert not k.stderr.messages
+
+        hasher = BlockHasher(
+            module=ast.parse("held = value + 1"),
+            graph=k.graph,
+            cell_id=base.cell_id,
+            scope={"value": 1},
+        )
+        assert (
+            hasher.path_hash == hash_cell_closure(base.cell_id, k.graph).hex()
+        )
+        # A third digest: the block's own hashes fold in values and side
+        # effects that no compile-time recomputation could reach.
+        assert hasher.path_hash not in (hasher.hash, hasher.exe_hash)
+
+    @staticmethod
+    async def test_memo_is_dropped_when_a_cell_changes(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        from marimo._runtime.context import get_context
+        from marimo._save.hash import cell_path_hash
+
+        cell = exec_req.get("value = 1")
+        await k.run([cell])
+        before = cell_path_hash(cell.cell_id, k.graph)
+        assert get_context().cache.node_memo
+
+        await k.run([exec_req.get_with_id(cell.cell_id, "value = 2")])
+        assert not k.stderr.messages
+        assert cell_path_hash(cell.cell_id, k.graph) != before

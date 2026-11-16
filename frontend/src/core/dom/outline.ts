@@ -4,6 +4,7 @@ import { sanitizeHtml } from "@/plugins/core/sanitize-html";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import type { Outline, OutlineItem } from "../cells/outline";
+import type { CellOutput } from "@/core/executions/output";
 import type { OutputMessage } from "../kernel/messages";
 
 // Tags that we don't want to include in the outline
@@ -101,7 +102,9 @@ export function mergeOutlines(outlines: (Outline | null)[]): Outline {
   };
 }
 
-export function parseOutline(output: OutputMessage | null): Outline | null {
+export function parseOutline(
+  output: OutputMessage | CellOutput | null,
+): Outline | null {
   if (output == null) {
     return null;
   }

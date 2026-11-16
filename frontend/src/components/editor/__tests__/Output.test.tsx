@@ -1,9 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createStore, Provider } from "jotai";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
+import { DocumentProvider } from "@/core/notebook/document";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OutputArea, OutputRenderer } from "../Output";
+
+const store = createStore();
+const { model } = mockDocumentModel(store, null);
 
 describe("OutputRenderer renderFallback prop", () => {
   it("should use renderFallback for unsupported mimetypes", () => {
@@ -70,31 +76,39 @@ describe("OutputRenderer renderFallback prop", () => {
 describe("OutputArea null/undefined handling", () => {
   it("should render null when output is null", () => {
     const { container } = render(
-      <TooltipProvider>
-        <OutputArea
-          output={null}
-          cellId={cellId("test")}
-          stale={false}
-          loading={false}
-          allowExpand={true}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <OutputArea
+              output={null}
+              cellId={cellId("test")}
+              stale={false}
+              loading={false}
+              allowExpand={true}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
     expect(container.innerHTML).toBe("");
   });
 
   it("should render null when output is undefined", () => {
     const { container } = render(
-      <TooltipProvider>
-        <OutputArea
-          // @ts-expect-error -- testing runtime safety for undefined output
-          output={undefined}
-          cellId={cellId("test")}
-          stale={false}
-          loading={false}
-          allowExpand={true}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <OutputArea
+              // @ts-expect-error -- testing runtime safety for undefined output
+              output={undefined}
+              cellId={cellId("test")}
+              stale={false}
+              loading={false}
+              allowExpand={true}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
     expect(container.innerHTML).toBe("");
   });
@@ -156,5 +170,92 @@ describe("OutputRenderer image and SVG rendering", () => {
     const imgElement = container.querySelector("img");
     expect(imgElement).not.toBeNull();
     expect(imgElement).toHaveAttribute("src", base64PngDataUrl);
+  });
+});
+
+describe("OutputArea fullscreen exit control", () => {
+  let fullscreenElement: Element | null = null;
+  const exitFullscreen = vi.fn(() => Promise.resolve());
+
+  beforeEach(() => {
+    fullscreenElement = null;
+    exitFullscreen.mockClear();
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => fullscreenElement,
+    });
+    Object.defineProperty(document, "exitFullscreen", {
+      configurable: true,
+      value: exitFullscreen,
+    });
+  });
+
+  // Drop the stubs so that the real document properties come back.
+  afterEach(() => {
+    Reflect.deleteProperty(document, "fullscreenElement");
+    Reflect.deleteProperty(document, "exitFullscreen");
+  });
+
+  const renderOutput = () =>
+    render(
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <OutputArea
+              output={{
+                channel: "output",
+                data: "Hello World",
+                mimetype: "text/plain",
+              }}
+              cellId={cellId("test")}
+              stale={false}
+              loading={false}
+              allowExpand={true}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
+    );
+
+  const enterFullscreen = (container: HTMLElement) => {
+    fullscreenElement = container.querySelector('[data-cell-role="output"]');
+    act(() => {
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+  };
+
+  it("hides the exit button outside fullscreen", () => {
+    renderOutput();
+    expect(
+      screen.queryByTestId("exit-fullscreen-output-button"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the exit button when the output is the fullscreen element", () => {
+    const { container } = renderOutput();
+    enterFullscreen(container);
+    expect(
+      screen.getByTestId("exit-fullscreen-output-button"),
+    ).toBeInTheDocument();
+  });
+
+  it("exits fullscreen on click", () => {
+    const { container } = renderOutput();
+    enterFullscreen(container);
+    fireEvent.click(screen.getByTestId("exit-fullscreen-output-button"));
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("exits fullscreen on Escape", () => {
+    const { container } = renderOutput();
+    enterFullscreen(container);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Escape outside fullscreen", () => {
+    renderOutput();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(exitFullscreen).not.toHaveBeenCalled();
   });
 });

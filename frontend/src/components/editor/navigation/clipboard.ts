@@ -3,8 +3,11 @@
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { toast } from "@/components/ui/use-toast";
-import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { getNotebook } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
+import { columnOf, layoutAtom } from "@/core/cells/layout";
+import { store } from "@/core/state/jotai";
 import {
   usePendingCutActions,
   usePendingCutState,
@@ -35,6 +38,7 @@ const ClipboardCellDataSchema = z.object({
           column: z.union([z.number(), z.null()]).optional(),
           disabled: z.boolean().optional(),
           hide_code: z.boolean().optional(),
+          expand_output: z.boolean().optional(),
         })
         .optional(),
     }),
@@ -72,6 +76,7 @@ async function writeCellsToClipboard(
 
 export function useCellClipboard() {
   const actions = useCellActions();
+  const { createCell } = actions;
   const pendingCutActions = usePendingCutActions();
   const pendingCutState = usePendingCutState();
 
@@ -137,10 +142,10 @@ export function useCellClipboard() {
     // Check if we have pending cut cells (internal move)
     if (pendingCutState.cellIds.size > 0) {
       const pendingCellIds = [...pendingCutState.cellIds];
-      const notebook = getNotebook();
+      const layout = store.get(layoutAtom);
       const previousPlacements = pendingCellIds.map((id) => {
-        const column = notebook.cellIds.findWithId(id);
-        return { columnId: column.id, index: column.indexOfOrThrow(id) };
+        const column = columnOf(layout, id);
+        return { columnId: column.id, index: column.ids.indexOf(id) };
       });
 
       actions.moveCellsRelativeTo({
@@ -177,14 +182,15 @@ export function useCellClipboard() {
             const currentCellId = cellId;
             const reversedCells = clipboardData.cells.toReversed();
             for (const cell of reversedCells) {
-              actions.createNewCell({
-                cellId: currentCellId,
-                before,
+              // The pasted cell joins the column it is pasted into.
+              const { column: _column, ...config } = cell.config ?? {};
+              createCell({
+                ...(before
+                  ? { before: currentCellId }
+                  : { after: currentCellId }),
                 code: cell.code,
                 name: cell.name,
-                config: cell.config,
-                hideCode: cell.config?.hide_code,
-                autoFocus: true,
+                config,
               });
             }
 
@@ -198,11 +204,9 @@ export function useCellClipboard() {
       // Fallback to plain text
       const text = await navigator.clipboard.readText();
       if (text.trim()) {
-        actions.createNewCell({
-          cellId,
-          before,
+        createCell({
+          ...(before ? { before: cellId } : { after: cellId }),
           code: text,
-          autoFocus: true,
         });
       } else {
         toastNothingToPaste();
@@ -256,7 +260,7 @@ const toastPasteFailed = () => {
 class ClipboardItemBuilder {
   private items: Record<string, string | Blob> = {};
 
-  add(mimeType: string, value: string | object) {
+  public add(mimeType: string, value: string | object) {
     // Skip if the browser doesn't support the mime type
     if (!ClipboardItem.supports(mimeType)) {
       Logger.warn(`ClipboardItem does not support ${mimeType}`);
@@ -274,7 +278,7 @@ class ClipboardItemBuilder {
     return this;
   }
 
-  build() {
+  public build() {
     return new ClipboardItem(this.items);
   }
 }

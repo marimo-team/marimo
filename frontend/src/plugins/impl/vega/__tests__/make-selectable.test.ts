@@ -2,11 +2,23 @@
 
 // @ts-expect-error - vega-parser is not typed
 import { parse } from "vega-parser";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { invariant } from "@/utils/invariant";
 import { makeSelectable } from "../make-selectable";
-import { getSelectionParamNames } from "../params";
+import { getPanZoomModifier, getSelectionParamNames } from "../params";
 import type { VegaLiteSpec } from "../types";
+
+// Pin the platform so the pan/zoom modifier (and therefore the snapshots
+// below) is deterministic regardless of the host running the tests. We use a
+// non-Mac platform, which resolves the modifier to `ctrlKey` — this matches
+// the Linux/Windows environment from issue #3812.
+beforeAll(() => {
+  vi.spyOn(window.navigator, "platform", "get").mockReturnValue("Linux x86_64");
+});
+
+afterAll(() => {
+  vi.restoreAllMocks();
+});
 
 describe("makeSelectable", () => {
   it("should return correctly if mark is not string", () => {
@@ -974,22 +986,15 @@ describe("makeSelectable", () => {
     expect(paramNames).toContain("legend_selection_Origin");
 
     // Nested specs should NOT have params (they should be hoisted)
-    if ("hconcat" in newSpec) {
-      for (const subSpec of newSpec.hconcat) {
-        if ("vconcat" in subSpec) {
-          invariant("vconcat" in subSpec, "subSpec should have vconcat");
-          for (const innerSpec of subSpec.vconcat) {
-            expect("params" in innerSpec).toBe(false);
-            // But should have opacity encoding
-            if ("mark" in innerSpec) {
-              expect(innerSpec.encoding?.opacity).toBeDefined();
-            }
-          }
-        } else if ("mark" in subSpec) {
-          expect(subSpec.params).toBeUndefined();
-          // But should have opacity encoding
-          expect(subSpec.encoding?.opacity).toBeDefined();
-        }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    for (const subSpec of newSpec.hconcat) {
+      const innerSpecs = "vconcat" in subSpec ? subSpec.vconcat : [subSpec];
+      for (const innerSpec of innerSpecs) {
+        expect(
+          "params" in innerSpec ? innerSpec.params : undefined,
+        ).toBeUndefined();
+        invariant("mark" in innerSpec, "expected a marked nested spec");
+        expect(innerSpec.encoding?.opacity).toBeDefined();
       }
     }
     expect(newSpec).toMatchSnapshot();
@@ -1033,10 +1038,9 @@ describe("makeSelectable", () => {
     expect(topLevelParamNames).toContain("select_interval");
 
     // Nested specs should not have params
-    if ("hconcat" in newSpec) {
-      for (const subSpec of newSpec.hconcat) {
-        expect("params" in subSpec).toBe(false);
-      }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    for (const subSpec of newSpec.hconcat) {
+      expect("params" in subSpec).toBe(false);
     }
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
@@ -1073,12 +1077,11 @@ describe("makeSelectable", () => {
 
     // But chart selection params should NOT be hoisted (different types)
     // Bar gets point+interval with x encoding, area gets point with color encoding
-    if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
-        "params" in subSpec ? subSpec.params : [],
-      );
-      expect(subspecParams.length).toBeGreaterThan(0);
-    }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+      "params" in subSpec ? subSpec.params : [],
+    );
+    expect(subspecParams.length).toBeGreaterThan(0);
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
   });
@@ -1108,13 +1111,12 @@ describe("makeSelectable", () => {
 
     // Chart selection params should NOT be hoisted (different encodings)
     // Point chart uses x,y encodings, arc chart uses color encoding
-    if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
-        "params" in subSpec ? subSpec.params : [],
-      );
-      // Both subspecs should have their own params
-      expect(subspecParams.length).toBeGreaterThan(0);
-    }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+      "params" in subSpec ? subSpec.params : [],
+    );
+    // Both subspecs should have their own params
+    expect(subspecParams.length).toBeGreaterThan(0);
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
   });
@@ -1149,13 +1151,12 @@ describe("makeSelectable", () => {
 
     // But chart-specific params may or may not be hoisted depending on if they match
     // The point chart has x,y encodings, bar has x encoding - these differ
-    if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
-        "params" in subSpec ? subSpec.params : [],
-      );
-      // Each subspec should have its own chart selection params
-      expect(subspecParams.length).toBeGreaterThan(0);
-    }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+      "params" in subSpec ? subSpec.params : [],
+    );
+    // Each subspec should have its own chart selection params
+    expect(subspecParams.length).toBeGreaterThan(0);
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
   });
@@ -1266,5 +1267,74 @@ describe("makeSelectable", () => {
     // The spec should be returned unchanged
     expect(newSpec).toEqual(spec);
     expect(getSelectionParamNames(newSpec)).toEqual(["my_selection"]);
+  });
+});
+
+describe("pan/zoom modifier key (issue #3812)", () => {
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
+
+  function mockPlatform(platform: string) {
+    // jsdom's navigator has no `userAgentData`, so the detection helper falls
+    // back to `navigator.platform`, which is what we override here.
+    vi.spyOn(window.navigator, "platform", "get").mockReturnValue(platform);
+  }
+
+  it("uses metaKey (Command) on macOS", () => {
+    mockPlatform("MacIntel");
+    expect(getPanZoomModifier()).toBe("metaKey");
+
+    const spec = { mark: "point" } as VegaLiteSpec;
+    const newSpec = makeSelectable(spec, {});
+    const panZoom = newSpec.params?.find((p) => p.name === "pan_zoom");
+    invariant(panZoom && "select" in panZoom, "expected pan_zoom param");
+    const select = panZoom.select as { on: string; zoom: string };
+    expect(select.on).toContain("event.metaKey");
+    expect(select.on).not.toContain("event.ctrlKey");
+    expect(select.zoom).toBe("wheel![event.metaKey]");
+  });
+
+  it.each(["Linux x86_64", "Win32"])(
+    "uses ctrlKey on non-macOS platform %s",
+    (platform) => {
+      mockPlatform(platform);
+      expect(getPanZoomModifier()).toBe("ctrlKey");
+
+      const spec = { mark: "point" } as VegaLiteSpec;
+      const newSpec = makeSelectable(spec, {});
+      const panZoom = newSpec.params?.find((p) => p.name === "pan_zoom");
+      invariant(panZoom && "select" in panZoom, "expected pan_zoom param");
+      const select = panZoom.select as { on: string; zoom: string };
+      // Must not use metaKey, which maps to the Super/Windows key here and is
+      // captured by the OS/desktop environment before the chart sees it.
+      expect(select.on).toContain("event.ctrlKey");
+      expect(select.on).not.toContain("event.metaKey");
+      expect(select.zoom).toBe("wheel![event.ctrlKey]");
+    },
+  );
+
+  it("keeps point/interval selection gated on the same modifier as pan/zoom", () => {
+    mockPlatform("Linux x86_64");
+    const spec = { mark: "bar" } as VegaLiteSpec;
+    const newSpec = makeSelectable(spec, {});
+    const mod = getPanZoomModifier();
+
+    const eventSelections = (newSpec.params ?? [])
+      .flatMap((param) =>
+        "select" in param && typeof param.select === "object"
+          ? [param.select as { on?: string; translate?: string }]
+          : [],
+      )
+      .filter(
+        (select): select is { on: string; translate?: string } =>
+          typeof select.on === "string" && select.on.includes("event."),
+      );
+    expect(eventSelections).not.toHaveLength(0);
+    for (const select of eventSelections) {
+      // The selection gating and pan/zoom must agree on the modifier, otherwise
+      // one gesture triggers both.
+      expect(select.on).toContain(`event.${mod}`);
+    }
   });
 });

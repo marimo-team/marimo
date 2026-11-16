@@ -1,11 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { type JSX, useEffect, useId, useMemo, useState } from "react";
+import { type JSX, useId, useMemo } from "react";
 import { useLocale } from "react-aria";
 import { z } from "zod";
 import { NumberField } from "@/components/ui/number-field";
+import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
 import { clamp } from "@/utils/math";
 import {
+  countFractionDigits,
+  fractionDigitsForSlider,
   maxFractionDigitsForSteps,
   prettyScientificNumber,
   roundToFractionDigits,
@@ -31,9 +34,9 @@ interface Data {
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-slider";
+  public tagName = "marimo-slider";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.number(),
     label: z.string().nullable(),
     start: z.number(),
@@ -48,7 +51,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     // Create the valueMap function
     const valueMap = (sliderValue: number): number => {
       const { steps } = props.data;
@@ -152,16 +155,29 @@ const SliderComponent = ({
   disabled,
 }: SliderProps): JSX.Element => {
   const id = useId();
+  const labelId = useId();
   const { locale } = useLocale();
+  const isFullWidthHorizontal = fullWidth && orientation === "horizontal";
 
   // Hold internal value
-  const [internalValue, setInternalValue] = useState(value);
-  // Update internal value on prop change
-  useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
+  const [internalValue, setInternalValue] = useInternalStateWithSync(
+    value,
+    Object.is,
+  );
 
   const stepsConfig = useMemo(() => computeStepsConfig(steps), [steps]);
+  const stepDigits = countFractionDigits(step ?? 0);
+  // Keep exact decimals; repeating fractions need only enough digits to distinguish steps.
+  const isDecimalStep =
+    step != null && roundToFractionDigits(step, stepDigits) === step;
+  const fractionDigits =
+    step != null && Number.isFinite(step) && step > 0 && !steps?.length
+      ? Math.max(
+          countFractionDigits(start),
+          isDecimalStep ? stepDigits : 2,
+          Math.ceil(-Math.log10(step)),
+        )
+      : fractionDigitsForSlider(step, steps, start, [valueMap(internalValue)]);
 
   const handleInputChange = (nextValue: number | null | undefined): void => {
     if (stepsConfig) {
@@ -222,7 +238,8 @@ const SliderComponent = ({
   const sliderElement = (
     <Labeled
       label={label}
-      id={id}
+      controlId={id}
+      labelId={labelId}
       align={orientation === "horizontal" ? "left" : "top"}
       fullWidth={fullWidth}
       className={cn(fullWidth && "my-1 w-full")}
@@ -230,12 +247,18 @@ const SliderComponent = ({
       <div
         className={cn(
           "flex items-center gap-2",
+          isFullWidthHorizontal && "grid w-full grid-cols-1 gap-y-1",
+          isFullWidthHorizontal &&
+            includeInput &&
+            "grid-cols-[minmax(0,1fr)_auto]",
           orientation === "vertical" &&
             "items-end inline-flex justify-center self-center mx-2",
         )}
       >
         <Slider
           id={id}
+          aria-labelledby={label ? labelId : undefined}
+          aria-label={label ? undefined : "Slider"}
           className={cn(
             "relative flex items-center select-none",
             !fullWidth && "data-[orientation=horizontal]:w-36 ",
@@ -260,18 +283,31 @@ const SliderComponent = ({
             }
           }}
           valueMap={valueMap} // Pass valueMap to Slider
+          maximumFractionDigits={fractionDigits}
           disabled={disabled}
         />
         {showValue && (
-          <div className="text-xs text-muted-foreground min-w-[16px]">
-            {prettyScientificNumber(valueMap(internalValue), { locale })}
+          <div
+            className={cn(
+              "text-xs text-muted-foreground min-w-[16px]",
+              isFullWidthHorizontal &&
+                "col-span-full row-start-2 min-w-0 max-w-full justify-self-end break-all",
+            )}
+          >
+            {prettyScientificNumber(valueMap(internalValue), {
+              locale,
+              maximumFractionDigits: fractionDigits,
+            })}
           </div>
         )}
         {includeInput && (
           <NumberField
             {...inputProps}
             onChange={handleInputChange}
-            className="w-24"
+            className={cn(
+              "w-24",
+              isFullWidthHorizontal && "col-start-2 row-start-1",
+            )}
             aria-label={`${label || "Slider"} value input`}
             isDisabled={disabled}
           />

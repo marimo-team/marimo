@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -31,7 +31,6 @@ def _(cars_df, mo):
         CREATE OR REPLACE TABLE cars AS SELECT * FROM cars_df;
         """
     )
-    return
 
 
 @app.cell
@@ -56,11 +55,10 @@ def _(mo, origin, top_n):
     mo.md(
         f"""##Top {top_n.value} Cars {f"in {origin.value}" if origin.value != None else ""}"""
     )
-    return
 
 
 @app.cell
-def _(mo, origin_filter, top_n, year_range):
+def _(mo, origin_filter: str, top_n, year_range):
     _df = mo.sql(
         f"""
         SELECT Name, Year, Origin, Horsepower, Miles_per_Gallon,
@@ -72,7 +70,6 @@ def _(mo, origin_filter, top_n, year_range):
         LIMIT {top_n.value}
         """
     )
-    return
 
 
 @app.cell
@@ -80,7 +77,6 @@ def _(mo):
     mo.md("""
     ### Breakdown by Origin
     """)
-    return
 
 
 @app.cell
@@ -106,7 +102,6 @@ def _(cars, mo, year_range):
         ORDER BY Avg_Horsepower DESC
         """
     )
-    return
 
 
 @app.cell
@@ -142,7 +137,6 @@ def _(alt, duckdb, mo, year_range):
         )
     )
     mo.ui.altair_chart(_chart, chart_selection=None)
-    return
 
 
 @app.cell(hide_code=True)
@@ -203,7 +197,6 @@ def _(aggs, aggs_selected, mo):
             for column in aggs.columns
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)

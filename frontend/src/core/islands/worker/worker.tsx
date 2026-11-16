@@ -1,21 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { unstable_NotebookCall } from "@marimo-team/client";
 import type { PyodideInterface } from "pyodide";
-import type { PyProxy } from "pyodide/ffi";
 import {
   createRPC,
   createRPCRequestHandler,
   createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { NotificationPayload } from "@/core/kernel/messages";
 import type { ParentSchema } from "@/core/wasm/rpc";
 import { shouldLoadDuckDBPackages } from "@/core/wasm/utils";
 import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
 import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
-import { MessageBuffer } from "@/core/wasm/worker/message-buffer";
 import type { RawBridge, SerializedBridge } from "@/core/wasm/worker/types";
-import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { prettyError } from "../../../utils/errors";
 import { invariant } from "../../../utils/invariant";
@@ -45,14 +42,11 @@ async function loadPyodideAndPackages() {
 }
 
 const pyodideReadyPromise = loadPyodideAndPackages();
-export interface IslandsKernelMessage {
-  message: JsonString<NotificationPayload>;
+/** An event of one session's notebook stream. */
+export interface IslandsNotebookEvent {
+  event: string;
   sessionGeneration: number;
 }
-
-const messageBuffer = new MessageBuffer<IslandsKernelMessage>((payload) => {
-  rpc.send.kernelMessage(payload);
-});
 interface SessionRequest {
   code: string;
   appId: string;
@@ -79,21 +73,29 @@ async function startSession(
       code: opts.code,
       filename: `app-${opts.appId}.py`,
     });
-    const nextBridge = await self.controller.startSession({
-      ...notebook,
-      onMessage: (message) => {
-        messageBuffer.push({
-          message,
-          sessionGeneration: opts.sessionGeneration,
-        });
-      },
+    const session = await self.controller.prepareSession(notebook);
+    // Follow before the session instantiates. Each subscription begins with
+    // its own kernel-ready and the session's retained notifications.
+    try {
+      const host = session.bridge.notebook;
+      try {
+        // Host runs name cells, so the worker loads their imports itself.
+        host.set_package_loader(loadPackagesForCode);
+      } finally {
+        host.destroy();
+      }
+      await follow(session.bridge, opts.sessionGeneration);
+    } catch (error) {
+      await session.stop();
+      throw error;
+    }
+    void session.start().catch((error: unknown) => {
+      rpc.send.initializedError({ error: prettyError(error) });
     });
-    if (activeSession) {
-      (nextBridge as unknown as PyProxy).destroy();
-    } else {
+    if (!activeSession) {
       activeSession = {
         appId: opts.appId,
-        bridge: nextBridge,
+        bridge: session.bridge,
         sessionGeneration: opts.sessionGeneration,
       };
     }
@@ -106,11 +108,45 @@ async function startSession(
   }
 }
 
+async function loadPackagesForCode(code: string): Promise<void> {
+  if (shouldLoadDuckDBPackages(code)) {
+    // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
+    code = `import pandas\n${code}`;
+    code = `import duckdb\n${code}`;
+    code = `import sqlglot\n${code}`;
+
+    // Polars + SQL requires pyarrow, and installing
+    // after notebook load does not work. As a heuristic,
+    // if it appears that the notebook uses polars, add pyarrow.
+    if (code.includes("polars")) {
+      code = `import pyarrow\n${code}`;
+    }
+  }
+
+  await self.pyodide.loadPackagesFromImports(code, {
+    messageCallback: Logger.log,
+    errorCallback: Logger.error,
+  });
+}
+
 async function stopActiveSession(): Promise<void> {
-  const session = activeSession;
+  // Stopping closes every session and its notebook subscriptions.
   await self.controller.stopSession();
   activeSession = undefined;
-  (session?.bridge as unknown as PyProxy | undefined)?.destroy();
+}
+
+async function follow(
+  bridge: SerializedBridge,
+  sessionGeneration: number,
+): Promise<void> {
+  const notebook = bridge.notebook;
+  try {
+    await notebook.subscribe(`island-${sessionGeneration}`, null, (event) => {
+      rpc.send.notebookEvent({ event, sessionGeneration });
+    });
+  } finally {
+    notebook.destroy();
+  }
 }
 
 function enqueueSession<T>(operation: () => Promise<T>): Promise<T> {
@@ -159,27 +195,24 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
     await enqueueSession(async () => {
       requireActiveBridge(opts);
+      await loadPackagesForCode(opts.code);
+    });
+  },
 
-      let { code } = opts;
-
-      if (shouldLoadDuckDBPackages(code)) {
-        // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-        code = `import pandas\n${code}`;
-        code = `import duckdb\n${code}`;
-        code = `import sqlglot\n${code}`;
-
-        // Polars + SQL requires pyarrow, and installing
-        // after notebook load does not work. As a heuristic,
-        // if it appears that the notebook uses polars, add pyarrow.
-        if (code.includes("polars")) {
-          code = `import pyarrow\n${code}`;
-        }
+  /** Deliver a notebook operation to the active session's host. */
+  notebookCall: async (opts: {
+    appId: string;
+    sessionGeneration: number;
+    call: unstable_NotebookCall;
+  }): Promise<unknown> => {
+    await pyodideReadyPromise;
+    return enqueueSession(async () => {
+      const { notebook } = requireActiveBridge(opts);
+      try {
+        return JSON.parse(await notebook.call(JSON.stringify(opts.call)));
+      } finally {
+        notebook.destroy();
       }
-
-      await self.pyodide.loadPackagesFromImports(code, {
-        messageCallback: Logger.log,
-        errorCallback: Logger.error,
-      });
     });
   },
 
@@ -243,8 +276,8 @@ export type WorkerSchema = RPCSchema<
     messages: {
       // Emitted when the worker is ready
       ready: {};
-      // Emitted when the kernel sends a message
-      kernelMessage: IslandsKernelMessage;
+      // Emitted for each event of a session's notebook stream
+      notebookEvent: IslandsNotebookEvent;
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide fails to initialize
@@ -262,13 +295,6 @@ const rpc = createRPC<WorkerSchema, ParentSchema>({
 });
 
 rpc.send("ready", {});
-
-/// Listeners
-// When the consumer is ready, start the message buffer
-rpc.addMessageListener("consumerReady", async () => {
-  await pyodideReadyPromise; // Make sure loading is done
-  messageBuffer.start();
-});
 
 function getMarimoVersion() {
   return self.name; // We store the version in the worker name

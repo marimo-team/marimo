@@ -6,7 +6,7 @@ from typing import cast
 import pytest
 
 from marimo._ast.visitor import Language
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 from marimo._server.ai.prompts import (
     FIM_SUFFIX_TAG,
     _common_chat_sections,
@@ -25,7 +25,6 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
-from marimo._types.ids import SessionId
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -220,46 +219,33 @@ def test_edit_inline_prompts():
     assert FIM_SUFFIX_TAG in result
 
 
+def test_legacy_manual_uses_read_only_prompt():
+    kwargs = {
+        "custom_rules": None,
+    }
+    assert get_chat_system_prompt(
+        mode="manual", **kwargs
+    ) == get_chat_system_prompt(mode="ask", **kwargs)
+
+
 def test_chat_system_prompts():
     result: str = ""
     result += _header("no custom rules")
     result += get_chat_system_prompt(
         custom_rules=None,
-        include_other_code="",
-        mode="manual",
-        session_id=SessionId("s_test"),  # stable fake session id for snapshot
+        mode="ask",
     )
 
     result += _header("with custom rules")
     result += get_chat_system_prompt(
         custom_rules="Always be polite.",
-        include_other_code="",
-        mode="manual",
-        session_id=SessionId("s_test"),
+        mode="ask",
     )
 
-    result += _header("with other code")
+    result += _header("with suggested edits")
     result += get_chat_system_prompt(
         custom_rules=None,
-        include_other_code="import pandas as pd\nimport numpy as np\n",
-        mode="manual",
-        session_id=SessionId("s_test"),
-    )
-
-    result += _header("with agent mode")
-    result += get_chat_system_prompt(
-        custom_rules=None,
-        include_other_code="",
         mode="agent",
-        session_id=SessionId("s_test"),
-    )
-
-    result += _header("kitchen sink")
-    result += get_chat_system_prompt(
-        custom_rules="Always be polite.",
-        include_other_code="import pandas as pd\nimport numpy as np\n",
-        mode="manual",
-        session_id=SessionId("s_test"),
     )
 
     snapshot("chat_system_prompts.txt", result)
@@ -289,9 +275,7 @@ def test_markdown_rules_include_latex():
     # Test chat prompt
     chat_prompt = get_chat_system_prompt(
         custom_rules=None,
-        include_other_code="",
-        mode="manual",
-        session_id=SessionId("test"),
+        mode="ask",
     )
     assert "double dollar signs ($$)" in chat_prompt
     assert "$$E=mc^2$$" in chat_prompt
@@ -390,31 +374,22 @@ def test_mode_intro_messages_share_base(mode: CopilotMode):
 
 
 def test_common_chat_sections_empty():
-    assert (
-        _common_chat_sections(custom_rules=None, include_other_code="") == ""
-    )
+    assert _common_chat_sections(custom_rules=None) == ""
     # Whitespace-only custom rules are treated as empty.
-    assert (
-        _common_chat_sections(custom_rules="   ", include_other_code="") == ""
-    )
+    assert _common_chat_sections(custom_rules="   ") == ""
 
 
 def test_common_chat_sections_full():
     result = _common_chat_sections(
         custom_rules="Be concise.",
-        include_other_code="import polars as pl",
     )
     assert "## Additional rules:\nBe concise." in result
-    assert "<code_from_other_cells>" in result
-    assert "import polars as pl" in result
 
 
 def test_chat_system_prompt_code_mode():
     prompt = get_chat_system_prompt(
         custom_rules=None,
-        include_other_code="",
         mode="code_mode",
-        session_id=SessionId("s_test"),
     )
     # Code mode uses its own intro and embeds the marimo-pair skill.
     assert _get_mode_intro_message("code_mode") in prompt
@@ -423,14 +398,15 @@ def test_chat_system_prompt_code_mode():
     assert "load_capability" in prompt
     assert "`gotchas`" in prompt
     assert "references/gotchas.md" not in prompt
+    assert "## Required First Kernel Command" in prompt
+    assert "Run only the inspection command above" in prompt
+    assert "before the inspection succeeds" in prompt
 
 
 def test_chat_system_prompt_code_mode_includes_extras():
     prompt = get_chat_system_prompt(
         custom_rules="Always be polite.",
-        include_other_code="import pandas as pd\n",
         mode="code_mode",
-        session_id=SessionId("s_test"),
     )
     assert "## Additional rules:\nAlways be polite." in prompt
     # Code mode inspects code via tools, so other-cell code is not inlined.
@@ -438,15 +414,14 @@ def test_chat_system_prompt_code_mode_includes_extras():
     assert "import pandas as pd" not in prompt
 
 
-def test_chat_system_prompt_non_code_mode_includes_session_info():
+def test_chat_system_prompt_non_code_mode_uses_message_context():
     for mode in ("manual", "ask", "agent"):
         prompt = get_chat_system_prompt(
             custom_rules=None,
-            include_other_code="",
             mode=cast(CopilotMode, mode),
-            session_id=SessionId("s_abc"),
         )
-        assert "Current notebook session ID: s_abc" in prompt
+        assert "Use the latest sessionId" in prompt
+        assert "Current notebook session ID:" not in prompt
         assert "Your goal is to do one of the following two things" in prompt
         # The marimo-pair skill is only embedded in code mode.
         assert "how to work with marimo notebooks" not in prompt
@@ -455,17 +430,13 @@ def test_chat_system_prompt_non_code_mode_includes_session_info():
 def test_chat_system_prompt_agent_mode_inserts_cell_rules():
     agent_prompt = get_chat_system_prompt(
         custom_rules=None,
-        include_other_code="",
         mode="agent",
-        session_id=SessionId("s_test"),
     )
-    manual_prompt = get_chat_system_prompt(
+    read_only_prompt = get_chat_system_prompt(
         custom_rules=None,
-        include_other_code="",
-        mode="manual",
-        session_id=SessionId("s_test"),
+        mode="ask",
     )
-    # Agent mode adds guidance for inserting cells; manual mode does not.
+    # Agent mode adds guidance for inserting cells; read-only access does not.
     assert "## Rules for inserting cells:" in agent_prompt
     assert 'mo.md(f"""{content}""")' in agent_prompt
-    assert "## Rules for inserting cells:" not in manual_prompt
+    assert "## Rules for inserting cells:" not in read_only_prompt

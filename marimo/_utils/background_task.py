@@ -4,12 +4,13 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, final
+from typing import TYPE_CHECKING, final
 
 from marimo import _loggers
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from types import TracebackType
+    from typing import Self
 
 LOGGER = _loggers.marimo_logger()
 
@@ -85,7 +86,7 @@ class AsyncBackgroundTask(ABC):
                 await asyncio.wait_for(
                     self._shutdown_event.wait(), timeout=timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.task.cancel()
                 try:
                     await self.task
@@ -101,7 +102,7 @@ class AsyncBackgroundTask(ABC):
             self.running = False
             return
 
-        # Reuse the task's loop — a fresh loop via ``asyncio.run`` would
+        # Reuse the task's loop — a fresh loop via `asyncio.run` would
         # error with "future attached to a different event loop".
         task_loop = self.task.get_loop()
 
@@ -146,7 +147,10 @@ class AsyncBackgroundTask(ABC):
         return self
 
     async def __aexit__(
-        self, exc_type: Any, exc_val: Any, exc_tb: Any
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         """
         Async context manager exit.

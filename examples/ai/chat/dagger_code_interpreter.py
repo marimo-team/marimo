@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -33,7 +33,6 @@ def _(mo):
 
     This example requires Docker running on your computer.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -89,7 +88,7 @@ def _(backend, input_key, mo):
         if backend.value == "ollama"
         else _get_open_ai_client()
     )
-    model = "llama3.1" if backend.value == "ollama" else "gpt-4-turbo"
+    model = "llama3.1" if backend.value == "ollama" else "gpt-5.6-sol"
     return client, model
 
 
@@ -117,7 +116,6 @@ def _(mo):
 @app.cell
 def _(files):
     [file.name for file in files.value]
-    return
 
 
 @app.cell
@@ -169,7 +167,7 @@ def describe_file(file):
 
 
 @app.cell
-def _(client, ell, execute_code, files, mo, model, packages):
+def _(client, ell, execute_code, files, mo, model: str, packages):
     files_instructions = ""
     packages_instructions = ""
     if files.value:
@@ -225,7 +223,6 @@ def _(mo, my_model):
             f"Can you sum this list using python: {list(range(1, 10))}",
         ],
     )
-    return
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ from typing import (
     Any,
     Concatenate,
     Generic,
+    Literal,
     ParamSpec,
     TypeVar,
     cast,
@@ -38,6 +39,7 @@ from marimo._ast.transformers import (
 )
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
+from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.context import get_context, safe_get_context
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.scratch import SCRATCH_CELL_ID
@@ -56,13 +58,13 @@ from marimo._save.hash import (
     content_cache_attempt_from_base,
 )
 from marimo._save.loaders import (
+    DEFAULT_LOADER,
     PERSISTENT_LOADERS,
     Loader,
-    LoaderKey,
     LoaderPartial,
     LoaderType,
     MemoryLoader,
-    resolve_loader,
+    get_persistent_loader,
 )
 from marimo._save.stores.file import FileStore
 from marimo._save.toplevel import get_cell_id_from_scope, graph_from_scope
@@ -72,15 +74,26 @@ from marimo._utils.with_skip import SkipContext
 if TYPE_CHECKING:
     from collections.abc import Coroutine
     from types import FrameType, TracebackType
+    from typing import Self
 
-    from typing_extensions import Self
-
+    from marimo._runtime.context import RuntimeContext
     from marimo._save.stores import Store
 
 P = ParamSpec("P")
 R = TypeVar("R")
 Q = ParamSpec("Q")
 S = TypeVar("S")
+
+
+def _mark_side_effect(ctx: RuntimeContext, key: str) -> None:
+    """Mark the owning cell so cell-level caches see this cache event.
+
+    An off-cell call has no cell to mark and nothing to dispose.
+    """
+    try:
+        ctx.cell_lifecycle_registry.add(SideEffect(key))
+    except NoOwningCellError:
+        pass
 
 
 class _cache_call(CacheContext, Generic[P, R]):
@@ -372,7 +385,28 @@ class _cache_call(CacheContext, Generic[P, R]):
         # stateful variables may be global
         scope = {k: v for k, v in scope.items() if k in attempt.stateful_refs}
         attempt.update(scope, meta={"return": response, "runtime": runtime})
-        self.loader.save_cache(attempt)
+        if self.loader.save_cache(attempt):
+            self.loader.flush()
+            self._record(attempt)
+
+    def _record(self, attempt: Cache) -> None:
+        """Record the entry under the cell the function is defined in.
+
+        A call can come from any cell. The definition is what a later prune
+        recompiles.
+        """
+        if self.base_block is None:
+            return
+
+        from marimo._save.manifest import record_cache_event
+
+        record_cache_event(
+            self.loader,
+            attempt.key,
+            self.base_block.cell_id,
+            self.base_block.graph,
+            saved=not attempt.hit,
+        )
 
     @property
     def misses(self) -> int:
@@ -495,6 +529,7 @@ class _cache_call(CacheContext, Generic[P, R]):
         try:
             if attempt.hit:
                 attempt.restore(scope)
+                self._record(attempt)
                 return cast(R, attempt.meta.get("return"))
 
             start_time = time.time()
@@ -508,7 +543,7 @@ class _cache_call(CacheContext, Generic[P, R]):
         finally:
             # NB. Exceptions raise their own side effects.
             if ctx and not failed:
-                ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
+                _mark_side_effect(ctx, attempt.hash)
         self._misses += 1
         return cast(R, response)
 
@@ -622,6 +657,7 @@ class _cache_call_async(_cache_call[P, R]):
         try:
             if attempt.hit:
                 attempt.restore(scope)
+                self._record(attempt)
                 return attempt.meta.get("return")
 
             start_time = time.time()
@@ -636,7 +672,7 @@ class _cache_call_async(_cache_call[P, R]):
         finally:
             # NB. Exceptions raise their own side effects.
             if ctx and not failed:
-                ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
+                _mark_side_effect(ctx, attempt.hash)
         self._misses += 1
         return response
 
@@ -655,6 +691,9 @@ class _cache_context(SkipContext, CacheContext):
 
         self._cache: Cache | None = None
         self._body_start: int = MAXINT
+        # The cell the block was found in, resolved while tracing.
+        self._cell_id: CellId_t | None = None
+        self._graph: DirectedGraph | None = None
         # TODO: Consider having a user level setting.
         self.pin_modules = pin_modules
         self.hash_type = hash_type
@@ -668,6 +707,22 @@ class _cache_context(SkipContext, CacheContext):
     @property
     def hit(self) -> bool:
         return self._cache is not None and self._cache.hit
+
+    def _record(self) -> None:
+        """Record the entry under the cell holding the block."""
+        if self._cache is None or self._cell_id is None:
+            return
+        assert self._graph is not None, UNEXPECTED_FAILURE_BOILERPLATE
+
+        from marimo._save.manifest import record_cache_event
+
+        record_cache_event(
+            self.loader,
+            self._cache.key,
+            self._cell_id,
+            self._graph,
+            saved=not self._cache.hit,
+        )
 
     def trace(self, with_frame: FrameType) -> None:
         # General flow is as follows:
@@ -749,6 +804,8 @@ class _cache_context(SkipContext, CacheContext):
                     ast.parse(code).body  # type: ignore[arg-type]
                 )
 
+                self._cell_id = cell_id
+                self._graph = graph
                 self._cache = cache_attempt_from_hash(
                     save_module,
                     graph,
@@ -813,6 +870,7 @@ class _cache_context(SkipContext, CacheContext):
             if self._cache.hit:
                 assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
                 self._cache.restore(self._frame.f_locals)
+                self._record()
                 # Return true to suppress the SkipWithBlock exception.
                 return True
 
@@ -820,9 +878,13 @@ class _cache_context(SkipContext, CacheContext):
             runtime = time.time() - self._start_time
             self._cache.update(self._frame.f_locals, meta={"runtime": runtime})
 
+            saved = False
             try:
-                self.loader.save_cache(self._cache)
+                saved = self.loader.save_cache(self._cache)
+                if saved:
+                    self.loader.flush()
             except Exception as e:
+                saved = False
                 sys.stderr.write(
                     "An exception was raised when attempting to cache this code "
                     "block with the following message:\n"
@@ -833,6 +895,8 @@ class _cache_context(SkipContext, CacheContext):
                 traceback.print_exc(file=tmpio)
                 tmpio.seek(0)
                 write_traceback(tmpio.read())
+            if saved:
+                self._record()
         except Exception:
             failed = True
             raise
@@ -840,8 +904,7 @@ class _cache_context(SkipContext, CacheContext):
             if not failed:
                 # Conditional because pendantically, the side effect is on restore /
                 # save respectively, and exceptions should raise their own.
-                ctx = get_context()
-                ctx.cell_lifecycle_registry.add(SideEffect(self._cache.hash))
+                _mark_side_effect(get_context(), self._cache.hash)
 
         return False
 
@@ -1190,11 +1253,17 @@ def lru_cache(  # type: ignore[misc]
     )
 
 
+def _default_loader_key() -> str:
+    """`cache.loader` from the session config, else `DEFAULT_LOADER`."""
+    ctx = safe_get_context()
+    return ctx.cache.loader if ctx is not None else DEFAULT_LOADER
+
+
 @overload
 def persistent_cache(
     fn: Callable[P, Coroutine[Any, Any, R]],
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: Literal["pickle", "json", "lazy"] | None = None,
     pin_modules: bool = False,
 ) -> _cache_call_async[P, R]: ...
 
@@ -1203,7 +1272,7 @@ def persistent_cache(
 def persistent_cache(
     fn: Callable[P, R],
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: Literal["pickle", "json", "lazy"] | None = None,
     pin_modules: bool = False,
 ) -> _cache_call[P, R]: ...
 
@@ -1212,7 +1281,7 @@ def persistent_cache(
 def persistent_cache(
     fn: None = None,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: Literal["pickle", "json", "lazy"] | None = None,
     pin_modules: bool = False,
 ) -> _cache_call[Any, Any]: ...
 
@@ -1221,7 +1290,7 @@ def persistent_cache(
 def persistent_cache(
     name: str,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: Literal["pickle", "json", "lazy"] | None = None,
     pin_modules: bool = False,
 ) -> _cache_context: ...
 
@@ -1229,7 +1298,7 @@ def persistent_cache(
 def persistent_cache(  # type: ignore[misc]
     name: str | Callable[..., Any] | None = None,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: Literal["pickle", "json", "lazy"] | None = None,
     store: Store | None = None,
     fn: Callable[..., Any] | None = None,
     *args: Any,
@@ -1299,8 +1368,8 @@ def persistent_cache(  # type: ignore[misc]
             invalidate the cache, change the name.
         save_path: the folder in which to save the cache, defaults to
             `__marimo__/cache` in the directory of the notebook file
-        method: the serialization method to use, current options are "json",
-            and "pickle" (default).
+        method: "json", "pickle", or "lazy", or `None` to use the configured
+            loader ("lazy" by default).
         store: optional store.
         fn: the wrapped function if no settings are passed.
         *args: positional arguments passed to `cache()`
@@ -1317,11 +1386,15 @@ def persistent_cache(  # type: ignore[misc]
             "loader is not a valid argument "
             "for persistent_cache, use mo.cache instead."
         )
-    if method not in PERSISTENT_LOADERS:
+    if method is not None and method not in PERSISTENT_LOADERS:
         raise ValueError(
-            f"Invalid method {method}, expected one of "
-            f"{PERSISTENT_LOADERS.keys()}"
+            f"Invalid method {method!r}, expected one of "
+            f"{list(PERSISTENT_LOADERS)}. "
+            "Select custom loaders through cache.loader in configuration."
         )
+    loader_type = get_persistent_loader(
+        _default_loader_key() if method is None else method
+    )
     if save_path is not None and store is not None:
         raise ValueError(
             "save_path and store cannot both be provided, "
@@ -1337,7 +1410,7 @@ def persistent_cache(  # type: ignore[misc]
     if store is not None:
         partial_args["store"] = store
 
-    loader = resolve_loader(PERSISTENT_LOADERS[method]).partial(**partial_args)
+    loader = loader_type.partial(**partial_args)
     # Injection hook for testing
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")

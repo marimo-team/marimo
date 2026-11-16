@@ -6,15 +6,15 @@
 export class MultiMap<K, V> {
   private map = new Map<K, V[]>();
 
-  get(key: K): V[] {
+  public get(key: K): V[] {
     return this.map.get(key) ?? [];
   }
 
-  set(key: K, values: V[]): void {
+  public set(key: K, values: V[]): void {
     this.map.set(key, values);
   }
 
-  add(key: K, value: V): void {
+  public add(key: K, value: V): void {
     if (this.map.has(key)) {
       // oxlint-disable-next-line typescript/no-non-null-assertion
       this.map.get(key)!.push(value);
@@ -23,38 +23,40 @@ export class MultiMap<K, V> {
     }
   }
 
-  has(key: K): boolean {
+  public has(key: K): boolean {
     return this.map.has(key);
   }
 
-  delete(key: K): boolean {
+  public delete(key: K): boolean {
     return this.map.delete(key);
   }
 
-  clear(): void {
+  public clear(): void {
     this.map.clear();
   }
 
-  keys(): IterableIterator<K> {
+  public keys(): IterableIterator<K> {
     return this.map.keys();
   }
 
-  values(): IterableIterator<V[]> {
+  public values(): IterableIterator<V[]> {
     return this.map.values();
   }
 
-  entries(): IterableIterator<[K, V[]]> {
+  public entries(): IterableIterator<[K, V[]]> {
     return this.map.entries();
   }
 
-  forEach(callback: (values: V[], key: K, map: Map<K, V[]>) => void): void {
+  public forEach(
+    callback: (values: V[], key: K, map: Map<K, V[]>) => void,
+  ): void {
     this.map.forEach(callback);
   }
 
   /**
    * Flatten all values into a single array.
    */
-  flatValues(): V[] {
+  public flatValues(): V[] {
     const result: V[] = [];
     for (const arr of this.map.values()) {
       result.push(...arr);
@@ -65,7 +67,7 @@ export class MultiMap<K, V> {
   /**
    * Number of keys in the MultiMap.
    */
-  get size(): number {
+  public get size(): number {
     return this.map.size;
   }
 }

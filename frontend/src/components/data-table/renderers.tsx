@@ -71,11 +71,7 @@ export function renderTableHeader<TData>(
         {renderHeaderGroup(table.getCenterHeaderGroups())}
         {renderHeaderGroup(table.getRightHeaderGroups())}
         {table.getAllColumns().length <= AUTO_WIDTH_MAX_COLUMNS && (
-          <th
-            className="w-full border-0"
-            aria-hidden="true"
-            role="presentation"
-          />
+          <th className="w-full border-0" aria-hidden="true" />
         )}
       </TableRow>
     </TableHeader>
@@ -128,6 +124,7 @@ export const DataTableBody = <TData,>({
     handleCellMouseUp,
     handleCellMouseOver,
     handleCellsKeyDown,
+    handleCellFocus,
     handleCopy: handleCopyAllCells,
   } = useCellRangeSelection({ table });
 
@@ -151,10 +148,16 @@ export const DataTableBody = <TData,>({
       return (
         <TableCell
           tabIndex={0}
+          role={table.options.enableCellSelection ? "gridcell" : undefined}
+          aria-selected={
+            table.options.enableCellSelection
+              ? cell.getIsSelected?.()
+              : undefined
+          }
           {...getCellDomProps(cell.id)}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate outline-hidden border-r border-r-border/75",
+            "whitespace-pre truncate outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring border-r border-r-border/75",
             !fixedWidth && "max-w-[300px]",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping?.() === "wrap" &&
@@ -173,7 +176,13 @@ export const DataTableBody = <TData,>({
             hoverTooltip.handleCellMouseOver(e, cell);
           }}
           onMouseLeave={hoverTooltip.handleCellMouseLeave}
-          onFocus={(e) => hoverTooltip.handleCellFocus(e, cell)}
+          onFocus={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCellFocus(cell);
+            }
+            hoverTooltip.handleCellFocus(e, cell);
+          }}
+          onKeyDown={(e) => handleCellsKeyDown(e, cell)}
           onBlur={hoverTooltip.handleCellBlur}
           onContextMenu={() => handleContextMenu(cell)}
         >
@@ -217,7 +226,7 @@ export const DataTableBody = <TData,>({
         {renderCells(row.getCenterVisibleCells())}
         {renderCells(row.getRightVisibleCells())}
         {columns.length <= AUTO_WIDTH_MAX_COLUMNS && (
-          <td className="border-0" aria-hidden="true" role="presentation" />
+          <td className="border-0" aria-hidden="true" />
         )}
       </TableRow>
     );
@@ -247,7 +256,7 @@ export const DataTableBody = <TData,>({
               data-virtual-spacer=""
               style={{ height: virtualItems[0].start }}
             >
-              <td colSpan={totalColSpan} />
+              <td aria-hidden="true" colSpan={totalColSpan} />
             </tr>
           )}
           {virtualItems.map((vItem) => renderRow(rows[vItem.index]))}
@@ -258,7 +267,7 @@ export const DataTableBody = <TData,>({
                 height: totalSize - (virtualItems.at(-1)?.end ?? totalSize),
               }}
             >
-              <td colSpan={totalColSpan} />
+              <td aria-hidden="true" colSpan={totalColSpan} />
             </tr>
           )}
         </>
@@ -268,11 +277,7 @@ export const DataTableBody = <TData,>({
     return rows.map((row) => renderRow(row));
   };
 
-  const tableBody = (
-    <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
-      {renderRows()}
-    </TableBody>
-  );
+  const tableBody = <TableBody ref={tableRef}>{renderRows()}</TableBody>;
 
   return (
     <>

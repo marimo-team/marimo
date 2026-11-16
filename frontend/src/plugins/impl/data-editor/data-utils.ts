@@ -2,79 +2,99 @@
 
 import type { FieldTypes } from "@/components/data-table/types";
 import type { DataType } from "@/core/kernel/messages";
+import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
+import { BulkEdit, type EditorRow } from "./types";
 
-/**
- * For modifying data, we do not worry about the order of the columns.
- * Because we define getCellContent based on columnTitle, the order does not matter.
- *
- * For column fields, we do care about the order
- */
-
-export function removeColumn<T>(data: T[], columnIdx: number): T[] {
-  return data.map((row) => {
-    const rowData = row as Record<string, unknown>;
-    const keys = Object.keys(rowData);
-
-    // If the column index is out of bounds, return the original row
-    if (columnIdx < 0 || columnIdx >= keys.length) {
-      return rowData as T;
+export function orderColumnFields(
+  columnFields: FieldTypes,
+  columnNames: string[],
+): FieldTypes {
+  const ordered = new Map<string, DataType>();
+  for (const columnName of columnNames) {
+    ordered.set(columnName, columnFields.get(columnName) ?? "unknown");
+  }
+  for (const [columnName, dataType] of columnFields) {
+    if (!ordered.has(columnName)) {
+      ordered.set(columnName, dataType);
     }
+  }
+  return ordered;
+}
 
-    const keyToRemove = keys[columnIdx];
-
-    // Create new object without the specified key
-    const { [keyToRemove]: _, ...rest } = rowData;
-    return rest as T;
+export function removeColumn(
+  data: EditorRow[],
+  columnName: string,
+): EditorRow[] {
+  return data.map((row) => {
+    const { [columnName]: _, ...rest } = row;
+    return rest;
   });
 }
 
-/**
- * Insert a new column at the end of the data.
- * @param data - The data to insert the column into
- * @param newName - The name of the new column
- * @returns The data with the new column inserted at the end
- */
-export function insertColumn<T>(data: T[], newName?: string): T[] {
+export function insertColumn(
+  data: EditorRow[],
+  newName?: string,
+  columnIdx?: number,
+): EditorRow[] {
   if (!newName) {
     return data;
   }
 
-  return data.map((row) => ({
-    ...(row as Record<string, unknown>),
-    [newName]: "",
-  })) as T[];
+  return data.map((row) => {
+    const entries = Object.entries(row);
+    const insertAt = Math.max(
+      0,
+      Math.min(columnIdx ?? entries.length, entries.length),
+    );
+    entries.splice(insertAt, 0, [newName, ""]);
+    return Object.fromEntries(entries);
+  });
 }
 
-export function renameColumn<T>(
-  data: T[],
+export function renameColumn(
+  data: EditorRow[],
   oldName: string,
   newName: string,
-): T[] {
+): EditorRow[] {
   if (!oldName || !newName || oldName === newName) {
+    return data;
+  }
+  if (data.some((row) => Object.hasOwn(row, newName))) {
     return data;
   }
 
   return data.map((row) => {
-    const rowData = row as Record<string, unknown>;
-    const { [oldName]: _, ...rest } = rowData;
-    return { ...rest, [newName]: rowData[oldName] } as T;
+    return Object.fromEntries(
+      Object.entries(row).map(([columnName, value]) => [
+        columnName === oldName ? newName : columnName,
+        value,
+      ]),
+    );
   });
 }
 
-// Order of columns is important
-export function modifyColumnFields(opts: {
+type ModifyColumnFieldsOptions = {
   columnFields: FieldTypes;
   columnIdx: number;
-  type: "insert" | "remove" | "rename";
-  dataType?: DataType;
-  newColumnName?: string;
-}): FieldTypes {
-  const { columnFields, columnIdx, type, dataType, newColumnName } = opts;
+} & (
+  | { type: typeof BulkEdit.Remove }
+  | {
+      type: typeof BulkEdit.Insert | typeof BulkEdit.Rename;
+      newColumnName: string;
+      dataType?: DataType;
+    }
+);
 
-  switch (type) {
-    case "insert": {
-      if (!newColumnName) {
+// Order of columns is important
+export function modifyColumnFields(
+  opts: ModifyColumnFieldsOptions,
+): FieldTypes {
+  const { columnFields, columnIdx } = opts;
+
+  switch (opts.type) {
+    case BulkEdit.Insert: {
+      if (!opts.newColumnName) {
         Logger.error("newName is required for insert");
         return columnFields;
       }
@@ -82,12 +102,12 @@ export function modifyColumnFields(opts: {
       const entries = [...columnFields.entries()];
       const newEntries: Array<[string, DataType]> = [
         ...entries.slice(0, columnIdx),
-        [newColumnName, dataType || "string"],
+        [opts.newColumnName, opts.dataType ?? "string"],
         ...entries.slice(columnIdx),
       ];
       return new Map(newEntries);
     }
-    case "remove": {
+    case BulkEdit.Remove: {
       if (columnIdx < 0 || columnIdx >= columnFields.size) {
         return columnFields;
       }
@@ -101,8 +121,8 @@ export function modifyColumnFields(opts: {
       }
       return columnFields;
     }
-    case "rename": {
-      if (!newColumnName) {
+    case BulkEdit.Rename: {
+      if (!opts.newColumnName) {
         Logger.error("newName is required for rename");
         return columnFields;
       }
@@ -115,10 +135,13 @@ export function modifyColumnFields(opts: {
       const entries = [...columnFields.entries()];
       const newEntries: Array<[string, DataType]> = [
         ...entries.slice(0, columnIdx),
-        [newColumnName, dataType || "string"],
+        [opts.newColumnName, opts.dataType ?? "string"],
         ...entries.slice(columnIdx + 1),
       ];
       return new Map(newEntries);
     }
+    default:
+      logNever(opts);
+      return columnFields;
   }
 }

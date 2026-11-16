@@ -33,6 +33,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Tooltip } from "../ui/tooltip";
 import { AiProviderIcon } from "./ai-provider-icon";
+import { listModelsForAiSettings } from "./ai-utils";
 import { getCurrentRoleTooltip, getTagColour } from "./display-helpers";
 
 interface AIModelDropdownProps {
@@ -84,7 +85,10 @@ export const AIModelDropdown = ({
     ].filter(Boolean),
     displayedModels: ai?.models?.displayed_models,
   });
-  const modelsByProvider = aiModelRegistry.getListModelsByProvider();
+  const modelsByProvider = listModelsForAiSettings(
+    aiModelRegistry.getListModelsByProvider(),
+    ai,
+  );
 
   const activeModel =
     forRole === "autocomplete"
@@ -272,13 +276,18 @@ const ProviderDropdownContent = ({
             const qualifiedModelId: QualifiedModelId = `${provider}/${model.model}`;
             return (
               <DropdownMenuSub key={qualifiedModelId}>
-                <DropdownMenuSubTrigger showChevron={false} className="py-2">
-                  <div
-                    className="flex items-center gap-2 w-full cursor-pointer"
-                    onClick={() => {
+                <DropdownMenuSubTrigger
+                  showChevron={false}
+                  className="py-2"
+                  onClick={() => onSelect(qualifiedModelId)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
                       onSelect(qualifiedModelId);
-                    }}
-                  >
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 w-full cursor-pointer">
                     <AiModelDropdownItem model={model} provider={provider} />
                   </div>
                 </DropdownMenuSubTrigger>

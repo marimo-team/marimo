@@ -92,9 +92,13 @@ class Stderr(io.TextIOBase, abc.ABC):
 
     @abc.abstractmethod
     def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
+        self,
+        data: str,
+        mimetype: ConsoleMimeType,
+        *,
+        code: str | None = None,
     ) -> int:
-        pass
+        """Write console output, optionally tagged with the source it came from."""
 
     def write(self, s: str, /) -> int:
         return self._write_with_mimetype(

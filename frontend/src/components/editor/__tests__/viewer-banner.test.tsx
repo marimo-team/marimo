@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { layoutStateAtom } from "@/core/layout/layout";
+import { layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { API } from "@/core/network/api";
 import { ViewerBanner } from "../viewer-banner";

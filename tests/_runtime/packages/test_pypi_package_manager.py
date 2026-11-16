@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import subprocess
 import sys
+import threading
 from functools import partial
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from marimo._ast import compiler
 from marimo._runtime.packages.package_manager import PackageDescription
@@ -88,7 +92,7 @@ def test_pip_is_manager_installed_primary_check_success(mock_run: MagicMock):
     assert mgr.is_manager_installed() is True
     mock_run.assert_called_once()
     call_args = mock_run.call_args[0][0]
-    assert call_args == [PY_EXE, "-m", "pip", "--version"]
+    assert call_args == [PY_EXE, "-P", "-m", "pip", "--version"]
 
 
 @patch("subprocess.run")
@@ -144,7 +148,7 @@ async def test_install(mock_run: MagicMock):
         )
 
     mock_run.assert_called_once_with(
-        [PY_EXE, "-m", "pip", "install", "package1", "package2"],
+        [PY_EXE, "-P", "-m", "pip", "install", "package1", "package2"],
         start_new_session=True,
     )
     assert result is True
@@ -171,6 +175,7 @@ async def test_uninstall(mock_run: MagicMock):
     mock_run.assert_called_once_with(
         [
             PY_EXE,
+            "-P",
             "-m",
             "pip",
             "uninstall",
@@ -197,7 +202,7 @@ def test_list_packages(mock_run: MagicMock):
         packages = manager.list_packages()
 
     mock_run.assert_called_once_with(
-        [PY_EXE, "-m", "pip", "list", "--format=json"],
+        [PY_EXE, "-P", "-m", "pip", "list", "--format=json"],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -355,6 +360,38 @@ def test_uv_is_in_uv_project_true(mock_exists: MagicMock):
     assert mgr.is_in_uv_project is True
 
 
+@patch.object(UvPackageManager, "_uv_bin", "uv")
+def test_uv_can_target_python_without_mutating_project() -> None:
+    mgr = UvPackageManager.for_pip_install("/server/python")
+
+    assert mgr.install_command("nbformat", upgrade=False) == [
+        "uv",
+        "pip",
+        "install",
+        "nbformat",
+        "-p",
+        "/server/python",
+    ]
+
+
+@patch.object(UvPackageManager, "_uv_bin", "uv")
+def test_uv_install_command_preserves_spaced_extras() -> None:
+    mgr = UvPackageManager.for_pip_install("/server/python")
+
+    assert mgr.install_command(
+        "matplotlib pydantic-ai[duckduckgo, web-fetch]", upgrade=True
+    ) == [
+        "uv",
+        "pip",
+        "install",
+        "--upgrade",
+        "matplotlib",
+        "pydantic-ai[duckduckgo, web-fetch]",
+        "-p",
+        "/server/python",
+    ]
+
+
 @patch.dict(
     "os.environ",
     {"VIRTUAL_ENV": "/path/to/venv", "UV": "/path/to/venv"},
@@ -400,6 +437,32 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
     assert call_kwargs["universal_newlines"] is False
     assert call_kwargs["bufsize"] == 0
     assert result is True
+
+
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_install_does_not_block_event_loop() -> None:
+    process_started = asyncio.Event()
+    release_process = threading.Event()
+    loop = asyncio.get_running_loop()
+
+    def install(*args: Any, **kwargs: Any) -> bool:
+        del args, kwargs
+        loop.call_soon_threadsafe(process_started.set)
+        release_process.wait(timeout=1)
+        return True
+
+    mgr = UvPackageManager()
+    with patch.object(
+        mgr, "_install_with_cache_fallback", side_effect=install
+    ):
+        task = asyncio.create_task(
+            mgr._install("package1", upgrade=False, group=None)
+        )
+        await process_started.wait()
+        assert not task.done()
+
+        release_process.set()
+        assert await task is True
 
 
 @patch("marimo._utils.subprocess.subprocess.Popen")
@@ -782,6 +845,40 @@ def test_uv_dependency_tree_uses_utf8_encoding(mock_run: MagicMock):
     call_kwargs = mock_run.call_args[1]
     assert call_kwargs.get("encoding") == "utf-8"
     assert call_kwargs.get("text") is True
+
+
+@patch("subprocess.run")
+def test_uv_dependency_tree_materializes_markdown(
+    mock_run: MagicMock, tmp_path: Path
+) -> None:
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        "---\n"
+        "pyproject: |\n"
+        '  dependencies = ["test-package"]\n'
+        "---\n\n"
+        "# Notebook\n",
+        encoding="utf-8",
+    )
+
+    def run(command: list[str], **kwargs: Any) -> MagicMock:
+        carrier = Path(command[-1])
+        assert carrier.name == ".marimo-v1-notebook.md.py"
+        assert 'dependencies = ["test-package"]' in carrier.read_text()
+        assert kwargs["cwd"] == str(tmp_path)
+        return MagicMock(
+            args=command,
+            returncode=0,
+            stdout="test-package v1.0.0\n",
+            stderr="",
+        )
+
+    mock_run.side_effect = run
+
+    tree = UvPackageManager().dependency_tree(filename=str(notebook))
+
+    assert tree is not None
+    assert not (tmp_path / ".marimo-v1-notebook.md.py").exists()
 
 
 @patch("subprocess.run")
@@ -1180,3 +1277,45 @@ class TestVersionMap:
         # Test beautifulsoup4 (number in name)
         assert version_map.get_version("beautifulsoup4") == "4.12.0"
         assert version_map.has("beautifulsoup4") is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "requirement",
+    ["my_pkg[extra]", "my-pkg>=1", "my-pkg @ https://example.org/pkg.whl"],
+)
+async def test_script_uninstall_matches_distribution_name(
+    tmp_path: Path, requirement: str
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["my-pkg[extra]>=1"]\n# ///\n'
+    )
+    from marimo._environments.sandbox import NotebookSandbox
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    sandbox = NotebookSandbox(str(notebook), "uv")
+    manager = SandboxPackageManager(sandbox)
+    with patch.object(sandbox, "_sync"):
+        assert await manager.uninstall(requirement)
+    assert "my-pkg" not in notebook.read_text()
+
+
+@pytest.mark.asyncio
+async def test_script_uninstall_preserves_transitive_dependency(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text('# /// script\n# dependencies = ["parent"]\n# ///\n')
+    from marimo._environments.sandbox import NotebookSandbox
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    sandbox = NotebookSandbox(str(notebook), "uv")
+    manager = SandboxPackageManager(sandbox)
+    with patch.object(sandbox, "_sync") as change:
+        assert not await manager.uninstall("transitive")
+    change.assert_not_called()

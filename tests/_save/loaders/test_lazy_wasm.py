@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pickle
 import tempfile
+import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
 
     from marimo._save.hash import HashKey
 
+from marimo._ast.load import load_app
 from marimo._save.cache import MARIMO_CACHE_VERSION, Cache
 from marimo._save.loaders.lazy import (
     LazyLoader,
@@ -32,6 +34,7 @@ from marimo._save.stubs.lazy_stub import (
     Item,
     Meta,
 )
+from tests._runtime._helpers.session import mocked_kernel_session
 
 
 class TestDictStore:
@@ -225,9 +228,9 @@ class TestLazyLoaderBatchPath:
     def test_restore_uses_batch_path(self) -> None:
         inner = DictStore()
         store = LazyStore(inner=inner)
-        # mode="off": this exercises the batch-restore mechanics, not signing
+        # verification="off": this exercises the batch-restore mechanics, not signing
         # (covered in test_lazy_signing.py); the seeded manifest is unsigned.
-        loader = LazyLoader("test_batch", store=store, mode="off")
+        loader = LazyLoader("test_batch", store=store, verification="off")
 
         # Seed a cache manually
         base = Path("test_batch") / "hash1"
@@ -261,8 +264,8 @@ class TestLazyLoaderBatchPath:
         # (no threads in Pyodide) via `_dispatch_write`.
         inner = DictStore()
         store = WasmLazyStore(inner=inner)
-        # mode="off": exercises the synchronous WASM write path, not signing.
-        loader = WasmLazyLoader("test_sync", store=store, mode="off")
+        # verification="off": exercises the synchronous WASM write path, not signing.
+        loader = WasmLazyLoader("test_sync", store=store, verification="off")
 
         cache = Cache(
             defs={"x": 42, "y": "hello"},
@@ -380,7 +383,7 @@ class TestRestoreTripwire:
     ) -> None:
         self._patch_failing_codec(monkeypatch)
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("trip_native", store=store, mode="off")
+        loader = LazyLoader("trip_native", store=store, verification="off")
 
         base = Path("trip_native") / "h"
         good_ref = (base / "good.pickle").as_posix()
@@ -404,7 +407,7 @@ class TestRestoreTripwire:
         # Exercises the WASM `_read_blobs` variant (get_batch, no threads).
         self._patch_failing_codec(monkeypatch)
         store = WasmLazyStore(inner=DictStore())
-        loader = WasmLazyLoader("trip_wasm", store=store, mode="off")
+        loader = WasmLazyLoader("trip_wasm", store=store, verification="off")
 
         base = Path("trip_wasm") / "h"
         good_ref = (base / "good.pickle").as_posix()
@@ -431,7 +434,7 @@ class TestRestoreTripwire:
         from marimo._save.hash import HashKey
 
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("trip_return", store=store, mode="off")
+        loader = LazyLoader("trip_return", store=store, verification="off")
 
         base = Path("trip_return") / "h"
         good_ref = (base / "good.pickle").as_posix()
@@ -459,7 +462,9 @@ class TestRestoreTripwire:
         from marimo._save.hash import HashKey
 
         store = WasmLazyStore(inner=DictStore())
-        loader = WasmLazyLoader("trip_return_wasm", store=store, mode="off")
+        loader = WasmLazyLoader(
+            "trip_return_wasm", store=store, verification="off"
+        )
 
         base = Path("trip_return_wasm") / "h"
         good_ref = (base / "good.pickle").as_posix()
@@ -488,7 +493,7 @@ class TestRestoreTripwire:
         from marimo._save.hash import HashKey
 
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("trip_ui", store=store, mode="off")
+        loader = LazyLoader("trip_ui", store=store, verification="off")
 
         ui_ref = (Path("trip_ui") / "h" / "ui.pickle").as_posix()
         store.put(ui_ref, b"__FAIL__")
@@ -534,7 +539,7 @@ class TestRestoreTripwire:
         )
 
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("trip_import", store=store, mode="off")
+        loader = LazyLoader("trip_import", store=store, verification="off")
         bad_ref = (Path("trip_import") / "h" / "bad.faildep").as_posix()
         store.put(bad_ref, b"unused")
         self._seed(
@@ -601,7 +606,7 @@ class TestStaleKeys:
         from marimo._save.loaders.lazy import _cache_state
 
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("stale_test", store=store, mode="off")
+        loader = LazyLoader("stale_test", store=store, verification="off")
 
         base = Path("stale_test") / "h"
         var_ref = (base / "v.pickle").as_posix()
@@ -696,6 +701,55 @@ class TestFlushAll:
 
 
 class TestCacheStateResolution:
+    async def test_embedded_notebooks_share_only_their_session_cache(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("marimo._save.loaders.is_pyodide", lambda: True)
+        monkeypatch.setattr(WasmLazyStore, "_http_get", lambda *_: None)
+
+        notebook = tmp_path / "child.py"
+        notebook.write_text(
+            textwrap.dedent(
+                """
+                import marimo
+                app = marimo.App()
+
+                @app.cell
+                def _():
+                    seed = 0
+                    return (seed,)
+
+                @app.cell
+                def _(seed):
+                    import marimo as mo
+
+                    with mo.persistent_cache("shared") as cached:
+                        value = {"values": [seed]}
+                    was_hit = cached.hit
+                    return value, was_hit
+                """
+            )
+        )
+
+        for _ in range(2):
+            with mocked_kernel_session() as tk:
+                results = []
+                for seed in (1, 2, 1, 2):
+                    app = load_app(notebook)
+                    assert app is not None
+                    result = await app.embed(defs={"seed": seed})
+                    assert not tk.stderr.messages
+                    results.append(
+                        (result.defs["value"], result.defs["was_hit"])
+                    )
+                assert results == [
+                    ({"values": [1]}, False),
+                    ({"values": [2]}, False),
+                    ({"values": [1]}, True),
+                    ({"values": [2]}, True),
+                ]
+
     def test_resolves_to_root_context(self) -> None:
         """Child contexts (embedded apps) share the root's cache state."""
         from types import SimpleNamespace
@@ -779,7 +833,7 @@ class TestOnRestoreFailure:
         assert ret_ref in _cache_state().poisoned_keys
 
     def test_none_manifest_poisons_only_manifest_path(self) -> None:
-        store, loader, key = self._loader_and_key()
+        _store, loader, key = self._loader_and_key()
         manifest_path = str(loader.build_path(key))
 
         loader._on_restore_failure(key, None)
@@ -789,7 +843,7 @@ class TestOnRestoreFailure:
         assert _cache_state().poisoned_keys == {manifest_path}
 
     def test_undecodable_manifest_poisons_only_manifest_path(self) -> None:
-        store, loader, key = self._loader_and_key()
+        _store, loader, key = self._loader_and_key()
         manifest_path = str(loader.build_path(key))
 
         # Garbage bytes must not raise; manifest path is still poisoned.
@@ -802,6 +856,7 @@ class TestOnRestoreFailure:
         # End-to-end: a manifest referencing a missing blob makes restore
         # raise; load_cache swallows it and invokes _on_restore_failure.
         store, loader, key = self._loader_and_key()
+        loader.verification = "off"  # The fixture contains unsigned data.
         manifest_path = str(loader.build_path(key))
         missing_ref = "h/missing.pickle"
         store._inner.put(manifest_path, self._manifest([missing_ref]))

@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.18.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -26,7 +27,6 @@ def _(mo):
     relative to their parent menu item, especially when the parent is on the
     right side of the menu.
     """)
-    return
 
 
 @app.cell
@@ -44,7 +44,6 @@ def _(mo, orientation):
         },
         orientation=orientation.value,
     )
-    return
 
 
 @app.cell
@@ -52,7 +51,6 @@ def _(mo):
     mo.md("""
     ---
     """)
-    return
 
 
 @app.cell
@@ -63,7 +61,6 @@ def _(mo):
     This example shows multiple submenu items to better demonstrate the issue.
     Try hovering over items on the right side.
     """)
-    return
 
 
 @app.cell
@@ -110,7 +107,6 @@ def _(mo, orientation):
         },
         orientation=orientation.value,
     )
-    return
 
 
 @app.cell
@@ -118,7 +114,6 @@ def _(mo):
     mo.md("""
     ---
     """)
-    return
 
 
 if __name__ == "__main__":

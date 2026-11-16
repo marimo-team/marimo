@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import os
+import signal
 import sys
 
+from marimo._config.config import parse_config
 from marimo._ipc.queue_manager import QueueManager
 from marimo._ipc.types import KernelArgs
 from marimo._runtime import runtime
@@ -25,10 +28,17 @@ def main() -> None:
     used by external consumers (e.g., marimo-lsp). Changing this path is a
     BREAKING CHANGE and should be done with care and proper deprecation.
     """
+    # Readiness makes the kernel interruptible before its handler is installed.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     args = KernelArgs.decode_json(sys.stdin.buffer.read())
     queue_manager = QueueManager.connect(args.connection_info)
 
     sys.stdout.write("KERNEL_READY\n")
+    # A second line reports the kernel's identity: a launcher such as uv
+    # may sit between the manager and this process, so the manager cannot
+    # rely on its direct child's pid. Emitted after KERNEL_READY so
+    # managers that only read the ready line keep working.
+    sys.stdout.write(f"KERNEL_INFO {os.getpid()} {sys.executable}\n")
     sys.stdout.flush()
 
     runtime.launch_kernel(
@@ -39,12 +49,15 @@ def main() -> None:
         input_queue=queue_manager.input_queue,
         app_metadata=args.app_metadata,
         log_level=args.log_level,
-        user_config=args.user_config,
+        user_config=parse_config(args.user_config),
+        config_overrides=args.config_overrides,
         configs=args.configs,
         profile_path=args.profile_path,
-        # Virtual files require a web server to serve file URLs. Since we're
-        # not running one, content must be embedded as data URLs instead.
-        virtual_file_storage=None,
+        # None (the default) means no web server serves /@file/ URLs, so
+        # content is embedded as data URLs -- correct for standalone
+        # consumers like marimo-lsp. A marimo server passes
+        # "shared_memory" so its /@file endpoint can read the buffers.
+        virtual_file_storage=args.virtual_file_storage,
         # NB: IPC kernels are always subprocesses (is_ipc=True) but may be
         # edit or run mode based on is_edit_mode.
         stream_queue=queue_manager.stream_queue,

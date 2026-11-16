@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime
 from typing import TYPE_CHECKING
-from unittest.mock import patch
-from urllib.request import urlopen
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatters.altair_formatters import (
+    FETCH_TIMEOUT,
     FORMAT_LOCALE_URL,
     TIME_FORMAT_LOCALE_URL,
     AltairFormatter,
+    _apply_format_locales,
     _maybe_warn_external_resources,
 )
 from marimo._output.formatters.formatters import register_formatters
@@ -254,6 +256,9 @@ def test_altair_formatter_embed_options():
     AltairFormatter().register()
     import altair as alt
 
+    format_locale = {"decimal": ".", "thousands": ","}
+    time_format_locale = {"date": "%m/%d/%Y", "time": "%H:%M:%S"}
+
     def get_chart():
         return (
             alt.Chart(get_data())
@@ -267,36 +272,111 @@ def test_altair_formatter_embed_options():
         _, content = formatter(chart)
         return json.loads(content)
 
-    # Test format locale
-    alt.renderers.set_embed_options(formatLocale="en-US")
-    content = get_formatted_content(get_chart())
-    assert "formatLocale" in content["usermeta"]["embedOptions"]
-    assert "timeFormatLocale" not in content["usermeta"]["embedOptions"]
-    with urlopen(
-        FORMAT_LOCALE_URL.format(locale="en-US"), timeout=3
-    ) as response:
-        assert content["usermeta"]["embedOptions"][
-            "formatLocale"
-        ] == json.loads(response.read())
+    try:
+        alt.renderers.set_embed_options(formatLocale=format_locale)
+        content = get_formatted_content(get_chart())
+        assert content["usermeta"]["embedOptions"] == {
+            "formatLocale": format_locale
+        }
 
-    # Test adding a time format locale
-    alt.renderers.set_embed_options(timeFormatLocale="en-US")
-    content = get_formatted_content(get_chart())
-    assert "timeFormatLocale" in content["usermeta"]["embedOptions"]
-    with urlopen(
-        TIME_FORMAT_LOCALE_URL.format(locale="en-US"), timeout=3
-    ) as response:
-        assert content["usermeta"]["embedOptions"][
-            "timeFormatLocale"
-        ] == json.loads(response.read())
+        alt.renderers.set_embed_options(timeFormatLocale=time_format_locale)
+        content = get_formatted_content(get_chart())
+        assert content["usermeta"]["embedOptions"] == {
+            "timeFormatLocale": time_format_locale
+        }
 
-    # Old embed option is no longer present
-    assert "formatLocale" not in content["usermeta"]["embedOptions"]
+        alt.renderers.set_embed_options()
+        content = get_formatted_content(get_chart())
+        assert content["usermeta"]["embedOptions"] == {}
+    finally:
+        alt.renderers.set_embed_options()
 
-    # Test reset embed options
-    alt.renderers.set_embed_options()
-    content = get_formatted_content(get_chart())
-    assert content["usermeta"]["embedOptions"] == {}
+
+def test_apply_format_locales_with_vl_convert() -> None:
+    format_locale = {"decimal": "."}
+    time_format_locale = {"date": "%m/%d/%Y"}
+    vl_convert = MagicMock()
+    vl_convert.get_format_locale.return_value = format_locale
+    vl_convert.get_time_format_locale.return_value = time_format_locale
+
+    with (
+        patch.object(
+            DependencyManager.vl_convert_python, "has", return_value=True
+        ),
+        patch.dict(sys.modules, {"vl_convert": vl_convert}),
+    ):
+        result = _apply_format_locales(
+            {"formatLocale": "en-US", "timeFormatLocale": "en-US"}
+        )
+
+    assert result == {
+        "formatLocale": format_locale,
+        "timeFormatLocale": time_format_locale,
+    }
+    vl_convert.get_format_locale.assert_called_once_with("en-US")
+    vl_convert.get_time_format_locale.assert_called_once_with("en-US")
+
+
+def test_apply_format_locales_with_http_fallback() -> None:
+    format_locale = {"decimal": "."}
+    time_format_locale = {"date": "%m/%d/%Y"}
+    time_response = MagicMock()
+    time_response.__enter__.return_value.read.return_value = json.dumps(
+        time_format_locale
+    ).encode()
+    format_response = MagicMock()
+    format_response.__enter__.return_value.read.return_value = json.dumps(
+        format_locale
+    ).encode()
+
+    with (
+        patch.object(
+            DependencyManager.vl_convert_python, "has", return_value=False
+        ),
+        patch(
+            "marimo._output.formatters.altair_formatters.urlopen",
+            side_effect=[time_response, format_response],
+        ) as mock_urlopen,
+    ):
+        result = _apply_format_locales(
+            {"formatLocale": "en-US", "timeFormatLocale": "en-US"}
+        )
+
+    assert result == {
+        "formatLocale": format_locale,
+        "timeFormatLocale": time_format_locale,
+    }
+    assert mock_urlopen.call_args_list == [
+        call(
+            TIME_FORMAT_LOCALE_URL.format(locale="en-US"),
+            timeout=FETCH_TIMEOUT,
+        ),
+        call(
+            FORMAT_LOCALE_URL.format(locale="en-US"),
+            timeout=FETCH_TIMEOUT,
+        ),
+    ]
+
+
+def test_apply_format_locales_handles_http_timeout() -> None:
+    with (
+        patch.object(
+            DependencyManager.vl_convert_python, "has", return_value=False
+        ),
+        patch(
+            "marimo._output.formatters.altair_formatters.urlopen",
+            side_effect=TimeoutError("read timed out"),
+        ),
+        patch(
+            "marimo._output.formatters.altair_formatters.LOGGER.warning"
+        ) as mock_warning,
+    ):
+        result = _apply_format_locales({"formatLocale": "en-US"})
+
+    assert result == {"formatLocale": {}}
+    mock_warning.assert_called_once_with(
+        "Error getting format locale: read timed out"
+    )
 
 
 @pytest.mark.parametrize(

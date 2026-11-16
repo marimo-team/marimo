@@ -22,7 +22,7 @@ Create a script (`run_marimo.sh`):
 
 # module load or otherwise set up environment
 
-python -m marimo edit notebook.py --headless --port 3000
+marimo edit notebook.py --headless --port 3000
 ```
 
 Submit it:
@@ -105,7 +105,7 @@ Add GPU resources to your SBATCH directives:
 
 # module load or otherwise set up environment
 
-python -m marimo edit notebook.py --headless --port 3000
+marimo edit notebook.py --headless --port 3000
 ```
 
 ///
@@ -128,13 +128,13 @@ python notebook.py
 ## Inlining configuration in notebook files
 
 You can inline SBATCH directives in your notebook file. If used alongside marimo's support for
-[inlining package dependencies](../package_management/inlining_dependencies.md) ("sandboxing"),
+[inlining package dependencies](../package_management/sandboxes.md) ("sandboxing"),
 this lets you create fully self-contained notebooks.
 
 /// tab | Interactive development
 
 ```python
-#!/usr/bin/env -S python -m marimo edit --sandbox
+#!/usr/bin/env -S uvx marimo edit --sandbox
 #SBATCH --job-name=marimo-job
 #SBATCH --output=marimo-%j.out
 #SBATCH --cpus-per-task=4
@@ -166,7 +166,7 @@ if __name__ == "__main__":
 /// tab | Batch job
 
 ```
-#!/usr/bin/env -S python
+#!/usr/bin/env -S uv run --script
 #SBATCH --job-name=marimo-job
 #SBATCH --output=marimo-%j.out
 #SBATCH --cpus-per-task=4
@@ -206,6 +206,13 @@ sbatch notebook.py
 ```
 
 Sandboxing requires [uv](https://docs.astral.sh/uv/getting-started/installation/) to be installed.
+
+/// admonition | Why `--script`?
+
+Slurm runs a spooled copy of your submitted file with no extension. The
+`--script` flag tells `uv` to treat it as a script.
+
+///
 
 ## Learn more
 

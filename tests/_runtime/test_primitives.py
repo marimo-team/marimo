@@ -24,6 +24,64 @@ class TestDataPrimitiveClassification:
 
         assert is_data_primitive(_ClassLikeArray) is False
 
+    @pytest.mark.skipif(
+        not DependencyManager.polars.has(), reason="polars required"
+    )
+    @pytest.mark.parametrize("as_frame", [False, True])
+    def test_polars_numeric_classification(self, as_frame: bool) -> None:
+        import polars as pl
+
+        values = [
+            pl.Series("integer", [1, 2]),
+            pl.Series("float", [1.0, 2.0]),
+            pl.Series("string", ["a", "b"]),
+            pl.Series("list", [[1], [2]]),
+            pl.Series("object", [object()], dtype=pl.Object),
+        ]
+        assert {
+            value.name: is_data_primitive(
+                value.to_frame() if as_frame else value
+            )
+            for value in values
+        } == {
+            "integer": True,
+            "float": True,
+            "string": False,
+            "list": False,
+            "object": False,
+        }
+
+    @pytest.mark.skipif(
+        not DependencyManager.pyarrow.has(), reason="pyarrow required"
+    )
+    def test_pyarrow_numeric_classification(self) -> None:
+        import pyarrow as pa
+
+        values = {
+            "integer_array": pa.array([1, None]),
+            "float_chunks": pa.chunked_array([[1.0], [2.0]]),
+            "numeric_table": pa.table({"a": [1], "b": [1.5]}),
+            "numeric_batch": pa.RecordBatch.from_pydict({"a": [1]}),
+            "string_array": pa.array(["a"]),
+            "string_table": pa.table({"a": [1], "b": ["x"]}),
+            "dictionary_table": pa.table(
+                {"a": pa.array(["x"]).dictionary_encode()}
+            ),
+            "boolean_array": pa.array([True, None]),
+        }
+        assert {
+            name: is_data_primitive(value) for name, value in values.items()
+        } == {
+            "integer_array": True,
+            "float_chunks": True,
+            "numeric_table": True,
+            "numeric_batch": True,
+            "string_array": False,
+            "string_table": False,
+            "dictionary_table": False,
+            "boolean_array": False,
+        }
+
 
 class TestWrappedFunctionHandling:
     """Test handling of wrapped functions (decorators) in is_pure_function."""

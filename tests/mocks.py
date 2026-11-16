@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import difflib
 import re
+import sys
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Protocol
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -17,6 +20,35 @@ class SnapshotFunc(Protocol):
     def __call__(
         self, filename: str, result: str, keep_version: bool = False
     ) -> None: ...
+
+
+_QUOTE_ENTITY_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"&amp;quot;", re.IGNORECASE), "&quot;"),
+    (re.compile(r"&amp;#39;", re.IGNORECASE), "&#39;"),
+    (re.compile(r"&amp;#x27;", re.IGNORECASE), "&#x27;"),
+    (re.compile(r"&amp;apos;", re.IGNORECASE), "&apos;"),
+    (re.compile(r"&quot;", re.IGNORECASE), '"'),
+    (re.compile(r"&#34;", re.IGNORECASE), '"'),
+    (re.compile(r"&#x22;", re.IGNORECASE), '"'),
+    (re.compile(r"&#39;", re.IGNORECASE), "'"),
+    (re.compile(r"&#x27;", re.IGNORECASE), "'"),
+    (re.compile(r"&apos;", re.IGNORECASE), "'"),
+)
+
+
+def normalize_html_entities(value: str) -> str:
+    """Normalize HTML quote entity encodings for semantic comparisons.
+
+    Pygments 2.21+ emits quotes literally in HTML text nodes while earlier
+    versions use `&#39;`/`&quot;` entities. Only quote entities are
+    normalized so other encodings like `&lt;`/`&gt;` remain comparable.
+    """
+    previous = None
+    while previous != value:
+        previous = value
+        for pattern, replacement in _QUOTE_ENTITY_PATTERNS:
+            value = pattern.sub(replacement, value)
+    return value
 
 
 class ToText(HTMLParser):
@@ -64,7 +96,10 @@ def snapshotter(current_file: str) -> SnapshotFunc:
         maybe_make_dirs(filepath)
 
         def normalize(string: str) -> str:
-            return string.replace("\r\n", "\n")
+            string = string.replace("\r\n", "\n")
+            if not filename.endswith(".json"):
+                string = normalize_html_entities(string)
+            return string
 
         result = normalize(result)
 
@@ -323,3 +358,21 @@ EDGE_CASE_FILENAMES = [
     # Injection attempts
     *(NON_WINDOWS_EDGE_CASE_FILENAMES if not is_windows() else []),
 ]
+
+
+def fake_async_playwright(playwright: object) -> MagicMock:
+    """Fake `async_playwright` whose driver is a real subprocess.
+
+    Playwright starts its Node driver as a subprocess, which a Windows
+    SelectorEventLoop cannot create.
+    """
+
+    async def start_driver(*_: object) -> object:
+        driver = await asyncio.create_subprocess_exec(sys.executable, "-c", "")
+        await driver.wait()
+        return playwright
+
+    manager = MagicMock()
+    manager.__aenter__.side_effect = start_driver
+    manager.__aexit__.return_value = False
+    return MagicMock(return_value=manager)

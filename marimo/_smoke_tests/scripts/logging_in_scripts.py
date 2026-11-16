@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -9,6 +9,7 @@ def _():
     import marimo as mo
     import sys
     import time
+
     return mo, sys, time
 
 
@@ -20,7 +21,6 @@ def _(mo, sys, time):
         else:
             print(f"Step {i}")
         time.sleep(1)
-    return
 
 
 if __name__ == "__main__":

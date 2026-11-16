@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,7 +18,6 @@ def _(mo):
 
     There are many way that a user can input with your notebook, such as text boxes, sliders, dates, and more.
     """)
-    return
 
 
 @app.cell
@@ -26,7 +25,6 @@ def _(mo):
     mo.md(r"""
     ## Text boxes
     """)
-    return
 
 
 @app.cell
@@ -46,7 +44,6 @@ def _(mo, username):
     mo.stop(not username.value, mo.md("What is your name?"))
 
     mo.md(f"👋 Hello {username.value}, nice to meet you!")
-    return
 
 
 @app.cell
@@ -54,13 +51,11 @@ def _(mo):
     mo.ui.text_area(
         label="A space for your thoughts", full_width=True, max_length=1000
     )
-    return
 
 
 @app.cell
 def _(mo):
     mo.ui.number(label="What is your favorite number?", start=0, stop=10)
-    return
 
 
 @app.cell
@@ -68,7 +63,6 @@ def _(mo):
     mo.md(r"""
     ## Sliders
     """)
-    return
 
 
 @app.cell
@@ -84,7 +78,6 @@ def _(mo):
         0, 100, value=50, label="Vertical slider", orientation="vertical"
     )
     mo.vstack([slider, range_slider, custom_steps, vertical]).center()
-    return
 
 
 @app.cell
@@ -92,7 +85,6 @@ def _(mo):
     mo.md(r"""
     ## Checkboxes and Radios
     """)
-    return
 
 
 @app.cell
@@ -120,7 +112,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(COLORS, colors, mo, shape):
+def _(COLORS: list[str], colors, mo, shape):
     selected_colors = [color for i, color in enumerate(COLORS) if colors.value[i]]
 
 
@@ -157,7 +149,6 @@ def _(COLORS, colors, mo, shape):
     A {"/".join(selected_colors)} {shape.value}:
     {draw_shape(shape.value, selected_colors)}
     """).center()
-    return
 
 
 @app.cell
@@ -165,7 +156,6 @@ def _(mo):
     mo.md("""
     ## Dates
     """)
-    return
 
 
 @app.cell
@@ -193,7 +183,6 @@ def _(end_date, mo, start_date):
             mo.md(f"From {start_date.value} to {end_date.value}"),
         ]
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -201,7 +190,6 @@ def _(mo):
     mo.md("""
     ## Dropdowns
     """)
-    return
 
 
 @app.cell
@@ -216,7 +204,6 @@ def _(mo):
         value=["Option 1", "Option 2"],
     )
     mo.hstack([single, multi])
-    return
 
 
 @app.cell

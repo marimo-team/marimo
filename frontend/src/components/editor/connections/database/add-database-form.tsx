@@ -220,6 +220,10 @@ const DATA_CATALOGS = [
 
 const ALL_ENTRIES = [...DATABASES, ...DATA_CATALOGS];
 
+export const DATABASE_CONNECTION_KEYWORDS = [
+  ...new Set(ALL_ENTRIES.flatMap(({ name, logo }) => [name, logo])),
+];
+
 const DatabaseSchemaSelector: React.FC<{
   onSelect: (schema: z.ZodType<DatabaseConnection, FieldValues>) => void;
 }> = ({ onSelect }) => {

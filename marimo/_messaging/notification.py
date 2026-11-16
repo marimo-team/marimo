@@ -3,18 +3,22 @@
 
 from __future__ import annotations
 
+import re
 import time
 from typing import (
+    Annotated,
     Any,
     ClassVar,
     Literal,
 )
+from urllib.parse import urlsplit
 
 import msgspec
 
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._ast.cell import RuntimeStateType
+from marimo._core.protocol import Revision
 from marimo._data._external_storage.models import (
     StorageEntry,
     StorageNamespace,
@@ -30,23 +34,47 @@ from marimo._data.models import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
-from marimo._messaging.context import RUN_ID_CTX, RunId_t
+from marimo._messaging.context import RUN_ID_CTX, RunId_t, execution_id_for
 from marimo._messaging.notebook.changes import Transaction
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
+from marimo._session.model import StartupPhase
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import (
     CellId_t,
     RequestId,
+    StableSessionId,
     UIElementId,
     VariableName,
     WidgetModelId,
 )
-from marimo._utils.msgspec_basestruct import BaseStruct
+from marimo._utils.msgspec_basestruct import BaseStruct, MsgspecSchema
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
+
+_VIRTUAL_FILE_URL_RE = re.compile(r"^(?:\.?/)?@file/[^?#]+$")
+_JAVASCRIPT_DATA_URL_RE = re.compile(
+    r"^data:(?:text|application)/javascript(?:;[^,]*)?,[^\r\n]*$"
+)
+
+
+def _normalize_esm_url(value: str) -> str | None:
+    if _VIRTUAL_FILE_URL_RE.fullmatch(value) is not None:
+        return value
+    if _JAVASCRIPT_DATA_URL_RE.fullmatch(value) is not None:
+        return value
+    if any(character.isspace() for character in value):
+        return None
+
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
+    if parsed.scheme in ("http", "https") and parsed.netloc:
+        return parsed.geturl()
+    return None
 
 
 class Notification(msgspec.Struct, tag_field="op"):
@@ -57,6 +85,30 @@ class Notification(msgspec.Struct, tag_field="op"):
     """
 
     name: ClassVar[str]
+
+
+class ExecutionNotification(Notification, tag="execution"):
+    """An attempt's lifecycle, independent of a cell's displayed status.
+
+    `planned` includes the execution ID and code fingerprint before any output.
+    `code` is null when source is withheld.
+    `running` means evaluation began. `completed` follows the final output
+    and errors, including for attempts that never ran. Buffered and background
+    console output may still arrive with the completed attempt's identity.
+    A completed attempt that never ran and reported no error names why in
+    `skipped`, such as `superseded` when a newer attempt replaced it.
+    """
+
+    name: ClassVar[str] = "execution"
+    execution_id: str
+    cell_id: CellId_t
+    run_id: str | None
+    phase: Literal["planned", "running", "completed"]
+    code: str | None = None
+    code_fingerprint: str | None = None
+    caused_by: str | None = None
+    depends_on: dict[str, Revision | None] | None = None
+    skipped: str | None = None
 
 
 class CellNotification(Notification, tag="cell-op"):
@@ -72,8 +124,8 @@ class CellNotification(Notification, tag="cell-op"):
         output: Cell's output. Use CellOutput.empty() to clear.
         console: Console messages. Single/list appends, [] clears, None unchanged.
         status: Execution status (idle/running/stale/queued/disabled-transitively).
-        stale_inputs: Whether cell has stale inputs from changed dependencies.
         run_id: Execution run ID for tracing. Auto-set from context.
+        execution_id: Evaluation of this cell producing the update, when known.
         serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
         timestamp: Creation timestamp, auto-set.
     """
@@ -83,21 +135,18 @@ class CellNotification(Notification, tag="cell-op"):
     output: CellOutput | None = None
     console: CellOutput | list[CellOutput] | None = None
     status: RuntimeStateType | None = None
-    stale_inputs: bool | None = None
     run_id: RunId_t | None = None
+    execution_id: str | None = None
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
     # serialization hint unchanged; None explicitly clears it (cell is no
     # longer a top-level definition); a string sets it.
-    serialization: str | None | msgspec.UnsetType = msgspec.UNSET
+    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
+        if self.execution_id is None:
+            self.execution_id = execution_id_for(self.cell_id)
         if self.run_id is not None:
-            return
-
-        # We currently don't support tracing for replayed cell ops (previous session runs)
-        if self.status == "idle":
-            self.run_id = None
             return
 
         try:
@@ -107,7 +156,7 @@ class CellNotification(Notification, tag="cell-op"):
             # The context variable hasn't been set yet
             self.run_id = None
         except Exception as e:
-            LOGGER.error("Error getting run id: %s", str(e))
+            LOGGER.error("Error getting run id: %s", e)
             self.run_id = None
 
 
@@ -202,7 +251,10 @@ class EsmSpec(msgspec.Struct):
         import marimo._output.data.data as mo_data
         from marimo._utils.code import hash_code
 
-        return EsmSpec(url=mo_data.js(esm).url, hash=hash_code(esm))
+        url = _normalize_esm_url(esm)
+        if url is None:
+            url = mo_data.any_data(esm.encode("utf-8"), ext="js").url
+        return EsmSpec(url=url, hash=hash_code(esm))
 
 
 class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
@@ -300,21 +352,18 @@ class InterruptedNotification(Notification, tag="interrupted"):
     """Kernel was interrupted by user (SIGINT/Ctrl+C)."""
 
     name: ClassVar[str] = "interrupted"
+    run_id: str | None = msgspec.field(
+        default_factory=lambda: RUN_ID_CTX.get(None)
+    )
 
 
 class CompletedRunNotification(Notification, tag="completed-run"):
-    """Run of submitted cells and descendants completed.
-
-    Attributes:
-        run_id: Correlation ID echoed from the command that triggered
-            this completion. `None` for handlers that don't take a
-            `run_id` (everything except `handle_execute_scratchpad`
-            today). Consumers that want to wait for a specific command's
-            completion filter on this field.
-    """
+    """The command's reactive cycle ended, after its console was flushed."""
 
     name: ClassVar[str] = "completed-run"
     run_id: str | None = None
+    outcome: Literal["succeeded", "failed", "interrupted"] = "succeeded"
+    error: str | None = None
 
 
 class KernelCapabilitiesNotification(msgspec.Struct):
@@ -340,7 +389,7 @@ class KernelCapabilitiesNotification(msgspec.Struct):
         self.terminal = not is_windows() and not is_pyodide()
         self.pylsp = DependencyManager.pylsp.has()
         self.basedpyright = DependencyManager.basedpyright.has()
-        self.ty = DependencyManager.ty.has()
+        self.ty = DependencyManager.ty.has() or DependencyManager.which("ty")
         self.pyrefly = DependencyManager.pyrefly.has()
 
 
@@ -393,36 +442,27 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     """Kernel ready for execution. First notification sent at startup.
 
     Attributes:
-        cell_ids: Cell IDs in order.
-        codes: Source code for each cell.
-        names: Cell names/titles.
         layout: Notebook layout config.
-        configs: Per-cell configuration.
         resumed: Whether resumed from previous session.
         ui_values: Previous UI element values if resumed.
-        last_executed_code: Last executed code per cell if resumed.
-        last_execution_time: Last execution time per cell if resumed.
         app_config: Application configuration.
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
         auto_instantiated: Whether cells already executed (run mode).
+        stable_session_id: Server-owned Session identity that survives
+            browser reconnects. None where no server Session exists.
     """
 
     name: ClassVar[str] = "kernel-ready"
-    cell_ids: tuple[CellId_t, ...]
-    codes: tuple[str, ...]
-    names: tuple[str, ...]
     layout: LayoutConfig | None
-    configs: tuple[CellConfig, ...]
     resumed: bool
     ui_values: dict[str, JSONType] | None
-    last_executed_code: dict[CellId_t, str] | None
-    last_execution_time: dict[CellId_t, float] | None
     app_config: _AppConfig
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
     consumer_capabilities: ConsumerCapabilities
     auto_instantiated: bool = False
+    stable_session_id: StableSessionId | None = None
 
 
 class CompletionResultNotification(Notification, tag="completion-result"):
@@ -474,37 +514,106 @@ class MissingPackageAlertNotification(
     source: Literal["kernel", "server"] = "kernel"
 
 
-# package name => installation status
+# Package name => progress within the current operation
 PackageStatusType = dict[
-    str, Literal["queued", "installing", "installed", "failed"]
+    str,
+    Literal["queued", "running", "succeeded", "failed", "restart-required"],
 ]
 
 
-class InstallingPackageAlertNotification(
-    Notification, tag="installing-package-alert"
+class _EnvironmentOperationStatus(
+    msgspec.Struct,
+    tag_field="kind",
+    frozen=True,
+    forbid_unknown_fields=True,
 ):
-    """Package installation progress with streaming logs.
+    pass
 
-    Attributes:
-        packages: Package name to status (queued/installing/installed/failed).
-        logs: Optional streaming logs per package.
-        log_status: Log stream status (append/start/done).
-        source: Which Python environment packages are installed into.
-                "kernel" (default) installs in the kernel's venv; "server"
-                installs in the server's own Python env.
+
+class OperationRunning(
+    _EnvironmentOperationStatus, tag="running", frozen=True
+):
+    pass
+
+
+class OperationSucceeded(
+    _EnvironmentOperationStatus, tag="succeeded", frozen=True
+):
+    pass
+
+
+class OperationRestartRequired(
+    _EnvironmentOperationStatus, tag="restart-required", frozen=True
+):
+    reason: str
+
+
+class OperationFailed(_EnvironmentOperationStatus, tag="failed", frozen=True):
+    error: str
+
+
+class OperationCancelled(
+    _EnvironmentOperationStatus, tag="cancelled", frozen=True
+):
+    pass
+
+
+EnvironmentOperationStatus = (
+    OperationRunning
+    | OperationSucceeded
+    | OperationRestartRequired
+    | OperationFailed
+    | OperationCancelled
+)
+
+
+EnvironmentAction = Literal["prepare", "install", "remove", "sync"]
+
+
+class EnvironmentOperation(msgspec.Struct, frozen=True):
+    """Current progress and logs for one execution of environment work."""
+
+    operation_id: str
+    action: EnvironmentAction
+    status: EnvironmentOperationStatus
+    packages: PackageStatusType
+    logs: dict[str, str]
+    source: Literal["kernel", "server"]
+
+
+class EnvironmentState(msgspec.Struct, frozen=True):
+    """Preparation, active operations, the latest mutation, and restarts."""
+
+    restart_required: bool
+    operations: list[EnvironmentOperation]
+
+
+class EnvironmentStateNotification(Notification, tag="environment-state"):
+    """Replace the current state for one environment on connection."""
+
+    name: ClassVar[str] = "environment-state"
+    source: Literal["kernel", "server"]
+    state: EnvironmentState
+
+
+class EnvironmentOperationNotification(
+    Notification, tag="environment-operation"
+):
+    """Current operation progress and changes to its named log streams.
+
+    Package statuses replace the previous map. Log chunks append to a stream,
+    or replace it when `log_mode` is `replace`. The operation status determines
+    completion independently of its packages and output streams.
     """
 
-    name: ClassVar[str] = "installing-package-alert"
+    name: ClassVar[str] = "environment-operation"
+    operation_id: str
+    action: EnvironmentAction
+    status: EnvironmentOperationStatus
+    source: Literal["kernel", "server"]
     packages: PackageStatusType
-    logs: dict[str, str] | None = None  # package name -> log content
-    log_status: Literal["append", "start", "done"] | None = None
-    source: Literal["kernel", "server"] = "kernel"
-
-
-class ReconnectedNotification(Notification, tag="reconnected"):
-    """WebSocket reconnection confirmed."""
-
-    name: ClassVar[str] = "reconnected"
+    logs: dict[str, str]
+    log_mode: Literal["append", "replace"]
 
 
 class StartupLogsNotification(Notification, tag="startup-logs"):
@@ -535,6 +644,19 @@ class BannerNotification(Notification, tag="banner"):
     description: str
     variant: Literal["danger"] | None = None
     action: Literal["restart"] | None = None
+
+
+class StartupProgressNotification(Notification, tag="startup-progress"):
+    """Current startup phase and its output before the kernel is ready.
+
+    Output appends within a phase. Snapshots replace it, and changing phases
+    starts a new stream. Environment preparation logs belong to its operation.
+    """
+
+    name: ClassVar[str] = "startup-progress"
+    phase: StartupPhase
+    logs: str
+    log_mode: Literal["append", "replace"]
 
 
 class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):
@@ -580,6 +702,8 @@ class VariableValue(BaseStruct):
     name: str
     value: str | None
     datatype: str | None
+    execution_id: str | None = None
+    revision: Annotated[Revision, MsgspecSchema] | None = None
 
 
 class VariablesNotification(Notification, tag="variables"):
@@ -593,15 +717,24 @@ class VariablesNotification(Notification, tag="variables"):
     variables: list[VariableDeclarationNotification]
 
 
+class VariableRemoval(BaseStruct):
+    """A binding removed from the runtime's namespace."""
+
+    name: str
+    execution_id: str
+
+
 class VariableValuesNotification(Notification, tag="variable-values"):
     """Current variable values.
 
     Attributes:
         variables: Variables with current values and types.
+        removed: Bindings that no longer exist, identified by their producer.
     """
 
     name: ClassVar[str] = "variable-values"
     variables: list[VariableValue]
+    removed: list[VariableRemoval] = msgspec.field(default_factory=list)
 
 
 class DatasetsNotification(Notification, tag="datasets"):
@@ -972,13 +1105,13 @@ class NotebookDocumentTransactionNotification(
 NotificationMessage = (
     # Cell operations
     CellNotification
+    | ExecutionNotification
     | FunctionCallResultNotification
     | UIElementMessageNotification
     | ModelLifecycleNotification
     | RemoveUIElementsNotification
     # Notebook lifecycle
     | ReloadNotification
-    | ReconnectedNotification
     | InterruptedNotification
     | CompletedRunNotification
     | KernelReadyNotification
@@ -988,8 +1121,10 @@ NotificationMessage = (
     | AlertNotification
     | BannerNotification
     | MissingPackageAlertNotification
-    | InstallingPackageAlertNotification
+    | EnvironmentOperationNotification
+    | EnvironmentStateNotification
     | StartupLogsNotification
+    | StartupProgressNotification
     | KernelStartupErrorNotification
     # Variables
     | VariablesNotification

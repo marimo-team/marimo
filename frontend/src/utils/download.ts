@@ -12,6 +12,7 @@ import { captureExternalIframes } from "./iframe";
 import { Logger } from "./Logger";
 import { ProgressState } from "./progress";
 import { ToastProgress } from "./toast-progress";
+import { asURL } from "./url";
 
 const FINISH_TOAST_DURATION_MS = 1200;
 type ToastConfig = Omit<Parameters<typeof toast>[0], "id">;
@@ -177,20 +178,80 @@ export async function downloadHTMLAsImage(opts: {
   }
 }
 
+// mo.download supports arbitrary file formats, so a MIME allowlist is too restrictive.
+const NON_DOWNLOAD_DATA_TYPES = new Set([
+  "text/html",
+  "text/xml",
+  "application/xml",
+  "text/jscript",
+  "text/livescript",
+  "text/vbscript",
+]);
+
+export function isDownloadUrl(url: unknown): url is string {
+  if (typeof url !== "string" || !url.trim()) {
+    return false;
+  }
+  try {
+    const parsed = asURL(url);
+    switch (parsed.protocol) {
+      case "http:":
+      case "https:":
+      case "blob:":
+        return true;
+      case "data:": {
+        const comma = parsed.pathname.indexOf(",");
+        if (comma === -1) {
+          return false;
+        }
+        const mimeType = parsed.pathname
+          .slice(0, comma)
+          .split(";", 1)[0]
+          .trim()
+          .toLowerCase();
+        // An omitted MIME type defaults to text/plain.
+        if (!mimeType) {
+          return true;
+        }
+        return (
+          /^[\w!#$%&'*+.^`|~-]+\/[\w!#$%&'*+.^`|~-]+$/.test(mimeType) &&
+          !NON_DOWNLOAD_DATA_TYPES.has(mimeType) &&
+          // Include versioned and x- aliases without enumerating each version.
+          !/^(?:text|application)\/(?:x-)?(?:java|ecma)script(?:\d+(?:\.\d+)*)?$/.test(
+            mimeType,
+          ) &&
+          !mimeType.endsWith("+xml")
+        );
+      }
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
 export function downloadByURL(url: string, filename?: string) {
+  if (!isDownloadUrl(url)) {
+    throw new Error("Unsupported download URL");
+  }
   const a = document.createElement("a");
   a.href = url;
-  if (filename) {
-    a.download = filename;
+  a.download = filename ?? "";
+  try {
+    a.click();
+  } finally {
+    a.remove();
   }
-  a.click();
-  a.remove();
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
-  downloadByURL(url, filename);
-  URL.revokeObjectURL(url);
+  try {
+    downloadByURL(url, filename);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function downloadExportedFile({

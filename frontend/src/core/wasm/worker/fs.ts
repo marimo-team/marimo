@@ -20,6 +20,10 @@ export const WasmFileSystem = {
     FS.chdir(HOME_DIR);
   },
   mountFS: (pyodide: PyodideInterface) => {
+    // Opaque origins (single-file exports) use the in-memory filesystem.
+    if (globalThis.origin === "null") {
+      return;
+    }
     const FS = getFS(pyodide);
     // Mount the filesystem
     FS.mount(pyodide.FS.filesystems.IDBFS, { root: "." }, HOME_DIR);

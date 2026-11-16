@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import csv
 import io
-import sys
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, TypeGuard, overload
 
 import narwhals as nw_main
 import narwhals.dtypes as nw_dtypes
@@ -14,12 +13,6 @@ import narwhals.stable.v2 as nw
 from marimo import _loggers
 
 LOGGER = _loggers.marimo_logger()
-
-if sys.version_info < (3, 11):
-    from typing import TypeGuard
-else:
-    from typing import TypeGuard
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable

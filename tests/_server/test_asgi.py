@@ -19,6 +19,7 @@ from marimo._server.asgi import (
     DynamicDirectoryMiddleware,
     create_asgi_app,
 )
+from tests._server.conftest import join_kernel_thread_tasks
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -65,6 +66,55 @@ class TestASGIAppBuilder(unittest.TestCase):
         self.temp_dir.cleanup()
         # Restore __main__ in case a kernel thread modified it
         sys.modules["__main__"] = self._saved_main
+
+    def test_mounted_apps_have_independent_host_notebooks(self) -> None:
+        from tests._server.host.drive import socket_snapshot
+        from tests._server.host.test_editor_websocket import (
+            receive_notification,
+        )
+
+        builder = create_asgi_app(quiet=True)
+        app = (
+            builder.with_app(path="/one", root=self.app1)
+            .with_app(path="/two", root=self.app2)
+            .build()
+        )
+        managers = [
+            child.state.session_manager
+            for child in builder._app_cache.values()
+        ]
+        with TestClient(app) as client:
+            try:
+                with (
+                    client.websocket_connect(
+                        "/one/ws?session_id=visitor"
+                    ) as one,
+                    client.websocket_connect(
+                        "/two/ws?session_id=visitor"
+                    ) as two,
+                ):
+                    snapshots = [socket_snapshot(ws) for ws in (one, two)]
+                    for ws in (one, two):
+                        receive_notification(ws, "kernel-ready")
+                    ids = [
+                        next(
+                            e["data"]["notebook"]["id"]
+                            for e in events
+                            if e["event"] == "notebook"
+                        )
+                        for events in snapshots
+                    ]
+                    assert ids[0] != ids[1]
+                    for events in snapshots:
+                        assert all(
+                            e["data"]["cell"]["code"] is None
+                            for e in events
+                            if e["event"] == "cell"
+                        )
+            finally:
+                assert client.portal is not None
+                for manager in managers:
+                    client.portal.call(join_kernel_thread_tasks, manager)
 
     def test_create_asgi_app(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
@@ -412,18 +462,26 @@ class TestASGIAppBuilder(unittest.TestCase):
             path="/", root=self.app1, middleware=[AuthMiddleware]
         ).build()
 
-        client = TestClient(marimo_app)
+        auth_app = builder._app_cache[self.app1]
+        session_manager = auth_app.app.state.session_manager
+        with TestClient(marimo_app) as client:
+            try:
+                # HTTP request should succeed (middleware sets user)
+                response = client.get("/")
+                assert response.status_code == 200
+                assert "http" in invoked_for
 
-        # HTTP request should succeed (middleware sets user)
-        response = client.get("/")
-        assert response.status_code == 200
-        assert "http" in invoked_for
+                # WebSocket should also have user/meta in scope.
+                with client.websocket_connect("/ws?session_id=test123") as ws:
+                    data = ws.receive_text()
+                    assert data  # kernel-ready message
+            finally:
+                # Mounted apps do not run their own lifespan cleanup.
+                # Shut down sessions before the client's event loop closes.
+                assert client.portal is not None
+                client.portal.call(join_kernel_thread_tasks, session_manager)
 
-        # WebSocket should also have user/meta in scope.
-        with client.websocket_connect("/ws?session_id=test123") as ws:
-            data = ws.receive_text()
-            assert data  # kernel-ready message
-
+        assert not session_manager.sessions
         assert "websocket" in invoked_for
 
 
@@ -1354,3 +1412,45 @@ def default_app_builder(base_url: str, file_path: str) -> Starlette:
 
     app.add_route("/{path:path}", handle)
     return app
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_asgi_builder_uses_configured_session_settings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    legacy: bool,
+) -> None:
+    from marimo._config.manager import UserConfigStore
+    from marimo._server.api.auth import CustomSessionMiddleware
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("")
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _: str(config_path)
+    )
+    for name in (
+        "MARIMO_SESSION_SECRET",
+        "MARIMO_SERVER_SESSION_SECRET",
+        "MARIMO_SESSION_COOKIE_SECURE",
+        "MARIMO_SERVER_SESSION_COOKIE_SECURE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    prefix = "MARIMO_" if legacy else "MARIMO_SERVER_"
+    monkeypatch.setenv(prefix + "SESSION_SECRET", "configured-asgi-secret")
+    monkeypatch.setenv(prefix + "SESSION_COOKIE_SECURE", "true")
+    notebook = tmp_path / "app.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+    app = create_asgi_app(token="auth-token")._create_app_for_file(
+        "", str(notebook)
+    )
+    assert isinstance(app, Starlette)
+    assert app.state.session_secret == "configured-asgi-secret"
+    middleware = next(
+        item
+        for item in app.user_middleware
+        if item.cls is CustomSessionMiddleware
+    )
+    assert middleware.kwargs == {
+        "secret_key": "configured-asgi-secret",
+        "https_only": True,
+    }

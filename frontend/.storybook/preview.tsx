@@ -9,8 +9,13 @@ import { Toaster } from "../src/components/ui/toaster";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 import { cn } from "../src/utils/cn";
 
-const withTheme: Decorator = (Story, context) => {
-  const theme = context.globals.theme || "light";
+const ThemeProvider = ({
+  theme,
+  children,
+}: {
+  theme: string;
+  children: React.ReactNode;
+}) => {
   useEffect(() => {
     document.body.classList.add(theme, `${theme}-theme`);
     return () => document.body.classList.remove(theme, `${theme}-theme`);
@@ -19,13 +24,19 @@ const withTheme: Decorator = (Story, context) => {
   return (
     <div className={cn(theme, "p-5")}>
       <TooltipProvider>
-        <Story />
+        {children}
         <Toaster />
         <TailwindIndicator />
       </TooltipProvider>
     </div>
   );
 };
+
+const withTheme: Decorator = (Story, context) => (
+  <ThemeProvider theme={context.globals.theme || "light"}>
+    <Story />
+  </ThemeProvider>
+);
 
 const preview: Preview = {
   parameters: {

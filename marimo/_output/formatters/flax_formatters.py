@@ -137,8 +137,7 @@ def _collect_dtype_device(
         if dtype is not None:
             dtypes.add(str(dtype))
         try:
-            for device in leaf.devices():
-                devices.add(str(device))
+            devices.update(str(device) for device in leaf.devices())
         except (AttributeError, TypeError):
             pass
     if not dtypes:

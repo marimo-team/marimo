@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "schedule:monthly"],
-  "minimumReleaseAge": "7 days",
+  "minimumReleaseAge": "14 days",
   "labels": ["dependencies"],
   "pin": {
     "enabled": false
@@ -18,10 +18,22 @@
       "matchDepTypes": ["peerDependencies", "project.dependencies"],
       "enabled": false
     },
+    // Widen the build backend upper bound while preserving the minimum version
+    {
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["build-system.requires"],
+      "matchPackageNames": ["uv-build"],
+      "rangeStrategy": "widen"
+    },
     // Don't upgrade node
     {
       "matchPackageNames": ["node"],
       "enabled": false
+    },
+    // Temporarily allow marimo-lens releases without the global age gate
+    {
+      "matchPackageNames": ["marimo-lens"],
+      "minimumReleaseAge": "0 days"
     },
     // Only upgrade ruff, mkdocs, pytest
     {

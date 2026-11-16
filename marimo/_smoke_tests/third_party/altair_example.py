@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -34,7 +34,6 @@ def _(alt, source):
         angle=alt.Angle("dir", scale=alt.Scale(domain=[0, 360], range=[180, 540])),
         size=alt.Size("speed", scale=alt.Scale(rangeMax=500)),
     ).project("equalEarth")
-    return
 
 
 @app.cell
@@ -59,11 +58,10 @@ def _(alt, cars, mo):
         that was an altair plot
         """
     )
-    return
 
 
 @app.cell
-def _(alt, stocks):
+def _(alt, stocks: str):
     base = (
         alt.Chart(stocks)
         .encode(x="date:T", y="price:Q", color="symbol:N")
@@ -71,12 +69,12 @@ def _(alt, stocks):
     )
 
     (base.mark_line() + base.mark_point())
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -84,6 +82,7 @@ def _():
 def _():
     import altair as alt
     from vega_datasets import data
+
     return alt, data
 
 

@@ -6,12 +6,18 @@ import functools
 import io
 import json
 import math
+import uuid
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
+from narwhals.dependencies import (
+    is_duckdb_relation,
+    is_ibis_table,
+    is_polars_lazyframe,
+)
 from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
@@ -21,6 +27,11 @@ from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
+from marimo._plugins.ui._impl.tables.geometry import (
+    GeometryColumnInfo,
+    find_geometry_columns,
+    format_geometry_cell,
+)
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
@@ -29,7 +40,9 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
     TableManager,
+    regex_literal,
 )
+from marimo._sql.sql_quoting import quote_sql_identifier
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
     dataframe_to_csv,
@@ -53,6 +66,51 @@ UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API althou
 NAN_VALUE = "NaN"
 POSITIVE_INF = str(float("inf"))
 NEGATIVE_INF = str(float("-inf"))
+
+
+def _duckdb_snapshot_needs_text(dtype: Any) -> bool:
+    if dtype.id in {"time with time zone", "bit", "uhugeint"}:
+        return True
+    if dtype.id in {"list", "struct", "map", "array"}:
+        return any(
+            _duckdb_snapshot_needs_text(child)
+            for name, child in dtype.children
+            if name != "size"
+        )
+    return False
+
+
+def _snapshot_duckdb_relation(relation: Any) -> tuple[Any, int]:
+    """Bind one portable copy back to the source connection's native types."""
+    expressions = []
+    restored = []
+    for name, dtype in zip(relation.columns, relation.types, strict=True):
+        quoted = quote_sql_identifier(name, dialect="duckdb")
+        is_geometry = str(dtype).startswith("GEOMETRY")
+        if is_geometry:
+            expressions.append(f"ST_AsWKB({quoted})::BLOB AS {quoted}")
+        elif _duckdb_snapshot_needs_text(dtype):
+            # Arrow cannot round-trip these native values without data loss.
+            expressions.append(f"{quoted}::VARCHAR AS {quoted}")
+        else:
+            expressions.append(quoted)
+        value = f"ST_GeomFromWKB({quoted})" if is_geometry else quoted
+        restored.append(f"{value}::{dtype} AS {quoted}")
+    table = relation.project(", ".join(expressions)).to_arrow_table()
+    suffix = uuid.uuid4().hex
+    data_name = f"__marimo_selection_data_{suffix}"
+    view = f"__marimo_selection_source_{suffix}"
+    # DuckDB captures the Arrow object through its Python replacement scan.
+    # A unique binding avoids shadowing a table in the user's connection.
+    globals()[data_name] = table
+    try:
+        snapshot = relation.query(
+            view, f"SELECT {', '.join(restored)} FROM {data_name}"
+        )
+    finally:
+        globals().pop(data_name)
+        relation.query(view, f"DROP VIEW IF EXISTS {view}")
+    return snapshot, table.num_rows
 
 
 class NarwhalsTableManager(
@@ -104,10 +162,25 @@ class NarwhalsTableManager(
         ensure_ascii: bool = True,
     ) -> str:
         del strict_json
-        frame = self.apply_formatting(format_mapping).as_frame()
-        return sanitize_json_bigint(
-            frame.rows(named=True), ensure_ascii=ensure_ascii
-        )
+        formatted_manager = self.apply_formatting(format_mapping)
+        frame = formatted_manager.as_frame()
+        rows = frame.rows(named=True)
+        geometry_columns = formatted_manager._geometry_columns
+        if geometry_columns:
+            rows = [
+                {
+                    col: (
+                        format_geometry_cell(
+                            value, geometry_columns[col].encoding
+                        )
+                        if col in geometry_columns
+                        else value
+                    )
+                    for col, value in row.items()
+                }
+                for row in rows
+            ]
+        return sanitize_json_bigint(rows, ensure_ascii=ensure_ascii)
 
     def to_parquet(self) -> bytes:
         stream = io.BytesIO()
@@ -121,15 +194,18 @@ class NarwhalsTableManager(
             return self
 
         frame = self.as_frame()
-        _data = frame.to_dict(as_series=False).copy()
-        for col in _data:
-            if col in format_mapping:
-                _data[col] = [
-                    format_value(col, x, format_mapping) for x in _data[col]
-                ]
-        return NarwhalsTableManager(
-            nw.from_dict(_data, backend=nw.get_native_namespace(frame))
-        )
+        for col in frame.columns:
+            if col not in format_mapping or col in self._geometry_columns:
+                continue
+            formatted = [
+                format_value(col, x, format_mapping)
+                for x in frame.get_column(col).to_list()
+            ]
+            series = nw.new_series(
+                col, formatted, backend=frame.implementation
+            )
+            frame = frame.with_columns(series.alias(col))
+        return NarwhalsTableManager(frame)
 
     def supports_filters(self) -> bool:
         return True
@@ -147,10 +223,76 @@ class NarwhalsTableManager(
                 self.data.filter(nw.col(INDEX_COLUMN_NAME).is_in(indices))
             )
 
+        if self.data.implementation.is_duckdb() and self._geometry_columns:
+            relation: Any = self.data.to_native()
+            if min(indices) < 0:
+                raise IndexError("Row index out of bounds")
+            index_name = "__marimo_export_row"
+            occupied = {name.casefold() for name in relation.columns}
+            while index_name.casefold() in occupied:
+                index_name += "_"
+            quoted_index = quote_sql_identifier(index_name, dialect="duckdb")
+            columns = ", ".join(
+                quote_sql_identifier(name, dialect="duckdb")
+                for name in relation.columns
+            )
+            indexed = relation.project(
+                f"{columns}, row_number() OVER () - 1 AS {quoted_index}"
+            )
+            requested_index = index_name + "_requested"
+            while requested_index.casefold() in occupied:
+                requested_index += "_"
+            requested_order = index_name + "_order"
+            while requested_order.casefold() in occupied:
+                requested_order += "_"
+            quoted_requested_index = quote_sql_identifier(
+                requested_index, dialect="duckdb"
+            )
+            quoted_requested_order = quote_sql_identifier(
+                requested_order, dialect="duckdb"
+            )
+            indexed, row_count = _snapshot_duckdb_relation(indexed)
+            if max(indices) >= row_count:
+                raise IndexError("Row index out of bounds")
+            view = f"__marimo_selection_indexes_{uuid.uuid4().hex}"
+            try:
+                requested = relation.query(
+                    view,
+                    f"SELECT * FROM unnest([{', '.join(str(int(i)) for i in indices)}]) "
+                    f"WITH ORDINALITY AS selected({quoted_requested_index}, {quoted_requested_order})",
+                )
+            finally:
+                relation.query(view, f"DROP VIEW IF EXISTS {view}")
+            selected = (
+                indexed.set_alias("source")
+                .join(
+                    requested.set_alias("selected"),
+                    f"source.{quoted_index} = selected.{quoted_requested_index}",
+                )
+                .order(quoted_requested_order)
+                .project(columns)
+            )
+            return self.with_new_data(
+                nw.from_native(selected, pass_through=False)
+            )
+
         df = self.as_frame()
         return self.with_new_data(df[indices])
 
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
+        if self.data.implementation.is_duckdb() and self._geometry_columns:
+            relation: Any = self.data.to_native()
+            return self.with_new_data(
+                nw.from_native(
+                    relation.project(
+                        ", ".join(
+                            quote_sql_identifier(name, dialect="duckdb")
+                            for name in columns
+                        )
+                    ),
+                    pass_through=False,
+                )
+            )
         return self.with_new_data(self.data.select(columns))
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
@@ -179,6 +321,12 @@ class NarwhalsTableManager(
             ]
 
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
+        if self.data.implementation.is_duckdb() and self._geometry_columns:
+            if not set(columns).intersection(self.data.columns):
+                return self
+            return self.select_columns(
+                [name for name in self.data.columns if name not in columns]
+            )
         return self.with_new_data(self.data.drop(columns, strict=False))
 
     def get_row_headers(self) -> FieldTypes:
@@ -190,6 +338,8 @@ class NarwhalsTableManager(
     ) -> list[tuple[Any, int]]:
         if column not in self.get_column_names():
             raise ValueError(f"Column {column} not found in table.")
+        if column in self._geometry_columns:
+            return []
 
         frame = self.as_lazy_frame()
         _unique_name = "__len_count__"
@@ -266,7 +416,19 @@ class NarwhalsTableManager(
     def nw_schema(self) -> nw.Schema:
         return cast(nw.Schema, self.data.collect_schema())
 
+    @cached_property
+    def _geometry_columns(self) -> dict[str, GeometryColumnInfo]:
+        return find_geometry_columns(self.data)
+
     def get_field_type(
+        self, column_name: str
+    ) -> tuple[FieldType, ExternalDataType]:
+        info = self._geometry_columns.get(column_name)
+        if info is not None:
+            return ("geometry", info.external_type)
+        return self._get_field_type_from_dtype(column_name)
+
+    def _get_field_type_from_dtype(
         self, column_name: str
     ) -> tuple[FieldType, ExternalDataType]:
         dtype = self.nw_schema[column_name]
@@ -296,28 +458,49 @@ class NarwhalsTableManager(
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
 
+        if is_narwhals_lazyframe(self.data):
+            return self._take_lazy(self.data, count, offset)
+
         if offset == 0:
             return self.with_new_data(self.data.head(count))
-        else:
-            if is_narwhals_lazyframe(self.data):
-                # Lazyframes do not support slicing, https://github.com/narwhals-dev/narwhals/issues/2389
-                # So we collect the first n rows
-                data = self.data.head(offset + count).collect()
-                return self.with_new_data(data[offset : offset + count])
-            else:
-                return self.with_new_data(self.data[offset : offset + count])
+        return self.with_new_data(self.data[offset : offset + count])
+
+    def _take_lazy(
+        self, frame: nw.LazyFrame[IntoLazyFrameT], count: int, offset: int
+    ) -> TableManager[Any]:
+        native = frame.to_native()
+        if is_polars_lazyframe(native):
+            return self.with_new_data(
+                nw.from_native(native.slice(offset, count))
+            )
+        if is_duckdb_relation(native):
+            return self.with_new_data(
+                nw.from_native(native.limit(count, offset=offset))
+            )
+        if is_ibis_table(native):
+            return self.with_new_data(
+                nw.from_native(native.limit(count, offset=offset))
+            )
+
+        if offset == 0:
+            return self.with_new_data(frame.head(count))
+        # Narwhals has no portable lazy slicing API for the other backends.
+        data = frame.head(offset + count).collect()
+        return self.with_new_data(data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
-        query = query.lower()
+        pattern = f"(?i){regex_literal(query)}"
 
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():
             if column == INDEX_COLUMN_NAME:
                 continue
+            if column in self._geometry_columns:
+                continue
             if is_narwhals_string_type(dtype):
                 # Cast to string as pandas may fail for certain values
                 expressions.append(
-                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
+                    nw.col(column).cast(nw.String).str.contains(pattern)
                 )
             elif dtype == nw.List(nw.String):
                 # TODO: Narwhals doesn't support list.contains
@@ -331,7 +514,7 @@ class NarwhalsTableManager(
                 or dtype == nw.Boolean
             ):
                 expressions.append(
-                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
+                    nw.col(column).cast(nw.String).str.contains(pattern)
                 )
 
         if not expressions:
@@ -393,13 +576,17 @@ class NarwhalsTableManager(
             # As of Oct 2025, DuckDB does not support "nearest" interpolation
             quantile_interpolation = "linear"
 
-        if is_narwhals_string_type(dtype):
+        if column in self._geometry_columns:
+            # Geometry columns report only total and nulls.
+            pass
+        elif is_narwhals_string_type(dtype):
             exprs["unique"] = col.n_unique()
         elif dtype == nw.Boolean:
             exprs.update(
                 {
                     "true": col.sum(),  # type: ignore[dict-item]
-                    "false": nw.len() - col.sum(),  # type: ignore[dict-item]
+                    # nulls are neither true nor false
+                    "false": nw.len() - col.sum() - col.null_count(),  # type: ignore[dict-item]
                 }
             )
         elif (dtype == nw.Date) or is_narwhals_time_type(dtype):
@@ -616,9 +803,7 @@ class NarwhalsTableManager(
                     bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
-                    epoch = datetime.datetime(
-                        1970, 1, 1, tzinfo=datetime.timezone.utc
-                    )
+                    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
                     bin_end_dt = epoch + datetime.timedelta(
                         seconds=bin_end / ms_time
                     )
@@ -632,9 +817,7 @@ class NarwhalsTableManager(
                     )
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
-                    epoch = datetime.datetime(
-                        1970, 1, 1, tzinfo=datetime.timezone.utc
-                    )
+                    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
                     bin_end = epoch + datetime.timedelta(
                         seconds=bin_end / ms_time
                     )
@@ -655,14 +838,16 @@ class NarwhalsTableManager(
             return list(range(total))
         return [round(i * (total - 1) / (size - 1)) for i in range(size)]
 
+    @cached_property
+    def _lazy_num_rows(self) -> int:
+        return int(self.as_lazy_frame().select(nw.len()).collect().item())
+
     def get_num_rows(self, force: bool = True) -> int | None:
-        # If force is true, collect the data and get the number of rows
+        if is_narwhals_lazyframe(self.data):
+            return self._lazy_num_rows if force else None
+
         if force:
             return self.as_frame().shape[0]
-
-        # When lazy, we don't know the number of rows
-        if is_narwhals_lazyframe(self.data):
-            return None
 
         # Otherwise, we can get the number of rows from the shape
         try:
@@ -681,6 +866,8 @@ class NarwhalsTableManager(
         return column_names
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        if column in self._geometry_columns:
+            return []
         frame = self.data.select(nw.col(column))
         if is_narwhals_lazyframe(frame):
             frame = frame.collect()

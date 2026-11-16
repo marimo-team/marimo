@@ -148,9 +148,10 @@ def test_unparsable_cell_with_escaped_quotes():
     def identity(x: str) -> str:
         return MarimoConvert.from_py(x).to_py()
 
-    assert identity(marimo_script) == marimo_script
-    assert identity(identity(marimo_script)) == marimo_script
-    assert identity(identity(identity(marimo_script))) == marimo_script
+    expected = marimo_script.replace('    name="_"\n', '    name="_",\n')
+    assert identity(marimo_script) == expected
+    assert identity(identity(marimo_script)) == expected
+    assert identity(identity(identity(marimo_script))) == expected
     snapshot(
         "unparsable_cell_with_escaped_quotes.py.txt", identity(marimo_script)
     )

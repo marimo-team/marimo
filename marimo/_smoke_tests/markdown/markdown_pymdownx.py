@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.6"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -22,7 +22,6 @@ def _(mo):
     -   [ ] item 2
     -   [ ] item 3
     """)
-    return
 
 
 @app.cell
@@ -32,7 +31,6 @@ def _(mo):
 
     ![picture](../../docs/_static/docs-settings.png)
     """)
-    return
 
 
 @app.cell
@@ -44,7 +42,6 @@ def _(mo):
     This is an admonition box without a title.
     ///
     """)
-    return
 
 
 @app.cell
@@ -63,7 +60,6 @@ def _(mo):
     Fruit Count
     ///
     """)
-    return
 
 
 @app.cell
@@ -79,7 +75,6 @@ def _(mo):
     Tab 2 content
     ///
     """)
-    return
 
 
 @app.cell
@@ -129,7 +124,6 @@ def _(mo):
     3. Three
     ///
     """)
-    return
 
 
 @app.cell
@@ -145,7 +139,6 @@ def _(mo):
 
     ***I'm bold and italic!** I am just italic.*
     """)
-    return
 
 
 @app.cell
@@ -186,7 +179,6 @@ def _(mo):
 
     ++}
     """)
-    return
 
 
 @app.cell
@@ -196,7 +188,6 @@ def _(mo):
 
     :smile: :heart: :thumbsup:
     """)
-    return
 
 
 @app.cell
@@ -206,7 +197,6 @@ def _(mo):
 
     ++ctrl+alt+delete++
     """)
-    return
 
 
 @app.cell
@@ -217,7 +207,6 @@ def _(mo):
     - Just paste links directly in the document like this: https://google.com.
     - Or even an email address: fake.email@email.com.
     """)
-    return
 
 
 @app.cell
@@ -231,12 +220,12 @@ def _(mo):
 
     text~a\ subscript~
     """)
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

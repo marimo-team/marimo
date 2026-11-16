@@ -10,27 +10,27 @@ describe("useVegaContainerRemeasure", () => {
   let OriginalResizeObserver: typeof ResizeObserver;
 
   class FakeResizeObserver {
-    callback: ResizeObserverCallback;
-    el: Element | null = null;
+    public callback: ResizeObserverCallback;
+    public el: Element | null = null;
 
-    constructor(callback: ResizeObserverCallback) {
+    public constructor(callback: ResizeObserverCallback) {
       this.callback = callback;
       observers.push(this);
     }
 
-    observe(el: Element) {
+    public observe(el: Element) {
       this.el = el;
     }
 
-    disconnect() {
+    public disconnect() {
       this.el = null;
     }
 
-    unobserve() {
+    public unobserve() {
       this.el = null;
     }
 
-    trigger(width: number) {
+    public trigger(width: number) {
       this.callback(
         [
           {

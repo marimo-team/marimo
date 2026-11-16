@@ -25,13 +25,13 @@ env:
 jobs:
   publish_docker:
     name: 🐋 Publish Docker images
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     # Don't error while this is in BETA
     continue-on-error: true
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: ⏳ Wait for PyPI package availability
         run: |

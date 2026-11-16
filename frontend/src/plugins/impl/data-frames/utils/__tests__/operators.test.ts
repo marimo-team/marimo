@@ -60,6 +60,10 @@ describe("getOperatorForDtype", () => {
   it("should return empty array for unknown dtype", () => {
     expect(getOperatorForDtype("unknown")).toEqual([]);
   });
+
+  it("should return no operators for geometry", () => {
+    expect(getOperatorForDtype("geometry")).toEqual([]);
+  });
 });
 
 describe("getSchemaForOperator", () => {
@@ -86,6 +90,10 @@ describe("getSchemaForOperator", () => {
   it("should return empty array for unknown dtype or operator", () => {
     expect(getSchemaForOperator("unknown", "==")).toEqual([]);
     expect(getSchemaForOperator("int", "unknown")).toEqual([]);
+  });
+
+  it("should return no operand schema for geometry", () => {
+    expect(getSchemaForOperator("geometry", "==")).toEqual([]);
   });
 });
 

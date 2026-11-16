@@ -10,7 +10,7 @@ from starlette.applications import (
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase, ToolContext
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 from marimo._server.ai.mcp.client import get_mcp_client
 from marimo._server.ai.tools.types import (
     FunctionArgs,
@@ -82,6 +82,8 @@ class ToolManager:
         Returns:
             A list of tool definitions available for the given mode.
         """
+        if mode == "manual":
+            mode = "ask"
         all_tools = self._get_all_tools()
         return [tool for tool in all_tools if mode in tool.mode]
 
@@ -176,7 +178,7 @@ class ToolManager:
         return ToolDefinition(
             name=namespaced_name or mcp_tool.name,
             description=mcp_tool.description or "No description available",
-            parameters=mcp_tool.inputSchema,
+            parameters=mcp_tool.input_schema,
             source="mcp",
             # MCP tools available in ask mode and agent mode
             # TODO: Determine which tools to support in agent mode
@@ -251,15 +253,7 @@ class ToolManager:
                 mcp_client = get_mcp_client()
 
                 if mcp_client.is_error_result(call_result):
-                    # Extract error message from the result content
-                    error_messages = mcp_client.extract_text_content(
-                        call_result
-                    )
-                    error_text = (
-                        " ".join(error_messages)
-                        if error_messages
-                        else "Unknown MCP tool error"
-                    )
+                    error_text = mcp_client.format_tool_error(call_result)
                     LOGGER.error(
                         f"MCP tool '{tool_name}' returned error: {error_text}"
                     )
@@ -267,15 +261,11 @@ class ToolManager:
                         tool_name=tool_name, result=None, error=error_text
                     )
 
-                # For successful results, extract text content from CallToolResult
-                success_messages = mcp_client.extract_text_content(call_result)
-                result_text = (
-                    " ".join(success_messages)
-                    if success_messages
-                    else "MCP tool completed successfully with no text output"
-                )
+                result = mcp_client.convert_tool_result(call_result)
+                if result is None:
+                    result = "MCP tool completed successfully with no output"
                 return ToolCallResult(
-                    tool_name=tool_name, result=result_text, error=None
+                    tool_name=tool_name, result=result, error=None
                 )
 
             else:

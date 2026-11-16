@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import time
-from typing import Any
-from unittest.mock import patch
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -13,6 +14,21 @@ from marimo._plugins.stateless.status._progress import (
     spinner,
 )
 from marimo._runtime.context.types import runtime_context_installed
+from marimo._types.ids import CellId_t
+from tests.conftest import MockedKernel
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+
+@pytest.fixture
+def frozen_progress_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = time.time()
+    clock = SimpleNamespace(time=lambda: now)
+    monkeypatch.setattr(
+        "marimo._plugins.stateless.status._progress.time", clock
+    )
+    monkeypatch.setattr("marimo._utils.debounce.time", clock)
 
 
 # Test initialization
@@ -79,7 +95,10 @@ def test_update_progress_slowly(mock_flush: Any) -> None:
     )
 
     # Mock sleep 120 seconds
-    with patch("time.time", return_value=progress.start_time + 120):
+    with patch(
+        "marimo._plugins.stateless.status._progress.time",
+        Mock(time=Mock(return_value=progress.start_time + 120)),
+    ):
         progress.update_progress(
             increment=1, title="Updated", subtitle="Still Running Slowly"
         )
@@ -137,6 +156,47 @@ def test_update_progress_closed(mock_flush: Any) -> None:
     mock_flush.assert_called_once()
 
 
+@pytest.mark.usefixtures("frozen_progress_time")
+@pytest.mark.parametrize("kind", ["progress_bar", "spinner"])
+@pytest.mark.parametrize("field", ["title", "subtitle"])
+def test_rapid_text_updates(
+    mocked_kernel: MockedKernel, kind: str, field: str
+) -> None:
+    with mocked_kernel.k._install_execution_context(cell_id=CellId_t("0")):
+        indicator: progress_bar[int] | spinner = (
+            progress_bar(total=5) if kind == "progress_bar" else spinner()
+        )
+        with indicator as status:
+            for text in ["first", "second", "third"]:
+                status.update(
+                    title=text if field == "title" else None,
+                    subtitle=text if field == "subtitle" else None,
+                )
+            outputs = [
+                msg.output.data
+                for msg in mocked_kernel.stream.cell_notifications
+                if msg.output is not None
+            ]
+            assert f"data-{field}='&quot;third&quot;'" in outputs[-1]
+
+
+@pytest.mark.usefixtures("frozen_progress_time")
+@pytest.mark.parametrize(
+    ("title", "subtitle"), [(None, None), ("fixed", None), (None, "fixed")]
+)
+@patch("marimo._runtime.output._output.flush")
+def test_numeric_updates_remain_rate_limited(
+    mock_flush: Mock,
+    title: str | None,
+    subtitle: str | None,
+) -> None:
+    with progress_bar(total=100, title=title, subtitle=subtitle) as bar:
+        bar.update(title=title, subtitle=subtitle)
+        mock_flush.reset_mock()
+        bar.update(title=title, subtitle=subtitle)
+        mock_flush.assert_not_called()
+
+
 def test_spinner_without_context():
     assert runtime_context_installed() is False
 
@@ -183,20 +243,22 @@ def test_progress_with_stepped_range_and_total() -> None:
     assert (progress.progress.current, progress.progress.total) == (10, 10)
 
 
-async def sleep(seconds):
+async def async_items(items: list[int]) -> AsyncIterator[int]:
     import asyncio
 
-    tasks = [asyncio.create_task(asyncio.sleep(s, s)) for s in seconds]
-    for future in asyncio.as_completed(tasks):
-        yield await future
+    for item in items:
+        await asyncio.sleep(0)
+        yield item
 
 
 async def test_progress_async():
     assert runtime_context_installed() is False
 
-    ait = sleep([0.01, 0.003, 0.001])
-    result = [s async for s in progress_bar(ait, total=3)]
-    assert result == [0.001, 0.003, 0.01]
+    progress = progress_bar(async_items([1, 2, 3]), total=3)
+    result = [item async for item in progress]
+
+    assert result == [1, 2, 3]
+    assert progress.progress.current == 3
 
 
 def test_progress_no_total_error():
@@ -209,7 +271,7 @@ def test_progress_no_total_error():
 
     with pytest.raises(
         TypeError,
-        match="Cannot determine the length of a collection. A `total` must be provided.",
+        match=r"Cannot determine the length of a collection\. A `total` must be provided\.",
     ):
         progress_bar(sync_generator())
 
@@ -224,7 +286,7 @@ def test_progress_async_no_total_error():
 
     with pytest.raises(
         TypeError,
-        match="Cannot determine the length of a collection. A `total` must be provided.",
+        match=r"Cannot determine the length of a collection\. A `total` must be provided\.",
     ):
         progress_bar(async_generator())
 
@@ -237,7 +299,7 @@ def test_progress_for_loop_error():
 
     with pytest.raises(
         RuntimeError,
-        match="Cannot iterate over an async collection with `for`. Use `async for` instead.",
+        match=r"Cannot iterate over an async collection with `for`\. Use `async for` instead\.",
     ):
         for _ in progress_bar(async_generator(), total=1):
             pass
@@ -248,7 +310,7 @@ async def test_progress_async_for_loop_error():
 
     with pytest.raises(
         RuntimeError,
-        match="Cannot iterate over a sync collection with `async for`. Use `for` instead.",
+        match=r"Cannot iterate over a sync collection with `async for`\. Use `for` instead\.",
     ):
         async for _ in progress_bar([1, 2, 3]):
             pass

@@ -8,12 +8,15 @@ import {
 import type { DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
+import { normalizeBoolean } from "./column-types";
 import type {
   ColumnEdit,
+  ColumnType,
+  EditorRow,
   Edits,
   ModifiedGridColumn,
   PositionalEdit,
-  RowEdit,
+  RemoveRowEdit,
 } from "./types";
 
 export function getColumnKind(fieldType: DataType): GridCellKind {
@@ -24,7 +27,15 @@ export function getColumnKind(fieldType: DataType): GridCellKind {
       return GridCellKind.Number;
     case "boolean":
       return GridCellKind.Boolean;
+    case "integer":
+    case "date":
+    case "datetime":
+    case "time":
+    case "geometry":
+    case "unknown":
+      return GridCellKind.Text;
     default:
+      logNever(fieldType);
       return GridCellKind.Text;
   }
 }
@@ -43,11 +54,52 @@ export function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
       return GridColumnIcon.HeaderDate;
     case "time":
       return GridColumnIcon.HeaderTime;
+    case "geometry":
     case "unknown":
       return GridColumnIcon.HeaderString;
     default:
       logNever(fieldType);
       return GridColumnIcon.HeaderString;
+  }
+}
+
+export function isValidCellValue(
+  dataType: DataType | undefined,
+  value: unknown,
+  columnType?: ColumnType,
+): boolean {
+  if (Array.isArray(columnType)) {
+    return typeof value === "string" && columnType.includes(value);
+  }
+
+  switch (dataType) {
+    case "number":
+      return Number.isFinite(Number(value));
+    case "integer":
+      if (typeof value === "bigint") {
+        return true;
+      }
+      if (typeof value === "number") {
+        return Number.isFinite(value) && Number.isInteger(value);
+      }
+      if (typeof value === "string") {
+        const normalized = value.trim();
+        return /^[+-]?[0-9]+(?:\.0+)?$/u.test(normalized);
+      }
+      return false;
+    case "boolean":
+      return typeof value === "boolean";
+    case undefined:
+    case "string":
+    case "date":
+    case "datetime":
+    case "time":
+    case "geometry":
+    case "unknown":
+      return true;
+    default:
+      logNever(dataType);
+      return false;
   }
 }
 
@@ -57,7 +109,7 @@ export function isPositionalEdit(
   return "rowIdx" in edit && "columnId" in edit && "value" in edit;
 }
 
-export function isRowEdit(edit: Edits["edits"][number]): edit is RowEdit {
+export function isRowEdit(edit: Edits["edits"][number]): edit is RemoveRowEdit {
   return "rowIdx" in edit && "type" in edit;
 }
 
@@ -65,16 +117,14 @@ export function isColumnEdit(edit: Edits["edits"][number]): edit is ColumnEdit {
   return "columnIdx" in edit && "type" in edit;
 }
 
-export function pasteCells<T>(options: {
+export function pasteCells(options: {
   selection: GridSelection;
-  data: T[];
-  setData: (updater: (prev: T[]) => T[]) => void;
+  data: EditorRow[];
   columns: ModifiedGridColumn[];
   editableColumns: string[] | "all";
   onAddEdits: (edits: Edits["edits"]) => void;
 }) {
-  const { selection, data, setData, onAddEdits, columns, editableColumns } =
-    options;
+  const { selection, data, onAddEdits, columns, editableColumns } = options;
   if (!selection.current) {
     return;
   }
@@ -82,7 +132,6 @@ export function pasteCells<T>(options: {
   const { range } = selection.current;
   const { x: startCol, y: startRow } = range;
 
-  // Read clipboard data
   navigator.clipboard
     .readText()
     .then((clipboardText) => {
@@ -90,80 +139,94 @@ export function pasteCells<T>(options: {
         return;
       }
 
-      // Parse tab-separated values
-      const rows = clipboardText.split("\n").filter((row) => row.trim());
-      const parsedData: string[][] = [];
-
-      for (const row of rows) {
-        const cells = row.split("\t");
-        parsedData.push(cells);
-      }
-
-      if (parsedData.length === 0) {
-        return;
-      }
+      const parsedData = clipboardText
+        .split("\n")
+        .filter((row) => row.trim())
+        .map((row) => row.split("\t"));
 
       const edits: Edits["edits"] = [];
+      const editableColumnSet =
+        editableColumns === "all" ? null : new Set(editableColumns);
 
       for (const [rowIndex, dataRow] of parsedData.entries()) {
-        if (!dataRow) {
-          continue;
-        }
-
         const targetRowIdx = startRow + rowIndex;
 
-        // Check if we've exceeded the data bounds
         if (targetRowIdx >= data.length) {
           break;
         }
 
         for (const [colIndex, cellValue] of dataRow.entries()) {
-          if (cellValue === undefined) {
-            continue;
-          }
-
           const targetColIdx = startCol + colIndex;
 
-          // Check if we've exceeded the column bounds
-          if (!columns || targetColIdx >= columns.length) {
+          if (targetColIdx >= columns.length) {
             break;
           }
 
           const column = columns[targetColIdx];
-          const columnType = column.dataType;
+          const dataType = column.dataType;
+          const columnType = column.configuredType;
           const editable =
-            editableColumns === "all" || editableColumns.includes(column.title);
+            editableColumnSet === null || editableColumnSet.has(column.title);
 
           if (!editable) {
             continue;
           }
 
-          // Convert the value based on the cell type
           let convertedValue: unknown = cellValue;
 
-          switch (columnType) {
-            case "integer":
+          if (
+            Array.isArray(columnType) &&
+            !isValidCellValue(dataType, cellValue, columnType)
+          ) {
+            continue;
+          }
+
+          switch (dataType) {
+            case "integer": {
+              const numValue = Number(cellValue);
+              if (!isValidCellValue(dataType, cellValue, columnType)) {
+                continue;
+              }
+              convertedValue = Number.isSafeInteger(numValue)
+                ? numValue
+                : cellValue.trim();
+              break;
+            }
             case "number": {
               const numValue = Number(cellValue);
-              if (Number.isNaN(numValue)) {
+              if (!isValidCellValue(dataType, numValue, columnType)) {
                 continue;
               }
               convertedValue = numValue;
               break;
             }
-            case "boolean": {
-              const boolValue = cellValue.toLowerCase();
-              convertedValue = boolValue === "true" || boolValue === "1";
+            case "boolean":
+              if (column.configuredType !== "boolean") {
+                convertedValue =
+                  cellValue.toLowerCase() === "true" || cellValue === "1";
+                break;
+              }
+              try {
+                convertedValue = normalizeBoolean(cellValue, column.title);
+              } catch {
+                continue;
+              }
               break;
-            }
+            case "string":
+            case "date":
+            case "datetime":
+            case "time":
+            case "geometry":
+            case "unknown":
+              break;
+            default:
+              logNever(dataType);
+              continue;
           }
-
-          // Get the column ID from the columns array using the title
-          const columnId = columns[targetColIdx].title;
 
           edits.push({
             rowIdx: targetRowIdx,
-            columnId,
+            columnId: column.title,
             value: convertedValue,
           });
         }
@@ -171,27 +234,6 @@ export function pasteCells<T>(options: {
 
       if (edits.length > 0) {
         onAddEdits(edits);
-
-        setData((prev: T[]) => {
-          const newData = [...prev];
-
-          // Apply all edits to the data
-          for (const edit of edits) {
-            if (isPositionalEdit(edit)) {
-              const rowIdx = edit.rowIdx;
-              const columnId = edit.columnId;
-
-              if (rowIdx < newData.length) {
-                const row = newData[rowIdx] as Record<string, unknown>;
-                if (columnId in row) {
-                  row[columnId] = edit.value;
-                }
-              }
-            }
-          }
-
-          return newData;
-        });
       }
     })
     .catch((error) => {

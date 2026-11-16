@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 import time
 from dataclasses import dataclass
 from typing import Any, Literal, cast
@@ -15,8 +16,10 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EnvironmentOperationNotification,
+    EnvironmentState,
+    EnvironmentStateNotification,
     EsmSpec,
-    InstallingPackageAlertNotification,
     InterruptedNotification,
     ModelClose,
     ModelLifecycleNotification,
@@ -27,6 +30,7 @@ from marimo._messaging.notification import (
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    StartupProgressNotification,
     StorageNamespacesNotification,
     UIElementMessageNotification,
     VariablesNotification,
@@ -44,6 +48,10 @@ from marimo._runtime.commands import (
     ModelUpdateMessage,
     SyncGraphCommand,
     UpdateUIElementCommand,
+)
+from marimo._runtime.layout.layout import LayoutConfig
+from marimo._session.state.environment import (
+    reduce_environment_state,
 )
 from marimo._sql.connection_utils import (
     update_schema_list_in_connection,
@@ -128,8 +136,10 @@ class AutoExportState:
     md: bool = False
     ipynb: bool = False
     session: bool = False
+    generation: int = 0
 
     def mark_all_stale(self) -> None:
+        self.generation += 1
         self.html = False
         self.md = False
         self.ipynb = False
@@ -138,8 +148,13 @@ class AutoExportState:
     def is_stale(self, export_type: ExportType) -> bool:
         return not getattr(self, export_type)
 
-    def mark_exported(self, export_type: ExportType) -> None:
+    def mark_exported(
+        self, export_type: ExportType, *, generation: int | None = None
+    ) -> bool:
+        if generation is not None and generation != self.generation:
+            return False
         setattr(self, export_type, True)
+        return True
 
 
 class SessionView:
@@ -190,11 +205,14 @@ class SessionView:
 
         # Startup logs for startup command - only one at a time
         self.startup_logs: StartupLogsNotification | None = None
+        self.startup_progress: StartupProgressNotification | None = None
 
-        # Package installation logs - accumulated per package
-        self.package_logs: dict[
-            str, str
-        ] = {}  # package name -> accumulated logs
+        self._environment_states: dict[
+            Literal["kernel", "server"], EnvironmentState
+        ] = {
+            "kernel": EnvironmentState(restart_required=False, operations=[]),
+            "server": EnvironmentState(restart_required=False, operations=[]),
+        }
 
         # Server-side missing-package alerts already sent this session.
         # NOT reset by _touch() — once alerted we don't re-alert.
@@ -202,6 +220,7 @@ class SessionView:
 
         # Auto-saving
         self.auto_export_state = AutoExportState()
+        self._auto_export_html_layout: LayoutConfig | None = None
 
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
@@ -210,7 +229,6 @@ class SessionView:
         self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_notification(self, raw_notification: KernelMessage) -> None:
-        self._touch()
         # Type ignore because NotificationMessage is a Union, not a class
         self.add_notification(deserialize_kernel_message(raw_notification))  # type: ignore[arg-type]
 
@@ -263,7 +281,7 @@ class SessionView:
             )
         )
 
-    def add_stdin(self, stdin: str) -> None:
+    def add_stdin(self, stdin: str, *, input_id: str | None = None) -> None:
         self._touch()
 
         """Add a stdin request to the session view."""
@@ -271,15 +289,21 @@ class SessionView:
         for cell_notif in self.cell_notifications.values():
             console_outputs: list[CellOutput] = as_list(cell_notif.console)
             for cell_output in console_outputs:
+                if input_id is not None and cell_output.input_id != input_id:
+                    continue
                 if cell_output.channel == CellChannel.STDIN:
                     cell_output.channel = CellChannel.STDOUT
-                    cell_output.data = f"{cell_output.data} {stdin}\n"
+                    if cell_output.mimetype == "text/password":
+                        # This state is reused for replay, exports, and caches.
+                        cell_output.data = f"{cell_output.data}\n"
+                        cell_output.mimetype = "text/plain"
+                    else:
+                        cell_output.data = f"{cell_output.data} {stdin}\n"
                     return
 
     def add_notification(self, notification: NotificationMessage) -> None:
         """Add a notification to the session view."""
         self._touch()
-        self.auto_export_state.mark_all_stale()
 
         if isinstance(notification, CellNotification):
             previous = self.cell_notifications.get(notification.cell_id)
@@ -305,10 +329,11 @@ class SessionView:
             }
 
             # Remove any variable values that are no longer in scope.
-            next_values: dict[str, VariableValue] = {}
-            for name, value in self.variable_values.items():
-                if name in variable_names:
-                    next_values[name] = value
+            next_values: dict[str, VariableValue] = {
+                name: value
+                for name, value in self.variable_values.items()
+                if name in variable_names
+            }
             self.variable_values = next_values
 
             # Remove any table values that are no longer in scope.
@@ -353,6 +378,13 @@ class SessionView:
             )
 
         elif isinstance(notification, VariableValuesNotification):
+            for removed in notification.removed:
+                value = self.variable_values.get(removed.name)
+                if (
+                    value is not None
+                    and value.execution_id == removed.execution_id
+                ):
+                    del self.variable_values[removed.name]
             for value in notification.variables:
                 self.variable_values[value.name] = value
 
@@ -455,6 +487,19 @@ class SessionView:
                 self.model_states.pop(model_id, None)
             # ModelCustom is ephemeral — skip for replay
 
+        elif isinstance(notification, StartupProgressNotification):
+            previous_progress = self.startup_progress
+            logs = notification.logs
+            if (
+                notification.log_mode == "append"
+                and previous_progress is not None
+                and previous_progress.phase == notification.phase
+            ):
+                logs = previous_progress.logs + logs
+            self.startup_progress = StartupProgressNotification(
+                phase=notification.phase, logs=logs, log_mode="replace"
+            )
+
         elif isinstance(notification, StartupLogsNotification):
             prev = self.startup_logs.content if self.startup_logs else ""
             self.startup_logs = StartupLogsNotification(
@@ -462,27 +507,19 @@ class SessionView:
                 status=notification.status,
             )
 
-        elif isinstance(notification, InstallingPackageAlertNotification):
-            # Handle streaming logs if present
-            if notification.logs and notification.log_status:
-                for package_name, new_content in notification.logs.items():
-                    if notification.log_status == "start":
-                        # Start new log for this package
-                        self.package_logs[package_name] = new_content
-                    elif notification.log_status == "append":
-                        # Append to existing log
-                        prev_content = self.package_logs.get(package_name, "")
-                        self.package_logs[package_name] = (
-                            prev_content + new_content
-                        )
-                    elif notification.log_status == "done":
-                        # Append final content and mark as done
-                        prev_content = self.package_logs.get(package_name, "")
-                        self.package_logs[package_name] = (
-                            prev_content + new_content
-                        )
-                        # We could clean up completed logs here if desired,
-                        # but for now keep them for replay purposes
+        elif isinstance(notification, EnvironmentOperationNotification):
+            self._environment_states[notification.source] = (
+                reduce_environment_state(
+                    self._environment_states[notification.source],
+                    notification,
+                )
+            )
+
+    def get_environment_state(
+        self, source: Literal["kernel", "server"]
+    ) -> EnvironmentState:
+        """Snapshot a target environment's attempts and restart requirement."""
+        return copy.deepcopy(self._environment_states[source])
 
     def get_cell_outputs(
         self, ids: list[CellId_t]
@@ -572,8 +609,21 @@ class SessionView:
 
         self.last_execution_time[cell_id] = time_elapsed
 
-    @property
-    def notifications(self) -> list[NotificationMessage]:
+    def snapshot_notifications(self) -> list[NotificationMessage]:
+        """Copy retained notifications for a connecting client.
+
+        The caller supplies kernel-ready before replaying these notifications.
+        """
+        notifications: list[NotificationMessage] = [
+            EnvironmentStateNotification(source=source, state=state)
+            for source, state in self._environment_states.items()
+        ]
+        if self.startup_progress is not None:
+            notifications.append(self.startup_progress)
+        notifications.extend(self._notebook_notifications())
+        return copy.deepcopy(notifications)
+
+    def _notebook_notifications(self) -> list[NotificationMessage]:
         all_notifications: list[NotificationMessage] = []
         if self.variable_notifications.variables:
             all_notifications.append(self.variable_notifications)
@@ -621,20 +671,43 @@ class SessionView:
             for notif in self.cell_notifications.values()
         )
 
-    def mark_auto_export_html(self) -> None:
-        self.auto_export_state.mark_exported("html")
+    def mark_auto_export_html(
+        self,
+        layout: LayoutConfig | None = None,
+        *,
+        generation: int | None = None,
+    ) -> bool:
+        if not self.auto_export_state.mark_exported(
+            "html", generation=generation
+        ):
+            return False
+        self._auto_export_html_layout = copy.deepcopy(layout)
+        return True
 
-    def mark_auto_export_md(self) -> None:
-        self.auto_export_state.mark_exported("md")
+    def needs_auto_export_html(self, layout: LayoutConfig | None) -> bool:
+        return self.needs_export("html") or (
+            layout != self._auto_export_html_layout
+        )
 
-    def mark_auto_export_ipynb(self) -> None:
-        self.auto_export_state.mark_exported("ipynb")
+    def mark_auto_export_md(self, *, generation: int | None = None) -> bool:
+        return self.auto_export_state.mark_exported(
+            "md", generation=generation
+        )
+
+    def mark_auto_export_ipynb(self, *, generation: int | None = None) -> bool:
+        return self.auto_export_state.mark_exported(
+            "ipynb", generation=generation
+        )
 
     def mark_auto_export_session(self) -> None:
         self.auto_export_state.mark_exported("session")
 
     def needs_export(self, export_type: ExportType) -> bool:
         return self.auto_export_state.is_stale(export_type)
+
+    @property
+    def auto_export_generation(self) -> int:
+        return self.auto_export_state.generation
 
     def _touch(self) -> None:
         self.auto_export_state.mark_all_stale()
@@ -656,6 +729,7 @@ def _merge_consecutive_console_outputs(
             and merged[-1].mimetype == "text/plain"
             and output.mimetype == "text/plain"
             and merged[-1].channel == output.channel
+            and merged[-1].input_id == output.input_id
             and isinstance(merged[-1].data, str)
             and isinstance(output.data, str)
         ):
@@ -665,6 +739,7 @@ def _merge_consecutive_console_outputs(
                 mimetype=merged[-1].mimetype,
                 data=merged[-1].data + output.data,
                 timestamp=merged[-1].timestamp,
+                input_id=merged[-1].input_id,
             )
         else:
             merged.append(output)

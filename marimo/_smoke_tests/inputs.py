@@ -2,13 +2,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -32,7 +33,6 @@ def _(disabled, mo):
             ),
         ]
     )
-    return
 
 
 @app.cell
@@ -49,15 +49,13 @@ def _(mo):
 
 
 @app.cell
-def _(mo, options):
+def _(mo, options: list[str]):
     mo.ui.radio(options, label="Radio buttons")
-    return
 
 
 @app.cell
-def _(mo, options):
+def _(mo, options: list[str]):
     mo.ui.radio(options, label="Radio buttons", inline=True)
-    return
 
 
 @app.cell
@@ -65,7 +63,6 @@ def _(mo):
     slider = mo.ui.slider(0, 10, label="Horizontal slider")
     vslider = mo.ui.slider(0, 10, orientation="vertical", label="Vertical slider")
     mo.hstack([slider, vslider])
-    return
 
 
 @app.cell
@@ -75,7 +72,6 @@ def _(mo):
         0, 100, orientation="vertical", label="Vertical slider", show_value=True
     )
     mo.hstack([_slider, _vslider])
-    return
 
 
 if __name__ == "__main__":

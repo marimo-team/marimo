@@ -50,8 +50,13 @@ class TestStdoutStderr:
             self.written_data: list[tuple[str, KnownMimeType]] = []
 
         def _write_with_mimetype(
-            self, data: str, mimetype: KnownMimeType
+            self,
+            data: str,
+            mimetype: KnownMimeType,
+            *,
+            code: str | None = None,
         ) -> int:
+            del code
             self.written_data.append((data, mimetype))
             return len(data)
 

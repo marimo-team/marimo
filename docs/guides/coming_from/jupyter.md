@@ -3,6 +3,13 @@
 If you're coming from Jupyter, here are a few tips to help you adapt to marimo
 notebooks.
 
+!!! tip "AI-assisted conversion"
+
+    If you use an AI coding agent, the
+    [Jupyter-to-marimo skill](https://github.com/marimo-team/skills/tree/main/skills/jupyter-to-marimo)
+    can perform the conversion and help review dependencies, inputs, reactive
+    execution, and outputs.
+
 ## How marimo runs cells
 
 The biggest difference between marimo and Jupyter is the [execution model](../reactivity.md).
@@ -222,7 +229,7 @@ subprocess.run(["ls", "-l"])
 | %autoreload   | marimo's [module autoreloader](../editor_features/module_autoreloading.md)                     |
 | %matplotlib   | marimo auto-displays plots                                                                     |
 | %pwd          | `os.getcwd()`                                                                                  |
-| %pip          | Use marimo's [built-in package management](../editor_features/package_management.md)           |
+| %pip          | Use marimo's [built-in package management](../package_management/installing_packages.md)           |
 | %who_ls       | `dir()`, `globals()`, [`mo.refs()`][marimo.refs], [`mo.defs()`][marimo.defs]                   |
 | %system       | `subprocess.run()`                                                                             |
 | %%time        | `time.perf_counter()` or Python's timeit module                                                |
@@ -236,7 +243,7 @@ subprocess.run(["ls", "-l"])
 
 Use marimo's package management sidebar panel to install packages to your current
 environment. Learn more in our [package management
-guide](../editor_features/package_management.md).
+guide](../package_management/installing_packages.md).
 
 ## Interactive guide
 

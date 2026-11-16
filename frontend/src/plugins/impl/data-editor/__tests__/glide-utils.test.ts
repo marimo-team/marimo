@@ -3,7 +3,8 @@
 import type { GridSelection } from "@glideapps/glide-data-grid";
 import { CompactSelection, GridCellKind } from "@glideapps/glide-data-grid";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { pasteCells } from "../glide-utils";
+import { normalizeBoolean } from "../column-types";
+import { isValidCellValue, pasteCells } from "../glide-utils";
 import type { ModifiedGridColumn } from "../types";
 
 // Mock navigator.clipboard
@@ -14,6 +15,70 @@ const mockClipboard = {
 Object.defineProperty(navigator, "clipboard", {
   value: mockClipboard,
   writable: true,
+});
+
+describe("isValidCellValue", () => {
+  it("accepts only finite numbers", () => {
+    expect(isValidCellValue("number", 3.5)).toBe(true);
+    expect(isValidCellValue("number", Number.POSITIVE_INFINITY)).toBe(false);
+    expect(isValidCellValue("number", Number.NEGATIVE_INFINITY)).toBe(false);
+    expect(isValidCellValue("number", "Infinity")).toBe(false);
+    expect(isValidCellValue("number", Number.NaN)).toBe(false);
+  });
+
+  it("preserves integer precision", () => {
+    expect(isValidCellValue("integer", 3)).toBe(true);
+    expect(isValidCellValue("integer", 3.5)).toBe(false);
+    expect(isValidCellValue("integer", "9007199254740993")).toBe(true);
+    expect(isValidCellValue("integer", "9007199254740993.0")).toBe(true);
+    expect(isValidCellValue("integer", "9007199254740993.1")).toBe(false);
+    expect(isValidCellValue("integer", "1.0000000000000001")).toBe(false);
+    expect(isValidCellValue("integer", "1e-324")).toBe(false);
+  });
+
+  it("accepts only configured dropdown strings", () => {
+    const options = ["open", "closed"];
+    expect(isValidCellValue("string", "open", options)).toBe(true);
+    expect(isValidCellValue("string", "", options)).toBe(false);
+    expect(isValidCellValue("string", null, options)).toBe(false);
+    expect(isValidCellValue("string", "", ["", "open"])).toBe(true);
+  });
+});
+
+describe("normalizeBoolean", () => {
+  it.each([
+    [true, true],
+    [false, false],
+    [2, true],
+    [0, false],
+    ["true", true],
+    [" t ", true],
+    ["YES", true],
+    ["y", true],
+    ["1", true],
+    ["false", false],
+    ["f", false],
+    ["No", false],
+    ["n", false],
+    ["0", false],
+    ["", false],
+  ])("normalizes %j", (value, expected) => {
+    expect(normalizeBoolean(value, "active")).toBe(expected);
+  });
+
+  it.each([
+    [BigInt("9007199254740992"), true],
+    [BigInt("-9007199254740992"), true],
+    [BigInt(0), false],
+  ])("normalizes bigint %s", (value, expected) => {
+    expect(normalizeBoolean(value, "active")).toBe(expected);
+  });
+
+  it("reports the configured column for invalid values", () => {
+    expect(() => normalizeBoolean("maybe", "active")).toThrow(
+      "Invalid boolean value for column 'active': maybe",
+    );
+  });
 });
 
 describe("pasteCells", () => {
@@ -76,13 +141,11 @@ describe("pasteCells", () => {
   it("should handle empty clipboard text", async () => {
     mockClipboard.readText.mockResolvedValue("");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -91,20 +154,17 @@ describe("pasteCells", () => {
     // Wait for the async operation
     await vi.waitFor(() => {
       expect(mockOnAddEdits).not.toHaveBeenCalled();
-      expect(mockSetLocalData).not.toHaveBeenCalled();
     });
   });
 
   it("should handle whitespace-only clipboard text", async () => {
     mockClipboard.readText.mockResolvedValue("   \n\t  ");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -112,20 +172,17 @@ describe("pasteCells", () => {
 
     await vi.waitFor(() => {
       expect(mockOnAddEdits).not.toHaveBeenCalled();
-      expect(mockSetLocalData).not.toHaveBeenCalled();
     });
   });
 
   it("should paste string data correctly", async () => {
     mockClipboard.readText.mockResolvedValue("David\t40\ttrue");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -140,16 +197,14 @@ describe("pasteCells", () => {
     });
   });
 
-  it("should convert number values correctly", async () => {
+  it("should skip fractional values for integer columns", async () => {
     mockClipboard.readText.mockResolvedValue("Eve\t25.5\tfalse");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -158,7 +213,6 @@ describe("pasteCells", () => {
     await vi.waitFor(() => {
       expect(mockOnAddEdits).toHaveBeenCalledWith([
         { rowIdx: 0, columnId: "name", value: "Eve" },
-        { rowIdx: 0, columnId: "age", value: 25.5 },
         { rowIdx: 0, columnId: "active", value: false },
       ]);
     });
@@ -167,13 +221,11 @@ describe("pasteCells", () => {
   it("should handle boolean conversion with different values", async () => {
     mockClipboard.readText.mockResolvedValue("Frank\t30\t1");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -188,16 +240,62 @@ describe("pasteCells", () => {
     });
   });
 
+  it("normalizes aliases pasted into configured boolean columns", async () => {
+    mockClipboard.readText.mockResolvedValue("yes");
+    const mockOnAddEdits = vi.fn();
+    const columns = createMockColumns();
+    columns[2].configuredType = "boolean";
+
+    pasteCells({
+      selection: createMockSelection(2, 0),
+      data: createMockData(),
+      columns,
+      editableColumns: "all",
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
+        { rowIdx: 0, columnId: "active", value: true },
+      ]);
+    });
+  });
+
+  it("skips only invalid tokens pasted into configured boolean columns", async () => {
+    mockClipboard.readText.mockResolvedValue(
+      "Write docs\t30\tyes\nFix bug\t31\tmaybe",
+    );
+    const mockOnAddEdits = vi.fn();
+    const columns = createMockColumns();
+    columns[2].configuredType = "boolean";
+
+    pasteCells({
+      selection: createMockSelection(0, 0),
+      data: createMockData(),
+      columns,
+      editableColumns: "all",
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
+        { rowIdx: 0, columnId: "name", value: "Write docs" },
+        { rowIdx: 0, columnId: "age", value: 30 },
+        { rowIdx: 0, columnId: "active", value: true },
+        { rowIdx: 1, columnId: "name", value: "Fix bug" },
+        { rowIdx: 1, columnId: "age", value: 31 },
+      ]);
+    });
+  });
+
   it("should skip invalid number values", async () => {
     mockClipboard.readText.mockResolvedValue("Grace\tinvalid\tfalse");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -211,16 +309,36 @@ describe("pasteCells", () => {
     });
   });
 
-  it("should handle multiple rows", async () => {
-    mockClipboard.readText.mockResolvedValue("Hank\t40\ttrue\nIvy\t35\tfalse");
+  it("should preserve unsafe integer precision", async () => {
+    mockClipboard.readText.mockResolvedValue("Grace\t9007199254740993\tfalse");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
+      columns: createMockColumns(),
+      editableColumns: "all",
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
+        { rowIdx: 0, columnId: "name", value: "Grace" },
+        { rowIdx: 0, columnId: "age", value: "9007199254740993" },
+        { rowIdx: 0, columnId: "active", value: false },
+      ]);
+    });
+  });
+
+  it("should handle multiple rows", async () => {
+    mockClipboard.readText.mockResolvedValue("Hank\t40\ttrue\nIvy\t35\tfalse");
+
+    const mockOnAddEdits = vi.fn();
+
+    pasteCells({
+      selection: createMockSelection(0, 0),
+      data: createMockData(),
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -243,13 +361,11 @@ describe("pasteCells", () => {
       "Jack\t45\ttrue\nKate\t50\tfalse\nLiam\t55\ttrue",
     );
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(), // Only 3 rows
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -273,13 +389,11 @@ describe("pasteCells", () => {
   it("should respect column bounds - not exceed column count", async () => {
     mockClipboard.readText.mockResolvedValue("Mia\t30\ttrue\textra");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(), // Only 3 columns
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -297,13 +411,11 @@ describe("pasteCells", () => {
   it("should handle starting position offset", async () => {
     mockClipboard.readText.mockResolvedValue("Noah\t25\ttrue");
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(1, 1), // Start at column 1, row 1
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -317,7 +429,6 @@ describe("pasteCells", () => {
   });
 
   it("should handle no selection", async () => {
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
@@ -327,7 +438,6 @@ describe("pasteCells", () => {
         columns: CompactSelection.empty(),
       },
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -335,7 +445,6 @@ describe("pasteCells", () => {
 
     await vi.waitFor(() => {
       expect(mockOnAddEdits).not.toHaveBeenCalled();
-      expect(mockSetLocalData).not.toHaveBeenCalled();
     });
   });
 
@@ -344,7 +453,6 @@ describe("pasteCells", () => {
       new Error("Clipboard access denied"),
     );
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {
       // Do nothing
@@ -353,7 +461,6 @@ describe("pasteCells", () => {
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -361,39 +468,9 @@ describe("pasteCells", () => {
 
     await vi.waitFor(() => {
       expect(mockOnAddEdits).not.toHaveBeenCalled();
-      expect(mockSetLocalData).not.toHaveBeenCalled();
     });
 
     consoleSpy.mockRestore();
-  });
-
-  it("should update local data when edits are applied", async () => {
-    mockClipboard.readText.mockResolvedValue("Olivia\t28\ttrue");
-
-    const mockSetLocalData = vi.fn();
-    const mockOnAddEdits = vi.fn();
-
-    pasteCells({
-      selection: createMockSelection(0, 0),
-      data: createMockData(),
-      setData: mockSetLocalData,
-      columns: createMockColumns(),
-      editableColumns: "all",
-      onAddEdits: mockOnAddEdits,
-    });
-
-    await vi.waitFor(() => {
-      expect(mockSetLocalData).toHaveBeenCalled();
-
-      // Verify the updater function is called
-      const updater = mockSetLocalData.mock.calls[0][0];
-      const originalData = createMockData();
-      const updatedData = updater(originalData);
-
-      expect(updatedData[0].name).toBe("Olivia");
-      expect(updatedData[0].age).toBe(28);
-      expect(updatedData[0].active).toBe(true);
-    });
   });
 
   it("should handle empty rows in clipboard data", async () => {
@@ -401,13 +478,11 @@ describe("pasteCells", () => {
       "Paul\t30\ttrue\n\nRachel\t25\tfalse",
     );
 
-    const mockSetLocalData = vi.fn();
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
       columns: createMockColumns(),
       editableColumns: "all",
       onAddEdits: mockOnAddEdits,
@@ -425,18 +500,39 @@ describe("pasteCells", () => {
     });
   });
 
-  it("should handle editable columns", async () => {
-    mockClipboard.readText.mockResolvedValue(
-      "Olivia\t28\ttrue\nWilliams\t35\tfalse",
-    );
-
-    const mockSetLocalData = vi.fn();
+  it("should paste only configured dropdown options", async () => {
+    mockClipboard.readText.mockResolvedValue("invalid\t30\nclosed\t31");
+    const columns = createMockColumns();
+    columns[0].configuredType = ["open", "closed"];
     const mockOnAddEdits = vi.fn();
 
     pasteCells({
       selection: createMockSelection(0, 0),
       data: createMockData(),
-      setData: mockSetLocalData,
+      columns,
+      editableColumns: "all",
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
+        { rowIdx: 0, columnId: "age", value: 30 },
+        { rowIdx: 1, columnId: "name", value: "closed" },
+        { rowIdx: 1, columnId: "age", value: 31 },
+      ]);
+    });
+  });
+
+  it("should handle editable columns", async () => {
+    mockClipboard.readText.mockResolvedValue(
+      "Olivia\t28\ttrue\nWilliams\t35\tfalse",
+    );
+
+    const mockOnAddEdits = vi.fn();
+
+    pasteCells({
+      selection: createMockSelection(0, 0),
+      data: createMockData(),
       columns: createMockColumns(),
       editableColumns: ["age"],
       onAddEdits: mockOnAddEdits,

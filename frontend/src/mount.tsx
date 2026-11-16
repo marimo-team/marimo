@@ -5,11 +5,12 @@ import { Provider } from "jotai";
 import { createRoot } from "react-dom/client";
 import { z } from "zod";
 import {
-  appConfigAtom,
   configOverridesAtom,
+  pageAppConfigAtom,
   userConfigAtom,
 } from "@/core/config/config";
 import { KnownQueryParams } from "@/core/constants";
+import { pairConfigAtom, pairConfigSchema } from "@/core/config/pair";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { getMarimoCode } from "@/core/meta/globals";
 import {
@@ -20,20 +21,30 @@ import {
 import { Logger } from "@/utils/Logger";
 import { ErrorBoundary } from "./components/editor/boundary/ErrorBoundary";
 import { notebookAtom } from "./core/cells/cells";
-import { notebookStateFromSession } from "./core/cells/session";
+import { readExport } from "./core/cells/session";
 import {
   parseAppConfig,
   parseConfigOverrides,
   parseUserConfig,
 } from "./core/config/config-schema";
 import { MarimoApp, preloadPage } from "./core/MarimoApp";
-import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
+import {
+  initialLayoutState,
+  isSerializedLayout,
+  layoutStateAtom,
+} from "./core/layout/state";
+import {
+  type AppMode,
+  initialModeAtom,
+  kioskModeAtom,
+  viewStateAtom,
+} from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";
-import { connectionAtom } from "./core/network/connection";
 import { requestClientAtom } from "./core/network/requests";
 import { resolveRequestClient } from "./core/network/resolve";
 import {
   DEFAULT_RUNTIME_CONFIG,
+  getRuntimeManager,
   runtimeConfigAtom,
 } from "./core/runtime/config";
 import {
@@ -51,7 +62,7 @@ import {
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
-import { WebSocketState } from "./core/websocket/types";
+import { embeddedSnapshotAtom } from "./core/session/embedded";
 import {
   handleWidgetMessage,
   WIDGET_REGISTRY,
@@ -198,10 +209,18 @@ const mountOptionsSchema = z.object({
    * marimo config overrides
    */
   configOverrides: passthroughObject,
+  pairConfig: pairConfigSchema.optional(),
   /**
    * marimo app config
    */
   appConfig: passthroughObject,
+  /**
+   * Serialized notebook layout
+   */
+  layout: z
+    .unknown()
+    .optional()
+    .transform((val) => (isSerializedLayout(val) ? val : undefined)),
   /**
    * show code in run mode
    */
@@ -262,8 +281,6 @@ const mountOptionsSchema = z.object({
     .array(
       z.looseObject({
         url: z.string(),
-        // Lazy by default, but can be overridden by the runtime config
-        lazy: z.boolean().default(true),
         authToken: z.string().nullish(),
       }),
     )
@@ -310,15 +327,15 @@ function initStore(options: unknown) {
   store.set(marimoVersionAtom, parsedOptions.data.version);
   store.set(showCodeInRunModeAtom, parsedOptions.data.view.showAppCode);
 
-  // Check for view-as parameter to start in present mode
-  const shouldStartInPresentMode = (() => {
-    const url = new URL(window.location.href);
-    return url.searchParams.get(KnownQueryParams.viewAs) === "present";
-  })();
+  const url = new URL(window.location.href);
+  const shouldStartInPresentMode =
+    url.searchParams.get(KnownQueryParams.viewAs) === "present";
+  const isKioskMode = url.searchParams.get(KnownQueryParams.kiosk) === "true";
 
   const initialViewMode =
     mode === "edit" && shouldStartInPresentMode ? "present" : mode;
   store.set(viewStateAtom, { mode: initialViewMode, cellAnchor: null });
+  store.set(kioskModeAtom, isKioskMode);
   store.set(serverTokenAtom, parsedOptions.data.serverToken);
 
   // Config
@@ -327,7 +344,9 @@ function initStore(options: unknown) {
     parseConfigOverrides(parsedOptions.data.configOverrides),
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
-  store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
+  store.set(pageAppConfigAtom, parsedOptions.data.appConfig);
+  const appConfig = parseAppConfig(parsedOptions.data.appConfig);
+  store.set(pairConfigAtom, parsedOptions.data.pairConfig);
 
   // Runtime config
   if (parsedOptions.data.runtimeConfig.length > 0) {
@@ -337,25 +356,30 @@ function initStore(options: unknown) {
       ...firstRuntimeConfig,
       serverToken: parsedOptions.data.serverToken,
     });
-    // If the remote runtime is not lazy, start it in CONNECTING
-    if (!firstRuntimeConfig.lazy && !isStaticNotebook()) {
-      store.set(connectionAtom, { state: WebSocketState.CONNECTING });
-    }
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
-      lazy: false,
       serverToken: parsedOptions.data.serverToken,
     });
   }
+  // The page's runtime is known from here on, so look for it now.
+  void getRuntimeManager().init();
 
-  // Session/notebook
-  const notebook = notebookStateFromSession(
-    parsedOptions.data.session,
-    parsedOptions.data.notebook,
-  );
-  if (notebook) {
-    store.set(notebookAtom, notebook);
+  // The notebook the page was served with shows until the host answers.
+  const { snapshot, cellRuntime } = readExport({
+    session: parsedOptions.data.session,
+    notebook: parsedOptions.data.notebook,
+    filename: parsedOptions.data.filename,
+    appConfig,
+  });
+  store.set(embeddedSnapshotAtom, snapshot);
+  store.set(layoutStateAtom, initialLayoutState(parsedOptions.data.layout));
+  if (snapshot !== null) {
+    // The scratch cell keeps its own runtime; the snapshot has none for it.
+    store.set(notebookAtom, (state) => ({
+      ...state,
+      cellRuntime: { ...state.cellRuntime, ...cellRuntime },
+    }));
   }
 }
 

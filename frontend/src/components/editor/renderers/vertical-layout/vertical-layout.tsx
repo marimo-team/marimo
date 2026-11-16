@@ -27,14 +27,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
-import { isOutputEmpty } from "@/core/cells/outputs";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { CSSClasses, KnownQueryParams } from "@/core/constants";
-import type { OutputMessage } from "@/core/kernel/messages";
-import { kernelStateAtom } from "@/core/kernel/state";
+import { CSSClasses } from "@/core/constants";
+import {
+  runtimeStatusAtom,
+  useCellExecution,
+  useCellFreshness,
+} from "@/core/executions";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import {
@@ -46,7 +48,6 @@ import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { isStaticNotebook } from "@/core/static/static-state";
-import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
 import {
   ADD_PRINTING_CLASS,
@@ -58,6 +59,12 @@ import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { cellDomProps } from "../../common";
 import type { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { useDelayVisibility } from "./useDelayVisibility";
+import {
+  getInitialShowCode,
+  groupCellsByColumn,
+  shouldHideCode,
+  updateShowCodeQueryParam,
+} from "./utils";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 
 type VerticalLayout = null;
@@ -70,25 +77,23 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
-  const kernelState = useAtomValue(kernelStateAtom);
+  const runtimeStatus = useAtomValue(runtimeStatusAtom);
   const [userConfig] = useResolvedMarimoConfig();
   const showCodeInRunModePreference = useAtomValue(showCodeInRunModeAtom);
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const [showCode, setShowCode] = useState(() => {
-    // Check if the setting was set in the mount options
-    if (!showCodeInRunModePreference) {
-      return false;
-    }
-    // If 'auto' or not found, use URL param
-    // If url param is not set, we default to true for static notebooks, wasm notebooks, and kiosk mode
-    const showCodeByQueryParam = urlParams.get(KnownQueryParams.showCode);
-    return showCodeByQueryParam === null
-      ? isStaticNotebook() || isWasm() || kioskMode
-      : showCodeByQueryParam === "true";
-  });
+  const [showCode, setShowCode] = useState(() =>
+    getInitialShowCode({ showCodeInRunModePreference, kioskMode }),
+  );
 
-  const canShowCode = useNotebookCodeAvailable(cells);
+  const canShowCode = useNotebookCodeAvailable();
+
+  const handleToggleShowCode = () => {
+    setShowCode((currentShowCode) => {
+      const nextShowCode = !currentShowCode;
+      updateShowCodeQueryParam(nextShowCode);
+      return nextShowCode;
+    });
+  };
 
   const renderCell = (cell: CellRuntimeState & CellData) => {
     return (
@@ -97,17 +102,11 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
         cellId={cell.id}
         output={cell.output}
         consoleOutputs={cell.consoleOutputs}
-        status={cell.status}
         code={cell.code}
         config={cell.config}
         cellOutputArea={userConfig.display.cell_output}
-        stopped={cell.stopped}
         showCode={showCode && canShowCode}
-        errored={cell.errored}
         mode={mode}
-        runStartTimestamp={cell.runStartTimestamp}
-        interrupted={cell.interrupted}
-        staleInputs={cell.staleInputs}
         name={cell.name}
         kiosk={kioskMode}
         showErrorTracebacks={userConfig.runtime.show_tracebacks ?? false}
@@ -133,8 +132,9 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     }
 
     if (cells.length === 0 && !invisible) {
-      // If kernel is not yet instantiated, show loading state
-      if (!kernelState.isInstantiated) {
+      // Until the host reports the runtime running, show loading state.
+      // A static notebook has no runtime to wait for.
+      if (runtimeStatus !== "running" && !isStaticNotebook()) {
         return (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
             <Loader2Icon className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -169,7 +169,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
         <ActionButtons
           canShowCode={canShowCode}
           showCode={showCode}
-          onToggleShowCode={() => setShowCode((v) => !v)}
+          onToggleShowCode={handleToggleShowCode}
         />
       )}
       <FloatingOutline />
@@ -303,14 +303,7 @@ const ActionButtons: React.FC<{
 
 interface VerticalCellProps extends Pick<
   CellRuntimeState,
-  | "output"
-  | "consoleOutputs"
-  | "status"
-  | "stopped"
-  | "errored"
-  | "interrupted"
-  | "staleInputs"
-  | "runStartTimestamp"
+  "output" | "consoleOutputs"
 > {
   cellOutputArea: "above" | "below";
   cellId: CellId;
@@ -329,13 +322,7 @@ const VerticalCell = memo(
     consoleOutputs,
     cellOutputArea,
     cellId,
-    status,
-    stopped,
-    errored,
     config,
-    interrupted,
-    staleInputs,
-    runStartTimestamp,
     code,
     showCode,
     mode,
@@ -344,18 +331,14 @@ const VerticalCell = memo(
     showErrorTracebacks,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
+    const execution = useCellExecution(cellId);
+    const freshness = useCellFreshness(cellId);
+    const errored = execution.outcome === "error";
+    const interrupted = execution.outcome === "interrupted";
+    const stopped = execution.outcome === "skipped";
 
-    const outputStale = outputIsStale(
-      {
-        status,
-        output,
-        interrupted,
-        runStartTimestamp,
-        staleInputs,
-      },
-      false,
-    );
-    const loading = outputIsLoading(status);
+    const outputStale = outputIsStale(execution, freshness, false);
+    const loading = outputIsLoading(execution.status);
 
     // Kiosk and not presenting
     const kioskFull = kiosk && mode !== "present";
@@ -469,34 +452,3 @@ export const VerticalLayoutPlugin: ICellRendererPlugin<
   serializeLayout: (layout) => layout,
   getInitialLayout: () => null,
 };
-
-export function groupCellsByColumn(
-  cells: (CellRuntimeState & CellData)[],
-): [number, (CellRuntimeState & CellData)[]][] {
-  // Group cells by column
-  const cellsByColumn = new Map<number, (CellRuntimeState & CellData)[]>();
-  let lastSeenColumn = 0;
-  cells.forEach((cell) => {
-    const column = cell.config.column ?? lastSeenColumn;
-    lastSeenColumn = column;
-    if (!cellsByColumn.has(column)) {
-      cellsByColumn.set(column, []);
-    }
-    cellsByColumn.get(column)?.push(cell);
-  });
-
-  // Sort columns by index
-  return [...cellsByColumn.entries()].toSorted(([a], [b]) => a - b);
-}
-
-/**
- * Determine if the code should be hidden.
- *
- * This is used to hide the code if it's pure markdown and there's an output,
- * or if the code is empty.
- */
-export function shouldHideCode(code: string, output: OutputMessage | null) {
-  const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
-  const hasOutput = output !== null && !isOutputEmpty(output);
-  return (isPureMarkdown && hasOutput) || code.trim() === "";
-}

@@ -8,6 +8,8 @@ import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
 import * as LSP from "vscode-languageserver-protocol";
 import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
+import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
+import { createCell } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
 import { topologicalCodesAtom } from "../../copilot/getCodes";
 import { lspWorkspaceAtom } from "@/core/saving/file-state";
@@ -61,6 +63,28 @@ function isPublishDiagnosticsNotification(
     Array.isArray(notification.params.diagnostics)
   );
 }
+
+describe("merged document with unmounted editors", () => {
+  it("should include the code of cells whose editors are not mounted", () => {
+    store.set(notebookAtom, {
+      ...initialNotebookState(),
+      cellIds: [Cells.cell1, Cells.cell2],
+      cellData: {
+        [Cells.cell1]: createCell({ id: Cells.cell1, code: "import math" }),
+        [Cells.cell2]: createCell({
+          id: Cells.cell2,
+          code: "print(math.sqrt(4))",
+        }),
+      },
+    });
+
+    const { cellIds, codes } = store.get(topologicalCodesAtom);
+    const lens = createNotebookLens(cellIds, codes);
+
+    expect(lens.mergedText).toContain("import math");
+    expect(lens.mergedText).toContain("print(math.sqrt(4))");
+  });
+});
 
 describe("createNotebookLens", () => {
   it("should produce correct lens for same inputs", () => {
@@ -334,11 +358,111 @@ describe("NotebookLanguageServerClient", () => {
       return undefined;
     });
 
-    notebookClient = new NotebookLanguageServerClient(mockClient, {}, () => ({
-      [Cells.cell1]: new EditorView({ doc: "# this is a comment" }),
-      [Cells.cell2]: new EditorView({ doc: "import math\nimport numpy" }),
-      [Cells.cell3]: new EditorView({ doc: "print(math.sqrt(4))" }),
-    }));
+    notebookClient = new NotebookLanguageServerClient(
+      mockClient,
+      {},
+      () => ({}),
+    );
+  });
+
+  describe("live editor snapshots", () => {
+    function createEditor(code: string) {
+      return new EditorView({
+        doc: code,
+        extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
+        ],
+      });
+    }
+
+    it("sends edits and their removal without invalidating the notebook atom", async () => {
+      const cachedCodes = store.get(topologicalCodesAtom);
+      const editor = createEditor("print(math.sqrt(4))");
+      replaceNotebookEditors(notebookClient, () => ({ [Cells.cell3]: editor }));
+      const uri = CellDocumentUri.of(Cells.cell3);
+      try {
+        await notebookClient.textDocumentDidOpen({
+          textDocument: {
+            uri,
+            languageId: "python",
+            version: 1,
+            text: editor.state.doc.toString(),
+          },
+        });
+        for (const [index, code] of [
+          "math.missing()",
+          "print(math.sqrt(4))",
+        ].entries()) {
+          editor.dispatch({
+            changes: { from: 0, to: editor.state.doc.length, insert: code },
+          });
+          await notebookClient.textDocumentDidChange({
+            textDocument: { uri, version: index + 2 },
+            contentChanges: [{ text: code }],
+          });
+          expect(store.get(topologicalCodesAtom)).toEqual(cachedCodes);
+          expect(mockClient.textDocumentDidChange).toHaveBeenNthCalledWith(
+            index + 1,
+            {
+              textDocument: {
+                uri: notebookClient.documentUri,
+                version: index + 2,
+              },
+              contentChanges: [
+                {
+                  text: `# this is a comment\nimport math\nimport numpy\n${code}`,
+                },
+              ],
+            },
+          );
+        }
+      } finally {
+        editor.destroy();
+      }
+    });
+
+    it("syncs pending edits before completion and uses their updated line offsets", async () => {
+      const editor = createEditor("import math\nimport numpy");
+      replaceNotebookEditors(notebookClient, () => ({ [Cells.cell2]: editor }));
+      try {
+        await notebookClient.textDocumentDidOpen({
+          textDocument: {
+            uri: CellDocumentUri.of(Cells.cell2),
+            languageId: "python",
+            version: 1,
+            text: editor.state.doc.toString(),
+          },
+        });
+        editor.dispatch({
+          changes: { from: editor.state.doc.length, insert: "\nextra = 1" },
+        });
+        mockClient.textDocumentCompletion.mockImplementation(async () => {
+          expect(mockClient.textDocumentDidChange).toHaveBeenCalledWith({
+            textDocument: { uri: notebookClient.documentUri, version: 2 },
+            contentChanges: [
+              {
+                text: "# this is a comment\nimport math\nimport numpy\nextra = 1\nprint(math.sqrt(4))",
+              },
+            ],
+          });
+          return null;
+        });
+        const params: LSP.CompletionParams = {
+          textDocument: { uri: CellDocumentUri.of(Cells.cell3) },
+          position: { line: 0, character: 11 },
+        };
+        await notebookClient.textDocumentCompletion(params);
+        expect(mockClient.textDocumentCompletion).toHaveBeenCalledWith({
+          textDocument: { uri: notebookClient.documentUri },
+          position: { line: 4, character: 11 },
+        });
+        await notebookClient.textDocumentCompletion(params);
+        expect(mockClient.textDocumentDidChange).toHaveBeenCalledTimes(1);
+      } finally {
+        editor.destroy();
+      }
+    });
   });
 
   describe("document lifecycle", () => {
@@ -1868,6 +1992,7 @@ describe("NotebookLanguageServerClient", () => {
       const isolatedNotebookClient = new NotebookLanguageServerClient(
         isolatedClient,
         {},
+        () => ({}),
       );
       await isolatedNotebookClient.sync();
       isolatedNotebookClient.patchProcessNotification();

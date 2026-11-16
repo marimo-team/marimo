@@ -3,17 +3,17 @@
 import type { Meta } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig, parseAppConfig } from "@/core/config/config-schema";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
+import { DocumentProvider } from "@/core/notebook/document";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
-import { WebSocketState } from "@/core/websocket/types";
-import { MultiColumn } from "@/utils/id-tree";
-import type { Milliseconds, Seconds } from "@/utils/time";
+import { ConnectionState } from "@/core/session/types";
 import { CellArray } from "../../../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../../../components/editor/renderers/cells-renderer";
 import { TooltipProvider } from "../../../components/ui/tooltip";
@@ -35,25 +35,14 @@ const createLongReprNotebook = (
 
 print('hello')
 LongReprA()`,
-      edited: false,
-      serializedEditorState: null,
       config: {
         hide_code: hideCode,
         disabled: false,
         column: null,
       },
-      lastCodeRun: `class LongReprA:
-    def __repr__(self):
-        return "<dlt.Relation(dataset='" + ("jaffle_ingest_dataset_" * 80) + \\
-            "', destination='<dlt.destinations.duckdb(destination_type=\\'duckdb\\'," + \\
-            " credentials=\\'local_jaffle.duckdb\\')>')>"
-
-print('hello')
-LongReprA()`,
-      lastExecutionTime: null,
     },
   },
-  cellIds: MultiColumn.from([[cellId]]),
+  cellIds: [cellId],
   cellRuntime: {
     [cellId]: createCellRuntimeState({
       output: {
@@ -62,8 +51,6 @@ LongReprA()`,
         mimetype: "text/plain",
         timestamp: 1_686_863_710,
       },
-      runElapsedTimeMs: 8 as Milliseconds,
-      status: "idle",
       consoleOutputs: [
         {
           channel: "stdout",
@@ -72,12 +59,6 @@ LongReprA()`,
           timestamp: 1_686_863_705,
         },
       ],
-      interrupted: false,
-      errored: false,
-      stopped: false,
-      staleInputs: false,
-      runStartTimestamp: 0 as Seconds,
-      lastRunStartTimestamp: 0 as Seconds,
       debuggerActive: false,
       outline: null,
     }),
@@ -88,7 +69,6 @@ LongReprA()`,
   cellLogs: [],
   history: [],
   scrollKey: null,
-  untouchedNewCells: new Set(),
 });
 
 export default {
@@ -105,21 +85,24 @@ const EditModeCodeShown = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
+  const { model } = mockDocumentModel(store, null);
 
   return (
     <Provider store={store}>
-      <TooltipProvider>
-        <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
-          <CellArray
-            mode="edit"
-            userConfig={defaultUserConfig()}
-            appConfig={parseAppConfig({})}
-          />
-        </CellsRenderer>
-      </TooltipProvider>
+      <DocumentProvider model={model}>
+        <TooltipProvider>
+          <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
+            <CellArray
+              mode="edit"
+              userConfig={defaultUserConfig()}
+              appConfig={parseAppConfig({})}
+            />
+          </CellsRenderer>
+        </TooltipProvider>
+      </DocumentProvider>
     </Provider>
   );
 };
@@ -130,21 +113,24 @@ const EditModeCodeHidden = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
+  const { model } = mockDocumentModel(store, null);
 
   return (
     <Provider store={store}>
-      <TooltipProvider>
-        <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
-          <CellArray
-            mode="edit"
-            userConfig={defaultUserConfig()}
-            appConfig={parseAppConfig({})}
-          />
-        </CellsRenderer>
-      </TooltipProvider>
+      <DocumentProvider model={model}>
+        <TooltipProvider>
+          <CellsRenderer appConfig={parseAppConfig({})} mode="edit">
+            <CellArray
+              mode="edit"
+              userConfig={defaultUserConfig()}
+              appConfig={parseAppConfig({})}
+            />
+          </CellsRenderer>
+        </TooltipProvider>
+      </DocumentProvider>
     </Provider>
   );
 };
@@ -155,7 +141,7 @@ const ReadModeCodeShown = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
 
@@ -174,7 +160,7 @@ const ReadModeCodeHidden = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
-  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
 

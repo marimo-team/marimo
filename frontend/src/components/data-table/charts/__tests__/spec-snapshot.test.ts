@@ -39,13 +39,13 @@ describe("create vega spec", () => {
   });
 
   it("should create and augment a spec", () => {
-    const spec = createSpecWithoutData(
-      ChartType.BAR,
-      createBasicFormValues(),
-      "light",
-      400,
-      300,
-    );
+    const spec = createSpecWithoutData({
+      chartType: ChartType.BAR,
+      formValues: createBasicFormValues(),
+      theme: "light",
+      width: 400,
+      height: 300,
+    });
     expect(spec).toMatchSnapshot();
     expect(typeof spec !== "string").toBe(true); // Not error message
     expect((spec as TopLevelSpec).data).toEqual({ values: [] });
@@ -59,25 +59,25 @@ describe("create vega spec", () => {
     const formValues = createBasicFormValues();
     formValues.general!.xColumn!.field = undefined;
 
-    const spec = createSpecWithoutData(
-      ChartType.BAR,
+    const spec = createSpecWithoutData({
+      chartType: ChartType.BAR,
       formValues,
-      "light",
-      400,
-      300,
-    );
+      theme: "light",
+      width: 400,
+      height: 300,
+    });
     expect(spec).toEqual(X_AXIS_REQUIRED);
 
     // Undefined yColumn
     const formValues2 = createBasicFormValues();
     formValues2.general!.yColumn!.field = undefined;
-    const spec2 = createSpecWithoutData(
-      ChartType.BAR,
-      formValues2,
-      "light",
-      400,
-      300,
-    );
+    const spec2 = createSpecWithoutData({
+      chartType: ChartType.BAR,
+      formValues: formValues2,
+      theme: "light",
+      width: 400,
+      height: 300,
+    });
     expect(spec2).toEqual(Y_AXIS_REQUIRED);
   });
 });

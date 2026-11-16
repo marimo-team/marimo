@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type CalendarDateTime, parseDateTime } from "@internationalized/date";
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { z } from "zod";
 import { DatePicker } from "@/components/ui/date-picker";
 import type { IPlugin, IPluginProps, Setter } from "../types";
@@ -20,9 +20,9 @@ interface Data {
 }
 
 export class DateTimePickerPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-datetime";
+  public tagName = "marimo-datetime";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.string(),
     label: z.string().nullable(),
     start: z.string(),
@@ -33,7 +33,7 @@ export class DateTimePickerPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <DateTimePickerComponent
         {...props.data}
@@ -50,6 +50,7 @@ interface DateTimePickerProps extends Data {
 }
 
 const DateTimePickerComponent = (props: DateTimePickerProps): JSX.Element => {
+  const labelId = useId();
   const handleInput = (valueAsDateTime: CalendarDateTime | null) => {
     if (!valueAsDateTime) {
       return;
@@ -63,12 +64,13 @@ const DateTimePickerComponent = (props: DateTimePickerProps): JSX.Element => {
   const parsedValue = props.value ? parseDateTime(props.value) : undefined;
 
   return (
-    <Labeled label={props.label} fullWidth={props.fullWidth}>
+    <Labeled labelId={labelId} label={props.label} fullWidth={props.fullWidth}>
       <DatePicker
         granularity={props.precision}
         value={parsedValue}
         onChange={handleInput}
-        aria-label={props.label ?? "date time picker"}
+        aria-labelledby={props.label ? labelId : undefined}
+        aria-label={props.label ? undefined : "date time picker"}
         minValue={parseDateTime(props.start)}
         maxValue={parseDateTime(props.stop)}
         isDisabled={props.disabled}

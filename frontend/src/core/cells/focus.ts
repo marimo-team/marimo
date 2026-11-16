@@ -3,7 +3,13 @@
 import type { EditorView } from "@codemirror/view";
 import { atom, useAtomValue } from "jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { CellConfig, RuntimeState } from "../network/types";
+import {
+  type CellExecutionInputs,
+  type CellRunStatus,
+  cellExecutionInputsAtom,
+  cellExecutionView,
+} from "@/core/executions";
+import type { CellConfig } from "../network/types";
 import { type NotebookState, notebookAtom } from "./cells";
 import type { CellId } from "./ids";
 import { SCRATCH_CELL_ID } from "./ids";
@@ -75,7 +81,8 @@ export const lastFocusedCellAtom = atom<{
   name: string;
   config: CellConfig;
   cellId: CellId;
-  status: RuntimeState;
+  status: CellRunStatus;
+  blocked: boolean;
   getEditorView: () => EditorView | null;
   hasOutput: boolean;
   hasConsoleOutput: boolean;
@@ -89,16 +96,28 @@ export const lastFocusedCellAtom = atom<{
     return null;
   }
 
-  return cellFocusDetails(cellId, get(notebookAtom));
+  return cellFocusDetails(
+    cellId,
+    get(notebookAtom),
+    get(cellExecutionInputsAtom),
+  );
 });
 
 export function cellFocusDetailsAtom(cellId: CellId) {
   return atom((get) => {
-    return cellFocusDetails(cellId, get(notebookAtom));
+    return cellFocusDetails(
+      cellId,
+      get(notebookAtom),
+      get(cellExecutionInputsAtom),
+    );
   });
 }
 
-function cellFocusDetails(cellId: CellId, notebookState: NotebookState) {
+function cellFocusDetails(
+  cellId: CellId,
+  notebookState: NotebookState,
+  executions: CellExecutionInputs,
+) {
   const { cellData, cellHandles, cellRuntime } = notebookState;
   const data = cellData[cellId];
   const runtime = cellRuntime[cellId];
@@ -107,12 +126,14 @@ function cellFocusDetails(cellId: CellId, notebookState: NotebookState) {
     return null;
   }
   const getEditorView = () => handle.editorViewOrNull;
+  const execution = cellExecutionView(executions, cellId);
 
   return {
     cellId,
     name: data.name,
     config: data.config,
-    status: runtime ? runtime.status : "idle",
+    status: execution.status,
+    blocked: execution.blocked,
     getEditorView: getEditorView,
     hasOutput: runtime?.output != null,
     hasConsoleOutput: runtime?.consoleOutputs != null,

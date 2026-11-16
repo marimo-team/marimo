@@ -8,6 +8,7 @@ import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
@@ -17,6 +18,7 @@ import type {
 import type { DataSourceConnection } from "@/core/datasets/data-source-connections";
 import {
   dataSourceConnectionsAtom,
+  exportedForTesting as dataSourceTesting,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
@@ -40,12 +42,14 @@ const adapter = new SQLLanguageAdapter();
 const TEST_ENGINE = "test_engine" as ConnectionName;
 
 const TEST_EXTENSION_ARGS = [
-  {} as CellId,
-  {} as CompletionConfig,
-  {} as HotkeyProvider,
-  {} as PlaceholderType,
-  {} as LSPConfig & {
-    diagnostics: DiagnosticsConfig;
+  {
+    cellId: {} as CellId,
+    completionConfig: {} as CompletionConfig,
+    hotkeys: {} as HotkeyProvider,
+    placeholderType: {} as PlaceholderType,
+    lspConfig: {} as LSPConfig & {
+      diagnostics: DiagnosticsConfig;
+    },
   },
 ] as const;
 
@@ -550,8 +554,8 @@ _df = mo.sql(
     const getLatestEngine = () =>
       store.get(dataSourceConnectionsAtom).latestEngineSelected;
 
-    it("should use default engine initially", () => {
-      expect(getLatestEngine()).toBe(DUCKDB_ENGINE);
+    it("should have no selected engine initially", () => {
+      expect(getLatestEngine()).toBeNull();
     });
 
     it("should persist the selected engine", () => {
@@ -622,6 +626,73 @@ _df = mo.sql(
   });
 
   describe("defaultCode", () => {
+    it("should prefer the newest usable connection until an engine is selected", () => {
+      const previousState = store.get(dataSourceConnectionsAtom);
+      const connection: DataSourceConnection = {
+        name: "first_connection" as ConnectionName,
+        source: "sqlite",
+        display_name: "SQLite",
+        dialect: "sqlite",
+        databases: [],
+      };
+      const newestConnection = {
+        ...connection,
+        name: "newest_connection" as ConnectionName,
+      };
+      const icebergConnection = {
+        ...connection,
+        name: "catalog" as ConnectionName,
+        source: "iceberg",
+      };
+      try {
+        store.set(dataSourceConnectionsAtom, {
+          latestEngineSelected: null,
+          connectionsMap: new Map(),
+        });
+        expect(adapter.defaultMetadata.engine).toBe(DUCKDB_ENGINE);
+        expect(adapter.defaultCode).toBe('_df = mo.sql(f"""SELECT * FROM """)');
+
+        store.set(dataSourceConnectionsAtom, {
+          latestEngineSelected: null,
+          connectionsMap: new Map([
+            [connection.name, connection],
+            [newestConnection.name, newestConnection],
+            [icebergConnection.name, icebergConnection],
+            [DUCKDB_ENGINE, { ...connection, name: DUCKDB_ENGINE }],
+          ]),
+        });
+        expect(adapter.defaultMetadata.engine).toBe(newestConnection.name);
+        expect(adapter.defaultCode).toContain("engine=newest_connection");
+        expect(
+          store.get(dataSourceConnectionsAtom).latestEngineSelected,
+        ).toBeNull();
+
+        const refreshConnection = (connection: DataSourceConnection) => {
+          store.set(
+            dataSourceConnectionsAtom,
+            dataSourceTesting.reducer(store.get(dataSourceConnectionsAtom), {
+              type: "addDataSourceConnection",
+              payload: { connections: [connection] },
+            }),
+          );
+        };
+        refreshConnection(connection);
+        expect(adapter.defaultMetadata.engine).toBe(connection.name);
+        expect(adapter.defaultCode).toContain("engine=first_connection");
+
+        setLatestEngineSelected(connection.name);
+        refreshConnection(newestConnection);
+        expect(adapter.defaultCode).toContain("engine=first_connection");
+
+        setLatestEngineSelected(DUCKDB_ENGINE);
+        refreshConnection(connection);
+        expect(adapter.defaultMetadata.engine).toBe(DUCKDB_ENGINE);
+        expect(adapter.defaultCode).toBe('_df = mo.sql(f"""SELECT * FROM """)');
+      } finally {
+        store.set(dataSourceConnectionsAtom, previousState);
+      }
+    });
+
     it("should include engine in defaultCode when selected", () => {
       const engine = "postgres_engine" as ConnectionName;
       setLatestEngineSelected(engine);
@@ -861,15 +932,15 @@ describe("SQL analysis features", () => {
 
   it("reports semantic diagnostics as warnings", async () => {
     const adapter = new SQLLanguageAdapter();
-    const extensions = adapter.getExtension(
-      {} as CellId,
-      {} as CompletionConfig,
-      {} as HotkeyProvider,
-      {} as PlaceholderType,
-      {
+    const extensions = adapter.getExtension({
+      cellId: {} as CellId,
+      completionConfig: {} as CompletionConfig,
+      hotkeys: {} as HotkeyProvider,
+      placeholderType: {} as PlaceholderType,
+      lspConfig: {
         diagnostics: { sql_linter: true },
       } as LSPConfig & { diagnostics: DiagnosticsConfig },
-    );
+    });
     const state = EditorState.create({
       doc: "SELECT missing FROM users",
       extensions: [languageMetadataField.init(() => metadata), ...extensions],
@@ -894,15 +965,15 @@ describe("SQL analysis features", () => {
 
   it("does not report unknown tables", async () => {
     const adapter = new SQLLanguageAdapter();
-    const extensions = adapter.getExtension(
-      {} as CellId,
-      {} as CompletionConfig,
-      {} as HotkeyProvider,
-      {} as PlaceholderType,
-      {
+    const extensions = adapter.getExtension({
+      cellId: {} as CellId,
+      completionConfig: {} as CompletionConfig,
+      hotkeys: {} as HotkeyProvider,
+      placeholderType: {} as PlaceholderType,
+      lspConfig: {
         diagnostics: { sql_linter: true },
       } as LSPConfig & { diagnostics: DiagnosticsConfig },
-    );
+    });
     const state = EditorState.create({
       doc: "SELECT missing FROM users; SELECT * FROM unknown_table",
       extensions: [languageMetadataField.init(() => metadata), ...extensions],
@@ -1038,7 +1109,7 @@ describe("CustomSqlParser", () => {
     const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = EditorState.create({
@@ -1082,7 +1153,7 @@ describe("CustomSqlParser", () => {
     vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = EditorState.create({
@@ -1126,7 +1197,7 @@ describe("CustomSqlParser", () => {
     const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = createNamedConnectionState({

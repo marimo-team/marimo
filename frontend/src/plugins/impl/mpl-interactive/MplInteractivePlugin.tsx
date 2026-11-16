@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { z } from "zod";
 import { useEventListener } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
@@ -186,12 +186,14 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
   // the figure is built once, and switching to a new model is the rebind
   // effect's job, not a reason to tear the canvas down.
   const modelIdRef = useRef(modelId);
-  modelIdRef.current = modelId;
   // The data attributes are re-parsed into fresh objects on every rerun, so
   // `toolbarImages` changes identity even when its contents do not. Read it
   // from a ref so it can't retrigger the mount effect and rebuild the canvas.
   const toolbarImagesRef = useRef(toolbarImages);
-  toolbarImagesRef.current = toolbarImages;
+  useLayoutEffect(() => {
+    modelIdRef.current = modelId;
+    toolbarImagesRef.current = toolbarImages;
+  }, [modelId, toolbarImages]);
 
   // Bind the already-rendered figure/socket to a backend model, leaving the
   // DOM, figure, and socket in place so they survive across reruns. Disposes

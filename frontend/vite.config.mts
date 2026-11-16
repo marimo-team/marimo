@@ -5,8 +5,7 @@ import { codecovVitePlugin } from "@codecov/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { JSDOM } from "jsdom";
 import { defineConfig, type Plugin } from "vite";
-import topLevelAwait from "vite-plugin-top-level-await";
-import wasm from "vite-plugin-wasm";
+import { createViteLogger, reactCompilerConfig } from "./vite.shared.mts";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
 const HOST = process.env.HOST || "127.0.0.1";
@@ -209,14 +208,11 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
   };
 };
 
-const ReactCompilerConfig = {
-  target: "19",
-};
-
 // https://vitejs.dev/config/
 export default defineConfig({
   // This allows for a dynamic <base> tag in index.html
   base: "./",
+  customLogger: createViteLogger(),
   server: {
     host: "localhost",
     port: 3000,
@@ -246,14 +242,6 @@ export default defineConfig({
         changeOrigin: true,
       },
       "/ws": {
-        target: `ws://${HOST}:${SERVER_PORT}`,
-        ws: true,
-        changeOrigin: true,
-        headers: {
-          origin: TARGET,
-        },
-      },
-      "/ws_sync": {
         target: `ws://${HOST}:${SERVER_PORT}`,
         ws: true,
         changeOrigin: true,
@@ -295,7 +283,7 @@ export default defineConfig({
   build: {
     minify: isDev ? false : "oxc", // default is "oxc"
     sourcemap: isDev,
-    rollupOptions: {
+    rolldownOptions: {
       onwarn(warning, warn) {
         if (
           warning.message?.includes(
@@ -313,8 +301,6 @@ export default defineConfig({
     dedupe: [
       "react",
       "react-dom",
-      "@emotion/react",
-      "@emotion/cache",
       "@codemirror/view",
       "@codemirror/state",
       // Dedupe react-dnd to prevent "Cannot have two HTML5 backends" errors
@@ -323,29 +309,19 @@ export default defineConfig({
       "dnd-core",
     ],
   },
-  experimental: {
-    enableNativePlugin: true,
-  },
   worker: {
     format: "es",
   },
   plugins: [
     htmlDevPlugin(),
     react({
-      babel: {
-        presets: ["@babel/preset-typescript"],
-        plugins: [
-          ["@babel/plugin-proposal-decorators", { legacy: true }],
-          ["babel-plugin-react-compiler", ReactCompilerConfig],
-        ],
-      },
+      // React Compiler backed by Oxc (oxc-transform-react)
+      compiler: reactCompilerConfig,
     }),
     codecovVitePlugin({
       enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
       bundleName: "marimo",
       uploadToken: process.env.CODECOV_TOKEN,
     }),
-    wasm(),
-    topLevelAwait(),
   ],
 });

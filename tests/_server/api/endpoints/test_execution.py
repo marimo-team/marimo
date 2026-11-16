@@ -1,20 +1,26 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import time
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_FILE_KEY,
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.notification import ConsumerCapabilities
-from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._runtime.commands import (
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+)
+from marimo._server import scratchpad as scratchpad_mod
 from marimo._server.api.utils import enforce_consumer_capability
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.http import HTTPException
@@ -23,16 +29,21 @@ from tests._server.api.endpoints.ws_helpers import (
     HEADERS as WS_HEADERS,
     assert_kernel_ready_response,
     create_response,
+    receive_notification,
     receive_until,
 )
 from tests._server.mocks import (
     get_session_manager,
+    get_single_notebook_id,
+    run_cells,
     token_header,
     with_read_session,
     with_session,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
     from starlette.testclient import TestClient
 
 SESSION_ID = SessionId("session-123")
@@ -40,6 +51,53 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
+STABLE_SESSION_HEADER = "Marimo-Stable-Session-Id"
+
+
+def _count_execute_interrupts(
+    client: TestClient, *, watcher_fires: bool, stream_cancelled: bool
+) -> int:
+    """POST `/api/kernel/execute` with a simulated client disconnect and
+    return how many times the session interrupted the kernel.
+
+    Args:
+        client (TestClient): Client with a live session `SESSION_ID`.
+        watcher_fires (bool): The disconnect watcher sees the disconnect.
+        stream_cancelled (bool): The response stream is cancelled.
+    """
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session is not None
+
+    async def wait_for_disconnect(request: object) -> None:  # noqa: ARG001
+        if not watcher_fires:
+            await asyncio.Event().wait()
+
+    async def stream(self: object):  # noqa: ARG001
+        # Yield to the event loop so the watcher task runs first.
+        await asyncio.sleep(0.05)
+        if stream_cancelled:
+            raise asyncio.CancelledError()
+        if False:
+            yield ""
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.execution.wait_for_http_disconnect",
+            wait_for_disconnect,
+        ),
+        patch.object(scratchpad_mod.ScratchCellListener, "stream", stream),
+        patch.object(session, "put_control_request"),
+        patch.object(session, "try_interrupt") as try_interrupt,
+    ):
+        response = client.post(
+            "/api/kernel/execute",
+            headers=HEADERS,
+            json={"code": "x = 1"},
+        )
+
+    assert response.status_code == 200, response.text
+    return try_interrupt.call_count
 
 
 class TestExecutionRoutes_EditMode:
@@ -130,10 +188,17 @@ class TestExecutionRoutes_EditMode:
     @staticmethod
     @with_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
-        response = client.post("/api/kernel/interrupt", headers=HEADERS)
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+        notebook = bridge.notebook_for_session(session)
+        assert notebook is not None
+        response = client.post(
+            f"/api/marimo/v1/notebooks/{notebook.id}/runtime/interrupt",
+            headers={**HEADERS, "Idempotency-Key": "interrupt"},
+        )
+        assert response.status_code == 202, response.text
+        assert response.json()["status"] == "running"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -185,17 +250,17 @@ class TestExecutionRoutes_EditMode:
     @staticmethod
     @with_session(SESSION_ID)
     def test_run_cell(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/run",
-            headers=HEADERS,
-            json={
-                "cellIds": ["cell-1", "cell-2"],
-                "codes": ["print('Hello, cell-1')", "print('Hello, cell-2')"],
+        response = run_cells(
+            client,
+            get_single_notebook_id(client),
+            {
+                "cell-1": "print('Hello, cell-1')",
+                "cell-2": "print('Hello, cell-2')",
             },
+            headers=HEADERS,
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 202, response.text
+        assert response.json()["cells"] == ["cell-1", "cell-2"]
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -211,15 +276,102 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
-    def test_execute_injects_screenshot_meta(client: TestClient) -> None:
-        """`/api/kernel/execute` injects a trusted server URL + auth token
-        into `HTTPRequest.meta` so `ctx.screenshot()` can authenticate
-        Playwright against this server.  Regression guard: deleting either
-        injection line in the endpoint should fail this test.
-        """
-        from unittest.mock import patch
+    def test_execute_with_stable_session_id(client: TestClient) -> None:
 
-        from marimo._runtime.commands import ExecuteScratchpadCommand
+        from marimo._server import scratchpad as scratchpad_mod
+
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        captured: list[object] = []
+
+        def capture(req: object, from_consumer_id: object) -> None:  # noqa: ARG001
+            captured.append(req)
+
+        async def empty_stream(
+            self: object,  # noqa: ARG001
+        ) -> AsyncGenerator[str, None]:
+            if False:
+                yield ""
+
+        with (
+            patch.object(session, "put_control_request", side_effect=capture),
+            patch.object(
+                scratchpad_mod.ScratchCellListener,
+                "stream",
+                empty_stream,
+            ),
+        ):
+            response = client.post(
+                "/api/kernel/execute",
+                headers={
+                    STABLE_SESSION_HEADER: session.stable_id,
+                    **token_header("fake-token"),
+                },
+                json={"code": "x = 1"},
+            )
+
+        assert response.status_code == 200, response.text
+        scratchpad_commands = [
+            command
+            for command in captured
+            if isinstance(command, ExecuteScratchpadCommand)
+        ]
+        assert len(scratchpad_commands) == 1
+        assert scratchpad_commands[0].code == "x = 1"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_rejects_conflicting_session_ids(
+        client: TestClient,
+    ) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+
+        response = client.post(
+            "/api/kernel/execute",
+            headers={
+                **HEADERS,
+                STABLE_SESSION_HEADER: session.stable_id,
+            },
+            json={"code": "x = 1"},
+        )
+
+        assert response.status_code == 400, response.text
+        assert response.json() == {
+            "detail": (
+                "Marimo-Stable-Session-Id cannot be combined with "
+                "Marimo-Session-Id."
+            )
+        }
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_rejects_unknown_stable_session_id(
+        client: TestClient,
+    ) -> None:
+        response = client.post(
+            "/api/kernel/execute",
+            headers={
+                STABLE_SESSION_HEADER: "sess-unknown",
+                **token_header("fake-token"),
+            },
+            json={"code": "x = 1"},
+        )
+
+        assert response.status_code == 404, response.text
+        assert response.json() == {
+            "detail": "Invalid stable session id: sess-unknown"
+        }
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_injects_screenshot_meta(client: TestClient) -> None:
+        """Inject the trusted server URL, auth token, and notebook key
+        so screenshots authenticate and attach to the active notebook.
+        """
+        from unittest.mock import PropertyMock
+
         from marimo._server import scratchpad as scratchpad_mod
 
         session = get_session_manager(client).get_session(SESSION_ID)
@@ -234,35 +386,48 @@ class TestExecutionRoutes_EditMode:
             if False:
                 yield ""  # makes this an async generator that yields nothing
 
-        with (
-            patch.object(session, "put_control_request", side_effect=capture),
-            patch.object(
-                scratchpad_mod.ScratchCellListener,
-                "stream",
-                empty_stream,
-            ),
-        ):
-            response = client.post(
-                "/api/kernel/execute",
-                headers=HEADERS,
-                json={"code": "x = 1"},
+        for path in [None, "notebooks/my notebook.py"]:
+            captured.clear()
+            with (
+                patch.object(
+                    type(session.app_file_manager),
+                    "path",
+                    new_callable=PropertyMock,
+                    return_value=path,
+                ),
+                patch.object(
+                    session, "put_control_request", side_effect=capture
+                ),
+                patch.object(
+                    scratchpad_mod.ScratchCellListener,
+                    "stream",
+                    empty_stream,
+                ),
+            ):
+                response = client.post(
+                    "/api/kernel/execute",
+                    headers=HEADERS,
+                    json={"code": "x = 1"},
+                )
+
+            assert response.status_code == 200, response.text
+
+            scratchpad_cmds = [
+                c for c in captured if isinstance(c, ExecuteScratchpadCommand)
+            ]
+            assert len(scratchpad_cmds) == 1, (
+                f"expected one ExecuteScratchpadCommand, got {captured!r}"
             )
-
-        assert response.status_code == 200, response.text
-
-        scratchpad_cmds = [
-            c for c in captured if isinstance(c, ExecuteScratchpadCommand)
-        ]
-        assert len(scratchpad_cmds) == 1, (
-            f"expected one ExecuteScratchpadCommand, got {captured!r}"
-        )
-        http_req = scratchpad_cmds[0].request
-        assert http_req is not None
-        # Mock server uses host="localhost", port=1234, base_url=""
-        assert http_req.meta[SCREENSHOT_SERVER_URL_KEY] == (
-            "http://localhost:1234"
-        )
-        assert http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
+            http_req = scratchpad_cmds[0].request
+            assert http_req is not None
+            # Mock server uses host="localhost", port=1234, base_url=""
+            assert http_req.meta[SCREENSHOT_SERVER_URL_KEY] == (
+                "http://localhost:1234"
+            )
+            assert http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
+            assert http_req.meta[SCREENSHOT_FILE_KEY] == (
+                path or session.initialization_id
+            )
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -274,11 +439,9 @@ class TestExecutionRoutes_EditMode:
         `cell.console_outputs`.  Regression guard: removing the
         construction line in the endpoint should fail this test.
         """
-        from unittest.mock import patch
 
         from marimo._messaging.cell_output import CellChannel, CellOutput
         from marimo._messaging.notification import CellNotification
-        from marimo._runtime.commands import ExecuteScratchpadCommand
         from marimo._server import scratchpad as scratchpad_mod
 
         session = get_session_manager(client).get_session(SESSION_ID)
@@ -335,6 +498,49 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
+    def test_execute_interrupts_kernel_on_watched_disconnect(
+        client: TestClient,
+    ) -> None:
+        """On ASGI spec >= 2.4 servers only the disconnect watcher sees
+        the disconnect. It must interrupt the kernel."""
+        assert (
+            _count_execute_interrupts(
+                client, watcher_fires=True, stream_cancelled=False
+            )
+            == 1
+        )
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_interrupts_kernel_on_cancelled_response(
+        client: TestClient,
+    ) -> None:
+        """On ASGI spec < 2.4 servers the response is cancelled and the
+        watcher never fires. The cancellation must interrupt the kernel."""
+        assert (
+            _count_execute_interrupts(
+                client, watcher_fires=False, stream_cancelled=True
+            )
+            == 1
+        )
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_execute_interrupts_kernel_once_per_disconnect(
+        client: TestClient,
+    ) -> None:
+        """On ASGI spec 2.3 servers both the disconnect watcher and the
+        response cancellation observe one client disconnect. The kernel
+        must receive one interrupt, not two."""
+        assert (
+            _count_execute_interrupts(
+                client, watcher_fires=True, stream_cancelled=True
+            )
+            == 1
+        )
+
+    @staticmethod
+    @with_session(SESSION_ID)
     def test_takeover_no_file_key(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/takeover",
@@ -372,26 +578,22 @@ class TestExecutionRoutes_EditMode:
     @pytest.mark.flaky(reruns=5)
     @with_session(SESSION_ID)
     def test_app_meta_request(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/run",
-            headers=HEADERS,
-            json={
-                "cellIds": ["test-1"],
-                "codes": [
-                    (
-                        "import marimo as mo\n"
-                        "import json\n"
-                        "request = dict(mo.app_meta().request)\n"
-                        # user is not serializable
-                        "request['user'] = bool(request['user'])\n"
-                        "print(json.dumps(request))"
-                    )
-                ],
+        response = run_cells(
+            client,
+            get_single_notebook_id(client),
+            {
+                "test-1": (
+                    "import marimo as mo\n"
+                    "import json\n"
+                    "request = dict(mo.app_meta().request)\n"
+                    # user is not serializable
+                    "request['user'] = bool(request['user'])\n"
+                    "print(json.dumps(request))"
+                )
             },
+            headers=HEADERS,
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 202, response.text
 
         # Sleep for 1 second (test)
         time.sleep(1.0)
@@ -500,8 +702,16 @@ class TestExecutionRoutes_RunMode:
     @staticmethod
     @with_read_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
-        response = client.post("/api/kernel/interrupt", headers=HEADERS)
-        assert response.status_code == 401, response.text
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+        notebook = bridge.notebook_for_session(session)
+        assert notebook is not None
+        response = client.post(
+            f"/api/marimo/v1/notebooks/{notebook.id}/runtime/interrupt",
+            headers={**HEADERS, "Idempotency-Key": "read-interrupt"},
+        )
+        assert response.status_code == 403, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)
@@ -518,15 +728,17 @@ class TestExecutionRoutes_RunMode:
     @staticmethod
     @with_read_session(SESSION_ID)
     def test_run_cell(client: TestClient) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+        notebook = bridge.notebook_for_session(session)
+        assert notebook is not None
         response = client.post(
-            "/api/kernel/run",
-            headers=HEADERS,
-            json={
-                "cellIds": ["cell-1", "cell-2"],
-                "codes": ["print('Hello, cell-1')", "print('Hello, cell-2')"],
-            },
+            f"/api/marimo/v1/notebooks/{notebook.id}/runtime/runs",
+            headers={**HEADERS, "Idempotency-Key": "read-run"},
+            json={"cells": [{"id": "cell-1"}]},
         )
-        assert response.status_code == 401, response.text
+        assert response.status_code == 403, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)
@@ -548,26 +760,22 @@ class TestExecutionRoutes_RunMode:
     @pytest.mark.flaky(reruns=5)
     @with_session(SESSION_ID)
     def test_app_meta_request(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/run",
-            headers=HEADERS,
-            json={
-                "cellIds": ["test-1"],
-                "codes": [
-                    (
-                        "import marimo as mo\n"
-                        "import json\n"
-                        "request = dict(mo.app_meta().request)\n"
-                        # user is not serializable
-                        "request['user'] = bool(request['user'])\n"
-                        "print(json.dumps(request))"
-                    )
-                ],
+        response = run_cells(
+            client,
+            get_single_notebook_id(client),
+            {
+                "test-1": (
+                    "import marimo as mo\n"
+                    "import json\n"
+                    "request = dict(mo.app_meta().request)\n"
+                    # user is not serializable
+                    "request['user'] = bool(request['user'])\n"
+                    "print(json.dumps(request))"
+                )
             },
+            headers=HEADERS,
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 202, response.text
 
         # Sleep for .5 seconds
         time.sleep(0.5)
@@ -626,12 +834,12 @@ def test_takeover_transfers_edit_without_disconnect(
     with client.websocket_connect(
         "/ws?session_id=ed1", headers=WS_HEADERS
     ) as editor:
-        assert_kernel_ready_response(editor.receive_json())
+        assert_kernel_ready_response(receive_notification(editor))
         with client.websocket_connect(
             "/ws?session_id=vw1", headers=WS_HEADERS
         ) as viewer:
             assert_kernel_ready_response(
-                viewer.receive_json(),
+                receive_notification(viewer),
                 create_response(
                     {
                         "kiosk": True,
@@ -675,7 +883,7 @@ def test_enforce_consumer_capability_blocks_viewer() -> None:
     # A default viewer is an interactor (edit=False); an edit-tier command is
     # still refused.
     app_state = _app_state_for_consumer(ConsumerCapabilities.INTERACTOR)
-    command = ExecuteCellsCommand(cell_ids=[], codes=[])
+    command = ExecuteCellsCommand(execution_requests=[])
     with pytest.raises(HTTPException) as exc_info:
         enforce_consumer_capability(app_state, command)  # type: ignore[arg-type]
     assert exc_info.value.status_code == 403
@@ -683,5 +891,5 @@ def test_enforce_consumer_capability_blocks_viewer() -> None:
 
 def test_enforce_consumer_capability_allows_editor() -> None:
     app_state = _app_state_for_consumer(ConsumerCapabilities.EDITOR)
-    command = ExecuteCellsCommand(cell_ids=[], codes=[])
+    command = ExecuteCellsCommand(execution_requests=[])
     enforce_consumer_capability(app_state, command)  # type: ignore[arg-type]

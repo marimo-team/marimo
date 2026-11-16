@@ -562,10 +562,24 @@ describe("mergeModels", () => {
       release_date: date,
     });
 
-    it("seeds the denylist with gpt-5.3-codex-spark under openai", () => {
+    it("seeds the denylist with unsupported and redundant models", () => {
       // Changing this set is a deliberate product decision — when a model is
       // added or removed here, leave a comment next to it explaining why.
       expect(MODEL_DENYLIST["openai"]?.has("gpt-5.3-codex-spark")).toBe(true);
+      expect(MODEL_DENYLIST["openai"]?.has("gpt-realtime-2.1")).toBe(true);
+      expect(MODEL_DENYLIST["bedrock"]).toEqual(
+        new Set([
+          "anthropic.claude-fable-5-1",
+          "us.anthropic.claude-fable-5-1",
+          "anthropic.claude-opus-5",
+          "au.anthropic.claude-opus-5",
+          "eu.anthropic.claude-opus-5",
+          "jp.anthropic.claude-opus-5",
+        ]),
+      );
+      expect(MODEL_DENYLIST["opencode-go"]).toEqual(
+        new Set(["glm-5.1", "hy3", "minimax-m2.7"]),
+      );
     });
 
     it("drops upstream models that match the per-provider denylist", () => {
@@ -859,7 +873,7 @@ openai:
     expect(parsed.azure).toHaveLength(1);
   });
 
-  it("does not write the file when there are no new entries", async () => {
+  it("does not write the file when neither entries nor metadata change", async () => {
     const full = `anthropic:
   - name: Claude Opus 4.5
     model: claude-opus-4-5
@@ -877,6 +891,11 @@ azure:
     model: gpt-5.5
 `;
     writeFileSync(yamlPath, full);
+    const first = await syncModels({
+      modelsYamlPath: yamlPath,
+      modelsDev: FIXTURE_API,
+    });
+    expect(first.updated).toBeGreaterThan(0);
     const before = readFileSync(yamlPath, "utf-8");
 
     const result = await syncModels({
@@ -886,6 +905,7 @@ azure:
 
     const after = readFileSync(yamlPath, "utf-8");
     expect(result.added).toBe(0);
+    expect(result.updated).toBe(0);
     expect(after).toEqual(before);
   });
 });

@@ -9,6 +9,7 @@ import pytest
 from marimo._messaging.context import HTTP_REQUEST_CTX, is_code_mode_request
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
+    format_exception,
     format_exception_message,
     is_code_highlighting,
     write_traceback,
@@ -53,6 +54,16 @@ class TestTracebacks:
             # Second argument should be the mimetype
             _, kwargs = mock_stderr._write_with_mimetype.call_args
             assert kwargs["mimetype"] == "application/vnd.marimo+traceback"
+            assert kwargs["code"] is None
+
+    def test_write_traceback_to_stderr_keeps_code(self) -> None:
+        mock_stderr = MagicMock(spec=Stderr)
+
+        with patch("sys.stderr", mock_stderr):
+            write_traceback("ValueError: invalid value", code="raise x")
+
+            _, kwargs = mock_stderr._write_with_mimetype.call_args
+            assert kwargs["code"] == "raise x"
 
     def test_write_traceback_to_regular_stderr(self) -> None:
         # Test writing traceback to regular stderr (not Stderr)
@@ -227,7 +238,7 @@ class TestIsCodeModeRequest:
 
     def test_run_endpoint(self) -> None:
         req = HTTPRequest(
-            url={"path": "/api/kernel/run"},
+            url={"path": "/api/marimo/v1/notebooks/nb-1/runtime/runs"},
             base_url={},
             headers={},
             query_params={},
@@ -258,3 +269,72 @@ class TestIsCodeModeRequest:
             assert is_code_mode_request() is False
         finally:
             HTTP_REQUEST_CTX.reset(token)
+
+
+@pytest.mark.parametrize("redirected", [True, False])
+def test_run_mode_tracebacks_omit_full_source(redirected: bool) -> None:
+    import msgspec
+
+    stderr = MagicMock(spec=Stderr) if redirected else MagicMock()
+    context = MagicMock(cell_id="cell")
+    with (
+        patch("sys.stderr", stderr),
+        patch("marimo._messaging.tracebacks.get_mode", return_value="run"),
+        patch(
+            "marimo._messaging.tracebacks._show_tracebacks_enabled",
+            return_value=True,
+        ),
+        patch(
+            "marimo._messaging.tracebacks.safe_get_context",
+            return_value=context,
+        ),
+        patch(
+            "marimo._messaging.tracebacks.is_code_mode_request",
+            return_value=False,
+        ),
+        patch(
+            "marimo._messaging.tracebacks.broadcast_notification"
+        ) as broadcast,
+    ):
+        write_traceback("ValueError: bad", code="private_source_sentinel = 42")
+    if redirected:
+        assert stderr._write_with_mimetype.call_args.kwargs["code"] is None
+    else:
+        assert broadcast.call_args.args[0].console.code is msgspec.UNSET
+
+
+def _raise_from_non_iterable_locals(exc: BaseException) -> BaseException:
+    class _Lookup:
+        def __getitem__(self, key: object) -> object:
+            raise KeyError(key)
+
+    try:
+        try:
+            eval("missing", {}, _Lookup())  # type: ignore[arg-type]
+        except NameError as e:
+            raise exc from e
+    except BaseException as raised:
+        return raised
+    raise AssertionError("unreachable")
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="name suggestions in tracebacks start in Python 3.12",
+)
+class TestFormatExceptionFallback:
+    def test_empty_message_prints_bare_type(self) -> None:
+        formatted = format_exception(
+            _raise_from_non_iterable_locals(ValueError())
+        )
+        assert formatted.endswith("\nValueError\n")
+
+    def test_unprintable_message(self) -> None:
+        class Unprintable(Exception):
+            def __str__(self) -> str:
+                raise RuntimeError
+
+        formatted = format_exception(
+            _raise_from_non_iterable_locals(Unprintable())
+        )
+        assert formatted.endswith(": <exception str() failed>\n")

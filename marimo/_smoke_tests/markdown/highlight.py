@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ```
     >>> # pycon (omitted)
     >>> def foo():
@@ -32,15 +31,12 @@ def _(mo):
         pass
     x + y
     ```
-    """
-    )
-    return
+    """)
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ```js
     // js
     const myVar = "";
@@ -51,14 +47,13 @@ def _(mo):
     // js omitted
     var myVar = "";
     ```
-    """
-    )
-    return
+    """)
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

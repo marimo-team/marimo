@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import mimetypes
+import hashlib
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
@@ -19,7 +19,6 @@ from starlette.responses import (
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
-from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._config.reader import find_nearest_pyproject_toml
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -40,6 +39,7 @@ from marimo._templates import (
     notebook_page_template,
 )
 from marimo._utils.async_path import AsyncPath
+from marimo._utils.mime import guess_mime_type
 from marimo._utils.paths import (
     MARIMO_DIR_NAME,
     marimo_package_path,
@@ -50,6 +50,7 @@ from marimo._utils.paths import (
 if TYPE_CHECKING:
     from starlette.requests import Request
 
+
 LOGGER = _loggers.marimo_logger()
 
 # Router for serving static assets
@@ -59,13 +60,11 @@ router = APIRouter()
 root = normalize_path(marimo_package_path() / "_static")
 
 server_config = (
-    get_default_config_manager(current_path=None)
-    .get_config()
-    .get("server", {})
+    get_default_config_manager(current_path=None).get_config().server
 )
 
 assets_dir = root / "assets"
-follow_symlinks = server_config.get("follow_symlink", False)
+follow_symlinks = server_config.follow_symlink
 
 
 def _missing_index_html_detail() -> str:
@@ -124,21 +123,43 @@ except RuntimeError:
 
 FILE_QUERY_PARAM_KEY = "file"
 
-# Hardening headers for HTML page responses in edit/home mode. These
-# supplement the token-stripping redirect below by preventing any outbound
-# fetch from the HTML page from leaking a transiently-present access_token
-# via `Referer`, and by disabling MIME sniffing on the HTML response.
+# Hardening headers for HTML page responses. They supplement the
+# token-stripping redirect below and disable MIME sniffing.
 #
-# Use "same-origin" instead of "no-referrer" to avoid Chrome 147+ on macOS
-# treating localhost pages as private-network requests without a valid
-# referrer, which triggers Local Network Access checks and "Error code 5".
-# "same-origin" still prevents cross-origin referrer leakage while
-# preserving the referrer for same-origin navigations.
-# See: https://github.com/marimo-team/marimo/issues/9455
+# Preserve same-origin referrers. Limit cross-origin referrers to the
+# origin so services that gate on Referer, such as map tile servers, can
+# identify the source without receiving notebook paths or query parameters.
 _HTML_SECURITY_HEADERS: dict[str, str] = {
-    "Referrer-Policy": "same-origin",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Content-Type-Options": "nosniff",
 }
+
+
+def _html_response(request: Request, html: str) -> Response:
+    """Return rendered HTML with conditional caching headers."""
+    etag = f'"{hashlib.sha256(html.encode("utf-8")).hexdigest()}"'
+    # The document inlines per-server config and a notebook key. Browsers may
+    # store it, but must check that it is still current before reusing it.
+    cache_control = "private, no-cache"
+    headers = {
+        "Cache-Control": cache_control,
+        "ETag": etag,
+        **_HTML_SECURITY_HEADERS,
+    }
+
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match is not None:
+        # If-None-Match may contain multiple validators or weak ETags (`W/`).
+        # See https://www.rfc-editor.org/rfc/rfc9110#section-13.1.2
+        candidates = {
+            candidate.strip().removeprefix("W/")
+            for candidate in if_none_match.split(",")
+        }
+        # Allow caching if things exactly match.
+        if "*" in candidates or etag in candidates:
+            return Response(status_code=304, headers=headers)
+
+    return HTMLResponse(html, headers=headers)
 
 
 def _strip_access_token_redirect(request: Request) -> RedirectResponse:
@@ -362,11 +383,11 @@ async def index(request: Request) -> Response:
         absolute_filepath = app_manager.filename
 
         # Pre-compute notebook snapshot for faster initial render
-        # Only in EDIT + SandboxMode.MULTI where each notebook gets its own IPC
+        # Only in sandboxed edit mode where each notebook gets its own IPC
         # kernel.
         notebook_snapshot = None
         if (
-            app_state.session_manager.sandbox_mode is SandboxMode.MULTI
+            app_state.session_manager.sandbox
             and app_state.mode == SessionMode.EDIT
             and app_manager.filename
         ):
@@ -418,7 +439,7 @@ async def index(request: Request) -> Response:
         # Inject service worker registration with the notebook ID
         html = _inject_service_worker(html, file_key)
 
-    return HTMLResponse(html, headers=_HTML_SECURITY_HEADERS)
+    return _html_response(request, html)
 
 
 DEFAULT_NOTEBOOK_NAME = "__marimo_notebook__.py"
@@ -564,7 +585,7 @@ def virtual_file(
         )
     total_size = int(byte_length_str)
 
-    mimetype, _ = mimetypes.guess_type(filename)
+    mimetype = guess_mime_type(filename)
     headers = {
         "Cache-Control": "max-age=86400",
         # Advertise range support so Safari (which requires it for media

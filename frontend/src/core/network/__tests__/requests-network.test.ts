@@ -4,16 +4,12 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as apiModule from "../api";
-import { visibleForTesting } from "../requests-lazy";
 import { createNetworkRequests } from "../requests-network";
-
-const { ACTIONS } = visibleForTesting;
 
 // Mock dependencies
 vi.mock("../../runtime/config", () => ({
   getRuntimeManager: vi.fn(() => ({
     sessionHeaders: vi.fn(() => ({ "X-Test-Header": "test" })),
-    isLazy: true,
   })),
 }));
 
@@ -62,17 +58,6 @@ describe("createNetworkRequests", () => {
     vi.mocked(apiModule.createClientWithRuntimeManager).mockReturnValue(
       mockClient,
     );
-  });
-
-  it("all request methods have an action defined", () => {
-    const requests = createNetworkRequests();
-    const methodNames = Object.keys(requests);
-
-    for (const methodName of methodNames) {
-      if (!ACTIONS[methodName as keyof typeof ACTIONS]) {
-        expect.fail(`Method ${methodName} has no action defined`);
-      }
-    }
   });
 
   describe("special behavior", () => {
@@ -136,11 +121,31 @@ describe("createNetworkRequests", () => {
       expect(mockClient.GET).toHaveBeenCalledWith("/api/environment");
     });
 
+    it("getFileRoots should GET /api/files/roots", async () => {
+      const requests = createNetworkRequests();
+      await requests.getFileRoots();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/files/roots");
+    });
+
     it("getExportAvailability should GET /api/export/availability", async () => {
       const requests = createNetworkRequests();
       await requests.getExportAvailability();
 
       expect(mockClient.GET).toHaveBeenCalledWith("/api/export/availability");
+    });
+
+    it("installExportRequirements should POST the export format", async () => {
+      const requests = createNetworkRequests();
+      await requests.installExportRequirements({ format: "pdf" });
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/api/export/requirements/install",
+        expect.objectContaining({
+          body: { format: "pdf" },
+          params: expect.anything(),
+        }),
+      );
     });
 
     it("discoverDataSources should POST to the discovery endpoint", async () => {

@@ -1,27 +1,28 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, ParamSpec, TypeVar, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 T = TypeVar("T")
+P = ParamSpec("P")
 
 sentinel = object()  # Unique sentinel object
 
 
-def memoize_last_value(func: Callable[..., T]) -> Callable[..., T]:
+def memoize_last_value(func: Callable[P, T]) -> Callable[P, T]:
     """
     This differs from functools.lru_cache in that is checks for
     object identity for positional arguments instead of equality
     which for functools requires the arguments to be hashable.
     """
-    last_args: tuple[Any, ...] = ()
-    last_kwargs: dict[str, Any] = {}
+    last_args: tuple[object, ...] = ()
+    last_kwargs: dict[str, object] = {}
     last_output: T = cast(T, sentinel)
 
-    def wrapper(*args: Any, **kwargs: Any) -> T:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         nonlocal last_args, last_kwargs, last_output
 
         if last_output is not sentinel:

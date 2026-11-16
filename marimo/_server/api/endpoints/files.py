@@ -22,7 +22,7 @@ from marimo._server.models.models import (
     ReadCodeResponse,
     RenameNotebookRequest,
     SaveAppConfigurationRequest,
-    SaveNotebookRequest,
+    SaveLayoutRequest,
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
@@ -130,24 +130,28 @@ async def rename_file(
 
     command = RenameNotebookCommand(filename=filename)
     enforce_consumer_capability(app_state, command)
+    success, error = await app_state.session_manager.rename_session(
+        app_state.require_current_session_id(), body.filename
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+
+    # Rename-triggered cells may immediately read the file or edit its
+    # dependencies. The durable file and server binding must be ready first.
     app_state.require_current_session().put_control_request(
         command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
-    await app_state.session_manager.rename_session(
-        app_state.require_current_session_id(), body.filename
-    )
-
     return SuccessResponse()
 
 
-@router.post("/save")
+@router.post("/save_layout")
 @requires("edit")
-async def save(
+async def save_layout(
     *,
     request: Request,
-) -> PlainTextResponse:
+) -> BaseResponse:
     """
     parameters:
         - in: header
@@ -159,34 +163,21 @@ async def save(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/SaveNotebookRequest"
+                    $ref: "#/components/schemas/SaveLayoutRequest"
     responses:
         200:
-            description: Save the current app
+            description: Write the notebook's layout file and point its app config at it
             content:
-                text/plain:
+                application/json:
                     schema:
-                        type: string
+                        $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    body = await parse_request(request, cls=SaveNotebookRequest)
-    directory = app_state.session_manager.workspace.directory
-
-    # Resolve relative filenames against the workspace's directory
-    if body.filename and not Path(body.filename).is_absolute():
-        if directory:
-            body.filename = str(Path(directory) / body.filename)
-
-    # Prevent path traversal: ensure target is inside the router's directory
-    if directory and body.filename:
-        PathValidator().validate_inside_directory(
-            Path(directory), Path(body.filename)
-        )
-
-    session = app_state.require_current_session()
-    contents = session.app_file_manager.save(body)
-
-    return PlainTextResponse(content=contents)
+    body = await parse_request(request, cls=SaveLayoutRequest)
+    app_state.require_current_session().app_file_manager.save_layout(
+        body.layout
+    )
+    return SuccessResponse()
 
 
 @router.post("/copy")

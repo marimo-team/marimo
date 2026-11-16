@@ -2,7 +2,6 @@
 
 import { useAtom } from "jotai";
 import { SettingsIcon } from "lucide-react";
-import { VisuallyHidden } from "react-aria";
 import { AppConfigForm } from "@/components/app-config/app-config-form";
 import {
   Popover,
@@ -51,10 +50,12 @@ export const ConfigButton: React.FC<Props> = ({
   );
 
   const userSettingsDialog = (
-    <DialogContent className="w-[90vw] h-[90vh] overflow-hidden sm:max-w-5xl top-[5vh] p-0">
-      <VisuallyHidden>
-        <DialogTitle>User settings</DialogTitle>
-      </VisuallyHidden>
+    <DialogContent className="flex flex-col gap-0 w-[94vw] h-[90vh] overflow-hidden sm:max-w-5xl top-[5vh] p-0 font-prose">
+      <div className="border-b px-6 py-4 pr-12">
+        <DialogTitle className="text-base font-semibold">
+          User settings
+        </DialogTitle>
+      </div>
       <UserConfigForm />
     </DialogContent>
   );

@@ -6,6 +6,7 @@ import time
 from collections.abc import AsyncIterable, Callable
 from dataclasses import dataclass
 from http.client import HTTPResponse, HTTPSConnection
+from ipaddress import ip_address
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -25,7 +26,6 @@ from starlette.background import BackgroundTask
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
     DispatchFunction,
-    RequestResponseEndpoint,
 )
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
@@ -33,21 +33,19 @@ from starlette.websockets import WebSocket, WebSocketState
 from websockets import ClientConnection, ConnectionClosed, connect
 
 from marimo import _loggers
-from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.codes import WebSocketCodes
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._session.model import SessionMode
-from marimo._tracer import server_tracer
+from marimo._tracer import is_tracing_enabled, server_tracer
 from marimo._utils.asyncio_utils import supervised_task
 from marimo._utils.print import print_tabbed
 
 if TYPE_CHECKING:
     from starlette.datastructures import State
     from starlette.requests import HTTPConnection
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOGGER = _loggers.marimo_logger()
 
@@ -112,6 +110,116 @@ class AuthBackend(AuthenticationBackend):
         raise ValueError(f"Invalid session mode: {mode}")
 
 
+class WebSocketOriginMiddleware:
+    """Apply the server's origin policy to WebSocket handshakes."""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        allow_origins: tuple[str, ...] = (),
+        host: str | None = None,
+    ) -> None:
+        self.app = app
+        self.trusted_hosts = {"localhost", "127.0.0.1", "::1"}
+        if host is not None:
+            self.trusted_hosts.add(host.strip("[]").lower())
+        self.allow_all_origins = "*" in allow_origins
+        self.allow_origins: set[tuple[str, str, int]] = set()
+        for value in allow_origins:
+            if value == "*":
+                continue
+            origin = self._parse_origin(value)
+            if origin is None:
+                LOGGER.warning(
+                    "Ignoring invalid WebSocket origin %r in allow_origins. "
+                    "Use an http:// or https:// origin with an optional port, "
+                    "without a path or trailing slash.",
+                    value,
+                )
+            else:
+                self.allow_origins.add(origin)
+
+    @staticmethod
+    def _parse_origin(value: str) -> tuple[str, str, int] | None:
+        if (
+            not value.isprintable()
+            or any(char.isspace() for char in value)
+            or "\\" in value
+        ):
+            return None
+        try:
+            parsed = urlparse(value)
+            if (
+                parsed.scheme not in ("http", "https")
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.netloc.endswith(":")
+                or parsed.path
+                or parsed.params
+                or "?" in value
+                or "#" in value
+            ):
+                return None
+            port = parsed.port
+            authority = parsed.hostname
+            if ":" in authority:
+                authority = f"[{authority}]"
+            if port is not None:
+                authority += ":" + parsed.netloc.rsplit(":", 1)[1]
+            if authority.lower() != parsed.netloc.lower():
+                return None
+            if port is None:
+                port = 443 if parsed.scheme == "https" else 80
+            return parsed.scheme, parsed.hostname, port
+        except ValueError:
+            return None
+
+    def _is_trusted_host(self, hostname: str, scope: Scope) -> bool:
+        if hostname in self.trusted_hosts:
+            return True
+        server = scope.get("server")
+        if server is None:
+            return False
+        try:
+            # The local socket address also supports direct IP connections.
+            return ip_address(hostname) == ip_address(server[0])
+        except ValueError:
+            return False
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        if scope["type"] != "websocket":
+            return await self.app(scope, receive, send)
+
+        websocket = WebSocket(scope, receive, send)
+        origins = websocket.headers.getlist("origin")
+        # Non-browser clients may omit Origin.
+        if not origins:
+            return await self.app(scope, receive, send)
+
+        origin = self._parse_origin(origins[0]) if len(origins) == 1 else None
+        scheme = "https" if scope["scheme"] == "wss" else "http"
+        server_origin = self._parse_origin(
+            f"{scheme}://{websocket.headers.get('host', '')}"
+        )
+        if origin is not None and (
+            (
+                origin == server_origin
+                and self._is_trusted_host(origin[1], scope)
+            )
+            or origin in self.allow_origins
+            or self.allow_all_origins
+        ):
+            return await self.app(scope, receive, send)
+
+        await websocket.close(
+            code=WebSocketCodes.FORBIDDEN, reason="Origin not allowed"
+        )
+
+
 class SkewProtectionMiddleware:
     HEADER_NAME: Final[str] = "Marimo-Server-Token"
 
@@ -127,8 +235,8 @@ class SkewProtectionMiddleware:
         request = Request(scope)
         state = AppState.from_app(request.app)
 
-        # If not POST request, then skip
-        if request.method != "POST":
+        # Only requests that change state need the token
+        if request.method in ("GET", "HEAD", "OPTIONS"):
             return await self.app(scope, receive, send)
         # Skip the login form submission. The login page is a server-rendered
         # plain HTML form and does not attach the server token header.
@@ -175,16 +283,15 @@ class SkewProtectionMiddleware:
         return await self.app(scope, receive, send)
 
 
-class OpenTelemetryMiddleware(BaseHTTPMiddleware):
-    def __init__(
-        self, app: ASGIApp, dispatch: DispatchFunction | None = None
-    ) -> None:
-        super().__init__(app, dispatch)
+class OpenTelemetryMiddleware:
+    """Keep the request span current until the response finishes streaming."""
 
-        if not GLOBAL_SETTINGS.TRACING:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+        self._tracing_enabled = is_tracing_enabled()
+        if not self._tracing_enabled:
             return
-
-        DependencyManager.opentelemetry.require("for tracing.")
 
         # Import once and store for later
         from opentelemetry import trace
@@ -194,16 +301,19 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
         self.Status = Status
         self.StatusCode = StatusCode
 
-    async def dispatch(
+    async def __call__(
         self,
-        request: Request,
-        call_next: RequestResponseEndpoint,
-    ) -> Response:
-        if not GLOBAL_SETTINGS.TRACING:
-            return await call_next(request)
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if not self._tracing_enabled or scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
         from opentelemetry.propagate import extract
 
+        request = Request(scope)
         ctx = extract(carrier=request.headers)
 
         with server_tracer.start_as_current_span(
@@ -215,14 +325,18 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
                 "http.target": request.url.path or "",
             },
         ) as span:
+
+            async def send_with_status(message: Message) -> None:
+                if message["type"] == "http.response.start":
+                    span.set_attribute("http.status_code", message["status"])
+                await send(message)
+
             try:
-                response = await call_next(request)
-                span.set_attribute("http.status_code", response.status_code)
+                await self.app(scope, receive, send_with_status)
                 span.set_status(self.Status(self.StatusCode.OK))
             except Exception as e:
                 span.set_status(self.Status(self.StatusCode.ERROR, str(e)))
                 raise
-            return response
 
 
 @dataclass
@@ -246,8 +360,6 @@ class _AsyncHTTPResponse:
                 if not chunk:
                     break
                 yield chunk
-        except Exception:
-            raise
         finally:
             await self.aclose()
 
@@ -327,17 +439,14 @@ class _AsyncHTTPClient:
 
         method = request.method or "GET"
 
-        try:
-            conn.request(
-                method=method,
-                url=path_and_query,  # Only path and query
-                body=body,
-                headers=request.headers,
-            )
-            resp = conn.getresponse()
-            return resp  # type: ignore[no-any-return]
-        except Exception:
-            raise
+        conn.request(
+            method=method,
+            url=path_and_query,  # Only path and query
+            body=body,
+            headers=request.headers,
+        )
+        resp = conn.getresponse()
+        return resp  # type: ignore[no-any-return]
 
     async def send(
         self, request: _URLRequest, stream: bool = False, max_retries: int = 2
@@ -381,12 +490,14 @@ class ProxyMiddleware:
         | None = None,
         *,
         require_auth: bool = True,
+        websocket_headers: dict[str, str] | None = None,
     ) -> None:
         self.app = app
         self.path = proxy_path.rstrip("/")
         self.target_url = target_url
         self.path_rewrite = path_rewrite
         self.require_auth = require_auth
+        self.websocket_headers = websocket_headers
         self.connection_error_handler = (
             connection_error_handler
             if connection_error_handler
@@ -584,7 +695,9 @@ class ProxyMiddleware:
 
                 for attempt in range(max_retries):
                     try:
-                        ws_client = await connect(ws_url)
+                        ws_client = await connect(
+                            ws_url, additional_headers=self.websocket_headers
+                        )
                         LOGGER.debug(f"Successfully connected to {ws_url}")
                         return ws_client
                     except Exception as e:
@@ -727,15 +840,15 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
             now = time.time()
             if now >= timeout_at:
                 print_tabbed("Timeout due to inactivity")
-                self.shutdown()
+                await self.shutdown()
                 break
 
             # Sleep until 1s after the next potential activity timeout
             await asyncio.sleep(timeout_at - now + 1)
 
-    def shutdown(self) -> None:
+    async def shutdown(self) -> None:
         manager = self.app_state.session_manager
 
-        manager.shutdown()
+        await manager.shutdown()
         if self.app_state.server:
             close_uvicorn(self.app_state.server)

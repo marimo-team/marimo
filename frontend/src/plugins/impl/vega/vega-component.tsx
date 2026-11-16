@@ -13,6 +13,7 @@ import { tooltipHandler } from "@/components/charts/tooltip";
 import type { SignalListener } from "@/components/charts/types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Tooltip } from "@/components/ui/tooltip";
+import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useTheme } from "@/theme/useTheme";
@@ -229,9 +230,13 @@ const LoadedVegaComponent = ({
     }
 
     if (ParamNames.hasPanZoom(names)) {
+      // On macOS pan/zoom is gated behind the Command key; elsewhere the
+      // Super/Windows key is reserved by the OS, so we use Control instead.
+      // Keep this in sync with `getPanZoomModifier` in params.ts.
+      const modifierKey = isPlatformMac() ? "⌘" : "ctrl";
       hints.push(
-        ["Pan", "hold the meta key and drag"],
-        ["Zoom", "hold the meta key and scroll"],
+        ["Pan", `hold the ${modifierKey} key and drag`],
+        ["Zoom", `hold the ${modifierKey} key and scroll`],
       );
     }
 

@@ -11,7 +11,7 @@ def __(mo):
         r"""
         # Visualization: Time Series Line Plot in Altair
 
-        Altair handles temporal types natively by using the ``:T`` type marker. An example is in this plot of stock prices over time
+        Altair handles temporal types natively by using the `:T` type marker. An example is in this plot of stock prices over time
         """
     )
     return

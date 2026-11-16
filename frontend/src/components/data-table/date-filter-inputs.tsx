@@ -14,6 +14,9 @@ import {
   dateToLocalISODate,
   dateToLocalISODateTime,
   dateToLocalISOTime,
+  parseLocalISODate,
+  parseLocalISODateTime,
+  parseTimeToDate,
 } from "@/utils/dates";
 import type { FilterType } from "./filters";
 
@@ -72,53 +75,23 @@ export function parsePastedDate(
     return undefined;
   }
 
-  const timeMatch =
-    filterType === "time"
-      ? trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i)
-      : null;
-  if (timeMatch) {
-    const [, hStr, mStr, sStr, ampm] = timeMatch;
-    let hour = Number.parseInt(hStr, 10);
-    const minute = Number.parseInt(mStr, 10);
-    const second = sStr ? Number.parseInt(sStr, 10) : 0;
-    if (ampm) {
-      const isPm = ampm.toLowerCase() === "pm";
-      if (hour === 12) {
-        hour = isPm ? 12 : 0;
-      } else if (isPm) {
-        hour += 12;
-      }
+  if (filterType === "time") {
+    const date = parseTimeToDate(trimmed);
+    if (date) {
+      return date;
     }
-    return new Date(1970, 0, 1, hour, minute, second);
   }
 
-  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (dateOnlyMatch) {
-    const [, y, m, d] = dateOnlyMatch;
-    return new Date(
-      Number.parseInt(y, 10),
-      Number.parseInt(m, 10) - 1,
-      Number.parseInt(d, 10),
-    );
+  if (filterType === "date") {
+    const date = parseLocalISODate(trimmed);
+    if (date) {
+      return date;
+    }
   }
 
-  // Parse ISO datetimes as wall-clock to stay consistent with the picker's
-  // local-time basis. Trailing `Z` or offsets are stripped so that pasting
-  // `2024-01-15T08:30:00Z` displays `08:30` instead of being shifted by the
-  // viewer's timezone.
-  const isoMatch = trimmed.match(
-    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/,
-  );
-  if (isoMatch) {
-    const [, y, mo, d, h, mi, s] = isoMatch;
-    return new Date(
-      Number.parseInt(y, 10),
-      Number.parseInt(mo, 10) - 1,
-      Number.parseInt(d, 10),
-      Number.parseInt(h, 10),
-      Number.parseInt(mi, 10),
-      s ? Number.parseInt(s, 10) : 0,
-    );
+  const isoDateTime = parseLocalISODateTime(trimmed);
+  if (isoDateTime) {
+    return isoDateTime;
   }
 
   const parsed = new Date(trimmed);

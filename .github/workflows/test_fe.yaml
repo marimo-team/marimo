@@ -14,15 +14,15 @@ permissions:
 
 env:
   TURBO_TEAM: marimo
-  MARIMO_SKIP_UPDATE_CHECK: 1
+  MARIMO_SERVER_SKIP_UPDATE_CHECK: 1
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
@@ -30,13 +30,14 @@ jobs:
             frontend:
               - 'frontend/**'
               - 'packages/**'
+              - 'protocols/host/**'
               - 'pnpm-workspace.yaml'
 
   lint_frontend:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     name: 🧹 Lint frontend
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 10
     permissions:
       contents: read
@@ -47,7 +48,7 @@ jobs:
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -113,8 +114,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     name: 🧪 Test frontend
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -126,7 +127,7 @@ jobs:
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -147,6 +148,9 @@ jobs:
 
       - name: 📋 Register tsc problem matcher
         run: echo "::add-matcher::${{ github.workspace }}/.github/problemMatchers/tsc.json"
+
+      - name: 🔎 Check host protocol bindings
+        run: pnpm --dir ../packages/client codegen:check
 
       - name: 🔎 Type check
         id: typecheck
@@ -169,7 +173,15 @@ jobs:
         id: test
         env:
           TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
-        run: pnpm turbo test:coverage
+        run: pnpm turbo test:coverage --log-order=stream
+
+      - name: 🧪 Test llm-info
+        working-directory: ${{ github.workspace }}
+        run: pnpm --dir packages/llm-info test -- --run
+
+      - name: 🧪 Test @marimo-team/client
+        working-directory: ${{ github.workspace }}
+        run: pnpm --dir packages/client test -- --run
 
       - name: 📊 Report coverage
         # Runs even when tests fail (reportOnFailure writes the summary anyway).
@@ -211,7 +223,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     name: 📦 Build frontend
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     timeout-minutes: 15
     permissions:
       contents: read
@@ -223,7 +235,7 @@ jobs:
 
     steps:
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 

@@ -25,7 +25,7 @@ export class CompletionBuilder {
   /**
    * Add a table with its columns at the specified path
    */
-  addTable(path: string[], table: DataTable): this {
+  public addTable(path: string[], table: DataTable): this {
     const tableNamespace: SQLNamespace = {
       self: tableToCompletion({
         table: table,
@@ -44,7 +44,7 @@ export class CompletionBuilder {
   /**
    * Add a schema at the specified path
    */
-  addSchema(path: string[], schema: DatabaseSchema): this {
+  public addSchema(path: string[], schema: DatabaseSchema): this {
     const schemaObject: SQLNamespace = {
       self: schemaToCompletion({
         namespace: schema,
@@ -60,7 +60,7 @@ export class CompletionBuilder {
   /**
    * Add a database at the specified path
    */
-  addDatabase(path: string[], database: Database): this {
+  public addDatabase(path: string[], database: Database): this {
     const databaseObject: SQLNamespace = {
       self: databaseToCompletion({
         namespace: database,
@@ -90,14 +90,14 @@ export class CompletionBuilder {
   /**
    * Build the final schema
    */
-  build(): SQLNamespace {
+  public build(): SQLNamespace {
     return this.schema;
   }
 
   /**
    * Reset for reuse
    */
-  reset(): this {
+  public reset(): this {
     this.schema = {};
     return this;
   }

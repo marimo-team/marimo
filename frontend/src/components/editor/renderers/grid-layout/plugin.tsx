@@ -24,19 +24,29 @@ export const GridLayoutPlugin: ICellRendererPlugin<
   type: "grid",
   name: "Grid",
 
-  validator: z.object({
+  validator: z.looseObject({
     columns: z.number().min(1),
     rowHeight: z.number().min(1),
-    maxWidth: z.number().optional(),
-    bordered: z.boolean().optional(),
+    maxWidth: z
+      .number()
+      .nullish()
+      .transform((value) => value ?? undefined)
+      .catch(undefined),
+    bordered: z.boolean().optional().catch(undefined),
     cells: z.array(
-      z.object({
-        position: z
-          .tuple([z.number(), z.number(), z.number(), z.number()])
-          .nullable(),
-        scrollable: z.boolean().optional(),
-        alignment: z.enum(["top", "bottom", "left", "right"]).optional(),
-      }),
+      z
+        .looseObject({
+          position: z
+            .tuple([z.number(), z.number(), z.number(), z.number()])
+            .nullable()
+            .catch(null),
+          scrollable: z.boolean().optional().catch(undefined),
+          side: z
+            .enum(["top", "bottom", "left", "right"])
+            .optional()
+            .catch(undefined),
+        })
+        .catch({ position: null }),
     ),
   }),
 

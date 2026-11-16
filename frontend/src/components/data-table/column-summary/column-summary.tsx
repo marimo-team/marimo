@@ -16,7 +16,7 @@ export const ColumnChartContext = React.createContext<
   ColumnChartSpecModel<unknown>
 >(ColumnChartSpecModel.EMPTY);
 
-interface Props<TData, TValue> {
+interface Props {
   columnId: string;
 }
 
@@ -24,9 +24,7 @@ interface Props<TData, TValue> {
 // for all calls with the same key.
 const batchedLoader = createBatchedLoader();
 
-export const TableColumnSummary = <TData, TValue>({
-  columnId,
-}: Props<TData, TValue>) => {
+export const TableColumnSummary = ({ columnId }: Props) => {
   const { locale } = useLocale();
 
   const chartSpecModel = React.use(ColumnChartContext);
@@ -155,6 +153,7 @@ export const TableColumnSummary = <TData, TValue>({
           );
         }
         return null;
+      case "geometry":
       case "unknown":
         return (
           <div className="flex flex-col whitespace-pre">

@@ -6,12 +6,13 @@ import sys
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
+from enum import Enum
 from functools import lru_cache
 from typing import TYPE_CHECKING, Literal, Union
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.errors import ImportStarError
+from marimo._ast.errors import ImportStarError, LazyImportError
 from marimo._ast.sql_visitor import (
     SQLDefs,
     SQLKind,
@@ -37,6 +38,21 @@ Name = str
 Language = Literal["python", "sql"]
 
 
+class LexicalScope(str, Enum):
+    MODULE = "module"
+    FUNCTION = "function"
+    CLASS = "class"
+    COMPREHENSION = "comprehension"
+    ANNOTATION = "annotation"
+
+
+def is_lazy_import(node: ast.AST) -> bool:
+    """Return whether the node is a lazy import statement."""
+    return isinstance(node, (ast.Import, ast.ImportFrom)) and bool(
+        getattr(node, "is_lazy", 0)
+    )
+
+
 @dataclass
 class ImportData:
     # full module name
@@ -49,6 +65,7 @@ class ImportData:
     # from a.b import c => symbol == a.b.c
     imported_symbol: str | None = None
     import_level: int | None = None
+    is_lazy: bool = False
 
     def __post_init__(self) -> None:
         self.namespace = self.module.split(".")[0]
@@ -66,7 +83,9 @@ class AnnotationData:
 class VariableData:
     # "table", "view", "schema", and "catalog" are SQL variables, not Python.
     kind: (
-        Literal["function", "class", "import", "variable", "temporary"]
+        Literal[
+            "function", "method", "class", "import", "variable", "temporary"
+        ]
         | SQLKind
     ) = "variable"
 
@@ -118,7 +137,7 @@ def _defers_ref_resolution(datum: VariableData) -> bool:
     references nothing simply has empty `required_refs`. Contrast with eager
     definitions like `y = _x + 1`, which read `_x` at definition time.
     """
-    return datum.kind in ("function", "class") or (
+    return datum.kind in ("function", "method", "class") or (
         "_lambda" in datum.required_refs
     )
 
@@ -169,8 +188,7 @@ class Block:
     variable_data: dict[Name, list[VariableData]] = field(
         default_factory=lambda: defaultdict(list)
     )
-    # Comprehensions have special scoping rules
-    is_comprehension: bool = False
+    scope_kind: LexicalScope = LexicalScope.MODULE
 
     def is_defined(self, name: str) -> bool:
         return name in self.defs
@@ -228,8 +246,11 @@ class ScopedVisitor(ast.NodeVisitor):
         ignore_local: bool = False,
         on_def: Callable[[NamedNode, str, list[Block]], None] | None = None,
         on_ref: Callable[[NamedNode], None] | None = None,
+        allow_lazy_imports: bool = True,
     ) -> None:
         self.block_stack: list[Block] = [Block()]
+        # NB. Lazy imports are invalid in cells saved as function bodies.
+        self.allow_lazy_imports = allow_lazy_imports
         # Names to be loaded into a variable required_refs
         self.ref_stack: list[set[Name]] = [set()]
         self.obscured_scope_stack: list[ObscuredScope] = []
@@ -424,8 +445,10 @@ class ScopedVisitor(ast.NodeVisitor):
         #   print(x)
         # x = 0
         # ```
-        if name in self._refs and any(
-            block in ref.parent_blocks for ref in self._refs[name]
+        if (
+            variable_data.kind != "method"
+            and name in self._refs
+            and any(block in ref.parent_blocks for ref in self._refs[name])
         ):
             # `name` was used as a capture, not a reference
             self._remove_ref(name, block)
@@ -443,9 +466,9 @@ class ScopedVisitor(ast.NodeVisitor):
         if node is not None:
             self._on_def(node, name, self.block_stack)
 
-    def _push_block(self, is_comprehension: bool) -> None:
+    def _push_block(self, scope_kind: LexicalScope) -> None:
         """Push a block onto the block stack."""
-        self.block_stack.append(Block(is_comprehension=is_comprehension))
+        self.block_stack.append(Block(scope_kind=scope_kind))
 
     def _pop_block(self) -> None:
         """Pop a block from the block stack."""
@@ -468,32 +491,56 @@ class ScopedVisitor(ast.NodeVisitor):
         (Calling visit on `node`'s children is fine.) In summary:
         call super().generic_visit on `node` and `visit()` on node's children.
         """
-        if isinstance(node, (ast.ClassDef, ast.Lambda)):
-            # These AST nodes introduce a new scope, but otherwise do not
-            # require special treatment.
-            self._push_block(is_comprehension=False)
-            super().generic_visit(node)
-            self._pop_block()
-        elif isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
-            self._push_block(is_comprehension=False)
+        if isinstance(node, ast.ClassDef):
+            self._push_block(LexicalScope.CLASS)
             if sys.version_info >= (3, 12):
-                # We need to visit generic type parameters before arguments
-                # to make sure type parameters don't get added as refs. eg, in
-                #
-                #   def foo[U](u: U) -> U: ...
-                #
-                # `U` should not be a ref
                 for child in node.type_params:
                     self.visit(child)
-
-            # This will revisit the type_params, but that's okay because
-            # visiting is idempotent
             super().generic_visit(node)
             self._pop_block()
+        elif isinstance(
+            node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+        ):
+            # Parameters are not in scope in decorators, defaults, or annotations.
+            if not isinstance(node, ast.Lambda):
+                for decorator in node.decorator_list:
+                    self.visit(decorator)
+            for default in (*node.args.defaults, *node.args.kw_defaults):
+                if default is not None:
+                    self.visit(default)
+
+            # Annotations can capture names defined later, including the
+            # function itself when annotations are deferred.
+            if not isinstance(node, ast.Lambda):
+                self._push_block(LexicalScope.ANNOTATION)
+                for type_param in getattr(node, "type_params", []):
+                    self.visit(type_param)
+            for arg in (
+                *node.args.posonlyargs,
+                *node.args.args,
+                node.args.vararg,
+                *node.args.kwonlyargs,
+                node.args.kwarg,
+            ):
+                if arg is not None and arg.annotation is not None:
+                    self.visit(arg.annotation)
+            if not isinstance(node, ast.Lambda) and node.returns is not None:
+                self.visit(node.returns)
+
+            self._push_block(LexicalScope.FUNCTION)
+            self.visit(node.args)
+            if isinstance(node, ast.Lambda):
+                self.visit(node.body)
+            else:
+                for statement in node.body:
+                    self.visit(statement)
+            self._pop_block()
+            if not isinstance(node, ast.Lambda):
+                self._pop_block()
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
             # In comprehensions, generators must be visited before elements
             # because generators define local targets that elements may use.
-            self._push_block(is_comprehension=True)
+            self._push_block(LexicalScope.COMPREHENSION)
             for generator in node.generators:
                 self.visit(generator)
             self.visit(node.elt)
@@ -501,17 +548,13 @@ class ScopedVisitor(ast.NodeVisitor):
         elif isinstance(node, ast.DictComp):
             # Special-cased for the same reason that other comprehensions are
             # special-cased.
-            self._push_block(is_comprehension=True)
+            self._push_block(LexicalScope.COMPREHENSION)
             for generator in node.generators:
                 self.visit(generator)
             self.visit(node.value)
             self.visit(node.key)
             self._pop_block()
-        elif isinstance(node, ast.Try) or (
-            sys.version_info >= (3, 11) and isinstance(node, ast.TryStar)
-        ):
-            if sys.version_info < (3, 11):
-                assert isinstance(node, ast.Try)
+        elif isinstance(node, (ast.Try, ast.TryStar)):
             # "Try" nodes have "handlers" that introduce exception context
             # variables that are tied to the try block, and don't exist beyond
             # it.
@@ -527,7 +570,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 self.visit(stmt)
         elif sys.version_info >= (3, 12) and isinstance(node, ast.TypeAlias):
             self.visit(node.name)
-            self._push_block(is_comprehension=False)
+            self._push_block(LexicalScope.ANNOTATION)
             for t in node.type_params:
                 self.visit(t)
             self.visit(node.value)
@@ -561,7 +604,7 @@ class ScopedVisitor(ast.NodeVisitor):
             class_def: set[Name] = set()
             for var in mock_visitor.variable_data:
                 for data in mock_visitor.variable_data[var]:
-                    if data.kind in ("function", "class"):
+                    if data.kind in ("function", "method", "class"):
                         unbounded_refs |= data.unbounded_refs - class_def
                         ignore_refs |= data.required_refs
                         # class def is captured because the following is valid:
@@ -597,6 +640,18 @@ class ScopedVisitor(ast.NodeVisitor):
         unbounded_refs |= set(self.ref_stack[-1])
 
         # Process the function body
+        if (
+            isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))
+            and self.block_stack[-1].scope_kind is not LexicalScope.CLASS
+        ):
+            # A function body can refer to the function's binding in the
+            # enclosing scope. Register the name before visiting the body so
+            # a nested private function's self-references are not mistaken
+            # for cell-local references. Class namespaces are excluded because
+            # methods do not resolve bare names through their class. Variable
+            # metadata is attached after the body has been visited and its
+            # references are known.
+            self.block_stack[-1].defs.add(node.name)
         self.generic_visit(node)
         refs = self.ref_stack.pop()
         # The scope a level up from the one just investigated also is dependent
@@ -609,8 +664,9 @@ class ScopedVisitor(ast.NodeVisitor):
         # during execution.
         self.ref_stack[-1].update(refs)
 
-        # Prune type_params
-        if sys.version_info >= (3, 12):
+        # Prune class type parameters; function type parameters have their
+        # own scope, while defaults and decorators can refer to outer names.
+        if sys.version_info >= (3, 12) and isinstance(node, ast.ClassDef):
             type_params = getattr(node, "type_params", [])
             generics = {param.name for param in type_params}
             refs -= generics
@@ -641,7 +697,11 @@ class ScopedVisitor(ast.NodeVisitor):
             node,
             node.name,
             VariableData(
-                kind="function",
+                kind=(
+                    "method"
+                    if self.block_stack[-1].scope_kind is LexicalScope.CLASS
+                    else "function"
+                ),
                 required_refs=refs,
                 unbounded_refs=unbounded_refs,
             ),
@@ -655,7 +715,11 @@ class ScopedVisitor(ast.NodeVisitor):
             node,
             node.name,
             VariableData(
-                kind="function",
+                kind=(
+                    "method"
+                    if self.block_stack[-1].scope_kind is LexicalScope.CLASS
+                    else "function"
+                ),
                 required_refs=refs,
                 unbounded_refs=unbounded_refs,
             ),
@@ -827,22 +891,9 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_arg(self, node: ast.arg) -> ast.arg:
         node.arg = self._if_local_then_mangle(node.arg)
         self._define(node, node.arg, VariableData(kind="variable"))
-        if node.annotation is not None:
-            self.visit(node.annotation)
         return node
 
     def visit_arguments(self, node: ast.arguments) -> ast.arguments:
-        # process potential refs before defs, to handle patterns like
-        #
-        # def f(x=x):
-        #   ...
-        for v in node.kw_defaults:
-            if v is not None:
-                self.visit(v)
-        for v in node.defaults:
-            if v is not None:
-                self.visit(v)
-
         for arg in node.posonlyargs:
             self.visit(arg)
         for arg in node.args:
@@ -940,15 +991,19 @@ class ScopedVisitor(ast.NodeVisitor):
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> ast.NamedExpr:
         self.visit(node.value)
-        if self.block_stack[-1].is_comprehension and isinstance(
-            node.target, ast.Name
-        ):
+        current_scope = self.block_stack[-1].scope_kind
+        if current_scope in (
+            LexicalScope.COMPREHENSION,
+            LexicalScope.ANNOTATION,
+        ) and isinstance(node.target, ast.Name):
             for block_idx, block in reversed(
                 list(enumerate(self.block_stack))
             ):
-                # go up the block stack until we find the first
-                # non-comprehension block
-                if not block.is_comprehension:
+                # Annotation and comprehension scopes do not own walrus bindings.
+                if block.scope_kind not in (
+                    LexicalScope.COMPREHENSION,
+                    LexicalScope.ANNOTATION,
+                ):
                     node.target.id = self._if_local_then_mangle(
                         node.target.id,
                         ignore_scope=(block == self.block_stack[0]),
@@ -1079,7 +1134,19 @@ class ScopedVisitor(ast.NodeVisitor):
                 self._add_ref(node, name, deleted=False)
         return node
 
+    def _check_lazy_import(self, node: ast.Import | ast.ImportFrom) -> bool:
+        is_lazy = is_lazy_import(node)
+        if is_lazy and not self.allow_lazy_imports:
+            error = LazyImportError(
+                "`lazy import` is only allowed in the setup cell."
+            )
+            error.lineno = node.lineno
+            error.offset = node.col_offset + 1
+            raise error
+        return is_lazy
+
     def visit_Import(self, node: ast.Import) -> ast.Import:
+        is_lazy = self._check_lazy_import(node)
         for alias_node in node.names:
             variable_name = self._get_alias_name(alias_node)
             self._define(
@@ -1091,12 +1158,14 @@ class ScopedVisitor(ast.NodeVisitor):
                         module=alias_node.name,
                         definition=variable_name,
                         imported_symbol=None,
+                        is_lazy=is_lazy,
                     ),
                 ),
             )
         return node
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom:
+        is_lazy = self._check_lazy_import(node)
         module = node.module if node.module is not None else ""
         # we don't recurse into the alias nodes, since we define the
         # aliases here
@@ -1113,6 +1182,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         definition=variable_name,
                         imported_symbol=module + "." + original_name,
                         import_level=node.level,
+                        is_lazy=is_lazy,
                     ),
                 ),
             )

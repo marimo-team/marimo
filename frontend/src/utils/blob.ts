@@ -5,7 +5,7 @@ import {
   type DataURLString,
 } from "./json/base64";
 
-export function serializeBlob<T>(blob: Blob): Promise<DataURLString> {
+export function serializeBlob(blob: Blob): Promise<DataURLString> {
   return new Promise<DataURLString>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {

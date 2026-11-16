@@ -41,7 +41,7 @@ function toggleAllLines({
     }
   }
 
-  for (let pos = selection.from; pos <= selection.to; ) {
+  for (let pos = selection.from; pos <= selection.to;) {
     const line = view.state.doc.lineAt(pos);
     const lineText = line.text;
 

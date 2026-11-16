@@ -200,7 +200,7 @@ class TestParser:
         # Non-marimo files that have marimo imports but no App definition
         # should raise MarimoFileError with the expected message
         with pytest.raises(
-            MarimoFileError, match="`marimo.App` definition expected."
+            MarimoFileError, match=r"`marimo\.App` definition expected\."
         ):
             parse_notebook(get_filepath("test_non_marimo").read_text())
 
@@ -360,6 +360,45 @@ if __name__ == "__main__":
     pass
     # end 1"""
         )
+
+    @staticmethod
+    def test_cell_without_return_keeps_inline_comment() -> None:
+        """A cell whose last line carries a comment keeps it without a return."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    x = 1
+    x  # the comment
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert notebook.cells[0].code == "x = 1\nx  # the comment"
+
+    @staticmethod
+    def test_one_line_cell_keeps_inline_comment() -> None:
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.cell
+def _(): x  # the comment
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert notebook.cells[0].code == "x  # the comment"
 
     @staticmethod
     def test_class_definition_with_trailing_comment() -> None:

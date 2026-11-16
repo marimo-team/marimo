@@ -187,8 +187,10 @@ def get_column_preview_for_duckdb(
                     f"SELECT {column_name} FROM {fully_qualified_table_name}",
                     connection=None,
                 )
+                if relation is None:
+                    raise ValueError("DuckDB returned no column-preview data")
                 chart_spec = _get_chart_spec(
-                    column_data=relation,
+                    column_data=relation.to_arrow_table(),
                     column_type=column_type,
                     column_name=column_name,
                     chart_builder=get_chart_builder(
@@ -236,8 +238,9 @@ def _get_altair_chart(
     (column_type, _external_type) = table.get_field_type(column_name)
 
     # Nested/unknown dtypes (e.g. Polars Struct/List) can't be serialized
-    # through the dataframe interchange path, so skip charting silently
-    if column_type == "unknown":
+    # through the dataframe interchange path, so skip charting silently.
+    # Geometry columns get no chart either.
+    if column_type in ("unknown", "geometry"):
         return None, None, None, None
 
     if stats.total == 0:

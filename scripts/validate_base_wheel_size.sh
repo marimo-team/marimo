@@ -15,8 +15,11 @@ else
   size=$(stat -c%s "$wheel_file")
 fi
 
-if [ $size -gt 2097152 ]; then
-  echo "Wheel file is larger than 2mb"
+# TODO: Restore the 2 MiB limit after the host-protocol migration removes
+# the superseded code.
+max_size=2359296 # 2.25 MiB
+if [ "$size" -gt "$max_size" ]; then
+  echo "Wheel file exceeds the size limit ($max_size bytes)"
   echo "Size: $size bytes"
   exit 1
 fi

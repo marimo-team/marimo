@@ -1,14 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { renderHook } from "@testing-library/react";
-import { getDefaultStore } from "jotai";
+import { act, renderHook } from "@testing-library/react";
+import { getDefaultStore, Provider } from "jotai";
+import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
+import type { CellId } from "@/core/cells/ids";
 import {
-  type StagedAICells,
+  type Edit,
   stagedAICellsAtom,
+  useStagedAICell,
   useStagedCells,
   visibleForTesting,
 } from "../staged-cells";
@@ -16,8 +17,7 @@ import {
 const { createActions, reducer, initialState } = visibleForTesting;
 
 // Mock the dependencies
-const mockCreateNewCell = vi.fn();
-const mockUpdateCellEditor = vi.fn();
+const mockSetCellCode = vi.fn();
 const mockDeleteCellCallback = vi.fn();
 
 // Mock cell handle with editor view
@@ -29,30 +29,29 @@ const mockCellHandle = {
   },
 };
 
-vi.mock("../../cells/cells", () => ({
+vi.mock("../../cells/actions", () => ({
   useCellActions: () => ({
-    createNewCell: mockCreateNewCell,
-    updateCellEditor: mockUpdateCellEditor,
+    setCellCode: mockSetCellCode,
   }),
-  cellHandleAtom: vi.fn(() => ({
-    read: vi.fn(() => mockCellHandle),
-  })),
-  getCellEditorView: vi.fn(() => mockCellHandle.current.editorViewOrNull),
 }));
+vi.mock("../../cells/cells", async () => {
+  const { atom } = await import("jotai");
+  return {
+    notebookAtom: atom({ cellData: {}, cellIds: [] }),
+    getCellEditorView: vi.fn(() => mockCellHandle.current.editorViewOrNull),
+  };
+});
 
 vi.mock("@/components/editor/cell/useDeleteCell", () => ({
   useDeleteCellCallback: () => mockDeleteCellCallback,
 }));
 
-vi.mock("../../codemirror/language/utils", () => ({
-  updateEditorCodeFromPython: vi.fn(),
+vi.mock("@/core/network/requests", () => ({
+  getRequestClient: () => ({}),
 }));
 
-// Mock CellId.create
-vi.mock("@/core/cells/ids", () => ({
-  CellId: {
-    create: vi.fn(),
-  },
+vi.mock("../../codemirror/language/cell-code", () => ({
+  prepareCellCodeUpdate: vi.fn(() => ({ effects: [] })),
 }));
 
 describe("staged-cells", () => {
@@ -135,6 +134,31 @@ describe("staged-cells", () => {
       });
     });
 
+    it("drops a replaced cell while preserving the four remaining pending edits", () => {
+      const original = cellId("original");
+      const remaining = [cellId("a"), cellId("b"), cellId("c"), cellId("d")];
+      const state = new Map<CellId, Edit>([
+        [original, { type: "add_cell" }],
+        [remaining[0], { type: "add_cell" }],
+        [remaining[1], { type: "add_cell" }],
+        [remaining[2], { type: "update_cell", previousCode: "x = 1" }],
+        [remaining[3], { type: "delete_cell", previousCode: "y = 2" }],
+      ]);
+      const next = reducer(state, {
+        type: "reconcileStagedCells",
+        payload: remaining,
+      });
+      expect(next).toEqual(
+        new Map([...state].filter(([id]) => id !== original)),
+      );
+      expect(
+        reducer(next, { type: "reconcileStagedCells", payload: remaining }),
+      ).toBe(next);
+      expect(
+        reducer(next, { type: "reconcileStagedCells", payload: [] }),
+      ).toEqual(new Map());
+    });
+
     it("should remove cell IDs", () => {
       const state = new Map([
         [cellId1, { type: "add_cell" as const }],
@@ -149,19 +173,15 @@ describe("staged-cells", () => {
       expect(newState.has(cellId2)).toBe(true);
     });
 
-    it("should clear all cells", () => {
-      const state = new Map([
-        [cellId1, { type: "add_cell" as const }],
-        [cellId2, { type: "add_cell" as const }],
-      ]);
+    it("should preserve state when removing a cell that is not staged", () => {
+      const state = new Map([[cellId1, { type: "add_cell" as const }]]);
       const newState = reducer(state, {
-        type: "clearStagedCells",
-        payload: undefined,
+        type: "removeStagedCell",
+        payload: cellId2,
       });
 
-      expect(newState).toEqual(new Map());
+      expect(newState).toBe(state);
     });
-
     it("should not mutate original state when adding", () => {
       const state = new Map([[cellId1, { type: "add_cell" as const }]]);
       const originalSize = state.size;
@@ -199,284 +219,105 @@ describe("staged-cells", () => {
 
       expect(typeof actions.addStagedCell).toBe("function");
       expect(typeof actions.removeStagedCell).toBe("function");
-      expect(typeof actions.clearStagedCells).toBe("function");
     });
 
     it("should initialize atom with empty map", () => {
       const state = store.get(stagedAICellsAtom);
       expect(state).toEqual(new Map());
     });
+
+    it("should not rerender a cell when another cell's staging changes", () => {
+      let renderCount = 0;
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(Provider, { store }, children);
+
+      renderHook(
+        () => {
+          renderCount++;
+          return useStagedAICell(cellId2);
+        },
+        { wrapper },
+      );
+      const initialRenderCount = renderCount;
+
+      act(() => {
+        store.set(
+          stagedAICellsAtom,
+          new Map([[cellId1, { type: "add_cell" }]]),
+        );
+      });
+      expect(renderCount).toBe(initialRenderCount);
+
+      act(() => {
+        store.set(
+          stagedAICellsAtom,
+          new Map([[cellId2, { type: "add_cell" }]]),
+        );
+      });
+      expect(renderCount).toBeGreaterThan(initialRenderCount);
+    });
   });
 
-  describe("useStagedCells hook", () => {
-    it("should create a staged cell with code", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-      const testCode = "print('hello world')";
+  describe("useStagedCells", () => {
+    const stage = (id: CellId, edit: Edit) =>
+      store.set(stagedAICellsAtom, new Map([[id, edit]]));
 
-      // Mock CellId.create to return a predictable ID
-      const mockCellId = cellId("mock-cell-id");
-      vi.mocked(CellId.create).mockReturnValue(mockCellId);
-
-      const returnedCellId = result.current.createStagedCell(testCode);
-
-      expect(returnedCellId).toBe(mockCellId);
-      expect(mockCreateNewCell).toHaveBeenCalledWith({
-        cellId: "__end__",
-        code: testCode,
-        before: false,
-        newCellId: mockCellId,
+    it("keeps added and updated cells by unstaging them", () => {
+      const { result } = renderHook(() => useStagedCells());
+      stage(cellId1, { type: "update_cell", previousCode: "x = 1" });
+      result.current.acceptStagedCell(cellId1, {
+        type: "update_cell",
+        previousCode: "x = 1",
       });
-    });
-
-    it("should delete a staged cell", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-      const testCellId = cellId("test-cell-id");
-
-      result.current.deleteStagedCell(testCellId);
-
-      expect(mockDeleteCellCallback).toHaveBeenCalledWith({
-        cellId: testCellId,
-      });
-    });
-
-    it("should delete all staged cells when none exist", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      // Should not throw when no cells exist
-      expect(() => result.current.deleteAllStagedCells()).not.toThrow();
+      expect(store.get(stagedAICellsAtom).size).toBe(0);
       expect(mockDeleteCellCallback).not.toHaveBeenCalled();
     });
 
-    it("should delete all staged cells when cells exist", () => {
-      // First set the atom state before rendering the hook
-      const initialState: StagedAICells = new Map([
-        [cellId1, { type: "add_cell" }],
-        [cellId2, { type: "add_cell" }],
-      ]);
-      store.set(stagedAICellsAtom, initialState);
-
-      const { result } = renderHook(() => useStagedCells(store));
-      result.current.deleteAllStagedCells();
-
-      expect(mockDeleteCellCallback).toHaveBeenCalledTimes(2);
+    it("deletes the cell when a proposed deletion is kept", () => {
+      const { result } = renderHook(() => useStagedCells());
+      const edit: Edit = { type: "delete_cell", previousCode: "x = 1" };
+      stage(cellId1, edit);
+      result.current.acceptStagedCell(cellId1, edit);
       expect(mockDeleteCellCallback).toHaveBeenCalledWith({ cellId: cellId1 });
-      expect(mockDeleteCellCallback).toHaveBeenCalledWith({ cellId: cellId2 });
-
-      // Verify cells were cleared from the atom
-      const state = store.get(stagedAICellsAtom);
-      expect(state).toEqual(new Map());
+      expect(store.get(stagedAICellsAtom).size).toBe(0);
     });
 
-    it("should add staged cell with edit info", () => {
-      const { result } = renderHook(() => useStagedCells(store));
+    it("restores the previous code when an update is discarded", () => {
+      const { result } = renderHook(() => useStagedCells());
+      const edit: Edit = { type: "update_cell", previousCode: "x = 1" };
+      stage(cellId1, edit);
+      result.current.rejectStagedCell(cellId1, edit);
+      expect(
+        mockCellHandle.current.editorViewOrNull.dispatch,
+      ).toHaveBeenCalled();
+      expect(store.get(stagedAICellsAtom).size).toBe(0);
+    });
 
-      result.current.addStagedCell({
+    it("writes to the document when the editor is not mounted", async () => {
+      const { getCellEditorView } = await import("../../cells/cells");
+      vi.mocked(getCellEditorView).mockReturnValueOnce(undefined);
+      const { result } = renderHook(() => useStagedCells());
+      const edit: Edit = { type: "update_cell", previousCode: "x = 1" };
+      stage(cellId1, edit);
+      result.current.rejectStagedCell(cellId1, edit);
+      expect(mockSetCellCode).toHaveBeenCalledWith({
         cellId: cellId1,
-        edit: { type: "update_cell", previousCode: "old code" },
-      });
-
-      // Check that the cell was added to the atom with edit info
-      const state = store.get(stagedAICellsAtom);
-      expect(state.has(cellId1)).toBe(true);
-      expect(state.get(cellId1)).toEqual({
-        type: "update_cell",
-        previousCode: "old code",
+        code: "x = 1",
       });
     });
 
-    it("should remove staged cell", () => {
-      const { result } = renderHook(() => useStagedCells(store));
+    it("deletes an added cell and leaves a proposed deletion in place when discarded", () => {
+      const { result } = renderHook(() => useStagedCells());
+      stage(cellId1, { type: "add_cell" });
+      result.current.rejectStagedCell(cellId1, { type: "add_cell" });
+      expect(mockDeleteCellCallback).toHaveBeenCalledWith({ cellId: cellId1 });
 
-      // First add cells
-      result.current.addStagedCell({
-        cellId: cellId1,
-        edit: { type: "add_cell" },
-      });
-      result.current.addStagedCell({
-        cellId: cellId2,
-        edit: { type: "add_cell" },
-      });
-
-      // Then remove one
-      result.current.removeStagedCell(cellId1);
-
-      // Check that only the remaining cell is in the map
-      const state = store.get(stagedAICellsAtom);
-      expect(state.has(cellId1)).toBe(false);
-      expect(state.has(cellId2)).toBe(true);
-    });
-
-    it("should clear all staged cells", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      // First add some cells
-      result.current.addStagedCell({
-        cellId: cellId1,
-        edit: { type: "add_cell" },
-      });
-      result.current.addStagedCell({
-        cellId: cellId2,
-        edit: { type: "add_cell" },
-      });
-
-      // Then clear all
-      result.current.clearStagedCells();
-
-      // Check that no cells remain
-      const state = store.get(stagedAICellsAtom);
-      expect(state).toEqual(new Map());
-    });
-
-    it("should handle multiple operations correctly", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      // Create a staged cell
-      const mockCellId = cellId("mock-cell-id");
-      vi.mocked(CellId.create).mockReturnValue(mockCellId);
-
-      const createdCellId = result.current.createStagedCell("test code");
-
-      // Verify it was created and added
-      expect(createdCellId).toBe(mockCellId);
-      expect(mockCreateNewCell).toHaveBeenCalled();
-
-      let state = store.get(stagedAICellsAtom);
-      expect(state.has(mockCellId)).toBe(true);
-      expect(state.get(mockCellId)).toEqual({ type: cellId("add_cell") });
-
-      // Delete the staged cell
-      result.current.deleteStagedCell(mockCellId);
-      expect(mockDeleteCellCallback).toHaveBeenCalledWith({
-        cellId: mockCellId,
-      });
-
-      // Verify it was removed from staged cells
-      state = store.get(stagedAICellsAtom);
-      expect(state.has(mockCellId)).toBe(false);
-    });
-
-    it("should track edit history for updated cells", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      // Add a cell with update_cell edit type
-      result.current.addStagedCell({
-        cellId: cellId1,
-        edit: { type: "update_cell", previousCode: "previous code" },
-      });
-
-      const state = store.get(stagedAICellsAtom);
-      const edit = state.get(cellId1);
-      expect(edit).toEqual({
-        type: "update_cell",
-        previousCode: "previous code",
-      });
-    });
-
-    it("should track edit history for deleted cells", () => {
-      const { result } = renderHook(() => useStagedCells(store));
-
-      // Add a cell with delete_cell edit type
-      result.current.addStagedCell({
-        cellId: cellId1,
-        edit: { type: "delete_cell", previousCode: "deleted content" },
-      });
-
-      const state = store.get(stagedAICellsAtom);
-      const edit = state.get(cellId1);
-      expect(edit).toEqual({
-        type: "delete_cell",
-        previousCode: "deleted content",
-      });
-    });
-  });
-});
-
-describe("onStream", () => {
-  let store: ReturnType<typeof getDefaultStore>;
-  beforeEach(() => {
-    store = getDefaultStore();
-  });
-
-  it("should create a cell creation stream", () => {
-    const { result } = renderHook(() => useStagedCells(store));
-    result.current.onStream({ type: "text-start", id: "test-id" });
-
-    // No cell or cell update should have been called
-    expect(mockCreateNewCell).not.toHaveBeenCalled();
-    expect(mockUpdateCellEditor).not.toHaveBeenCalled();
-  });
-
-  it("should not create cells when text-delta is received and no stream has been created", () => {
-    const { result } = renderHook(() => useStagedCells(store));
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "test-delta",
-    });
-
-    // No cell or cell update should have been called
-    expect(mockCreateNewCell).not.toHaveBeenCalled();
-    expect(mockUpdateCellEditor).not.toHaveBeenCalled();
-  });
-
-  it("should create cells when text-delta is received and a stream has been created", () => {
-    const { result } = renderHook(() => useStagedCells(store));
-    result.current.onStream({ type: "text-start", id: "test-id" });
-
-    // Mock CellId.create to return a predictable ID
-    const mockCellId = cellId("mock-cell-id");
-    vi.mocked(CellId.create).mockReturnValue(mockCellId);
-
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "some code",
-    });
-
-    expect(mockCreateNewCell).toHaveBeenCalledWith({
-      cellId: "__end__",
-      code: "some code",
-      before: false,
-      newCellId: "mock-cell-id",
-    });
-  });
-
-  it("should handle delta chunks", () => {
-    const { result } = renderHook(() => useStagedCells(store));
-    result.current.onStream({ type: "text-start", id: "test-id" });
-
-    const mockCellId = cellId("mock-cell-id");
-    vi.mocked(CellId.create).mockReturnValue(mockCellId);
-
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "``",
-    });
-
-    expect(mockCreateNewCell).toHaveBeenCalledWith({
-      cellId: "__end__",
-      code: "``",
-      before: false,
-      newCellId: "mock-cell-id",
-    });
-
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "```python\nsome code",
-    });
-
-    // Now the cell is recognized and only some code is seen
-    expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
-      mockCellHandle.current.editorViewOrNull,
-      "some code",
-    );
-
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "\n```",
+      mockDeleteCellCallback.mockClear();
+      const deletion: Edit = { type: "delete_cell", previousCode: "x = 1" };
+      stage(cellId2, deletion);
+      result.current.rejectStagedCell(cellId2, deletion);
+      expect(mockDeleteCellCallback).not.toHaveBeenCalled();
+      expect(store.get(stagedAICellsAtom).size).toBe(0);
     });
   });
 });

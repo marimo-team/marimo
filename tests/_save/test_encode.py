@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 import array
+import enum
 import pickle
+from decimal import Decimal
+from fractions import Fraction
 from typing import Any
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._save.encode import common_container_to_bytes, deterministic_dumps
+from marimo._save.encode import (
+    attempt_signed_bytes,
+    common_container_to_bytes,
+    data_to_buffer,
+    deterministic_dumps,
+    primitive_to_bytes,
+)
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_NUMPY = DependencyManager.numpy.has()
@@ -136,4 +145,177 @@ def test_bytearray_does_not_collide_with_equal_bytes() -> None:
     """bytearray and bytes of equal content sign under distinct labels."""
     assert common_container_to_bytes(bytearray(b"abc")) != (
         common_container_to_bytes(b"abc")
+    )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+def test_polars_numeric_hash_depends_on_values() -> None:
+    import polars as pl
+
+    frame = pl.DataFrame({"x": [1, 2], "y": [3, 4]})
+    encoded = data_to_buffer(frame)
+    assert encoded == data_to_buffer(frame.rename({"x": "renamed"}))
+    assert encoded != data_to_buffer(pl.DataFrame({"x": [1, 2], "y": [3, 5]}))
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize("as_frame", [False, True])
+def test_polars_non_numeric_state_uses_fallback(as_frame: bool) -> None:
+    import polars as pl
+
+    series = pl.Series("label", ["a", "b"])
+    data = (
+        series.to_frame().with_columns(count=pl.Series([1, 2]))
+        if as_frame
+        else series
+    )
+    value = {"data": data}
+    assert attempt_signed_bytes(value, "state") is value
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize("as_frame", [False, True])
+def test_polars_non_numeric_pickle_fallback_preserves_values(
+    as_frame: bool,
+) -> None:
+    import polars as pl
+
+    series = pl.Series("label", ["a", "b"])
+    value = series.to_frame() if as_frame else series
+    assert pickle.loads(deterministic_dumps(value, "sha256")).equals(value)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize("as_frame", [False, True])
+@pytest.mark.parametrize("in_container", [False, True])
+def test_polars_object_hash_uses_fallback(
+    as_frame: bool, in_container: bool
+) -> None:
+    import polars as pl
+
+    series = pl.Series("objects", [object()], dtype=pl.Object)
+    value: Any = series.to_frame() if as_frame else series
+    value = {"data": value} if in_container else value
+
+    assert attempt_signed_bytes(value, "state") is value
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+@pytest.mark.parametrize("change", ["dtype", "shape", "transpose"])
+def test_pickled_array_preserves_metadata(change: str) -> None:
+    import numpy as np
+
+    before = np.arange(4, dtype=np.int64).reshape(2, 2)
+    if change == "dtype":
+        after = before.view(np.float64)
+    elif change == "shape":
+        after = before.reshape(2, 1, 2)
+    else:
+        after = before.T
+    assert deterministic_dumps(before, "sha256") != deterministic_dumps(
+        after, "sha256"
+    )
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_structured_dtype_with_overlapping_fields() -> None:
+    import numpy as np
+
+    overlapping = np.dtype(
+        {"names": ["a", "b"], "formats": ["<i4", "<i4"], "offsets": [0, 2]}
+    )
+    with pytest.raises(ValueError):
+        overlapping.descr  # noqa: B018
+    value = np.zeros(3, dtype=overlapping)
+    assert data_to_buffer(value) != data_to_buffer(value.view(np.uint8))
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
+def test_numpy_scalar_keyed_by_dtype_and_value() -> None:
+    import numpy as np
+
+    assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(np.int64(3))
+    assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(np.int32(2))
+    assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(2)
+    # bytes(np.int64(2)) is two zero bytes, which used to be the encoding.
+    assert primitive_to_bytes(np.int64(2)) != primitive_to_bytes(bytes(2))
+
+
+def test_number_subclass_keyed_by_type() -> None:
+    class Celsius(float):
+        pass
+
+    class Level(enum.IntEnum):
+        LOW = 1
+
+    class Rounded(float):
+        def __repr__(self) -> str:
+            return f"{self:.1f}"
+
+    assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(Celsius(2.0))
+    assert primitive_to_bytes(Celsius(1.0)) != primitive_to_bytes(1.0)
+    assert repr(Rounded(1.01)) == repr(Rounded(1.02))
+    assert primitive_to_bytes(Rounded(1.01)) != primitive_to_bytes(
+        Rounded(1.02)
+    )
+    assert primitive_to_bytes(Fraction(1, 3)) != primitive_to_bytes(
+        Fraction(1, 4)
+    )
+    assert primitive_to_bytes(Decimal(1)) != primitive_to_bytes(1)
+    # bytes(Level.LOW) is one zero byte, which would collide with bytes(1).
+    assert primitive_to_bytes(Level.LOW) != primitive_to_bytes(bytes(1))
+    assert primitive_to_bytes(Level.LOW) != primitive_to_bytes(1)
+
+
+def test_non_number_falls_back_to_bytes() -> None:
+    class Blob(bytes):
+        pass
+
+    class Color(str, enum.Enum):
+        RED = "red"
+
+    assert primitive_to_bytes(Blob(b"x")) == primitive_to_bytes(b"x")
+    assert primitive_to_bytes(Color.RED) == primitive_to_bytes("red")
+
+
+def test_equal_scalars_of_different_types_are_distinct() -> None:
+    values = [1, 1.0, True, "1", b"1", 1 + 0j, None, (1,), 2**64, -1]
+    encoded = [primitive_to_bytes(v) for v in values]
+    assert len(set(encoded)) == len(values)
+    assert primitive_to_bytes(0.0) != primitive_to_bytes(-0.0)
+
+
+def test_item_boundaries_are_framed() -> None:
+    assert primitive_to_bytes(("ab", "c")) != primitive_to_bytes(("a", "bc"))
+    assert common_container_to_bytes(["ab", "c"]) != common_container_to_bytes(
+        ["a", "bc"]
+    )
+    assert common_container_to_bytes([1, 23]) != common_container_to_bytes(
+        [12, 3]
+    )
+
+
+def test_dict_order_is_observable() -> None:
+    assert common_container_to_bytes({"a": 1, "b": 2}) != (
+        common_container_to_bytes({"b": 2, "a": 1})
+    )
+
+
+def test_set_encoding_is_order_independent() -> None:
+    # hash(2**61) == hash(1), so insertion order decides iteration order.
+    assert list({1, 2**61}) != list({2**61, 1})
+    assert common_container_to_bytes({1, 2**61}) == (
+        common_container_to_bytes({2**61, 1})
+    )
+    # Mixed-type members cannot be sorted, so the encoded items are sorted.
+    assert common_container_to_bytes({1, "a", (2,)}) == (
+        common_container_to_bytes({(2,), "a", 1})
     )

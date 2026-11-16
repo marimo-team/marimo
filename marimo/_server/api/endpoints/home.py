@@ -14,6 +14,7 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.files.directory_scanner import DirectoryScanner
+from marimo._server.host.lifespan import ensure_host
 from marimo._server.models.home import (
     MarimoFile,
     OpenTutorialRequest,
@@ -153,7 +154,9 @@ async def workspace_files(
 
         marimo_files = await asyncio.to_thread(get_files_with_metadata)
         file_count = len(marimo_files)
-        has_more = file_count >= MAX_FILES
+        has_more = (
+            file_count >= MAX_FILES or session_manager.workspace.is_truncated
+        )
         return WorkspaceFilesResponse(
             files=marimo_files,
             root=session_manager.workspace.directory or "",
@@ -171,7 +174,9 @@ async def workspace_files(
     files = await asyncio.to_thread(lambda: session_manager.workspace.files)
 
     file_count = count_files(files)
-    has_more = file_count >= MAX_FILES
+    has_more = (
+        file_count >= MAX_FILES or session_manager.workspace.is_truncated
+    )
 
     return WorkspaceFilesResponse(
         files=files,
@@ -293,6 +298,8 @@ async def tutorial(
     app_state.session_manager.workspace.register_allowed_path(
         path.absolute_name
     )
+    context = await ensure_host(request.app)
+    context.bridge.index.register_open_notebook(path.absolute_name)
 
     return MarimoFile(
         name=os.path.basename(path.absolute_name),

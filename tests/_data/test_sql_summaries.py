@@ -134,3 +134,98 @@ def test_get_sql_summary_datetime(setup_test_db: Any):
     assert summary.nulls == 0
     assert summary.min == datetime.datetime(2024, 1, 1, 12, 30)
     assert summary.max == datetime.datetime(2024, 5, 5, 16, 30)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_geometry_column_type_and_stats():
+    import duckdb
+
+    try:
+        duckdb.execute("INSTALL spatial")
+        duckdb.execute("LOAD spatial")
+    except duckdb.Error as e:
+        pytest.skip(f"duckdb spatial extension unavailable: {e}")
+
+    duckdb.execute(
+        "CREATE OR REPLACE TABLE geo_stats_table AS "
+        "SELECT 1 AS id, ST_Point(1.0, 2.0) AS geom "
+        "UNION ALL SELECT 2, NULL"
+    )
+    try:
+        assert get_column_type("geo_stats_table", "geom") == "geometry"
+
+        summary = get_sql_stats("geo_stats_table", "geom", "geometry")
+        assert summary.total == 2
+        assert summary.nulls == 1
+        assert summary.unique is None
+    finally:
+        duckdb.execute("DROP TABLE geo_stats_table")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_nested_column_type() -> None:
+    import duckdb
+
+    from marimo._sql.utils import is_duckdb_v2
+
+    if not is_duckdb_v2():
+        pytest.skip("Nested schemas require DuckDB 2")
+    try:
+        duckdb.execute(
+            "CREATE SCHEMA type_test; CREATE SCHEMA type_test.reports; "
+            "CREATE TABLE type_test.reports.sales (amount INT); "
+            'CREATE SCHEMA "type_test.reports"; '
+            'CREATE TABLE "type_test.reports".sales (amount VARCHAR)'
+        )
+        assert (
+            get_column_type('"memory"."type_test"."reports"."sales"', "amount")
+            == "integer"
+        )
+        assert (
+            get_column_type('"memory"."type_test.reports"."sales"', "amount")
+            == "string"
+        )
+    finally:
+        duckdb.execute(
+            'DROP SCHEMA IF EXISTS type_test CASCADE; DROP SCHEMA IF EXISTS "type_test.reports" CASCADE'
+        )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    ("schema", "table"),
+    [('column_type_"schema', "t.x"), ("column_type_schema", 't"x')],
+)
+def test_column_type_with_quoted_identifiers(schema: str, table: str) -> None:
+    import duckdb
+
+    from marimo._sql.sql_quoting import (
+        quote_qualified_name,
+        quote_sql_identifier,
+    )
+
+    qualified = quote_qualified_name("memory", schema, table)
+    try:
+        duckdb.execute(f"CREATE SCHEMA {quote_sql_identifier(schema)}")
+        duckdb.execute(f'CREATE TABLE {qualified} ("c""x" INT)')
+        assert get_column_type(qualified, 'c"x') == "integer"
+    finally:
+        duckdb.execute(
+            f"DROP SCHEMA IF EXISTS memory.{quote_sql_identifier(schema)} CASCADE"
+        )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="duckdb not installed")
+@pytest.mark.parametrize("column_name", ["id", "missing"])
+def test_column_type_lookup_releases_connection_result(
+    setup_test_db: Any, column_name: str
+) -> None:
+    import duckdb
+
+    del setup_test_db
+    if column_name == "missing":
+        with pytest.raises(ValueError, match="Column missing not found"):
+            get_column_type("test_table_3", column_name)
+    else:
+        assert get_column_type("test_table_3", column_name) == "integer"
+    assert duckdb.sql("SELECT 42").fetchall() == [(42,)]

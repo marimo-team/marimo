@@ -7,7 +7,6 @@ import textwrap
 
 import pytest
 
-from marimo import _loggers
 from marimo._ast import load
 from marimo._ast.parse import MarimoFileError, NonMarimoPythonScriptError
 
@@ -285,7 +284,7 @@ class TestGetCodes:
     @staticmethod
     def test_get_codes_non_marimo_python_script() -> None:
         with pytest.raises(
-            NonMarimoPythonScriptError, match="is not a marimo notebook."
+            NonMarimoPythonScriptError, match=r"is not a marimo notebook\."
         ):
             load.load_app(
                 get_filepath("test_get_codes_non_marimo_python_script")
@@ -341,7 +340,6 @@ class TestGetCodes:
     def test_get_bad_kwargs(load_app, caplog) -> None:
         # Should be stderr since warn level
         with caplog.at_level(logging.WARNING):
-            _loggers.marimo_logger().propagate = True
             app = load_app(get_filepath("test_get_bad_kwargs"))
             assert app is not None
 
@@ -451,3 +449,45 @@ class TestGetStatus:
             load.get_notebook_status(get_filepath(filename)).status
             == expected_status
         )
+
+
+def test_extensionless_marimo_notebook(tmp_path):
+    """A marimo notebook without a file extension still parses.
+
+    Slurm executes sbatch scripts from a spooled, extensionless copy of the
+    submitted file.
+    """
+    spool_path = tmp_path / "slurm_script"
+    spool_path.write_text(
+        """import marimo
+
+__generated_with = "0.23.16"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    x = 1
+    return (x,)
+
+
+if __name__ == "__main__":
+    app.run()
+""",
+        encoding="utf-8",
+    )
+
+    result = load.get_notebook_status(str(spool_path))
+
+    assert result.status == "valid"
+    assert result.notebook is not None
+    assert len(result.notebook.cells) == 1
+
+
+def test_extensionless_non_marimo_file_still_rejected(tmp_path):
+    """The extensionless fallback only applies to marimo notebooks."""
+    path = tmp_path / "some_script"
+    path.write_text("print('not a notebook')\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="No notebook serializer"):
+        load.get_notebook_status(str(path))

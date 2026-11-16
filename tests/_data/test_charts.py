@@ -53,6 +53,13 @@ def test_get_chart_builder():
         )
 
 
+def test_geometry_uses_unknown_chart_builder() -> None:
+    geometry_code = get_chart_builder("geometry").altair_code("df", "geometry")
+    unknown_code = get_chart_builder("unknown").altair_code("df", "geometry")
+
+    assert geometry_code == unknown_code
+
+
 def validate_and_return_codes(simple: bool) -> list[str]:
     outputs: list[str] = []
 
@@ -97,6 +104,14 @@ def test_charts_bad_characters():
         outputs.append(f"# {col}\n{code}")
 
     snapshot("charts_bad_characters.txt", "\n\n".join(outputs))
+
+
+@pytest.mark.parametrize("simple", [True, False])
+def test_date_chart_filter_is_plain_string(simple: bool):
+    code = get_chart_builder("date", False).altair_code(
+        "df", "{x}", simple=simple
+    )
+    assert 'transform_filter("datum.{x} != null")' in code
 
 
 def test_charts_altair_code_with_comment():

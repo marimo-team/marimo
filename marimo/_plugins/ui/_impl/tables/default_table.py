@@ -20,6 +20,8 @@ from marimo._plugins.ui._impl.tables.format import (
 )
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
@@ -55,7 +57,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def __init__(self, data: JsonTableData):
         self.data = data
-        self.is_column_oriented = _is_column_oriented(data)
+        self.is_column_oriented = is_column_oriented(data)
 
     def apply_formatting(
         self, format_mapping: FormatMapping | None
@@ -130,13 +132,31 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ).to_parquet()
         return self._as_table_manager().to_parquet()
 
+    def _padded_columns(self) -> dict[str, Sequence[Any]]:
+        """Column-oriented data with every column padded to the row count.
+
+        Shorter columns are padded with `None`, the same way the table is
+        rendered and exported, so row indices are valid for every column.
+        """
+        num_rows = self.get_num_rows()
+        return {
+            col: (
+                values
+                if len(values) == num_rows
+                else list(values) + [None] * (num_rows - len(values))
+            )
+            for col, values in cast(
+                dict[str, Sequence[Any]], self.data
+            ).items()
+        }
+
     def select_rows(self, indices: list[int]) -> DefaultTableManager:
         if isinstance(self.data, dict):
             # Column major data
             if self.is_column_oriented:
                 new_data: dict[Any, Any] = {
-                    key: [cast(list[JSONType], value)[i] for i in indices]
-                    for key, value in self.data.items()
+                    key: [value[i] for i in indices]
+                    for key, value in self._padded_columns().items()
                 }
                 return DefaultTableManager(new_data)
             else:
@@ -171,16 +191,15 @@ class DefaultTableManager(TableManager[JsonTableData]):
             and isinstance(self.data, dict)
             and all(isinstance(v, list) for v in self.data.values())
         ):
+            columns = self._padded_columns()
             for row_id, column_name in cells:
-                column = self.data[column_name]
-                if isinstance(column, Sequence):
-                    selected_cells.append(
-                        TableCell(
-                            row=row_id,
-                            column=column_name,
-                            value=column[int(row_id)],
-                        )
+                selected_cells.append(
+                    TableCell(
+                        row=row_id,
+                        column=column_name,
+                        value=columns[column_name][int(row_id)],
                     )
+                )
         elif isinstance(self.data, dict):
             rows_of_dict = list(self.data.items())
             for row_id, column_name in cells:
@@ -249,20 +268,14 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def search(self, query: str) -> DefaultTableManager:
         query = query.lower()
         if isinstance(self.data, dict) and self.is_column_oriented:
+            columns = self._padded_columns()
             mask: list[bool] = [
-                any(
-                    query in str(cast(list[Any], self.data[key])[row]).lower()
-                    for key in self.data
-                )
+                any(query in str(columns[key][row]).lower() for key in columns)
                 for row in range(self.get_num_rows() or 0)
             ]
             results = {
-                key: [
-                    cast(list[Any], value)[i]
-                    for i, match in enumerate(mask)
-                    if match
-                ]
-                for key, value in self.data.items()
+                key: [value[i] for i, match in enumerate(mask) if match]
+                for key, value in columns.items()
             }
             return DefaultTableManager(cast(JsonTableData, results))
         return DefaultTableManager(
@@ -398,9 +411,8 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         if isinstance(self.data, dict) and self.is_column_oriented:
             # Column-oriented: sort indices, then reorder all columns
-            data_dict = cast(dict[str, list[Any]], self.data)
-            first_column = next(iter(data_dict.values()))
-            num_rows = len(first_column)
+            num_rows = self.get_num_rows()
+            data_dict = self._padded_columns()
             indices = list(range(num_rows))
 
             # Apply sorts in reverse order for stable multi-column sorting
@@ -478,7 +490,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def _normalize_data(data: JsonTableData) -> list[dict[str, Any]]:
         # If it is a dict of lists (column major),
         # convert to list of dicts (row major)
-        if isinstance(data, dict) and _is_column_oriented(data):
+        if isinstance(data, dict) and is_column_oriented(data):
             # reshape column major
             #   { "col1": [1, 2, 3], "col2": [4, 5, 6], ... }
             # into row major
@@ -523,7 +535,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return cast(list[dict[str, Any]], data)
 
 
-def _is_column_oriented(data: JsonTableData) -> bool:
+def is_column_oriented(
+    data: JsonTableData,
+) -> TypeGuard[dict[str, Sequence[object]]]:
     return isinstance(data, dict) and all(
         isinstance(value, (list, tuple)) for value in data.values()
     )

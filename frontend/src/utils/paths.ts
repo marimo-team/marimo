@@ -41,24 +41,24 @@ export const Paths = {
 
 export class PathBuilder {
   public readonly deliminator: string;
-  constructor(deliminator: "/" | "\\") {
+  public constructor(deliminator: "/" | "\\") {
     this.deliminator = deliminator;
   }
 
-  static guessDeliminator(path: string): PathBuilder {
+  public static guessDeliminator(path: string): PathBuilder {
     return path.includes("/") ? new PathBuilder("/") : new PathBuilder("\\");
   }
 
-  join(...paths: string[]): FilePath {
+  public join(...paths: string[]): FilePath {
     return paths.filter(Boolean).join(this.deliminator) as FilePath;
   }
 
-  basename(path: FilePath): FilePath {
+  public basename(path: FilePath): FilePath {
     const parts = path.split(this.deliminator);
     return (parts.pop() ?? "") as FilePath;
   }
 
-  rest(path: FilePath, root: FilePath): FilePath {
+  public rest(path: FilePath, root: FilePath): FilePath {
     const pathParts = path.split(this.deliminator);
     const rootParts = root.split(this.deliminator);
     let i = 0;
@@ -70,7 +70,7 @@ export class PathBuilder {
     return pathParts.slice(i).join(this.deliminator) as FilePath;
   }
 
-  dirname(path: FilePath): FilePath {
+  public dirname(path: FilePath): FilePath {
     const parts = path.split(this.deliminator);
     parts.pop();
     return parts.join(this.deliminator) as FilePath;

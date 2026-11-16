@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 
 from marimo._utils.env import is_env_true
@@ -17,11 +18,19 @@ class GlobalSettings:
     PROFILE_DIR: str | None = None
     LOG_LEVEL: int = logging.WARNING
     MANAGE_SCRIPT_METADATA: bool = is_env_true("MARIMO_MANAGE_SCRIPT_METADATA")
+    # "single" or "multi" when this process belongs to a sandbox whose
+    # dependencies live in script environments; None otherwise.
+    SANDBOX_MODE: str | None = os.environ.get("MARIMO_SANDBOX_MODE") or None
+    # The environment manager behind SANDBOX_MODE: "uv" or "pixi".
+    SANDBOX_BACKEND: str | None = (
+        os.environ.get("MARIMO_SANDBOX_BACKEND") or None
+    )
+    # Let each notebook's manifest pick its environment in a sandboxed
+    # directory server.
+    # [tool.marimo.venv] takes precedence over [tool.pixi] then falls back to the
+    # default SANDBOX_BACKEND (unset is UV). Required for the Jupyter extension.
+    SANDBOX_AUTO: bool = is_env_true("MARIMO_SANDBOX_AUTO")
     IN_SECURE_ENVIRONMENT: bool = is_env_true("MARIMO_IN_SECURE_ENVIRONMENT")
-    # Mark the session cookie as `Secure` so browsers only send it over HTTPS.
-    # Enable when serving marimo behind TLS / a TLS-terminating proxy. Default
-    # "false" to preserve local (plain-HTTP) development.
-    SESSION_COOKIE_SECURE: bool = is_env_true("MARIMO_SESSION_COOKIE_SECURE")
     # Disable authentication on the virtual file endpoint (`/@file/...`).
     # Useful in sandboxed/embedded deployments where virtual file URLs need
     # to be fetched in trusted contexts. Default "false", meaning auth is required.
@@ -30,7 +39,7 @@ class GlobalSettings:
     )
     # Hide all external code-sharing affordances (shareable WASM links, molab,
     # HTML sharing) across every notebook session. Enforced by
-    # SecurityConfigManager, which MarimoConfigManager merges after all other
+    # SecurityConfigReader, which MarimoConfigManager merges after all other
     # config sources, so it cannot be re-enabled by any config file or runtime
     # override. Intended for machine-wide enforcement set by infra admins in a
     # devpod or container spec.

@@ -6,6 +6,7 @@ import type { DataType } from "@/core/kernel/messages";
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
     rawData?: TData[]; // raw data for filtering/copying (present only if format_mapping is provided)
+    highlightPattern?: RegExp; // built from the committed search query that produced the current rows
   }
 }
 
@@ -53,7 +54,12 @@ export type ColumnHeaderStats = Record<
 
 export type FieldTypesWithExternalType = [
   columnName: string,
-  [dataType: DataType, externalType: string],
+  [
+    // Normalized marimo type, such as "string" or "datetime".
+    dataType: DataType,
+    // Source-library type, such as pandas "timedelta64[ns]".
+    externalType: string,
+  ],
 ][];
 // Ordered map of column name -> data type.
 //

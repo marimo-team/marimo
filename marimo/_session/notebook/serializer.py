@@ -4,22 +4,34 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
+from marimo._ast.parse import MarimoFileError, is_non_marimo_python_script
 from marimo._schemas.serialization import (
     AppInstantiation,
     NotebookSerializationV1,
 )
 
+if TYPE_CHECKING:
+    from marimo._ast.type_inference import TypeInferenceMode
+
 
 class NotebookSerializer(Protocol):
     """Protocol for notebook format handlers."""
 
-    def serialize(self, notebook: NotebookSerializationV1) -> str:
+    def serialize(
+        self,
+        notebook: NotebookSerializationV1,
+        *,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
+    ) -> str:
         """Convert notebook IR to the target format.
 
         Args:
             notebook: Notebook in intermediate representation
+            infer_types: Inference backend for formats with cell signatures.
+            line_length: Maximum parameter line width for inferred annotations.
 
         Returns:
             Serialized notebook content as string
@@ -55,14 +67,22 @@ class NotebookSerializer(Protocol):
 class PythonNotebookSerializer(NotebookSerializer):
     """Handler for Python (.py) notebook files."""
 
-    def serialize(self, notebook: NotebookSerializationV1) -> str:
+    def serialize(
+        self,
+        notebook: NotebookSerializationV1,
+        *,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
+    ) -> str:
         """Serialize notebook to Python format.
 
         Handles header preservation when converting from other formats.
         """
         from marimo._ast.codegen import generate_filecontents_from_ir
 
-        return generate_filecontents_from_ir(notebook)
+        return generate_filecontents_from_ir(
+            notebook, infer_types=infer_types, line_length=line_length
+        )
 
     def deserialize(
         self, content: str, filepath: str | None = None
@@ -85,8 +105,16 @@ class PythonNotebookSerializer(NotebookSerializer):
 class MarkdownNotebookSerializer(NotebookSerializer):
     """Handler for Markdown (.md) notebook files."""
 
-    def serialize(self, notebook: NotebookSerializationV1) -> str:
+    def serialize(
+        self,
+        notebook: NotebookSerializationV1,
+        *,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
+    ) -> str:
         """Serialize notebook to Markdown format."""
+        # Markdown has no cell signatures to annotate.
+        del infer_types, line_length
         from marimo._convert.markdown import convert_from_ir_to_markdown
 
         return convert_from_ir_to_markdown(notebook)
@@ -130,24 +158,52 @@ DEFAULT_NOTEBOOK_SERIALIZERS = {
 }
 
 
-def get_notebook_serializer(path: Path) -> NotebookSerializer:
+def get_notebook_serializer(
+    path: Path,
+    contents: str | None = None,
+    default: str | None = None,
+) -> NotebookSerializer:
     """Get the appropriate notebook serializer for a file.
 
     Args:
         path: File path
+        contents: Optional file contents. If the contents are a marimo
+            notebook, a path with no suffix resolves to the `default`
+            serializer.
+        default: Suffix of the serializer to fall back to
 
     Returns:
         Appropriate notebook serializer
 
     Raises:
-        ValueError: If no notebook serializer supports the file format
+        ValueError: If no notebook serializer supports the file
     """
     # Ensure path is a Path object
     if not isinstance(path, Path):
         path = Path(path)
 
-    ext = path.suffix
-    handler = DEFAULT_NOTEBOOK_SERIALIZERS.get(ext)
+    handler = DEFAULT_NOTEBOOK_SERIALIZERS.get(path.suffix)
+    # E.g. ./script (no suffix) with contents that are a marimo notebook.
+    if (
+        handler is None
+        and path.suffix == ""
+        and default is not None
+        and contents is not None
+    ):
+        # Certain runners (like sbatch) may pass a script with no suffix. If the
+        # contents are a marimo notebook, we can use the default (python) serializer.
+        fallback = DEFAULT_NOTEBOOK_SERIALIZERS.get(default)
+        if fallback is not None:
+            try:
+                # Relatively unusual path, so full deserialization seems
+                # acceptable.
+                notebook = fallback.deserialize(contents, filepath=str(path))
+                if not is_non_marimo_python_script(notebook):
+                    handler = fallback
+            except MarimoFileError:
+                # Parses, but declares no `marimo.App`. Reject it like any
+                # other unsupported file.
+                pass
     if handler is None:
         raise ValueError(
             f"No notebook serializer found for {path}. Supported extensions: {list(DEFAULT_NOTEBOOK_SERIALIZERS.keys())}"

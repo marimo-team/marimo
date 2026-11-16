@@ -5,6 +5,7 @@ import { expect, test } from "vitest";
 import {
   configOverridesAtom,
   connectionTransportTypeAtom,
+  mergeConfig,
   resolvedMarimoConfigAtom,
   userConfigAtom,
 } from "../config";
@@ -15,13 +16,36 @@ import {
   UserConfigSchema,
 } from "../config-schema";
 
+test("legacy Codeium selection disables completion without resetting other settings", () => {
+  expect(
+    UserConfigSchema.parse({
+      completion: {
+        copilot: "codeium",
+        codeium_api_key: "legacy-secret",
+        auto_close_pairs: false,
+      },
+      display: { theme: "dark" },
+    }),
+  ).toEqual(
+    UserConfigSchema.parse({
+      completion: { copilot: false, auto_close_pairs: false },
+      display: { theme: "dark" },
+    }),
+  );
+});
+
+test("legacy Manual config resolves to Read only", () => {
+  const config = UserConfigSchema.parse({ ai: { mode: "manual" } });
+  expect(config).toEqual(UserConfigSchema.parse({ ai: { mode: "ask" } }));
+});
+
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "auto_download": [],
       "sql_output": "auto",
-      "width": "medium",
+      "width": "compact",
     }
   `);
 });
@@ -46,15 +70,25 @@ test("default UserConfig - empty", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "allow_provider_config": true,
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
-        "mode": "manual",
+        "max_tokens": null,
+        "mode": "ask",
         "models": {
+          "autocomplete_model": null,
+          "chat_model": null,
           "custom_models": [],
           "displayed_models": [],
+          "edit_model": null,
         },
         "rules": "",
+      },
+      "cache": {
+        "loader": "lazy",
+        "store": null,
+        "verification": "off",
       },
       "completion": {
         "activate_on_typing": true,
@@ -62,7 +96,10 @@ test("default UserConfig - empty", () => {
         "copilot": false,
         "signature_hint_on_typing": false,
       },
-      "diagnostics": {},
+      "datasources": {},
+      "diagnostics": {
+        "sql_linter": true,
+      },
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
@@ -74,8 +111,15 @@ test("default UserConfig - empty", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {},
+      "experimental": {
+        "debugger": false,
+        "execution_type": "relaxed",
+        "isolate_apps": false,
+        "line_timing": false,
+      },
+      "file_browser": null,
       "formatting": {
+        "infer_types": "off",
         "line_length": 79,
       },
       "keymap": {
@@ -83,17 +127,39 @@ test("default UserConfig - empty", () => {
         "overrides": {},
         "preset": "default",
       },
-      "mcp": {},
+      "language_servers": {
+        "pylsp": {
+          "enable_flake8": false,
+          "enable_mypy": true,
+          "enable_pydocstyle": false,
+          "enable_pyflakes": false,
+          "enable_pylint": false,
+          "enable_ruff": true,
+          "enabled": false,
+        },
+      },
+      "lint": {
+        "ignore": [],
+        "select": [],
+      },
+      "mcp": {
+        "mcpServers": {},
+        "presets": [],
+      },
       "package_management": {
         "manager": "pip",
       },
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "cache_cells": false,
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
+        "pin_modules": true,
+        "pythonpath": [],
         "reactive_tests": true,
+        "serve_cached_sessions_in_apps": false,
         "show_tracebacks": false,
         "watcher_on_save": "lazy",
       },
@@ -102,7 +168,23 @@ test("default UserConfig - empty", () => {
         "autosave_delay": 1000,
         "format_on_save": false,
       },
-      "server": {},
+      "server": {
+        "disable_file_downloads": false,
+        "session_secret": null,
+      },
+      "sharing": null,
+      "signing": {
+        "private_key_path": null,
+        "trusted_signers": {},
+      },
+      "snippets": {
+        "custom_paths": [],
+        "include_default_snippets": true,
+      },
+      "venv": {
+        "path": null,
+        "writable": false,
+      },
     }
   `);
 });
@@ -120,15 +202,25 @@ test("default UserConfig - one level", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "allow_provider_config": true,
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
-        "mode": "manual",
+        "max_tokens": null,
+        "mode": "ask",
         "models": {
+          "autocomplete_model": null,
+          "chat_model": null,
           "custom_models": [],
           "displayed_models": [],
+          "edit_model": null,
         },
         "rules": "",
+      },
+      "cache": {
+        "loader": "lazy",
+        "store": null,
+        "verification": "off",
       },
       "completion": {
         "activate_on_typing": true,
@@ -136,7 +228,10 @@ test("default UserConfig - one level", () => {
         "copilot": false,
         "signature_hint_on_typing": false,
       },
-      "diagnostics": {},
+      "datasources": {},
+      "diagnostics": {
+        "sql_linter": true,
+      },
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
@@ -148,8 +243,15 @@ test("default UserConfig - one level", () => {
         "reference_highlighting": true,
         "theme": "light",
       },
-      "experimental": {},
+      "experimental": {
+        "debugger": false,
+        "execution_type": "relaxed",
+        "isolate_apps": false,
+        "line_timing": false,
+      },
+      "file_browser": null,
       "formatting": {
+        "infer_types": "off",
         "line_length": 79,
       },
       "keymap": {
@@ -157,17 +259,39 @@ test("default UserConfig - one level", () => {
         "overrides": {},
         "preset": "default",
       },
-      "mcp": {},
+      "language_servers": {
+        "pylsp": {
+          "enable_flake8": false,
+          "enable_mypy": true,
+          "enable_pydocstyle": false,
+          "enable_pyflakes": false,
+          "enable_pylint": false,
+          "enable_ruff": true,
+          "enabled": false,
+        },
+      },
+      "lint": {
+        "ignore": [],
+        "select": [],
+      },
+      "mcp": {
+        "mcpServers": {},
+        "presets": [],
+      },
       "package_management": {
         "manager": "pip",
       },
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "cache_cells": false,
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
+        "pin_modules": true,
+        "pythonpath": [],
         "reactive_tests": true,
+        "serve_cached_sessions_in_apps": false,
         "show_tracebacks": false,
         "watcher_on_save": "lazy",
       },
@@ -176,7 +300,23 @@ test("default UserConfig - one level", () => {
         "autosave_delay": 1000,
         "format_on_save": false,
       },
-      "server": {},
+      "server": {
+        "disable_file_downloads": false,
+        "session_secret": null,
+      },
+      "sharing": null,
+      "signing": {
+        "private_key_path": null,
+        "trusted_signers": {},
+      },
+      "snippets": {
+        "custom_paths": [],
+        "include_default_snippets": true,
+      },
+      "venv": {
+        "path": null,
+        "writable": false,
+      },
     }
   `);
 
@@ -207,6 +347,19 @@ test("default UserConfig with additional information", () => {
       },
     }),
   );
+});
+
+test("UserConfig with file browser folders", () => {
+  const config = UserConfigSchema.parse({
+    file_browser: {
+      folders: [{ path: "/data", name: "Data" }, { path: "/shared" }],
+    },
+  });
+
+  expect(config.file_browser?.folders).toEqual([
+    { path: "/data", name: "Data" },
+    { path: "/shared", name: null },
+  ]);
 });
 
 test("UserConfig with custom_providers", () => {
@@ -255,7 +408,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
   };
 
   const overrides = {
@@ -281,7 +434,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
     display: { theme: "dark" },
   });
 
@@ -296,7 +449,7 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
       autosave_delay: 1000,
       format_on_save: false,
     },
-    formatting: { line_length: 79 },
+    formatting: { line_length: 79, infer_types: "off" },
   });
 });
 
@@ -315,3 +468,74 @@ test("connectionTransportTypeAtom reads server.transport", () => {
   });
   expect(store.get(connectionTransportTypeAtom)).toBe("sse");
 });
+
+test("mergeConfig replaces arrays instead of merging by index", () => {
+  const prev = {
+    ai: {
+      models: {
+        displayed_models: ["wandb/a", "wandb/b", "wandb/c"],
+        custom_models: ["wandb/custom"],
+      },
+    },
+  };
+  const patch = {
+    ai: {
+      models: {
+        displayed_models: ["wandb/a"],
+        custom_models: [],
+      },
+    },
+  };
+
+  expect(mergeConfig(prev, patch)).toEqual({
+    ai: {
+      models: {
+        displayed_models: ["wandb/a"],
+        custom_models: [],
+      },
+    },
+  });
+});
+
+test.each([{}, { "run-cell": "Alt-Enter" }])(
+  "mergeConfig replaces shortcut dictionaries with %j",
+  (overrides) => {
+    const original = {
+      keymap: {
+        preset: "vim",
+        overrides: { "run-all": "Ctrl-Enter" },
+      },
+    };
+    expect(mergeConfig(original, { keymap: { overrides } })).toEqual({
+      keymap: { preset: "vim", overrides },
+    });
+    expect(original.keymap.overrides).toEqual({ "run-all": "Ctrl-Enter" });
+  },
+);
+
+test.each(["ai.custom_providers", "signing.trusted_signers"])(
+  "mergeConfig replaces records at %s while preserving retained record fields",
+  (path) => {
+    const [section, name] = path.split(".");
+    const original = {
+      [section]: {
+        [name]: {
+          retained: { name: "before", api_key: "secret" },
+          removed: { name: "removed" },
+        },
+      },
+    };
+    expect(
+      mergeConfig(original, {
+        [section]: { [name]: { retained: { name: "after" } } },
+      }),
+    ).toEqual({
+      [section]: {
+        [name]: { retained: { name: "after", api_key: "secret" } },
+      },
+    });
+    expect(mergeConfig(original, { [section]: { [name]: {} } })).toEqual({
+      [section]: { [name]: {} },
+    });
+  },
+);

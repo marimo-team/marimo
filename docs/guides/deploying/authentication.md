@@ -4,11 +4,18 @@ marimo provides a simple way to add token/password protection to your marimo ser
 
 ## Enabling Basic Authentication
 
-Authentication is enabled by default when running `marimo edit/tutorial/new`. To disable authentication, you may pass `--no-token` to your `marimo edit/run/new` command from the Terminal. The auth token will be randomly generated when in `Edit mode` and deterministically generated in `Run mode` (based on the code of the notebook). However, you can also pass your own token/password using the `--token-password` flag.
+Authentication is enabled by default when running `marimo edit/tutorial/new`. To disable authentication, you may pass `--no-token` to your `marimo edit/run/new` command from the Terminal. The auth token will be randomly generated when in `Edit mode` and deterministically generated in `Run mode` (based on the code of the notebook). However, you can also pass your own token/password using the `--token-password` flag, or `--token-password-file` to read it from a file or stdin.
 
 ```bash
 marimo run my_notebook.py --token --token-password="sup3rs3cr3t"
 ```
+
+!!! warning "The startup URL includes the token"
+    marimo prints a clickable URL at startup, such as `http://localhost:2718?access_token=sup3rs3cr3t`. The URL includes the token whether marimo generates it, you pass it with `--token-password`, or you read it from a file or stdin with `--token-password-file`. If marimo runs as a service, the journal or container log records that line. Pass `-q` (`--quiet`) before the subcommand to suppress the startup banner:
+
+    ```bash
+    marimo -q run my_notebook.py --token --token-password-file /run/secrets/marimo-token
+    ```
 
 ### Ways to Authenticate
 

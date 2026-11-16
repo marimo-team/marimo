@@ -1,0 +1,40 @@
+{
+  "changes": [
+    {
+      "kind": "put_cell",
+      "base_etag": null,
+      "after": "c1",
+      "cell": {
+        "id": "c2",
+        "code": "print('hi')",
+        "name": "_",
+        "config": {
+          "column": null,
+          "disabled": false,
+          "hide_code": false,
+          "expand_output": false
+        }
+      }
+    },
+    {
+      "kind": "put_cell",
+      "base_etag": "5cf78587dcf22d8d",
+      "cell": {
+        "id": "c3",
+        "code": "x = 22",
+        "name": "_",
+        "config": {
+          "column": null,
+          "disabled": false,
+          "hide_code": false,
+          "expand_output": false
+        }
+      }
+    },
+    {
+      "kind": "delete_cell",
+      "id": "k7f2",
+      "base_etag": "f199b5f48ae0aabb"
+    }
+  ]
+}

@@ -18,7 +18,10 @@ LOGGER = _loggers.marimo_logger()
 
 
 def try_restart() -> bool:
-    from marimo._runtime.commands import ExecuteCellsCommand
+    from marimo._runtime.commands import (
+        ExecuteCellCommand,
+        ExecuteCellsCommand,
+    )
     from marimo._runtime.context import (
         ContextNotInitializedError,
         get_context,
@@ -39,8 +42,11 @@ def try_restart() -> bool:
         # This runs the request and queues the cell for execution
         ctx._kernel.enqueue_control_request(
             ExecuteCellsCommand(
-                cell_ids=[ctx.cell_id],
-                codes=[graph.cells[ctx.cell_id].code],
+                execution_requests=[
+                    ExecuteCellCommand(
+                        cell_id=ctx.cell_id, code=graph.cells[ctx.cell_id].code
+                    )
+                ]
             )
         )
     except ContextNotInitializedError:

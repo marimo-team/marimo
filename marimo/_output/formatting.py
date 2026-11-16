@@ -72,7 +72,7 @@ class FormatterRegistry:
         except BaseException as e:
             # Some exotic metaclasses or broken types may raise when calling mro
             LOGGER.warning(
-                "Failed to read MRO for type %s: %s", top_level_type, str(e)
+                "Failed to read MRO for type %s: %s", top_level_type, e
             )
             return None
 
@@ -410,12 +410,10 @@ def iframe(html: str, *, width: str = "100%", height: str = "400px") -> Html:
     """
 
     return Html(
-        flatten_string(
-            h.iframe(
-                **src_or_src_doc(html),
-                onload="__resizeIframe(this)",
-                width=width,
-                height=height,
-            )
+        h.iframe(
+            **src_or_src_doc(html),
+            onload="__resizeIframe(this)",
+            width=width,
+            height=height,
         ),
     )

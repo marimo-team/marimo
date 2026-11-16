@@ -6,11 +6,13 @@ import json
 import pytest
 
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._server.tokens import SkewProtectionToken
 from marimo._templates import (
-    _get_mount_config,
+    MOUNT_CONFIG_TEMPLATE,
     _html_escape,
+    _render_page_config,
     json_script,
 )
 from tests.mocks import EDGE_CASE_FILENAMES
@@ -59,16 +61,17 @@ class TestTemplateFilenameHandling:
         "filename",
         [*EDGE_CASE_FILENAMES, None],
     )
-    def test_get_mount_config_filename_handling(
+    def test_render_page_config_filename_handling(
         self, filename: str | None
     ) -> None:
-        """Test _get_mount_config function with problematic filenames."""
+        """Test _render_page_config function with problematic filenames."""
         server_token = SkewProtectionToken("test-token")
         user_config = MarimoConfig()
         config_overrides = PartialMarimoConfig()
         app_config = _AppConfig()
 
-        result = _get_mount_config(
+        result = _render_page_config(
+            MOUNT_CONFIG_TEMPLATE,
             filename=filename,
             mode="edit",
             server_token=server_token,
@@ -76,10 +79,6 @@ class TestTemplateFilenameHandling:
             config_overrides=config_overrides,
             app_config=app_config,
         )
-        # Remove the last ','
-        last_comma_index = result.rfind(",")
-        result = result[:last_comma_index] + result[last_comma_index + 1 :]
-
         # Should be valid JSON
         config_data = json.loads(result)
 
@@ -262,7 +261,7 @@ class TestJsonScriptEscaping:
 
 
 class TestMountConfigInjectionPrevention:
-    """Test _get_mount_config prevents injection attacks in all fields."""
+    """Test _render_page_config prevents injection attacks in all fields."""
 
     @pytest.mark.parametrize(
         "malicious_filename",
@@ -282,7 +281,8 @@ class TestMountConfigInjectionPrevention:
         config_overrides = PartialMarimoConfig()
         app_config = _AppConfig()
 
-        result = _get_mount_config(
+        result = _render_page_config(
+            MOUNT_CONFIG_TEMPLATE,
             filename=malicious_filename,
             mode="edit",
             server_token=server_token,
@@ -290,10 +290,6 @@ class TestMountConfigInjectionPrevention:
             config_overrides=config_overrides,
             app_config=app_config,
         )
-
-        # Remove trailing comma for JSON parsing
-        last_comma_index = result.rfind(",")
-        result = result[:last_comma_index] + result[last_comma_index + 1 :]
 
         # Must not contain unescaped script tags (< and > should be escaped)
         assert "</script><script>" not in result
@@ -323,7 +319,8 @@ class TestMountConfigInjectionPrevention:
         config_overrides = PartialMarimoConfig()
         app_config = _AppConfig(app_title=malicious_title)
 
-        result = _get_mount_config(
+        result = _render_page_config(
+            MOUNT_CONFIG_TEMPLATE,
             filename="test.py",
             mode="edit",
             server_token=server_token,
@@ -331,10 +328,6 @@ class TestMountConfigInjectionPrevention:
             config_overrides=config_overrides,
             app_config=app_config,
         )
-
-        # Remove trailing comma
-        last_comma_index = result.rfind(",")
-        result = result[:last_comma_index] + result[last_comma_index + 1 :]
 
         # Must not contain unescaped script tags (< and > should be escaped)
         assert "</script><script>" not in result

@@ -19,7 +19,7 @@ import json
 import os
 import tempfile
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -76,7 +76,7 @@ class ServerRegistryEntry:
             host=host,
             port=port,
             base_url=base_url,
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(UTC).isoformat(),
             version=__version__,
         )
 

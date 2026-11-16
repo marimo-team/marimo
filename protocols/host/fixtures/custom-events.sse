@@ -1,0 +1,8 @@
+id: 100
+event: ready
+data: {}
+
+id: 101
+event: custom
+data: {"custom":{"type":"marimo.pair.agent-message","data":{"text":"Looking into it","tags":["progress"],"details":null}},"request_id":"req-agent-1","time":"2026-10-13T20:00:00Z"}
+

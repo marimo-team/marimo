@@ -10,6 +10,7 @@ import threading
 from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
+from marimo._environments.environment import ProcessPlan
 from marimo._messaging.types import KernelMessage
 from marimo._session.app_host.commands import (
     AppHostReadyResponse,
@@ -31,7 +32,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from marimo._ast.cell import CellConfig
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config import PartialMarimoConfig
+    from marimo._config.provenance import ConfigPath
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
@@ -48,21 +50,19 @@ class AppHost:
 
     Args:
         file_path: the notebook's absolute path, for debugging
-        python: absolute path to the Python executable
-        sandbox_dir: where to store the temporary venv if the notebook is sandboxed
+        plan: how to launch the host process; defaults to the current
+            interpreter
         on_empty: callable invoked when the AppHost spins down to zero sessions
     """
 
     def __init__(
         self,
         file_path: str,
-        python: str | None = None,
-        sandbox_dir: str | None = None,
+        plan: ProcessPlan | None = None,
         on_empty: Callable[[], None] | None = None,
     ) -> None:
         self._file_path = file_path
-        self._python = python or sys.executable
-        self._sandbox_dir = sandbox_dir
+        self._plan = plan
         self._on_empty = on_empty
 
         # The process hosting client kernels.
@@ -165,11 +165,17 @@ class AppHost:
         conn, args = AppHostConnection.create(self._file_path)
         self._conn = conn
 
-        cmd = [
-            self._python,
-            "-m",
-            "marimo._session.app_host.main",
-        ]
+        if self._plan is not None:
+            cmd = list(self._plan.argv)
+            env = self._plan.env
+        else:
+            cmd = [
+                sys.executable,
+                "-P",
+                "-m",
+                "marimo._session.app_host.main",
+            ]
+            env = None
         LOGGER.debug("Launching app host: %s", " ".join(cmd))
 
         # stdin is piped to send startup args; stdout/stderr inherit the
@@ -178,6 +184,12 @@ class AppHost:
         self._process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
+            env=env,
+            start_new_session=(
+                self._plan.start_new_session
+                if self._plan is not None
+                else False
+            ),
         )
 
         proc_stdin = self._process.stdin
@@ -185,7 +197,9 @@ class AppHost:
             self.shutdown()
             raise RuntimeError("Failed to open stdin for app host")
 
-        ready_timeout_ms = 30_000
+        # A launcher plan may resolve packages before the host starts;
+        # a cold resolution can take minutes.
+        ready_timeout_ms = 180_000 if self._plan is not None else 30_000
         try:
             proc_stdin.write(args.encode_json())
             proc_stdin.flush()
@@ -253,10 +267,11 @@ class AppHost:
         session_id: str,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        user_config: MarimoConfig,
+        user_config: PartialMarimoConfig,
         virtual_file_storage: VirtualFileStorageType | None,
         redirect_console_to_browser: bool,
         log_level: int,
+        config_overrides: tuple[ConfigPath, ...] = (),
     ) -> KernelCreatedResponse:
         conn = self._conn
         if conn is None or self._closed.is_set():
@@ -267,6 +282,7 @@ class AppHost:
             configs=configs,
             app_metadata=app_metadata,
             user_config=user_config,
+            config_overrides=config_overrides,
             virtual_file_storage=virtual_file_storage,
             redirect_console_to_browser=redirect_console_to_browser,
             log_level=log_level,
@@ -372,11 +388,5 @@ class AppHost:
         # create_kernel check _closed before touching sockets.
         if conn is not None:
             conn.close()
-
-        if self._sandbox_dir is not None:
-            from marimo._cli.sandbox import cleanup_sandbox_dir
-
-            cleanup_sandbox_dir(self._sandbox_dir)
-            self._sandbox_dir = None
 
         LOGGER.debug("App host shut down for %s", self._file_path)

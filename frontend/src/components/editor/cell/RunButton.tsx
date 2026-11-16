@@ -1,12 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { HardDriveDownloadIcon, PlayIcon } from "lucide-react";
 import type { JSX } from "react";
-import type { CellConfig, RuntimeState } from "@/core/network/types";
+import type { CellRunStatus } from "@/core/executions";
+import type { CellConfig } from "@/core/network/types";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import type { WebSocketState } from "@/core/websocket/types";
+} from "@/core/session/connection-utils";
+import type { ConnectionState } from "@/core/session/types";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { ToolbarItem } from "./toolbar";
 
@@ -16,7 +17,7 @@ function computeColor({
   loading,
   inactive,
 }: {
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   needsRun: boolean;
   loading: boolean;
   inactive: boolean;
@@ -35,20 +36,29 @@ function computeColor({
 
 export const RunButton = (props: {
   edited: boolean;
-  status: RuntimeState;
+  status: CellRunStatus;
+  /** Whether a cell it depends on is disabled. */
+  blocked: boolean;
   needsRun: boolean;
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   config: CellConfig;
   onClick?: () => void;
 }): JSX.Element => {
-  const { onClick, connectionState, needsRun, status, config, edited } = props;
+  const {
+    onClick,
+    connectionState,
+    needsRun,
+    status,
+    blocked,
+    config,
+    edited,
+  } = props;
 
-  const blockedStatus = status === "disabled-transitively";
   const loading = status === "running" || status === "queued";
   const inactive =
     isAppInteractionDisabled(connectionState) ||
     loading ||
-    (!config.disabled && blockedStatus && !edited);
+    (!config.disabled && blocked && !edited);
   const variant = computeColor({
     connectionState,
     needsRun,
@@ -69,7 +79,7 @@ export const RunButton = (props: {
       </ToolbarItem>
     );
   }
-  if (!config.disabled && blockedStatus && !edited) {
+  if (!config.disabled && blocked && !edited) {
     return (
       <ToolbarItem
         disabled={inactive}

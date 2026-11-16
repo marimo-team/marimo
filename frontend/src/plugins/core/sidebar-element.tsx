@@ -19,7 +19,7 @@ export function initializeSidebarElement(): void {
     private observer?: MutationObserver;
     private uniqueId = Symbol(createId());
 
-    connectedCallback() {
+    public connectedCallback() {
       // Render the component for the first time
       this.mountReactComponent();
 
@@ -39,7 +39,7 @@ export function initializeSidebarElement(): void {
       });
     }
 
-    disconnectedCallback() {
+    public disconnectedCallback() {
       if (this.observer) {
         this.observer.disconnect();
         this.unmountReactComponent();

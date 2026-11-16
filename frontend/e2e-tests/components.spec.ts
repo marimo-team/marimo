@@ -161,7 +161,7 @@ test("file area single", async ({ page }) => {
 test("multiselect", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectBasicComponent("multiselect");
-  let element = page.locator("marimo-multiselect div svg").last();
+  const element = page.locator("marimo-multiselect div svg").last();
 
   // Verify is visible
   await expect(element).toBeVisible();
@@ -172,9 +172,8 @@ test("multiselect", async ({ page }) => {
   await page.getByText("b", { exact: true }).click();
   // Verify output
   await helper.verifyOutput("b");
-  // Select option
-  element = page.locator("marimo-multiselect div svg").last();
-  await element.click();
+  // Multiple selection keeps the options open after selecting an item.
+  await expect(page.getByText("c", { exact: true })).toBeVisible();
   await page.getByText("c", { exact: true }).click();
   // Verify output
   await helper.verifyOutput("b, c");
@@ -267,6 +266,7 @@ test("table", async ({ page }) => {
   await expect(element).toBeVisible();
   // Click first checkbox to select all
   await page.getByRole("checkbox").first().click();
+  // Compare textContent; innerText adds line breaks around viewer containers.
   await expect(
     helper.cell(3).locator(".marimo-json-output").first(),
   ).toHaveText(
@@ -281,8 +281,7 @@ test("table", async ({ page }) => {
 "last_name":"Schrute"
 }
 ]
-  `.trim(),
-    { useInnerText: true },
+  `.trim().replaceAll("\n", ""),
   );
 
   // Click second checkbox to remove first row
@@ -297,8 +296,7 @@ test("table", async ({ page }) => {
 "last_name":"Schrute"
 }
 ]
-`.trim(),
-    { useInnerText: true },
+`.trim().replaceAll("\n", ""),
   );
 
   await takeScreenshot(page, _filename);
@@ -364,8 +362,7 @@ test.skip("complex - array", async ({ page }) => {
 1:5
 2:2020-01-20
 ]
-`.trim(),
-    { useInnerText: true },
+`.trim().replaceAll("\n", ""),
   );
 
   await takeScreenshot(page, _filename);
@@ -393,8 +390,7 @@ test.skip("complex - batch", async ({ page }) => {
 "name":"hi again marimo"
 "date":2020-04-20
 }
-`.trim(),
-    { useInnerText: true },
+`.trim().replaceAll("\n", ""),
   );
 
   await takeScreenshot(page, _filename);
@@ -431,8 +427,7 @@ test("complex - dictionary", async ({ page }) => {
 2:1
 ]
 }
-`.trim(),
-    { useInnerText: true },
+`.trim().replaceAll("\n", ""),
   );
 
   await takeScreenshot(page, _filename);

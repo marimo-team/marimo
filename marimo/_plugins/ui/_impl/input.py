@@ -35,6 +35,7 @@ from marimo._runtime.functions import Function
 LOGGER = _loggers.marimo_logger()
 
 Numeric = int | float
+NO_VALUE: Final = object()
 
 
 @mddoc
@@ -131,9 +132,20 @@ class number(UIElement[Numeric | None, Numeric | None]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> number:
         """Create a number picker from a dataframe series."""
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_number_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return number(start=start, stop=stop, label=label, **kwargs)
 
@@ -350,9 +362,20 @@ class slider(UIElement[Numeric, Numeric]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> slider:
         """Create a slider from a dataframe series."""
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_number_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return slider(start=start, stop=stop, label=label, **kwargs)
 
@@ -552,9 +575,20 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
         """Create a range slider from a dataframe series."""
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_number_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return range_slider(start=start, stop=stop, label=label, **kwargs)
 
@@ -610,6 +644,10 @@ class checkbox(UIElement[bool, bool]):
         disabled: bool = False,
         on_change: Callable[[bool], None] | None = None,
     ) -> None:
+        if not isinstance(value, bool):
+            raise ValueError(
+                f"Invalid type: `value` must be a bool, but got {type(value)}"
+            )
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,
@@ -1030,6 +1068,7 @@ class dropdown(UIElement[list[str], Any]):
         value (str, optional): Default option name. Defaults to None.
         allow_select_none (bool, optional): Whether to include special option ("--")
             for a None value; when None, defaults to True when value is None.
+            If False and value is None, the first option is used as the value.
             Defaults to None.
         searchable (bool, optional): Whether to enable search functionality.
             Defaults to False.
@@ -1077,15 +1116,17 @@ class dropdown(UIElement[list[str], Any]):
                 "is reserved by marimo; please use another name."
             )
 
-        self.options = options
-        initial_value = [value] if value is not None else []
         if allow_select_none is None:
             allow_select_none = value is None
         elif not allow_select_none and value is None:
-            raise ValueError(
-                "when `allow_select_none` is False, a non-None default value "
-                "must be provided."
-            )
+            if not options:
+                raise ValueError(
+                    "when `allow_select_none` is False, `options` must not be empty."
+                )
+            value = next(iter(options))
+
+        self.options = options
+        initial_value = [value] if value is not None else []
 
         super().__init__(
             component_name=dropdown._name,

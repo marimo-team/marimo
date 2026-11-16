@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from marimo._data.models import DataTable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
     DataSourceConnectionsNotification,
@@ -24,7 +25,7 @@ from marimo._runtime.commands import (
 )
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
-from marimo._types.ids import CellId_t, RequestId
+from marimo._types.ids import CellId_t, RequestId, VariableName
 from tests.conftest import MockedKernel
 
 HAS_SQL = DependencyManager.duckdb.has() and DependencyManager.polars.has()
@@ -83,6 +84,43 @@ async def connection_requests() -> list[ExecuteCellCommand]:
 
 @pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
 class TestPreviewSQLTable:
+    async def test_internal_duckdb_nested_table(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        import duckdb
+
+        from marimo._sql.utils import is_duckdb_v2
+
+        if not is_duckdb_v2():
+            pytest.skip("Nested schemas require DuckDB 2")
+        try:
+            duckdb.execute(
+                "CREATE SCHEMA preview_nested; CREATE SCHEMA preview_nested.reports; CREATE TABLE preview_nested.reports.sales (amount INT)"
+            )
+            await mocked_kernel.k.handle_message(
+                PreviewSQLTableCommand(
+                    request_id=RequestId("nested"),
+                    engine=INTERNAL_DUCKDB_ENGINE,
+                    database="memory",
+                    schema="reports",
+                    schema_path=["preview_nested", "reports"],
+                    table_name="sales",
+                )
+            )
+            results = [
+                op
+                for op in mocked_kernel.stream.operations
+                if isinstance(op, SQLTablePreviewNotification)
+            ]
+            assert len(results) == 1
+            assert results[0].error is None
+            assert results[0].table is not None
+            assert results[0].table.columns[0].name == "amount"
+        finally:
+            duckdb.execute(
+                "DROP SCHEMA IF EXISTS memory.preview_nested CASCADE"
+            )
+
     async def test_non_existent_engine(
         self, mocked_kernel: MockedKernel
     ) -> None:
@@ -360,13 +398,21 @@ class TestPreviewSQLTableList:
         k = mocked_kernel.k
         stream = mocked_kernel.stream
 
-        await k.run(connection_requests)
+        await k.run(
+            [
+                *connection_requests,
+                ExecuteCellCommand(
+                    cell_id=CellId_t("4"),
+                    code=f"{DUCKDB_CONN}.execute('CREATE TABLE example (id INTEGER)')",
+                ),
+            ]
+        )
 
         preview_sql_table_list_request = ListSQLTablesCommand(
             request_id=RequestId("0"),
             engine=DUCKDB_CONN,
-            database="test",
-            schema="test",
+            database="memory",
+            schema="main",
         )
         await k.handle_message(preview_sql_table_list_request)
 
@@ -378,10 +424,21 @@ class TestPreviewSQLTableList:
         assert preview_sql_table_list_results == [
             SQLTableListPreviewNotification(
                 request_id=RequestId("0"),
-                tables=[],
+                tables=[
+                    DataTable(
+                        name="example",
+                        source="memory",
+                        source_type="connection",
+                        engine=VariableName(DUCKDB_CONN),
+                        num_rows=None,
+                        num_columns=None,
+                        columns=[],
+                        variable_name=None,
+                    )
+                ],
                 error=None,
                 metadata=SQLMetadata(
-                    connection=DUCKDB_CONN, database="test", schema="test"
+                    connection=DUCKDB_CONN, database="memory", schema="main"
                 ),
             )
         ]

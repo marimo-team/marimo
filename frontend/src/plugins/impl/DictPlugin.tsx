@@ -18,14 +18,14 @@ interface Data {
 }
 
 export class DictPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-dict";
+  public tagName = "marimo-dict";
 
-  validator = z.object({
+  public validator = z.object({
     label: z.string().nullable(),
     elementIds: z.record(z.string(), z.string()),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <Dict {...props.data} value={props.value} setValue={props.setValue}>
         {props.children}

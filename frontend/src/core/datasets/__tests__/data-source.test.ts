@@ -106,6 +106,7 @@ describe("data source connections", () => {
 
     let newState = addConnection(connections, state);
     expect(newState.connectionsMap.size).toBe(defaultConnSize + 2);
+    newState = { ...newState, latestEngineSelected: connections[0].name };
 
     newState = reducer(newState, {
       type: "removeDataSourceConnection",
@@ -113,6 +114,7 @@ describe("data source connections", () => {
     });
     expect(newState.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(newState.connectionsMap.has("conn2" as ConnectionName)).toBe(true);
+    expect(newState.latestEngineSelected).toBeNull();
   });
 
   it("can clear all connections", () => {

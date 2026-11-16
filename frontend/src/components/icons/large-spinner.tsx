@@ -1,23 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Loader2Icon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 
 export const LargeSpinner = ({ title }: { title?: string }) => {
-  const [currentTitle, setCurrentTitle] = useState(title);
-  const [isVisible, setIsVisible] = useState(true);
-
-  useEffect(() => {
-    if (title !== currentTitle) {
-      setIsVisible(false);
-      const timer = setTimeout(() => {
-        setCurrentTitle(title);
-        setIsVisible(true);
-      }, 300); // Wait for fade out animation to complete
-      return () => clearTimeout(timer);
-    }
-  }, [title, currentTitle]);
+  const currentTitle = useDebounce(title, 300);
+  const isVisible = title === currentTitle;
 
   return (
     <div className="flex flex-col h-full flex-1 items-center justify-center p-4">

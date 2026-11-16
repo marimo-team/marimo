@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from marimo._secrets.load_dotenv import (
     escape_dotenv_value,
@@ -9,11 +10,14 @@ from marimo._secrets.load_dotenv import (
 )
 from marimo._secrets.models import SecretProvider
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 
 class EnvSecretsProvider(SecretProvider):
     type = "env"
 
-    def __init__(self, original_environ: dict[str, str]):
+    def __init__(self, original_environ: Mapping[str, str]):
         self.original_environ = original_environ
 
     @property

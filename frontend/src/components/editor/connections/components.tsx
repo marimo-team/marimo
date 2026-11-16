@@ -18,9 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
+import type { DetectedDataSource } from "@/core/datasets/data-source-discovery";
 import {
   ENV_RENDERER,
   SECRET_TEXTAREA_RENDERER,
@@ -47,7 +48,7 @@ export const SelectorButton: React.FC<{
 }> = ({ name, color, icon, onSelect }) => (
   <button
     type="button"
-    className="py-3 flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 hover:brightness-110 rounded shadow-sm-solid hover:shadow-md-solid"
+    className="py-3 flex flex-col items-center justify-center gap-1 transition-[scale,filter,box-shadow] hover:scale-105 hover:brightness-110 rounded shadow-sm-solid hover:shadow-md-solid"
     style={{ backgroundColor: color }}
     onClick={onSelect}
   >
@@ -111,7 +112,7 @@ export const ConnectionFormFooter = <L extends string>({
  * Returns a callback that inserts code into a new cell after the last focused cell.
  */
 export function useInsertCode() {
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
 
@@ -120,17 +121,22 @@ export function useInsertCode() {
     if (/\bmo\./.test(code)) {
       maybeAddMarimoImport({
         autoInstantiate,
-        createNewCell,
+        createCell,
         fromCellId: lastFocusedCellId,
       });
     }
 
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-      skipIfCodeExists: true,
-    });
+    createCell({ after: lastFocusedCellId, code, skipIfCodeExists: true });
+  };
+}
+
+/** Insert the configured cell supplied by a detected data source. */
+export function useAddDetectedDataSource(onAdd?: () => void) {
+  const insertCode = useInsertCode();
+
+  return (source: DetectedDataSource) => {
+    insertCode(source.code);
+    onAdd?.();
   };
 }
 

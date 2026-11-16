@@ -322,8 +322,8 @@ class DynamicDirectoryMiddleware:
                     notebook_base_url, cache_key
                 )
                 LOGGER.debug(f"Successfully created app for {cache_key}")
-            except Exception as e:
-                LOGGER.exception(f"Failed to create app for {cache_key}: {e}")
+            except Exception:
+                LOGGER.exception("Failed to create app for %s", cache_key)
                 await self.app(scope, receive, send)
                 return
 
@@ -343,9 +343,9 @@ class DynamicDirectoryMiddleware:
             LOGGER.debug(
                 f"Successfully handled {scope['type']} request for {cache_key}"
             )
-        except Exception as e:
+        except Exception:
             LOGGER.exception(
-                f"Error handling {scope['type']} request for {cache_key}: {e}"
+                "Error handling %s request for %s", scope["type"], cache_key
             )
             # If the app fails, fall back to the main app
             await self.app(scope, receive, send)
@@ -544,6 +544,7 @@ def create_asgi_app(
                     {"runtime": {"show_tracebacks": show_tracebacks}},
                 )
             )
+            config = app_config_reader.get_config(hide_secrets=False)
 
             session_manager = SessionManager(
                 workspace=SingleFileWorkspace.from_path(MarimoPath(file_path)),
@@ -562,13 +563,12 @@ def create_asgi_app(
                 auth_token=auth_token,
                 redirect_console_to_browser=redirect_console_to_browser,
                 ttl_seconds=session_ttl,
-                isolate_apps=config_reader.experimental.get(
-                    "isolate_apps", False
-                ),
+                isolate_apps=config.experimental.isolate_apps,
                 execute_opengraph_generators=execute_opengraph_generators,
             )
             enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(
+                server_config=config.server,
                 base_url="",
                 lifespan=Lifespans(
                     [

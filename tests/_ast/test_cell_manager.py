@@ -86,7 +86,7 @@ class TestCellManager:
         self, cell_manager: CellManager
     ) -> None:
         # Externally-supplied ids (e.g. from frontend save round-trip /
-        # InternalApp.with_data) must be tracked so subsequent
+        # InternalApp.apply_data) must be tracked so subsequent
         # create_cell_id() calls don't produce a colliding id.
         explicit_id = CellId_t("test_external")
         cell_manager.register_cell(
@@ -215,8 +215,7 @@ class TestCellManager:
     def test_create_cell_id_1000(self) -> None:
         manager = CellManager()
         ids: set[CellId_t] = set()
-        for _ in range(1000):
-            ids.add(manager.create_cell_id())
+        ids.update(manager.create_cell_id() for _ in range(1000))
         assert len(ids) == 1000
 
 

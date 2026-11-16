@@ -104,9 +104,9 @@ class EditModeReloadStrategy(ReloadStrategy):
             )
 
         # Auto-run changed cells if configured.
-        watcher_on_save = self._config_manager.get_config()["runtime"][
-            "watcher_on_save"
-        ]
+        watcher_on_save = (
+            self._config_manager.get_config().runtime.watcher_on_save
+        )
         if watcher_on_save == "autorun":
             changed_not_deleted = list(changed_cell_ids - deleted)
             session.put_control_request(
@@ -243,8 +243,8 @@ class FileChangeCoordinator:
                 )
                 return FileChangeResult(handled=False)
 
-        # Reload the file manager to get the latest code. ``reload``
-        # mutates the existing document in place via ``apply()`` and
+        # Reload the file manager to get the latest code. `reload`
+        # mutates the existing document in place via `apply()` and
         # returns the stamped transaction, so we just relay it.
         try:
             transaction, changed_cell_ids = (

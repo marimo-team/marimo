@@ -9,7 +9,7 @@ export class Semaphore {
   private permits: number;
   private waiters: Array<() => void> = [];
 
-  constructor(permits: number) {
+  public constructor(permits: number) {
     if (!Number.isInteger(permits) || permits < 1) {
       throw new Error(
         `Semaphore permits must be a positive integer, got ${permits}`,
@@ -20,16 +20,16 @@ export class Semaphore {
   }
 
   /** Permits currently available. */
-  get available(): number {
+  public get available(): number {
     return this.permits;
   }
 
   /** Number of waiters queued for a permit. */
-  get pending(): number {
+  public get pending(): number {
     return this.waiters.length;
   }
 
-  acquire(): Promise<void> {
+  public acquire(): Promise<void> {
     if (this.permits > 0) {
       this.permits--;
       return Promise.resolve();
@@ -39,7 +39,7 @@ export class Semaphore {
     });
   }
 
-  release(): void {
+  public release(): void {
     const next = this.waiters.shift();
     if (next) {
       next();
@@ -54,7 +54,7 @@ export class Semaphore {
   }
 
   /** Acquire a permit, run `fn`, then release the permit. */
-  async run<T>(fn: () => Promise<T>): Promise<T> {
+  public async run<T>(fn: () => Promise<T>): Promise<T> {
     await this.acquire();
     try {
       return await fn();

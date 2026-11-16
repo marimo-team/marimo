@@ -21,17 +21,21 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { ExternalLink } from "@/components/ui/links";
 import { Tooltip } from "@/components/ui/tooltip";
+import { buildErrorReport } from "@/core/cells/error-report";
 import type { CellId } from "@/core/cells/ids";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
+import { viewStateAtom } from "@/core/mode";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { splitMangledLocals } from "@/utils/local-variables";
 import type { MarimoError } from "../../../core/kernel/messages";
+import type { CellError, HostDiagnostic } from "@/core/executions";
 import { cn } from "../../../utils/cn";
 import { Alert, AlertTitle } from "../../ui/alert";
 import { openPackageManager } from "../chrome/panels/packages-utils";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
+import { SendErrorReportButton } from "../errors/send-error-report-button";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
 
@@ -92,7 +96,8 @@ const Tip = (props: {
 
 interface Props {
   cellId: CellId | undefined;
-  errors: MarimoError[];
+  errors: readonly CellError[];
+  code?: string;
   className?: string;
 }
 
@@ -102,6 +107,7 @@ interface Props {
 export const MarimoErrorOutput = ({
   errors,
   cellId,
+  code,
   className,
 }: Props): JSX.Element => {
   const chromeActions = useChromeActions();
@@ -111,6 +117,9 @@ export const MarimoErrorOutput = ({
   // only helpful when outputs are displayed above the editor.
   const showConsoleHint =
     useAtomValue(resolvedMarimoConfigAtom).display.cell_output === "above";
+  // The editor shows tracebacks in the console area, so the inline copy is
+  // for views without a console: published apps and present mode.
+  const showInlineTraceback = useAtomValue(viewStateAtom).mode !== "edit";
 
   let titleContents: string | null =
     "This cell wasn't run because it has errors";
@@ -199,7 +208,8 @@ export const MarimoErrorOutput = ({
       e.type === "ancestor-stopped",
   );
   const syntaxErrors = errors.filter(
-    (e): e is Extract<MarimoError, { type: "syntax" }> => e.type === "syntax",
+    (e): e is Extract<MarimoError, { type: "syntax" | "lazy-import" }> =>
+      e.type === "syntax" || e.type === "lazy-import",
   );
   const unknownErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
@@ -208,7 +218,13 @@ export const MarimoErrorOutput = ({
     (e): e is Extract<MarimoError, { type: "sql-error" }> =>
       e.type === "sql-error",
   );
-
+  const diagnostics = errors.filter(
+    (e): e is HostDiagnostic => e.type === "diagnostic",
+  );
+  // The report describes kernel errors; a host diagnostic is already prose.
+  const kernelErrors = errors.filter(
+    (e): e is MarimoError => e.type !== "diagnostic",
+  );
   const openScratchpad = () => {
     chromeActions.openApplication("scratchpad");
   };
@@ -266,6 +282,32 @@ export const MarimoErrorOutput = ({
               cellId={cellId}
             />
           )}
+        </div>,
+      );
+    }
+
+    if (diagnostics.length > 0) {
+      messages.push(
+        <div key="diagnostics">
+          {diagnostics.map((diagnostic) => (
+            <div key={`${diagnostic.kind}:${diagnostic.msg}`}>
+              <p className="text-muted-foreground font-medium">
+                {diagnostic.msg}
+              </p>
+              {diagnostic.related.length > 0 && (
+                <ul className="list-disc">
+                  {diagnostic.related.map((cell) => (
+                    <li
+                      className={liStyle}
+                      key={`${cell.cell_id}:${cell.message}`}
+                    >
+                      <CellLinkError cellId={cell.cell_id} /> {cell.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
         </div>,
       );
     }
@@ -558,7 +600,9 @@ export const MarimoErrorOutput = ({
                     <p className="text-muted-foreground">
                       {processTextForUrls(error.msg, `exception-${idx}`)}
                     </p>
-                    {"traceback" in error && error.traceback ? (
+                    {showInlineTraceback &&
+                    "traceback" in error &&
+                    error.traceback ? (
                       <CollapsibleTraceback traceback={error.traceback} />
                     ) : (
                       showConsoleHint && (
@@ -572,9 +616,11 @@ export const MarimoErrorOutput = ({
                   <div>
                     {processTextForUrls(error.msg, `exception-${idx}`)}
                     <CellLinkError cellId={error.raising_cell} />
-                    {"traceback" in error && error.traceback && (
-                      <CollapsibleTraceback traceback={error.traceback} />
-                    )}
+                    {showInlineTraceback &&
+                      "traceback" in error &&
+                      error.traceback && (
+                        <CollapsibleTraceback traceback={error.traceback} />
+                      )}
                   </div>
                 )}
               </li>
@@ -728,6 +774,13 @@ export const MarimoErrorOutput = ({
     >
       {title}
       <div className="flex flex-col gap-4">{renderMessages()}</div>
+      {cellId && kernelErrors.length > 0 && (
+        <SendErrorReportButton
+          getContent={() =>
+            buildErrorReport(cellId, { code, errors: kernelErrors })
+          }
+        />
+      )}
     </Alert>
   );
 };

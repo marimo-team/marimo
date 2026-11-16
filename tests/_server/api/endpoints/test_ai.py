@@ -6,19 +6,35 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from starlette.exceptions import HTTPException
 
+from marimo._config.config_schema import MarimoConfig
+from marimo._config.types import CopilotMode
+from marimo._server.ai.completion_output import (
+    CELL_COMPLETION_DATA_TYPE,
+    NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+    CellCompletion,
+    NotebookCellsCompletion,
+)
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
     FIM_SUFFIX_TAG,
 )
 from marimo._server.ai.tools.types import ToolCallResult
-from marimo._server.api.endpoints.ai import resolve_completion_messages
+from marimo._server.ai.tracing import SpanInfo
+from marimo._server.api.endpoints.ai import (
+    _missing_mcp_dependencies_message,
+    get_provider_config,
+    resolve_completion_messages,
+)
 from marimo._server.models.completion import AiCompletionRequest
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from starlette.testclient import TestClient
 
 SESSION_ID = "session-123"
@@ -26,6 +42,77 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
+
+
+def _custom_provider_config(api_key: str, dotenvs: list[str]) -> MarimoConfig:
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "models": {"chat_model": "gateway/custom-model"},
+                "custom_providers": {
+                    "gateway": {
+                        "api_key": api_key,
+                        "base_url": "https://gateway.example.com/v1",
+                    }
+                },
+            },
+            "runtime": {"dotenv": dotenvs},
+        }
+    )
+
+
+def test_get_provider_config_resolves_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CUSTOM_API_KEY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("CUSTOM_API_KEY=dotenv-key", encoding="utf-8")
+    config = _custom_provider_config("env:CUSTOM_API_KEY", [str(env_file)])
+
+    provider_config = get_provider_config("gateway/custom-model", config)
+
+    assert provider_config.api_key == "dotenv-key"
+
+
+def test_get_provider_config_prefers_environment_over_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CUSTOM_API_KEY", "environment-key")
+    env_file = tmp_path / ".env"
+    env_file.write_text("CUSTOM_API_KEY=dotenv-key", encoding="utf-8")
+    config = _custom_provider_config("env:CUSTOM_API_KEY", [str(env_file)])
+
+    provider_config = get_provider_config("gateway/custom-model", config)
+
+    assert provider_config.api_key == "environment-key"
+
+
+def test_get_provider_config_rejects_missing_environment_reference(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MISSING_API_KEY", raising=False)
+    config = _custom_provider_config("env:MISSING_API_KEY", [])
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_provider_config("gateway/custom-model", config)
+
+    assert exc_info.value.status_code == 400
+    assert "'MISSING_API_KEY' is not set" in str(exc_info.value.detail)
+
+
+def test_get_provider_config_resolves_default_dotenv_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENAI_API_KEY=dotenv-key", encoding="utf-8")
+    config = MarimoConfig.from_dict(
+        {"ai": {"open_ai": {}}, "runtime": {"dotenv": [str(env_file)]}}
+    )
+
+    provider_config = get_provider_config("openai/gpt-4o", config)
+
+    assert provider_config.api_key == "dotenv-key"
 
 
 # Anthropic
@@ -128,7 +215,9 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
     def test_completion_without_code(
         client: TestClient, mock_stream_completion: Any
     ) -> None:
@@ -156,10 +245,49 @@ class TestOpenAiEndpoints:
             _assert_completion_prompt_in_messages(
                 mock_stream_completion, "Help me create a dataframe"
             )
+            kwargs = mock_stream_completion.call_args.kwargs
+            assert kwargs["output_type"] is CellCompletion
+            assert kwargs["data_type"] == CELL_COMPLETION_DATA_TYPE
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
+    def test_completion_with_ui_messages(
+        client: TestClient, mock_stream_completion: Any
+    ) -> None:
+        user_config_manager = get_session_config_manager(client)
+        mock_stream_completion.return_value = (
+            _mock_stream_completion_response()
+        )
+
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config(),
+        ):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "",
+                    "includeOtherCode": "",
+                    "code": "",
+                    "uiMessages": _create_messages("Create two cells"),
+                },
+            )
+
+        assert response.status_code == 200, response.text
+        kwargs = mock_stream_completion.call_args.kwargs
+        assert kwargs["output_type"] is NotebookCellsCompletion
+        assert kwargs["data_type"] == NOTEBOOK_CELLS_COMPLETION_DATA_TYPE
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
     def test_completion_with_code(
         client: TestClient, mock_stream_completion: Any
     ) -> None:
@@ -190,7 +318,9 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
     def test_completion_with_custom_model(
         client: TestClient, mock_stream_completion: Any
     ) -> None:
@@ -219,7 +349,9 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
     def test_completion_with_custom_base_url(
         client: TestClient, mock_stream_completion: Any
     ) -> None:
@@ -274,6 +406,7 @@ class TestOpenAiEndpoints:
             mock_completion.assert_called_once()
             # Assert the messages contain FIM format
             call_kwargs = mock_completion.call_args.kwargs
+            assert call_kwargs["thinking"] is False
             messages = call_kwargs["messages"]
             assert len(messages) == 1
             # Verify FIM format is used
@@ -368,7 +501,9 @@ class TestAnthropicAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.AnthropicProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.AnthropicProvider.stream_structured_completion"
+    )
     def test_anthropic_completion_with_code(
         client: TestClient, stream_completion_mock: Any
     ) -> None:
@@ -393,10 +528,6 @@ class TestAnthropicAiEndpoints:
             assert response.status_code == 200, response.text
             _assert_completion_prompt_in_messages(
                 stream_completion_mock, "Help me create a dataframe"
-            )
-            assert (
-                stream_completion_mock.call_args.kwargs["enable_capabilities"]
-                is False
             )
 
     @staticmethod
@@ -441,7 +572,9 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.GoogleProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.GoogleProvider.stream_structured_completion"
+    )
     def test_google_ai_completion_with_code(
         client: TestClient, stream_completion_mock: Any
     ) -> None:
@@ -451,15 +584,17 @@ class TestGoogleAiEndpoints:
             _mock_stream_completion_response()
         )
 
-        config = {
-            "ai": {
-                "open_ai": {"model": "gemini-1.5-pro"},
-                "google": {"api_key": "fake-key"},
-                "models": {
-                    "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+        config = MarimoConfig.from_dict(
+            {
+                "ai": {
+                    "open_ai": {"model": "gemini-1.5-pro"},
+                    "google": {"api_key": "fake-key"},
+                    "models": {
+                        "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+                    },
                 },
-            },
-        }
+            }
+        )
 
         with patch.object(
             user_config_manager, "get_config", return_value=config
@@ -488,16 +623,18 @@ class TestGoogleAiEndpoints:
         user_config_manager = get_session_config_manager(client)
 
         mock_provider = AsyncMock(spec=PydanticProvider)
-        mock_provider.stream_completion.return_value = (
+        mock_provider.stream_structured_completion.return_value = (
             _mock_stream_completion_response()
         )
 
-        config = {
-            "ai": {
-                "open_ai": {"model": "gemini-1.5-pro"},
-                "google": {"api_key": ""},
-            },
-        }
+        config = MarimoConfig.from_dict(
+            {
+                "ai": {
+                    "open_ai": {"model": "gemini-1.5-pro"},
+                    "google": {"api_key": ""},
+                },
+            }
+        )
 
         with (
             patch.object(
@@ -520,7 +657,8 @@ class TestGoogleAiEndpoints:
 
         assert response.status_code == 200, response.text
         _assert_completion_prompt_in_messages(
-            mock_provider.stream_completion, "Help me create a dataframe"
+            mock_provider.stream_structured_completion,
+            "Help me create a dataframe",
         )
 
     @staticmethod
@@ -560,140 +698,169 @@ class TestGoogleAiEndpoints:
             )
 
 
-def _openai_config() -> dict[str, Any]:
-    return {
-        "ai": {
-            "open_ai": {
-                "api_key": "fake-api",
-                "model": "openai/some-openai-model",
+def _openai_config() -> MarimoConfig:
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {
+                    "api_key": "fake-api",
+                    "model": "openai/some-openai-model",
+                },
+                "models": {
+                    "autocomplete_model": "gpt-marimo-for-inline-completion",
+                },
             },
-            "models": {
-                "autocomplete_model": "gpt-marimo-for-inline-completion",
-            },
-        },
-    }
+        }
+    )
 
 
 def _openai_config_custom_model():
-    return {
-        "ai": {
-            "open_ai": {
-                "api_key": "fake-api",
-                "model": "gpt-marimo",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {
+                    "api_key": "fake-api",
+                    "model": "gpt-marimo",
+                },
+                "models": {
+                    "autocomplete_model": "gpt-marimo-for-inline-completion",
+                },
             },
-            "models": {
-                "autocomplete_model": "gpt-marimo-for-inline-completion",
-            },
-        },
-    }
+        }
+    )
 
 
 def _openai_config_custom_base_url():
-    return {
-        "ai": {
-            "open_ai": {
-                "api_key": "fake-api",
-                "base_url": "https://my-openai-instance.com",
-                "model": "openai/some-openai-model-with-base-url",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {
+                    "api_key": "fake-api",
+                    "base_url": "https://my-openai-instance.com",
+                    "model": "openai/some-openai-model-with-base-url",
+                },
+                "models": {
+                    "autocomplete_model": "gpt-marimo-for-inline-completion",
+                },
             },
-            "models": {
-                "autocomplete_model": "gpt-marimo-for-inline-completion",
-            },
-        },
-    }
+        }
+    )
 
 
 def _no_openai_config():
-    return {
-        "ai": {
-            "open_ai": {"api_key": "", "model": ""},
-            "models": {
-                "autocomplete_model": "gpt-marimo-for-inline-completion",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"api_key": "", "model": ""},
+                "models": {
+                    "autocomplete_model": "gpt-marimo-for-inline-completion",
+                },
             },
-        },
-    }
+        }
+    )
 
 
 def _no_anthropic_config():
-    return {
-        "ai": {
-            "open_ai": {"model": "claude-3.5"},
-            "anthropic": {"api_key": ""},
-            "models": {
-                "autocomplete_model": "claude-3.5-for-inline-completion",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"model": "claude-3.5"},
+                "anthropic": {"api_key": ""},
+                "models": {
+                    "autocomplete_model": "claude-3.5-for-inline-completion",
+                },
             },
-        },
-    }
+        }
+    )
 
 
 def _anthropic_config():
-    return {
-        "ai": {
-            "open_ai": {"model": "claude-3.5"},
-            "anthropic": {"api_key": "fake-key"},
-            "models": {
-                "autocomplete_model": "anthropic/claude-3.5-for-inline-completion",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"model": "claude-3.5"},
+                "anthropic": {"api_key": "fake-key"},
+                "models": {
+                    "autocomplete_model": "anthropic/claude-3.5-for-inline-completion",
+                },
             },
-        },
-    }
+        }
+    )
 
 
 def _google_ai_config():
-    return {
-        "ai": {
-            "open_ai": {"model": "gemini-1.5-pro"},
-            "google": {"api_key": "fake-key"},
-            "models": {
-                "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+    return MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"model": "gemini-1.5-pro"},
+                "google": {"api_key": "fake-key"},
+                "models": {
+                    "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+                },
             },
-        },
-    }
+        }
+    )
 
 
 @pytest.mark.requires("openai", "pydantic_ai")
-@with_session(SESSION_ID)
-@patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+@pytest.mark.parametrize("mode", [None, "manual", "ask", "agent"])
 def test_chat_without_code(
-    client: TestClient, mock_stream_completion: Any
+    client: TestClient, temp_marimo_file: str, mode: CopilotMode | None
 ) -> None:
-    user_config_manager = get_session_config_manager(client)
+    @with_session(SESSION_ID)
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    def check_chat(client: TestClient, mock_stream_completion: Any) -> None:
+        user_config_manager = get_session_config_manager(client)
+        config = _openai_config()
+        if mode is not None:
+            config.ai.mode = mode
 
-    # Create a mock StreamingResponse
-    from starlette.responses import StreamingResponse
+        # Create a mock StreamingResponse
+        from starlette.responses import StreamingResponse
 
-    async def mock_stream():
-        yield b"Hello, how can I help you?"
+        async def mock_stream():
+            yield b"Hello, how can I help you?"
 
-    mock_response = StreamingResponse(
-        content=mock_stream(),
-        media_type="text/event-stream",
-    )
-    mock_stream_completion.return_value = mock_response
-
-    with patch.object(
-        user_config_manager, "get_config", return_value=_openai_config()
-    ):
-        response = client.post(
-            "/api/ai/chat",
-            headers=HEADERS,
-            json={
-                "messages": _create_messages("Hello"),
-                "uiMessages": _create_messages("Hello"),
-                "model": "gpt-4-turbo",
-                "variables": [],
-                "includeOtherCode": "",
-                "context": {},
-                "id": "123",
-                "options": {"webSearch": True},
-            },
+        mock_response = StreamingResponse(
+            content=mock_stream(),
+            media_type="text/event-stream",
         )
-        assert response.status_code == 200, response.text
-        # Verify stream_completion was called
-        mock_stream_completion.assert_called_once()
-        assert (
-            mock_stream_completion.call_args.kwargs["enable_capabilities"]
-            is True
-        )
+        mock_stream_completion.return_value = mock_response
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
+            response = client.post(
+                "/api/ai/chat",
+                headers=HEADERS,
+                json={
+                    "messages": _create_messages("Hello"),
+                    "uiMessages": _create_messages("Hello"),
+                    "model": "gpt-4-turbo",
+                    "variables": [],
+                    "includeOtherCode": "",
+                    "context": {},
+                    "id": "123",
+                    "options": {"webSearch": True},
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Verify stream_completion was called
+            mock_stream_completion.assert_called_once()
+            assert mock_stream_completion.call_args.kwargs[
+                "stream_options"
+            ].span_info == SpanInfo(
+                endpoint="chat",
+                model="gpt-4-turbo",
+                mode="agent" if mode == "agent" else "ask",
+                session_id=SESSION_ID,
+            )
+            assert (
+                mock_stream_completion.call_args.kwargs["enable_capabilities"]
+                is True
+            )
+
+    check_chat(client, temp_marimo_file)
 
 
 @pytest.mark.requires("openai", "pydantic_ai")
@@ -703,6 +870,18 @@ def test_chat_with_code(
     client: TestClient, mock_stream_completion: Any
 ) -> None:
     user_config_manager = get_session_config_manager(client)
+    messages = _create_messages("Help me create a dataframe")
+    messages[0]["parts"].insert(
+        0,
+        {
+            "type": "data-marimo-notebook",
+            "data": {
+                "sessionId": SESSION_ID,
+                "cellIds": ["a"],
+                "cells": [{"id": "a", "code": "import pandas as pd"}],
+            },
+        },
+    )
 
     # Create a mock StreamingResponse
     from starlette.responses import StreamingResponse
@@ -723,11 +902,9 @@ def test_chat_with_code(
             "/api/ai/chat",
             headers=HEADERS,
             json={
-                "messages": _create_messages("Help me create a dataframe"),
-                "uiMessages": _create_messages("Help me create a dataframe"),
+                "uiMessages": messages,
                 "model": "gpt-4-turbo",
                 "variables": [],
-                "includeOtherCode": "import pandas as pd",
                 "context": {},
                 "id": "123",
             },
@@ -735,15 +912,19 @@ def test_chat_with_code(
         assert response.status_code == 200, response.text
         # Verify stream_completion was called
         mock_stream_completion.assert_called_once()
+        kwargs = mock_stream_completion.call_args.kwargs
+        assert kwargs["messages"] == messages
+        assert "import pandas as pd" not in kwargs["system_prompt"]
+        assert SESSION_ID not in kwargs["system_prompt"]
         assert (
             mock_stream_completion.call_args.kwargs["enable_capabilities"]
             is False
         )
 
 
-def _openai_config_code_mode() -> dict[str, Any]:
-    config: dict[str, Any] = _openai_config()
-    config["ai"]["mode"] = "code_mode"
+def _openai_config_code_mode() -> MarimoConfig:
+    config = _openai_config()
+    config.ai.mode = "code_mode"
     return config
 
 
@@ -1193,3 +1374,89 @@ def test_resolve_completion_messages_from_ui_messages() -> None:
     messages, support_multiple_cells = resolve_completion_messages(body)
     assert support_multiple_cells is True
     assert messages == ui_messages
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "body", "expected_session_id"),
+    [
+        (
+            "chat",
+            {"includeOtherCode": "", "uiMessages": [], "id": "chat-1"},
+            "chat-1",
+        ),
+        (
+            "chat",
+            {"includeOtherCode": "", "uiMessages": []},
+            f"{SESSION_ID}:chat",
+        ),
+        (
+            "completion",
+            {"includeOtherCode": "", "code": "", "prompt": "", "id": "edit-1"},
+            "edit-1",
+        ),
+        (
+            "completion",
+            {"includeOtherCode": "", "code": "", "prompt": ""},
+            f"{SESSION_ID}:completion",
+        ),
+        (
+            "inline_completion",
+            {"prefix": "", "suffix": ""},
+            f"{SESSION_ID}:inline_completion",
+        ),
+    ],
+)
+def test_ai_endpoints_forward_conversation_id(
+    client: TestClient,
+    temp_marimo_file: str,
+    endpoint: str,
+    body: dict[str, Any],
+    expected_session_id: str,
+) -> None:
+    @with_session(SESSION_ID)
+    def check_endpoint(client: TestClient) -> None:
+        user_config_manager = get_session_config_manager(client)
+        provider = MagicMock()
+        provider.stream_completion = AsyncMock(
+            return_value=_mock_stream_completion_response()
+        )
+        provider.stream_structured_completion = AsyncMock(
+            return_value=_mock_stream_completion_response()
+        )
+        provider.completion = AsyncMock(return_value="pass")
+        with (
+            patch.object(
+                user_config_manager,
+                "get_config",
+                return_value=_openai_config(),
+            ),
+            patch(
+                "marimo._server.api.endpoints.ai.get_completion_provider",
+                return_value=provider,
+            ) as factory,
+        ):
+            response = client.post(
+                f"/api/ai/{endpoint}", headers=HEADERS, json=body
+            )
+
+        assert response.status_code == 200, response.text
+        assert factory.call_args.kwargs["session_id"] == expected_session_id
+
+    check_endpoint(client, temp_marimo_file)
+
+
+def test_missing_mcp_dependencies_message() -> None:
+    with (
+        patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="uv",
+        ),
+        patch(
+            "marimo._cli.install_hints._is_uv_project_context",
+            return_value=True,
+        ),
+        patch("marimo._cli.install_hints.is_windows", return_value=False),
+    ):
+        assert _missing_mcp_dependencies_message() == (
+            "Missing dependencies. Install with: uv add 'marimo[mcp]'"
+        )

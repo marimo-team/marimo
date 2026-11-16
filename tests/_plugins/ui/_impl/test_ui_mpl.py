@@ -70,7 +70,7 @@ def test_initial_box_selection() -> None:
 def test_initial_box_selection_clamps_to_axes() -> None:
     ax = _make_scatter_ax()
     axes_x_min, axes_x_max = sorted(ax.get_xlim())
-    axes_y_min, axes_y_max = sorted(ax.get_ylim())
+    _axes_y_min, axes_y_max = sorted(ax.get_ylim())
 
     partial = matplotlib(
         ax,

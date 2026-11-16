@@ -6,12 +6,149 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from marimo._runtime.commands import ModelCommand, ModelUpdateMessage
+from marimo._runtime.commands import (
+    ExecuteCellCommand,
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+    InstallPackagesCommand,
+    ModelCommand,
+    ModelUpdateMessage,
+)
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
-from marimo._types.ids import WidgetModelId
+from marimo._types.ids import CellId_t, WidgetModelId
+from tests._messaging.mocks import MockStream
 
 if TYPE_CHECKING:
     from tests.conftest import MockedKernel
+
+
+async def test_nested_commands_complete_the_run_once(
+    mocked_kernel: MockedKernel,
+) -> None:
+    await KernelRequestHandlers(mocked_kernel.k)._handle_execute_scratchpad(
+        ExecuteScratchpadCommand(
+            run_id="outer",
+            notebook_cells=(),
+            code=(
+                "import marimo._code_mode as cm\n"
+                "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
+                "await cm.get_context().execute_command(ExecuteCellsCommand("
+                "execution_requests=[ExecuteCellCommand(cell_id='child', code='x = 42')]))"
+            ),
+        )
+    )
+    messages = MockStream(mocked_kernel.stream).operations
+    assert [m["run_id"] for m in messages if m["op"] == "completed-run"] == [
+        "outer"
+    ]
+    assert {m["run_id"] for m in messages if m["op"] == "cell-op"} == {"outer"}
+    assert messages[-1]["op"] == "completed-run"
+
+
+async def test_cell_runs_carry_the_requested_run_id(
+    mocked_kernel: MockedKernel,
+) -> None:
+    await KernelRequestHandlers(mocked_kernel.k)._handle_execute_multiple(
+        ExecuteCellsCommand(
+            execution_requests=[
+                ExecuteCellCommand(cell_id=CellId_t("a"), code="x = 1")
+            ],
+            run_id="run-1",
+        )
+    )
+    messages = MockStream(mocked_kernel.stream).operations
+    assert [m["run_id"] for m in messages if m["op"] == "completed-run"] == [
+        "run-1"
+    ]
+    assert {m["run_id"] for m in messages if m["op"] == "cell-op"} == {"run-1"}
+
+
+async def test_package_install_rerun_completes_its_run(
+    mocked_kernel: MockedKernel,
+) -> None:
+    kernel = mocked_kernel.k
+    kernel._maybe_register_cell("a", "import math", stale=False)
+
+    async def install(request: InstallPackagesCommand) -> None:
+        del request
+        await kernel.maybe_autorun_cells({CellId_t("a")})
+
+    with patch.object(
+        kernel.packages_callbacks,
+        "install_missing_packages",
+        side_effect=install,
+    ):
+        await kernel.router.dispatch(
+            InstallPackagesCommand(manager="pip", versions={"math": ""})
+        )
+
+    messages = MockStream(mocked_kernel.stream).operations
+    planned = [
+        m
+        for m in messages
+        if m["op"] == "execution" and m["phase"] == "planned"
+    ]
+    completed = [m for m in messages if m["op"] == "completed-run"]
+    assert len(planned) == len(completed) == 1
+    assert planned[0]["run_id"] is not None
+    assert completed[0]["run_id"] == planned[0]["run_id"]
+    assert messages[-1]["op"] == "completed-run"
+
+
+async def test_a_failed_command_flushes_before_completing(
+    mocked_kernel: MockedKernel,
+) -> None:
+    stream = MockStream(mocked_kernel.stream)
+    flushed = []
+
+    def flush() -> None:
+        flushed.append(list(stream.operations))
+
+    with (
+        patch.object(
+            mocked_kernel.k, "run", side_effect=RuntimeError("failed")
+        ),
+        patch.object(mocked_kernel.stream, "flush_console", side_effect=flush),
+        pytest.raises(RuntimeError, match="failed"),
+    ):
+        await KernelRequestHandlers(mocked_kernel.k)._handle_execute_multiple(
+            ExecuteCellsCommand(execution_requests=[])
+        )
+    assert flushed == [[]]
+    assert [
+        (m["op"], m["outcome"], m["error"]) for m in stream.operations
+    ] == [("completed-run", "failed", "failed")]
+
+
+async def test_independent_task_does_not_own_the_enclosing_cycle(
+    mocked_kernel: MockedKernel,
+) -> None:
+    handlers = KernelRequestHandlers(mocked_kernel.k)
+    await handlers._handle_execute_scratchpad(
+        ExecuteScratchpadCommand(
+            run_id="outer",
+            notebook_cells=(),
+            code=(
+                "import asyncio\n"
+                "import marimo._code_mode as cm\n"
+                "from marimo._runtime.commands import ExecuteScratchpadCommand\n"
+                "await asyncio.gather(cm.get_context().execute_command(\n"
+                "    ExecuteScratchpadCommand(code='3 * 3', request=None)))\n"
+                "42"
+            ),
+        )
+    )
+    messages = MockStream(mocked_kernel.stream).operations
+    completed = [m for m in messages if m["op"] == "completed-run"]
+    assert len(completed) == 2
+    assert completed[0]["run_id"] != "outer"
+    assert completed[1]["run_id"] == "outer"
+    running = [
+        m["run_id"]
+        for m in messages
+        if m["op"] == "cell-op" and m["status"] == "running"
+    ]
+    assert running == ["outer", completed[0]["run_id"]]
 
 
 class TestReceiveModelMessage:
@@ -78,3 +215,67 @@ class TestReceiveModelMessage:
             await handlers._handle_receive_model_message(model_command)
 
             mock_set_ui.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "read",
+    [
+        "input('prompt')",
+        "__import__('builtins').input()",
+        "__import__('getpass').getpass()",
+    ],
+)
+async def test_noninteractive_scratch_input_is_scoped_to_the_command(
+    mocked_kernel: MockedKernel, read: str
+) -> None:
+    kernel = mocked_kernel.k
+    handlers = KernelRequestHandlers(kernel)
+    kernel.globals["observed"] = []
+    await handlers._handle_execute_scratchpad(
+        ExecuteScratchpadCommand(
+            code=f"try:\n    {read}\nexcept EOFError:\n    observed.append('EOF')",
+            allow_stdin=False,
+        )
+    )
+    await handlers._handle_execute_scratchpad(
+        ExecuteScratchpadCommand(code="observed.append(input('interactive'))")
+    )
+    assert kernel.globals["observed"] == ["EOF", "interactive"]
+
+
+@pytest.mark.parametrize(
+    "read",
+    [
+        "input('prompt')",
+        "__import__('builtins').input()",
+        "__import__('getpass').getpass()",
+    ],
+)
+async def test_noninteractive_cell_input_is_scoped_to_the_command(
+    mocked_kernel: MockedKernel, read: str
+) -> None:
+    kernel = mocked_kernel.k
+    handlers = KernelRequestHandlers(kernel)
+    kernel.globals["observed"] = []
+    await handlers._handle_execute_multiple(
+        ExecuteCellsCommand(
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=CellId_t("a"),
+                    code=f"try:\n    {read}\nexcept EOFError:\n    observed.append('EOF')",
+                )
+            ],
+            allow_stdin=False,
+        )
+    )
+    await handlers._handle_execute_multiple(
+        ExecuteCellsCommand(
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=CellId_t("a"),
+                    code="observed.append(input('interactive'))",
+                )
+            ]
+        )
+    )
+    assert kernel.globals["observed"] == ["EOF", "interactive"]

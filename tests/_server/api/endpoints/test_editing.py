@@ -1,14 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from tests._server.api.endpoints.ws_helpers import receive_until
+from tests._server.api.endpoints.ws_helpers import (
+    receive_notification,
+    receive_until,
+)
 from tests._server.mocks import token_header, with_session
 
 HAS_FORMATTER = DependencyManager.ruff.has() or DependencyManager.black.has()
@@ -31,20 +33,6 @@ def test_code_autocomplete(client: TestClient) -> None:
         json={
             "id": "completion-123",
             "document": "print('Hello, World!')",
-            "cellId": "cell-123",
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
-
-
-@with_session(SESSION_ID)
-def test_delete_cell(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/delete",
-        headers=HEADERS,
-        json={
             "cellId": "cell-123",
         },
     )
@@ -124,19 +112,13 @@ def test_install_missing_packages(client: TestClient) -> None:
     assert "success" in response.json()
 
 
-def _mock_server_install(
-    client: TestClient, *, manager_installed: bool = True
-) -> tuple[MagicMock, MagicMock]:
-    """POST install_missing_packages with source="server" using a mocked
-    package manager.  Returns (mock_create, mock_pkg_manager)."""
-    mock_pkg_manager = MagicMock()
-    mock_pkg_manager.is_manager_installed.return_value = manager_installed
-    mock_pkg_manager.install = AsyncMock()
-
+@with_session(SESSION_ID)
+def test_install_missing_packages_server_source(client: TestClient) -> None:
+    install_packages = AsyncMock()
     with patch(
-        "marimo._runtime.packages.package_managers.create_package_manager",
-        return_value=mock_pkg_manager,
-    ) as mock_create:
+        "marimo._server.api.endpoints.editing.install_packages_on_server",
+        new=install_packages,
+    ):
         response = client.post(
             "/api/kernel/install_missing_packages",
             headers=HEADERS,
@@ -149,57 +131,7 @@ def _mock_server_install(
         assert response.status_code == 200, response.text
         assert "success" in response.json()
 
-    return mock_create, mock_pkg_manager
-
-
-@with_session(SESSION_ID)
-def test_install_missing_packages_server_source(client: TestClient) -> None:
-    # source="server" routes the install to the server's Python env directly
-    # rather than dispatching to the kernel.
-    mock_create, mock_pkg_manager = _mock_server_install(client)
-    mock_create.assert_called_once_with("pip", python_exe=sys.executable)
-    mock_pkg_manager.install.assert_awaited_once_with("nbformat", version=None)
-
-
-@with_session(SESSION_ID)
-def test_install_missing_packages_server_source_manager_not_installed(
-    client: TestClient,
-) -> None:
-    # When the package manager is not installed, alert_not_installed is called
-    # and no packages are installed.
-    _, mock_pkg_manager = _mock_server_install(client, manager_installed=False)
-    mock_pkg_manager.alert_not_installed.assert_called_once()
-    mock_pkg_manager.install.assert_not_awaited()
-
-
-@with_session(SESSION_ID)
-def test_set_cell_config(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/set_cell_config",
-        headers=HEADERS,
-        json={
-            "configs": {
-                "cell-123": {"runnable": True},
-            },
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
-
-
-@with_session(SESSION_ID)
-def test_stdin(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/stdin",
-        headers=HEADERS,
-        json={
-            "text": "user input",
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
+    install_packages.assert_awaited_once_with({"nbformat": ""})
 
 
 @with_session(SESSION_ID)
@@ -224,7 +156,7 @@ def test_focus_cell_notifies_same_session_kiosk_consumer(
         f"/ws?session_id={SESSION_ID}&kiosk=true&access_token=fake-token",
         headers=auth_token,
     ) as websocket:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data["op"] == "kernel-ready"
         assert data["data"]["kiosk"] is True
 

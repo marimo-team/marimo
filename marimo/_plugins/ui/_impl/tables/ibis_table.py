@@ -190,7 +190,7 @@ class IbisTableManagerFactory(TableManagerFactory):
 
                 return bin_values
 
-            def get_field_type(
+            def _get_field_type_from_dtype(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
                 column = self._original_data[column_name]

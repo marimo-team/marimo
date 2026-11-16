@@ -1,16 +1,31 @@
 # Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
 import traceback
 from typing import Any
 
 import pytest
 
+from marimo._ast.cell import CellImpl
+from marimo._config.config_schema import MarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import MarimoSQLError
+from marimo._messaging.notification import (
+    CellNotification,
+    InterruptedNotification,
+)
+from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runner.cell_runner import Runner
-from marimo._runtime.runner.hooks import NotebookCellHooks
+from marimo._runtime.runner.hook_context import PostExecutionHookContext
+from marimo._runtime.runner.hooks import (
+    NotebookCellHooks,
+    Priority,
+    create_default_hooks,
+)
+from marimo._runtime.runner.result import RunResult
 from marimo._runtime.runtime import Kernel
-from tests.conftest import ExecReqProvider
+from tests.conftest import ExecReqProvider, MockedKernel
 
 
 async def test_cell_output(
@@ -53,9 +68,11 @@ async def test_debugger_lifecycle_gated_by_flag(
         return runner._evaluator.lifecycles
 
     def with_flag(value: bool) -> Any:
-        experimental = {**k.user_config.get("experimental", {})}
+        experimental = {**k.user_config.to_dict().get("experimental", {})}
         experimental["debugger"] = value
-        return {**k.user_config, "experimental": experimental}
+        return MarimoConfig.from_dict(
+            {**k.user_config.to_dict(), "experimental": experimental}
+        )
 
     def has_debugger(items: list[Any]) -> bool:
         return any(isinstance(item, DebuggerLifecycle) for item in items)
@@ -92,8 +109,13 @@ async def test_line_timing_lifecycle_gated_by_flag(
         ]
 
     def with_flags(**flags: bool) -> Any:
-        experimental = {**k.user_config.get("experimental", {}), **flags}
-        return {**k.user_config, "experimental": experimental}
+        experimental = {
+            **k.user_config.to_dict().get("experimental", {}),
+            **flags,
+        }
+        return MarimoConfig.from_dict(
+            {**k.user_config.to_dict(), "experimental": experimental}
+        )
 
     # line_timing alone: one lifecycle, watching without a debugger — even
     # when a debugger instance is available.
@@ -372,7 +394,6 @@ async def test_runner_dispatches_to_registered_plugin_executor(
 ) -> None:
     """A factory registered against `marimo.cell.executor` is the one
     the kernel `Runner` dispatches through."""
-    from typing import Any
 
     from marimo._runtime.executor.evaluator import _EXECUTOR_REGISTRY
 
@@ -489,6 +510,213 @@ async def test_runner_interrupted_flag_flips_on_async_cell_cancellation(
     assert runner.interrupted is True
 
 
+async def test_run_all_sends_one_interrupted_notification_after_idle(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    """An interrupted run sends exactly one `InterruptedNotification`,
+    and it follows the cell's `idle` status. The runner sends it from
+    normal control flow, not from the signal handler."""
+    k = mocked_kernel.k
+    await k.run([er := exec_req.get("raise KeyboardInterrupt")])
+    mocked_kernel.stream.messages.clear()
+
+    runner = Runner(
+        roots={er.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=create_default_hooks(),
+        execution_context=k._install_execution_context,
+    )
+    with capture_stderr():
+        await runner.run_all()
+
+    operations = mocked_kernel.stream.parsed_operations
+    interrupted = [
+        i
+        for i, op in enumerate(operations)
+        if isinstance(op, InterruptedNotification)
+    ]
+    idle = [
+        i
+        for i, op in enumerate(operations)
+        if isinstance(op, CellNotification)
+        and op.cell_id == er.cell_id
+        and op.status == "idle"
+    ]
+    assert runner.interrupted
+    assert len(interrupted) == 1
+    assert idle
+    assert idle[-1] < interrupted[0]
+
+
+@pytest.mark.parametrize("with_execution_context", [True, False])
+@pytest.mark.parametrize("interrupt_count", [1, 2])
+async def test_post_execution_interrupt_still_finalizes_cell(
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+    with_execution_context: bool,
+    interrupt_count: int,
+) -> None:
+    k = mocked_kernel.k
+    await k.run(
+        [
+            er := exec_req.get("x = 123; x"),
+            child := exec_req.get("y = x + 1"),
+        ]
+    )
+    del k.globals["y"]
+    mocked_kernel.stream.messages.clear()
+    cell = k.graph.cells[er.cell_id]
+    events: list[str] = []
+
+    def interrupt(
+        cell: CellImpl, ctx: PostExecutionHookContext, result: RunResult
+    ) -> None:
+        del ctx
+        if cell.cell_id != er.cell_id:
+            return
+        assert cell.runtime_state == "running"
+        assert (result.output, result.exception) == (123, None)
+        events.append("interrupt")
+        raise KeyboardInterrupt
+
+    def flush_console() -> None:
+        assert cell.runtime_state == "running"
+        events.append("flush")
+
+    monkeypatch.setattr(k.stream, "flush_console", flush_console)
+    hooks = create_default_hooks()
+    for _ in range(interrupt_count):
+        hooks.add_post_execution(interrupt, Priority.EARLY)
+    runner = Runner(
+        roots={er.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=hooks,
+        execution_context=(
+            k._install_execution_context if with_execution_context else None
+        ),
+    )
+
+    await runner.run_all()
+
+    assert (cell.runtime_state, cell.run_result_status) == ("idle", "success")
+    assert events == ["interrupt"] * interrupt_count + ["flush"]
+    assert [
+        op.status
+        for op in mocked_kernel.stream.cell_notifications
+        if op.cell_id == er.cell_id and op.status is not None
+    ] == ["queued", "running", "idle"]
+    assert runner.interrupted
+    assert "y" not in k.globals
+    assert k.graph.cells[child.cell_id].runtime_state == "idle"
+
+
+@pytest.mark.parametrize("with_execution_context", [True, False])
+@pytest.mark.parametrize("interrupted_cleanup", ["flush", "idle"])
+async def test_interrupt_during_finalization_still_broadcasts_idle(
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+    with_execution_context: bool,
+    interrupted_cleanup: str,
+) -> None:
+    k = mocked_kernel.k
+    await k.run([er := exec_req.get("123")])
+    mocked_kernel.stream.messages.clear()
+    cell = k.graph.cells[er.cell_id]
+    interruptions = 0
+    events: list[str] = []
+    broadcast_status = CellNotificationUtils.broadcast_status
+
+    def maybe_interrupt(cleanup: str) -> None:
+        nonlocal interruptions
+        if cleanup == interrupted_cleanup and interruptions < 2:
+            interruptions += 1
+            raise KeyboardInterrupt
+
+    def flush_console() -> None:
+        maybe_interrupt("flush")
+        events.append("flush")
+
+    def broadcast_status_with_interrupt(*args: Any, **kwargs: Any) -> None:
+        if kwargs.get("status") == "idle":
+            # The local state is already idle; the frontend still needs
+            # the notification even when that state hasn't changed.
+            assert cell.runtime_state == "idle"
+            maybe_interrupt("idle")
+            events.append("idle")
+        broadcast_status(*args, **kwargs)
+
+    monkeypatch.setattr(k.stream, "flush_console", flush_console)
+    monkeypatch.setattr(
+        CellNotificationUtils,
+        "broadcast_status",
+        broadcast_status_with_interrupt,
+    )
+    runner = Runner(
+        roots={er.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=create_default_hooks(),
+        execution_context=(
+            k._install_execution_context if with_execution_context else None
+        ),
+    )
+
+    await runner.run_all()
+
+    assert interruptions == 2
+    assert events[-2:] == ["flush", "idle"]
+    assert (cell.runtime_state, cell.run_result_status) == ("idle", "success")
+    assert [
+        op.status
+        for op in mocked_kernel.stream.cell_notifications
+        if op.cell_id == er.cell_id and op.status is not None
+    ] == ["queued", "running", "idle"]
+    assert runner.interrupted
+
+
+async def test_post_execution_error_still_finalizes_cell(
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+) -> None:
+    k = mocked_kernel.k
+    await k.run([er := exec_req.get("123")])
+    mocked_kernel.stream.messages.clear()
+
+    def fail(
+        cell: CellImpl, ctx: PostExecutionHookContext, result: RunResult
+    ) -> None:
+        del cell, ctx, result
+        raise ValueError("post-execution failed")
+
+    hooks = create_default_hooks()
+    hooks.add_post_execution(fail)
+    runner = Runner(
+        roots={er.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=hooks,
+        execution_context=k._install_execution_context,
+    )
+
+    with pytest.raises(ValueError, match="post-execution failed"):
+        await runner.run_all()
+
+    assert k.graph.cells[er.cell_id].runtime_state == "idle"
+    assert [
+        op.status
+        for op in mocked_kernel.stream.cell_notifications
+        if op.cell_id == er.cell_id and op.status is not None
+    ] == ["queued", "running", "idle"]
+
+
 async def test_run_all_swallows_sigint_raise_and_fires_on_finish(
     execution_kernel: Kernel,
     exec_req: ExecReqProvider,
@@ -538,3 +766,41 @@ async def test_run_all_swallows_sigint_raise_and_fires_on_finish(
         "on_finish_hooks must see the cells that were still queued "
         "when SIGINT fired"
     )
+
+
+async def test_traceback_keeps_source_captured_before_await(
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import Mock
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._runtime.exceptions import MarimoRuntimeException
+
+    k = execution_kernel
+    request = exec_req.get("original_source = 1")
+    await k.run([request])
+    runner = Runner(
+        roots={request.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=NotebookCellHooks(),
+    )
+
+    async def replace_cell(_cell: CellImpl) -> RunResult:
+        k.graph.cells[request.cell_id] = compile_cell(
+            "replacement_source = 2", cell_id=request.cell_id
+        )
+        exception = MarimoRuntimeException()
+        exception.__cause__ = ValueError("bad")
+        return RunResult(output=None, exception=exception)
+
+    writer = Mock()
+    monkeypatch.setattr(runner, "evaluate_interruptible", replace_cell)
+    monkeypatch.setattr(
+        "marimo._runtime.runner.cell_runner.write_traceback", writer
+    )
+    await runner.run(request.cell_id)
+    assert writer.call_args.kwargs["code"] == "original_source = 1"

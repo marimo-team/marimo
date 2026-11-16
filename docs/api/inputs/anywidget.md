@@ -9,6 +9,14 @@ creating custom Jupyter-compatible widgets. marimo supports anywidget, allowing
 you to import anywidget widgets or create your own custom widgets and use them
 in your notebooks and apps.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/mRbsvcxE9vc"
+  title="YouTube video player" loading="lazy" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
 ## Importing a widget
 
 You can use anywidgets that others have built, such as
@@ -94,7 +102,7 @@ If you're eager to build your own widgets and want to dive deeper you may enjoy 
 
 - Before making your own widget, it would be best to check and see if the widget already exists. The [widgets section on the marimo gallery](https://marimo.io/gallery/widgets) as well as the [gallery on anywidget.dev](https://anywidget.dev/en/community/) give you a good overview of what's out there. 
 - The [wigglystuff repository](https://github.com/koaning/wigglystuff) has many smaller widgets that could serve as an excellent starting point. 
-- We've noticed that coding agents are getting better at generating these anywidgets on the fly. If you're keen to explore that, install our [official skills](../../guides/generate_with_ai/customize_your_agent.md#official-marimo-skills), which include a skill for generating anywidgets.
+- We've noticed that coding agents are getting better at generating these anywidgets on the fly. If you're keen to explore that, install our [official skills](../../guides/generate_with_ai/skills.md), which include a skill for generating anywidgets.
 - You may also enjoy [this livestream on the marimo YouTube channel](https://www.youtube.com/watch?v=3V1r5sKnyz8) on building anywidgets. 
 
 ---

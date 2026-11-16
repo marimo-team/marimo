@@ -355,7 +355,8 @@ def request_shutdown() -> None:
     for process in list(live_processes):
         try:
             process.kill()
-        except Exception:
+        # Shutdown is best effort; continue cleaning up remaining workers.
+        except Exception:  # noqa: S112
             continue
     for thread in list(live_threads):
         task = getattr(thread, "_task", None)

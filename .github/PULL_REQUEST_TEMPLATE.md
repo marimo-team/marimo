@@ -7,12 +7,20 @@ Detail the specific changes made in this pull request. Explain the problem addre
 -->
 Closes #
 
+## 👋 First time contributor introduction
+
+<!--
+If this is your first contribution to marimo, tell us a bit about yourself: who you are and how you use marimo. It helps us get to know you, understand the context of your contributions, and collaborate more effectively during the review process. 2-3 sentences are enough. We are not looking for your work history or expertise.
+
+You can delete this section if you have a merged PR in any marimo repo.
+-->
+
 ## 📋 Pre-Review Checklist
 <!-- These checks need to be completed before a PR is reviewed -->
 
 - [ ] For large changes, or changes that affect the public API: this change was discussed or approved through an issue, on [Discord](https://marimo.io/discord?ref=pr), or the community [discussions](https://github.com/marimo-team/marimo/discussions) (Please provide a link if applicable).
 - [ ] Any AI generated code has been reviewed line-by-line by the human PR author, who stands by it.
-- [ ] Video or media evidence is provided for any visual changes (optional). <!-- PR is more likely to be merged if evidence is provided for changes made -->
+- [ ] Video or media evidence is provided for any visual changes. <!-- PR is more likely to be merged if functionality is tested thoroughly -->
 
 ## ✅ Merge Checklist
 

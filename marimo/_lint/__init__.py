@@ -12,7 +12,8 @@ from marimo._utils.files import async_expand_file_patterns
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from marimo._config.config import LintConfig
+    from marimo._ast.type_inference import TypeInferenceMode
+    from marimo._config.config_schema import LintConfig
 
 
 # Define severity ordering (lower index = higher priority)
@@ -35,25 +36,21 @@ def resolve_lint_config(
 
     config_mgr = get_default_config_manager(current_path=os.getcwd())
     full_config = config_mgr.get_config(hide_secrets=False)
-    lint_config: LintConfig = {
-        k: v
-        for k, v in full_config.get("lint", {}).items()
-        if k in ("select", "ignore")
-    }  # type: ignore[assignment]
+    lint_config = full_config.lint
 
     # CLI --select replaces config select entirely
     if select_rules is not None:
-        lint_config["select"] = [
+        lint_config.select = [
             s.strip() for s in select_rules.split(",") if s.strip()
         ]
 
     # CLI --ignore appends to config ignore
     if ignore_rules is not None:
         parsed = [s.strip() for s in ignore_rules.split(",") if s.strip()]
-        existing = list(lint_config.get("ignore") or [])
-        lint_config["ignore"] = existing + parsed
+        existing = list(lint_config.ignore)
+        lint_config.ignore = existing + parsed
 
-    return lint_config if lint_config else None
+    return lint_config if lint_config.to_dict() else None
 
 
 def run_check(
@@ -64,6 +61,8 @@ def run_check(
     ignore_scripts: bool = False,
     formatter: str = "full",
     lint_config: LintConfig | None = None,
+    infer_types: TypeInferenceMode | None = "off",
+    line_length: int | None = 79,
 ) -> Linter:
     """Run linting checks on files matching patterns (CLI entry point).
 
@@ -78,6 +77,8 @@ def run_check(
         ignore_scripts: Whether to ignore files not recognizable as marimo notebooks
         formatter: Output format for diagnostics ("full" or "json")
         lint_config: Optional lint rule selection config
+        infer_types: Inference backend, or None to use notebook configuration.
+        line_length: Parameter line width, or None to use notebook configuration.
 
     Returns:
         Linter with per-file status and diagnostics
@@ -92,6 +93,8 @@ def run_check(
         ignore_scripts=ignore_scripts,
         formatter=formatter,
         lint_config=lint_config,
+        infer_types=infer_types,
+        line_length=line_length,
     )
     linter.run_streaming(files_to_check)
     return linter

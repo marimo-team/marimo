@@ -26,13 +26,7 @@ import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
 import { FooterItem } from "../footer-item";
 
-interface RuntimeSettingsProps {
-  className?: string;
-}
-
-export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
-  className,
-}) => {
+export const RuntimeSettings: React.FC = () => {
   const { saveUserConfig } = useRequestClient();
   const [config, setUserConfig] = useResolvedMarimoConfig();
 

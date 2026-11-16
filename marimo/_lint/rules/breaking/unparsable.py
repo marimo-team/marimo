@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class UnparsableRule(LintRule):
-    """MB001: Cell contains unparsable code.
+    r"""MB001: Cell contains unparsable code.
 
     This rule detects cells that contain code that cannot be parsed as valid Python.
     Unparsable cells typically occur when a notebook file is corrupted, contains invalid
@@ -34,7 +34,7 @@ class UnparsableRule(LintRule):
     **Problematic:**
     ```python
     # Cell with encoding issues or corrupt data
-    x = 1 \\x00\\x01\\x02  # Binary data in source
+    x = 1 \x00\x01\x02  # Binary data in source
     ```
 
     **Problematic:**

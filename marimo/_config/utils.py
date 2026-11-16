@@ -13,6 +13,20 @@ LOGGER = _loggers.marimo_logger()
 CONFIG_FILENAME = ".marimo.toml"
 
 
+def drop_none_values(values: dict[str, Any]) -> None:
+    """Remove null-valued keys in place because TOML cannot represent them."""
+    for key in list(values):
+        value = values[key]
+        if value is None:
+            del values[key]
+        elif isinstance(value, dict):
+            drop_none_values(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    drop_none_values(item)
+
+
 def _is_parent(parent_path: str, child_path: str) -> bool:
     # Check if parent is actually a parent of child
     # paths must be real/absolute paths
@@ -49,7 +63,7 @@ def get_or_create_user_config_path() -> str:
         LOGGER.error(
             "Could not search for config file due to path error: %s. "
             "Falling back to XDG config path.",
-            str(e),
+            e,
         )
 
     # No config found or error occurred, create XDG config
@@ -121,9 +135,30 @@ def get_user_config_path() -> str | None:
     return None
 
 
-def deep_copy(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {k: deep_copy(v) for k, v in obj.items()}  # type: ignore
-    if isinstance(obj, list):
-        return [deep_copy(v) for v in obj]  # type: ignore
-    return obj
+def is_trusted_user_config_path(path: str) -> bool:
+    """Whether `path` is a genuinely user-owned config location.
+
+    Only the XDG config file and `~/.marimo.toml` in the home directory itself
+    are user-owned. `get_user_config_path` also returns the first `.marimo.toml`
+    found walking up from the cwd; such a file lives inside a project/repo and
+    is untrusted origin — an attacker can commit it to a cloned repo.
+    """
+    try:
+        real = os.path.realpath(path)
+    except OSError:
+        return False
+
+    trusted: set[str] = set()
+    try:
+        trusted.add(os.path.realpath(str(marimo_config_path())))
+    except OSError:
+        pass
+    home_expansion = os.path.expanduser("~")
+    if home_expansion != "~":
+        try:
+            trusted.add(
+                os.path.realpath(os.path.join(home_expansion, CONFIG_FILENAME))
+            )
+        except OSError:
+            pass
+    return real in trusted

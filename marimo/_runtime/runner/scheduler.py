@@ -40,8 +40,7 @@ if TYPE_CHECKING:
         Sequence,
     )
     from contextlib import AbstractAsyncContextManager
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runner.result import RunResult
@@ -67,10 +66,11 @@ class Scheduler(Protocol):
         coro: Coroutine[Any, Any, RunResult],
     ) -> AbstractAsyncContextManager[asyncio.Task[RunResult]]: ...
     def has_active_tasks(self) -> bool: ...
+    def owns_task(self, task: asyncio.Task[Any] | None) -> bool: ...
     def cancel_all(self) -> None: ...
 
     async def __aenter__(self) -> Self: ...
-    async def __aexit__(self, *exc_info: Any) -> None: ...
+    async def __aexit__(self, *exc_info: object) -> None: ...
 
 
 class SequentialScheduler:
@@ -205,6 +205,10 @@ class SequentialScheduler:
     def has_active_tasks(self) -> bool:
         return any(not t.done() for t in self._active.values())
 
+    def owns_task(self, task: asyncio.Task[Any] | None) -> bool:
+        """Whether this task is a cell evaluation the scheduler awaits."""
+        return task is not None and task in self._active.values()
+
     def cancel_all(self) -> None:
         # Set `_interrupted` first so a SIGINT arriving between cells
         # (no task registered) still halts the queue.
@@ -238,7 +242,7 @@ class SequentialScheduler:
             ctx._active_scheduler = self
         return self
 
-    async def __aexit__(self, *exc_info: Any) -> None:
+    async def __aexit__(self, *exc_info: object) -> None:
         from marimo._runtime.context.kernel_context import (
             KernelRuntimeContext,
         )

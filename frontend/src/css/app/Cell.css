@@ -27,43 +27,9 @@
     outline: none;
   }
 
-  &:has(.mo-ai-generated-cell)::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 10px;
-    pointer-events: none;
-    opacity: 0.5;
-    box-shadow: 0px 0px 10px 0px var(--cyan-9);
-    z-index: 1;
-  }
-
-  &:has(.mo-ai-generated-cell.mo-ai-setup-cell)::before {
-    border-radius: 2px;
-  }
-
   /* Styling for cells marked for deletion by AI */
   &:has(.mo-ai-deleted-cell) {
-    opacity: 0.7;
-    position: relative;
-
-    .output-area,
-    .cm-gutters,
-    .cm {
-      background-color: var(--red-2);
-    }
-
-    /* Add a red glow to indicate deletion */
-    &::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: 10px;
-      pointer-events: none;
-      opacity: 0.6;
-      box-shadow: 0px 0px 10px 0px var(--red-9);
-      z-index: 1;
-    }
+    box-shadow: -2px 0 0 var(--red-7);
 
     /* Add strikethrough effect to the code */
     .cm-content {
@@ -241,12 +207,16 @@
 
   /* Focus state */
 
-  &.focus-outline {
-    transition: all 0.6s;
+  &.focus-outline,
+  &[data-ai-review-selected] {
     border-color: var(--blue-8) !important;
 
     /* custom shadow until our theme overrides can support colored shadow */
     @apply shadow-lg shadow-[var(--blue-8)];
+  }
+
+  &.focus-outline {
+    transition: all 0.6s;
   }
 
   /* Published - when its just the output */

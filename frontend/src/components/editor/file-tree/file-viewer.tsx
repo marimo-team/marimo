@@ -9,7 +9,7 @@ import {
   SaveIcon,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export const MAX_FILE_PREVIEW_BYTES = 10 * 1024 * 1024;
 
 interface Props {
   file: FileInfo;
-  onOpenNotebook: (
+  onOpenNotebook?: (
     evt: Pick<Event, "stopPropagation" | "preventDefault">,
   ) => void;
 }
@@ -82,7 +82,9 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   // carry no draft to preserve.
   // We use a ref for internalValue so we don't call this effect on each keystroke
   const internalValueRef = useRef<string>(internalValue);
-  internalValueRef.current = internalValue;
+  useLayoutEffect(() => {
+    internalValueRef.current = internalValue;
+  }, [internalValue]);
   useEffect(() => {
     return () => {
       if (
@@ -156,11 +158,12 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       onDownload={disableFileDownloads ? undefined : handleDownload}
       actions={
         <>
-          {file.isMarimoFile && !isWasm() && (
+          {data.file.isMarimoFile && onOpenNotebook && !isWasm() && (
             <Tooltip content="Open notebook">
               <Button
                 variant="text"
                 size="xs"
+                aria-label="Open notebook"
                 onClick={(evt) => onOpenNotebook(evt)}
               >
                 <ExternalLinkIcon className="h-3.5 w-3.5" />
@@ -240,6 +243,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       {warningBanner}
       <FileContentRenderer
         mimeType={mimeType}
+        filename={data.file.name}
         contents={
           isText
             ? internalValue

@@ -20,17 +20,42 @@ def temp_dir():
         yield tmp_dir
 
 
-def test_save_layout_config(temp_dir: str):
+@pytest.mark.parametrize(
+    ("app_name", "expected_path"),
+    [
+        ("test.py", "layouts/test.grid.json"),
+        ("test.py.py", "layouts/test.py.grid.json"),
+        ("test.pyramid.py", "layouts/test.pyramid.grid.json"),
+        ("test.pyramid", "layouts/test.pyramid.grid.json"),
+        ("test.py.md", "layouts/test.py.md.grid.json"),
+        ("test.md", "layouts/test.md.grid.json"),
+    ],
+)
+def test_save_layout_config(
+    temp_dir: str, app_name: str, expected_path: str
+) -> None:
     config = LayoutConfig(type="grid", data={"cols": 2})
-    filepath = save_layout_config(temp_dir, "test.py", config)
+    filepath = save_layout_config(temp_dir, app_name, config)
 
-    assert filepath == "layouts/test.grid.json"
+    assert filepath == expected_path
     full_path = os.path.join(temp_dir, filepath)
     assert os.path.exists(full_path)
 
     with open(full_path) as f:
         saved_data = json.load(f)
     assert saved_data == {"type": "grid", "data": {"cols": 2}}
+
+
+def test_save_layout_config_distinct_notebooks(temp_dir: str) -> None:
+    first_config = LayoutConfig(type="grid", data={"cols": 2})
+    second_config = LayoutConfig(type="grid", data={"cols": 5})
+
+    first_path = save_layout_config(temp_dir, "demo.py.py", first_config)
+    second_path = save_layout_config(temp_dir, "demo.py", second_config)
+
+    assert first_path != second_path
+    assert read_layout_config(temp_dir, first_path) == first_config
+    assert read_layout_config(temp_dir, second_path) == second_config
 
 
 def test_read_layout_config(temp_dir: str):
@@ -79,11 +104,19 @@ def test_read_layout_config_invalid_data_uri():
     assert config is None
 
 
-def test_read_layout_config_invalid_json(temp_dir: str):
-    # Create an invalid JSON file
-    path = Path(temp_dir) / "layouts" / "invalid.grid.json"
+@pytest.mark.parametrize(
+    "contents",
+    ["invalid json", b"\xff\xfe", "[]", '{"type": 1, "data": []}'],
+    ids=["json", "encoding", "root", "fields"],
+)
+def test_read_layout_config_invalid_contents(
+    temp_dir: str, contents: str | bytes
+) -> None:
+    path = Path(temp_dir) / "layouts" / "invalid.slides.json"
     path.parent.mkdir(exist_ok=True)
-    path.write_text("invalid json")
+    if isinstance(contents, bytes):
+        path.write_bytes(contents)
+    else:
+        path.write_text(contents)
 
-    with pytest.raises(json.JSONDecodeError):
-        read_layout_config(temp_dir, "layouts/invalid.grid.json")
+    assert read_layout_config(temp_dir, "layouts/invalid.slides.json") is None

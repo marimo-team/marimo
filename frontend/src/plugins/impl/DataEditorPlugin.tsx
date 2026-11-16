@@ -1,27 +1,35 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
-import React, { useState } from "react";
+import glideCellsCss from "@glideapps/glide-data-grid-cells/dist/index.css?inline";
+import React, { useMemo } from "react";
 import { z } from "zod";
 import { inferFieldTypes } from "@/components/data-table/columns";
 import { LoadingTable } from "@/components/data-table/loading-table";
-import { type FieldTypes, toFieldTypes } from "@/components/data-table/types";
+import {
+  type FieldTypesWithExternalType,
+  toFieldTypes,
+} from "@/components/data-table/types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
 import { columnToFieldTypesSchema } from "./data-frames/schema";
-import {
-  BulkEdit,
-  type DataEditorProps,
-  type Edits,
+import { normalizeConfiguredColumns } from "./data-editor/column-types";
+import { orderColumnFields } from "./data-editor/data-utils";
+import { applyEditorEdits } from "./data-editor/editor-state";
+import type {
+  ColumnType,
+  EditorRow,
+  EditorState,
+  Edits,
 } from "./data-editor/types";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
 type CsvURL = string;
-type TableData<T> = T[] | CsvURL;
+type TableData = EditorRow[] | CsvURL;
 
 // Lazy load the data editor since it brings in glide-data-grid
 const LazyDataEditor = React.lazy(
@@ -29,7 +37,7 @@ const LazyDataEditor = React.lazy(
 );
 
 export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
-  cssStyles: [glideCss],
+  cssStyles: [glideCss, glideCellsCss],
 })
   .withData(
     z.object({
@@ -43,9 +51,16 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
         ),
       }),
       label: z.string().nullable(),
-      data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+      data: z.union([z.string(), z.array(z.looseObject({}))]),
       fieldTypes: columnToFieldTypesSchema.nullish(),
+      columnNames: z.array(z.string()).default([]),
       editableColumns: z.union([z.array(z.string()), z.literal("all")]),
+      columnTypes: z
+        .record(
+          z.string(),
+          z.union([z.literal("boolean"), z.array(z.string())]),
+        )
+        .default({}),
       columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
   )
@@ -55,40 +70,43 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       <LoadingDataEditor
         data={props.data.data}
         fieldTypes={props.data.fieldTypes}
+        columnNames={props.data.columnNames}
         edits={props.value}
         onEdits={props.setValue}
-        host={props.host}
         editableColumns={props.data.editableColumns}
+        columnTypes={props.data.columnTypes}
       />
     );
   });
 
-interface Props extends Omit<
-  DataEditorProps<object>,
-  "data" | "onAddEdits" | "onAddRows"
-> {
-  data: TableData<object>;
+interface Props {
+  data: TableData;
+  fieldTypes: FieldTypesWithExternalType | null | undefined;
   edits: Edits;
   onEdits: Setter<Edits>;
-  host: HTMLElement;
   editableColumns: string[] | "all";
+  columnNames: string[];
+  columnTypes: Record<string, ColumnType>;
 }
 
 const LoadingDataEditor = (props: Props) => {
-  const [data, setData] = useState<unknown[]>([]);
-  const [columnFields, setColumnFields] = useState<FieldTypes>(new Map());
+  const source = useMemo(
+    () => ({
+      data: props.data,
+      fieldTypes: props.fieldTypes,
+      columnNames: props.columnNames,
+      columnTypes: props.columnTypes,
+    }),
+    [props.data, props.fieldTypes, props.columnNames, props.columnTypes],
+  );
 
-  // Load the data
-  const { error } = useAsyncData(async () => {
-    const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
+  const { data: loadedState, error } = useAsyncData(async () => {
+    const withoutExternalTypes = toFieldTypes(source.fieldTypes ?? []);
 
-    // If we already have the data, return it
-    // Otherwise, load the data from the URL. Vega's CSV parser takes a
-    // plain `Record`; column order doesn't matter for parsing.
-    const localData = Array.isArray(props.data)
-      ? props.data
-      : await vegaLoadData(
-          props.data,
+    const localData = Array.isArray(source.data)
+      ? source.data
+      : await vegaLoadData<EditorRow>(
+          source.data,
           {
             type: "csv",
             parse: getVegaFieldTypes(Object.fromEntries(withoutExternalTypes)),
@@ -96,11 +114,35 @@ const LoadingDataEditor = (props: Props) => {
           { handleBigIntAndNumberLike: true },
         );
 
-    setData(localData);
-    setColumnFields(
-      toFieldTypes(props.fieldTypes ?? inferFieldTypes(localData)),
+    const columnTypes = new Map(Object.entries(source.columnTypes));
+    const inferredFields = toFieldTypes(
+      source.fieldTypes ?? inferFieldTypes(localData),
     );
-  }, [props.fieldTypes, props.data]);
+    for (const [columnName, columnType] of columnTypes) {
+      inferredFields.set(
+        columnName,
+        columnType === "boolean" ? "boolean" : "string",
+      );
+    }
+
+    return {
+      source,
+      state: {
+        data: normalizeConfiguredColumns(localData, columnTypes),
+        columnFields: orderColumnFields(inferredFields, source.columnNames),
+        columnTypes,
+      } satisfies EditorState,
+    };
+  }, [source]);
+
+  // useAsyncData retains previous data while a replacement source loads.
+  const editorState = useMemo(
+    () =>
+      loadedState?.source === source
+        ? applyEditorEdits(loadedState.state, props.edits.edits)
+        : null,
+    [loadedState, source, props.edits.edits],
+  );
 
   if (error) {
     return (
@@ -113,7 +155,7 @@ const LoadingDataEditor = (props: Props) => {
     );
   }
 
-  if (!data) {
+  if (editorState === null) {
     return (
       <DelayMount milliseconds={200}>
         <LoadingTable pageSize={10} />
@@ -123,54 +165,12 @@ const LoadingDataEditor = (props: Props) => {
 
   return (
     <LazyDataEditor
-      data={data}
-      setData={setData}
-      columnFields={columnFields}
-      setColumnFields={setColumnFields}
+      data={editorState.data}
+      columnFields={editorState.columnFields}
+      columnTypes={editorState.columnTypes}
       editableColumns={props.editableColumns}
-      edits={props.edits.edits}
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
-      }}
-      onAddRows={(rows) => {
-        const newEdits = rows.flatMap((row, rowIndex) =>
-          Object.entries(row).map(([columnId, value]) => ({
-            rowIdx: data.length + rowIndex,
-            columnId,
-            value,
-          })),
-        );
-        props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
-      }}
-      onDeleteRows={(rowIndexes) => {
-        props.onEdits((v) => {
-          const newEdits = rowIndexes.map((rowIdx, index) => ({
-            rowIdx: rowIdx - index,
-            type: BulkEdit.Remove,
-          }));
-          return {
-            ...v,
-            edits: [...v.edits, ...newEdits],
-          };
-        });
-      }}
-      onRenameColumn={(columnIdx: number, newName: string) => {
-        props.onEdits((v) => ({
-          ...v,
-          edits: [...v.edits, { columnIdx, newName, type: BulkEdit.Rename }],
-        }));
-      }}
-      onDeleteColumn={(columnIdx: number) => {
-        props.onEdits((v) => ({
-          ...v,
-          edits: [...v.edits, { columnIdx, type: BulkEdit.Remove }],
-        }));
-      }}
-      onAddColumn={(columnIdx: number, newName: string) => {
-        props.onEdits((v) => ({
-          ...v,
-          edits: [...v.edits, { columnIdx, newName, type: BulkEdit.Insert }],
-        }));
       }}
     />
   );

@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from marimo import _loggers
-from marimo._config.config import Theme
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatting import as_html
@@ -49,18 +47,3 @@ class HoloViewsFormatter(FormatterFactory):
                 # this may be bokeh, matplotlib, or plotly
                 html = as_html(backend_output)
                 return ("text/html", html.text)
-
-    def apply_theme(self, theme: Theme) -> None:
-        import holoviews as hv  # type: ignore
-
-        # TODO: checking for has() imports the library, which is not ideal,
-        # but the importing bokeh may come after importing holoviews.
-        # We can maybe improve this hooking into the holoviews Store.renderers
-        if DependencyManager.bokeh.has():
-            hv.renderer("bokeh").theme = (
-                "dark_minimal" if theme == "dark" else None
-            )
-        if DependencyManager.plotly.has():
-            hv.renderer("plotly").theme = (
-                "plotly_dark" if theme == "dark" else "plotly"
-            )

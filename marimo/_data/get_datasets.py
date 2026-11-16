@@ -519,9 +519,15 @@ _STRING_TYPES = {
 _TIME_TYPES = {"time", "time with time zone", "timetz"}
 _DATETIME_TYPES = {"datetime", "interval"}
 _BINARY_TYPES = {"bit", "bitstring", "binary", "varbinary", "bytea"}
+_GEOMETRY_TYPES = {
+    "geometry",
+    "point_2d",
+    "linestring_2d",
+    "polygon_2d",
+    "box_2d",
+}
 _UNKNOWN_TYPES = {
     "row",
-    "geometry",
     "inet",
     # Null type (can occur when attaching databases or with unknown column types)
     "null",
@@ -550,6 +556,12 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     if db_type in _STRING_TYPES:
         return "string"
 
+    # The MSSQL extension preserves declared string lengths in type aliases.
+    if db_type.startswith(
+        ("mssql_varchar(", "mssql_nvarchar(")
+    ) and db_type.endswith(")"):
+        return "string"
+
     if db_type == "date":
         return "date"
     if db_type in _TIME_TYPES:
@@ -564,6 +576,11 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     # Enum types (represented as string)
     if db_type == "enum" or db_type.startswith("enum"):
         return "string"
+
+    # GEOMETRY has been core in DuckDB since version 1.5; it is not a spatial
+    # extension type.
+    if db_type in _GEOMETRY_TYPES or db_type.startswith("geometry("):
+        return "geometry"
 
     # Nested types
     if db_type.startswith(

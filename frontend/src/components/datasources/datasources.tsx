@@ -3,7 +3,7 @@
 import { CommandList } from "cmdk";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { PlusIcon, PlusSquareIcon, XIcon } from "lucide-react";
+import { PlusSquareIcon, XIcon } from "lucide-react";
 import React from "react";
 import { dbDisplayName } from "@/components/databases/display";
 import { EngineVariable } from "@/components/databases/engine-variable";
@@ -13,23 +13,20 @@ import {
   VisibilityToggleButton,
 } from "@/components/editor/file-tree/tree-actions";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
+import { cellIdsAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import {
-  dataConnectionsMapAtom,
+  connectionsAtom,
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
-import {
-  DEFAULT_DUCKDB_DATABASE,
-  DUCKDB_ENGINE,
-  INTERNAL_SQL_ENGINES,
-} from "@/core/datasets/engines";
+import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import {
   PreviewSQLSchemaList,
   PreviewSQLTable,
@@ -68,7 +65,7 @@ import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { PythonIcon } from "../editor/cell/code/icons";
 import { useAddCodeToNewCell } from "../editor/cell/useAddCell";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { AddConnectionDialog } from "../editor/connections/add-connection-dialog";
+import { AddConnectionButton } from "../editor/connections/add-connection-button";
 import { DatasetColumnPreview } from "./column-preview";
 import {
   ColumnName,
@@ -82,6 +79,7 @@ import {
   areChildSchemasResolved,
   areSchemasResolved,
   areTablesResolved,
+  fullyQualifiedTableName,
   isSchemaless,
   schemaSubtreeMatchesSearch,
   shouldExpandDatabaseForSearch,
@@ -136,7 +134,7 @@ const sortedTablesAtom = atom((get) => {
       return 0;
     }
 
-    const index = cellIds.inOrderIds.indexOf(variable.declaredBy[0]);
+    const index = cellIds.indexOf(variable.declaredBy[0]);
     if (index === -1) {
       return 0;
     }
@@ -224,40 +222,6 @@ export function filterEmptyDatabases(databases: Database[]): Database[] {
   return changed ? result : databases;
 }
 
-/**
- * This atom is used to get the data connections that are available to the user.
- * It filters out the internal engines if it has no databases or if it has only the in-memory database and no schemas.
- */
-export const connectionsAtom = atom((get) => {
-  const dataConnections = new Map(get(dataConnectionsMapAtom));
-
-  // Filter out the internal engines if it has no databases
-  // Or if it has only the in-memory database and no schemas
-  for (const engine of INTERNAL_SQL_ENGINES) {
-    const connection = dataConnections.get(engine);
-    if (!connection) {
-      continue;
-    }
-
-    if (connection.databases.length === 0) {
-      dataConnections.delete(engine);
-    }
-
-    if (
-      connection.databases.length === 1 &&
-      connection.databases[0].name === DEFAULT_DUCKDB_DATABASE &&
-      connection.databases[0].schemas.length === 0
-    ) {
-      dataConnections.delete(engine);
-    }
-  }
-
-  // Put internal engines last to prioritize user-defined connections
-  return sortBy([...dataConnections.values()], (connection) =>
-    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
-  );
-});
-
 export const DataSources: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
   const [hideEmpty, setHideEmpty] = useAtom(hideEmptyDatasourcesAtom);
@@ -288,12 +252,12 @@ export const DataSources: React.FC = () => {
         title="No tables found"
         description="Any datasets/dataframes in the global scope will be shown here."
         action={
-          <AddConnectionDialog>
-            <Button variant="outline" size="sm">
-              Add database or catalog
-              <PlusIcon className="h-4 w-4 ml-2" />
-            </Button>
-          </AddConnectionDialog>
+          <AddConnectionButton
+            group="database"
+            label="Add database or catalog"
+            variant="outline"
+            size="sm"
+          />
         }
         icon={<DatabaseIcon />}
       />
@@ -322,6 +286,7 @@ export const DataSources: React.FC = () => {
         {hasSearch && (
           <button
             type="button"
+            aria-label="Clear table search"
             className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
             onClick={() => setSearchValue("")}
           >
@@ -339,15 +304,14 @@ export const DataSources: React.FC = () => {
           className="px-2 rounded-none focus-visible:outline-hidden"
         />
 
-        <AddConnectionDialog>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="px-2 rounded-none focus-visible:outline-hidden"
-          >
-            <PlusIcon className="h-4 w-4" />
-          </Button>
-        </AddConnectionDialog>
+        <AddConnectionButton
+          group="database"
+          label="Add database or catalog"
+          compact={true}
+          variant="ghost"
+          size="sm"
+          className="px-2 rounded-none focus-visible:outline-hidden"
+        />
       </div>
 
       <CommandList className="flex flex-col">
@@ -675,7 +639,7 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
   const [prevExpandForSearch, setPrevExpandForSearch] =
     React.useState(expandForSearch);
-  const uniqueValue = `${databaseName}:${schemaPath.join(".")}`;
+  const uniqueValue = JSON.stringify(["schema", databaseName, ...schemaPath]);
   const childSchemas = schema.child_schemas ?? [];
 
   // Re-sync when the query changes or when newly resolved data turns this
@@ -741,7 +705,40 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   );
 };
 
-const TableList: React.FC<{
+// Kept outside the component because the React Compiler does not yet
+// support try/finally inside component bodies.
+async function loadTableList(
+  sqlTableContext: SQLTableContext,
+  addTableList: ReturnType<typeof useDataSourceActions>["addTableList"],
+  setLoading: (loading: boolean) => void,
+) {
+  setLoading(true);
+  try {
+    const { engine, database, schema, schemaPath } = sqlTableContext;
+    const previewTableList = await PreviewSQLTableList.request({
+      engine: engine,
+      database: database,
+      schema: schema,
+      schemaPath: schemaPath ?? [],
+    });
+
+    if (!previewTableList?.tables) {
+      throw new Error("No tables available");
+    }
+
+    addTableList({
+      tables: previewTableList.tables,
+      sqlTableContext: sqlTableContext,
+    });
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * This is exported for testing purposes only.
+ */
+export const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
@@ -770,26 +767,7 @@ const TableList: React.FC<{
   // resets tablesResolved to false).
   const { isPending, error } = useAsyncData(async () => {
     if (!tablesResolved && sqlTableContext) {
-      setTablesLoading(true);
-
-      const { engine, database, schema, schemaPath } = sqlTableContext;
-      const previewTableList = await PreviewSQLTableList.request({
-        engine: engine,
-        database: database,
-        schema: schema,
-        schemaPath: schemaPath ?? [],
-      });
-
-      if (!previewTableList?.tables) {
-        setTablesLoading(false);
-        throw new Error("No tables available");
-      }
-
-      addTableList({
-        tables: previewTableList.tables,
-        sqlTableContext: sqlTableContext,
-      });
-      setTablesLoading(false);
+      await loadTableList(sqlTableContext, addTableList, setTablesLoading);
     }
   }, [tablesResolved, sqlTableContext]);
 
@@ -872,13 +850,13 @@ const DatasetTableItem: React.FC<{
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleAddTable = () => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell,
+      createCell,
       fromCellId: lastFocusedCellId,
     });
     const getCode = () => {
@@ -1003,6 +981,7 @@ const DatasetTableItem: React.FC<{
         {renderRowsByColumns()}
         <Tooltip content="Add table to notebook" delayDuration={400}>
           <Button
+            aria-label={`Add table ${table.name} to notebook`}
             className="group-hover:inline-flex hidden"
             variant="text"
             size="icon"
@@ -1093,19 +1072,16 @@ const DatasetColumnItem: React.FC<{
           {isIndexed &&
             renderItemSubtext({ tooltipContent: "Indexed", content: "IDX" })}
         </div>
-        <Tooltip content="Copy column name" delayDuration={400}>
-          <Button
-            variant="text"
-            size="icon"
-            className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
-          >
-            <CopyClipboardIcon
-              tooltip={false}
-              value={column.name}
-              className="h-3 w-3"
-            />
-          </Button>
-        </Tooltip>
+        <CopyClipboardIcon
+          tooltip="Copy column name"
+          value={column.name}
+          ariaLabel={`Copy column name ${column.name}`}
+          className="h-3 w-3"
+          buttonClassName={cn(
+            buttonVariants({ variant: "text", size: "icon" }),
+            "group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground",
+          )}
+        />
         <span className="text-xs text-muted-foreground">
           {column.external_type}
         </span>
@@ -1121,9 +1097,7 @@ const DatasetColumnItem: React.FC<{
               column={column}
               onAddColumnChart={handleAddColumn}
               preview={columnsPreviews.get(
-                sqlTableContext
-                  ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}:${column.name}`
-                  : `${table.name}:${column.name}`,
+                `${fullyQualifiedTableName(sqlTableContext, table.name)}:${column.name}`,
               )}
               sqlTableContext={sqlTableContext}
             />

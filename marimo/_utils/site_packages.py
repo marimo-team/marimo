@@ -5,7 +5,10 @@ import functools
 import os
 import pathlib
 import site
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from importlib.machinery import ModuleSpec
 
 
 @functools.cache
@@ -23,7 +26,7 @@ def _getsitepackages() -> list[pathlib.Path]:
     return site_packages_dirs
 
 
-def is_local_module(spec: Any) -> bool:
+def is_local_module(spec: ModuleSpec | None) -> bool:
     """Check if a module is local (not under site-packages).
 
     Uses Python's site module to get actual site-packages directories,

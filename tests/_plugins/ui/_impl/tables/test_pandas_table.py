@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
 
+import msgspec
 import narwhals.stable.v2 as nw
 import pytest
 
@@ -42,6 +43,12 @@ def _normalize_pandas_dtypes(text: str) -> str:
     - interval resolutions changed accordingly
     - NaT/None serialization differences in to_dict() output
 
+    Pandas 3.1 changed:
+    - DatetimeIndex/TimedeltaIndex reprs wrap onto a new line before `dtype=`
+    - TimedeltaIndex pads every element to the widest sub-second precision
+      in the index, so `.000030` renders as `.000030000` next to a
+      nanosecond-precision sibling
+
     Normalize all to pandas 2.x representations so snapshots work across versions.
     """
     text = re.sub(r"datetime64\[\w+\]", "datetime64[ns]", text)
@@ -49,6 +56,8 @@ def _normalize_pandas_dtypes(text: str) -> str:
     # Pandas 3.x uses "str" instead of "object" for string columns.
     # Normalize ["string", "str"] -> ["string", "object"] for snapshot comparisons.
     text = re.sub(r'\["string",\s*"str"\]', '["string", "object"]', text)
+    text = re.sub(r",\n\s+(dtype=)", r", \1", text)
+    text = re.sub(r"(:\d{2}\.\d{6})000(?!\d)", r"\1", text)
     return text
 
 
@@ -66,7 +75,7 @@ def _normalize_pandas_json(text: str) -> str:
     # Match NaN preceded by : or , or [ (JSON value positions), not inside quotes.
     text = re.sub(r"(?<=[:,\[])NaN(?=[,\]\}])", "null", text)
     # Replace "NaT" string with null for consistent null representation.
-    text = re.sub(r'"NaT"', "null", text)
+    text = text.replace('"NaT"', "null")
     return text
 
 
@@ -153,10 +162,10 @@ class TestPandasTableManager(unittest.TestCase):
                     end=pd.Timestamp("2017-01-04"),
                 ),
                 "delta": [
-                    pd.to_timedelta(["1 days 06:05:01.00003"]),
-                    pd.to_timedelta(["1 days 06:05:01.00003", "15.5us"]),
+                    pd.to_timedelta(["1 days 06:05:01.000030001"]),
+                    pd.to_timedelta(["1 days 06:05:01.000030001", "15.5us"]),
                     pd.to_timedelta(
-                        ["1 days 06:05:01.00003", "15.5us", "nan"]
+                        ["1 days 06:05:01.000030001", "15.5us", "nan"]
                     ),
                 ],
                 "none": [
@@ -314,7 +323,9 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_csv()
+        # Cap the width to ensure different pandas versions do not churn snapshots
+        with pd.option_context("display.width", 1000):
+            data = complex_data.to_csv()
         assert isinstance(data, bytes)
         snapshot("pandas.csv", _normalize_pandas_dtypes(data.decode("utf-8")))
 
@@ -367,7 +378,6 @@ class TestPandasTableManager(unittest.TestCase):
         df = pd.DataFrame(
             {
                 "complex": [1 + 2j, complex(nan, nan)],
-                "timedelta": [pd.Timedelta(days=1), pd.NaT],
                 "date": [datetime.date(2020, 1, 1), None],
                 "bytes": [b"ab", None],
             }
@@ -378,17 +388,31 @@ class TestPandasTableManager(unittest.TestCase):
         assert json_data == [
             {
                 "complex": "(1+2j)",
-                "timedelta": "1 days 00:00:00",
                 "date": "2020-01-01",
                 "bytes": "b'ab'",
             },
             {
                 "complex": None,
-                "timedelta": None,
                 "date": None,
                 "bytes": None,
             },
         ]
+
+    def test_to_json_str_preserves_timedelta_nat_for_frontend(self) -> None:
+        df = pd.DataFrame({"value": [pd.Timedelta(days=1), pd.NaT]})
+        manager = self.factory.create()(df)
+
+        assert manager.to_json_str(strict_json=False) == (
+            '[{"value":"1 days 00:00:00"},{"value":"NaT"}]'
+        )
+
+    def test_to_json_str_converts_timedelta_nat_for_export(self) -> None:
+        df = pd.DataFrame({"value": [pd.Timedelta(days=1), pd.NaT]})
+        manager = self.factory.create()(df)
+
+        assert manager.to_json_str(strict_json=True) == (
+            '[{"value":"1 days 00:00:00"},{"value":null}]'
+        )
 
     @pytest.mark.skipif(
         not DependencyManager.numpy.has(),
@@ -1836,11 +1860,28 @@ class TestPandasTableManager(unittest.TestCase):
         manager = self.factory.create()(df)
         assert manager.get_field_type("A") == ("string", "object")
 
-    def test_search_with_regex(self) -> None:
-        df = pd.DataFrame({"A": ["apple", "banana", "cherry"]})
+    def test_search_treats_query_as_literal(self) -> None:
+        df = pd.DataFrame(
+            {
+                "A": [
+                    "apple",
+                    "banana",
+                    "C++",
+                    "c++ guide",
+                    "ΟΣ",
+                    "ος",
+                    "οσ",
+                    "İstanbul",
+                ]
+            }
+        )
         manager = self.factory.create()(df)
-        result = manager.search("^[ab]")
-        assert result.get_num_rows() == 2
+        assert manager.search("^[ab]").get_num_rows() == 0
+        assert manager.search("c++").get_num_rows() == 2
+        assert manager.search("C++ G").get_num_rows() == 1
+        assert manager.search("a.b").get_num_rows() == 0
+        assert manager.search("Σ").get_num_rows() == 3
+        assert manager.search("İ").get_num_rows() == 1
 
     def test_sort_values_with_nulls(self) -> None:
         df = pd.DataFrame({"A": [3, 1, None, 2]})
@@ -1949,15 +1990,9 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.time(7, 8, 9),
                 ],
                 "datetime_tz_col": [
-                    datetime.datetime(
-                        2021, 1, 1, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 2, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2021, 1, 3, tzinfo=datetime.timezone.utc
-                    ),
+                    datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 2, tzinfo=datetime.UTC),
+                    datetime.datetime(2021, 1, 3, tzinfo=datetime.UTC),
                 ],
             }
         )
@@ -2484,6 +2519,47 @@ class TestPandasTableManager(unittest.TestCase):
         json_data = json.loads(manager.to_json_str())
 
         assert json_data == [{"value": "(1.0,)"}, {"value": None}]
+
+    def test_to_json_str_preserves_all_null_extension_nan_for_frontend(
+        self,
+    ) -> None:
+        series = pd.Series([None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        assert manager.to_json_str(strict_json=False) == '[{"value":NaN}]'
+
+    def test_to_json_str_preserves_mixed_extension_nan_for_frontend(
+        self,
+    ) -> None:
+        series = pd.Series([7, None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        assert manager.to_json_str(strict_json=False) == (
+            '[{"value":7},{"value":NaN}]'
+        )
+
+    def test_to_json_str_converts_extension_nan_for_export(self) -> None:
+        series = pd.Series(["kept", None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        payload = manager.to_json_str(strict_json=True)
+
+        assert payload == '[{"value":"kept"},{"value":null}]'
+        assert msgspec.json.decode(payload) == [
+            {"value": "kept"},
+            {"value": None},
+        ]
+
+    def test_to_json_str_converts_all_null_extension_nan_for_export(
+        self,
+    ) -> None:
+        series = pd.Series([None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        payload = manager.to_json_str(strict_json=True)
+
+        assert payload == '[{"value":null}]'
+        assert msgspec.json.decode(payload) == [{"value": None}]
 
     def test_to_arrow_ipc_fallback_for_unsupported_extension_dtype(
         self,

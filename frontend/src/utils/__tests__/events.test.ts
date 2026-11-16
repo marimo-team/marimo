@@ -179,7 +179,7 @@ describe("Events.fromInput", () => {
 
   // jsdom does not implement isContentEditable, so this is tested
   // via shouldIgnoreKeyboardEvent which has a closest() fallback.
-  test.skip("returns true for contentEditable", () => {
+  test.fails("returns true for contentEditable", () => {
     const div = document.createElement("div");
     div.setAttribute("contenteditable", "true");
     document.body.append(div);

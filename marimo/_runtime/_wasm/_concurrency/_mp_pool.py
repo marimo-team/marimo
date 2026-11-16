@@ -21,8 +21,7 @@ from marimo._runtime._wasm._concurrency._wait import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
-
-    from typing_extensions import Self
+    from typing import Self
 
 
 class AsyncPoolResult:
@@ -349,7 +348,7 @@ class AsyncPool:
         self._check_running()
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         del exc
         self.terminate()
 

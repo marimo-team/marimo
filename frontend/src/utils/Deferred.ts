@@ -7,13 +7,13 @@
  * cases where you need to check if a promise has settled without awaiting it.
  */
 export class Deferred<T> {
-  promise: Promise<T>;
-  resolve!: (value: T | PromiseLike<T>) => void;
-  reject!: (reason?: unknown) => void;
-  status: "pending" | "resolved" | "rejected" = "pending";
-  value: T | undefined = undefined;
+  public promise: Promise<T>;
+  public resolve!: (value: T | PromiseLike<T>) => void;
+  public reject!: (reason?: unknown) => void;
+  public status: "pending" | "resolved" | "rejected" = "pending";
+  public value: T | undefined = undefined;
 
-  constructor() {
+  public constructor() {
     this.promise = new Promise<T>((resolve, reject) => {
       this.reject = (reason: unknown) => {
         this.status = "rejected";

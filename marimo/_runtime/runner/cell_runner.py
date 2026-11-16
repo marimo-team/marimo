@@ -14,7 +14,8 @@ from marimo._ast.variables import (
     is_local,
     unmangle_local,
 )
-from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
+from marimo._config.config_schema import ExperimentalConfig, MarimoConfig
+from marimo._config.types import ExecutionType, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
@@ -23,9 +24,16 @@ from marimo._messaging.errors import (
     MarimoSQLError,
     UnknownError,
 )
-from marimo._messaging.tracebacks import write_traceback
+from marimo._messaging.notification import InterruptedNotification
+from marimo._messaging.notification_utils import broadcast_notification
+from marimo._messaging.tracebacks import (
+    _highlight_traceback,
+    format_exception,
+    write_traceback,
+)
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
@@ -33,6 +41,7 @@ from marimo._runtime.exceptions import (
     MarimoRuntimeException,
     unwrap_user_exception,
 )
+from marimo._runtime.execution import ExecutionAttempt
 from marimo._runtime.executor import (
     DebuggerLifecycle,
     Evaluator,
@@ -60,8 +69,11 @@ LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
     from collections import deque
+    from collections.abc import Callable
 
     from marimo._ast.cell import CellImpl
+    from marimo._core.protocol import Revision
+    from marimo._runtime.runner.hook_context import PostExecutionHookContext
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
 
@@ -150,6 +162,13 @@ class Runner:
         excluded_cells: set[CellId_t] | None = None,
         execution_context: ExecutionContextManager | None = None,
         user_config: MarimoConfig | None = None,
+        executions: dict[CellId_t, ExecutionAttempt] | None = None,
+        plan_execution: Callable[
+            [CellId_t, ExecutionAttempt | None], ExecutionAttempt
+        ]
+        | None = None,
+        get_inputs: Callable[[CellImpl], dict[str, Revision | None] | None]
+        | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -157,6 +176,17 @@ class Runner:
         self.execution_context = execution_context
         self._hooks = hooks
         self.user_config = user_config
+        self._executions = executions if executions is not None else {}
+        self._get_inputs = get_inputs
+        self._plan_execution = plan_execution or (
+            lambda cell_id, planned: (
+                planned
+                if planned is not None
+                else ExecutionAttempt.plan(
+                    cell_id, self.graph.cells[cell_id].code
+                )
+            )
+        )
 
         # runtime globals
         self.glbls = glbls
@@ -189,9 +219,7 @@ class Runner:
         lifecycles: list[ExecutionLifecycle] = []
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
-        if user_config is not None and user_config.get("runtime", {}).get(
-            "cache_cells", False
-        ):
+        if user_config is not None and user_config.runtime.cache_cells:
             from marimo._runtime.executor.lifecycles.cached import (
                 CachedLifecycle,
             )
@@ -199,25 +227,19 @@ class Runner:
             lifecycles.append(
                 CachedLifecycle(
                     self.graph,
-                    # Default pin_modules to True for a stronger backwards compatibility
-                    # guarantee.
-                    pin_modules=bool(
-                        user_config.get("runtime", {}).get("pin_modules", True)
-                    ),
+                    pin_modules=user_config.runtime.pin_modules,
                 )
             )
         # Live debugger and line-timing highlight share one frame-watching
         # lifecycle (a single `sys.settrace` hook). Gated here so there is
         # zero tracing overhead when disabled.
         experimental = (
-            self.user_config.get("experimental", {})
+            self.user_config.experimental
             if self.user_config is not None
-            else {}
+            else ExperimentalConfig()
         )
-        debugger_on = self.debugger is not None and bool(
-            experimental.get("debugger", False)
-        )
-        line_timing_on = bool(experimental.get("line_timing", False))
+        debugger_on = self.debugger is not None and experimental.debugger
+        line_timing_on = experimental.line_timing
         if debugger_on or line_timing_on:
             lifecycles.append(
                 DebuggerLifecycle(self.debugger if debugger_on else None)
@@ -516,6 +538,14 @@ class Runner:
         elif isinstance(unwrapped_exception, MarimoStopError):
             output = unwrapped_exception.output
             exception = unwrapped_exception
+        if (
+            isinstance(exception, MarimoExceptionRaisedError)
+            and unwrapped_exception is not None
+            and get_mode() == "edit"
+        ):
+            exception.traceback = _highlight_traceback(
+                format_exception(unwrapped_exception)
+            )
         return RunResult(
             output=output, exception=exception
         ), unwrapped_exception
@@ -559,7 +589,7 @@ class Runner:
             raise raw_result.exception
 
         try:
-            run_result = self._finalize_run_result(raw_result, cell_id)
+            run_result = self._finalize_run_result(raw_result, cell)
         except BaseException as exc:
             unexpected_failure = exc
             run_result = RunResult(output=None, exception=None)
@@ -578,7 +608,7 @@ class Runner:
             as sample code to reproduce, will help us debug.
             %s
             """,
-                str(unexpected_failure),
+                unexpected_failure,
             )
 
         # Mark as interrupted if the cell raised a MarimoInterrupt
@@ -594,9 +624,10 @@ class Runner:
         return run_result
 
     def _finalize_run_result(
-        self, raw_result: RunResult, cell_id: CellId_t
+        self, raw_result: RunResult, cell: CellImpl
     ) -> RunResult:
         """Classify the Evaluator's RunResult and apply Runner side effects."""
+        cell_id = cell.cell_id
         exc = raw_result.exception
         if exc is None:
             return raw_result
@@ -616,7 +647,7 @@ class Runner:
                 type(exc), exc, exc.__traceback__, file=tmpio
             )
             tmpio.seek(0)
-            write_traceback(tmpio.read())
+            write_traceback(tmpio.read(), code=cell.code)
             return RunResult(output=None, exception=MarimoInterrupt())
 
         # Should cover all cell runtime exceptions.
@@ -650,28 +681,13 @@ class Runner:
             # call, so this should be lifted to a non-interruptible path.
             self.cancel(cell_id)
 
-            if should_show_traceback(run_result.exception):
-                tmpio = io.StringIO()
-                # The executors explicitly raise cell exceptions from base
-                # exceptions such that the stack trace is cleaner.
-                # Verbosity is for Python < 3.10 compat
-                # See https://docs.python.org/3/library/traceback.html
-                exception_type = (
-                    type(unwrapped_exception) if unwrapped_exception else None
+            if (
+                should_show_traceback(run_result.exception)
+                and unwrapped_exception is not None
+            ):
+                write_traceback(
+                    format_exception(unwrapped_exception), code=cell.code
                 )
-                maybe_traceback = (
-                    unwrapped_exception.__traceback__
-                    if unwrapped_exception
-                    else None
-                )
-                traceback.print_exception(
-                    exception_type,
-                    unwrapped_exception,
-                    maybe_traceback,
-                    file=tmpio,
-                )
-                tmpio.seek(0)
-                write_traceback(tmpio.read())
             return run_result
 
         # Anything else escaping the Evaluator is unexpected.
@@ -682,7 +698,7 @@ class Runner:
             type(exc), exc, exc.__traceback__, file=tmpio
         )
         tmpio.seek(0)
-        write_traceback(tmpio.read())
+        write_traceback(tmpio.read(), code=cell.code)
         return RunResult(output=None, exception=UnknownError(f"{exc}"))
 
     def _update_debugger_state(
@@ -718,7 +734,7 @@ class Runner:
 
                 An exception raised attempting to continue debugger (%s).
                 """,
-                str(debugger_error),
+                debugger_error,
             )
 
     def _get_blamed_cell(
@@ -754,7 +770,63 @@ class Runner:
                     return defining_cell_id
         return None
 
+    def _run_post_execution_hooks(
+        self,
+        cell: CellImpl,
+        ctx: PostExecutionHookContext,
+        run_result: RunResult,
+    ) -> None:
+        try:
+            for post_hook in self._hooks.post_execution_hooks:
+                try:
+                    post_hook(cell, ctx, run_result)
+                except KeyboardInterrupt:
+                    self.interrupted = True
+                    LOGGER.info(
+                        "Cell %s interrupted during post-execution hook",
+                        cell.cell_id,
+                    )
+        finally:
+            # Cleanup must complete even if interrupted after updating local
+            # state but before broadcasting it to the frontend.
+            while True:
+                try:
+                    for finalize in self._hooks.finalization_hooks:
+                        finalize(cell, ctx, run_result)
+                    break
+                except KeyboardInterrupt:
+                    self.interrupted = True
+
+    def _take_attempt(self, cell_id: CellId_t) -> ExecutionAttempt:
+        """The attempt planned for the cell, or a new one.
+
+        Planned when a run was dispatched, this one or the outer run a
+        nested command came from. The planner replaces an attempt whose
+        source has changed since. A cell that reaches its turn without an
+        attempt, requeued for a rerun, is planned now.
+        """
+        planned = self._executions.pop(cell_id, None)
+        return self._plan_execution(cell_id, planned)
+
     async def _run_one(
+        self,
+        cell_id: CellId_t,
+        pre_exec_ctx: Any,
+        post_exec_ctx: Any,
+    ) -> None:
+        execution = self._take_attempt(cell_id)
+        if self._get_inputs is not None:
+            execution.depends_on = self._get_inputs(self.graph.cells[cell_id])
+        with execution.activate():
+            execution.start()
+            try:
+                await self._run_one_in_context(
+                    cell_id, pre_exec_ctx, post_exec_ctx
+                )
+            finally:
+                execution.finish()
+
+    async def _run_one_in_context(
         self,
         cell_id: CellId_t,
         pre_exec_ctx: Any,
@@ -770,8 +842,9 @@ class Runner:
                 with self.execution_context(cell_id) as exc_ctx:
                     run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
-                    for post_hook in self._hooks.post_execution_hooks:
-                        post_hook(cell, post_exec_ctx, run_result)
+                    self._run_post_execution_hooks(
+                        cell, post_exec_ctx, run_result
+                    )
             except KeyboardInterrupt:
                 LOGGER.error(
                     "A keyboard interrupt was raised but not handled by "
@@ -779,8 +852,7 @@ class Runner:
                 )
         else:
             run_result = await self.run(cell_id)
-            for post_hook in self._hooks.post_execution_hooks:
-                post_hook(cell, post_exec_ctx, run_result)
+            self._run_post_execution_hooks(cell, post_exec_ctx, run_result)
 
     async def run_all(self) -> None:
         from marimo._runtime.runner.hook_context import (
@@ -838,16 +910,39 @@ class Runner:
             except KeyboardInterrupt:
                 LOGGER.info("Runner interrupted via SIGINT")
 
+        if self.interrupted:
+            # Sent from normal control flow, not from the SIGINT handler.
+            # The handler can run nested inside itself and must not take
+            # the stream lock that this broadcast needs.
+            broadcast_notification(InterruptedNotification())
+
+        # Interrupted and cancelled cells share one attempt across the
+        # finish hooks, which may report more than one error for a cell.
+        skipped = set(self.cells_to_run).union(
+            *(self.cancelled_cells[cid] for cid in self.cancelled_cells)
+        )
+        attempts = {
+            cell_id: self._take_attempt(cell_id) for cell_id in sorted(skipped)
+        }
         finish_ctx = OnFinishHookContext(
             graph=self.graph,
             cells_to_run=self.cells_to_run,
             interrupted=self.interrupted,
             cancelled_cells=self.cancelled_cells,
             exceptions=self.exceptions,
+            execution_ids={
+                cid: execution.id for cid, execution in attempts.items()
+            },
         )
         LOGGER.debug("Running on_finish hooks")
         for finish_hook in self._hooks.on_finish_hooks:
             finish_hook(finish_ctx)
+        for execution in attempts.values():
+            if self._get_inputs is not None:
+                execution.depends_on = self._get_inputs(
+                    self.graph.cells[execution.cell_id]
+                )
+            execution.finish()
 
     async def _dispatch_runnable(
         self,
@@ -927,6 +1022,10 @@ class Runner:
         if interrupted_at is not None:
             runnable.extend(snapshot[interrupted_at:])
         self._scheduler.requeue(runnable)
+        # The stream shows the whole run queued before its first cell starts.
+        for cell_id in runnable:
+            if cell_id not in self._executions:
+                self._executions[cell_id] = self._plan_execution(cell_id, None)
 
         for batch in self._scheduler.batch():
             for cell_id in batch:

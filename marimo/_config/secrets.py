@@ -1,21 +1,27 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, TypeVar, cast
+import copy
+from typing import Any, TypeVar
 
-from marimo._config.config import MarimoConfig, PartialMarimoConfig
-from marimo._config.utils import deep_copy
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 
 SECRET_PLACEHOLDER = "********"
 
-# TODO: mypy doesn't like using @overload here
+
+def redact_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
+    """Return a sparse configuration copy with sensitive values redacted."""
+    return _redact_dict(config)
 
 
-def mask_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
-    return cast(PartialMarimoConfig, mask_secrets(cast(MarimoConfig, config)))
+def redact_secrets(config: MarimoConfig) -> MarimoConfig:
+    return MarimoConfig.from_dict(_redact_dict(config.to_dict()))
 
 
-def mask_secrets(config: MarimoConfig) -> MarimoConfig:
+def _redact_dict(config: PartialMarimoConfig) -> PartialMarimoConfig:
+    """Return a configuration copy with sensitive values redacted."""
+
     def deep_remove_from_path(
         path: list[str], obj: dict[str, Any] | Any
     ) -> None:
@@ -39,26 +45,33 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
             return
         if len(path) == 1:
             if isinstance(obj[key], list):
-                obj[key] = []
+                if obj[key]:
+                    obj.pop(key)
             elif obj[key]:
                 obj[key] = SECRET_PLACEHOLDER
         else:
             deep_remove_from_path(remaining_path, obj[key])
 
     secrets = (
+        ("server", "session_secret"),
         ("ai", "*", "api_key"),
         ("ai", "custom_providers", "*", "api_key"),
         ("ai", "bedrock", "aws_access_key_id"),
         ("ai", "bedrock", "aws_secret_access_key"),
         ("runtime", "dotenv"),
+        # This machine's signing identity — never serialized to the frontend.
+        ("signing", "private_key_path"),
     )
 
-    new_config = deep_copy(config)
+    new_config = copy.deepcopy(config)
+    # Removed credentials can survive as unknown fields in saved configurations.
+    if isinstance(completion := new_config.get("completion"), dict):
+        completion.pop("codeium_api_key", None)
 
     for secret in secrets:
         deep_remove_from_path(list(secret), new_config)
 
-    return cast(MarimoConfig, new_config)
+    return new_config
 
 
 T = TypeVar("T")
@@ -79,4 +92,4 @@ def remove_secret_placeholders(config: T) -> T:
             return None
         return obj
 
-    return deep_remove(deep_copy(config))  # type: ignore
+    return deep_remove(copy.deepcopy(config))  # type: ignore

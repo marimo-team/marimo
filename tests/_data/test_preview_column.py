@@ -20,6 +20,7 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 from marimo._runtime.commands import PreviewDatasetColumnCommand
 from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes
+from tests._plugins.ui._impl.tables import geometry_fixtures as geo
 from tests.mocks import snapshotter
 from tests.utils import assert_serialize_roundtrip
 
@@ -281,6 +282,38 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
             column_name="category",
         ).stats
     )
+
+
+@pytest.mark.requires("duckdb", "altair", "pyarrow", "vegafusion")
+@pytest.mark.parametrize("column_type", ["DATE", "TIMESTAMP"])
+@pytest.mark.parametrize("row_count", [0, 3])
+def test_get_column_preview_for_duckdb_missing_dates(
+    column_type: str, row_count: int
+) -> None:
+    import duckdb
+
+    table_name = "missing_dates_preview"
+    duckdb.execute(
+        f"CREATE OR REPLACE TABLE {table_name} AS "
+        f"SELECT NULL::{column_type} AS value FROM range({row_count})"
+    ).fetchall()
+    try:
+        result = get_column_preview_for_duckdb(
+            fully_qualified_table_name=table_name,
+            column_name="value",
+        )
+        assert result is not None
+        assert result.error is None
+        assert result.chart_spec is not None
+        assert result.stats is not None
+        assert (result.stats.total, result.stats.nulls) == (
+            row_count,
+            row_count if row_count else None,
+        )
+        assert duckdb.sql("SELECT 42").fetchall() == [(42,)]
+        assert_serialize_roundtrip(result)
+    finally:
+        duckdb.execute(f"DROP TABLE {table_name}").fetchall()
 
 
 @pytest.mark.skipif(
@@ -598,6 +631,24 @@ def test_preview_column_struct_skips_chart() -> None:
     assert result.chart_code is None
     assert result.stats is not None
     mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.requires("altair")
+@pytest.mark.requires("geopandas")
+def test_preview_column_geometry_skips_chart() -> None:
+    manager = get_table_manager(geo.gdf_point_known_crs())
+    assert manager is not None
+
+    result = get_column_preview_dataset(
+        table=manager,
+        table_name="table",
+        column_name="geometry",
+    )
+
+    assert result.error is None
+    assert result.chart_spec is None
+    assert result.chart_code is None
+    assert result.stats is not None
 
 
 @pytest.mark.parametrize(

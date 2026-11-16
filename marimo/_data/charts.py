@@ -5,12 +5,11 @@ import abc
 from dataclasses import dataclass
 from datetime import time
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, assert_never, cast
 
 import narwhals.stable.v2 as nw
 
 from marimo._data.models import DataType
-from marimo._utils import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify
 from marimo._utils.theme import get_current_theme
 
@@ -121,7 +120,7 @@ class NumberChartBuilder(ChartBuilder):
         mark_bar = (
             """.mark_bar()"""
             if simple
-            else """.mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
+            else f""".mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
         )
 
         return f"""
@@ -360,6 +359,8 @@ class DateChartBuilder(ChartBuilder):
         # Get min and max dates using narwhals
         min_date = df[column].min()
         max_date = df[column].max()
+        if min_date is None or max_date is None:
+            return self.DEFAULT_DATE_FORMAT, self.DEFAULT_TIME_UNIT
 
         # Handle time-only data
         if isinstance(min_date, time) and isinstance(max_date, time):
@@ -480,7 +481,7 @@ class DateChartBuilder(ChartBuilder):
         return f"""
         _chart = (
             alt.Chart({data})
-            .transform_filter(f"datum.{column} != null")
+            .transform_filter("datum.{column} != null")
             .transform_timeunit(as_="{new_field}", field="{column}", timeUnit="{time_unit}")
             .mark_area()
             .encode(
@@ -502,7 +503,7 @@ class DateChartBuilder(ChartBuilder):
         new_field = f"_{column}"
 
         return f"""
-        _base = alt.Chart({data}).transform_filter(f"datum.{column} != null")
+        _base = alt.Chart({data}).transform_filter("datum.{column} != null")
 
         # Explicit time binning, create a new field
         _transformed = _base.transform_timeunit(
@@ -728,7 +729,7 @@ class IntegerChartBuilder(ChartBuilder):
         mark_bar = (
             """.mark_bar()"""
             if simple
-            else """.mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
+            else f""".mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
         )
 
         return f"""
@@ -832,7 +833,7 @@ def get_chart_builder(
         return WrapperChartBuilder(BooleanChartBuilder())
     if column_type == "integer":
         return WrapperChartBuilder(IntegerChartBuilder())
-    if column_type == "unknown":
+    if column_type == "unknown" or column_type == "geometry":
         return WrapperChartBuilder(UnknownChartBuilder())
 
     assert_never(column_type)

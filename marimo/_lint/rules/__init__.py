@@ -1,4 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
+"""Lint rules for marimo notebooks.
+
+See `development_docs/adding_lint_rules.md` for how to add a new rule.
+"""
+
 from __future__ import annotations
 
 from marimo._lint.rules.base import LintRule

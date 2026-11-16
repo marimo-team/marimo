@@ -105,6 +105,7 @@ class CellManager:
         hide_code: bool,
         app: InternalApp | None = None,
         *,
+        expand_output: bool = False,
         top_level: bool = False,
     ) -> Cell | Obj[P, R] | Callable[[Obj[P, R]], Cell | Obj[P, R]]:
         """Create a cell decorator for marimo notebook cells."""
@@ -112,7 +113,10 @@ class CellManager:
         # path. This code is only called when run as a script or imported as a
         # module.
         cell_config = CellConfig(
-            column=column, disabled=disabled, hide_code=hide_code
+            column=column,
+            disabled=disabled,
+            hide_code=hide_code,
+            expand_output=expand_output,
         )
 
         def _register(obj: Obj[P, R]) -> Cell | Obj[P, R]:
@@ -607,6 +611,7 @@ class CellManager:
                         column=cd.config.column,
                         disabled=cd.config.disabled,
                         hide_code=cd.config.hide_code,
+                        expand_output=cd.config.expand_output,
                     )
                 )
                 changed_cell_ids.add(cd.cell_id)

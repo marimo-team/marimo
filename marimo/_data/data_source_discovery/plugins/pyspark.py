@@ -5,6 +5,7 @@ from marimo._data.data_source_discovery.helpers import (
     ENVIRONMENT_ORIGIN,
     environment_variable,
     has_value,
+    hides_when_dialect,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
@@ -26,6 +27,7 @@ def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
             confidence="high",
             origins=(ENVIRONMENT_ORIGIN,),
             configuration=(environment_variable("Remote", "SPARK_REMOTE"),),
+            hides_when=hides_when_dialect("pyspark", "spark"),
             code="""\
 import os
 import ibis

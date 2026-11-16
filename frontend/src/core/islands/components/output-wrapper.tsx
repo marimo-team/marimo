@@ -13,7 +13,7 @@ import { OutputRenderer } from "@/components/editor/Output";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import type { CellRuntimeState } from "@/core/cells/types";
+import { type CellRunStatus, useCellExecution } from "@/core/executions";
 import { ISLAND_TAG_NAMES } from "../constants";
 import { islandsHydratedAtom } from "../state";
 import { IslandControls } from "./IslandControls";
@@ -69,7 +69,7 @@ export const MarimoOutputWrapper: React.FC<MarimoOutputWrapperProps> = ({
 
   // Sync cell status to the host <marimo-island> element as a data attribute
   // so downstream consumers can style based on status (e.g. [data-status="running"])
-  const status = runtime?.status ?? "idle";
+  const { status } = useCellExecution(cellId);
   useSyncStatusToIsland(wrapperRef, status);
 
   // If no runtime yet, show static content
@@ -90,7 +90,7 @@ export const MarimoOutputWrapper: React.FC<MarimoOutputWrapperProps> = ({
   return (
     <div ref={wrapperRef} className="relative min-h-6">
       <OutputRenderer message={runtime.output} />
-      <RunningIndicator state={runtime} />
+      <RunningIndicator status={status} />
       <IslandControls
         cellId={cellId}
         codeCallback={codeCallback}
@@ -118,8 +118,8 @@ function useSyncStatusToIsland(
 /**
  * Shows a spinning indicator when the cell is running
  */
-const RunningIndicator: React.FC<{ state: CellRuntimeState }> = ({ state }) => {
-  if (state.status === "running") {
+const RunningIndicator: React.FC<{ status: CellRunStatus }> = ({ status }) => {
+  if (status === "running") {
     return (
       <DelayRender>
         <div className="absolute top-1 right-1">

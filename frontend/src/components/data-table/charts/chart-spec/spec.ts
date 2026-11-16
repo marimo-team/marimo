@@ -51,13 +51,19 @@ export type ErrorMessage = TypedString<"ErrorMessage">;
 export const X_AXIS_REQUIRED = "X-axis column is required" as ErrorMessage;
 export const Y_AXIS_REQUIRED = "Y-axis column is required" as ErrorMessage;
 
-export function createSpecWithoutData(
-  chartType: ChartType,
-  formValues: ChartSchemaType,
-  theme: ResolvedTheme,
-  width: number | "container",
-  height: number,
-): TopLevelSpec | ErrorMessage {
+export function createSpecWithoutData({
+  chartType,
+  formValues,
+  theme,
+  width,
+  height,
+}: {
+  chartType: ChartType;
+  formValues: ChartSchemaType;
+  theme: ResolvedTheme;
+  width: number | "container";
+  height: number;
+}): TopLevelSpec | ErrorMessage {
   const {
     xColumn,
     yColumn,
@@ -85,27 +91,25 @@ export function createSpecWithoutData(
   const yEncodingKey = "y";
 
   // Create encodings
-  const xEncoding = getAxisEncoding(
-    xColumn,
-    formValues.xAxis?.bin,
-    getFieldLabel(formValues.xAxis?.label),
-    colorByColumn?.field && horizontal ? stacking : undefined,
+  const xEncoding = getAxisEncoding(xColumn, {
+    binValues: formValues.xAxis?.bin,
+    label: getFieldLabel(formValues.xAxis?.label),
+    stack: colorByColumn?.field && horizontal ? stacking : undefined,
     chartType,
-  );
+  });
 
   let defaultYAggregation: ValidAggregationFn = DEFAULT_AGGREGATION;
   if (yColumn?.selectedDataType === "string") {
     defaultYAggregation = "count";
   }
 
-  const yEncoding = getAxisEncoding(
-    yColumn,
-    formValues.yAxis?.bin,
-    getFieldLabel(formValues.yAxis?.label),
-    colorByColumn?.field && !horizontal ? stacking : undefined,
+  const yEncoding = getAxisEncoding(yColumn, {
+    binValues: formValues.yAxis?.bin,
+    label: getFieldLabel(formValues.yAxis?.label),
+    stack: colorByColumn?.field && !horizontal ? stacking : undefined,
     chartType,
-    defaultYAggregation,
-  );
+    defaultAggregate: defaultYAggregation,
+  });
 
   const rowFacet = facet?.row.field
     ? getFacetEncoding(facet.row, chartType)
@@ -115,14 +119,14 @@ export function createSpecWithoutData(
     : undefined;
 
   const colorByEncoding = getColorEncoding(chartType, formValues);
-  const baseSpec = getBaseSpec(
+  const baseSpec = getBaseSpec({
     chartType,
     formValues,
     theme,
     width,
     height,
     title,
-  );
+  });
   const baseEncoding: Encoding<Field> = {
     [xEncodingKey]: horizontal ? yEncoding : xEncoding,
     [yEncodingKey]: horizontal ? xEncoding : yEncoding,
@@ -160,11 +164,19 @@ export function augmentSpecWithData(
 
 export function getAxisEncoding(
   column: NonNullable<z.infer<typeof AxisSchema>>,
-  binValues: z.infer<typeof BinSchema> | undefined,
-  label: string | undefined,
-  stack: boolean | undefined,
-  chartType: ChartType,
-  defaultAggregate?: ValidAggregationFn,
+  {
+    binValues,
+    label,
+    stack,
+    chartType,
+    defaultAggregate,
+  }: {
+    binValues: z.infer<typeof BinSchema> | undefined;
+    label: string | undefined;
+    stack: boolean | undefined;
+    chartType: ChartType;
+    defaultAggregate?: ValidAggregationFn;
+  },
 ): PositionDef<string> {
   const selectedDataType = column.selectedDataType || "string";
 
@@ -236,13 +248,12 @@ function getPieChartSpec(
     return "Size by column is required" as ErrorMessage;
   }
 
-  const thetaEncoding: PolarDef<string> = getAxisEncoding(
-    yColumn,
-    formValues.xAxis?.bin,
-    getFieldLabel(formValues.xAxis?.label),
-    undefined,
-    ChartType.PIE,
-  );
+  const thetaEncoding: PolarDef<string> = getAxisEncoding(yColumn, {
+    binValues: formValues.xAxis?.bin,
+    label: getFieldLabel(formValues.xAxis?.label),
+    stack: undefined,
+    chartType: ChartType.PIE,
+  });
 
   const colorEncoding: ColorDef<string> = {
     field: escapeFieldName(colorByColumn.field),
@@ -252,7 +263,14 @@ function getPieChartSpec(
   };
 
   return {
-    ...getBaseSpec(ChartType.PIE, formValues, theme, width, height, title),
+    ...getBaseSpec({
+      chartType: ChartType.PIE,
+      formValues,
+      theme,
+      width,
+      height,
+      title,
+    }),
     mark: {
       type: convertChartTypeToMark(ChartType.PIE),
       innerRadius: formValues.style?.innerRadius,
@@ -270,14 +288,21 @@ function getPieChartSpec(
   };
 }
 
-function getBaseSpec(
-  chartType: ChartType,
-  formValues: ChartSchemaType,
-  theme: ResolvedTheme,
-  width: number | "container",
-  height: number,
-  title?: string,
-): BaseSpec {
+function getBaseSpec({
+  chartType,
+  formValues,
+  theme,
+  width,
+  height,
+  title,
+}: {
+  chartType: ChartType;
+  formValues: ChartSchemaType;
+  theme: ResolvedTheme;
+  width: number | "container";
+  height: number;
+  title?: string;
+}): BaseSpec {
   let gridLines = formValues.style?.gridLines ?? false;
   // Scatter charts have grid lines by default
   if (chartType === ChartType.SCATTER) {

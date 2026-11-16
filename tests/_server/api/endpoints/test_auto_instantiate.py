@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from marimo._messaging.notification import KernelReadyNotification
 from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
+from tests._server.api.endpoints.ws_helpers import receive_notification
 from tests._server.mocks import token_header
 
 if TYPE_CHECKING:
@@ -38,7 +39,7 @@ class TestAutoInstantiateEditMode:
         ws_url = _create_ws_url(session_id)
 
         with client.websocket_connect(ws_url) as websocket:
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             assert data["op"] == "kernel-ready"
 
             kernel_ready = parse_raw(data["data"], KernelReadyNotification)
@@ -55,7 +56,7 @@ class TestAutoInstantiateEditMode:
 
         with client.websocket_connect(ws_url) as websocket:
             # Wait for the session to be fully established
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             assert data["op"] == "kernel-ready"
 
             # The /instantiate endpoint should work in edit mode
@@ -84,7 +85,7 @@ class TestAutoInstantiateRunMode:
         ws_url = _create_ws_url(session_id)
 
         with client.websocket_connect(ws_url) as websocket:
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             assert data["op"] == "kernel-ready"
 
             kernel_ready = parse_raw(data["data"], KernelReadyNotification)
@@ -110,7 +111,7 @@ class TestAutoInstantiateRunMode:
 
         with client.websocket_connect(ws_url) as websocket:
             # Wait for the session to be fully established
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             assert data["op"] == "kernel-ready"
 
             # The /instantiate endpoint should be blocked in run mode
@@ -217,7 +218,7 @@ class TestInstantiateNotebookRequest:
 
         with client.websocket_connect(ws_url) as websocket:
             # Get the kernel-ready message
-            data = websocket.receive_json()
+            data = receive_notification(websocket)
             assert data["op"] == "kernel-ready"
 
             # Send instantiate without codes (should use file codes)

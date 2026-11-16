@@ -11,6 +11,8 @@ Multiple language servers can be run simultaneously. When
 enabled, their results are merged — for example, you can
 get completions from pylsp and diagnostics from basedpyright at the same time.
 
+For language server installation with `--sandbox`, see [Sandbox mode](#sandbox-mode-sandbox).
+
 ## Supported language servers
 
 ### pylsp (python-lsp-server)
@@ -144,12 +146,36 @@ enabled = true               # Show diagnostics in the editor
 
 Language servers are not available when running marimo in WebAssembly.
 
+## Sandbox mode (`--sandbox`)
+
+With `--sandbox`, the editor and notebook code run in separate environments.
+Language servers run in the editor environment, which includes packages from
+the Python environment that launches marimo.
+
+- **pylsp** is installed automatically through marimo's `lsp` extra.
+- **basedpyright**, **ty**, and **pyrefly** must be installed in the environment
+  that launches marimo. Installing them only in the notebook's sandbox does
+  not make them available to the editor.
+
+When you launch marimo, use `--with` to include a language server:
+
+```bash
+uv run --with basedpyright marimo edit --sandbox notebook.py
+uv run --with ty marimo edit --sandbox notebook.py
+uv run --with pyrefly marimo edit --sandbox notebook.py
+```
+
+You can also install **ty** with `uv tool install ty`. The `ty` executable
+must be on `PATH`. **basedpyright** and **pyrefly** require importable Python packages
+and do not support this fallback.
+
 ## Troubleshooting
 
 If you encounter issues with a language server:
 
 1. Make sure you've installed the required dependencies with `uv pip install "marimo[lsp]"`
 2. For basedpyright, ty, and pyrefly, ensure [Node.js](https://nodejs.org/) is installed
-3. Check if the language server is enabled in your configuration
-4. Try restarting the marimo server
-5. Check the terminal for error messages or the log files in your marimo log directory (e.g. `~/.cache/marimo/logs/`)
+3. If you use `--sandbox`, follow the [sandbox installation instructions](#sandbox-mode-sandbox).
+4. Check if the language server is enabled in your configuration
+5. Try restarting the marimo server
+6. Check the terminal for error messages or the log files in your marimo log directory (e.g. `~/.cache/marimo/logs/`)

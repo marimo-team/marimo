@@ -1,17 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 import { cellId, variableName } from "@/__tests__/branded";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
+import { createCell } from "@/core/cells/types";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../config/extension";
 import { adaptiveLanguageConfiguration } from "../../language/extension";
-import { getCodes, getTopologicalCellIds } from "../getCodes";
+import {
+  getCodes,
+  getTopologicalCellIds,
+  topologicalCodesAtom,
+} from "../getCodes";
 
 const Cells = {
   cell1: cellId("cell1"),
@@ -34,27 +40,27 @@ function createMockEditorView(code: string) {
         adaptiveLanguageConfiguration({
           cellId: cellId("cell1"),
           completionConfig: {
+            ...defaultUserConfig().completion,
             copilot: false,
             activate_on_typing: true,
             signature_hint_on_typing: false,
-            codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
           placeholderType: "marimo-import",
-          lspConfig: {},
+          lspConfig: { ...defaultUserConfig().language_servers },
         }),
         cellConfigExtension({
           cellId: cellId("cell1"),
           completionConfig: {
+            ...defaultUserConfig().completion,
             copilot: false,
             activate_on_typing: true,
             signature_hint_on_typing: false,
-            codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
           placeholderType: "marimo-import",
-          lspConfig: {},
-          diagnosticsConfig: {},
+          lspConfig: { ...defaultUserConfig().language_servers },
+          diagnosticsConfig: { ...defaultUserConfig().diagnostics },
         }),
       ],
     }),
@@ -154,7 +160,7 @@ describe("getCodes", () => {
     ];
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
+      cellIds: [Cells.cell1, Cells.cell2],
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
@@ -172,7 +178,7 @@ describe("getCodes", () => {
     ];
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
+      cellIds: [Cells.cell1, Cells.cell2],
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
@@ -191,7 +197,7 @@ describe("getCodes", () => {
     ];
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2, Cells.cell3]]),
+      cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
@@ -207,5 +213,65 @@ describe("getCodes", () => {
     });
     const result = getCodes(otherCode);
     expect(result).toEqual("import os\nx = 1\ny = x + 1\nprint('Hello World')");
+  });
+
+  it("should read code from the store when no editor is mounted", () => {
+    const otherCode = "print('Hello World')";
+    store.set(notebookAtom, {
+      ...initialNotebookState(),
+      cellIds: [Cells.cell1, Cells.cell2],
+      cellData: {
+        [Cells.cell1]: createCell({ id: Cells.cell1, code: "import os" }),
+        [Cells.cell2]: createCell({ id: Cells.cell2, code: "x = 1" }),
+      },
+    });
+    const result = getCodes(otherCode);
+    expect(result).toEqual("import os\nx = 1\nprint('Hello World')");
+  });
+
+  it("should prefer the mounted editor code over the store code", () => {
+    const otherCode = "print('Hello World')";
+    store.set(notebookAtom, {
+      ...initialNotebookState(),
+      cellIds: [Cells.cell1, Cells.cell2],
+      cellData: {
+        [Cells.cell1]: createCell({ id: Cells.cell1, code: "import os" }),
+        [Cells.cell2]: createCell({ id: Cells.cell2, code: "x = 1" }),
+      },
+      cellHandles: {
+        [Cells.cell2]: { current: createMockEditorView("x = 2") },
+      },
+    });
+    const result = getCodes(otherCode);
+    expect(result).toEqual("import os\nx = 2\nprint('Hello World')");
+  });
+});
+
+describe("topologicalCodesAtom", () => {
+  it("should include every cell when no editor is mounted", () => {
+    store.set(notebookAtom, {
+      ...initialNotebookState(),
+      cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
+      cellData: {
+        [Cells.cell1]: createCell({ id: Cells.cell1, code: "import os" }),
+        [Cells.cell2]: createCell({ id: Cells.cell2, code: "x = 1" }),
+        [Cells.cell3]: createCell({ id: Cells.cell3, code: "y = x + 1" }),
+      },
+    });
+    store.set(variablesAtom, {
+      [Variables.var1]: {
+        name: Variables.var1,
+        declaredBy: [Cells.cell1],
+        usedBy: [Cells.cell2, Cells.cell3],
+      },
+    });
+
+    const { cellIds, codes } = store.get(topologicalCodesAtom);
+    expect(cellIds).toEqual([Cells.cell1, Cells.cell2, Cells.cell3]);
+    expect(codes).toEqual({
+      [Cells.cell1]: "import os",
+      [Cells.cell2]: "x = 1",
+      [Cells.cell3]: "y = x + 1",
+    });
   });
 });

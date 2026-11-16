@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -20,22 +21,40 @@ from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.requests import PDFExportRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.notebook import Transaction
+from marimo._messaging.notebook.changes import SetCode
 from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
-from marimo._schemas.export_options import PDFExportOptions
+from marimo._runtime.layout.layout import LayoutConfig
+from marimo._schemas.export import (
+    ExportAvailabilityResponse,
+    ExportFormatAvailability,
+    ExportSetupRequirement,
+)
+from marimo._schemas.export_options import (
+    PDFExportOptions,
+    ServerExportFormat,
+)
 from marimo._session.model import SessionMode
 from marimo._session.notebook.file_manager import AppFileManager
 from marimo._types.ids import CellId_t, SessionId
+from marimo._utils.http import HTTPException
 from marimo._utils.platform import is_windows
 from tests._server.mocks import (
     get_session_manager,
+    get_single_notebook_id,
+    run_cells,
     token_header,
     with_read_session,
     with_session,
 )
+from tests._server.templates.utils import parse_mount_config
 from tests.mocks import EDGE_CASE_FILENAMES, snapshotter
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from httpx import Response
     from starlette.testclient import TestClient
 
 snapshot = snapshotter(__file__)
@@ -47,6 +66,37 @@ HEADERS = {
 }
 
 CODE = uri_encode_component("import marimo as mo")
+
+
+def _format_availability(
+    export_format: ServerExportFormat,
+    *,
+    missing_packages: tuple[str, ...] = (),
+    missing_setup: tuple[ExportSetupRequirement, ...] = (),
+) -> ExportFormatAvailability:
+    return ExportFormatAvailability(
+        format=export_format,
+        dependencies_available=not missing_packages and not missing_setup,
+        missing_packages=list(missing_packages),
+        missing_setup=list(missing_setup),
+    )
+
+
+def _availability(
+    *formats: ExportFormatAvailability,
+) -> ExportAvailabilityResponse:
+    return ExportAvailabilityResponse(source="server", formats=list(formats))
+
+
+def _install_export_requirements(
+    client: TestClient,
+    export_format: ServerExportFormat,
+) -> Response:
+    return client.post(
+        "/api/export/requirements/install",
+        headers=HEADERS,
+        json={"format": export_format},
+    )
 
 
 def _ipynb_export_app() -> InternalApp:
@@ -247,19 +297,185 @@ def test_export_availability_handles_pdf_setup_probe_failure(
 
 
 @with_session(SESSION_ID)
+def test_install_export_requirements_resolves_server_requirements(
+    client: TestClient,
+) -> None:
+    setup = ExportSetupRequirement(
+        name="playwright-chromium",
+        command="uv run playwright install chromium",
+    )
+    install_packages = AsyncMock()
+
+    async def assert_packages_installed_first(requirement: str) -> None:
+        assert requirement == "playwright-chromium"
+        install_packages.assert_awaited_once_with({"nbconvert[webpdf]": ""})
+
+    install_setup = AsyncMock(side_effect=assert_packages_installed_first)
+    refreshed = _availability(
+        _format_availability("ipynb"),
+        _format_availability("pdf"),
+    )
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.export._get_export_format_availability",
+            new=AsyncMock(
+                side_effect=[
+                    _format_availability(
+                        "pdf",
+                        missing_packages=("nbconvert[webpdf]",),
+                    ),
+                    _format_availability(
+                        "pdf",
+                        missing_setup=(setup,),
+                    ),
+                ]
+            ),
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_packages_on_server",
+            new=install_packages,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_export_setup",
+            new=install_setup,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export._get_export_availability",
+            new=AsyncMock(return_value=refreshed),
+        ),
+    ):
+        response = _install_export_requirements(client, "pdf")
+
+    assert response.status_code == 200, response.text
+    install_setup.assert_awaited_once_with("playwright-chromium")
+    assert all(
+        item["dependenciesAvailable"] for item in response.json()["formats"]
+    )
+
+
+@with_session(SESSION_ID)
+def test_install_export_requirements_is_idempotent(
+    client: TestClient,
+) -> None:
+    install_packages = AsyncMock()
+    install_setup = AsyncMock()
+    with (
+        patch(
+            "marimo._server.api.endpoints.export._get_export_format_availability",
+            new=AsyncMock(return_value=_format_availability("markdown")),
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_packages_on_server",
+            new=install_packages,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_export_setup",
+            new=install_setup,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export._get_export_availability",
+            new=AsyncMock(
+                return_value=_availability(_format_availability("markdown"))
+            ),
+        ),
+    ):
+        response = _install_export_requirements(client, "markdown")
+
+    assert response.status_code == 200, response.text
+    install_packages.assert_not_awaited()
+    install_setup.assert_not_awaited()
+
+
+@with_session(SESSION_ID)
+def test_install_export_requirements_fails_when_unresolved(
+    client: TestClient,
+) -> None:
+    install_packages = AsyncMock()
+    missing = _format_availability("ipynb", missing_packages=("nbformat",))
+    with (
+        patch(
+            "marimo._server.api.endpoints.export._get_export_format_availability",
+            new=AsyncMock(return_value=missing),
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_packages_on_server",
+            new=install_packages,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export._get_export_availability",
+            new=AsyncMock(return_value=_availability(missing)),
+        ),
+    ):
+        response = _install_export_requirements(client, "ipynb")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": (
+            "Failed to install requirements for IPYNB export. "
+            "Check the server logs."
+        )
+    }
+    install_packages.assert_awaited_once_with({"nbformat": ""})
+
+
+@with_session(SESSION_ID)
+def test_install_export_requirements_enforces_consumer_capability(
+    client: TestClient,
+) -> None:
+    install_packages = AsyncMock()
+    install_setup = AsyncMock()
+    with (
+        patch(
+            "marimo._server.api.endpoints.export.enforce_consumer_capability",
+            side_effect=HTTPException(status_code=403, detail="read-only"),
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_packages_on_server",
+            new=install_packages,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_export_setup",
+            new=install_setup,
+        ),
+    ):
+        response = _install_export_requirements(client, "pdf")
+
+    assert response.status_code == 403, response.text
+    install_packages.assert_not_awaited()
+    install_setup.assert_not_awaited()
+
+
+@with_session(SESSION_ID)
 def test_export_html(client: TestClient) -> None:
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = "test.py"
-    response = client.post(
-        "/api/export/html",
-        headers={**HEADERS, "Origin": "localhost"},
-        json={
-            "download": False,
-            "files": [],
-            "includeCode": True,
-        },
-    )
+    with patch.object(
+        session.app_file_manager,
+        "read_layout_config",
+        return_value=LayoutConfig(type="slides", data={"deck": {}}),
+    ):
+        response = client.post(
+            "/api/export/html",
+            headers={**HEADERS, "Origin": "localhost"},
+            json={
+                "download": False,
+                "files": [],
+                "includeCode": True,
+            },
+        )
+        current_layout_response = client.post(
+            "/api/export/html",
+            headers=HEADERS,
+            json={
+                "download": False,
+                "files": [],
+                "includeCode": True,
+                "layout": None,
+            },
+        )
+
     body = response.text
     assert '<marimo-code hidden=""></marimo-code>' not in body
     assert CODE in body
@@ -270,6 +486,12 @@ def test_export_html(client: TestClient) -> None:
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     exposed_headers = response.headers["access-control-expose-headers"].lower()
     assert "content-disposition" in exposed_headers
+    assert parse_mount_config(response.text)["layout"] == {
+        "type": "slides",
+        "data": {"deck": {}},
+    }
+    assert current_layout_response.status_code == 200
+    assert parse_mount_config(current_layout_response.text)["layout"] is None
 
 
 @with_session(SESSION_ID)
@@ -764,7 +986,7 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     assert temp_marimo_file is not None
-    session.app_file_manager.filename = temp_marimo_file
+    session.app_file_manager = AppFileManager(temp_marimo_file)
     session.session_view.add_notification(
         CellNotification(
             cell_id=CellId_t("new_cell"),
@@ -775,35 +997,88 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
             ),
         )
     )
-
-    response = client.post(
-        "/api/export/auto_export/html",
-        headers=HEADERS,
-        json={
-            "download": False,
-            "files": [],
-            "includeCode": True,
-        },
+    cell_id = session.document.cell_ids[0]
+    session.document.apply(
+        Transaction(
+            changes=(
+                SetCode(
+                    cell_id=cell_id,
+                    code='live_value = "export-current-session"',
+                ),
+            ),
+            source="frontend",
+        )
     )
+
+    def auto_export(**overrides: object) -> Response:
+        return client.post(
+            "/api/export/auto_export/html",
+            headers=HEADERS,
+            json={
+                "download": False,
+                "files": [],
+                "includeCode": True,
+                **overrides,
+            },
+        )
+
+    response = auto_export()
     assert response.status_code == 200
     assert response.json() == {"success": True}
+    exported_html = (
+        Path(temp_marimo_file).parent / "__marimo__" / "notebook.html"
+    ).read_text(encoding="utf-8")
+    assert "export-current-session" in exported_html
 
-    response = client.post(
-        "/api/export/auto_export/html",
-        headers=HEADERS,
-        json={
-            "download": False,
-            "files": [],
-            "includeCode": True,
-        },
-    )
-    # Not modified response
-    assert response.status_code == 304
+    assert auto_export().status_code == 304
 
-    # Assert __marimo__ directory is created
-    assert os.path.exists(
-        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
+    slides = {"type": "slides", "data": {}}
+    assert auto_export(layout=slides).status_code == 200
+    assert auto_export(layout=slides).status_code == 304
+
+
+@with_session(SESSION_ID)
+def test_auto_export_html_skips_a_renamed_notebook(
+    client: TestClient, temp_marimo_file: str
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager = AppFileManager(temp_marimo_file)
+    session.session_view.add_notification(
+        CellNotification(
+            cell_id=CellId_t("new_cell"),
+            output=CellOutput.stdout("hello"),
+        )
     )
+
+    tasks: list[Callable[[], Awaitable[None]]] = []
+
+    class DeferredBackgroundTask:
+        def __init__(self, task: Callable[[], Awaitable[None]]) -> None:
+            tasks.append(task)
+
+        async def __call__(self) -> None:
+            return
+
+    with patch(
+        "marimo._server.api.endpoints.export.BackgroundTask",
+        DeferredBackgroundTask,
+    ):
+        response = client.post(
+            "/api/export/auto_export/html",
+            headers=HEADERS,
+            json={"download": False, "files": [], "includeCode": True},
+        )
+    assert response.status_code == 200
+    assert len(tasks) == 1
+
+    old_export = Path(temp_marimo_file).parent / "__marimo__" / "notebook.html"
+    session.app_file_manager.filename = str(
+        Path(temp_marimo_file).with_name("renamed.py")
+    )
+    asyncio.run(tasks[0]())
+
+    assert not old_export.exists()
 
 
 @with_session(SESSION_ID)
@@ -1001,37 +1276,16 @@ def test_auto_export_ipynb_with_new_cell(
     assert session
     session.app_file_manager.filename = temp_marimo_file
 
-    # First, create and run a cell with constant value 1
-    create_cell_response = client.post(
-        "/api/kernel/run",
+    # The editor creates the cell in the document, then runs it.
+    create_cell_response = run_cells(
+        client,
+        get_single_notebook_id(client),
+        {"new_cell": "3.14"},
         headers=HEADERS,
-        json={
-            "cellIds": ["new_cell"],
-            "codes": ["3.14"],
-        },
     )
-    assert create_cell_response.status_code == 200
+    assert create_cell_response.status_code == 202
 
     time.sleep(0.5)
-
-    # Save the session
-    save_response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["new_cell"],
-            "filename": temp_marimo_file,
-            "codes": ["3.14"],
-            "names": ["_"],
-            "configs": [
-                {
-                    "hideCode": True,
-                    "disabled": False,
-                }
-            ],
-        },
-    )
-    assert save_response.status_code == 200, save_response.text
 
     # Clean up the marimo directory
     marimo_dir = Path(temp_marimo_file).parent / "__marimo__"
@@ -1384,7 +1638,7 @@ def test_export_pdf_endpoint_uses_browser_captured_outputs(
         output=CellOutput(
             channel=CellChannel.OUTPUT,
             mimetype="text/html",
-            data="<div>current output</div>",
+            data="<marimo-slider></marimo-slider>",
         ),
         status="idle",
     )
@@ -1401,9 +1655,17 @@ def test_export_pdf_endpoint_uses_browser_captured_outputs(
     assert capture_response.status_code == 200
 
     render_pdf_mock = AsyncMock(return_value=b"mock_pdf_content")
-    with patch(
-        "marimo._server.api.endpoints.export.render_pdf",
-        render_pdf_mock,
+    with (
+        patch(
+            "marimo._server.api.endpoints.export.render_pdf",
+            render_pdf_mock,
+        ),
+        patch(
+            "marimo._export._pdf_raster.collect_pdf_png_fallbacks",
+            AsyncMock(
+                return_value={cell_id: "data:image/png;base64,c2VydmVy"}
+            ),
+        ),
     ):
         response = client.post(
             "/api/export/pdf",
@@ -1415,6 +1677,7 @@ def test_export_pdf_endpoint_uses_browser_captured_outputs(
     render_request = render_pdf_mock.await_args.args[0]
     assert isinstance(render_request, PDFExportRequest)
     assert render_request.session_view is session.session_view
+    assert render_request.png_fallbacks is None
     captured_output = render_request.session_view.cell_notifications[
         cell_id
     ].output
@@ -1423,7 +1686,7 @@ def test_export_pdf_endpoint_uses_browser_captured_outputs(
         channel=CellChannel.OUTPUT,
         mimetype="application/vnd.marimo+mimebundle",
         data={
-            "text/html": "<div>current output</div>",
+            "text/html": "<marimo-slider></marimo-slider>",
             "image/png": "data:image/png;base64,ZmFrZQ==",
         },
         timestamp=captured_output.timestamp,

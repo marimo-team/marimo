@@ -1,9 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import signal
-import sys
 from typing import Any
 
 import uvicorn
@@ -35,33 +33,10 @@ def initialize_signals() -> None:
 
 
 def close_uvicorn(server: uvicorn.Server) -> None:
-    from packaging import version
-
     LOGGER.debug("Shutting down uvicorn")
 
     # Tried using sys.exit(0) to quit instead, but that ends up not being
     # graceful due to the event loop still running
-    if (
-        version.parse(uvicorn.__version__) >= version.parse("0.29.0")
-        # pytest appears to run tests outside the main thread, causing
-        # signal functions to fail
-        and "pytest" not in sys.modules
-    ):
-        loop = asyncio.get_running_loop()
-
-        # remove interrupt handler -- uvicorn shouldn't re-interrupt marimo
-        # only needed because uvicorn saves original handlers before
-        # server.run() is called, then re-raises signals ...
-        try:
-            loop.remove_signal_handler(signal.SIGINT)
-        except NotImplementedError:
-            # Windows
-            def noop(signum: int, frame: Any) -> None:
-                del signum
-                del frame
-
-            signal.signal(signal.SIGINT, noop)
-
     server.handle_exit(signal.SIGINT, None)
 
     LOGGER.debug("Shut down uvicorn")

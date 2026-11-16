@@ -427,6 +427,7 @@ export const SlideSidebar = ({
   const [isConfigOpen, setIsConfigOpen] = useAtom(slideConfigOpenAtom);
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Prevent slide navigation while using controls in the sidebar.
     <aside
       className="h-full flex flex-col border-l border-border/60 bg-muted/20 transition-[width] duration-200 ease-out overflow-hidden"
       style={{
@@ -449,6 +450,7 @@ export const SlideSidebar = ({
         )}
         <Tooltip content={isConfigOpen ? "Collapse panel" : "Expand panel"}>
           <Button
+            aria-label={isConfigOpen ? "Collapse panel" : "Expand panel"}
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"

@@ -10,10 +10,10 @@ beforeAll(() => {
   };
 });
 
-function mockColumn(): Column<unknown, unknown> {
+function mockColumn(dtype?: string): Column<unknown, unknown> {
   return {
     id: "name",
-    columnDef: { meta: { dataType: "string" } },
+    columnDef: { meta: { dataType: "string", dtype } },
   } as unknown as Column<unknown, unknown>;
 }
 
@@ -27,6 +27,19 @@ async function calculateTopK() {
 }
 
 describe("FilterByValuesList — creatable", () => {
+  it("renders pandas timedelta NaT as a sentinel", async () => {
+    render(
+      <FilterByValuesList
+        column={mockColumn("timedelta64[us]")}
+        calculateTopKRows={async () => ({ data: [["NaT", 1]] })}
+        chosenValues={new Set()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByLabelText("Not a Time")).toBeInTheDocument();
+  });
+
   it("shows '+ Add \"X\"' item when creatable and query is non-empty", async () => {
     const onChange = vi.fn();
     render(

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 
 import pytest
 
@@ -9,6 +9,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.from_panel import (
     _extract_holoviews_settings,
     panel,
+    render_extension,
 )
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -39,6 +40,66 @@ slider = mo.ui.panel(slider)
                 )
             ]
         )
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("panel_version", "modern_loader"),
+        [
+            ("1.9.0", False),
+            ("1.9.4", False),
+            ("1.10.0", True),
+            ("1.11.0rc1", True),
+            ("1.11.0", True),
+        ],
+    )
+    def test_extension_loader_compatibility(
+        monkeypatch: pytest.MonkeyPatch,
+        panel_version: str,
+        modern_loader: bool,
+    ) -> None:
+        from panel.io import notebook
+
+        configs: list[dict[str, object]] = []
+        requirements = ["example"]
+        exports = {"example": "Example"}
+        skip_imports = {"Example": ["example.js"]}
+        require_skip = ["bundled-example.js"]
+
+        get_version = Mock(return_value=panel_version)
+        monkeypatch.setattr(
+            DependencyManager.panel, "get_version", get_version
+        )
+
+        def legacy_components() -> tuple[object, ...]:
+            return configs, requirements, exports, skip_imports
+
+        def modern_components(resources: object) -> tuple[object, ...]:
+            assert resources is not None
+            return (*legacy_components(), require_skip)
+
+        monkeypatch.setattr(
+            notebook,
+            "require_components",
+            modern_components if modern_loader else legacy_components,
+        )
+        autoload = Mock(return_value="extension JavaScript")
+        monkeypatch.setattr(notebook, "_autoload_js", autoload)
+
+        assert render_extension(load_timeout=123) == "extension JavaScript"
+        get_version.assert_called_once_with()
+        expected: dict[str, object] = {
+            "bundle": ANY,
+            "configs": configs,
+            "requirements": requirements,
+            "exports": exports,
+            "skip_imports": skip_imports,
+            "ipywidget": ANY,
+            "reloading": False,
+            "load_timeout": 123,
+        }
+        if modern_loader:
+            expected.update(require_skip=require_skip, error_id=None)
+        autoload.assert_called_once_with(**expected)
 
     @staticmethod
     def test_proxy_attributes() -> None:

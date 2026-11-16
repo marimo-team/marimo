@@ -4,7 +4,10 @@ import { Slider as SliderPrimitive } from "radix-ui";
 import * as React from "react";
 import { useLocale } from "react-aria";
 import { cn } from "@/utils/cn";
-import { prettyScientificNumber } from "@/utils/numbers";
+import {
+  fractionDigitsForSlider,
+  prettyScientificNumber,
+} from "@/utils/numbers";
 import { useBoolean } from "../../hooks/useBoolean";
 import {
   TooltipContent,
@@ -20,9 +23,15 @@ const RangeSlider = React.forwardRef<
     valueMap: (sliderValue: number) => number;
     steps?: number[];
   }
->(({ className, valueMap, ...props }, ref) => {
+>(({ className, steps, valueMap, ...props }, ref) => {
   const [open, openActions] = useBoolean(false);
   const { locale } = useLocale();
+  const fractionDigits = fractionDigitsForSlider(
+    props.step,
+    steps,
+    props.min,
+    props.value?.map(valueMap),
+  );
 
   const isDraggingRange = React.useRef(false);
   const dragStartX = React.useRef(0);
@@ -94,11 +103,9 @@ const RangeSlider = React.forwardRef<
     const [origLeft, origRight] = dragStartValue.current;
     const rangeWidth = origRight - origLeft;
 
-    const steps = props.steps;
-    const step: number =
-      steps && steps.length > 1
-        ? Math.min(...steps.slice(1).map((s, i) => s - steps[i]))
-        : (props.step ?? 1);
+    // `steps` contains mapped display values, while pointer movement happens
+    // in the slider's index/value space. Use the Radix step for snapping.
+    const step = props.step ?? 1;
     const snappedDelta = Math.round(delta / step) * step;
 
     const clampedDelta = Math.max(
@@ -132,7 +139,7 @@ const RangeSlider = React.forwardRef<
         "relative flex touch-none select-none hover:cursor-pointer",
         "data-[orientation=horizontal]:w-full data-[orientation=horizontal]:items-center",
         "data-[orientation=vertical]:h-full data-[orientation=vertical]:justify-center",
-        "data-disabled:cursor-not-allowed",
+        "data-disabled:cursor-not-allowed forced-color-adjust-none",
         className,
       )}
       {...props}
@@ -142,6 +149,7 @@ const RangeSlider = React.forwardRef<
         data-testid="track"
         className={cn(
           "relative grow overflow-hidden rounded-full bg-slate-200 dark:bg-accent/60",
+          "forced-colors:border forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace]",
           "data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:w-full",
           "data-[orientation=vertical]:h-full data-[orientation=vertical]:w-2",
         )}
@@ -150,6 +158,7 @@ const RangeSlider = React.forwardRef<
           data-testid="range"
           className={cn(
             "absolute bg-blue-500 dark:bg-primary",
+            "forced-colors:bg-[Highlight] forced-colors:data-disabled:bg-[GrayText]",
             "data-[orientation=horizontal]:h-full",
             "data-[orientation=vertical]:w-full",
             "data-disabled:opacity-50",
@@ -165,7 +174,7 @@ const RangeSlider = React.forwardRef<
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
               data-testid="thumb"
-              className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50"
+              className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace] forced-colors:data-disabled:border-[GrayText]"
               onFocus={openActions.setTrue}
               onBlur={openActions.setFalse}
               onMouseEnter={openActions.setTrue}
@@ -175,7 +184,10 @@ const RangeSlider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 2 && (
               <TooltipContent key={props.value[0]}>
-                {prettyScientificNumber(valueMap(props.value[0]), { locale })}
+                {prettyScientificNumber(valueMap(props.value[0]), {
+                  maximumFractionDigits: fractionDigits,
+                  locale,
+                })}
               </TooltipContent>
             )}
           </TooltipPortal>
@@ -186,7 +198,7 @@ const RangeSlider = React.forwardRef<
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
               data-testid="thumb"
-              className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50"
+              className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace] forced-colors:data-disabled:border-[GrayText]"
               onFocus={openActions.setTrue}
               onBlur={openActions.setFalse}
               onMouseEnter={openActions.setTrue}
@@ -196,7 +208,10 @@ const RangeSlider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 2 && (
               <TooltipContent key={props.value[1]}>
-                {prettyScientificNumber(valueMap(props.value[1]), { locale })}
+                {prettyScientificNumber(valueMap(props.value[1]), {
+                  maximumFractionDigits: fractionDigits,
+                  locale,
+                })}
               </TooltipContent>
             )}
           </TooltipPortal>

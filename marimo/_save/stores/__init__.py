@@ -1,11 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import copy
-from typing import cast
-
 from marimo import _loggers
-from marimo._config.config import CacheConfig, StoreKey
+from marimo._config.config_schema import (
+    CacheStoreConfig,
+)
+from marimo._config.types import StoreKey
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
@@ -33,24 +33,49 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 def get_store(current_path: str | None = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
-    cache_config: CacheConfig | None = (
-        get_default_config_manager(current_path=current_path)
-        .get_config()
-        .get("experimental", {})
-        .get("cache", None)
-    )
+    config = get_default_config_manager(current_path=current_path).get_config()
+    return _get_store_from_config(config.cache.store)
 
-    return _get_store_from_config(cache_config)
+
+def configured_cache_store(current_path: str | None = None) -> Store | None:
+    """The store `cache.store` configures, or `None` when it is unset.
+
+    Unlike `get_store`, an absent configuration returns `None` rather than
+    the default store, so a caller can tell an explicit choice apart from
+    the default.
+    """
+    from marimo._config.manager import get_default_config_manager
+
+    config = get_default_config_manager(current_path=current_path).get_config()
+    store_config = config.cache.store
+    if store_config is None:
+        return None
+    return _get_store_from_config(store_config)
+
+
+def cache_store_is_untrusted(current_path: str | None = None) -> bool:
+    """Whether `cache.store` came from a layer that travels with the code."""
+    # NB. only the overrides are inspected, because a store can reach the user
+    # layer solely through a workspace `.marimo.toml`, and that layer has its
+    # store stripped during config load for exactly this reason.
+    from marimo._config.manager import get_default_config_manager
+
+    overrides = get_default_config_manager(
+        current_path=current_path
+    ).get_config_overrides()
+    return overrides.get("cache", {}).get("store") is not None
 
 
 def _get_store_from_config(
-    config: CacheConfig | None,
+    config: CacheStoreConfig | None,
     registry: EntryPointRegistry[StoreType] = _STORE_REGISTRY,
 ) -> Store:
     if config is None:
         return DEFAULT_STORE()
 
-    cache_stores = copy.copy(cast(dict[str, StoreType], CACHE_STORES))
+    cache_stores: dict[str, StoreType] = {
+        key: value for key, value in CACHE_STORES.items()
+    }
     cache_stores.update(
         {name: registry.get(name) for name in registry.names()}
     )
@@ -65,13 +90,13 @@ def _get_store_from_config(
             return sub_stores[0]
         return TieredStore(sub_stores)
     else:
-        store_type = cast(StoreKey, config.get("store", DEFAULT_STORE_KEY))
+        store_type = config.type
         if store_type not in cache_stores:
             LOGGER.error(f"Invalid store type: {store_type}")
             store_type = DEFAULT_STORE_KEY
 
         try:
-            store_args = config.get("args", {})
+            store_args = config.args
             return cache_stores[store_type](**store_args)
         except Exception as e:
             LOGGER.error(f"Error creating store: {e}")
@@ -88,5 +113,6 @@ __all__ = [
     "StoreKey",
     "StoreType",
     "TieredStore",
+    "configured_cache_store",
     "get_store",
 ]

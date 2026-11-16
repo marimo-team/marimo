@@ -1,6 +1,6 @@
 ---
 name: fill-model-descriptions
-description: Fill empty `description: ""` fields in `packages/llm-info/data/models.yml` by querying OpenRouter and provider documentation. Use when the user asks to populate model descriptions, enrich the model catalog, or backfill descriptions after running `pnpm sync-models`.
+description: Curate descriptions and provider-specific reasoning options and token limits in `packages/llm-info/data/models.yml` using models.dev, OpenRouter, and provider documentation. Use when the user asks to populate model descriptions, enrich the model catalog, or curate descriptions after running `pnpm sync-models`.
 disable-model-invocation: true
 ---
 
@@ -8,20 +8,26 @@ disable-model-invocation: true
 
 ## Goal
 
-Replace empty `description: ""` strings in `packages/llm-info/data/models.yml` with concise, accurate one-sentence summaries sourced from OpenRouter first, then provider documentation as a fallback.
+Keep descriptions in `packages/llm-info/data/models.yml` concise and accurate. Fill empty descriptions and refresh existing descriptions when newly added models or authoritative documentation make them obsolete. Source descriptions from OpenRouter first, then provider documentation as a fallback.
 
 ## Scope and Contract
 
-- **Only modify entries where `description` is the empty string.** Existing non-empty descriptions are human-curated; never overwrite them.
+- Fill every empty `description` for which a confident source is available.
+- Preserve human-curated, non-empty descriptions unless a newly added model or authoritative source makes a concrete claim obsolete. Typical obsolete claims include "latest," "most capable," availability, or capabilities that have demonstrably changed.
+- Do not rewrite existing descriptions only for style, tone, or consistency. When an existing description must change, make the smallest factual correction and record it in the final summary.
 - The file is a top-level YAML map keyed by provider id (`anthropic:`, `openai:`, …). Each provider's value is an array of model entries.
-- Do not modify any other field, reorder entries, or change formatting (flow-style arrays like `roles: [chat, edit]`, blank lines between entries, blank line between provider sections).
+- For description-only work, do not modify any other field. For metadata enrichment, refresh machine-sourced capabilities, input/output types, release dates, pricing, reasoning options, and token limits; preserve names, descriptions, and roles. Do not reorder entries or change formatting (flow-style arrays like `roles: [chat, edit]`, blank lines between entries, blank line between provider sections).
 - This skill requires network access.
+
+For metadata-only requests, use [Reasoning Options and Token Limits](#reasoning-options-and-token-limits) and skip the description workflow.
 
 ## Workflow
 
 1. **Read** `packages/llm-info/data/models.yml`. Parse it with the `yaml` library's `parseDocument` (NOT `parse`) so formatting and comments are preserved on write-back.
 
-2. **Collect** every entry where `description` is the empty string. Track them as `{ provider, model }` pairs.
+2. **Collect and review** descriptions:
+   - Build one worklist of `{ provider, model }` pairs containing every entry where `description` is empty.
+   - Review related existing entries in the same model families for claims made obsolete by the new entries. Also review descriptions affected by a factual change found in authoritative documentation, and add every obsolete entry to the same worklist.
 
 3. **Source descriptions** in this priority order:
 
@@ -46,8 +52,43 @@ Replace empty `description: ""` strings in `packages/llm-info/data/models.yml` w
    The `schema.test.ts` test will catch any structural drift.
 
 7. **Report** to the user:
-   - How many entries got descriptions.
+   - How many empty descriptions were filled.
+   - How many obsolete descriptions were updated, with the provider/model list and the factual reason.
    - How many were skipped (with the provider/model list).
+
+## Reasoning Options and Token Limits
+
+When metadata enrichment is requested, query `https://models.dev/api.json` and
+match the exact provider/model offering using `PROVIDER_MAP` in
+`src/sources/merge.ts`. Google Vertex models remain separate offerings even
+though they share the `google` catalog section. Do not use the description
+vendor map or strip aliases to obtain metadata from another hosting provider.
+
+Run `pnpm --dir packages/llm-info sync-models --metadata-only` to refresh the
+current catalog without adding models. Normal sync also refreshes known metadata
+on existing entries: capabilities, input/output types, release dates, pricing,
+reasoning options, and token limits. Curated names, descriptions, and roles are
+preserved. Neither mode changes runtime thinking configuration.
+
+- `reasoning_options` preserves upstream `toggle`, `effort` (with explicit
+  values), and `budget_tokens` (with optional `min`/`max`) controls. Preserve
+  `null`, `default`, and the `-1` automatic-budget sentinel when supplied.
+- `limits` maps upstream `limit.context` and `limit.output`, in tokens. Preserve
+  supplied values, including zero; omitted fields remain unknown.
+- An explicit `reasoning: false` removes the thinking capability and clears stale
+  reasoning controls. An omitted flag preserves the corresponding capability.
+  Partial pricing and limits updates preserve unspecified values.
+- Missing upstream fields or unmatched offerings do not justify inventing
+  values or removing existing metadata. Report unmatched entries. Consult the
+  exact provider's documentation if further enrichment is needed.
+- OpenRouter's normalized reasoning controls describe its gateway API. Use them
+  only for OpenRouter offerings, not as native Anthropic, OpenAI, Azure, or
+  Bedrock configuration contracts.
+
+After enrichment, run `pnpm --dir packages/llm-info codegen` and
+`pnpm --dir packages/llm-info test --run`. Report coverage for each metadata
+field and unresolved provider/model matches. Generated JSON must retain the new
+fields; updating YAML alone is insufficient.
 
 ## Vendor Map
 
@@ -78,8 +119,8 @@ OpenRouter id vendor prefixes for each marimo provider:
 ## Examples
 
 **Good** (matches the tone of existing hand-curated entries):
-- `Latest Opus model, strongest for coding and long-running professional tasks`
-- `Most capable Sonnet-class model, with frontier performance across coding, agents, and professional work`
+- `Opus model optimized for coding and long-running professional tasks`
+- `Sonnet-class model with strong performance across coding, agents, and professional work`
 - `Lightweight Gemma model trained by Google, designed to run on a single GPU`
 - `Multimodal Mixture-of-Experts model optimized for complex tool use and reasoning`
 

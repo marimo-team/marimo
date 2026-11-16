@@ -9,13 +9,18 @@ from typing import TYPE_CHECKING, cast
 import pytest
 
 from marimo._utils.platform import is_windows
-from tests._server.mocks import get_session_manager, token_header
+from tests._server.api.endpoints.ws_helpers import receive_notification
+from tests._server.mocks import (
+    get_session_manager,
+    token_header,
+    workspace_scope,
+)
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
     from marimo._config.config import PartialMarimoConfig
-    from marimo._config.manager import UserConfigManager
+    from marimo._config.manager import UserConfigStore
 
 HEADERS = {
     **token_header("fake-token"),
@@ -39,6 +44,74 @@ def test_list_files(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert "files" in response.json()
+
+
+def test_file_roots(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._config.manager import MarimoConfigManager
+    from marimo._server.api.endpoints.file_explorer import file_system
+
+    primary = tmp_path / "project"
+    shared = tmp_path / "shared"
+    primary.mkdir()
+    shared.mkdir()
+    monkeypatch.setattr(file_system, "get_root", lambda: str(primary))
+    config_manager = client.app.state.config_manager.with_overrides(
+        {
+            "file_browser": {
+                "folders": [{"path": str(shared), "name": "Shared"}]
+            }
+        }
+    )
+    assert isinstance(config_manager, MarimoConfigManager)
+    monkeypatch.setattr(client.app.state, "config_manager", config_manager)
+
+    response = client.get("/api/files/roots", headers=HEADERS)
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "roots": [
+            {
+                "path": str(primary.resolve()),
+                "name": "project",
+                "isPrimary": True,
+            },
+            {
+                "path": str(shared.resolve()),
+                "name": "Shared",
+                "isPrimary": False,
+            },
+        ]
+    }
+
+
+def test_file_roots_prefers_workspace_directory(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._server.api.endpoints.file_explorer import file_system
+    from marimo._server.workspace import DirectoryWorkspace
+
+    fallback = tmp_path / "fallback"
+    workspace_directory = tmp_path / "workspace"
+    fallback.mkdir()
+    workspace_directory.mkdir()
+    monkeypatch.setattr(file_system, "get_root", lambda: str(fallback))
+
+    workspace = DirectoryWorkspace(
+        str(workspace_directory), include_markdown=False
+    )
+    with workspace_scope(client, workspace):
+        response = client.get("/api/files/roots", headers=HEADERS)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["roots"][0]["path"] == str(
+        workspace_directory.resolve()
+    )
 
 
 def test_file_details(client: TestClient) -> None:
@@ -294,7 +367,7 @@ def test_update_file_with_session(client: TestClient) -> None:
         "/ws?session_id=test-session&access_token=fake-token"
     ) as websocket:
         # Receive kernel ready message
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data["op"] == "kernel-ready"
 
         # Verify file watcher was attached when session was created
@@ -399,6 +472,29 @@ def test_search_files_basic(client: TestClient, tmp_path: Path) -> None:
     assert data["query"] == "test"
     assert isinstance(data["files"], list)
     assert isinstance(data["totalFound"], int)
+
+
+@pytest.mark.parametrize("include_hidden", [None, True, False])
+def test_search_files_hidden_visibility(
+    client: TestClient, tmp_path: Path, include_hidden: bool | None
+) -> None:
+    (tmp_path / ".match.txt").write_text("")
+    visible = tmp_path / "visible"
+    visible.mkdir()
+    (visible / "match.txt").write_text("")
+    body = {"query": "txt", "path": str(tmp_path), "limit": 1}
+    if include_hidden is not None:
+        body["includeHidden"] = include_hidden
+    response = client.post("/api/files/search", headers=HEADERS, json=body)
+    assert response.status_code == 200, response.text
+    expected = (
+        tmp_path / ".match.txt"
+        if include_hidden is not False
+        else visible / "match.txt"
+    )
+    assert [file["path"] for file in response.json()["files"]] == [
+        str(expected)
+    ]
 
 
 def test_search_files_with_matches(client: TestClient, tmp_path: Path) -> None:
@@ -583,7 +679,7 @@ def test_download_requires_auth(client: TestClient) -> None:
 
 
 def test_download_disabled_by_config(
-    client: TestClient, user_config_manager: UserConfigManager
+    client: TestClient, user_config_manager: UserConfigStore
 ) -> None:
     user_config_manager.save_config(
         cast(

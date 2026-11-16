@@ -48,6 +48,9 @@ class LogFormatter(logging.Formatter):
     """
 
     DEFAULT_FORMAT = "%(color)s[%(levelname)1.1s %(asctime)s %(module)s:%(lineno)d]%(end_color)s %(message)s"
+    WITHOUT_LOG_PREFIX_FORMAT = (
+        "%(color)s%(level_label)s: %(message)s%(end_color)s\n"
+    )
     DEFAULT_DATE_FORMAT = "%y%m%d %H:%M:%S"
     DEFAULT_COLORS = {
         logging.DEBUG: 4,  # Blue
@@ -64,6 +67,8 @@ class LogFormatter(logging.Formatter):
         style: str = "%",
         color: bool = True,
         colors: dict[int, int] = DEFAULT_COLORS,
+        *,
+        without_log_prefix_fmt: str | None = None,
     ) -> None:
         r"""
         :arg bool color: Enables color support.
@@ -75,6 +80,8 @@ class LogFormatter(logging.Formatter):
           code
         :arg str datefmt: Datetime format.
           Used for formatting `(asctime)` placeholder in `prefix_fmt`.
+        :arg str without_log_prefix_fmt: Optional format for records marked
+          `omit_log_prefix`. Multiline messages retain their original indentation.
 
         .. versionchanged:: 3.2
 
@@ -83,6 +90,7 @@ class LogFormatter(logging.Formatter):
         del style
         logging.Formatter.__init__(self, datefmt=datefmt)
         self._fmt = fmt
+        self._without_log_prefix_fmt = without_log_prefix_fmt
 
         self._colors: dict[int, str] = {}
         if color and _stderr_supports_color():
@@ -129,7 +137,15 @@ class LogFormatter(logging.Formatter):
         else:
             record.color = record.end_color = ""
 
-        formatted = self._fmt % record.__dict__
+        fmt = self._fmt
+        omit_log_prefix = False
+        if self._without_log_prefix_fmt is not None and getattr(
+            record, "omit_log_prefix", False
+        ):
+            fmt = self._without_log_prefix_fmt
+            omit_log_prefix = True
+        record.level_label = record.levelname.capitalize()
+        formatted = fmt % record.__dict__
 
         if record.exc_info and not record.exc_text:
             record.exc_text = self.formatException(record.exc_info)
@@ -140,4 +156,6 @@ class LogFormatter(logging.Formatter):
             lines = [formatted.rstrip()]
             lines.extend(str(ln) for ln in record.exc_text.split("\n"))
             formatted = "\n".join(lines)
-        return formatted.replace("\n", "\n    ")
+        return (
+            formatted if omit_log_prefix else formatted.replace("\n", "\n    ")
+        )

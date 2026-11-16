@@ -2,17 +2,29 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createStore, Provider } from "jotai";
 import { SetupMocks } from "@/__mocks__/common";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { WithResponse } from "@/core/cells/types";
+import { DocumentProvider } from "@/core/notebook/document";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { CONSOLE_CLEAR_DEBOUNCE_MS, ConsoleOutput } from "../ConsoleOutput";
 
 SetupMocks.resizeObserver();
 
+const store = createStore();
+const { model } = mockDocumentModel(store, null);
+
 const renderWithProvider = (ui: React.ReactElement) => {
-  return render(<TooltipProvider>{ui}</TooltipProvider>);
+  return render(
+    <Provider store={store}>
+      <DocumentProvider model={model}>
+        <TooltipProvider>{ui}</TooltipProvider>
+      </DocumentProvider>
+    </Provider>,
+  );
 };
 
 describe("ConsoleOutput integration", () => {
@@ -104,13 +116,17 @@ describe("ConsoleOutput pdb history", () => {
     ];
 
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput
-          {...defaultProps}
-          consoleOutputs={outputs2}
-          onSubmitDebugger={onSubmitDebugger}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              consoleOutputs={outputs2}
+              onSubmitDebugger={onSubmitDebugger}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     // New StdInput mounted — press ArrowUp to recall previous command
@@ -118,6 +134,91 @@ describe("ConsoleOutput pdb history", () => {
     fireEvent.keyDown(newInput, { key: "ArrowUp" });
 
     expect(newInput).toHaveValue("next");
+  });
+
+  it("submits passwords without making them available to input history", () => {
+    const passwordPrompt: WithResponse<OutputMessage> = {
+      ...stdinPrompt("Password: "),
+      mimetype: "text/password",
+    };
+    const onSubmitDebugger = vi.fn();
+    const { rerender } = renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={[stdinPrompt("Name: ")]}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+    const nameInput = screen.getByTestId("console-input");
+    fireEvent.change(nameInput, { target: { value: "marimo" } });
+    fireEvent.keyDown(nameInput, { key: "Enter" });
+
+    rerender(
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              consoleOutputs={[stdinPrompt("Name: ", "marimo"), passwordPrompt]}
+              onSubmitDebugger={onSubmitDebugger}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
+    );
+    const input = screen.getByTestId("console-input");
+    expect(input).toHaveAttribute("type", "password");
+    fireEvent.change(input, { target: { value: "getpass-regression-secret" } });
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input).toHaveValue("getpass-regression-secret");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input).toHaveValue("getpass-regression-secret");
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSubmitDebugger).toHaveBeenLastCalledWith(
+      "getpass-regression-secret",
+      1,
+    );
+    expect(input).toHaveValue("");
+
+    rerender(
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              consoleOutputs={[
+                stdinPrompt("Name: ", "marimo"),
+                { ...passwordPrompt, response: "" },
+                stdinPrompt("Name: "),
+              ]}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
+    );
+    const nextInput = screen.getByTestId("console-input");
+    fireEvent.keyDown(nextInput, { key: "ArrowUp" });
+    expect(nextInput).toHaveValue("marimo");
+    fireEvent.keyDown(nextInput, { key: "ArrowDown" });
+    expect(nextInput).toHaveValue("");
+  });
+
+  it("submits the visible input when its change has not reached React state", () => {
+    const onSubmitDebugger = vi.fn();
+    renderWithProvider(
+      <ConsoleOutput
+        {...defaultProps}
+        consoleOutputs={[stdinPrompt("Name: ")]}
+        onSubmitDebugger={onSubmitDebugger}
+      />,
+    );
+
+    const input = screen.getByTestId<HTMLInputElement>("console-input");
+    // Browser autofill or input events can precede the controlled-state update.
+    input.value = "marimo";
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onSubmitDebugger).toHaveBeenCalledWith("marimo", 0);
   });
 
   it("should submit an empty string when Enter is pressed with no input", () => {
@@ -162,13 +263,17 @@ describe("ConsoleOutput pdb history", () => {
       stdinPrompt("(Pdb) "),
     ];
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput
-          {...defaultProps}
-          consoleOutputs={outputs2}
-          onSubmitDebugger={onSubmitDebugger}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              consoleOutputs={outputs2}
+              onSubmitDebugger={onSubmitDebugger}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     // Submit an empty value; this should NOT enter the history stack.
@@ -181,13 +286,17 @@ describe("ConsoleOutput pdb history", () => {
       stdinPrompt("(Pdb) "),
     ];
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput
-          {...defaultProps}
-          consoleOutputs={outputs3}
-          onSubmitDebugger={onSubmitDebugger}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              consoleOutputs={outputs3}
+              onSubmitDebugger={onSubmitDebugger}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     // ArrowUp should jump back to "step", skipping the empty submission.
@@ -222,13 +331,17 @@ describe("ConsoleOutput pdb history", () => {
     ];
 
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput
-          {...defaultProps}
-          consoleOutputs={outputs2}
-          onSubmitDebugger={onSubmitDebugger}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              consoleOutputs={outputs2}
+              onSubmitDebugger={onSubmitDebugger}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     // Submit "print(x)"
@@ -244,13 +357,17 @@ describe("ConsoleOutput pdb history", () => {
     ];
 
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput
-          {...defaultProps}
-          consoleOutputs={outputs3}
-          onSubmitDebugger={onSubmitDebugger}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              consoleOutputs={outputs3}
+              onSubmitDebugger={onSubmitDebugger}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     // ArrowUp should show most recent command first
@@ -293,13 +410,17 @@ describe("ConsoleOutput pdb history", () => {
     // Same outputs, but the cell isn't interrupted -- this is a real
     // bare-Enter submission, so we should render the (empty) placeholder.
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput
-          {...defaultProps}
-          consoleOutputs={interruptedOutputs}
-          interrupted={false}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              consoleOutputs={interruptedOutputs}
+              interrupted={false}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     expect(screen.getByLabelText("stdin response")).toBeInTheDocument();
@@ -349,9 +470,13 @@ describe("ConsoleOutput debounced clearing", () => {
 
     // Clear outputs (simulates cell re-run)
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput {...defaultProps} consoleOutputs={[]} />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput {...defaultProps} consoleOutputs={[]} />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     // Old output should still be visible during debounce period
@@ -360,9 +485,13 @@ describe("ConsoleOutput debounced clearing", () => {
     // New outputs arrive before debounce fires
     const outputs2 = [createOutput("new output")];
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput {...defaultProps} consoleOutputs={outputs2} />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput {...defaultProps} consoleOutputs={outputs2} />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     // New output should be shown immediately
@@ -381,9 +510,13 @@ describe("ConsoleOutput debounced clearing", () => {
 
     // Clear outputs
     rerender(
-      <TooltipProvider>
-        <ConsoleOutput {...defaultProps} consoleOutputs={[]} />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput {...defaultProps} consoleOutputs={[]} />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     // Still visible during debounce

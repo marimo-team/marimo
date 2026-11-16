@@ -1,12 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Panel, PanelGroup } from "react-resizable-panels";
+import { useAtomValue } from "jotai";
 import { MarimoIcon } from "@/components/icons/marimo-icons";
 import type { AppConfig } from "@/core/config/config-schema";
 import { Constants } from "@/core/constants";
+import { resolveLayoutType, useLayoutState } from "@/core/layout/state";
 import { RunApp } from "@/core/run-app";
-import { isStaticNotebook } from "@/core/static/static-state";
-import { isWasm } from "@/core/wasm/utils";
+import { runtimeAdapterAtom } from "@/core/runtime/adapter";
 import { ContextAwarePanel } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { PanelsWrapper } from "../editor/chrome/wrapper/panels";
 import { StaticBanner } from "../static-html/static-banner";
@@ -15,16 +16,24 @@ interface Props {
   appConfig: AppConfig;
 }
 
-const showWatermark = isWasm() || isStaticNotebook();
-
 const RunPage = (props: Props) => {
+  const runtimeKind = useAtomValue(runtimeAdapterAtom).kind;
+  const isExportedNotebook = runtimeKind === "static" || runtimeKind === "wasm";
+  const { selectedLayout } = useLayoutState();
+  const finalLayout = resolveLayoutType({
+    selectedLayout,
+    isReading: true,
+    searchParams: new URLSearchParams(window.location.search),
+  });
+  const isExportedSlides = isExportedNotebook && finalLayout === "slides";
+
   return (
     <PanelsWrapper>
       <PanelGroup direction="horizontal" autoSaveId="marimo:chrome:v1:run1">
         <Panel>
-          <StaticBanner />
-          <RunApp appConfig={props.appConfig} />
-          {showWatermark && <Watermark />}
+          {!isExportedSlides && <StaticBanner />}
+          <RunApp appConfig={props.appConfig} hideHeader={isExportedSlides} />
+          {isExportedNotebook && !isExportedSlides && <Watermark />}
         </Panel>
         <ContextAwarePanel />
       </PanelGroup>
@@ -41,6 +50,7 @@ const Watermark = () => {
       <a
         href={Constants.githubPage}
         target="_blank"
+        rel="noreferrer"
         className="text-sm text-(--grass-11) font-bold tracking-wide transition-colors bg-(--grass-4) hover:bg-(--grass-5) border-t border-l border-(--grass-8) px-3 py-1 rounded-tl-md flex items-center gap-2"
       >
         <span>made with marimo</span>

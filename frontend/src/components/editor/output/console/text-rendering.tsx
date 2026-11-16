@@ -256,6 +256,7 @@ export const pipInstallReplacer: Replacer = (domNode: DOMNode) => {
     );
   }
 
+  // oxlint-disable-next-line react/jsx-no-useless-fragment -- html-react-parser replacers must return a React element.
   return <>{segments}</>;
 };
 
@@ -283,6 +284,7 @@ export const urlReplacer: Replacer = (domNode: DOMNode) => {
     return undefined;
   }
 
+  // oxlint-disable-next-line react/jsx-no-useless-fragment -- html-react-parser replacers must return a React element.
   return <>{result}</>;
 };
 
@@ -331,5 +333,5 @@ export const RenderTextWithLinks = ({ text }: { text: string }) => {
     );
   }, [text]);
 
-  return <>{content}</>;
+  return content;
 };

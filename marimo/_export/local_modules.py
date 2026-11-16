@@ -28,8 +28,7 @@ from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._utils.uv import find_uv_bin
+from marimo._environments.uv import UvNotFoundError, require_uv_bin
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
@@ -44,7 +43,7 @@ class LocalWheelError(Exception):
 
 
 class UVNotFoundError(LocalWheelError):
-    pass
+    """uv is required for html-wasm export but was not found."""
 
 
 @dataclass(frozen=True)
@@ -132,7 +131,7 @@ def resolve_notebook_local_modules(
     config = get_default_config_manager(
         current_path=marimo_path.absolute_name
     ).get_config()
-    pythonpath = config["runtime"].get("pythonpath") or []
+    pythonpath = config.runtime.pythonpath
     roots = tuple(reversed([Path(path) for path in pythonpath]))
     return resolve_local_modules(
         marimo_path.path, roots=roots, exclude_names=exclude_names
@@ -244,13 +243,13 @@ def _ruff_graph_command(
 
 
 def _uv_bin() -> str:
-    uv_bin = find_uv_bin()
-    if uv_bin == "uv" and not DependencyManager.which("uv"):
+    try:
+        return require_uv_bin()
+    except UvNotFoundError as e:
         raise UVNotFoundError(
             "uv must be installed to resolve local imports for "
             "html-wasm export."
-        )
-    return uv_bin
+        ) from e
 
 
 def _ruff_src_config(roots: Sequence[Path]) -> str:

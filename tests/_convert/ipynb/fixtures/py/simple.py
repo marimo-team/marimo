@@ -16,7 +16,6 @@ def _(mo):
     mo.md("""
     # Hello, World!
     """)
-    return
 
 
 @app.cell
@@ -30,7 +29,6 @@ def _():
 @app.cell
 def _(z):
     print(z)
-    return
 
 
 if __name__ == "__main__":

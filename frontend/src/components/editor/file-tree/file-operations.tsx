@@ -206,7 +206,7 @@ export const FileActionsDropdown = ({
     </DropdownMenuTrigger>
     <DropdownMenuContent
       align="end"
-      className={contentClassName ?? "print:hidden w-[220px]"}
+      className={contentClassName ?? "print:hidden w-[240px]"}
       onClick={(e) => e.stopPropagation()}
       onCloseAutoFocus={(e) => e.preventDefault()}
     >

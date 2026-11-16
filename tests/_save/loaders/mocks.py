@@ -38,7 +38,7 @@ class MockLoader(Loader):
         self._loaded = True
         data = self._data
         if self.strict:
-            data = {key: None for key in self._data}
+            data = dict.fromkeys(self._data)
         cache = Cache(
             defs=data,
             hash=key.hash,

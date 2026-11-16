@@ -37,12 +37,9 @@ export function useInputHistory({
   const historyIndexRef = React.useRef<number>(-1);
   // Store the current input when navigating history
   const pendingInputRef = React.useRef<string>("");
-  // Keep a ref to history for use in callbacks without causing re-renders
-  const historyRef = React.useRef(history);
-  historyRef.current = history;
 
   const navigateUp = React.useCallback(() => {
-    const currentHistory = historyRef.current;
+    const currentHistory = history;
     if (currentHistory.length === 0) {
       return;
     }
@@ -59,10 +56,10 @@ export function useInputHistory({
       historyIndexRef.current = newIndex;
       setValue(currentHistory[currentHistory.length - 1 - newIndex]);
     }
-  }, [value, setValue]);
+  }, [history, value, setValue]);
 
   const navigateDown = React.useCallback(() => {
-    const currentHistory = historyRef.current;
+    const currentHistory = history;
     if (currentHistory.length === 0) {
       return;
     }
@@ -79,7 +76,7 @@ export function useInputHistory({
       historyIndexRef.current = -1;
       setValue(pendingInputRef.current);
     }
-  }, [setValue]);
+  }, [history, setValue]);
 
   const addToHistory = React.useCallback((command: string) => {
     setHistory((prev) => {

@@ -5,8 +5,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo._config.config import MarimoConfig
-from marimo._secrets.secrets import get_secret_keys, write_secret
+from marimo._config.config_schema import MarimoConfig
+from marimo._secrets.secrets import (
+    get_secret_keys,
+    get_secret_value,
+    write_secret,
+)
 from marimo._server.models.secrets import CreateSecretRequest
 
 if TYPE_CHECKING:
@@ -18,9 +22,11 @@ def test_get_secret_keys_basic(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ENV_SECRET", "value")
     original_environ = os.environ.copy()
 
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [],
+            }
         }
     )
 
@@ -34,9 +40,11 @@ def test_get_secret_keys_basic(monkeypatch: pytest.MonkeyPatch):
 
 def test_get_secret_keys_empty(monkeypatch: pytest.MonkeyPatch):
     # Clear any test environment variables
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [],
+            }
         }
     )
 
@@ -68,9 +76,11 @@ def test_get_secret_keys_with_dotenv(
     monkeypatch.setenv("SHARED_SECRET", "env_value")
     original_environ = os.environ.copy()
 
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [str(env_file)],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [str(env_file)],
+            }
         }
     )
 
@@ -104,9 +114,11 @@ def test_get_secret_keys_multiple_dotenv(
     monkeypatch.setenv("ENV_SECRET", "env_value")
     original_environ = os.environ.copy()
 
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [str(env_file1), str(env_file2)],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [str(env_file1), str(env_file2)],
+            }
         }
     )
 
@@ -131,6 +143,59 @@ def test_get_secret_keys_multiple_dotenv(
     assert "SHARED_SECRET" not in result[2].keys
 
 
+def test_get_secret_value_uses_environment_then_dotenv(tmp_path: Path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "ENV_FIRST=dotenv-value\nDOTENV_ONLY=dotenv-only",
+        encoding="utf-8",
+    )
+    environ = {"ENV_FIRST": "environment-value"}
+    config = MarimoConfig.from_dict({"runtime": {"dotenv": [str(env_file)]}})
+
+    assert (
+        get_secret_value("ENV_FIRST", config, environ) == "environment-value"
+    )
+    assert get_secret_value("DOTENV_ONLY", config, environ) == "dotenv-only"
+    assert get_secret_value("MISSING", config, environ) is None
+    assert "DOTENV_ONLY" not in environ
+
+
+def test_get_secret_value_uses_first_dotenv(tmp_path: Path):
+    first_env = tmp_path / ".env.first"
+    first_env.write_text("SHARED=first", encoding="utf-8")
+    second_env = tmp_path / ".env.second"
+    second_env.write_text("SHARED=second", encoding="utf-8")
+    config = MarimoConfig.from_dict(
+        {"runtime": {"dotenv": [str(first_env), str(second_env)]}}
+    )
+
+    assert get_secret_value("SHARED", config, {}) == "first"
+
+
+def test_get_secret_value_interpolates_across_dotenv_files(tmp_path: Path):
+    first_env = tmp_path / ".env.first"
+    first_env.write_text("BASE=first", encoding="utf-8")
+    second_env = tmp_path / ".env.second"
+    second_env.write_text("API_KEY=${BASE}-key", encoding="utf-8")
+    config = MarimoConfig.from_dict(
+        {"runtime": {"dotenv": [str(first_env), str(second_env)]}}
+    )
+
+    assert get_secret_value("API_KEY", config, {}) == "first-key"
+
+
+def test_get_secret_value_rereads_dotenv(tmp_path: Path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("ROTATED_KEY=before", encoding="utf-8")
+    config = MarimoConfig.from_dict({"runtime": {"dotenv": [str(env_file)]}})
+
+    assert get_secret_value("ROTATED_KEY", config, {}) == "before"
+
+    env_file.write_text("ROTATED_KEY=after", encoding="utf-8")
+
+    assert get_secret_value("ROTATED_KEY", config, {}) == "after"
+
+
 def test_write_secret(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     # Create a .env file
     env_file = tmp_path / ".env"
@@ -139,9 +204,11 @@ def test_write_secret(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     # Set an environment variable
     monkeypatch.setenv("ENV_SECRET", "env_value")
 
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [str(env_file)],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [str(env_file)],
+            }
         }
     )
 
@@ -178,9 +245,11 @@ def test_write_invalid_secret(tmp_path: Path):
     env_file = tmp_path / ".env"
     env_file.write_text("EXISTING_SECRET=value")
 
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [str(env_file)],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [str(env_file)],
+            }
         }
     )
 
@@ -231,9 +300,11 @@ def test_write_secret_multiple_dotenv(tmp_path: Path):
 
     original_environ = os.environ.copy()
 
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [str(env_file1), str(env_file2)],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [str(env_file1), str(env_file2)],
+            }
         }
     )
 
@@ -259,9 +330,11 @@ def test_write_secret_multiple_dotenv(tmp_path: Path):
 def test_write_secret_nonexistent_file(tmp_path: Path):
     nonexistent_file = tmp_path / "nonexistent.env"
 
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [str(nonexistent_file)],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [str(nonexistent_file)],
+            }
         }
     )
 
@@ -280,9 +353,11 @@ def test_write_secret_nonexistent_file(tmp_path: Path):
     env_file = tmp_path / ".env"
     assert not env_file.exists()
 
-    config = MarimoConfig(
-        runtime={
-            "dotenv": [str(tmp_path / ".env")],
+    config = MarimoConfig.from_dict(
+        {
+            "runtime": {
+                "dotenv": [str(tmp_path / ".env")],
+            }
         }
     )
 

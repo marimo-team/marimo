@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-const urlRegex = /(https?:\/\/\S+)/;
+/** Matches HTTP(S) URLs without consuming surrounding delimiters. */
+export const URL_REGEX = /(https?:\/\/[^\s"<>`{}|\\^]+)/;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
 const dataImageRegex = /^data:image\//i;
 const knownImageDomains = ["avatars.githubusercontent.com"];
@@ -19,9 +20,9 @@ export function parseContent(text: string): ContentPart[] {
     return [{ type: "image", url: text }];
   }
 
-  const parts = text.split(urlRegex).filter((part) => part !== "");
+  const parts = text.split(URL_REGEX).filter((part) => part !== "");
   return parts.map((part) => {
-    const isUrl = urlRegex.test(part);
+    const isUrl = URL_REGEX.test(part);
     if (isUrl) {
       const isImage =
         imageRegex.test(part) ||

@@ -1,13 +1,26 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import json
 import os
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
-from marimo._config.config import AiConfig
+from marimo._config.config_schema import AiConfig
 from marimo._dependencies.dependencies import Dependency, DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
+from marimo._server.ai.completion_output import (
+    CELL_COMPLETION_DATA_TYPE,
+    NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+    CellCompletion,
+    NotebookCellsCompletion,
+)
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.providers import (
@@ -15,14 +28,288 @@ from marimo._server.ai.providers import (
     AzureOpenAIProvider,
     BedrockProvider,
     CustomProvider,
+    GitHubCopilotProvider,
     GoogleProvider,
+    OpenAIClientMixin,
     OpenAIProvider,
     StreamOptions,
     _infer_provider_name_from_base_url,
     _normalize_base_url,
+    _require_github_copilot_dependency,
+    _structured_completion_finish_reason,
     get_completion_provider,
 )
+from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.ai.tracing import SpanInfo
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+    from pathlib import Path
+
+
+@pytest.mark.parametrize(
+    ("pydantic_reason", "vercel_reason"),
+    [
+        ("stop", "stop"),
+        ("length", "length"),
+        ("content_filter", "content-filter"),
+        ("tool_call", "stop"),
+        ("error", "error"),
+        (None, "stop"),
+    ],
+)
+def test_structured_completion_finish_reason(
+    pydantic_reason: Any, vercel_reason: Any
+) -> None:
+    assert (
+        _structured_completion_finish_reason(pydantic_reason) == vercel_reason
+    )
+
+
+def test_structured_completion_unknown_finish_reason() -> None:
+    with patch("marimo._server.ai.providers.log_never") as log_never:
+        assert (
+            _structured_completion_finish_reason(cast(Any, "future_reason"))
+            == "other"
+        )
+
+    log_never.assert_called_once_with("future_reason")
+
+
+@pytest.mark.parametrize(
+    "cells",
+    [
+        pytest.param([], id="no-cells"),
+        pytest.param([{"language": "python", "code": ""}], id="empty-code"),
+    ],
+)
+def test_notebook_cells_completion_requires_content(
+    cells: list[dict[str, str]],
+) -> None:
+    with pytest.raises(ValidationError):
+        NotebookCellsCompletion.model_validate({"cells": cells})
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    "test_model_kwargs",
+    [
+        pytest.param(
+            {"custom_output_args": {"code": "print('```')"}},
+            id="tool-output",
+        ),
+        pytest.param(
+            {
+                "custom_output_text": '{"code":"print(\'```\')"}',
+                "profile": {
+                    "default_structured_output_mode": "native",
+                    "supports_json_schema_output": True,
+                },
+            },
+            id="native-output",
+        ),
+        pytest.param(
+            {
+                "custom_output_text": '{"code":"print(\'```\')"}',
+                "profile": {"default_structured_output_mode": "prompted"},
+            },
+            id="prompted-output",
+        ),
+    ],
+)
+async def test_stream_structured_completion_emits_validated_data(
+    test_model_kwargs: dict[str, Any],
+) -> None:
+    from pydantic_ai.models.test import TestModel
+    from pydantic_ai.profiles import ModelProfile
+
+    if profile := test_model_kwargs.get("profile"):
+        test_model_kwargs = {
+            **test_model_kwargs,
+            "profile": ModelProfile(**profile),
+        }
+
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+    stream_options = StreamOptions(
+        span_info=SpanInfo(endpoint="completion", model="openai/gpt-4")
+    )
+
+    with patch.object(
+        provider,
+        "create_model",
+        return_value=TestModel(**test_model_kwargs),
+    ):
+        response = await provider.stream_structured_completion(
+            messages=[
+                {
+                    "id": "user-message",
+                    "role": "user",
+                    "parts": [{"type": "text", "text": "write code"}],
+                }
+            ],
+            system_prompt="Return cell code.",
+            max_tokens=100,
+            output_type=CellCompletion,
+            data_type=CELL_COMPLETION_DATA_TYPE,
+            stream_options=stream_options,
+        )
+
+    chunks = [chunk async for chunk in response.body_iterator]
+    body = "".join(
+        chunk.decode() if isinstance(chunk, bytes) else chunk
+        for chunk in chunks
+    )
+    assert '"type":"data-cell-completion"' in body
+    assert "print('```')" in body
+    assert '"transient":true' in body
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_stream_structured_completion_emits_partial_snapshots() -> None:
+    from pydantic_ai.models.function import (
+        AgentInfo,
+        DeltaToolCall,
+        DeltaToolCalls,
+        FunctionModel,
+    )
+
+    async def respond(
+        messages: list[Any], info: AgentInfo
+    ) -> AsyncIterator[DeltaToolCalls]:
+        del messages
+        assert info.function_tools == []
+        yield {
+            0: DeltaToolCall(
+                name="final_result",
+                json_args=('{"cells":[{"language":"python","code":"a'),
+                tool_call_id="completion",
+            )
+        }
+        await asyncio.sleep(0.11)
+        yield {
+            0: DeltaToolCall(
+                json_args=(' = 1"},{"language":"python","code":"b')
+            )
+        }
+        await asyncio.sleep(0.11)
+        yield {0: DeltaToolCall(json_args=' = a + 1"}]}')}
+
+    from pydantic_ai.profiles import ModelProfile
+
+    model = FunctionModel(
+        stream_function=respond,
+        profile=ModelProfile(default_structured_output_mode="tool"),
+    )
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="http://test-url",
+        tools=[
+            ToolDefinition(
+                name="configured_tool",
+                description="Must not be exposed to completion generation.",
+                parameters={"type": "object"},
+                source="backend",
+                mode=["ask"],
+            )
+        ],
+    )
+    provider = OpenAIProvider("gpt-4", config)
+
+    with patch.object(provider, "create_model", return_value=model):
+        response = await provider.stream_structured_completion(
+            messages=[
+                {
+                    "id": "user-message",
+                    "role": "user",
+                    "parts": [{"type": "text", "text": "write code"}],
+                }
+            ],
+            system_prompt="Return cells.",
+            max_tokens=100,
+            output_type=NotebookCellsCompletion,
+            data_type=NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+            stream_options=StreamOptions(
+                span_info=SpanInfo(endpoint="completion", model="openai/gpt-4")
+            ),
+        )
+
+    chunks = [chunk async for chunk in response.body_iterator]
+    body = "".join(
+        chunk.decode() if isinstance(chunk, bytes) else chunk
+        for chunk in chunks
+    )
+    assert body.count('"type":"data-notebook-cells-completion"') == 3
+    assert body.index('"code":"a"') < body.index('"code":"a = 1"')
+    assert body.index('"code":"b"') < body.index('"code":"b = a + 1"')
+    assert '"finishReason":"stop"' in body
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_stream_structured_completion_reports_final_validation_error() -> (
+    None
+):
+    from pydantic_ai.models.function import (
+        AgentInfo,
+        DeltaToolCall,
+        DeltaToolCalls,
+        FunctionModel,
+    )
+
+    async def respond(
+        messages: list[Any], info: AgentInfo
+    ) -> AsyncIterator[DeltaToolCalls]:
+        del messages, info
+        yield {
+            0: DeltaToolCall(
+                name="final_result",
+                json_args=(
+                    '{"cells":[{"language":"python","code":"partial"}]}'
+                ),
+                tool_call_id="completion",
+            )
+        }
+        yield {0: DeltaToolCall(json_args=" invalid")}
+
+    from pydantic_ai.profiles import ModelProfile
+
+    model = FunctionModel(
+        stream_function=respond,
+        profile=ModelProfile(default_structured_output_mode="tool"),
+    )
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    with (
+        patch.object(provider, "create_model", return_value=model),
+        patch("marimo._server.ai.providers.LOGGER.exception") as log_exception,
+    ):
+        response = await provider.stream_structured_completion(
+            messages=[
+                {
+                    "id": "user-message",
+                    "role": "user",
+                    "parts": [{"type": "text", "text": "write code"}],
+                }
+            ],
+            system_prompt="Return cells.",
+            max_tokens=100,
+            output_type=NotebookCellsCompletion,
+            data_type=NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+            stream_options=StreamOptions(
+                span_info=SpanInfo(endpoint="completion", model="openai/gpt-4")
+            ),
+        )
+
+        chunks = [chunk async for chunk in response.body_iterator]
+        body = "".join(
+            chunk.decode() if isinstance(chunk, bytes) else chunk
+            for chunk in chunks
+        )
+    assert '"code":"partial"' in body
+    assert '"type":"error"' in body
+    assert '"finishReason":"error"' in body
+    log_exception.assert_called_once_with("Structured completion failed")
 
 
 @pytest.mark.parametrize(
@@ -41,23 +328,25 @@ from marimo._server.ai.tracing import SpanInfo
 )
 def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
     """Test that the correct config is returned for a given model."""
-    ai_config = AiConfig(
-        open_ai={
-            "model": model_name,
-            "api_key": "openai-key",
-        },
-        anthropic={
-            "api_key": "anthropic-key",
-        },
-        google={
-            "api_key": "google-key",
-        },
-        bedrock={
-            "profile_name": "aws-profile",
-        },
-        openrouter={
-            "api_key": "openrouter-key",
-        },
+    ai_config = AiConfig.from_dict(
+        {
+            "open_ai": {
+                "model": model_name,
+                "api_key": "openai-key",
+            },
+            "anthropic": {
+                "api_key": "anthropic-key",
+            },
+            "google": {
+                "api_key": "google-key",
+            },
+            "bedrock": {
+                "profile_name": "aws-profile",
+            },
+            "openrouter": {
+                "api_key": "openrouter-key",
+            },
+        }
     )
     config = AnyProviderConfig.for_model(model_name, ai_config)
 
@@ -119,6 +408,38 @@ def test_get_completion_provider(
     assert isinstance(provider, provider_type)
 
 
+def test_get_github_copilot_completion_provider() -> None:
+    config = AnyProviderConfig(
+        api_key="gho_test-token", base_url="https://api.githubcopilot.com"
+    )
+
+    with (
+        patch(
+            "marimo._server.ai.providers._require_github_copilot_dependency"
+        ),
+        patch.object(
+            GitHubCopilotProvider,
+            "create_provider",
+            return_value=MagicMock(),
+        ),
+    ):
+        provider = get_completion_provider(config, "github/gpt-5.4")
+
+    assert isinstance(provider, GitHubCopilotProvider)
+
+
+def test_github_copilot_requires_supported_pydantic_ai() -> None:
+    with patch(
+        "marimo._server.ai.providers."
+        "GITHUB_COPILOT_DEPENDENCY.has_required_version",
+        return_value=False,
+    ):
+        with pytest.raises(ManyModulesNotFoundError) as exc_info:
+            _require_github_copilot_dependency()
+
+    assert exc_info.value.package_names == ["pydantic-ai-slim[openai]>=2.42.0"]
+
+
 @pytest.mark.requires("pydantic_ai")
 async def test_azure_openai_provider() -> None:
     """Test that Azure OpenAI provider uses correct parameters."""
@@ -141,6 +462,97 @@ async def test_azure_openai_provider() -> None:
     assert api_version == "2023-05-15"
     assert deployment_name == "gpt-4-1"
     assert endpoint == "https://unknown_domain.openai"
+
+
+@pytest.mark.requires("anthropic", "pydantic_ai")
+async def test_anthropic_request_with_tool_history() -> None:
+    import httpx2
+    from anthropic import AsyncAnthropic
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        ToolCallPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
+    from pydantic_ai.models import ModelRequestParameters
+    from pydantic_ai.providers.anthropic import (
+        AnthropicProvider as PydanticAnthropic,
+    )
+
+    model_name = "claude-sonnet-4-5"
+    requests: list[dict[str, Any]] = []
+
+    def respond(request: httpx2.Request) -> httpx2.Response:
+        requests.append(json.loads(request.content))
+        return httpx2.Response(
+            200,
+            json={
+                "id": "msg_test",
+                "type": "message",
+                "role": "assistant",
+                "model": model_name,
+                "content": [{"type": "text", "text": "Four"}],
+                "stop_reason": "end_turn",
+                "stop_sequence": None,
+                "usage": {"input_tokens": 10, "output_tokens": 1},
+            },
+        )
+
+    async with httpx2.AsyncClient(
+        transport=httpx2.MockTransport(respond)
+    ) as client:
+        sdk = AsyncAnthropic(api_key="test-key", http_client=client)
+        with patch.object(
+            AnthropicProvider,
+            "create_provider",
+            return_value=PydanticAnthropic(anthropic_client=sdk),
+        ):
+            provider = AnthropicProvider(
+                model_name,
+                AnyProviderConfig(api_key="test-key", base_url=None),
+            )
+        model = provider.create_model()
+        settings = provider._build_model_settings(model, max_tokens=1024)
+        settings["thinking"] = False
+        response = await model.request(
+            [
+                ModelRequest(parts=[UserPromptPart(content="Double two")]),
+                ModelResponse(
+                    parts=[
+                        ToolCallPart(
+                            tool_name="double",
+                            args={"value": 2},
+                            tool_call_id="double-call",
+                        )
+                    ]
+                ),
+                ModelRequest(
+                    parts=[
+                        ToolReturnPart(
+                            tool_name="double",
+                            content=4,
+                            tool_call_id="double-call",
+                        )
+                    ]
+                ),
+            ],
+            settings,
+            ModelRequestParameters(),
+        )
+
+    assert {
+        "roles": [message["role"] for message in requests[0]["messages"]],
+        "blocks": [
+            [block["type"] for block in message["content"]]
+            for message in requests[0]["messages"]
+        ],
+        "response": response.text,
+    } == {
+        "roles": ["user", "assistant", "user"],
+        "blocks": [["text"], ["tool_use"], ["tool_result"]],
+        "response": "Four",
+    }
 
 
 @pytest.mark.skipif(
@@ -274,31 +686,61 @@ def test_openai_default_thinking(
         pytest.param(
             "claude-opus-4-7",
             # Opus 4.7 disallows sampling settings, so no temperature.
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_7_adaptive_no_sampling",
         ),
         pytest.param(
             "claude-opus-4-6",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_6",
         ),
         pytest.param(
             "claude-sonnet-4-6",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_4_6",
         ),
         pytest.param(
             "claude-opus-4-5-20251101",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_5",
         ),
         pytest.param(
             "claude-3-7-sonnet-20250219",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_3_7",
         ),
@@ -310,7 +752,13 @@ def test_openai_default_thinking(
         # corrected upstream, behavior here will follow automatically.
         pytest.param(
             "claude-3-5-sonnet-20241022",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_3_5_trusts_profile",
         ),
@@ -547,6 +995,42 @@ async def test_completion_does_not_pass_redundant_instructions() -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize("thinking", [None, False])
+async def test_completion_thinking_override(thinking: bool | None) -> None:
+    from pydantic_ai.messages import ModelResponse, TextPart
+    from pydantic_ai.models.openai import OpenAIResponsesModel
+
+    config = AnyProviderConfig(api_key="test-key", base_url=None)
+    provider = OpenAIProvider("gpt-5.1", config)
+
+    with patch.object(
+        OpenAIResponsesModel, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = ModelResponse(
+            parts=[TextPart(content="print(1)")]
+        )
+        result = await provider.completion(
+            messages=[],
+            system_prompt="Complete the code.",
+            max_tokens=1024,
+            additional_tools=[],
+            enable_capabilities=False,
+            thinking=thinking,
+            span_info=SpanInfo(
+                endpoint="inline_completion", model="openai/gpt-5.1"
+            ),
+        )
+
+    assert result == "print(1)"
+    mock_request.assert_called_once()
+    assert mock_request.call_args.args[1] == {
+        "max_tokens": 1024,
+        "thinking": True if thinking is None else thinking,
+        "openai_reasoning_summary": "auto",
+    }
+
+
+@pytest.mark.requires("pydantic_ai")
 async def test_completion_tool_count_includes_capabilities() -> None:
     """`completion` reports tools plus the agent's native capabilities, so its
     telemetry matches the streaming paths."""
@@ -680,8 +1164,8 @@ def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
             id="path_before_v1",
         ),
         pytest.param(
-            "https://models.github.ai/inference",
-            "models.github.ai/inference",
+            "https://inference.example.com/custom-path",
+            "inference.example.com/custom-path",
             id="path_without_v1",
         ),
         pytest.param(
@@ -716,9 +1200,7 @@ def test_normalize_base_url(
         pytest.param(
             "https://openrouter.ai/api/v1/", "openrouter", id="openrouter"
         ),
-        # Hosts not discovered from pydantic-ai's providers -> no match, so we
-        # fall back to the generic OpenAI provider (preserving prior behavior).
-        # `api.openai.com` is LiteLLM's client-derived default, which we skip.
+        # Unknown and shared OpenAI endpoints retain the generic fallback.
         pytest.param("https://my.internal.llm/v1", None, id="unknown_host"),
         pytest.param("https://api.openai.com/v1", None, id="openai_host"),
         pytest.param(None, None, id="no_base_url"),
@@ -728,6 +1210,23 @@ def test_infer_provider_name_from_base_url(
     base_url: str | None, expected: str | None
 ) -> None:
     assert _infer_provider_name_from_base_url(base_url) == expected
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+def test_custom_provider_keeps_openai_api_key_auth() -> None:
+    from pydantic_ai.providers.openai import (
+        OpenAIProvider as PydanticOpenAI,
+    )
+
+    provider = CustomProvider(
+        AiModelId.from_model("my_provider/gpt-4"),
+        AnyProviderConfig(
+            api_key="test-key", base_url="https://api.openai.com/v1"
+        ),
+    )
+
+    assert type(provider.provider) is PydanticOpenAI
+    assert provider.provider.client.api_key == "test-key"
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -756,13 +1255,108 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
         assert profile.openai_chat_send_back_thinking_parts == "field"
 
 
+@pytest.mark.requires("openai", "pydantic_ai")
+@pytest.mark.parametrize(
+    ("provider_name", "model_name", "base_url", "tool_choice"),
+    [
+        ("deepseek", "deepseek-flash", "https://api.deepseek.com", "auto"),
+        (
+            "deepseek_official",
+            "deepseek-flash",
+            "https://api.deepseek.com/v1/",
+            "auto",
+        ),
+        ("deepseek", "deepseek-v4-flash", "https://api.deepseek.com", "auto"),
+        ("deepseek", "deepseek-chat", "https://api.deepseek.com", "required"),
+        (
+            "custom",
+            "deepseek-flash",
+            "https://my.internal.llm/v1",
+            "required",
+        ),
+    ],
+)
+async def test_custom_provider_structured_completion_tool_choice(
+    provider_name: str,
+    model_name: str,
+    base_url: str,
+    tool_choice: str,
+) -> None:
+    import httpx
+    from openai import AsyncOpenAI
+
+    requests: list[dict[str, str]] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        requests.append(
+            {"model": body["model"], "tool_choice": body["tool_choice"]}
+        )
+        return httpx.Response(
+            200,
+            json={
+                "id": "response",
+                "object": "chat.completion",
+                "created": 0,
+                "model": model_name,
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "tool_calls",
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "id": "completion",
+                                    "type": "function",
+                                    "function": {
+                                        "name": body["tools"][0]["function"][
+                                            "name"
+                                        ],
+                                        "arguments": '{"code": "print(1)"}',
+                                    },
+                                }
+                            ],
+                        },
+                    }
+                ],
+            },
+        )
+
+    async with (
+        httpx.AsyncClient(
+            transport=httpx.MockTransport(respond)
+        ) as http_client,
+        AsyncOpenAI(
+            api_key="test-key", base_url=base_url, http_client=http_client
+        ) as client,
+    ):
+        with patch.object(
+            CustomProvider, "get_openai_client", return_value=client
+        ):
+            provider = CustomProvider(
+                AiModelId.from_model(f"{provider_name}/{model_name}"),
+                AnyProviderConfig(api_key="test-key", base_url=base_url),
+            )
+        agent = provider._create_structured_completion_agent(
+            name="completion",
+            max_tokens=None,
+            system_prompt="Generate Python code.",
+            output_type=CellCompletion,
+        )
+        result = await agent.run("Print 1")
+
+    assert result.output == CellCompletion(code="print(1)")
+    assert requests == [{"model": model_name, "tool_choice": tool_choice}]
+
+
 @pytest.mark.requires("pydantic_ai")
-def test_custom_provider_unknown_base_url_stays_generic() -> None:
-    """An unknown name with an unrecognized base URL falls back to the generic
-    OpenAI provider (no thinking field), preserving prior behavior."""
-    config = AnyProviderConfig(
-        api_key="test-key", base_url="https://my.internal.llm/v1"
-    )
+@pytest.mark.parametrize(
+    "base_url", ["https://my.internal.llm/v1", "https://api.openai.com/v1"]
+)
+def test_custom_provider_unknown_base_url_stays_generic(base_url: str) -> None:
+    """A shared or unrecognized URL keeps the generic OpenAI provider."""
+    config = AnyProviderConfig(api_key="test-key", base_url=base_url)
     provider = CustomProvider(
         AiModelId.from_model("my_provider/my-model"), config
     )
@@ -1063,3 +1657,198 @@ def test_build_agent_capabilities_empty_without_support_or_deps() -> None:
         capabilities = provider._build_agent_capabilities(model)
 
     assert capabilities == []
+
+
+def _openai_ssl_config(**kwargs: Any) -> AnyProviderConfig:
+    return AnyProviderConfig(
+        api_key="test-key",
+        base_url="http://test-url",
+        **kwargs,
+    )
+
+
+@pytest.mark.requires("openai")
+def test_get_openai_client_default_skips_custom_http_client() -> None:
+    """Default SSL uses the SDK client; no custom http_client is injected."""
+    with (
+        patch("openai.AsyncOpenAI") as mock_openai,
+        patch("openai.DefaultAsyncHttpxClient") as mock_http,
+    ):
+        OpenAIClientMixin().get_openai_client(_openai_ssl_config())
+
+    mock_http.assert_not_called()
+    mock_openai.assert_called_once()
+    assert "http_client" not in mock_openai.call_args.kwargs
+
+
+@pytest.mark.requires("openai")
+def test_get_openai_client_ssl_verify_false() -> None:
+    """ssl_verify=False builds DefaultAsyncHttpxClient(verify=False)."""
+    fake_client = MagicMock(name="http_client")
+    with (
+        patch("openai.AsyncOpenAI") as mock_openai,
+        patch(
+            "openai.DefaultAsyncHttpxClient", return_value=fake_client
+        ) as mock_http,
+    ):
+        OpenAIClientMixin().get_openai_client(
+            _openai_ssl_config(ssl_verify=False)
+        )
+
+    mock_http.assert_called_once_with(verify=False)
+    assert mock_openai.call_args.kwargs["http_client"] is fake_client
+
+
+@pytest.mark.requires("openai")
+@pytest.mark.parametrize(
+    ("use_ca", "use_pem"),
+    [
+        pytest.param(True, False, id="ca_bundle"),
+        pytest.param(False, True, id="client_pem"),
+        pytest.param(True, True, id="ca_and_pem"),
+    ],
+)
+def test_get_openai_client_custom_certs(
+    tmp_path: Path, use_ca: bool, use_pem: bool
+) -> None:
+    """CA bundle and/or client PEM produce an SSLContext passed as verify."""
+    ca_path = tmp_path / "ca.pem"
+    pem_path = tmp_path / "client.pem"
+    ca_path.write_text("dummy-ca")
+    pem_path.write_text("dummy-pem")
+
+    fake_ctx = MagicMock(name="ssl_context")
+    fake_client = MagicMock(name="http_client")
+    with (
+        patch("ssl.create_default_context", return_value=fake_ctx) as mock_ssl,
+        patch("openai.AsyncOpenAI") as mock_openai,
+        patch(
+            "openai.DefaultAsyncHttpxClient", return_value=fake_client
+        ) as mock_http,
+    ):
+        OpenAIClientMixin().get_openai_client(
+            _openai_ssl_config(
+                ca_bundle_path=str(ca_path) if use_ca else None,
+                client_pem=str(pem_path) if use_pem else None,
+            )
+        )
+
+    if use_ca:
+        mock_ssl.assert_called_once_with(cafile=str(ca_path))
+    else:
+        mock_ssl.assert_called_once_with()
+
+    if use_pem:
+        fake_ctx.load_cert_chain.assert_called_once_with(
+            certfile=str(pem_path)
+        )
+    else:
+        fake_ctx.load_cert_chain.assert_not_called()
+
+    mock_http.assert_called_once_with(verify=fake_ctx)
+    assert mock_openai.call_args.kwargs["http_client"] is fake_client
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+@pytest.mark.parametrize("override_headers", [False, True])
+async def test_opencode_go_conversation_headers(
+    override_headers: bool,
+) -> None:
+    import httpx
+    from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
+
+    from marimo._version import __version__
+
+    session_ids = (
+        "chat-1",
+        "chat-1",
+        "chat-2",
+        "bad\r\nInjected: value",
+        "a" * 20_000,
+        "conversation-你好",
+    )
+    headers: list[dict[str, list[str]]] = []
+    extra_headers = {"x-custom": "preserved"}
+    if override_headers:
+        extra_headers.update(
+            {
+                "user-agent": "custom-agent",
+                "X-OpenCode-Client": "custom-client",
+                "X-OpenCode-Session": "custom-session",
+            }
+        )
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        headers.append(
+            {
+                name: request.headers.get_list(name)
+                for name in (
+                    "user-agent",
+                    "x-opencode-client",
+                    "x-opencode-session",
+                    "x-custom",
+                )
+            }
+        )
+        return httpx.Response(
+            200,
+            json={
+                "id": "response",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "deepseek-v4-flash",
+                "choices": [],
+            },
+        )
+
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="https://opencode.ai/zen/go/v1/",
+        extra_headers=extra_headers.copy(),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(respond)
+    ) as client:
+        for session_id in session_ids:
+            provider = get_completion_provider(
+                config, "opencode-go/deepseek-v4-flash", session_id=session_id
+            )
+            assert isinstance(provider.provider, PydanticOpenAI)
+            openai_client = provider.provider.client
+            try:
+                await openai_client.with_options(
+                    http_client=client
+                ).chat.completions.create(
+                    model="deepseek-v4-flash",
+                    messages=[{"role": "user", "content": "Hello"}],
+                )
+            finally:
+                await openai_client.close()
+
+    assert headers == [
+        {
+            "user-agent": [
+                "custom-agent" if override_headers else f"marimo/{__version__}"
+            ],
+            "x-opencode-client": [
+                "custom-client" if override_headers else "marimo"
+            ],
+            "x-opencode-session": [
+                "custom-session"
+                if override_headers
+                else hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+            ],
+            "x-custom": ["preserved"],
+        }
+        for session_id in session_ids
+    ]
+    assert config.extra_headers == extra_headers
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+def test_session_headers_do_not_affect_other_providers() -> None:
+    config = AnyProviderConfig(api_key="test-key", base_url=None)
+    provider = get_completion_provider(
+        config, "openai/gpt-4o", session_id="chat-1"
+    )
+    assert provider.config.extra_headers is None

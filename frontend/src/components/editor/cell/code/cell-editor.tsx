@@ -1,20 +1,26 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { historyField } from "@codemirror/commands";
-import { EditorState, StateEffect } from "@codemirror/state";
+import { EditorState, type Extension, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import { Button } from "@/components/ui/button";
-import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { getNotebook, useCellActions } from "@/core/cells/cells";
-import { SETUP_CELL_ID } from "@/core/cells/ids";
+import { useCellActions } from "@/core/cells/actions";
+import {
+  showHiddenCodeAtom,
+  takeRestoredEditorStateAtom,
+  useRestoredEditorState,
+} from "@/core/cells/editor";
+import {
+  useNotebookCellCodeExtension,
+  useNotebookDocumentEdit,
+} from "@/core/notebook/document";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import { notebookCellEditorViews } from "@/core/cells/utils";
+import type { CellData } from "@/core/cells/types";
+import type { CellRunStatus } from "@/core/executions";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
 import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
@@ -24,28 +30,21 @@ import {
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
-import {
-  getEditorCodeAsPython,
-  updateEditorCodeFromPython,
-} from "@/core/codemirror/language/utils";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import {
-  connectedDocAtom,
-  realTimeCollaboration,
-} from "@/core/codemirror/rtc/extension";
-import { autoInstantiateAtom, isAiFeatureEnabled } from "@/core/config/config";
+  autoInstantiateAtom,
+  isAiEnabled,
+  isAiFeatureEnabled,
+} from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { connectionAtom } from "@/core/network/connection";
-import { useRequestClient } from "@/core/network/requests";
-import { canUseRtc, isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
-import { isAppConnecting } from "@/core/websocket/connection-utils";
 import type { Theme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
 import { mergeRefs } from "@/utils/mergeRefs";
+import { useAskAiAboutCell } from "../../chrome/wrapper/useAskAiAboutCell";
 import { AiCompletionEditor } from "../../ai/ai-completion-editor";
 import {
   closeSignatureHelp,
@@ -56,10 +55,11 @@ import { useSplitCellCallback } from "../useSplitCell";
 import { CodePlaceholder } from "./code-placeholder";
 import { LanguageToggles } from "./language-toggle";
 
-export interface CellEditorProps
-  extends
-    Pick<CellRuntimeState, "status">,
-    Pick<CellData, "id" | "code" | "serializedEditorState" | "config"> {
+export interface CellEditorProps extends Pick<
+  CellData,
+  "id" | "code" | "config"
+> {
+  status: CellRunStatus;
   runCell: () => void;
   theme: Theme;
   showPlaceholder: boolean;
@@ -93,6 +93,8 @@ export interface CellEditorProps
    * defaults to `#App`.
    */
   tooltipParentSelector?: string;
+  /** Further editor extensions, for an editor outside the notebook. */
+  extensions?: Extension[];
 }
 
 const CellEditorInternal = ({
@@ -102,7 +104,6 @@ const CellEditorInternal = ({
   config: cellConfig,
   code,
   status,
-  serializedEditorState,
   setEditorView,
   runCell,
   userConfig,
@@ -117,12 +118,17 @@ const CellEditorInternal = ({
   inlineAiTooltip,
   outputArea,
   tooltipParentSelector,
+  extensions: extraExtensions,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
+  const serializedEditorState = useRestoredEditorState(cellId);
+  const takeRestoredEditorState = useSetAtom(takeRestoredEditorStateAtom);
+  const showHiddenCodeNow = useSetAtom(showHiddenCodeAtom);
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
-  const { saveCellConfig } = useRequestClient();
+  const edit = useNotebookDocumentEdit();
+  const codeBinding = useNotebookCellCodeExtension(cellId);
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -162,9 +168,7 @@ const CellEditorInternal = ({
   const toggleHideCode = useEvent(() => {
     // Use cellConfig.hide_code instead of hidden, since it may be temporarily shown
     const nextHidden = !cellConfig.hide_code;
-    // Fire-and-forget save
-    void saveCellConfig({ configs: { [cellId]: { hide_code: nextHidden } } });
-    cellActions.updateCellConfig({ cellId, config: { hide_code: nextHidden } });
+    edit((tx) => tx.updateConfig(cellId, { hide_code: nextHidden }));
     return nextHidden;
   });
 
@@ -173,35 +177,34 @@ const CellEditorInternal = ({
   const afterToggleMarkdown = useEvent(() => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell: cellActions.createNewCell,
+      createCell: cellActions.createCell,
     });
     // Code stays visible until the user blurs the cell
     if (!cellConfig.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
-      void saveCellConfig({
-        configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
-      });
-      cellActions.updateCellConfig({
-        cellId,
-        config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
-      });
-      cellActions.markUntouched({ cellId });
+      edit((tx) =>
+        tx.updateConfig(cellId, { hide_code: MARKDOWN_INITIAL_HIDE_CODE }),
+      );
+      showHiddenCodeNow({ cellId });
     }
   });
 
   const afterToggleSQL = useEvent(() => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell: cellActions.createNewCell,
+      createCell: cellActions.createCell,
     });
   });
 
   const aiFeaturesEnabled = isAiFeatureEnabled(userConfig);
+  const askAiAboutCell = useAskAiAboutCell();
+  const aiChatEnabled = isAiEnabled(userConfig);
 
   const extensions = useMemo(() => {
     const extensions = setupCodeMirror({
       cellId,
       showPlaceholder,
       enableAI: aiFeaturesEnabled,
+      enableAIChat: aiChatEnabled,
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
@@ -211,43 +214,18 @@ const CellEditorInternal = ({
         saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
           for (const code of cells.toReversed()) {
-            cellActions.createNewCell({
+            cellActions.createCell({
+              after: cellId,
               code,
-              before: false,
-              cellId: cellId,
-              // If the code already exists, skip creation
               skipIfCodeExists: true,
             });
           }
         },
-        addOrAppendSetupCell: (code) => {
-          const notebook = getNotebook();
-          // No setup cell yet: create one with this code at the top.
-          if (!notebook.cellIds.setupCellExists()) {
-            cellActions.addSetupCellIfDoesntExist({ code });
-            return;
-          }
-          // Setup cell exists: append the pasted code to it. Prefer updating
-          // the mounted editor (keeps the view and state in sync, like
-          // formatting does); fall back to a plain state update otherwise.
-          const view = notebookCellEditorViews(notebook)[SETUP_CELL_ID];
-          const existing = view
-            ? getEditorCodeAsPython(view)
-            : notebook.cellData[SETUP_CELL_ID].code;
-          const merged = existing.trim()
-            ? `${existing.trimEnd()}\n\n${code}`
-            : code;
-          if (view) {
-            updateEditorCodeFromPython(view, merged);
-          }
-          cellActions.updateCellCode({
-            cellId: SETUP_CELL_ID,
-            code: merged,
-            formattingChange: false,
-          });
-        },
         splitCell,
         toggleHideCode,
+        askAiAboutCell: () => {
+          void askAiAboutCell(cellId);
+        },
         aiCellCompletion: () => {
           if (!aiFeaturesEnabled) {
             return false;
@@ -278,6 +256,8 @@ const CellEditorInternal = ({
     });
 
     extensions.push(
+      codeBinding,
+      ...(extraExtensions ?? []),
       // Listen to code changes if we can use markdown
       // Also update the language adapter
       ViewPlugin.define((view) => {
@@ -317,6 +297,8 @@ const CellEditorInternal = ({
     return extensions;
   }, [
     cellId,
+    codeBinding,
+    extraExtensions,
     acceptCompletionOnEnter,
     userConfig.keymap,
     userConfig.completion,
@@ -327,6 +309,8 @@ const CellEditorInternal = ({
     inlineAiTooltip,
     tooltipParentSelector,
     aiFeaturesEnabled,
+    aiChatEnabled,
+    askAiAboutCell,
     theme,
     showPlaceholder,
     cellActions,
@@ -342,50 +326,20 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
-  const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);
   const handleInitializeEditor = useEvent(() => {
-    // If rtc is enabled, use collaborative editing
-    if (rtcEnabled) {
-      const rtc = realTimeCollaboration(
-        cellId,
-        (code) => {
-          // It's not really a formatting change,
-          // but this means it won't be marked as stale
-          cellActions.updateCellCode({ cellId, code, formattingChange: true });
-        },
-        code,
-      );
-      extensions.push(rtc.extension);
-      code = rtc.code;
-    }
-
     // Create a new editor
     const ev = new EditorView({
-      state: EditorState.create({
-        doc: code,
-        extensions: extensions,
-      }),
+      state: EditorState.create({ doc: code, extensions }),
     });
     setEditorView(ev);
     // Initialize the language adapter
-    if (!rtcEnabled) {
-      switchLanguage(ev, {
-        language: getInitialLanguageAdapter(ev.state).type,
-      });
-    }
+    switchLanguage(ev, {
+      language: getInitialLanguageAdapter(ev.state).type,
+    });
   });
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
-    // If rtc is enabled, use collaborative editing
-    if (rtcEnabled) {
-      const rtc = realTimeCollaboration(cellId, (code) => {
-        // It's not really a formatting change,
-        // but this means it won't be marked as stale
-        cellActions.updateCellCode({ cellId, code, formattingChange: true });
-      });
-      extensions.push(rtc.extension);
-    }
 
     editorViewRef.current.dispatch({
       effects: [
@@ -406,39 +360,21 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
-    if (rtcEnabled) {
-      const rtc = realTimeCollaboration(
-        cellId,
-        (code) => {
-          // It's not really a formatting change,
-          // but this means it won't be marked as stale
-          cellActions.updateCellCode({ cellId, code, formattingChange: true });
-        },
-        code,
-      );
-      extensions.push(rtc.extension);
-      code = rtc.code;
-    }
 
     const ev = new EditorView({
       state: EditorState.fromJSON(
         serializedEditorState,
-        {
-          doc: code,
-          extensions: extensions,
-        },
+        { doc: code, extensions },
         { history: historyField },
       ),
     });
     // Initialize the language adapter
-    if (!rtcEnabled) {
-      switchLanguage(ev, {
-        language: getInitialLanguageAdapter(ev.state).type,
-      });
-    }
+    switchLanguage(ev, {
+      language: getInitialLanguageAdapter(ev.state).type,
+    });
     setEditorView(ev);
-    // Clear the serialized state so that we don't re-create the editor next time
-    cellActions.clearSerializedEditorState({ cellId });
+    // The restored state is used once; the next mount builds a fresh editor.
+    takeRestoredEditorState({ cellId });
   });
   const [isEditorMounted, setIsEditorMounted] = useState(
     serializedEditorState !== null,
@@ -573,9 +509,10 @@ const CellEditorInternal = ({
           <div className="absolute top-1 right-5">
             <LanguageToggles
               code={code}
-              editorView={editorViewRef.current}
+              editorViewRef={editorViewRef}
               currentLanguageAdapter={languageAdapter}
-              onAfterToggle={afterToggleMarkdown}
+              onAfterToggleSQL={afterToggleSQL}
+              onAfterToggleMarkdown={afterToggleMarkdown}
             />
           </div>
         )}
@@ -634,45 +571,4 @@ const CellCodeMirrorEditor = React.forwardRef(
 );
 CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
-// Wait until the websocket connection is open before rendering the editor
-// This is used for real-time collaboration since the backend needs the connection started
-// before connecting the rtc websockets
-function WithWaitUntilConnected<T extends Pick<CellEditorProps, "id">>(
-  Component: React.ComponentType<T>,
-) {
-  const WaitUntilConnectedComponent = (props: T) => {
-    const connection = useAtomValue(connectionAtom);
-    const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
-
-    if (
-      isRtcEnabled() &&
-      canUseRtc(props.id) &&
-      (isAppConnecting(connection.state) || rtcDoc === undefined)
-    ) {
-      return (
-        <div className="flex h-full w-full items-baseline p-4">
-          <DelayMount milliseconds={1000} fallback={null}>
-            <span>Waiting for real-time collaboration connection...</span>
-            <Button
-              variant="link"
-              onClick={() => {
-                setRtcDoc("disabled");
-              }}
-            >
-              Turn off real-time collaboration
-            </Button>
-          </DelayMount>
-        </div>
-      );
-    }
-
-    return <Component {...props} />;
-  };
-
-  WaitUntilConnectedComponent.displayName = `WithWaitUntilConnected(${Component.displayName})`;
-  return WaitUntilConnectedComponent;
-}
-
-export const CellEditor = isRtcEnabled()
-  ? WithWaitUntilConnected(memo(CellEditorInternal))
-  : memo(CellEditorInternal);
+export const CellEditor = memo(CellEditorInternal);

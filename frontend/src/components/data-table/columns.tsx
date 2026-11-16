@@ -6,19 +6,20 @@ import { Popover as PopoverPrimitive } from "radix-ui";
 const PopoverClose = PopoverPrimitive.Close;
 
 import type { Column, ColumnDef } from "@tanstack/react-table";
-import { formatDate, isValid } from "date-fns";
+import { isValid } from "date-fns";
+import { useRef } from "react";
 import { useLocale, useNumberFormatter } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
-import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
+import { exactDateTime } from "@/utils/dates";
+import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { maxFractionalDigits } from "@/utils/numbers";
 import { Objects } from "@/utils/objects";
 import { parseContent } from "@/utils/url-parser";
-import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../editor/output/JsonOutput";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Button } from "../ui/button";
@@ -40,6 +41,7 @@ import {
   isNumericType,
 } from "./types";
 import { SentinelCell, WhitespaceMarkers } from "./sentinel-cell";
+import { highlightMatches } from "./search-highlight";
 import { detectSentinel, splitLeadingTrailingWhitespace } from "./utils";
 import { uniformSample } from "./uniformSample";
 import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
@@ -134,6 +136,7 @@ export function generateColumns<T>({
 }): ColumnDef<T>[] {
   // Row-headers are typically index columns
   const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
+  const wrappedColumnsSet = new Set(wrappedColumns);
 
   const typesByColumn = Maps.keyBy(fieldTypes, (entry) => entry[0]);
 
@@ -194,151 +197,149 @@ export function generateColumns<T>({
     columnKeys.splice(indexColumnIdx, 1);
   }
 
-  const columns = columnKeys.map(
-    (key, idx): ColumnDef<T> => ({
-      id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
-      // Use an accessorFn instead of an accessorKey because column names
-      // may have periods in them ...
-      // https://github.com/TanStack/table/issues/1671
-      accessorFn: (row) => {
-        return row[key as keyof T];
-      },
-      enableHiding: !rowHeadersSet.has(key) && key !== "",
-      header: ({ column, table }) => {
-        const stats = chartSpecModel?.getColumnStats(key);
-        const dtype = column.columnDef.meta?.dtype;
-        const headerTitle = headerTooltip?.[key];
-        const headerJustify = textJustifyColumns?.[key];
+  const columns = columnKeys.map((key, idx): ColumnDef<T> => ({
+    id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
+    // Use an accessorFn instead of an accessorKey because column names
+    // may have periods in them ...
+    // https://github.com/TanStack/table/issues/1671
+    accessorFn: (row) => {
+      return row[key as keyof T];
+    },
+    enableHiding: !rowHeadersSet.has(key) && key !== "",
+    header: ({ column, table }) => {
+      const stats = chartSpecModel?.getColumnStats(key);
+      const dtype = column.columnDef.meta?.dtype;
+      const headerTitle = headerTooltip?.[key];
+      const headerJustify = textJustifyColumns?.[key];
 
-        const dtypeHeader =
-          showDataTypes && dtype ? (
-            <div
-              className={cn(
-                "flex flex-row gap-1",
-                headerJustify === "center" && "justify-center",
-                headerJustify === "right" && "justify-end",
-              )}
-            >
-              <span className="text-xs text-muted-foreground">{dtype}</span>
-              {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  (nulls: {stats.nulls})
-                </span>
-              )}
-            </div>
-          ) : null;
-
-        const headerName = (
-          <span
-            className={cn(
-              "font-bold",
-              headerTitle && "underline decoration-dotted",
-            )}
-          >
-            {key === "" ? " " : key}
-          </span>
-        );
-
-        const headerWithTooltip = headerTitle ? (
-          <Tooltip content={headerTitle} delayDuration={300}>
-            {headerName}
-          </Tooltip>
-        ) : (
-          headerName
-        );
-
-        const dataTableColumnHeader = (
-          <DataTableColumnHeader
-            header={headerWithTooltip}
-            subheader={dtypeHeader}
-            column={column}
-            justify={headerJustify}
-            calculateTopKRows={calculateTopKRows}
-            table={table}
-          />
-        );
-
-        // Row headers have no summaries
-        if (rowHeadersSet.has(key)) {
-          return dataTableColumnHeader;
-        }
-
-        return (
+      const dtypeHeader =
+        showDataTypes && dtype ? (
           <div
             className={cn(
-              "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
-              headerJustify === "center" && "items-center",
-              headerJustify === "right" && "items-end",
+              "flex flex-row gap-1",
+              headerJustify === "center" && "justify-center",
+              headerJustify === "right" && "justify-end",
             )}
           >
-            {dataTableColumnHeader}
-            <TableColumnSummary columnId={key} />
+            <span className="text-xs text-muted-foreground">{dtype}</span>
+            {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
+              <span className="text-xs text-muted-foreground">
+                (nulls: {stats.nulls})
+              </span>
+            )}
           </div>
-        );
-      },
+        ) : null;
 
-      cell: ({ column, renderValue, getValue, cell }) => {
-        function selectCell() {
-          if (selection !== "single-cell" && selection !== "multi-cell") {
-            return;
-          }
+      const headerName = (
+        <span
+          className={cn(
+            "font-bold",
+            headerTitle && "underline decoration-dotted",
+          )}
+        >
+          {key === "" ? " " : key}
+        </span>
+      );
 
-          cell.toggleSelected?.();
+      const headerWithTooltip = headerTitle ? (
+        <Tooltip content={headerTitle} delayDuration={300}>
+          {headerName}
+        </Tooltip>
+      ) : (
+        headerName
+      );
+
+      const dataTableColumnHeader = (
+        <DataTableColumnHeader
+          header={headerWithTooltip}
+          subheader={dtypeHeader}
+          column={column}
+          justify={headerJustify}
+          calculateTopKRows={calculateTopKRows}
+          table={table}
+        />
+      );
+
+      // Row headers have no summaries
+      if (rowHeadersSet.has(key)) {
+        return dataTableColumnHeader;
+      }
+
+      return (
+        <div
+          className={cn(
+            "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
+            headerJustify === "center" && "items-center",
+            headerJustify === "right" && "items-end",
+          )}
+        >
+          {dataTableColumnHeader}
+          <TableColumnSummary columnId={key} />
+        </div>
+      );
+    },
+
+    cell: ({ column, renderValue, getValue, cell, table }) => {
+      function selectCell() {
+        if (selection !== "single-cell" && selection !== "multi-cell") {
+          return;
         }
 
-        const justify = getJustify(key);
-        const wrapped = wrappedColumns?.includes(key);
-        const isCellSelected = cell?.getIsSelected?.() || false;
-        const canSelectCell =
-          (selection === "single-cell" || selection === "multi-cell") &&
-          !isCellSelected;
+        cell.toggleSelected?.();
+      }
 
-        const dataType = column.columnDef.meta?.dataType;
-        const isNumeric = isNumericType(dataType);
-        const cellStyles = getCellStyleClass({
-          justify,
-          wrapped,
-          canSelectCell,
-          isSelected: isCellSelected,
-          isNumeric,
-        });
+      const justify = getJustify(key);
+      const wrapped = wrappedColumnsSet.has(key);
+      const isCellSelected = cell?.getIsSelected?.() || false;
+      const canSelectCell =
+        (selection === "single-cell" || selection === "multi-cell") &&
+        !isCellSelected;
 
-        const renderedCell = renderCellValue({
-          column,
-          renderValue,
-          getValue,
-          selectCell,
-          cellStyles,
-        });
+      const dataType = column.columnDef.meta?.dataType;
+      const isNumeric = isNumericType(dataType);
+      const cellStyles = getCellStyleClass({
+        justify,
+        wrapped,
+        canSelectCell,
+        isSelected: isCellSelected,
+        isNumeric,
+      });
 
-        // Row headers are bold
-        if (rowHeadersSet.has(key)) {
-          return <b>{renderedCell}</b>;
+      const renderedCell = renderCellValue({
+        column,
+        renderValue,
+        getValue,
+        selectCell,
+        cellStyles,
+        highlightPattern: table.options.meta?.highlightPattern,
+      });
+
+      // Row headers are bold
+      if (rowHeadersSet.has(key)) {
+        return <b>{renderedCell}</b>;
+      }
+
+      return renderedCell;
+    },
+    // Remove any default filtering
+    filterFn: undefined,
+    // Unnamed index columns and geometry columns are not sortable
+    enableSorting: !!key && getMeta(key).dataType !== "geometry",
+    meta: {
+      ...getMeta(key),
+      width: columnWidths?.[key],
+    },
+    // size seeds the width before measurement; minSize/maxSize pin
+    // getSize() to the fixed width so the per-paint measurement writeback
+    // cannot drift the header width or sticky-pin offsets.
+    ...(columnWidths?.[key] !== undefined
+      ? {
+          size: columnWidths[key],
+          minSize: columnWidths[key],
+          maxSize: columnWidths[key],
         }
-
-        return renderedCell;
-      },
-      // Remove any default filtering
-      filterFn: undefined,
-      // Can only sort if key is defined
-      // For example, unnamed index columns, won't be sortable
-      enableSorting: !!key,
-      meta: {
-        ...getMeta(key),
-        width: columnWidths?.[key],
-      },
-      // size seeds the width before measurement; minSize/maxSize pin
-      // getSize() to the fixed width so the per-paint measurement writeback
-      // cannot drift the header width or sticky-pin offsets.
-      ...(columnWidths?.[key] !== undefined
-        ? {
-            size: columnWidths[key],
-            minSize: columnWidths[key],
-            maxSize: columnWidths[key],
-          }
-        : {}),
-    }),
-  );
+      : {}),
+  }));
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
@@ -383,9 +384,10 @@ const PopoutColumn = ({
   rawStringValue,
   edges,
   contentClassName,
-  buttonText,
+  scrollable = false,
   wrapped,
   children,
+  buttonText,
 }: {
   cellStyles?: string;
   selectCell?: () => void;
@@ -394,10 +396,12 @@ const PopoutColumn = ({
   // still use `rawStringValue`. Middle is sliced from `rawStringValue`.
   edges?: { leading: string; trailing: string };
   contentClassName?: string;
-  buttonText?: string;
+  scrollable?: boolean;
   wrapped?: boolean;
+  buttonText?: string;
   children: React.ReactNode;
 }) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const hasEdgeWhitespace =
     edges !== undefined &&
     (edges.leading.length > 0 || edges.trailing.length > 0);
@@ -410,51 +414,98 @@ const PopoutColumn = ({
     : rawStringValue;
 
   return (
-    <EmotionCacheProvider container={null}>
-      <Popover>
-        <PopoverTrigger
-          className={cn(cellStyles, "max-w-fit outline-hidden")}
-          onClick={selectCell}
-          onMouseDown={(e) => {
-            // Prevent cell underneath from being selected
-            e.stopPropagation();
-          }}
+    <Popover>
+      <PopoverTrigger
+        ref={triggerRef}
+        className={cn(cellStyles, "max-w-fit outline-hidden")}
+        onClick={selectCell}
+        onMouseDown={(e) => {
+          // Prevent cell underneath from being selected
+          e.stopPropagation();
+        }}
+      >
+        <span
+          className={cn(
+            "cursor-pointer hover:text-link",
+            wrapped && COLUMN_WRAPPING_STYLES,
+          )}
+          title={rawStringValue}
         >
-          <span
-            className={cn(
-              "cursor-pointer hover:text-link",
-              wrapped && COLUMN_WRAPPING_STYLES,
-            )}
-            title={rawStringValue}
-          >
-            {edges ? <WhitespaceMarkers value={edges.leading} /> : null}
-            {displayText}
-            {edges ? <WhitespaceMarkers value={edges.trailing} /> : null}
-          </span>
-        </PopoverTrigger>
-        <PopoverContent
-          className={contentClassName}
-          align="start"
-          alignOffset={10}
+          {edges ? <WhitespaceMarkers value={edges.leading} /> : null}
+          {displayText}
+          {edges ? <WhitespaceMarkers value={edges.trailing} /> : null}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        className={cn(
+          contentClassName,
+          scrollable && "flex flex-col overflow-hidden",
+        )}
+        align="start"
+        alignOffset={10}
+        onInteractOutside={(event) => {
+          // Radix sees the shadow host as the target. Resolve the original
+          // target so pointer-down does not dismiss before click toggles.
+          const target = Events.composedTarget(event.detail.originalEvent);
+          if (triggerRef.current?.contains(target)) {
+            event.preventDefault();
+          }
+        }}
+      >
+        <div
+          className={cn(
+            "flex -mt-3 -mr-2",
+            scrollable ? "shrink-0 justify-end" : "float-right",
+          )}
         >
-          <div className="absolute top-2 right-2">
-            <CopyClipboardIcon
-              value={rawStringValue}
-              className="w-2.5 h-2.5"
-              tooltip={false}
-            />
-            <PopoverClose>
-              <Button variant="link" size="xs">
-                {buttonText ?? "Close"}
-              </Button>
-            </PopoverClose>
-          </div>
-          {children}
-        </PopoverContent>
-      </Popover>
-    </EmotionCacheProvider>
+          <CopyClipboardIcon
+            value={rawStringValue}
+            className="size-3 hover:text-link"
+            buttonClassName="flex size-5 items-center justify-center"
+            tooltip={false}
+          />
+          <PopoverClose asChild={true}>
+            <Button
+              variant="link"
+              size="xs"
+              className={cn("size-5 p-0", !buttonText && "ml-1.5 mr-1")}
+              aria-label="Close"
+            >
+              {buttonText ?? "Close"}
+            </Button>
+          </PopoverClose>
+        </div>
+        {scrollable ? (
+          <div className="min-h-0 overflow-auto">{children}</div>
+        ) : (
+          children
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };
+
+/**
+ * Parse a string that holds a JSON object or array document.
+ * Returns `undefined` for everything else, including JSON scalars,
+ * so ordinary text keeps its plain rendering.
+ */
+function parseJsonDocument(text: string): unknown {
+  const trimmedText = text.trim();
+
+  const first = trimmedText[0];
+  const last = trimmedText[trimmedText.length - 1];
+  const isBracketPair =
+    (first === "{" && last === "}") || (first === "[" && last === "]");
+  if (!isBracketPair) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(trimmedText) as unknown;
+  } catch {
+    return undefined;
+  }
+}
 
 function isPrimitiveOrNullish(value: unknown): boolean {
   if (value == null) {
@@ -485,6 +536,8 @@ function getFilterTypeForFieldType(
       return "time";
     case "boolean":
       return "boolean";
+    case "geometry":
+      return undefined;
     default:
       return undefined;
   }
@@ -533,25 +586,25 @@ function renderDate({
   value,
   dataType,
   dtype,
-  format,
+  displayValue,
   locale,
+  highlightPattern,
 }: {
   value: Date;
   dataType?: DataType;
   dtype?: string;
-  format?: DateFormat | null;
+  displayValue?: string;
   locale: string;
+  highlightPattern?: RegExp;
 }): React.ReactNode {
   const type = dataType === "date" ? "date" : "datetime";
   const timezone = extractTimezone(dtype);
 
-  const exactValue = format
-    ? formatDate(value, format)
-    : exactDateTime(value, timezone, locale);
+  const exactValue = displayValue ?? exactDateTime(value, timezone, locale);
 
   return (
     <DatePopover date={value} type={type}>
-      {exactValue}
+      {highlightMatches(exactValue, highlightPattern)}
     </DatePopover>
   );
 }
@@ -562,12 +615,14 @@ export function renderCellValue<TData, TValue>({
   getValue,
   selectCell,
   cellStyles,
+  highlightPattern,
 }: {
   column: Column<TData, TValue>;
   renderValue: () => TValue | null;
   getValue: () => TValue;
   selectCell?: () => void;
   cellStyles?: string;
+  highlightPattern?: RegExp;
 }) {
   const value = getValue();
   const format = column.getColumnFormatting?.();
@@ -577,9 +632,31 @@ export function renderCellValue<TData, TValue>({
 
   const isWrapped = column.getColumnWrapping?.() === "wrap";
 
+  const textCell = (text: string) => (
+    <div onClick={selectCell} className={cellStyles}>
+      {highlightMatches(text, highlightPattern)}
+    </div>
+  );
+  const dateCell = (date: Date, displayValue?: string) => (
+    <div onClick={selectCell} className={cellStyles}>
+      <WithLocale>
+        {(locale) =>
+          renderDate({
+            value: date,
+            dataType,
+            dtype,
+            displayValue,
+            locale,
+            highlightPattern,
+          })
+        }
+      </WithLocale>
+    </div>
+  );
+
   // Sentinel values (null, whitespace, NaN, Infinity, NaT) rendered specially.
   // Empty strings are left as-is
-  const sentinel = detectSentinel(value, dataType);
+  const sentinel = detectSentinel(value, dataType, dtype);
   if (sentinel && sentinel.type !== "empty-string") {
     return (
       <div onClick={selectCell} className={cellStyles}>
@@ -590,23 +667,12 @@ export function renderCellValue<TData, TValue>({
 
   if (dataType === "datetime" && typeof value === "string") {
     try {
-      if (!isValid(value)) {
-        return (
-          <div onClick={selectCell} className={cellStyles}>
-            {value}
-          </div>
-        );
+      const date = new Date(value);
+      if (!format || !isValid(date)) {
+        return textCell(value);
       }
 
-      const date = new Date(value);
-      const format = getDateFormat(value);
-      return (
-        <WithLocale>
-          {(locale) =>
-            renderDate({ value: date, dataType, dtype, format, locale })
-          }
-        </WithLocale>
-      );
+      return dateCell(date, String(column.applyColumnFormatting(value)));
     } catch (error) {
       Logger.error("Error parsing datetime, fallback to string", error);
     }
@@ -622,10 +688,9 @@ export function renderCellValue<TData, TValue>({
     }
 
     // e.g. 2010-10-07 17:15:00
-    return (
-      <WithLocale>
-        {(locale) => renderDate({ value, dataType, dtype, locale })}
-      </WithLocale>
+    return dateCell(
+      value,
+      format ? String(column.applyColumnFormatting(value)) : undefined,
     );
   }
 
@@ -638,6 +703,28 @@ export function renderCellValue<TData, TValue>({
       splitLeadingTrailingWhitespace(stringValue);
     const hasEdgeWhitespace = leading.length > 0 || trailing.length > 0;
 
+    // A str cell that holds a JSON document opens the same JSON viewer as
+    // native list/struct cells.
+    const jsonDocument = parseJsonDocument(middle);
+    if (jsonDocument !== undefined) {
+      return (
+        <PopoutColumn
+          cellStyles={cellStyles}
+          selectCell={selectCell}
+          rawStringValue={stringValue}
+          edges={{ leading, trailing }}
+          wrapped={isWrapped}
+        >
+          <JsonOutput
+            data={jsonDocument}
+            format="tree"
+            valueTypes="json"
+            className="max-h-64"
+          />
+        </PopoutColumn>
+      );
+    }
+
     // Parse only the inner content for URL detection so URLDetector doesn't
     // split on the whitespace padding.
     const parts = parseContent(hasEdgeWhitespace ? middle : stringValue);
@@ -649,7 +736,7 @@ export function renderCellValue<TData, TValue>({
           className={cn(cellStyles, isWrapped && COLUMN_WRAPPING_STYLES)}
         >
           <WhitespaceMarkers value={leading} />
-          <UrlDetector parts={parts} />
+          <UrlDetector parts={parts} highlightPattern={highlightPattern} />
           <WhitespaceMarkers value={trailing} />
         </div>
       );
@@ -661,9 +748,10 @@ export function renderCellValue<TData, TValue>({
         selectCell={selectCell}
         rawStringValue={stringValue}
         edges={{ leading, trailing }}
-        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-word text-sm w-96"
-        buttonText="X"
+        contentClassName="max-h-64 whitespace-pre-wrap wrap-break-word text-sm w-96"
+        scrollable={true}
         wrapped={isWrapped}
+        buttonText="X"
       >
         <MarkdownUrlDetector
           content={stringValue}
@@ -674,11 +762,7 @@ export function renderCellValue<TData, TValue>({
   }
 
   if (format) {
-    return (
-      <div onClick={selectCell} className={cellStyles}>
-        {column.applyColumnFormatting(value)}
-      </div>
-    );
+    return textCell(String(column.applyColumnFormatting(value)));
   }
 
   // Format to the correct locale
@@ -688,26 +772,19 @@ export function renderCellValue<TData, TValue>({
         <LocaleNumber
           value={value}
           minFractionDigits={column.columnDef.meta?.minFractionDigits}
+          highlightPattern={highlightPattern}
         />
       </div>
     );
   }
 
   if (typeof value === "boolean") {
-    return (
-      <div onClick={selectCell} className={cellStyles}>
-        {value ? "True" : "False"}
-      </div>
-    );
+    return textCell(value ? "True" : "False");
   }
 
   if (isPrimitiveOrNullish(value)) {
     const rendered = renderValue();
-    return (
-      <div onClick={selectCell} className={cellStyles}>
-        {rendered == null ? "" : String(rendered)}
-      </div>
-    );
+    return textCell(rendered == null ? "" : String(rendered));
   }
 
   const mimeValues = getMimeValues(value);
@@ -745,14 +822,16 @@ export function renderCellValue<TData, TValue>({
 export const LocaleNumber = ({
   value,
   minFractionDigits,
+  highlightPattern,
 }: {
   value: number;
   minFractionDigits?: number;
+  highlightPattern?: RegExp;
 }) => {
   const { locale } = useLocale();
   const format = useNumberFormatter({
     minimumFractionDigits: minFractionDigits,
     maximumFractionDigits: maxFractionalDigits(locale),
   });
-  return format.format(value);
+  return highlightMatches(format.format(value), highlightPattern);
 };

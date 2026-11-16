@@ -16,10 +16,10 @@ import sys
 from marimo._session.types import KernelExitInfo
 
 # POSIX signal numbers used for kernel-exit classification. We pull them from
-# the ``signal`` module so the branches read naturally, with numeric fallbacks
+# the `signal` module so the branches read naturally, with numeric fallbacks
 # for Windows (which doesn't define SIGKILL). The surrounding code is gated to
 # Linux at runtime, so the fallbacks only matter for tests that monkeypatch
-# ``sys.platform``.
+# `sys.platform`.
 _SIGKILL = getattr(signal, "SIGKILL", 9)
 _SIGSEGV = getattr(signal, "SIGSEGV", 11)
 
@@ -68,7 +68,7 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
             ),
         )
 
-    # ``exitcode < 0`` only occurs on POSIX (Windows never returns negative
+    # `exitcode < 0` only occurs on POSIX (Windows never returns negative
     # exitcodes). The signal-name and cgroup OOM logic below assumes Linux
     # conventions (POSIX signal numbers per multiprocessing.Process.exitcode,
     # see https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.exitcode,
@@ -76,7 +76,7 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
     # platforms (including darwin) we have no way to confirm OOM, so we
     # surface a generic failure rather than guessing -- claiming OOM for
     # every SIGKILL would mislead users when the real cause is a crash,
-    # ``kill -9``, or something else.
+    # `kill -9`, or something else.
     if sys.platform != "linux":
         return KernelExitInfo(
             exitcode=exitcode,
@@ -108,7 +108,7 @@ def classify_kernel_exit(exitcode: int | None) -> KernelExitInfo:
                 ),
             )
         # SIGKILL without cgroup-confirmed OOM: the cause is genuinely
-        # unknown (could be ``kill -9``, an external OOM-killer outside our
+        # unknown (could be `kill -9`, an external OOM-killer outside our
         # cgroup, a crash, etc.). Be honest rather than guessing OOM.
         return KernelExitInfo(
             exitcode=exitcode,

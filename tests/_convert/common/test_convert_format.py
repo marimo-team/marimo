@@ -62,13 +62,11 @@ app = marimo.App()
 @app.cell
 def _():
     print('Hello')
-    return
 
 
 @app.cell
 def _():
     x = 5
-    return
 
 
 if __name__ == "__main__":
@@ -97,13 +95,11 @@ app = marimo.App()
 @app.cell(hide_code=True)
 def _():
     print('Hello')
-    return
 
 
 @app.cell
 def _():
     x = 5
-    return
 
 
 if __name__ == "__main__":

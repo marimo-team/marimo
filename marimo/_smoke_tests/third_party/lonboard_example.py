@@ -7,7 +7,8 @@
 #     "polars==1.23.0",
 #     "pyarrow==19.0.1",
 #     "shapely==2.0.7",
-#     "sqlglot==26.6.0",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 # ]
 # ///
 

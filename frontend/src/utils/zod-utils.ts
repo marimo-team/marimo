@@ -2,9 +2,7 @@
 
 import z from "zod";
 
-export function isZodArray<T>(
-  schema: z.ZodType,
-): schema is z.ZodArray<z.ZodType> {
+export function isZodArray(schema: z.ZodType): schema is z.ZodArray<z.ZodType> {
   return schema instanceof z.ZodArray;
 }
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import abc
-import mimetypes
 from dataclasses import asdict, dataclass, is_dataclass
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
@@ -10,6 +9,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.mime import guess_mime_type
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -95,7 +95,7 @@ class ChatAttachment:
 
     def __post_init__(self) -> None:
         if self.content_type is None:
-            self.content_type = mimetypes.guess_type(self.url)[0]
+            self.content_type = guess_mime_type(self.url)
 
 
 # AI SDK part type definitions (based on actual frontend structure)
@@ -253,7 +253,8 @@ class ChatMessage(msgspec.Struct, dict=True):
                     return parse_raw(
                         part, cls=PartType, allow_unknown_keys=True
                     )
-                except Exception:
+                # Each parser is expected to reject incompatible part types.
+                except Exception:  # noqa: S112
                     continue
             return cast(ChatPart, part)
 
@@ -337,7 +338,9 @@ class ChatMessage(msgspec.Struct, dict=True):
                     try:
                         from pydantic import TypeAdapter
 
-                        adapter = TypeAdapter(part_validator_class)
+                        adapter: TypeAdapter[object] = TypeAdapter(
+                            part_validator_class
+                        )
                         validated_parts.append(
                             adapter.validate_python(sanitized_part)
                         )

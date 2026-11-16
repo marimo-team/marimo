@@ -46,8 +46,10 @@
 - 🏃 **ejecutable:** [se ejecuta como script de Python](https://docs.marimo.io/guides/scripts.html), parametrizable mediante arguments de la línea de commandos (CLI)
 - 🛜 **compartible**: [se despliega como una aplicación web interactiva](https://docs.marimo.io/guides/apps.html) o [diapositivas](https://docs.marimo.io/guides/apps.html#slides-layout), [ejecutar en navegador via WASM](https://docs.marimo.io/guides/wasm.html)
 - 🛢️ **diseñado para datos**: consulta marcos de datos y bases de datos [con SQL](https://docs.marimo.io/guides/working_with_data/sql.html), filtrar y buscar [marcos de datos](https://docs.marimo.io/guides/working_with_data/dataframes.html)
+- 🤖 **AI-nativo**: [trabaja en pareja con agentes de IA](https://marimo.io/pair) como Claude Code, o usa las [funciones de IA integradas](https://docs.marimo.io/guides/editor_features/ai_completion.html) del editor
 - 🐍 **compatible con git:** cuadernos (notebooks) son almacenados como archivos `.py`
 - ⌨️ **un editor moderno**: [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot), [asistentes IA](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama), atajos de teclado de vim, explorador de variables y [más](https://docs.marimo.io/guides/editor_features/index.html)
+- 🧑‍💻 **usa tu editor favorito**: ejecuta en [VS Code o Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) o [PyCharm](https://plugins.jetbrains.com/plugin/32416-marimo), o edita en neovim, Zed, [o cualquier otro editor de texto](https://docs.marimo.io/guides/editor_features/watching/)
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -55,7 +57,7 @@ pip install marimo && marimo tutorial intro
 
 _¡Prueba marimo en [nuestro entorno de pruebas](https://marimo.app/l/c7h6pz), se ejecuta completamente en el navegador!_
 
-_[Inicia rápido](#quickstart) para una introducción sobre nuestro CLI._
+_[Inicia rápido](#inicio-rápido) para una introducción sobre nuestro CLI._
 
 ## Un entorno de programación reactivo
 
@@ -103,7 +105,7 @@ Organiza tus notebooks para que se ajusten mejor a las historias que quieres con
 [serializar los requisitos de paquetes](https://docs.marimo.io/guides/package_management/inlining_dependencies/)
 en archivos de notebook, e instalarlos automáticamente en sandboxes venv aislados.
 
-**Baterías incluidas.** marimo viene con GitHub Copilot, asistentes de IA, formateo de código con Ruff, exportación HTML, autocompletado rápido, una [extensión de VS Code](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
+**Baterías incluidas.** marimo viene con GitHub Copilot, asistentes de IA, formateo de código con Ruff, exportación HTML, autocompletado rápido, una [extensión de VS Code](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), un [plugin de PyCharm](https://plugins.jetbrains.com/plugin/32416-marimo),
 un visor interaction de dataframes, y [muchas más](https://docs.marimo.io/guides/editor_features/index.html)
 características de calidad de vida.
 

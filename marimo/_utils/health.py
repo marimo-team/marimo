@@ -9,7 +9,6 @@ import time
 from typing import TypedDict
 
 from marimo import _loggers
-from marimo._utils.platform import is_pyodide
 
 LOGGER = _loggers.marimo_logger()
 
@@ -72,26 +71,18 @@ def get_node_version() -> str | None:
 
 
 def get_uv_version() -> str | None:
-    from marimo._utils.uv import find_uv_bin
+    from marimo._environments.uv import UvError, uv
 
     try:
-        process = subprocess.Popen(
-            [find_uv_bin(), "--version"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        stdout, stderr = communicate_with_timeout(process)
-        if stderr:
-            return None
-        if stdout and (stripped := stdout.strip()):
+        result = uv(["--version"], timeout=TIMEOUT)
+        if stripped := result.stdout.strip():
             # `uv --version` outputs "uv X.Y.Z (hash date)"
             return stripped.removeprefix("uv ")
         else:
             return None
-    except OSError:
-        # Missing binary, or a platform without subprocess (e.g. Emscripten,
-        # which raises OSError "Function not implemented").
+    except (UvError, subprocess.TimeoutExpired, OSError):
+        # OSError: platform without subprocess (e.g. Emscripten, which
+        # raises "Function not implemented").
         return None
 
 
@@ -130,7 +121,6 @@ def get_optional_modules_list() -> dict[str, str]:
         "basedpyright",
         "duckdb",
         "ibis-framework",
-        "loro",
         "mcp",
         "nbformat",
         "openai",
@@ -148,9 +138,6 @@ def get_optional_modules_list() -> dict[str, str]:
         "vegafusion",
         "watchdog",
     ]
-    if is_pyodide() or sys.platform == "android":
-        # loro is not installable on Emscripten/Android.
-        packages = [p for p in packages if p != "loro"]
     return _get_versions(packages, include_missing=False)
 
 

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 from marimo._ast.cell import Cell
 from marimo._ast.fast_stack import fast_stack
 from marimo._ast.parse import ast_parse
+from marimo._runtime.context.filename import notebook_filename
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -40,8 +41,8 @@ def _pytest_scaffold(stub: Any) -> Any:
 def build_stub_fn(
     func_body: ast.FunctionDef | ast.AsyncFunctionDef,
     file: str = "",
-    basis: None | Callable[..., Any] = None,
-    allowed: None | list[str] = None,
+    basis: Callable[..., Any] | None = None,
+    allowed: list[str] | None = None,
 ) -> Callable[..., Any]:
     # Avoid declaring the function in the global scope, since it may cause
     # issues with meta-analysis tools like cxfreeze (see #3828).
@@ -107,6 +108,28 @@ def build_stub_fn(
     return response
 
 
+def is_fixture(obj: Any) -> bool:
+    """Whether `obj` is a pytest fixture.
+
+    pytest <9 tags the function with `_pytestfixturefunction`; pytest >=9 wraps
+    it in a `FixtureFunctionDefinition`. Duck-typed on the class name to avoid a
+    private import that doesn't exist across both.
+    """
+    return hasattr(obj, "_pytestfixturefunction") or (
+        type(obj).__name__ == "FixtureFunctionDefinition"
+    )
+
+
+def _setup_fixture_names(cell: Cell) -> set[str]:
+    if cell._app is None or cell._app._app._setup is None:
+        return set()
+    return {
+        name
+        for name, value in cell._app._app._setup._glbls.items()
+        if is_fixture(value)
+    }
+
+
 def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
     func_ast = ast_parse(inspect.getsource(func))
     func_body = func_ast.body[0]
@@ -116,7 +139,14 @@ def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
         )
 
     args = {arg.arg: arg for arg in func_body.args.args}
-    fixtures = [arg for arg in args if arg.endswith("_fixture")]
+    # Setup cell fixtures must be resolved by pytest, otherwise the cell
+    # receives the fixture definition instead of its value.
+    setup_fixtures = _setup_fixture_names(cell)
+    fixtures = [
+        arg
+        for arg in args
+        if arg.endswith("_fixture") or arg in setup_fixtures
+    ]
     reserved = set(args.keys()) - set(fixtures)
     # The remaining expected attributes are needed to ensure attribute count
     # matches.
@@ -221,6 +251,7 @@ def _make_hook(
         tuple[Any, Mapping[str, Any]]
         | Awaitable[tuple[Any, Mapping[str, Any]]],
     ],
+    file: str,
     use_wrapped: bool = False,
     is_async: bool = False,
 ) -> Callable[..., Any]:
@@ -229,34 +260,43 @@ def _make_hook(
     if is_async:
 
         async def _async_hook(*args: Any, **kwargs: Any) -> Any:
-            res = run()
-            if isinstance(res, Awaitable):
-                _, cell_defs = await res
-            else:
-                _, cell_defs = res
+            with notebook_filename(file):
+                res = run()
+                if isinstance(res, Awaitable):
+                    _, cell_defs = await res
+                else:
+                    _, cell_defs = res
 
-            target = (
-                cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
-            )
-            return await target(*args, **kwargs)
+                target = (
+                    cell_defs[var].__wrapped__
+                    if use_wrapped
+                    else cell_defs[var]
+                )
+                return await target(*args, **kwargs)
 
         return _async_hook
     else:
 
         def _hook(*args: Any, **kwargs: Any) -> Any:
-            res = run()
-            if isinstance(res, Awaitable):
-                import asyncio
+            with notebook_filename(file):
+                res = run()
+                if isinstance(res, Awaitable):
+                    import asyncio
 
-                loop = asyncio.new_event_loop()
-                _, cell_defs = loop.run_until_complete(res)
-            else:
-                _, cell_defs = res
+                    loop = asyncio.new_event_loop()
+                    try:
+                        _, cell_defs = loop.run_until_complete(res)
+                    finally:
+                        loop.close()
+                else:
+                    _, cell_defs = res
 
-            target = (
-                cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
-            )
-            return target(*args, **kwargs)
+                target = (
+                    cell_defs[var].__wrapped__
+                    if use_wrapped
+                    else cell_defs[var]
+                )
+                return target(*args, **kwargs)
 
         return _hook
 
@@ -271,7 +311,9 @@ def _build_hook(
 ) -> Callable[..., Any]:
     """Build hook for test or fixture function."""
     is_async = isinstance(test, ast.AsyncFunctionDef)
-    hook = _make_hook(var, run, use_wrapped=is_fixture, is_async=is_async)
+    hook = _make_hook(
+        var, run, file, use_wrapped=is_fixture, is_async=is_async
+    )
 
     stub_fn = build_stub_fn(test, file)
     functools.wraps(stub_fn)(hook)

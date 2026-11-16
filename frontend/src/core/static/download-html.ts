@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { downloadExportedFile } from "@/utils/download";
+import { getExportLayout } from "../export/layout";
 import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "./virtual-file-tracker";
 
@@ -14,6 +15,7 @@ export async function downloadAsHTML(opts: { includeCode: boolean }) {
     download: true,
     includeCode: includeCode,
     files: VirtualFileTracker.INSTANCE.filenames(),
+    layout: await getExportLayout(),
   });
 
   downloadExportedFile(exportedFile);

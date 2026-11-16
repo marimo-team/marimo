@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import asyncio
-import mimetypes
 import re
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -24,8 +23,9 @@ from marimo._data._external_storage.utils import (
     parse_page_offset,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._utils.assert_never import log_never
 from marimo._utils.dicts import remove_none_values
+from marimo._utils.log_never import log_never
+from marimo._utils.mime import guess_mime_type
 
 if TYPE_CHECKING:
     from fsspec import (  # type: ignore[import-untyped]
@@ -109,7 +109,7 @@ class Obstore(StorageBackend["ObjectStore"]):
             last_modified=last_modified.timestamp() if last_modified else None,
             kind="object",
             metadata=entry_meta,
-            mime_type=mimetypes.guess_type(path or "")[0],
+            mime_type=guess_mime_type(path or ""),
         )
 
     async def download(self, path: str) -> bytes:
@@ -308,7 +308,14 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         return path.rstrip("/")
 
     def _list_files(self, prefix: str) -> list[Any]:
-        files = self.store.ls(path=prefix, detail=True)
+        try:
+            files = self.store.ls(path=prefix, detail=True)
+        except FileNotFoundError:
+            # SFTP filesystems (e.g. sshfs) have an empty root marker but
+            # can't list "", so fall back to the working (home) directory
+            if prefix:
+                raise
+            files = self.store.ls(path=".", detail=True)
         if not isinstance(files, list):
             raise ValueError(f"Files is not a list: {files}")
         return files
@@ -396,14 +403,21 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         else:
             resolved_kind = self._identify_kind(entry_type)
 
-        resolved_path = name or ""
+        # Some filesystems (e.g. sshfs) return mtime as a datetime;
+        # fsspec times are UTC, so treat naive datetimes as UTC
+        mtime = file.get("mtime")
+        if isinstance(mtime, datetime):
+            mtime = mtime.replace(tzinfo=mtime.tzinfo or UTC).timestamp()
+
+        # Entries listed from the "." fallback are prefixed with "./"
+        resolved_path = (name or "").removeprefix("./")
         return StorageEntry(
             path=resolved_path,
             size=size or 0,
-            last_modified=file.get("mtime"),
+            last_modified=mtime,
             kind=resolved_kind,
             metadata=entry_meta,
-            mime_type=mimetypes.guess_type(resolved_path)[0]
+            mime_type=guess_mime_type(resolved_path)
             if resolved_kind != "directory"
             else None,
         )

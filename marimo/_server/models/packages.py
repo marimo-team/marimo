@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Literal
+
 import msgspec
 
 from marimo._runtime.packages.package_manager import PackageDescription
@@ -31,17 +33,58 @@ class RemovePackageRequest(msgspec.Struct, rename="camel"):
     group: str | None = None
 
 
+class SandboxRequest(msgspec.Struct, rename="camel"):
+    file_key: str | None = None
+
+
+class UpdateManifestRequest(msgspec.Struct, rename="camel"):
+    contents: str
+    previous: str
+    file_key: str | None = None
+
+
+class SandboxResponse(msgspec.Struct, rename="camel"):
+    backend: Literal["uv", "pixi"] | None
+    manifest: str | None
+    filename: str | None
+
+
+class SandboxPackageContext(
+    msgspec.Struct,
+    frozen=True,
+    tag="sandbox",
+    tag_field="kind",
+    rename="camel",
+):
+    backend: Literal["uv", "pixi"]
+
+
+class PackageManagerContext(
+    msgspec.Struct,
+    frozen=True,
+    tag="package-manager",
+    tag_field="kind",
+    rename="camel",
+):
+    name: str
+
+
+PackageInstallationContext = SandboxPackageContext | PackageManagerContext
+
+
 class ListPackagesResponse(msgspec.Struct, rename="camel"):
     packages: list[PackageDescription]
 
 
 class DependencyTreeResponse(msgspec.Struct, rename="camel"):
     tree: DependencyTreeNode | None
+    context: PackageInstallationContext
 
 
 class PackageOperationResponse(msgspec.Struct, rename="camel"):
     success: bool
     error: str | None = None
+    restart_required: bool = False
 
     @staticmethod
     def of_success() -> PackageOperationResponse:
@@ -50,3 +93,7 @@ class PackageOperationResponse(msgspec.Struct, rename="camel"):
     @staticmethod
     def of_failure(error: str) -> PackageOperationResponse:
         return PackageOperationResponse(success=False, error=error)
+
+
+class SyncSandboxResponse(PackageOperationResponse, rename="camel"):
+    reconnect: bool = False

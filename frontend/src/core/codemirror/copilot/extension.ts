@@ -13,11 +13,6 @@ import {
   rejectInlineCompletion,
 } from "@marimo-team/codemirror-ai";
 import {
-  copilotPlugin as codeiumCopilotPlugin,
-  codeiumOtherDocumentsConfig,
-  Language,
-} from "@valtown/codemirror-codeium";
-import {
   type InlineCompletionItem,
   type InlineCompletionList,
   type InlineCompletionParams,
@@ -30,7 +25,6 @@ import { Logger } from "@/utils/Logger";
 import { languageAdapterState } from "../language/extension";
 import { isInVimMode } from "../utils";
 import { COPILOT_FILENAME, copilotServer, getCopilotClient } from "./client";
-import { getCodes } from "./getCodes";
 import { isCopilotEnabled } from "./state";
 import { trimAutocompleteResponse } from "./trim-utils";
 
@@ -39,7 +33,7 @@ const copilotCompartment = new Compartment();
 const logger = Logger.get("@github/copilot-language-server");
 
 const commonInlineCompletionConfig = {
-  delay: 300, // default is 500ms
+  delay: 150,
   includeKeymap: true,
   events: {
     // Only show suggestions when the editor is focused
@@ -55,31 +49,11 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 
   const extensions: Extension[] = [];
 
-  if (config.copilot === "codeium" && config.codeium_api_key) {
-    extensions.push(
-      codeiumCopilotPlugin({
-        apiKey: config.codeium_api_key,
-        language: Language.PYTHON,
-      }),
-      codeiumOtherDocumentsConfig.of({
-        override: async () => {
-          return [
-            {
-              text: getCodes(""),
-              language: Language.PYTHON,
-              editorLanguage: "python",
-            },
-          ];
-        },
-      }),
-    );
-  }
-
   if (config.copilot === "github") {
     extensions.push(
       inlineCompletion({
         ...commonInlineCompletionConfig,
-        fetchFn: async (state, _abortSignal, view) => {
+        fetchFn: async (state, signal, view) => {
           const currentPosition = state.selection.main.head;
           if (!isCopilotEnabled()) {
             return "";
@@ -94,16 +68,22 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
             return "";
           }
 
-          // wait 20ms so that the view is updated first
-          await new Promise((resolve) => setTimeout(resolve, 20));
-
-          const currentCode = state.doc.toString();
-          const allCode = getCodes(currentCode);
+          const client = getCopilotClient();
+          const allCode = await client.flushDocumentChanges(
+            state.doc.toString(),
+          );
+          if (signal.aborted || state.doc !== view.state.doc) {
+            return "";
+          }
           const request = getCopilotRequest(state, allCode);
-          const response = await getCopilotClient().getCompletion(request);
+          const response = await client.getCompletion(request, signal);
 
           // If we are at a new position, ignore the response
-          if (currentPosition !== view.state.selection.main.head) {
+          if (
+            signal.aborted ||
+            state.doc !== view.state.doc ||
+            currentPosition !== view.state.selection.main.head
+          ) {
             Logger.debug("ignoring response because of new position");
             return "";
           }
@@ -119,7 +99,7 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
     extensions.push(
       inlineCompletion({
         ...commonInlineCompletionConfig,
-        fetchFn: async (state, _abortSignal, view) => {
+        fetchFn: async (state, signal, view) => {
           const currentPosition = state.selection.main.head;
 
           if (state.doc.length === 0) {
@@ -146,10 +126,15 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
           let res = await API.post<AiInlineCompletionRequest, string>(
             "/ai/inline_completion",
             { prefix, suffix, language },
+            { signal },
           );
 
           // If we are at a new position, ignore the response
-          if (currentPosition !== view.state.selection.main.head) {
+          if (
+            signal.aborted ||
+            state.doc !== view.state.doc ||
+            currentPosition !== view.state.selection.main.head
+          ) {
             Logger.debug("ignoring response because of new position");
             return "";
           }

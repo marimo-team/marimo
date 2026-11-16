@@ -278,6 +278,7 @@ export const FilterByValuesList = <TData, TValue>({
           const sentinel = detectSentinel(
             value,
             column.columnDef.meta?.dataType,
+            column.columnDef.meta?.dtype,
           );
           return (
             <CommandItem

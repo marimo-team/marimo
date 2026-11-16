@@ -104,10 +104,10 @@ describe("ErrorContextProvider", () => {
       ]);
 
       const items = provider.getItems();
-      expect(items[1].data.type).toBe("cell-error");
-      if (items[1].data.type === "cell-error") {
-        expect(items[1].data.error.cellName).toBe("cell-0");
-      }
+      expect(items[1].data).toMatchObject({
+        type: "cell-error",
+        error: { cellName: "cell-0" },
+      });
       expect(items[1].name).toBe("Error: cell-0");
       expect(items[1].description).toBe("Invalid syntax");
     });
@@ -150,25 +150,19 @@ describe("ErrorContextProvider", () => {
       `);
 
       // Test the info function
-      expect(completion.info).toBeDefined();
-      if (typeof completion.info === "function") {
-        const infoResult = completion.info(completion);
-        if (
-          infoResult &&
-          typeof infoResult === "object" &&
-          "dom" in infoResult
-        ) {
-          const infoElement = infoResult.dom as HTMLElement;
-          expect(infoElement.tagName).toBe("DIV");
-          expect(infoElement.textContent).toContain("Errors");
-          expect(infoElement.textContent).toContain("2 errors");
-        } else if (infoResult && "tagName" in (infoResult as any)) {
-          const infoElement = infoResult as HTMLElement;
-          expect(infoElement.tagName).toBe("DIV");
-          expect(infoElement.textContent).toContain("Errors");
-          expect(infoElement.textContent).toContain("2 errors");
-        }
+      if (typeof completion.info !== "function") {
+        throw new Error("Expected completion info to be a function");
       }
+      const infoResult = completion.info(completion);
+      if (!infoResult || typeof infoResult !== "object") {
+        throw new Error("Expected completion info to return an element");
+      }
+      const infoElement = (
+        "dom" in infoResult ? infoResult.dom : infoResult
+      ) as HTMLElement;
+      expect(infoElement.tagName).toBe("DIV");
+      expect(infoElement.textContent).toContain("Errors");
+      expect(infoElement.textContent).toContain("2 errors");
     });
 
     it("should handle single error correctly", () => {

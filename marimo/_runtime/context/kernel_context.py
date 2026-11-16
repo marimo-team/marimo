@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
-from marimo._config.config import MarimoConfig
+from marimo._config.config_schema import MarimoConfig
+from marimo._config.provenance import ConfigPath
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context.types import (
@@ -72,6 +73,10 @@ class KernelRuntimeContext(RuntimeContext):
     @property
     def marimo_config(self) -> MarimoConfig:
         return self._kernel.user_config
+
+    @property
+    def config_overrides(self) -> frozenset[ConfigPath]:
+        return frozenset(self._kernel.config_overrides)
 
     @property
     def lazy(self) -> bool:
@@ -164,7 +169,9 @@ def create_kernel_context(
         VirtualFileStorage,
     )
     from marimo._save.cache import CacheState
-    from marimo._save.stores import get_store
+    from marimo._save.loaders import get_loader_key
+    from marimo._save.signing_policy import get_signing_policy
+    from marimo._save.stores import cache_store_is_untrusted, get_store
 
     # Storage is chosen explicitly by the caller. None means virtual files
     # are not supported; we still construct an (inert) InMemoryStorage so
@@ -182,7 +189,32 @@ def create_kernel_context(
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
-        cache=CacheState(store=get_store(kernel.app_metadata.filename)),
+        cache=CacheState(
+            store=get_store(kernel.app_metadata.filename),
+            store_from_untrusted_origin=cache_store_is_untrusted(
+                kernel.app_metadata.filename
+            ),
+            # Resolved once for the session, from the kernel's effective config
+            # so session/WASM-provided trust is honored. This runs before the
+            # kernel loads any configured `.env`, which is what freezes the
+            # signing identity to the inherited environment. An embedded child
+            # context inherits the parent's policy rather than resolving a
+            # second one, which by then would read a post-dotenv environment.
+            signing_policy=(
+                parent.cache.signing_policy
+                if parent is not None
+                else get_signing_policy(
+                    kernel.app_metadata.filename, config=kernel.user_config
+                )
+            ),
+            loader=(
+                parent.cache.loader
+                if parent is not None
+                else get_loader_key(
+                    kernel.app_metadata.filename, config=kernel.user_config
+                )
+            ),
+        ),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=(
             parent.app_kernel_runner_registry

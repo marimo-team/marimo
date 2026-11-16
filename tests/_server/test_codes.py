@@ -10,9 +10,6 @@ def test_websocket_close_reason_wire_values() -> None:
     Renaming a member must not silently change the value the frontend
     matches against in `useMarimoKernelConnection.tsx`.
     """
-    assert (
-        WebSocketCloseReason.LORO_NOT_INSTALLED == "MARIMO_LORO_NOT_INSTALLED"
-    )
     assert WebSocketCloseReason.NOT_ALLOWED == "MARIMO_NOT_ALLOWED"
     assert WebSocketCloseReason.UNAUTHORIZED == "MARIMO_UNAUTHORIZED"
     assert WebSocketCloseReason.NO_SESSION_ID == "MARIMO_NO_SESSION_ID"

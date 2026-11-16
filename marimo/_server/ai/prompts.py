@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 from marimo._server.ai.skills.utils import load_skill
 from marimo._server.models.completion import (
     AiCompletionContext,
@@ -9,7 +9,6 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
-from marimo._types.ids import SessionId
 
 FIM_PREFIX_TAG = "<|fim_prefix|>"
 FIM_SUFFIX_TAG = "<|fim_suffix|>"
@@ -121,14 +120,11 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt = (
             "You are an AI assistant integrated into the marimo notebook code editor.\n"
             "Your goal is to create new cells in the notebook.\n"
-            "You can create multiple cells with different languages. Each cell should be wrapped in backticks.\n"
+            "You can create multiple cells with different languages.\n"
             "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
-            "```python\n{PYTHON_CODE}\n```\n\n"
-            '```sql\ndf_name = mo.sql(f"""{SQL_QUERY}""")\n```\n\n'
-            '```markdown\nmo.md(f"""{MARKDOWN_CONTENT}""")\n```\n\n'
-            "You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.\n"
+            "Each cell's `code` value must contain only raw cell code, without Markdown fences or commentary.\n"
+            "For SQL cells, the code should be a complete mo.sql expression. For markdown cells, the code should be a complete mo.md expression.\n"
             "Create clear variable names if they will be used in other cells. Do not prefix with underscore.\n"
             "Separate logic into multiple cells to keep the code organized and readable."
         )
@@ -139,8 +135,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             f"Your output must be valid {language} code.\n"
             "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
-            "```\n{CELL_CODE}\n```"
+            "The `code` value must contain only raw cell code, without Markdown fences or commentary."
         )
 
     # When we are modifying or inserting into an existing cell, we need to
@@ -167,8 +162,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "<insert_here></insert_here> tags. Don't include the insert_here tags in your output.\n"
                 "Match the indentation in the original file in the inserted content, "
                 "don't include any indentation on blank lines.\n"
-                "Immediately start with the following format. Do NOT comment on the code, just output the code itself:\n\n"
-                "```\n{INSERTED_CODE}\n```"
+                "The `code` value must contain only the code to insert, without Markdown fences or commentary."
             )
         else:
             system_prompt += (
@@ -177,8 +171,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "Start at the indentation level in the original file in the rewritten content. "
                 "Don't stop until you've rewritten the entire section, even if you have no more changes to make, "
                 "always write out the whole section with no unnecessary elisions.\n"
-                "Immediately start with the following format. Do NOT comment on the code, just output the code itself:\n\n"
-                "```\n{REWRITTEN_CODE}\n```"
+                "The `code` value must contain the complete rewritten section, without Markdown fences, commentary, or elisions."
             )
 
     if selected_text:
@@ -211,11 +204,6 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "code_from_other_cells", other_cell_codes
         )
 
-    if support_multiple_cells:
-        system_prompt += "\n\nAgain, just output code wrapped in cells. Each cell is wrapped in backticks with the appropriate language identifier (python, sql, markdown)."
-    else:
-        system_prompt += f"\n\nAgain, just output the code itself and make sure to return the code as just {language}."
-
     return system_prompt
 
 
@@ -232,67 +220,49 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
         "You are Marimo Copilot, an AI assistant integrated into the marimo notebook code editor.\n"
         "Your primary function is to help users create, analyze, and improve data science notebooks using marimo's reactive programming model.\n"
     )
-    if mode == "manual":
+    if mode == "manual" or mode == "ask":
         return (
             f"{base_intro}"
             "## Capabilities\n"
-            "- Answer questions and provide guidance using only your internal knowledge and the notebook context provided by the user.\n"
-            "\n"
-            "## Limitations\n"
-            "- You do NOT have access to any external tools, plugins, or APIs.\n"
-            "- You may not perform any actions beyond generating text and code suggestions.\n"
-        )
-    elif mode == "ask":
-        return (
-            f"{base_intro}"
-            "## Capabilities\n"
-            "- You can use a set of read-only tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation).\n"
+            "- You can use marimo's built-in notebook tools to gather additional context (e.g., searching code, summarizing data, or reading documentation).\n"
             "- You may use these tools ONLY to gather information, not to modify code or state.\n"
+            "- Connected MCP tools are configured separately and are not restricted by this notebook access level.\n"
             "\n"
             "## Limitations\n"
-            "- All tool use is strictly read-only. You may not perform write, edit, or execution actions.\n"
+            "- Notebook access is read-only. You may not modify notebook code or state, or execute notebook code.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
     elif mode == "agent":
         return (
             f"{base_intro}"
-            "You are in agent mode - you have autonomy to resolve the user's query by using the tools provided. Please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved. \n"
-            "\n\n## Agent Mode\n"
-            "- You are encouraged to edit existing cells in the notebook or add new cells.\n"
+            "You can inspect the notebook and propose cell changes for the user to review.\n"
+            "\n\n## Suggest edits\n"
+            "- Use the notebook editing tool to propose changes to existing cells or add new cells for review.\n"
             "- You should do the following things after editing the notebook:\n"
             "\t 1. Use the lint notebook tool to check for errors and lint issues\n"
-            "\t 2. Run stale cells tool to run the code\n"
-            "\t 3. If there are errors in cells you have added, edit the existing cell. Don't add new cells to correct errors.\n"
+            "\t 2. If there are errors in cells you have added, edit the existing cell. Don't add new cells to correct errors.\n"
             "- If you say you're about to do something, actually do it in the same turn (run the tool call right after).\n"
             "- Group code into logical cells, eg. functions should be in separate cells and all the calls will be in one cell. When asked for explanations or summaries, use markdown cells with proper formatting.\n\n"
             "## Capabilities\n"
-            "- You can use a set of read and write tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation) and to modify the notebook (e.g., adding cells, editing cells, deleting cells).\n"
+            "- You can use a set of read and write tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation) and to propose notebook changes (e.g., adding cells, editing cells, deleting cells).\n"
             "## Limitations\n"
+            "- Leave execution to the user. Do not run notebook cells or Python code.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
     elif mode == "code_mode":
         return (
             f"{base_intro}"
-            "You are in code mode - you have access to the notebook's kernel and can execute code."
+            "You have full notebook access: you can read, edit, and run cells, and execute Python in the live kernel scratchpad."
         )
-
-
-def _get_session_info(session_id: SessionId) -> str:
-    return (
-        f"Current notebook session ID: {session_id}. "
-        "Use this session_id with tools that require it."
-    )
 
 
 def _single_cell_language_rules() -> str:
     """Per-language rules for chat modes that emit one cell at a time."""
     out = ""
-    for language in language_rules:
-        if not language_rules[language]:
+    for language, rules in language_rules.items():
+        if not rules:
             continue
-        out += (
-            f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
-        )
+        out += f"\n\n## Rules for {language}:\n{_rules(rules)}"
     return out
 
 
@@ -311,14 +281,11 @@ def _multi_cell_language_rules() -> str:
 def _common_chat_sections(
     *,
     custom_rules: str | None,
-    include_other_code: str | None,
 ) -> str:
     """Trailing sections shared by every chat mode."""
     out = ""
     if custom_rules and custom_rules.strip():
         out += f"\n\n## Additional rules:\n{custom_rules}"
-    if include_other_code:
-        out += "\n\n" + _tag("code_from_other_cells", include_other_code)
     return out
 
 
@@ -444,10 +411,18 @@ chart
 def get_chat_system_prompt(
     *,
     custom_rules: str | None,
-    include_other_code: str,
     mode: CopilotMode,
-    session_id: SessionId,
 ) -> str:
+    context_rules = (
+        "\n\nNotebook context is supplied as JSON updates in user messages. "
+        "Use the latest sessionId with tools that require a session_id. "
+        "The cells field is an array of {id, code} objects containing complete replacements for added or changed cells. "
+        "When cellIds is present it gives the complete current cell order; cells absent from it were deleted. "
+        "Notebook updates are relative to the previous user-provided notebook snapshot. "
+        "An empty cells list means no code changed since that snapshot. "
+        "These are snapshots at user submission time; "
+        "use notebook tools to inspect more recent changes when needed."
+    )
     # Code mode runs against the live kernel, so it leans on the marimo-pair
     # skill instead of the static notebook guide.
     if mode == "code_mode":
@@ -460,15 +435,11 @@ def get_chat_system_prompt(
         system_prompt = f"{intro}\n\n{skill_section}"
         system_prompt += _common_chat_sections(
             custom_rules=custom_rules,
-            include_other_code=None,  # code mode can inspect code
         )
         system_prompt += "\nIf you are not aware of the current notebook code, inspect it first before answering any questions."
-        return system_prompt
+        return system_prompt + context_rules
 
-    system_prompt = (
-        f"\n{_get_mode_intro_message(mode)}\n{_get_session_info(session_id)}"
-        f"\n\n{_NOTEBOOK_GUIDE}"
-    )
+    system_prompt = f"\n{_get_mode_intro_message(mode)}\n\n{_NOTEBOOK_GUIDE}"
 
     if mode == "agent":
         # Agent mode can emit multiple cells, so it gets the multi-cell rules
@@ -480,9 +451,12 @@ def get_chat_system_prompt(
     else:
         system_prompt += _single_cell_language_rules()
 
-    return system_prompt + _common_chat_sections(
-        custom_rules=custom_rules,
-        include_other_code=include_other_code,
+    return (
+        system_prompt
+        + context_rules
+        + _common_chat_sections(
+            custom_rules=custom_rules,
+        )
     )
 
 

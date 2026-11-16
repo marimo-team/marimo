@@ -5,7 +5,7 @@
 // https://github.com/TanStack/table/issues/5567
 
 import type { Table } from "@tanstack/react-table";
-import { Columns3Icon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { Columns3Icon, EyeIcon, EyeOffIcon, ScanEyeIcon } from "lucide-react";
 import React from "react";
 import { ColumnName } from "@/components/datasources/components";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,16 @@ import {
 } from "@/components/ui/popover";
 import { type BulkAction, useSelectList } from "@/components/ui/select-core";
 import type { DataType } from "@/core/kernel/messages";
+import { Arrays } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { smartMatchFilter } from "@/utils/smartMatch";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
+import {
+  applyShowOnlyColumns,
+  isShowingOnlyColumns,
+} from "./hooks/use-column-visibility";
+import { ShowOnlyColumnButton } from "./show-only-column-button";
 import { INDEX_COLUMN_NAME, SELECT_COLUMN_ID } from "./types";
 
 function getUserColumns<TData>(table: Table<TData>) {
@@ -62,9 +68,8 @@ export const ColumnVisibilityDropdown = <TData,>({
   const hideableIds = userColumns
     .filter((column) => column.getCanHide())
     .map((column) => column.id);
-  const visibleHideableCount = hideableIds.filter(
-    (id) => !hiddenIds.includes(id),
-  ).length;
+  const visibleHideableColumnIds = Arrays.difference(hideableIds, hiddenIds);
+  const visibleHideableCount = visibleHideableColumnIds.length;
 
   const applyHidden = (next: string[] | string | null) => {
     const hidden = new Set(Array.isArray(next) ? next : []);
@@ -95,6 +100,18 @@ export const ColumnVisibilityDropdown = <TData,>({
     > =>
       action.kind === "select-matching" || action.kind === "deselect-matching",
   );
+  const showOnlyMatchIds =
+    list.searchQuery !== ""
+      ? list.visibleOptions
+          .filter((option) => !option.disabled)
+          .map((option) => option.value)
+      : [];
+  const showOnlyColumnState = {
+    visibleHideableColumnIds,
+    hideableColumnIdSet: new Set(hideableIds),
+  };
+  const hasSearchBulkActions =
+    showOnlyMatchIds.length > 0 || matchingActions.length > 0;
 
   return (
     <Popover open={list.open} onOpenChange={list.setOpen}>
@@ -145,8 +162,25 @@ export const ColumnVisibilityDropdown = <TData,>({
                 <CommandSeparator />
               </>
             ) : (
-              matchingActions.length > 0 && (
+              hasSearchBulkActions && (
                 <>
+                  <CommandItem
+                    value="__show_only_matching__"
+                    disabled={
+                      showOnlyMatchIds.length === 0 ||
+                      isShowingOnlyColumns(
+                        showOnlyColumnState,
+                        showOnlyMatchIds,
+                      )
+                    }
+                    onSelect={() => {
+                      applyShowOnlyColumns(table, showOnlyMatchIds);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <ScanEyeIcon className="w-3 h-3 mr-1.5" />
+                    Show only {showOnlyMatchIds.length} matching
+                  </CommandItem>
                   {matchingActions.map((action) => (
                     <CommandItem
                       key={action.kind}
@@ -176,6 +210,11 @@ export const ColumnVisibilityDropdown = <TData,>({
                 index === list.pinnedCount &&
                 list.pinnedCount > 0 &&
                 list.pinnedCount < list.visibleOptions.length;
+              const label = (
+                <span className="truncate" title={option.label}>
+                  {option.label}
+                </span>
+              );
               return (
                 <React.Fragment key={option.value}>
                   {isSectionBoundary && <CommandSeparator />}
@@ -186,25 +225,35 @@ export const ColumnVisibilityDropdown = <TData,>({
                     className="flex items-center gap-1.5 cursor-pointer"
                   >
                     {dataType === undefined ? (
-                      <span>{option.label}</span>
+                      label
                     ) : (
                       <ColumnName
-                        columnName={option.label}
+                        className="min-w-0"
+                        columnName={label}
                         dataType={dataType}
                       />
                     )}
                     {!option.disabled && (
-                      <span
-                        className={cn(
-                          "ml-auto",
-                          hidden ? "text-primary" : "text-muted-foreground",
-                        )}
-                      >
-                        {hidden ? (
-                          <EyeOffIcon className="w-3 h-3" />
-                        ) : (
-                          <EyeIcon className="w-3 h-3" />
-                        )}
+                      <span className="ml-auto flex shrink-0 items-center gap-0.5">
+                        <ShowOnlyColumnButton
+                          table={table}
+                          columnIds={[option.value]}
+                          disabled={isShowingOnlyColumns(showOnlyColumnState, [
+                            option.value,
+                          ])}
+                          iconClassName="w-3 h-3"
+                        />
+                        <span
+                          className={cn(
+                            hidden ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {hidden ? (
+                            <EyeOffIcon className="w-3 h-3" />
+                          ) : (
+                            <EyeIcon className="w-3 h-3" />
+                          )}
+                        </span>
                       </span>
                     )}
                   </CommandItem>

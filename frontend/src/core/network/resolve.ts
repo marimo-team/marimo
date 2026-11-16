@@ -1,9 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { getRuntimeManager } from "../runtime/config";
+import { withPackageInvalidation } from "../packages/package-data";
 import { isStaticNotebook } from "../static/static-state";
 import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
-import { createLazyRequests } from "./requests-lazy";
 import { createNetworkRequests } from "./requests-network";
 import { createStaticRequests } from "./requests-static";
 import { createErrorToastingRequests } from "./requests-toasting";
@@ -16,9 +15,7 @@ export function resolveRequestClient(): EditRequests & RunRequests {
   } else if (isStaticNotebook()) {
     base = createStaticRequests();
   } else {
-    base = createLazyRequests(createNetworkRequests(), () =>
-      getRuntimeManager(),
-    );
+    base = createNetworkRequests();
   }
-  return createErrorToastingRequests(base);
+  return withPackageInvalidation(createErrorToastingRequests(base));
 }

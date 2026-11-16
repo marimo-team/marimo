@@ -5,11 +5,11 @@ import { Tooltip } from "radix-ui";
 
 const TooltipProvider = Tooltip.Provider;
 
-import { useAtomValue, useSetAtom } from "jotai";
-import { useEffect } from "react";
-import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
+import { useAtomValue } from "jotai";
+import { lazy, useEffect } from "react";
 import { Controls } from "@/components/editor/controls/Controls";
-import { AppHeader } from "@/components/editor/header/app-header";
+import { SandboxController } from "@/components/editor/chrome/panels/sandbox-controller";
+import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { FilenameForm } from "@/components/editor/header/filename-form";
 import { MultiCellActionToolbar } from "@/components/editor/navigation/multi-cell-action-toolbar";
 import { ViewerBanner } from "@/components/editor/viewer-banner";
@@ -22,26 +22,28 @@ import {
   useRunStaleCells,
 } from "../components/editor/cell/useRunCells";
 import { useSetCodeVisibility } from "../components/editor/actions/useSetCodeVisibility";
+import { useSetOutputsExpanded } from "../components/editor/actions/useSetOutputsExpanded";
 import { CellArray } from "../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
-import {
-  hasCellsAtom,
-  notebookIsRunningAtom,
-  numColumnsAtom,
-  useCellActions,
-} from "./cells/cells";
+import { hasCellsAtom } from "./cells/cells";
+import { interruptRuntime, notebookIsRunningAtom } from "./executions";
+import { store } from "./state/jotai";
+import { numColumnsAtom } from "./cells/layout";
+import { useCellActions } from "./cells/actions";
 import type { AppConfig, UserConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
-import { getSessionId } from "./kernel/session";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
 import { viewStateAtom } from "./mode";
 import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
-import { lastSavedNotebookAtom } from "./saving/state";
-import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
+import type { ConnectionStatus } from "./session/types";
 
-interface AppProps {
+const LazyCommandPalette = lazy(
+  () => import("../components/editor/controls/command-palette"),
+);
+
+export interface EditAppProps {
   /**
    * The user config.
    */
@@ -54,20 +56,25 @@ interface AppProps {
    * If true, the floating controls will be hidden.
    */
   hideControls?: boolean;
+  /** The session's connection, which the page owns with the document model. */
+  connection: ConnectionStatus;
+  reconnect: () => Promise<void>;
 }
 
-export const EditApp: React.FC<AppProps> = ({
+/** The notebook editor. Rendered inside the page's `DocumentProvider`. */
+export const EditApp: React.FC<EditAppProps> = ({
   userConfig,
   appConfig,
   hideControls = false,
+  connection,
+  reconnect,
 }) => {
-  const { setCells, mergeAllColumns, collapseAllCells, expandAllCells } =
+  const { mergeAllColumns, collapseAllCells, expandAllCells } =
     useCellActions();
   const viewState = useAtomValue(viewStateAtom);
   const numColumns = useAtomValue(numColumnsAtom);
   const filename = useFilename();
-  const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
-  const { sendComponentValues, sendInterrupt } = useRequestClient();
+  const { sendComponentValues } = useRequestClient();
 
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";
@@ -79,19 +86,7 @@ export const EditApp: React.FC<AppProps> = ({
     return () => {
       RuntimeState.INSTANCE.stop();
     };
-  }, []);
-
-  const { connection, reconnect } = useMarimoKernelConnection({
-    autoInstantiate: userConfig.runtime.auto_instantiate,
-    setCells: (cells, layout) => {
-      setCells(cells);
-      const names = cells.map((cell) => cell.name);
-      const codes = cells.map((cell) => cell.code);
-      const configs = cells.map((cell) => cell.config);
-      setLastSavedNotebook({ names, codes, configs, layout });
-    },
-    sessionId: getSessionId(),
-  });
+  }, [sendComponentValues]);
 
   // Update document title whenever filename or app_title changes
   useEffect(() => {
@@ -114,13 +109,14 @@ export const EditApp: React.FC<AppProps> = ({
   const runAllCells = useRunAllCells();
   const togglePresenting = useTogglePresenting();
   const setCodeVisibility = useSetCodeVisibility();
+  const setOutputsExpanded = useSetOutputsExpanded();
 
   // HOTKEYS
   useHotkey("global.runStale", () => {
     runStaleCells();
   });
   useHotkey("global.interrupt", () => {
-    sendInterrupt();
+    void interruptRuntime(store);
   });
   useHotkey("global.hideCode", () => {
     togglePresenting();
@@ -140,6 +136,20 @@ export const EditApp: React.FC<AppProps> = ({
   useHotkey("global.hideAllMarkdownCode", () => {
     setCodeVisibility(true, "markdown");
   });
+  useHotkey(
+    "global.expandAllOutputs",
+    () => {
+      setOutputsExpanded(true);
+    },
+    { disabled: !isEditing },
+  );
+  useHotkey(
+    "global.clampAllOutputs",
+    () => {
+      setOutputsExpanded(false);
+    },
+    { disabled: !isEditing },
+  );
   useHotkey("global.collapseAllSections", () => {
     collapseAllCells();
   });
@@ -158,6 +168,7 @@ export const EditApp: React.FC<AppProps> = ({
 
   return (
     <>
+      <SandboxController onReconnect={reconnect} />
       <AppContainer
         connection={connection}
         isRunning={isRunning}
@@ -165,10 +176,9 @@ export const EditApp: React.FC<AppProps> = ({
         onReconnect={reconnect}
       >
         <ViewerBanner />
-        <AppHeader
-          connection={connection}
+        <div
           className={cn(
-            "pt-4 sm:pt-12 pb-2 mb-4 print:hidden z-50",
+            "pt-4 sm:pt-12 pb-6 print:hidden z-50",
             // Keep the header sticky when scrolling horizontally, for column mode
             "sticky left-0",
           )}
@@ -178,14 +188,16 @@ export const EditApp: React.FC<AppProps> = ({
               <FilenameForm filename={filename} />
             </div>
           )}
-        </AppHeader>
+        </div>
 
-        {/* Don't render until we have a single cell. NotStartedConnectionAlert
-            still covers the "no remote runtime started" prompt. */}
-        <ProgressiveBoundary
-          requires={hasCellsAtom}
-          fallback={<NotStartedConnectionAlert />}
-        >
+        <ConnectionNotice
+          appConfig={appConfig}
+          onRetry={reconnect}
+          canOpenPackages={!hideControls}
+        />
+
+        {/* Don't render until we have a single cell. */}
+        <ProgressiveBoundary requires={hasCellsAtom}>
           <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
             {editableCellsArray}
           </CellsRenderer>
@@ -197,7 +209,7 @@ export const EditApp: React.FC<AppProps> = ({
           <Controls
             presenting={isPresenting}
             onTogglePresenting={togglePresenting}
-            onInterrupt={sendInterrupt}
+            onInterrupt={() => interruptRuntime(store)}
             onRun={runStaleCells}
             connectionState={connection.state}
             running={isRunning}
@@ -205,6 +217,7 @@ export const EditApp: React.FC<AppProps> = ({
           />
         </TooltipProvider>
       )}
+      <LazyCommandPalette />
     </>
   );
 };

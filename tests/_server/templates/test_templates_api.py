@@ -2,7 +2,12 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import asdict
 
+import pytest
+
+from marimo._cli.pair.prompts import load_prompt_templates
+from marimo._config.config_schema import DisplayConfig
 from marimo._schemas.session import (
     VERSION,
     Cell,
@@ -14,6 +19,48 @@ from marimo._server.templates.api import (
     render_notebook,
     render_static_notebook,
 )
+from tests._server.templates.utils import parse_mount_config
+
+
+def test_render_notebook_tolerates_invalid_config() -> None:
+    config = {"display": {"theme": "invalid", "code_editor_font_size": 18}}
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="edit", config=config
+    )
+    assert (
+        parse_mount_config(html)["config"]["display"]
+        == DisplayConfig(code_editor_font_size=18).to_dict()
+    )
+    assert config == {
+        "display": {"theme": "invalid", "code_editor_font_size": 18}
+    }
+
+
+@pytest.mark.parametrize(
+    ("editable", "command"),
+    [(True, "uv run marimo"), (False, "uvx marimo@latest")],
+)
+def test_pair_cli_config_uses_installation_command(
+    monkeypatch: pytest.MonkeyPatch, editable: bool, command: str
+) -> None:
+    monkeypatch.setattr(
+        "marimo._cli.pair.prompts.is_editable", lambda _: editable
+    )
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="edit"
+    )
+    assert parse_mount_config(html)["pairConfig"] == {
+        "command": command,
+        "templates": asdict(load_prompt_templates()),
+        "hostEnabled": True,
+    }
+
+
+def test_read_mode_disables_agent_aware_ui() -> None:
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="read"
+    )
+    assert parse_mount_config(html)["pairConfig"]["hostEnabled"] is False
 
 
 class TestRenderNotebook(unittest.TestCase):
@@ -116,9 +163,51 @@ if __name__ == "__main__":
 
     def test_render_static_notebook(self) -> None:
         html = render_static_notebook(
-            code=self.code, session_snapshot=self.session_snapshot
+            code=self.code,
+            session_snapshot=self.session_snapshot,
+            layout={"type": "slides", "data": {"deck": {}}},
         )
         assert "<html" in html
+        assert parse_mount_config(html)["layout"] == {
+            "type": "slides",
+            "data": {"deck": {}},
+        }
+
+    def test_render_static_notebook_tolerates_invalid_config(self) -> None:
+        html = render_static_notebook(
+            code=self.code,
+            session_snapshot=self.session_snapshot,
+            config={
+                "display": {"theme": "invalid", "code_editor_font_size": 18}
+            },
+        )
+        assert (
+            parse_mount_config(html)["config"]["display"]
+            == DisplayConfig(code_editor_font_size=18).to_dict()
+        )
+
+    def test_render_static_notebook_validates_layout(self) -> None:
+        html = render_static_notebook(
+            code=self.code,
+            session_snapshot=self.session_snapshot,
+            layout={"type": "slides", "data": {}, "future": True},
+        )
+        assert parse_mount_config(html)["layout"] == {
+            "type": "slides",
+            "data": {},
+        }
+
+        for layout in (
+            {"data": {}},
+            {"type": 1, "data": {}},
+            {"type": "slides", "data": []},
+        ):
+            html = render_static_notebook(
+                code=self.code,
+                session_snapshot=self.session_snapshot,
+                layout=layout,
+            )
+            assert parse_mount_config(html)["layout"] is None
 
     def test_render_static_notebook_with_filename(self) -> None:
         html = render_static_notebook(

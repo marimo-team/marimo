@@ -50,7 +50,7 @@ class ReactiveReferencesPlugin {
   // Debounced function to trigger highlighting
   private readonly scheduleHighlighting: DebouncedFunc<() => void>;
 
-  constructor(view: EditorView, cellId: CellId) {
+  public constructor(view: EditorView, cellId: CellId) {
     this.view = view;
     this.cellId = cellId;
 
@@ -67,13 +67,13 @@ class ReactiveReferencesPlugin {
     this.scheduleHighlighting();
   }
 
-  update(update: ViewUpdate) {
+  public update(update: ViewUpdate) {
     if (update.docChanged || update.focusChanged) {
       this.scheduleHighlighting();
     }
   }
 
-  destroy() {
+  public destroy() {
     this.scheduleHighlighting.cancel();
     this.variablesUnsubscribe();
   }

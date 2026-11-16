@@ -11,11 +11,12 @@ import { Objects } from "@/utils/objects";
 import { ProgressState } from "@/utils/progress";
 import { cellsRuntimeAtom } from "../cells/cells";
 import type { CellId } from "../cells/ids";
+import { getExportLayout } from "./layout";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
 import type { UpdateCellOutputsRequest } from "../network/types";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 
 const DELAY = 5000; // 5 seconds;
 
@@ -27,7 +28,7 @@ export function useAutoExport() {
   const htmlEnabled = appConfig.auto_download.includes("html");
   const ipynbEnabled = appConfig.auto_download.includes("ipynb");
 
-  const isConnected = state === WebSocketState.OPEN;
+  const isConnected = state === ConnectionState.OPEN;
   const markdownDisabled = !markdownEnabled || !isConnected;
   const htmlDisabled = !htmlEnabled || !isConnected;
   const ipynbDisabled = !ipynbEnabled || !isConnected;
@@ -56,6 +57,7 @@ export function useAutoExport() {
         download: false,
         includeCode: true,
         files: VirtualFileTracker.INSTANCE.filenames(),
+        layout: await getExportLayout(),
       });
     },
     // Run every 5 seconds, or when the document becomes visible

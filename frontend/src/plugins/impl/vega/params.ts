@@ -2,6 +2,7 @@
 
 import type { TopLevelSpec } from "vega-lite";
 import type { NonNormalizedSpec } from "vega-lite/types_unstable/spec/index.js";
+import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { uniq } from "@/utils/arrays";
 import { Marks } from "./marks";
 import {
@@ -51,6 +52,21 @@ export const ParamNames = {
   },
 };
 
+/**
+ * The keyboard modifier used to gate pan/zoom (and to exclude it from
+ * point/interval selection).
+ *
+ * On macOS we use the Command key (`metaKey`), which is conflict-free. On other
+ * platforms `metaKey` maps to the Super/Windows key, which GNOME/Wayland and
+ * Windows reserve for system actions (workspace switching, the activities
+ * overview, etc.), so pan/zoom never reaches the chart. We fall back to the
+ * Control key there, matching the common convention for chart pan/zoom on
+ * Linux and Windows. See https://github.com/marimo-team/marimo/issues/3812.
+ */
+export function getPanZoomModifier(): "metaKey" | "ctrlKey" {
+  return isPlatformMac() ? "metaKey" : "ctrlKey";
+}
+
 export const Params = {
   highlight() {
     return {
@@ -62,6 +78,7 @@ export const Params = {
     spec: VegaLiteUnitSpec,
     layerNum: number | undefined,
   ): SelectionParameter<"interval"> {
+    const mod = getPanZoomModifier();
     return {
       name: ParamNames.interval(layerNum),
       select: {
@@ -73,10 +90,9 @@ export const Params = {
           stroke: "#669EFF",
           strokeOpacity: 0.4,
         },
-        // So this does not conflict with pan/zoom via metaKey
-        on: "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
-        translate:
-          "[mousedown[!event.metaKey], mouseup] > mousemove[!event.metaKey]",
+        // So this does not conflict with pan/zoom, which uses the same modifier
+        on: `[mousedown[!event.${mod}], mouseup] > mousemove[!event.${mod}]`,
+        translate: `[mousedown[!event.${mod}], mouseup] > mousemove[!event.${mod}]`,
       },
     };
   },
@@ -89,7 +105,7 @@ export const Params = {
       select: {
         type: "point",
         encodings: getEncodingAxisForMark(spec),
-        on: "click[!event.metaKey]",
+        on: `click[!event.${getPanZoomModifier()}]`,
       },
     };
   },
@@ -103,7 +119,7 @@ export const Params = {
       name: ParamNames.binColoring(layerNum),
       select: {
         type: "point",
-        on: "click[!event.metaKey]",
+        on: `click[!event.${getPanZoomModifier()}]`,
       },
     };
   },
@@ -118,15 +134,15 @@ export const Params = {
     };
   },
   panZoom(): SelectionParameter<"interval"> {
+    const mod = getPanZoomModifier();
     return {
       name: ParamNames.PAN_ZOOM,
       bind: "scales",
       select: {
         type: "interval",
-        on: "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
-        translate:
-          "[mousedown[event.metaKey], window:mouseup] > window:mousemove!",
-        zoom: "wheel![event.metaKey]",
+        on: `[mousedown[event.${mod}], window:mouseup] > window:mousemove!`,
+        translate: `[mousedown[event.${mod}], window:mouseup] > window:mousemove!`,
+        zoom: `wheel![event.${mod}]`,
       },
     };
   },

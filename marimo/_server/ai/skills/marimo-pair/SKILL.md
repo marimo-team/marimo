@@ -41,6 +41,26 @@ passing your Python as the `code` argument. Everything you do — inspecting
 state, testing transformations, and persisting changes via `cm` — runs through
 `execute_code` in the scratchpad (see below).
 
+## Required First Kernel Command
+
+Start every code-mode session with this dedicated `execute_code` call:
+
+```python
+import marimo._code_mode as cm
+
+help(cm)
+```
+
+Follow this order for every live kernel, including read-only tasks:
+
+1. Run only the inspection command above.
+2. Wait for successful `help(cm)` output.
+3. Use `cm.get_context()` or another `cm` API in a later `execute_code` call.
+
+Do not combine the inspection with task-specific code, and do not use another
+`cm` API before the inspection succeeds. This verifies the private, unstable
+API exposed by the marimo version in the user's active kernel.
+
 ## Scratchpad Scope
 
 `execute_code` evaluates Python in marimo's scratchpad: a temporary namespace
@@ -79,14 +99,6 @@ the scratchpad. DO NOT import it from notebook cells, library code, or
 anything a user would run — methods can change or disappear across marimo
 versions and kernels. Treat every `import marimo._code_mode as cm` as
 scratchpad-only.
-
-At session start, inspect what `cm` exposes in the active kernel:
-
-```python
-import marimo._code_mode as cm
-
-help(cm)
-```
 
 Open a code-mode context to queue notebook changes.
 
@@ -169,9 +181,9 @@ and `ctx.graph` is the dataflow view.
 for cell in ctx.cells:
     cell  # .id, .code, .name, .config, .status, .errors
 
-ctx.cells["setup"]         # by name
-ctx.cells[0]               # by position
-list(ctx.cells.keys())     # all IDs, in notebook order
+ctx.cells["setup"]  # by name
+ctx.cells[0]  # by position
+list(ctx.cells.keys())  # all IDs, in notebook order
 ```
 
 Cell IDs are opaque strings which can be queried from the notebook or captured
@@ -179,7 +191,7 @@ from `cm` return values:
 
 ```python
 cid = ctx.create_cell("df = pd.read_csv('data.csv')")
-print(cid)   # e.g. 'Hbol'
+print(cid)  # e.g. 'Hbol'
 ```
 
 Alternatively, cells can be assigned and referenced by `name`. The graph can be
@@ -189,8 +201,8 @@ used to understand its role in the dataflow.
 for cid, impl in ctx.graph.cells.items():
     impl  # .defs, .refs   (sets of public names)
 
-ctx.graph.descendants(cid)   # cells that re-run when this one changes
-ctx.graph.ancestors(cid)     # cells this one depends on
+ctx.graph.descendants(cid)  # cells that re-run when this one changes
+ctx.graph.ancestors(cid)  # cells this one depends on
 ```
 
 In marimo, deletes are _destructive_ so it can be useful to query the

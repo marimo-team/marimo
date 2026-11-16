@@ -42,6 +42,21 @@ def test_normalize_values_rejects_multiple_values() -> None:
         _normalize_values(["first.txt", "second.txt"], multiple=False)
 
 
+def test_normalize_values_rejects_empty_string() -> None:
+    with pytest.raises(ValueError, match='Invalid value=""'):
+        _normalize_values("", multiple=True)
+
+
+def test_normalize_values_rejects_empty_string_in_sequence() -> None:
+    with pytest.raises(ValueError, match=r'Invalid value\[1\]=""'):
+        _normalize_values(["first.txt", ""], multiple=True)
+
+
+def test_normalize_values_reports_index_for_single_element_sequence() -> None:
+    with pytest.raises(ValueError, match=r'Invalid value\[0\]=""'):
+        _normalize_values([""], multiple=True)
+
+
 def test_is_path_within_cases(tmp_path: Path) -> None:
     root = tmp_path.resolve()
     jail = root / "jail"
@@ -58,7 +73,9 @@ def test_is_path_within_cases(tmp_path: Path) -> None:
     assert _is_path_within(jail, jail) is True
     assert _is_path_within(outside, jail) is False
     assert _is_path_within(root, jail) is False
-    assert _is_path_within(jail / "nope.txt", jail) is False
+    # Containment does not require existence.
+    assert _is_path_within(jail / "nope.txt", jail) is True
+    assert _is_path_within(root / "nope.txt", jail) is False
 
 
 def test_is_path_within_rejects_symlink_escape(tmp_path: Path) -> None:
@@ -456,6 +473,42 @@ def test_file_browser_rejects_multiple_default_values(
         )
 
 
+def test_file_browser_rejects_empty_string_value(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='Invalid value=""') as error:
+        file_browser(initial_path=tmp_path, value="")
+
+    assert str(tmp_path) not in str(error.value)
+
+
+def test_file_browser_rejects_empty_string_value_for_any_selection_mode(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match='Invalid value=""'):
+        file_browser(initial_path=tmp_path, value="", selection_mode="all")
+
+
+def test_file_browser_rejects_empty_string_among_valid_values(
+    tmp_path: Path,
+) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+
+    with pytest.raises(ValueError, match=r'Invalid value\[1\]=""'):
+        file_browser(initial_path=tmp_path, value=[selected, ""])
+
+
+def test_file_browser_accepts_relative_string_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+    monkeypatch.chdir(tmp_path)
+
+    fb = file_browser(value="selected.txt")
+
+    assert fb.path() == normalize_path(Path("selected.txt"))
+
+
 def test_file_browser_rejects_default_value_of_wrong_kind(
     tmp_path: Path,
 ) -> None:
@@ -598,6 +651,112 @@ def test_navigation_restriction_dotdot_escape(tmp_path: Path) -> None:
     traversal = str(restricted / ".." / "sibling")
     with pytest.raises(RuntimeError, match="Navigation is restricted"):
         fb._list_directory(ListDirectoryArgs(path=traversal))
+
+
+def test_missing_path_inside_root_reports_not_found(tmp_path: Path) -> None:
+    """A missing path inside the root reports not-found, not a restriction."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    missing = restricted / "missing"
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        fb._list_directory(ListDirectoryArgs(path=str(missing)))
+
+
+def test_missing_path_outside_root_reports_restriction(tmp_path: Path) -> None:
+    """A missing path outside the root still reports a restriction."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    missing = tmp_path / "outside" / "missing"
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(missing)))
+
+
+def test_missing_path_without_restriction_reports_not_found(
+    tmp_path: Path,
+) -> None:
+    """Unrestricted navigation to a missing path reports not-found."""
+    fb = file_browser(initial_path=tmp_path, restrict_navigation=False)
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        fb._list_directory(ListDirectoryArgs(path=str(tmp_path / "missing")))
+
+
+def test_restricted_update_rejects_value_outside_root(tmp_path: Path) -> None:
+    """A frontend value pointing outside the root must be rejected.
+
+    `_list_directory` blocks browsing outside `initial_path`, but the value can
+    also be set directly through the `set_ui_element_value` API, which calls
+    `_update` -> `_convert_value`. That path must enforce the same restriction,
+    otherwise an app viewer can read any file the server can (MO-7713).
+    """
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    secret = outside / "secret.txt"
+    secret.write_text("secret data here")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._update(
+            [
+                {
+                    "id": str(secret),
+                    "path": str(secret),
+                    "name": secret.name,
+                    "is_directory": False,
+                }
+            ]
+        )
+
+
+def test_restricted_update_accepts_value_within_root(tmp_path: Path) -> None:
+    """A frontend value inside the root is still accepted after the fix."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    reachable = restricted / "data.txt"
+    reachable.write_text("ok")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    fb._update(
+        [
+            {
+                "id": str(reachable),
+                "path": str(reachable),
+                "name": reachable.name,
+                "is_directory": False,
+            }
+        ]
+    )
+    assert fb.path() == reachable
+
+
+def test_unrestricted_update_accepts_value_outside_root(
+    tmp_path: Path,
+) -> None:
+    """Without restriction, values outside the root remain allowed."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    target = outside / "data.txt"
+    target.write_text("ok")
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=False)
+    fb._update(
+        [
+            {
+                "id": str(target),
+                "path": str(target),
+                "name": target.name,
+                "is_directory": False,
+            }
+        ]
+    )
+    assert fb.path() == target
 
 
 def test_name_method() -> None:

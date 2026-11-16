@@ -15,7 +15,7 @@ from marimo import _loggers
 from marimo._utils.net import find_free_port
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 LOGGER = _loggers.marimo_logger()
 
@@ -94,6 +94,7 @@ class LiveNotebookServer(AbstractContextManager["LiveNotebookServer"]):
 
         command = [
             sys.executable,
+            "-P",
             "-m",
             "marimo",
             # We don't want to prompt for anything.

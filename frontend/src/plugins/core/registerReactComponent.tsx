@@ -18,15 +18,16 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import ReactDOM, { type Root } from "react-dom/client";
 import useEvent from "react-use-event-hook";
 import { type ZodSchema, z } from "zod";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { notebookAtom } from "@/core/cells/cells.ts";
 import { HTMLCellId } from "@/core/cells/ids.ts";
 import { isUninstantiated } from "@/core/cells/utils";
+import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
 import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
 import { getUIElementObjectId } from "@/core/dom/ui-element";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
@@ -104,8 +105,18 @@ function PluginSlotInternal<T>(
   ref: React.Ref<PluginSlotHandle>,
 ): JSX.Element {
   const [childNodes, setChildNodes] = useState<ReactNode>(children);
-  const [value, setValue] = useState<T>(getInitialValue());
+  const [value, setValue] = useState<T>(getInitialValue);
+  // Mirrors the committed value so that consecutive plugin updates within one
+  // tick build on each other before React re-renders. React state updaters
+  // may run more than once, so the host input event is dispatched outside
+  // of them, which requires knowing the previous value up front.
+  const latestValue = useRef(value);
   const { theme } = useTheme();
+
+  const commitValue = (nextValue: T) => {
+    latestValue.current = nextValue;
+    setValue(nextValue);
+  };
 
   const [parsedResult, setParsedResult] = useState(() => {
     return plugin.validator.safeParse(parseDataset(hostElement));
@@ -119,7 +130,7 @@ function PluginSlotInternal<T>(
 
   useImperativeHandle(ref, () => ({
     reset: () => {
-      setValue(getInitialValue());
+      commitValue(getInitialValue());
       setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
       setResetNonce((n) => n + 1);
     },
@@ -134,7 +145,7 @@ function PluginSlotInternal<T>(
     MarimoValueUpdateEvent.TYPE,
     (e) => {
       if (e.detail.element === hostElement) {
-        setValue(e.detail.value as T);
+        commitValue(e.detail.value as T);
       }
     },
   );
@@ -166,18 +177,16 @@ function PluginSlotInternal<T>(
 
   // When the value changes, send an input event
   const setValueAndSendInput = useEvent((value: SetStateAction<T>): void => {
-    setValue((prevValue) => {
-      const updater = Functions.asUpdater(value);
-      const nextValue = updater(prevValue);
-      // Shallow compare the values
-      // If the value hasn't changed, we don't need to send an input event
-      if (shallowCompare(nextValue, prevValue)) {
-        return nextValue;
-      }
-
-      hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
-      return nextValue;
-    });
+    const prevValue = latestValue.current;
+    const nextValue = Functions.asUpdater(value)(prevValue);
+    // Always adopt the new reference: consumers such as the form wrapper
+    // compare the committed value by identity to decide whether unsaved
+    // edits exist. Only the kernel notification is skipped for equal values.
+    commitValue(nextValue);
+    if (shallowCompare(nextValue, prevValue)) {
+      return;
+    }
+    hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
   });
 
   // Create a map of functions that can be called by the plugin
@@ -205,18 +214,9 @@ function PluginSlotInternal<T>(
         if (cellId && !isStatic) {
           // If the cell is not initialized, throw an error
           // Continue if the cell is static, so we can propagate a clearer error message.
-          const notebookState = store.get(notebookAtom);
-          const cellRuntime = notebookState.cellRuntime[cellId];
-          const cellData = notebookState.cellData[cellId];
-
-          const cellNotInitialized = isUninstantiated({
-            executionTime:
-              cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
-            status: cellRuntime.status,
-            errored: cellRuntime.errored,
-            interrupted: cellRuntime.interrupted,
-            stopped: cellRuntime.stopped,
-          });
+          const cellNotInitialized = isUninstantiated(
+            cellExecutionView(store.get(cellExecutionInputsAtom), cellId),
+          );
 
           if (cellNotInitialized) {
             throw new CellNotInitializedError();
@@ -274,7 +274,6 @@ function PluginSlotInternal<T>(
       Objects.mapValues(hostElement.dataset, (value) =>
         typeof value === "string" ? parseAttrValue(value) : value,
       ),
-      hostElement.shadowRoot,
     );
   }
 
@@ -299,7 +298,7 @@ function PluginSlotInternal<T>(
   );
 }
 
-const PluginSlot: React.ForwardRefExoticComponent<
+export const PluginSlot: React.ForwardRefExoticComponent<
   // oxlint-disable-next-line typescript/no-explicit-any
   PluginSlotProps<any> & React.RefAttributes<PluginSlotHandle>
 > = React.forwardRef(PluginSlotInternal);
@@ -337,7 +336,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
     private pluginRef = createRef<PluginSlotHandle>();
     protected __type__ = customElementLocator;
 
-    constructor() {
+    public constructor() {
       super();
       // Create a shadow root so we can store the React tree on the shadow root, while the original
       // element's children are still on the DOM
@@ -350,7 +349,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       });
     }
 
-    connectedCallback() {
+    public connectedCallback() {
       // Skip mounting if this element is in the light DOM of another
       // marimo custom element. The parent element's shadow DOM will
       // re-create this element via getChildren() -> renderHTML(), so
@@ -384,7 +383,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       });
     }
 
-    disconnectedCallback() {
+    public disconnectedCallback() {
       this.observer.disconnect();
       this.root?.unmount();
       if (this.mounted) {
@@ -420,7 +419,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
      * Reset the plugin initial value and data.
      * And then re-render the plugin.
      */
-    reset() {
+    public reset() {
       this.dispatchEvent(
         createInputEvent(parseAttrValue(this.dataset.initialValue), this),
       );
@@ -430,7 +429,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
     /**
      * Re-render the plugin.
      */
-    rerender() {
+    public rerender() {
       this.pluginRef.current?.reset();
     }
 
@@ -520,7 +519,9 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
         if (!styleSheetCache.has(sheetUniqueKey)) {
           // We need to create a new stylesheet because we can't use the same
           // stylesheet otherwise the browser will throw an error.
-          const newSheet = new CSSStyleSheet();
+          const newSheet = new CSSStyleSheet({
+            baseURL: sheet.href ?? document.baseURI,
+          });
           try {
             newSheet.replaceSync(
               Array.from(sheet.cssRules)

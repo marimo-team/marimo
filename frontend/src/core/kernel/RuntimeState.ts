@@ -17,7 +17,7 @@ export class RuntimeState {
   /**
    * Shared instance of RuntimeState since this must be a singleton.
    */
-  static get INSTANCE(): RuntimeState {
+  public static get INSTANCE(): RuntimeState {
     const KEY = "_marimo_private_RuntimeState";
     if (!window[KEY]) {
       window[KEY] = new RuntimeState(UI_ELEMENT_REGISTRY);
@@ -31,7 +31,7 @@ export class RuntimeState {
   private _sendComponentValues: RunRequests["sendComponentValues"] | undefined;
   private uiElementRegistry: UIElementRegistry;
 
-  constructor(uiElementRegistry: UIElementRegistry) {
+  public constructor(uiElementRegistry: UIElementRegistry) {
     this.uiElementRegistry = uiElementRegistry;
   }
 
@@ -45,7 +45,7 @@ export class RuntimeState {
   /**
    * Start listening for events from UIElements
    */
-  start(sendComponentValues: RunRequests["sendComponentValues"]) {
+  public start(sendComponentValues: RunRequests["sendComponentValues"]) {
     if (this.hasStarted) {
       Logger.warn("RuntimeState already started");
       return;
@@ -61,7 +61,7 @@ export class RuntimeState {
   /**
    * Stop listening for events from UIElements
    */
-  stop() {
+  public stop() {
     if (!this.hasStarted) {
       Logger.warn("RuntimeState already stopped");
       return;

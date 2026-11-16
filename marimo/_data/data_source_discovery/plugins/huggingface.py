@@ -5,6 +5,7 @@ from marimo._data.data_source_discovery.helpers import (
     ENVIRONMENT_ORIGIN,
     environment_variable,
     has_value,
+    hides_when_storage,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
@@ -37,6 +38,10 @@ def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
             confidence="high",
             origins=(ENVIRONMENT_ORIGIN,),
             configuration=(environment_variable("Token", token_name),),
+            hides_when=hides_when_storage(
+                protocols=("hf",),
+                backend_types=("huggingface",),
+            ),
             code="""\
 from huggingface_hub import HfApi
 

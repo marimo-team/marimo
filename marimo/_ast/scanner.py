@@ -375,7 +375,7 @@ def _extract_name_from_cell(
     end_0: int,
 ) -> str | None:
     """Extract the function/class name from lines following a decorator."""
-    if kind in ("setup",):
+    if kind == "setup":
         return None
     if kind == "unparsable":
         # For unparsable cells, try to find `name="..."` in the call
@@ -613,11 +613,8 @@ def scan_parse_fallback(
 
     # Preamble
     if scan.preamble.strip():
-        try:
-            tree = ast_parse(scan.preamble, filename=filepath)
-            nodes.extend(tree.body)
-        except SyntaxError:
-            raise  # Preamble errors are fatal
+        tree = ast_parse(scan.preamble, filename=filepath)
+        nodes.extend(tree.body)
 
     # Cells
     for cell in scan.cells:

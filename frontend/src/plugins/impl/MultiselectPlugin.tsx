@@ -17,9 +17,9 @@ interface Data {
 type T = string[];
 
 export class MultiselectPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-multiselect";
+  public tagName = "marimo-multiselect";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.array(z.string()),
     label: z.string().nullable(),
     options: z.array(z.string()),
@@ -28,7 +28,7 @@ export class MultiselectPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().default(false),
   });
 
-  render(props: IPluginProps<string[], Data>): JSX.Element {
+  public render(props: IPluginProps<string[], Data>): JSX.Element {
     return (
       <Multiselect
         {...props.data}
@@ -68,7 +68,7 @@ export const Multiselect = ({
   );
 
   return (
-    <Labeled label={label} id={id} fullWidth={fullWidth}>
+    <Labeled label={label} controlId={id} fullWidth={fullWidth}>
       <SelectList<string>
         id={id}
         options={items}

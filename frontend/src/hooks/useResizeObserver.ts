@@ -6,6 +6,7 @@
 
 import type { RefObject } from "react";
 import { useEffect, useRef } from "react";
+import useEvent from "react-use-event-hook";
 
 interface Size {
   width: number | undefined;
@@ -30,9 +31,7 @@ export function useResizeObserver<T extends HTMLElement = HTMLElement>(
   const { ref, box = "content-box", skip } = options;
   // oxlint-disable-next-line react/hook-use-state
   const previousSize = useRef<Size>({ ...initialSize });
-  const onResize = useRef<((size: Size) => void) | undefined>(undefined);
-  // oxlint-disable-next-line react-hooks/react-compiler
-  onResize.current = options.onResize;
+  const onResize = useEvent((size: Size) => options.onResize?.(size));
 
   useEffect(() => {
     if (!ref.current || skip) {
@@ -63,9 +62,7 @@ export function useResizeObserver<T extends HTMLElement = HTMLElement>(
         previousSize.current.width = newWidth;
         previousSize.current.height = newHeight;
 
-        if (onResize.current) {
-          onResize.current(newSize);
-        }
+        onResize(newSize);
       }
     });
 
@@ -74,7 +71,7 @@ export function useResizeObserver<T extends HTMLElement = HTMLElement>(
     return () => {
       observer.disconnect();
     };
-  }, [box, ref, skip]);
+  }, [box, ref, skip, onResize]);
 }
 
 type BoxSizesKey = keyof Pick<

@@ -86,6 +86,7 @@ DATABASE_URL = sqlalchemy.URL.create(
     database=os.environ["MYSQL_DATABASE"],
 )
 engine = sqlalchemy.create_engine(DATABASE_URL)""",
+                "hidesWhen": {"kind": "dialect", "substrings": ["mysql"]},
             }
         ]
     )

@@ -15,7 +15,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -25,13 +25,15 @@ def _():
     import polars as pl
     import pyarrow as pa
     import ibis
+
     return ibis, mo, pa
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## DataFusion Connection""")
-    return
+    mo.md(r"""
+    ## DataFusion Connection
+    """)
 
 
 @app.cell
@@ -65,13 +67,11 @@ def _(con, mo):
         """,
         engine=con
     )
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## PySpark Connection
 
     Spin up a spark cluster using docker. We will use Spark Connect to communicate with this cluster.
@@ -86,9 +86,7 @@ def _(mo):
     ```
 
     Notice I have commented out mounting a local volume, you can opt to ignore that line. Include this to read your local filesystem.
-    """
-    )
-    return
+    """)
 
 
 @app.cell
@@ -107,18 +105,16 @@ def _(ibis):
 def _(data, pyspark_conn):
     # pyspark_conn.read_csv("/mounted_data/order_details.csv").to_polars()
     pyspark_conn.create_table("my_data", obj=data, overwrite=True)
-    return
 
 
 @app.cell
-def _(mo, pyspark_conn):
+def _(mo, my_data, pyspark_conn):
     _df = mo.sql(
         f"""
         SELECT * FROM my_data
         """,
         engine=pyspark_conn
     )
-    return
 
 
 if __name__ == "__main__":

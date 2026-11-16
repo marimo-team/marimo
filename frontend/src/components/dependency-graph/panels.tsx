@@ -4,6 +4,7 @@ import {
   ArrowRightFromLineIcon,
   ArrowRightIcon,
   ArrowRightToLineIcon,
+  ExternalLinkIcon,
   MoreVerticalIcon,
   NetworkIcon,
   SettingsIcon,
@@ -14,16 +15,18 @@ import {
 import React, { memo, useId } from "react";
 import { type Edge, Panel } from "reactflow";
 import { getCellEditorView } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 import type { Variable, Variables } from "@/core/variables/types";
 import { ConnectionCellActionsDropdown } from "../editor/cell/cell-actions";
-import { CellLink } from "../editor/links/cell-link";
+import { CellLink, scrollAndHighlightCell } from "../editor/links/cell-link";
 import { CellLinkList } from "../editor/links/cell-link-list";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Tooltip } from "../ui/tooltip";
 import { VariableName } from "../variables/common";
 import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
 
@@ -122,6 +125,8 @@ export const GraphSelectionPanel: React.FC<{
   edges: Edge[];
   variables: Variables;
 }> = memo(({ selection, variables, onClearSelection }) => {
+  const { showCellIfHidden } = useCellActions();
+
   if (!selection) {
     return null;
   }
@@ -194,12 +199,30 @@ export const GraphSelectionPanel: React.FC<{
             <SquareFunction className="w-5 h-5" />
             <CellLink cellId={selection.id} />
             <div className="flex-1" />
+            <Tooltip content="Open cell in editor" delayDuration={200}>
+              <Button
+                aria-label="Open cell in editor"
+                variant="text"
+                size="icon"
+                onClick={() => {
+                  // The cell may sit in a collapsed section; reveal it first
+                  // or the scroll target won't be in the DOM.
+                  showCellIfHidden({ cellId: selection.id });
+                  requestAnimationFrame(() => {
+                    scrollAndHighlightCell(selection.id, "focus");
+                  });
+                }}
+              >
+                <ExternalLinkIcon className="w-4 h-4" />
+              </Button>
+            </Tooltip>
             <ConnectionCellActionsDropdown cellId={selection.id}>
-              <Button variant="ghost" size="icon">
+              <Button aria-label="Cell actions" variant="ghost" size="icon">
                 <MoreVerticalIcon className="w-4 h-4" />
               </Button>
             </ConnectionCellActionsDropdown>
             <Button
+              aria-label="Close cell details"
               variant="text"
               size="icon"
               onClick={() => {

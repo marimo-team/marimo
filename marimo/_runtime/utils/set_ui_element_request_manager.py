@@ -83,8 +83,7 @@ def _merge_ui_commands(
     merged: dict[UIElementId, Any] = {}
     last_cmd = cmds[-1]
     for cmd in cmds:
-        for ui_id, value in cmd.ids_and_values:
-            merged[ui_id] = value
+        merged.update(cmd.ids_and_values)
 
     return [
         UpdateUIElementCommand(
@@ -136,14 +135,14 @@ def _merge_model_commands(
             ):
                 model_buffers[mid][tuple(path)] = buf
 
-    for mid in model_state:
+    for mid, state in model_state.items():
         paths = list(model_buffers[mid].keys())
         bufs = list(model_buffers[mid].values())
         result.append(
             ModelCommand(
                 model_id=mid,
                 message=ModelUpdateMessage(
-                    state=model_state[mid],
+                    state=state,
                     buffer_paths=[list(p) for p in paths],
                 ),
                 buffers=bufs,

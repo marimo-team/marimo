@@ -25,7 +25,8 @@ if TYPE_CHECKING:
         AppKernelRunnerRegistry,
         InternalApp,
     )
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.provenance import ConfigPath
     from marimo._messaging.types import Stderr, Stdout, Stream
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime import dataflow
@@ -77,8 +78,10 @@ class ExecutionContext:
     ) -> Iterator[None]:
         old_conn = self.duckdb_connection
         self.duckdb_connection = connection
-        yield
-        self.duckdb_connection = old_conn
+        try:
+            yield
+        finally:
+            self.duckdb_connection = old_conn
 
 
 @dataclass
@@ -122,6 +125,11 @@ class RuntimeContext(abc.ABC):
         Get the marimo configuration.
         This is a merged configuration from the user config and project config.
         """
+
+    @property
+    def config_overrides(self) -> frozenset[ConfigPath]:
+        """Settings explicitly overridden in this runtime."""
+        return frozenset()
 
     @property
     def request(self) -> HTTPRequest | None:
@@ -184,7 +192,6 @@ class RuntimeContext(abc.ABC):
 
     @contextmanager
     def install(self) -> Iterator[None]:
-        global _THREAD_LOCAL_CONTEXT
         old_ctx = _THREAD_LOCAL_CONTEXT.runtime_context
         try:
             _THREAD_LOCAL_CONTEXT.runtime_context = self
@@ -223,13 +230,11 @@ def initialize_context(runtime_context: RuntimeContext) -> None:
         get_context()
         raise RuntimeError("RuntimeContext was already initialized.")
     except ContextNotInitializedError:
-        global _THREAD_LOCAL_CONTEXT
         _THREAD_LOCAL_CONTEXT.initialize(runtime_context=runtime_context)
 
 
 def teardown_context() -> None:
     """Unset the context, for testing."""
-    global _THREAD_LOCAL_CONTEXT
     _THREAD_LOCAL_CONTEXT.runtime_context = None
 
 

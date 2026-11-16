@@ -303,7 +303,12 @@ class matrix(
     """An interactive matrix/vector editor.
 
     A matrix UI element in which each entry is a slider: click and drag
-    horizontally on an entry to increment or decrement its value. The matrix
+    horizontally on an entry to increment or decrement its value. Hold
+    shift while dragging (or pressing arrow keys) to move in 10x coarser
+    steps, or alt/option for 10x finer steps. To type an exact value,
+    including scientific notation like `2.32e7`, double-click an entry or
+    press Enter while it is focused; typed values are clamped to any
+    bounds but are not snapped to `step`. The matrix
     can be configured in many ways, including element-wise bounds, element-wise
     steps, an element-wise disable mask, and symmetry enforcement. These
     configuration values may be any array-like object, including as lists,

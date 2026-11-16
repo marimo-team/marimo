@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import hmac
 import secrets
 import typing
@@ -23,6 +24,11 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 from marimo._server.api.deps import AppState
+from marimo._server.host.auth import (
+    bearer_matches,
+    host_header_ok,
+    is_loopback,
+)
 
 LOGGER = _loggers.marimo_logger()
 TOKEN_QUERY_PARAM = "access_token"
@@ -38,19 +44,38 @@ def validate_auth(
     state = AppState.from_app(conn.app)
     auth_token = str(state.session_manager.auth_token)
 
-    # Check for session cookie
-    cookie_session = CookieSession(conn.session)
+    context = state.host_context
+    client = conn.scope.get("client")
+    if (
+        conn.scope.get("method") == "POST"
+        and conn.scope["path"] == state.base_url + "/api/kernel/execute"
+        and context is not None
+        and context.bridge.app_sessions is None
+        and context.token
+        and client is not None
+        and is_loopback(client[0])
+        and host_header_ok(conn.headers.get("host"), context.port)
+        and bearer_matches(conn.headers.get("Authorization"), context.token)
+    ):
+        # Local agent credentials must not become browser login cookies.
+        return True
 
-    # Validate the cookie
-    if hmac.compare_digest(cookie_session.get_access_token(), auth_token):
+    # Check for session cookie
+    session_secret = getattr(conn.app.state, "session_secret", SESSION_SECRET)
+    cookie_session = CookieSession(conn.session, secret=session_secret)
+
+    # Validate the cookie. The cookie stores a keyed hash of the token,
+    # never the token itself.
+    if _matches(
+        cookie_session.get_access_token(),
+        hash_access_token(auth_token, secret=session_secret),
+    ):
         return True  # Success
 
     # Check for access_token
     if TOKEN_QUERY_PARAM in conn.query_params:
         # Validate the access_token
-        if hmac.compare_digest(
-            conn.query_params[TOKEN_QUERY_PARAM], auth_token
-        ):
+        if _matches(conn.query_params[TOKEN_QUERY_PARAM], auth_token):
             LOGGER.debug("Validated access_token from query param")
             # Set the cookie
             cookie_session.set_access_token(auth_token)
@@ -60,7 +85,7 @@ def validate_auth(
     if form_dict is not None:
         # Validate the access_token
         password = form_dict.get("password")
-        if password and hmac.compare_digest(password, auth_token):
+        if password and _matches(password, auth_token):
             LOGGER.debug("Validated access_token from form data")
             # Set the cookie
             cookie_session.set_access_token(auth_token)
@@ -75,20 +100,14 @@ def validate_auth(
         scheme, _, credentials = auth.partition(" ")
         scheme_lower = scheme.lower()
 
-        if scheme_lower == "bearer" and hmac.compare_digest(
-            credentials, auth_token
-        ):
+        if scheme_lower == "bearer" and _matches(credentials, auth_token):
             LOGGER.debug("Validated bearer token from header")
             cookie_session.set_access_token(auth_token)
             return True  # Success
 
         if scheme_lower == "basic":
             username, password = _parse_basic_auth_credentials(credentials)
-            if (
-                username
-                and password
-                and hmac.compare_digest(password, auth_token)
-            ):
+            if username and password and _matches(password, auth_token):
                 LOGGER.debug("Validated basic auth from header")
                 cookie_session.set_access_token(auth_token)
                 cookie_session.set_username(username)
@@ -96,6 +115,11 @@ def validate_auth(
 
     LOGGER.debug("Invalid auth")
     return False
+
+
+def _matches(given: str, expected: str) -> bool:
+    # compare_digest rejects str with non-ASCII characters.
+    return hmac.compare_digest(given.encode(), expected.encode())
 
 
 def _parse_basic_auth_credentials(
@@ -137,8 +161,24 @@ def on_auth_error(
     )
 
 
-# This is random/new for each server instance
-RANDOM_SECRET = Secret(secrets.token_hex(32))
+# Used when no stable server.session_secret is configured.
+SESSION_SECRET = Secret(secrets.token_hex(32))
+
+
+def hash_access_token(
+    token: str, *, secret: str | Secret = SESSION_SECRET
+) -> str:
+    """Keyed hash of the auth token, safe to store in the session cookie.
+
+    The session cookie is signed by starlette (tamper-proof) but not
+    encrypted, so its contents are readable by anyone holding the cookie.
+    Storing `HMAC(secret, token)` rather than the token means a leaked
+    cookie does not leak the token itself and cannot be replayed as a
+    bearer token or `?access_token=` query param.
+    """
+    return hmac.new(
+        str(secret).encode(), token.encode(), hashlib.sha256
+    ).hexdigest()
 
 
 class CookieSession:
@@ -146,10 +186,17 @@ class CookieSession:
     Wrapper around starlette's Session to add typesafety
     """
 
-    def __init__(self, session_state: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        session_state: dict[str, Any],
+        *,
+        secret: str | Secret = SESSION_SECRET,
+    ) -> None:
         self.session_state = session_state
+        self.secret = secret
 
     def get_access_token(self) -> str:
+        """Returns the hashed access token stored in the session, or ""."""
         access_token: str = self.session_state.get("access_token", "")
         return access_token
 
@@ -158,7 +205,10 @@ class CookieSession:
         return username
 
     def set_access_token(self, token: str) -> None:
-        self.session_state["access_token"] = token
+        """Stores a keyed hash of `token`; the raw token never hits the cookie."""
+        self.session_state["access_token"] = hash_access_token(
+            token, secret=self.secret
+        )
 
     def set_username(self, username: str) -> None:
         self.session_state["username"] = username

@@ -2,7 +2,7 @@
 
 import { renderHook } from "@testing-library/react";
 import { useRef } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type HTMLElementNotDerivedFromRef,
   isRefObject,
@@ -25,6 +25,50 @@ describe("isRefObject", () => {
 
   it("should return true for objects with 'current' property", () => {
     expect(isRefObject({ current: document.createElement("div") })).toBe(true);
+  });
+});
+
+describe.each([1, 2])("with %i anchors named current", (count) => {
+  let iframe: HTMLIFrameElement;
+  let browserWindow: Window;
+
+  beforeEach(() => {
+    // An iframe preserves named properties hidden by Vitest's global window.
+    iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    if (!iframe.contentWindow) {
+      throw new Error("Expected an iframe window");
+    }
+    browserWindow = iframe.contentWindow;
+    const anchors = Array.from({ length: count }, () => {
+      const anchor = browserWindow.document.createElement("a");
+      anchor.id = "current";
+      return anchor;
+    });
+    browserWindow.document.body.append(...anchors);
+  });
+
+  afterEach(() => {
+    iframe.remove();
+  });
+
+  it("does not mistake window for a React ref", () => {
+    expect("current" in browserWindow).toBe(true);
+    expect(isRefObject(browserWindow)).toBe(false);
+  });
+
+  it("attaches and removes the listener on window", () => {
+    const listener = vi.fn();
+    const { unmount } = renderHook(() =>
+      useEventListener(browserWindow, "resize", listener),
+    );
+
+    browserWindow.dispatchEvent(new Event("resize"));
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unmount();
+    browserWindow.dispatchEvent(new Event("resize"));
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });
 

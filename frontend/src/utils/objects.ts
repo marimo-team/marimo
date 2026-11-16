@@ -89,13 +89,9 @@ export const Objects = {
     obj: Record<K, V>,
     predicate: (value: V, key: K) => boolean,
   ): Record<K, V> {
-    const result: Record<K, V> = {} as Record<K, V>;
-    for (const [key, value] of Objects.entries(obj)) {
-      if (predicate(value, key)) {
-        result[key] = obj[key];
-      }
-    }
-    return result;
+    return Objects.fromEntries(
+      Objects.entries(obj).filter(([key, value]) => predicate(value, key)),
+    );
   },
 
   omit<V extends object, K extends keyof V>(
@@ -106,8 +102,7 @@ export const Objects = {
     return Objects.filter(obj, (_, key) => !set.has(key));
   },
 
-  // oxlint-disable-next-line typescript/no-explicit-any
-  pick<V extends Record<string, any>, K extends string>(
+  pick<V extends Record<string, unknown>, K extends string>(
     obj: V,
     keys: readonly K[],
   ): Pick<V, K & keyof V> {

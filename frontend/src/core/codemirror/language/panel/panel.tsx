@@ -101,6 +101,7 @@ export const LanguagePanelComponent: React.FC<{
           {metadata.engine === DUCKDB_ENGINE && <SQLModeSelect />}
           <Tooltip content="Format SQL">
             <Button
+              aria-label="Format SQL"
               variant="text"
               size="icon"
               onClick={async () => {

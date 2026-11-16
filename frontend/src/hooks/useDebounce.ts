@@ -2,6 +2,7 @@
 import { debounce } from "lodash-es";
 import { useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { useInternalStateWithSync } from "./useInternalStateWithSync";
 
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -41,15 +42,13 @@ export function useDebounceControlledState<T>(opts: {
   disabled?: boolean;
 }) {
   const { initialValue, onChange, delay, disabled } = opts;
-  const [internalValue, setInternalValue] = useState<T>(initialValue);
+  const [internalValue, setInternalValue] = useInternalStateWithSync(
+    initialValue,
+    Object.is,
+  );
   const debouncedValue = useDebounce(internalValue, delay || 200);
 
   const onUpdate = useEvent(onChange);
-
-  // Handle external changes:
-  useEffect(() => {
-    setInternalValue(initialValue);
-  }, [initialValue]);
 
   // Handle debounced updates for user input
   useEffect(() => {
@@ -78,8 +77,7 @@ export function useDebounceControlledState<T>(opts: {
   };
 }
 
-// oxlint-disable-next-line typescript/no-explicit-any
-export function useDebouncedCallback<T extends (...args: any[]) => unknown>(
+export function useDebouncedCallback<T extends (...args: never[]) => unknown>(
   callback: T,
   delay: number,
 ) {

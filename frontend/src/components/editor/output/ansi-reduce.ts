@@ -13,8 +13,10 @@ export interface Cursor {
 export class TerminalBuffer {
   private lines: string[] = [""];
   private cursor: Cursor = { row: 0, col: 0 };
-  // oxlint-ignore-next-line no-control-regex -- Needed for ANSI escape sequence parsing
-  private static readonly ESCAPE_REGEX = /\u001B\[([0-9;]*)([A-DJKH])/u;
+  private static readonly ESCAPE_REGEX = new RegExp(
+    String.raw`\u001B\[([0-9;]*)([A-DJKH])`,
+    "u",
+  );
 
   /** Ensure the internal lines array is large enough. */
   private ensureLine(row: number) {
@@ -25,16 +27,11 @@ export class TerminalBuffer {
 
   /** Move cursor by relative offsets. */
   private moveCursor(rowDelta: number, colDelta: number) {
-    const oldRow = this.cursor.row;
     this.cursor.row = Math.max(0, this.cursor.row + rowDelta);
     this.cursor.col = Math.max(0, this.cursor.col + colDelta);
     this.ensureLine(this.cursor.row);
-
-    // When moving up, discard lines below the new cursor position
-    // This simulates a fixed terminal window where tqdm overwrites content
-    if (rowDelta < 0 && this.cursor.row < oldRow) {
-      this.lines.splice(this.cursor.row + 1);
-    }
+    // Cursor movement does not erase content. This matters for multi-line
+    // progress renderers, which move up before rewriting a preserved row.
   }
 
   /** Move cursor to a specific absolute position. */
@@ -45,7 +42,7 @@ export class TerminalBuffer {
   }
 
   /** Write a visible character at the current cursor position. */
-  writeChar(ch: string) {
+  public writeChar(ch: string) {
     this.ensureLine(this.cursor.row);
     const line = this.lines[this.cursor.row];
     const padded = line.padEnd(this.cursor.col, " ");
@@ -55,7 +52,7 @@ export class TerminalBuffer {
   }
 
   /** Write a string of visible characters at the current cursor position (optimized batch write). */
-  writeString(str: string) {
+  public writeString(str: string) {
     if (str.length === 0) {
       return;
     }
@@ -70,7 +67,7 @@ export class TerminalBuffer {
   }
 
   /** Handle simple control characters (\n, \r, \t, \b, \v). */
-  control(ch: string) {
+  public control(ch: string) {
     switch (ch) {
       case "\n":
         this.cursor.row++;
@@ -98,7 +95,7 @@ export class TerminalBuffer {
    * Supports cursor movement and line erasing.
    * For other sequences (like color codes), preserve them by writing to the buffer.
    */
-  handleEscape(seq: string) {
+  public handleEscape(seq: string) {
     const match = TerminalBuffer.ESCAPE_REGEX.exec(seq);
     if (!match) {
       // If it doesn't match the cursor movement pattern, it might be:
@@ -175,7 +172,7 @@ export class TerminalBuffer {
   }
 
   /** Return the final rendered buffer as a single string. */
-  render(): string {
+  public render(): string {
     return this.lines.join("\n");
   }
 }
@@ -185,10 +182,12 @@ export class TerminalBuffer {
  */
 export class AnsiParser {
   // Matches both CSI sequences (ESC[...letter) and other escape sequences like character set selection (ESC(B)
-  // oxlint-ignore-next-line no-control-regex -- Needed for ANSI parsing
-  private ESC_REGEX = /\u001B(?:\[[0-9;]*[A-Za-z]|\([0-9A-Za-z])/gu;
+  private ESC_REGEX = new RegExp(
+    String.raw`\u001B(?:\[[0-9;]*[A-Za-z]|\([0-9A-Za-z])`,
+    "gu",
+  );
 
-  parse(input: string): { type: "text" | "escape"; value: string }[] {
+  public parse(input: string): { type: "text" | "escape"; value: string }[] {
     const tokens: { type: "text" | "escape"; value: string }[] = [];
     let lastIndex = 0;
 
@@ -222,7 +221,7 @@ export class AnsiReducer {
    * Process the entire input string (replaces any previous state).
    * Use this for one-time processing or when starting fresh.
    */
-  reduce(input: string): string {
+  public reduce(input: string): string {
     this.reset();
     this.append(input);
     return this.render();
@@ -232,7 +231,7 @@ export class AnsiReducer {
    * Append new input to the existing buffer (for streaming/incremental updates).
    * This is efficient for streaming scenarios - only processes the new chunk.
    */
-  append(input: string): void {
+  public append(input: string): void {
     const tokens = this.parser.parse(input);
 
     // Fast path: if only one text token (no ANSI codes), handle directly
@@ -261,14 +260,14 @@ export class AnsiReducer {
    * Reset the buffer and cursor to initial state.
    * Use this when you want to start processing fresh input.
    */
-  reset(): void {
+  public reset(): void {
     this.buffer = new TerminalBuffer();
   }
 
   /**
    * Get the current rendered output without processing new input.
    */
-  render(): string {
+  public render(): string {
     return this.buffer.render();
   }
 
@@ -359,6 +358,7 @@ export class AnsiReducer {
 
 export type StringOutputMessage = Omit<OutputMessage, "data"> & {
   data: string;
+  id?: number;
 };
 
 /**
@@ -369,6 +369,10 @@ export class StatefulOutputMessage implements OutputMessage {
   public readonly mimetype: OutputMessage["mimetype"];
   public readonly channel: OutputMessage["channel"];
   public readonly timestamp: OutputMessage["timestamp"];
+  public readonly code: OutputMessage["code"];
+  public readonly id: StringOutputMessage["id"];
+  /** The prompt this entry is, when it asks for input. A reply names it. */
+  public readonly input_id: OutputMessage["input_id"];
   private ansiReducer = new AnsiReducer();
   private _data: string;
 
@@ -376,46 +380,67 @@ export class StatefulOutputMessage implements OutputMessage {
     return this._data;
   }
 
-  static create(message: StringOutputMessage): StatefulOutputMessage {
+  public static create(message: StringOutputMessage): StatefulOutputMessage {
     const ansiReducer = new AnsiReducer();
     ansiReducer.append(message.data);
-    return new StatefulOutputMessage(
-      message.mimetype,
-      message.channel,
-      message.timestamp,
+    return new StatefulOutputMessage({
+      mimetype: message.mimetype,
+      channel: message.channel,
+      timestamp: message.timestamp,
       ansiReducer,
-    );
+      code: message.code,
+      id: message.id,
+      input_id: message.input_id,
+    });
   }
 
-  private constructor(
-    mimetype: OutputMessage["mimetype"],
-    channel: OutputMessage["channel"],
-    timestamp: OutputMessage["timestamp"],
-    ansiReducer: AnsiReducer,
-  ) {
+  private constructor({
+    mimetype,
+    channel,
+    timestamp,
+    ansiReducer,
+    code,
+    id,
+    input_id,
+  }: {
+    mimetype: OutputMessage["mimetype"];
+    channel: OutputMessage["channel"];
+    timestamp: OutputMessage["timestamp"];
+    ansiReducer: AnsiReducer;
+    code: OutputMessage["code"];
+    id: StringOutputMessage["id"];
+    input_id: OutputMessage["input_id"];
+  }) {
     this.mimetype = mimetype;
     this.channel = channel;
     this.timestamp = timestamp;
+    this.code = code;
+    this.id = id;
+    this.input_id = input_id;
     this.ansiReducer = ansiReducer;
     this._data = this.ansiReducer.render();
   }
 
-  appendData(chunk: string): StatefulOutputMessage {
+  public appendData(chunk: string): StatefulOutputMessage {
     this.ansiReducer.append(chunk);
-    return new StatefulOutputMessage(
-      this.mimetype,
-      this.channel,
-      this.timestamp,
-      this.ansiReducer,
-    );
+    return new StatefulOutputMessage({
+      mimetype: this.mimetype,
+      channel: this.channel,
+      timestamp: this.timestamp,
+      ansiReducer: this.ansiReducer,
+      code: this.code,
+      id: this.id,
+      input_id: this.input_id,
+    });
   }
 
-  toJSON(): StringOutputMessage {
+  public toJSON(): StringOutputMessage {
     return {
       mimetype: this.mimetype,
       channel: this.channel,
       timestamp: this.timestamp,
       data: this.data,
+      ...(this.code === undefined ? {} : { code: this.code }),
     };
   }
 }

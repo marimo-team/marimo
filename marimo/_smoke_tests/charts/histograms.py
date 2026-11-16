@@ -1,13 +1,14 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""This is some experimental work to see if we can pre-aggregate column charts on the backend for performance. We are trying to use the dataframe of choice, to avoid additional dependencies.""")
-    return
+    mo.md(r"""
+    This is some experimental work to see if we can pre-aggregate column charts on the backend for performance. We are trying to use the dataframe of choice, to avoid additional dependencies.
+    """)
 
 
 @app.cell(hide_code=True)
@@ -18,7 +19,7 @@ def _(pl):
 
 
 @app.cell(hide_code=True)
-def _(alt, charts, mo):
+def _(alt, charts: dict, mo):
     _charts = []
     for _col, data in charts.items():
         chart = mo.ui.altair_chart(
@@ -34,7 +35,6 @@ def _(alt, charts, mo):
         )
         _charts.append(chart)
     mo.hstack(_charts)
-    return
 
 
 @app.cell
@@ -53,7 +53,6 @@ def _(df, pl):
 def _(df):
     res = df["Weight"].hist().to_dicts()
     res[0]
-    return
 
 
 @app.cell
@@ -61,6 +60,7 @@ def _():
     import marimo as mo
     import polars as pl
     import altair as alt
+
     return alt, mo, pl
 
 

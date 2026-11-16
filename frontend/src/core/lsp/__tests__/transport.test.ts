@@ -10,28 +10,28 @@ vi.mock("@/utils/Logger", () => ({
 }));
 
 class FakeWebSocket {
-  static readonly CONNECTING = 0;
-  static readonly OPEN = 1;
-  static readonly CLOSING = 2;
-  static readonly CLOSED = 3;
-  static readonly instances: FakeWebSocket[] = [];
+  public static readonly CONNECTING = 0;
+  public static readonly OPEN = 1;
+  public static readonly CLOSING = 2;
+  public static readonly CLOSED = 3;
+  public static readonly instances: FakeWebSocket[] = [];
 
-  readonly sent: string[] = [];
-  readonly url: string;
-  readonly protocols: string | string[] | undefined;
-  readyState = FakeWebSocket.CONNECTING;
+  public readonly sent: string[] = [];
+  public readonly url: string;
+  public readonly protocols: string | string[] | undefined;
+  public readyState = FakeWebSocket.CONNECTING;
   private readonly listeners = new Map<
     string,
     Set<(event: { data?: unknown }) => void>
   >();
 
-  constructor(url: string, protocols?: string | string[]) {
+  public constructor(url: string, protocols?: string | string[]) {
     this.url = url;
     this.protocols = protocols;
     FakeWebSocket.instances.push(this);
   }
 
-  addEventListener(
+  public addEventListener(
     type: string,
     listener: (event: { data?: unknown }) => void,
   ) {
@@ -40,34 +40,34 @@ class FakeWebSocket {
     this.listeners.set(type, listeners);
   }
 
-  send(frame: string) {
+  public send(frame: string) {
     this.sent.push(frame);
   }
 
-  close() {
+  public close() {
     this.readyState = FakeWebSocket.CLOSED;
     this.emit("close", {});
   }
 
-  open() {
+  public open() {
     this.readyState = FakeWebSocket.OPEN;
     this.emit("open", {});
   }
 
-  fail() {
+  public fail() {
     this.emit("error", {});
   }
 
-  disconnect() {
+  public disconnect() {
     this.readyState = FakeWebSocket.CLOSED;
     this.emit("close", {});
   }
 
-  receive(message: JSONRPCMessage) {
+  public receive(message: JSONRPCMessage) {
     this.emit("message", { data: JSON.stringify(message) });
   }
 
-  messages(): JSONRPCMessage[] {
+  public messages(): JSONRPCMessage[] {
     return this.sent.map((frame) => {
       const message: unknown = JSON.parse(frame);
       if (!isJSONRPCMessage(message)) {

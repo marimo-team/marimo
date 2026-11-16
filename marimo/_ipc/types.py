@@ -5,9 +5,11 @@ import msgspec
 import msgspec.json
 
 from marimo._ast.cell import CellConfig
-from marimo._config.config import MarimoConfig
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.provenance import ConfigPath
 from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._runtime.commands import AppMetadata
+from marimo._runtime.virtual_file.storage import VirtualFileStorageType
 from marimo._types.ids import CellId_t
 
 
@@ -28,17 +30,21 @@ class KernelArgs(msgspec.Struct):
 
     configs: dict[CellId_t, CellConfig]
     app_metadata: AppMetadata
-    user_config: MarimoConfig
+    user_config: PartialMarimoConfig
     log_level: int
     profile_path: str | None
     connection_info: ConnectionInfo
     # Whether to use run-mode config (autorun) vs edit-mode config (lazy)
     is_run_mode: bool = False
-    # Runtime behavior flags
-    # virtual_files_supported is ignored, but kept for backward compatibility
-    virtual_files_supported: bool = True
     redirect_console_to_browser: bool = True
     parent_pid: int | None = None
+    # None means virtual files are unsupported and content is inlined as
+    # data URLs -- required when no server is mounted to serve /@file/
+    # (e.g. marimo-lsp). A server-managed kernel passes "shared_memory".
+    # Unknown to older kernels, which ignore it and behave as None.
+    virtual_file_storage: VirtualFileStorageType | None = None
+
+    config_overrides: tuple[ConfigPath, ...] = ()
 
     def encode_json(self) -> bytes:
         return encode_json_bytes(self)

@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
-import { throttle } from "lodash-es";
 import type {
   CompletionItem,
   CompletionList,
@@ -58,6 +57,7 @@ interface UntypedLanguageServerMethods {
     method: string,
     params: unknown,
     timeout: number,
+    signal?: AbortSignal,
   ) => Promise<unknown>;
   notify: (method: string, params: unknown) => Promise<void>;
 }
@@ -113,11 +113,13 @@ function isLogMessageParams(
  */
 export class CopilotLanguageServerClient extends LanguageServerClient {
   private documentVersion = 0;
+  private pendingChange: DidChangeTextDocumentParams | undefined;
+  private completionController: AbortController | undefined;
   private openDocumentCount = 0;
   private lastOpenedDocument: DidOpenTextDocumentParams | undefined;
   private copilotSettings: Record<string, unknown> = {};
 
-  constructor(
+  public constructor(
     options: ConstructorParameters<typeof LanguageServerClient>[0] & {
       copilotSettings?: Record<string, unknown>;
     },
@@ -140,11 +142,13 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
    * Re-run the LSP initialize handshake and send configuration.
    * Called by the transport's onReconnect callback after reconnecting.
    */
-  async reInitialize(): Promise<void> {
+  public async reInitialize(): Promise<void> {
     logger.log("#reInitialize: Re-initializing LSP connection");
+    this.completionController?.abort();
     this.initializePromise = this.initialize();
     await this.initializePromise;
     await this.sendConfiguration();
+    this.applyPendingChange();
     if (this.openDocumentCount > 0 && this.lastOpenedDocument) {
       await this.sendNotification(
         "textDocument/didOpen",
@@ -168,12 +172,14 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   private async _request<Method extends keyof LSPRequestMap>(
     method: Method,
     params: LSPRequestMap[Method][0],
+    signal?: AbortSignal,
   ): Promise<LSPRequestMap[Method][1]> {
     assertHasLanguageServerRpc(this);
     return (await this.request(
       method,
       params,
       REQUEST_TIMEOUT_MS,
+      signal,
     )) as LSPRequestMap[Method][1];
   }
 
@@ -186,7 +192,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return this.notify(method, params);
   }
 
-  override getInitializationOptions() {
+  public override getInitializationOptions() {
     const info = {
       name: "marimo",
       version: "0.1.0",
@@ -208,7 +214,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return !isCopilotEnabled();
   }
 
-  override async textDocumentDidOpen(
+  public override async textDocumentDidOpen(
     params: DidOpenTextDocumentParams,
   ): Promise<boolean> {
     if (this.isDisabled()) {
@@ -223,24 +229,28 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return super.textDocumentDidOpen(params);
   }
 
-  override async textDocumentDidClose(
+  public override async textDocumentDidClose(
     params: DidCloseTextDocumentParams,
   ): Promise<void> {
     if (this.openDocumentCount === 0) {
       return;
     }
     this.openDocumentCount--;
+    if (this.openDocumentCount === 0) {
+      this.pendingChange = undefined;
+      this.completionController?.abort();
+    }
     return super.textDocumentDidClose(params);
   }
 
-  override async textDocumentCompletion(
+  public override async textDocumentCompletion(
     params: CompletionParams,
   ): Promise<CompletionList | CompletionItem[]> {
     // Not used in Copilot
     return [];
   }
 
-  override async textDocumentDidChange(
+  public override async textDocumentDidChange(
     params: DidChangeTextDocumentParams,
   ): Promise<void> {
     if (this.isDisabled()) {
@@ -281,40 +291,85 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       );
     }
 
-    const text = getCodes(change.text);
-    const version = ++this.documentVersion;
-    // `reInitialize` replays this as a didOpen, so keep the original languageId
+    this.completionController?.abort();
+    this.pendingChange = {
+      ...params,
+      textDocument: VersionedTextDocumentIdentifier.create(
+        params.textDocument.uri,
+        ++this.documentVersion,
+      ),
+    };
+  }
+
+  private applyPendingChange(
+    assembledText?: string,
+  ): DidChangeTextDocumentParams | undefined {
+    const pending = this.pendingChange;
+    if (!pending) {
+      return;
+    }
+    this.pendingChange = undefined;
+    const text = assembledText ?? getCodes(pending.contentChanges[0].text);
     this.lastOpenedDocument = {
       textDocument: {
-        uri: params.textDocument.uri,
+        ...pending.textDocument,
         languageId:
           this.lastOpenedDocument?.textDocument.languageId ??
           DEFAULT_LANGUAGE_ID,
-        version,
         text,
       },
     };
-    return super.textDocumentDidChange({
-      ...params,
-      contentChanges: [{ text: text }],
-      textDocument: VersionedTextDocumentIdentifier.create(
-        params.textDocument.uri,
-        version,
-      ),
-    });
+    return { ...pending, contentChanges: [{ text }] };
   }
 
-  override textDocumentHover(params: HoverParams): Promise<Hover> {
+  /** Assemble and send the latest notebook once, just before requesting a suggestion. */
+  public async flushDocumentChanges(currentCode?: string): Promise<string> {
+    // Another cell may have changed since the focused editor last typed.
+    // The focused cell must be last in the shared document for cursor mapping.
+    const assembledText =
+      currentCode !== undefined && this.lastOpenedDocument
+        ? getCodes(currentCode)
+        : undefined;
+    if (
+      currentCode !== undefined &&
+      this.lastOpenedDocument &&
+      (this.pendingChange
+        ? this.pendingChange.contentChanges[0].text !== currentCode
+        : assembledText !== this.lastOpenedDocument.textDocument.text)
+    ) {
+      this.pendingChange = {
+        textDocument: VersionedTextDocumentIdentifier.create(
+          this.lastOpenedDocument.textDocument.uri,
+          ++this.documentVersion,
+        ),
+        contentChanges: [{ text: currentCode }],
+      };
+    }
+    const pending = this.pendingChange;
+    const change = this.applyPendingChange(assembledText);
+    if (change) {
+      try {
+        await super.textDocumentDidChange(change);
+      } catch (error) {
+        // Preserve newer edits if the send failed while another change arrived.
+        this.pendingChange ??= pending;
+        throw error;
+      }
+    }
+    return this.lastOpenedDocument?.textDocument.text ?? "";
+  }
+
+  public override textDocumentHover(params: HoverParams): Promise<Hover> {
     // Not used in Copilot
     return Promise.resolve({ contents: [] });
   }
 
   // AUTH
-  signOut() {
+  public signOut() {
     return this._request("signOut", {});
   }
 
-  async signInInitiate() {
+  public async signInInitiate() {
     logger.log("#signInInitiate: Starting sign-in flow");
     try {
       const result = await this._request("signIn", {});
@@ -326,7 +381,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
   }
 
-  async signInConfirm(params: GitHubCopilotSignInConfirmParams) {
+  public async signInConfirm(params: GitHubCopilotSignInConfirmParams) {
     logger.log("#signInConfirm: Confirming sign-in");
     try {
       const result = await this._request("signInConfirm", params);
@@ -338,7 +393,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
   }
 
-  async signedIn() {
+  public async signedIn() {
     try {
       const { status } = await this._request("checkStatus", {});
       logger.log("#checkStatus: Status check completed", { status });
@@ -351,49 +406,32 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
   }
 
-  private getCompletionInternal = async (
+  public async getCompletion(
     params: InlineCompletionParams,
-    version: number,
-  ): Promise<InlineCompletionList | InlineCompletionItem[] | null> => {
-    return await this._request("textDocument/inlineCompletion", {
-      ...params,
-      textDocument: {
-        ...VersionedTextDocumentIdentifier.create(
-          params.textDocument.uri,
-          version,
-        ),
-      },
-    });
-  };
-
-  // Even though the copilot extension has a debounce,
-  // there are multiple requests sent at the same time
-  // when multiple Codemirror instances are mounted at the same time.
-  // So we throttle it to ignore multiple requests at the same time.
-  private throttledGetCompletionInternal = throttle(
-    this.getCompletionInternal,
-    200,
-  );
-
-  async getCompletion(
-    params: InlineCompletionParams,
+    signal?: AbortSignal,
   ): Promise<InlineCompletionList | InlineCompletionItem[] | null> {
-    if (this.isDisabled()) {
+    if (this.isDisabled() || signal?.aborted || this.openDocumentCount === 0) {
       return null;
     }
 
+    this.completionController?.abort();
+    const controller = new AbortController();
+    this.completionController = controller;
+    const abort = () => controller.abort();
+    signal?.addEventListener("abort", abort, { once: true });
     const requestVersion = this.documentVersion;
-
-    // If version is 0, it means the document hasn't been opened yet
-    if (requestVersion === 0) {
-      return null;
-    }
-
-    // Start a loading indicator
     setGitHubCopilotLoadingVersion(requestVersion);
-    let response: InlineCompletionList | InlineCompletionItem[] | null;
     try {
-      response = await this.throttledGetCompletionInternal(
+      await this.flushDocumentChanges();
+      if (
+        controller.signal.aborted ||
+        this.isDisabled() ||
+        requestVersion === 0
+      ) {
+        return null;
+      }
+      const response = await this._request(
+        "textDocument/inlineCompletion",
         {
           ...params,
           textDocument: VersionedTextDocumentIdentifier.create(
@@ -401,24 +439,35 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
             requestVersion,
           ),
         },
-        requestVersion,
+        controller.signal,
       );
+      if (
+        controller.signal.aborted ||
+        this.isDisabled() ||
+        requestVersion !== this.documentVersion
+      ) {
+        return null;
+      }
+      return response;
     } catch (error) {
-      // A suggestion that times out should fail quietly rather than surface as
-      // an unhandled rejection out of the inline-completion fetcher.
-      logger.warn("#getCompletion: Failed to fetch completions", error);
+      if (!controller.signal.aborted) {
+        logger.warn("#getCompletion: Failed to fetch completions", error);
+      }
       return null;
     } finally {
-      // Stop the loading indicator (only if the version hasn't changed)
-      clearGitHubCopilotLoadingVersion(requestVersion);
+      signal?.removeEventListener("abort", abort);
+      // A superseded request can have the same document version as its successor.
+      if (this.completionController === controller) {
+        this.completionController = undefined;
+        clearGitHubCopilotLoadingVersion(requestVersion);
+      }
     }
+  }
 
-    // If the document version has changed since the request was made, return an empty response
-    if (requestVersion !== this.documentVersion) {
-      return null;
-    }
-
-    return response ?? null;
+  public override close(): void {
+    this.pendingChange = undefined;
+    this.completionController?.abort();
+    super.close();
   }
 
   /**

@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 from typing import cast
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -172,7 +172,10 @@ async def test_try_kill_process_and_group_sigkills_stubborn_child(
     async def short_sleep(_delay: float) -> None:
         await real_sleep(0.05)
 
-    monkeypatch.setattr(asyncio, "sleep", short_sleep)
+    monkeypatch.setattr(
+        "marimo._utils.subprocess.asyncio",
+        Mock(wraps=asyncio, sleep=short_sleep),
+    )
 
     script = (
         "import signal, time\n"
@@ -191,3 +194,37 @@ async def test_try_kill_process_and_group_sigkills_stubborn_child(
     finally:
         with contextlib.suppress(ProcessLookupError):
             os.killpg(pgid, signal.SIGKILL)
+
+
+@pytest.mark.parametrize("windows", [False, True])
+def test_exited_process_is_not_signalled(windows: bool) -> None:
+    process = subprocess.Popen([sys.executable, "-c", "pass"])
+    process.wait(timeout=10)
+    with (
+        patch("marimo._utils.subprocess.is_windows", return_value=windows),
+        patch("marimo._utils.subprocess.subprocess.run") as taskkill,
+        patch("marimo._utils.subprocess.os.getpgid", create=True) as getpgid,
+    ):
+        try_kill_process_and_group(cast(ProcessLike, process))
+    taskkill.assert_not_called()
+    getpgid.assert_not_called()
+
+
+def test_windows_process_cleanup_falls_back_when_taskkill_times_out() -> None:
+    process = Mock(pid=123)
+    process.poll.return_value = None
+    with (
+        patch("marimo._utils.subprocess.is_windows", return_value=True),
+        patch(
+            "marimo._utils.subprocess.subprocess.run",
+            side_effect=subprocess.TimeoutExpired("taskkill", 5),
+        ) as taskkill,
+    ):
+        try_kill_process_and_group(cast(ProcessLike, process))
+    taskkill.assert_called_once_with(
+        ["taskkill", "/T", "/F", "/PID", "123"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=5,
+    )
+    process.terminate.assert_called_once_with()

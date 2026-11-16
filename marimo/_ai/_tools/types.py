@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._types.ids import CellId_t, SessionId
 
 # helper classes
@@ -76,3 +77,4 @@ class CodeExecutionResult:
     stderr: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     error: str | None = None
+    output_mimetype: KnownMimeType | None = None

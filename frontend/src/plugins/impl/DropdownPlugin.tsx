@@ -17,9 +17,9 @@ interface Data {
 }
 
 export class DropdownPlugin implements IPlugin<string[], Data> {
-  tagName = "marimo-dropdown";
+  public tagName = "marimo-dropdown";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.array(z.string()),
     label: z.string().nullable(),
     options: z.array(z.string()),
@@ -29,7 +29,7 @@ export class DropdownPlugin implements IPlugin<string[], Data> {
     disabled: z.boolean().default(false),
   });
 
-  render(props: IPluginProps<string[], Data>): JSX.Element {
+  public render(props: IPluginProps<string[], Data>): JSX.Element {
     if (props.data.searchable) {
       const value = props.value.length > 0 ? props.value[0] : null;
       const setValue = (newValue: string | null) =>
@@ -79,7 +79,7 @@ const Dropdown = (props: DropdownProps): JSX.Element => {
   const singleValue = value.length === 0 ? defaultValue : value[0];
 
   return (
-    <Labeled label={label} id={id} fullWidth={fullWidth}>
+    <Labeled label={label} controlId={id} fullWidth={fullWidth}>
       <NativeSelect
         data-testid="marimo-plugin-dropdown"
         onChange={(e) => {
@@ -97,13 +97,9 @@ const Dropdown = (props: DropdownProps): JSX.Element => {
         id={id}
         disabled={disabled}
       >
-        {allowSelectNone ? (
-          <option value={EMPTY_VALUE} selected={value.length === 0}>
-            --
-          </option>
-        ) : null}
+        {allowSelectNone ? <option value={EMPTY_VALUE}>--</option> : null}
         {options.map((option) => (
-          <option value={option} selected={value.includes(option)} key={option}>
+          <option value={option} key={option}>
             {option}
           </option>
         ))}

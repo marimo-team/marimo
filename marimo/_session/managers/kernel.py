@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._config.config import parse_config
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
@@ -27,7 +28,7 @@ from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
-    from marimo._config.manager import MarimoConfigReader
+    from marimo._config.manager import MarimoConfigManager
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
@@ -49,7 +50,7 @@ class KernelManagerImpl(KernelManager):
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigManager,
         virtual_file_storage: VirtualFileStorageType | None,
         redirect_console_to_browser: bool,
     ) -> None:
@@ -65,11 +66,15 @@ class KernelManagerImpl(KernelManager):
         self._read_conn: TypedConnection[KernelMessage] | None = None
         self._virtual_file_storage = virtual_file_storage
 
-    def start_kernel(self) -> None:
+    async def start_kernel(self) -> None:
         # We use a process in edit mode so that we can interrupt the app
         # with a SIGINT; we don't mind the additional memory consumption,
         # since there's only one client session
         is_edit_mode = self.mode == SessionMode.EDIT
+        resolved = self.config_manager.get_config_with_sources(
+            hide_secrets=False
+        )
+        user_config = parse_config(resolved.config)
         listener = None
         if is_edit_mode:
             # Need to use a socket for windows compatibility
@@ -87,7 +92,7 @@ class KernelManagerImpl(KernelManager):
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.config_manager.get_config(hide_secrets=False),
+                    user_config,
                     self._virtual_file_storage,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
@@ -97,6 +102,7 @@ class KernelManagerImpl(KernelManager):
                     False,
                     # PID
                     os.getpid(),
+                    resolved.override_paths,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -115,10 +121,9 @@ class KernelManagerImpl(KernelManager):
             ) -> None:
                 runtime.launch_kernel(*args)
 
-            # install formatter import hooks, which will be shared by all
-            # threads (in edit mode, the single kernel process installs
-            # formatters ...)
-            register_formatters(theme=self.config_manager.theme)
+            # Install formatter import hooks once in the host process. Every
+            # kernel thread shares them.
+            register_formatters()
 
             if self.redirect_console_to_browser:
                 from marimo._messaging.thread_local_streams import (
@@ -143,7 +148,7 @@ class KernelManagerImpl(KernelManager):
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.config_manager.get_config(hide_secrets=False),
+                    user_config,
                     self._virtual_file_storage,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
@@ -152,6 +157,9 @@ class KernelManagerImpl(KernelManager):
                     None,
                     # log level
                     GLOBAL_SETTINGS.LOG_LEVEL,
+                    False,
+                    None,
+                    resolved.override_paths,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes

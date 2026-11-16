@@ -28,6 +28,7 @@ const sources: DetectedDataSource[] = [
       },
     ],
     code: "engine = create_engine()",
+    hidesWhen: { kind: "dialect", substrings: ["postgres"] },
   },
   {
     id: "pyiceberg-prod",
@@ -52,6 +53,7 @@ const sources: DetectedDataSource[] = [
       },
     ],
     code: 'catalog = load_catalog("prod")',
+    hidesWhen: { kind: "dialect", substrings: ["iceberg"] },
   },
 ];
 

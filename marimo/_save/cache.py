@@ -37,15 +37,18 @@ UNEXPECTED_FAILURE_BOILERPLATE = (
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
+    from marimo._config.types import CacheLoader
     from marimo._runtime.context.types import RuntimeContext
     from marimo._runtime.state import State
     from marimo._save.hash import HashKey
     from marimo._save.loaders import Loader
     from marimo._save.loaders.lazy import LazyLoader
+    from marimo._save.signing_policy import SigningPolicy
     from marimo._save.stores import Store
+    from marimo._types.ids import CellId_t
 
 # NB. Increment on cache breaking changes.
-MARIMO_CACHE_VERSION: int = 5
+MARIMO_CACHE_VERSION: int = 6
 
 CacheType = Literal[
     "ContextExecutionPath",
@@ -76,7 +79,27 @@ class CacheState:
     """
 
     store: Store
+    # True when `cache.store` was set by an untrusted layer (cloned repo's
+    # pyproject.toml / notebook header). Such a store must never redirect an
+    # unverified `pickle.loads` at attacker bytes.
+    store_from_untrusted_origin: bool = False
     hash_memo: dict[str, bytes] = field(default_factory=dict)
+    # Cache-signing policy resolved once for the session from the effective
+    # config (user/env only; project/script trust is stripped upstream). A
+    # `LazyLoader` reads it as the default trust/identity source.
+    signing_policy: SigningPolicy | None = None
+    # Cache keys this session recorded, grouped by the store they were
+    # written through, then by path hash and block. A manifest lists only
+    # the entries stored beside it.
+    manifest_records: dict[Store, dict[str, dict[str, set[str]]]] = field(
+        default_factory=dict
+    )
+    # The stores with a record not yet written to a manifest.
+    manifest_dirty: set[Store] = field(default_factory=set)
+    # Path hash per cell, cleared with `hash_memo` when a cell re-executes.
+    node_memo: dict[CellId_t, str] = field(default_factory=dict)
+    # Default loader from the session's effective cache.loader configuration.
+    loader: CacheLoader = "lazy"
     # Lazy-store session state; see `loaders/lazy.py:_cache_state`.
     active_lazy_loaders: dict[str, LazyLoader] = field(default_factory=dict)
     poisoned_keys: set[str] = field(default_factory=set)
@@ -113,6 +136,8 @@ class HashMemoCleanup(CellLifecycleItem):
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:  # noqa: ARG002
         context.cache.hash_memo.clear()
+        # An edit anywhere in a cell's closure changes its path hash.
+        context.cache.node_memo.clear()
         return True
 
 
@@ -580,7 +605,7 @@ class Cache:
         cls, *, key: HashKey, defs: set[str], stateful_refs: set[str]
     ) -> Cache:
         return Cache(
-            defs={d: None for d in defs},
+            defs=dict.fromkeys(defs),
             hash=key.hash,
             cache_type=key.cache_type,
             stateful_refs=stateful_refs,

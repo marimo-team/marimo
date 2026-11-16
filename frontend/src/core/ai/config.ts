@@ -2,9 +2,8 @@
 
 import type { Role } from "@marimo-team/llm-info";
 import { useSetAtom } from "jotai";
-import { merge } from "lodash-es";
 import type { QualifiedModelId } from "@/core/ai/ids/ids";
-import { userConfigAtom } from "@/core/config/config";
+import { mergeConfig, userConfigAtom } from "@/core/config/config";
 import type {
   AIModelKey,
   CopilotMode,
@@ -41,7 +40,7 @@ export const useAIConfigActions = () => {
   const saveConfig = async (aiConfig: AiConfigPatch) => {
     const newConfig = { ai: aiConfig };
     await saveUserConfig({ config: newConfig }).then(() => {
-      setUserConfig((prev) => merge({}, prev, newConfig));
+      setUserConfig((prev) => mergeConfig(prev, newConfig));
     });
   };
 

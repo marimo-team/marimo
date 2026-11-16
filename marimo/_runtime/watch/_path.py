@@ -1,10 +1,9 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Self, TypeVar
 
 from marimo import _loggers
 from marimo._runtime.context import (
@@ -21,12 +20,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 LOGGER = _loggers.marimo_logger()
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
 
 T = TypeVar("T")
 

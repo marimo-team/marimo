@@ -6,7 +6,6 @@ import time
 from collections.abc import AsyncIterable, Iterable, Sized
 from typing import (
     TYPE_CHECKING,
-    Any,
     Generic,
     Literal,
     TypeVar,
@@ -25,6 +24,7 @@ from marimo._utils.debounce import debounce
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Collection, Iterator
+    from types import TracebackType
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -90,6 +90,9 @@ class _Progress(Html):
                     "Progress indicators cannot be updated after exiting "
                     "the context manager that created them. "
                 )
+            text_changed = (title is not None and title != self.title) or (
+                subtitle is not None and subtitle != self.subtitle
+            )
             self.current += increment
             if title is not None:
                 self.title = title
@@ -97,7 +100,10 @@ class _Progress(Html):
                 self.subtitle = subtitle
 
             self._text = self._get_text()
-        self.debounced_flush()
+        if text_changed:
+            output.flush()
+        else:
+            self.debounced_flush()
 
     @debounce(0.15)
     def debounced_flush(self) -> None:
@@ -272,7 +278,12 @@ class spinner:
         output.append(self.spinner)
         return self.spinner
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         if self.remove_on_exit:
             self.spinner.clear()
         # TODO(akshayka): else consider transitioning to a done state
@@ -304,8 +315,8 @@ class progress_bar(Generic[S]):
         arguments `increment` (defaults to `1`), `title`,
         and `subtitle`.
 
-        For performance reasons, the progress bar is only updated in the UI
-        every 150ms.
+        For performance reasons, numeric progress updates are rate limited to
+        once every 150ms. Title and subtitle changes appear immediately.
 
     Args:
         collection (Union[Collection[S], Iterator[S], AsyncIterable[S]], optional): Optional collection to iterate over.
@@ -465,7 +476,12 @@ class progress_bar(Generic[S]):
     def __enter__(self) -> ProgressBar:
         return self.progress
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         self._finish()
 
     def _finish(self) -> None:

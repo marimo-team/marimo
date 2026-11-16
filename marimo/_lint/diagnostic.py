@@ -29,7 +29,7 @@ class Diagnostic:
     message: str
     line: int | list[int]
     column: int | list[int]
-    cell_id: None | list[CellId_t] = None
+    cell_id: list[CellId_t] | None = None
     code: str | None = None
     name: str | None = None
     severity: Severity | None = None

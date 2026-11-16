@@ -36,27 +36,26 @@ interface Output extends ToolOutputBase {
 
 /** A sample frontend tool that demonstrates real tool output structure */
 export class TestFrontendTool implements AiTool<Input, Output> {
-  readonly name = "test_frontend_tool";
-  readonly description = description;
-  readonly schema = z.object({ name: z.string() });
-  readonly outputSchema = toolOutputBaseSchema.extend({
+  public readonly name = "test_frontend_tool";
+  public readonly description = description;
+  public readonly schema = z.object({ name: z.string() });
+  public readonly outputSchema = toolOutputBaseSchema.extend({
     data: z.object({
       greeting: z.string(),
       timestamp: z.string(),
     }),
   });
-  readonly mode: CopilotMode[] = ["ask"];
+  public readonly mode: CopilotMode[] = ["ask"];
 
-  async handler({ name }: Input): Promise<Output> {
+  public async handler({ name }: Input): Promise<Output> {
     // Example: Validate input and throw ToolExecutionError on invalid data
     if (!name.trim()) {
-      throw new ToolExecutionError(
-        "Name cannot be empty",
-        "INVALID_INPUT",
-        false,
-        "Please provide a non-empty name",
-        { field: "name", received: name },
-      );
+      throw new ToolExecutionError("Name cannot be empty", {
+        code: "INVALID_INPUT",
+        isRetryable: false,
+        suggestedFix: "Please provide a non-empty name",
+        meta: { field: "name", received: name },
+      });
     }
 
     return {

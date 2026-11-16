@@ -104,30 +104,25 @@ nav:
           - Setup References: guides/understanding_errors/setup.md
       - Package management:
           - Package management: guides/package_management/index.md
-          - Importing packages: guides/package_management/importing_packages.md
+          - Working in projects: guides/package_management/projects.md
+          - Working in sandboxes: guides/package_management/sandboxes.md
           - Installing packages: guides/package_management/installing_packages.md
-          - Inlining dependencies: guides/package_management/inlining_dependencies.md
-          - Notebooks in existing projects: guides/package_management/notebooks_in_projects.md
-          - Using uv: guides/package_management/using_uv.md
-      - Generate with AI:
-          - Generate with AI: guides/generate_with_ai/index.md
-          - Pair with agents via marimo pair: guides/generate_with_ai/marimo_pair.md
-          - Customize your agent: guides/generate_with_ai/customize_your_agent.md
-          - The editor's AI assistant: guides/editor_features/ai_completion.md
-          - Generate notebooks with marimo new: guides/generate_with_ai/text_to_notebook.md
+          - Importing local code: guides/package_management/importing_local_code.md
+      - Using coding agents:
+          - Using coding agents: guides/generate_with_ai/index.md
+          - marimo pair: guides/generate_with_ai/marimo_pair.md
+          - Skills: guides/generate_with_ai/skills.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
           - Home page: guides/editor_features/home.md
-          - Sidebar and Developer Panel: guides/editor_features/panels.md
+          - Sidebar and developer panel: guides/editor_features/panels.md
           - Understanding dataflow: guides/editor_features/dataflow.md
           - Module autoreloading: guides/editor_features/module_autoreloading.md
+          - In-editor AI assistance: guides/editor_features/ai_completion.md
           - Hotkeys: guides/editor_features/hotkeys.md
           - Model Context Protocol: guides/editor_features/mcp.md
-          - AI tools: guides/editor_features/tools.md
-          - Agents: guides/editor_features/agents.md
           - Language Server: guides/editor_features/language_server.md
-          - Package management: guides/editor_features/package_management.md
       - Using your own editor: guides/editor_features/watching.md
       - Run notebooks as apps: guides/apps.md
       - Run notebooks as scripts: guides/scripts.md
@@ -208,6 +203,7 @@ nav:
               - SQL parse error: guides/lint_rules/rules/sql_parse_error.md
               - Misc parse log: guides/lint_rules/rules/misc_log_capture.md
               - Reusable ordering: guides/lint_rules/rules/reusable_definition_order.md
+              - Private import alias: guides/lint_rules/rules/private_import_alias.md
               - Incompatible import: guides/lint_rules/rules/incompatible_import.md
               - Unsafe system call: guides/lint_rules/rules/unsafe_system_call.md
               - Incompatible package: guides/lint_rules/rules/incompatible_package.md
@@ -320,7 +316,14 @@ plugins:
         font_family: Roboto
   - tags
   - redirects:
-      redirect_maps: {}
+      redirect_maps:
+        guides/editor_features/agents.md: guides/generate_with_ai/marimo_pair.md
+        guides/editor_features/tools.md: guides/editor_features/mcp.md
+        guides/package_management/using_uv.md: guides/package_management/index.md
+        guides/package_management/notebooks_in_projects.md: guides/package_management/projects.md
+        guides/package_management/inlining_dependencies.md: guides/package_management/sandboxes.md
+        guides/package_management/importing_packages.md: guides/package_management/importing_local_code.md
+        guides/editor_features/package_management.md: guides/package_management/installing_packages.md
   - mkdocstrings:
       handlers:
         python:

@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.14"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -26,7 +26,6 @@ def _(mo):
     Values should be human-readable (e.g. `1.0 meter`, `1 second`), not nested
     `_magnitude` / `_units` / `_non_int_type` blobs.
     """)
-    return
 
 
 @app.cell
@@ -46,7 +45,6 @@ def _(mo):
 
     `meters` uses `pint[meter]`; `mixed` is object-dtype bare `pint.Quantity`.
     """)
-    return
 
 
 @app.cell
@@ -64,7 +62,6 @@ def _(mo, pd, pint):
         }
     )
     mo.vstack([df_mixed, mo.plain(df_mixed)])
-    return (df_mixed,)
 
 
 @app.cell(hide_code=True)
@@ -72,7 +69,6 @@ def _(mo):
     mo.md("""
     ## Computed pint-pandas columns
     """)
-    return
 
 
 @app.cell
@@ -85,7 +81,6 @@ def _(mo, pd):
     )
     df_power["power"] = df_power["torque"] * df_power["angular_velocity"]
     mo.vstack([df_power, mo.plain(df_power), df_power.dtypes])
-    return
 
 
 @app.cell(hide_code=True)
@@ -96,7 +91,6 @@ def _(mo):
     Bare pint values and containers that go through `enc_hook` / default tables.
     Expect readable strings, not nested dict dumps.
     """)
-    return
 
 
 @app.cell
@@ -132,7 +126,6 @@ def _(mo, pint):
             ],
         ]
     )
-    return
 
 
 if __name__ == "__main__":

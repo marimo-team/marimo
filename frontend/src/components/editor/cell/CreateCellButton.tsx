@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { MinimalHotkeys } from "@/components/shortcuts/renderShortcut";
 import {
@@ -10,14 +10,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import type { WebSocketState } from "@/core/websocket/types";
+} from "@/core/session/connection-utils";
+import type { ConnectionState } from "@/core/session/types";
 import { cn } from "@/utils/cn";
 import { Tooltip } from "../../ui/tooltip";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
@@ -28,15 +28,16 @@ export const CreateCellButton = ({
   tooltipContent,
   oneClickShortcut,
 }: {
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
   oneClickShortcut: "shift" | "mod";
 }) => {
-  const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
+  const { createCell, addSetupCell } = useCellActions();
   const shortcut = `${oneClickShortcut}-Click`;
   const [open, setOpen] = useState(false);
-  const [justOpened, setJustOpened] = useState(false);
+  // Time the dropdown last opened, to ignore the click that opened it
+  const openedAt = useRef(0);
 
   const baseTooltipContent =
     getConnectionTooltip(connectionState) || tooltipContent;
@@ -61,7 +62,7 @@ export const CreateCellButton = ({
   // enabled; the user experience is confusing otherwise (how does the user
   // know they need to run import marimo as mo. first?).
   const addMarkdownCell = () => {
-    maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+    maybeAddMarimoImport({ autoInstantiate: true, createCell });
     onClick?.({
       code: LanguageAdapters.markdown.defaultCode,
       hideCode: MARKDOWN_INITIAL_HIDE_CODE,
@@ -69,12 +70,8 @@ export const CreateCellButton = ({
   };
 
   const addSQLCell = () => {
-    maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+    maybeAddMarimoImport({ autoInstantiate: true, createCell });
     onClick?.({ code: LanguageAdapters.sql.defaultCode });
-  };
-
-  const addSetupCell = () => {
-    addSetupCellIfDoesntExist({});
   };
 
   const renderIcon = (icon: React.ReactNode) => {
@@ -83,9 +80,7 @@ export const CreateCellButton = ({
 
   const openDropdown = () => {
     setOpen(true);
-    setJustOpened(true);
-    // Allow interactions after a brief delay to prevent the dropdown items immediately being clicked
-    setTimeout(() => setJustOpened(false), 200);
+    openedAt.current = Date.now();
   };
 
   // We use onPointerDownCapture (not onPointerDown) to intercept events in
@@ -121,15 +116,14 @@ export const CreateCellButton = ({
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen) {
-      setJustOpened(true);
-      // Allow interactions after a brief delay
-      setTimeout(() => setJustOpened(false), 200);
+      openedAt.current = Date.now();
     }
   };
 
   const handleFirstItemClick = (e: React.MouseEvent) => {
-    // Hack to prevent the first item from being clicked when the dropdown is opened
-    if (justOpened) {
+    // Hack to prevent the first item from being clicked when the dropdown is
+    // opened: allow interactions only after a brief delay
+    if (Date.now() - openedAt.current < 200) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -172,7 +166,7 @@ export const CreateCellButton = ({
           {renderIcon(<DatabaseIcon size={13} strokeWidth={1.5} />)}
           SQL cell
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={addSetupCell}>
+        <DropdownMenuItem onClick={() => addSetupCell()}>
           {renderIcon(<DiamondPlusIcon size={13} strokeWidth={1.5} />)}
           Setup cell
         </DropdownMenuItem>

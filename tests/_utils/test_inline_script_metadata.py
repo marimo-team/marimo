@@ -337,11 +337,16 @@ def test_is_marimo_dependency():
     assert is_marimo_dependency("marimo[extras]>=0.1.0")
     assert is_marimo_dependency("marimo[extras]<=0.1.0")
 
+    # With the "!=" exclusion specifier (PEP 440)
+    assert is_marimo_dependency("marimo!=0.1.0")
+    assert is_marimo_dependency("marimo[extras]!=0.1.0")
+
     # With other packages
     assert not is_marimo_dependency("numpy")
     assert not is_marimo_dependency("pandas")
     assert not is_marimo_dependency("marimo-ai")
     assert not is_marimo_dependency("marimo-ai==0.1.0")
+    assert not is_marimo_dependency("marimo-ai!=0.1.0")
 
 
 def test_has_marimo_in_script_metadata(tmp_path):
@@ -738,3 +743,92 @@ def test_pin_for_wasm_falls_back_to_installed_on_fetch_failure(
     out = pin_pep723_dependencies_for_wasm(_WASM_SRC, _wasm_path(tmp_path))
     # Fall-through path pins to whatever's installed.
     assert "numpy==1.99.0" in out
+
+
+@pytest.mark.parametrize(
+    "contents",
+    [
+        '# A comment\ndependencies = ["numpy"]\n',
+        '# /// script-example\ndependencies = ["numpy"]\n',
+        '# /// script\n# dependencies = ["numpy"]\n# ///',
+    ],
+)
+def test_markdown_manifest_accepts_comments_and_wrapped_metadata(
+    contents: str,
+) -> None:
+    from marimo._environments import script_metadata
+    from marimo._utils.inline_script_metadata import (
+        get_headers_from_frontmatter,
+    )
+
+    header = get_headers_from_frontmatter({"pyproject": contents})["pyproject"]
+    assert script_metadata.loads(header) == {"dependencies": ["numpy"]}
+
+
+_C6_SRC = """# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "numpy==1.26.0",
+#     "emoji",
+#     "nltools==0.6.0.dev2",
+#     "pandas>=2.0; sys_platform != 'emscripten'",
+# ]
+# ///
+"""
+
+
+def _write_lockfile(tmp_path: Path, packages: dict[str, str]) -> Path:
+    import json
+
+    lockfile = tmp_path / "pyodide-lock.json"
+    lockfile.write_text(
+        json.dumps(
+            {
+                "packages": {
+                    name: {
+                        "name": name,
+                        "version": version,
+                        "package_type": "package",
+                    }
+                    for name, version in packages.items()
+                }
+            }
+        )
+    )
+    return lockfile
+
+
+def test_pin_for_wasm_pins_from_header_not_host_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A bundled package is pinned to the lock even when the host lacks it.
+
+    Non-bundled specifiers and Emscripten-excluded deps stay as written.
+    """
+    import importlib.metadata
+
+    from marimo._utils.inline_script_metadata import (
+        pin_pep723_dependencies_for_wasm,
+    )
+    from marimo._utils.marimo_path import MarimoPath
+
+    monkeypatch.delenv("MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED", raising=False)
+    # Nothing installed on the exporting machine.
+    monkeypatch.setattr(importlib.metadata, "distributions", list)
+    monkeypatch.setenv(
+        "MARIMO_PYODIDE_LOCK_FILE",
+        str(_write_lockfile(tmp_path, {"numpy": "2.4.3", "pandas": "3.0.2"})),
+    )
+    script = tmp_path / "notebook.py"
+    script.write_text(_C6_SRC)
+
+    out = pin_pep723_dependencies_for_wasm(_C6_SRC, MarimoPath(script))
+
+    assert "numpy==2.4.3" in out
+    assert "numpy==1.26.0" not in out
+    assert '"emoji"' in out
+    assert "nltools==0.6.0.dev2" in out
+    # Not installed in the browser, so its specifier is not the lock's
+    # business.
+    assert "pandas>=2.0; sys_platform != 'emscripten'" in out
+    assert "pandas==" not in out
