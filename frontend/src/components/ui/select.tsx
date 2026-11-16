@@ -40,21 +40,23 @@ const SelectTrigger = React.forwardRef<
       {...props}
     >
       {children}
-      <SelectPrimitive.Icon asChild={true}>
-        {onClear ? (
-          <span
-            onPointerDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClear();
-            }}
-          >
-            <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
-          </span>
-        ) : (
-          !hideChevron && <ChevronDown className="h-4 w-4 opacity-50" />
-        )}
-      </SelectPrimitive.Icon>
+      {(onClear || !hideChevron) && (
+        <SelectPrimitive.Icon asChild={true}>
+          {onClear ? (
+            <span
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClear();
+              }}
+            >
+              <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
+            </span>
+          ) : (
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          )}
+        </SelectPrimitive.Icon>
+      )}
     </SelectPrimitive.Trigger>
   ),
 );
