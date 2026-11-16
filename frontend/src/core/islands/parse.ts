@@ -323,7 +323,7 @@ function materializeIslandPayload(
   code.hidden = true;
   code.textContent = encodeURIComponent(cell.code);
 
-  const editor = embed.querySelector<HTMLElement>(ISLAND_TAG_NAMES.CODE_EDITOR);
+  const editor = findIslandCodeEditor(embed);
   if (editor) {
     editor.setAttribute("data-initial-value", JSON.stringify(cell.code));
   }
@@ -440,6 +440,24 @@ export function parseIslandCode(code: string | undefined | null): string {
   return decodeURIComponent(code).trim();
 }
 
+/**
+ * Finds the editor that shows an island's own code.
+ *
+ * A `<marimo-code-editor>` inside `<marimo-cell-output>` is the cell's output
+ * (for example `mo.ui.code_editor(...)`), not its source, so it is skipped.
+ */
+export function findIslandCodeEditor(embed: Element): HTMLElement | null {
+  for (const editor of embed.querySelectorAll<HTMLElement>(
+    ISLAND_TAG_NAMES.CODE_EDITOR,
+  )) {
+    const output = editor.closest(ISLAND_TAG_NAMES.CELL_OUTPUT);
+    if (!output || !embed.contains(output)) {
+      return editor;
+    }
+  }
+  return null;
+}
+
 export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
   const reactive =
     embed.getAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE) === "true";
@@ -456,9 +474,7 @@ export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
     return parseIslandCode(cellCodeElement.textContent);
   }
 
-  const editorCodeElement = embed.querySelector<HTMLElement>(
-    ISLAND_TAG_NAMES.CODE_EDITOR,
-  );
+  const editorCodeElement = findIslandCodeEditor(embed);
   if (editorCodeElement) {
     return parseIslandEditor(
       editorCodeElement.getAttribute("data-initial-value"),

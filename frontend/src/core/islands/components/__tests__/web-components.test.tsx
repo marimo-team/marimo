@@ -128,6 +128,61 @@ describe("MarimoIslandElement lifecycle", () => {
     expect(island?.textContent).not.toContain("static output");
   });
 
+  it("renders a code editor output once", async () => {
+    setNotebook("runtime-cell");
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <marimo-island
+        data-app-id="app-1"
+        data-cell-id="runtime-cell"
+        data-cell-idx="0"
+        data-reactive="true"
+      >
+        <marimo-cell-output>
+          <marimo-ui-element object-id="output-editor"><marimo-code-editor data-initial-value='"console.log(1)"'></marimo-code-editor></marimo-ui-element>
+        </marimo-cell-output>
+        <marimo-cell-code hidden>${encodeURIComponent("editor")}</marimo-cell-code>
+      </marimo-island>
+    `;
+
+    await actAndFlush(() => document.body.append(container));
+
+    const island = container.querySelector<HTMLElement>(
+      ISLAND_TAG_NAMES.ISLAND,
+    );
+    expect(island?.querySelectorAll(ISLAND_TAG_NAMES.CODE_EDITOR)).toHaveLength(
+      1,
+    );
+  });
+
+  it("renders the cell's own code editor next to an editor output", async () => {
+    setNotebook("runtime-cell");
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <marimo-island
+        data-app-id="app-1"
+        data-cell-id="runtime-cell"
+        data-cell-idx="0"
+        data-reactive="true"
+      >
+        <marimo-cell-output>
+          <marimo-ui-element object-id="output-editor"><marimo-code-editor data-initial-value='"console.log(1)"'></marimo-code-editor></marimo-ui-element>
+        </marimo-cell-output>
+        <marimo-ui-element object-id="code-editor"><marimo-code-editor data-initial-value='"editor"'></marimo-code-editor></marimo-ui-element>
+      </marimo-island>
+    `;
+
+    await actAndFlush(() => document.body.append(container));
+
+    const island = container.querySelector<HTMLElement>(
+      ISLAND_TAG_NAMES.ISLAND,
+    );
+    const editors = [
+      ...(island?.querySelectorAll(ISLAND_TAG_NAMES.CODE_EDITOR) ?? []),
+    ].map((editor) => editor.getAttribute("data-initial-value"));
+    expect(editors).toEqual(['"console.log(1)"', '"editor"']);
+  });
+
   it("binds a reactive island after its runtime cell index is materialized", async () => {
     setNotebook("outgoing-cell", "outgoing runtime output");
     const container = document.createElement("div");
