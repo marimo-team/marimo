@@ -40,12 +40,25 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
 
-_ASYNC_LOCALS: weakref.WeakSet[AsyncLocal] = weakref.WeakSet()
+_ASYNC_LOCALS: dict[int, weakref.ref[AsyncLocal]] = {}
+
+
+def _register_async_local(local: AsyncLocal) -> None:
+    key = id(local)
+
+    def _remove(dead_ref: weakref.ref[AsyncLocal]) -> None:
+        if _ASYNC_LOCALS.get(key) is dead_ref:
+            del _ASYNC_LOCALS[key]
+
+    _ASYNC_LOCALS[key] = weakref.ref(local, _remove)
 
 
 def clear_thread_local_state(ident: int) -> None:
     """Remove per-thread storage when a synthetic thread finishes."""
-    for local in list(_ASYNC_LOCALS):
+    for ref in list(_ASYNC_LOCALS.values()):
+        local = ref()
+        if local is None:
+            continue
         storage: dict[int, dict[str, Any]] = object.__getattribute__(
             local, "_storage"
         )
@@ -72,7 +85,7 @@ class AsyncLocal:
         object.__setattr__(self, "_local_kwargs", kwargs)
         object.__setattr__(self, "_initialized_idents", {current_ident()})
         object.__setattr__(self, "_initializing_idents", set())
-        _ASYNC_LOCALS.add(self)
+        _register_async_local(self)
         return self
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
