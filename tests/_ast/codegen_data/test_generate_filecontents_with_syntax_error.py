@@ -8,21 +8,18 @@ app = marimo.App()
 def one():
     import numpy as np
 
-    return
-
 
 app._unparsable_cell(
     r"""
     _ error
     """,
-    name="two"
+    name="two",
 )
 
 
 @app.cell
 def _():
     'all good'
-    return
 
 
 app._unparsable_cell(
@@ -32,7 +29,7 @@ app._unparsable_cell(
 
         \\t
     """,
-    name="_"
+    name="_",
 )
 
 

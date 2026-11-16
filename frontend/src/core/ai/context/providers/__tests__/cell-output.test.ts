@@ -34,9 +34,7 @@ describe("CellOutputContextProvider", () => {
   beforeEach(() => {
     // Create a basic mock notebook state
     mockNotebook = {
-      cellIds: {
-        inOrderIds: ["cell1", "cell2", "cell3"],
-      },
+      cellIds: ["cell1", "cell2", "cell3"],
       cellData: {
         cell1: {
           id: "cell1",
@@ -207,7 +205,7 @@ describe("Cell output utility functions", () => {
 
     beforeEach(() => {
       const mockNotebook = {
-        cellIds: { inOrderIds: [] },
+        cellIds: [],
         cellData: {},
         cellRuntime: {},
       } as unknown as NotebookState;
@@ -226,7 +224,7 @@ describe("Cell output utility functions", () => {
 
       for (const testCase of testCases) {
         mockStore = createMockStore({
-          cellIds: { inOrderIds: ["test"] },
+          cellIds: ["test"],
           cellData: {
             test: { id: "test", name: "", code: "" },
           },
@@ -261,7 +259,7 @@ describe("Cell output utility functions", () => {
 
       for (const testCase of testCases) {
         mockStore = createMockStore({
-          cellIds: { inOrderIds: ["test"] },
+          cellIds: ["test"],
           cellData: {
             test: { id: "test", name: "", code: "" },
           },
@@ -295,7 +293,7 @@ describe("Cell output utility functions", () => {
 
       for (const testCase of testCases) {
         mockStore = createMockStore({
-          cellIds: { inOrderIds: ["test"] },
+          cellIds: ["test"],
           cellData: {
             test: { id: "test", name: "", code: "" },
           },
@@ -338,7 +336,7 @@ describe("Cell output utility functions", () => {
       } as unknown as Document;
 
       const mockNotebook = {
-        cellIds: { inOrderIds: [] },
+        cellIds: [],
         cellData: {},
         cellRuntime: {},
       } as unknown as NotebookState;
@@ -369,7 +367,7 @@ describe("Cell output utility functions", () => {
       ).mockReturnValue(mockDiv);
 
       mockStore = createMockStore({
-        cellIds: { inOrderIds: ["test"] },
+        cellIds: ["test"],
         cellData: {
           test: { id: "test", name: "", code: "" },
         },
@@ -395,9 +393,7 @@ describe("Cell output utility functions", () => {
 
     beforeEach(() => {
       mockNotebook = {
-        cellIds: {
-          inOrderIds: ["cell1", "cell2"],
-        },
+        cellIds: ["cell1", "cell2"],
         cellData: {
           cell1: {
             id: "cell1",

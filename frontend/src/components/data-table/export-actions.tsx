@@ -14,6 +14,7 @@ import {
   TableIcon,
 } from "lucide-react";
 import React from "react";
+import useEvent from "react-use-event-hook";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
 import type {
   DownloadAsArgs,
@@ -22,6 +23,8 @@ import type {
   ExportMetadata,
   GetExportMetadata,
 } from "./schemas";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { useStateForKey } from "@/hooks/useStateForKey";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -274,19 +277,133 @@ const failureTitleForAction = (action: ExportAction): string =>
 const failureDescription = (error: unknown): string =>
   typeof error === "string" ? error : prettyError(error);
 
+const OBSOLETE_GEOMETRY_MESSAGE =
+  "The selected geometry is no longer available. Choose another geometry to export.";
+
+type GeographicBlocker =
+  | "format-unavailable"
+  | "geometry-required"
+  | "choose-geometry"
+  | "obsolete-geometry"
+  | "missing-crs";
+
+/**
+ * Find the first reason that a geographic export cannot start with the
+ * selected geometry. The dialog uses it to disable a format, and the retry
+ * after a package installation uses it to decide whether to export.
+ */
+function geographicBlocker(
+  metadata: ExportMetadata,
+  format: GeographicFormat,
+  geometryColumn: string | null,
+): GeographicBlocker | null {
+  if (metadata.formats[format]?.available === false) {
+    return "format-unavailable";
+  }
+  const selected = metadata.geometry_columns.find(
+    (column) => column.name === geometryColumn,
+  );
+  if (geometryColumn !== null && !selected) {
+    return "obsolete-geometry";
+  }
+  if (metadata.geometry_columns.length === 0) {
+    return format === "geojson" ? "geometry-required" : null;
+  }
+  if (!selected) {
+    return "choose-geometry";
+  }
+  if (format === "geojson" && !selected.crs) {
+    return "missing-crs";
+  }
+  return null;
+}
+
+const geometryDisplayName = (name: string | null): string | null =>
+  name === "" ? "(unnamed geometry)" : name;
+
+function geographicBlockerReason(
+  blocker: GeographicBlocker | null,
+  formatLabel: string,
+  geometryColumn: string | null,
+): string | null {
+  switch (blocker) {
+    case "choose-geometry":
+      return `Choose a primary geometry column to export ${formatLabel}.`;
+    case "obsolete-geometry":
+      return OBSOLETE_GEOMETRY_MESSAGE;
+    case "missing-crs":
+      return `Geometry column ${geometryDisplayName(geometryColumn)} needs a CRS for GeoJSON export. Declare its source CRS in Python before exporting.`;
+    case "format-unavailable":
+    case "geometry-required":
+    case null:
+      return null;
+    default:
+      logNever(blocker);
+      return null;
+  }
+}
+
+/**
+ * One open dialog for one table source. Closing the dialog or replacing the
+ * source creates a new context, and work started under an older context must
+ * not change the dialog or start an export.
+ */
+interface ExportContext {
+  source: unknown;
+}
+
 export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const { getExportMetadata, metadataSource } = props;
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
-  const [failure, setFailure] = React.useState<ExportFailure | null>(null);
   const [settings, setSettings] =
     React.useState<ExportSettings>(DEFAULT_SETTINGS);
-  const [metadata, setMetadata] = React.useState<ExportMetadata | null>(null);
-  const [metadataLoading, setMetadataLoading] = React.useState(false);
-  const [metadataError, setMetadataError] = React.useState<string | null>(null);
-  const [metadataRefresh, setMetadataRefresh] = React.useState(0);
+  const [exportContext, setExportContext] = React.useState<ExportContext>(
+    () => ({ source: metadataSource }),
+  );
+  if (exportContext.source !== metadataSource) {
+    setExportContext({ source: metadataSource });
+  }
+  const [failure, setFailure] = useStateForKey<ExportFailure | null>(
+    exportContext,
+    () => null,
+  );
+  const mounted = React.useRef(false);
+  const isCurrentContext = useEvent(
+    (context: ExportContext) => mounted.current && context === exportContext,
+  );
+  const metadataRequest = useAsyncData(async () => {
+    if (!exportDialogOpen || !getExportMetadata) {
+      return null;
+    }
+    return { context: exportContext, metadata: await getExportMetadata({}) };
+  }, [exportDialogOpen, getExportMetadata, exportContext]);
+  // The hook keeps earlier data while it reloads and after a failure. Only a
+  // completed response for the current context can enable an export.
+  const metadata =
+    metadataRequest.status === "success" &&
+    metadataRequest.data?.context === exportContext
+      ? metadataRequest.data.metadata
+      : null;
+  const metadataError =
+    metadataRequest.status === "error"
+      ? failureDescription(metadataRequest.error)
+      : null;
   const [geometryColumn, setGeometryColumn] = React.useState<string | null>(
     null,
   );
+  const [reconciledMetadata, setReconciledMetadata] =
+    React.useState<ExportMetadata | null>(null);
+  if (metadata !== reconciledMetadata) {
+    setReconciledMetadata(metadata);
+    if (metadata) {
+      setGeometryColumn((current) =>
+        current !== null &&
+        metadata.geometry_columns.some((column) => column.name === current)
+          ? current
+          : metadata.default_geometry_column,
+      );
+    }
+  }
   const hasGeometry = !!metadata?.geometry_columns.length;
   const [expandedFormat, setExpandedFormat] = React.useState<
     ConfigurableFormat | GeographicFormat | null
@@ -294,43 +411,16 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const dialogRef = React.useRef<HTMLDivElement>(null);
   const latestActionId = React.useRef(0);
+  React.useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      latestActionId.current += 1;
+    };
+  }, []);
   React.useEffect(() => {
     latestActionId.current += 1;
   }, [metadataSource]);
-  React.useEffect(() => {
-    if (!exportDialogOpen || !getExportMetadata) {
-      return;
-    }
-    let active = true;
-    setMetadata(null);
-    setMetadataLoading(true);
-    setMetadataError(null);
-    void getExportMetadata({}).then(
-      (result) => {
-        if (!active) {
-          return;
-        }
-        setMetadata(result);
-        setGeometryColumn((current) =>
-          current !== null &&
-          result.geometry_columns.some((column) => column.name === current)
-            ? current
-            : result.default_geometry_column,
-        );
-        setMetadataLoading(false);
-      },
-      (error: unknown) => {
-        if (!active) {
-          return;
-        }
-        setMetadataError(failureDescription(error));
-        setMetadataLoading(false);
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [exportDialogOpen, getExportMetadata, metadataSource, metadataRefresh]);
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
     policy &&
@@ -365,12 +455,10 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     setExportDialogOpen(open);
     if (!open) {
       latestActionId.current += 1;
-      setFailure(null);
       setExpandedFormat(null);
       setSettings(DEFAULT_SETTINGS);
-      setMetadata(null);
-      setMetadataError(null);
       setGeometryColumn(null);
+      setExportContext({ source: metadataSource });
     }
   };
 
@@ -553,57 +641,67 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
     }
   };
 
-  const retryAfterInstall = async (action: ExportAction) => {
-    if (isGeographic(action.format) && getExportMetadata) {
+  // Package installation can finish after the dialog closes or the source
+  // changes, so the retry carries the context in which installation began.
+  const retryAfterInstall = useEvent(
+    async (action: ExportAction, context: ExportContext) => {
+      if (!isCurrentContext(context)) {
+        return;
+      }
+      if (!isGeographic(action.format) || !getExportMetadata) {
+        retryAction(action);
+        return;
+      }
       const actionId = latestActionId.current;
+      const isCurrent = () =>
+        isCurrentContext(context) && actionId === latestActionId.current;
       let result: ExportMetadata;
       try {
         result = await getExportMetadata({});
-      } catch (error) {
-        if (actionId === latestActionId.current) {
-          setMetadataError(failureDescription(error));
+      } catch {
+        if (isCurrent()) {
+          metadataRequest.refetch();
         }
         return;
       }
-      if (actionId !== latestActionId.current) {
+      if (!isCurrent()) {
         return;
       }
-      setMetadata(result);
-      setMetadataError(null);
-      if (result.formats[action.format]?.available === false) {
-        setFailure(null);
-        return;
+      // Validation reads its own response, so a display refresh cannot
+      // start an export that this check rejected.
+      metadataRequest.refetch();
+      const blocker = geographicBlocker(result, action.format, geometryColumn);
+      switch (blocker) {
+        case null:
+          retryAction(action);
+          return;
+        case "obsolete-geometry":
+          setGeometryColumn(result.default_geometry_column);
+          setActionFailure(actionId, {
+            kind: "error",
+            title: failureTitleForAction(action),
+            description: OBSOLETE_GEOMETRY_MESSAGE,
+            action,
+          });
+          return;
+        case "choose-geometry":
+          return;
+        case "format-unavailable":
+        case "geometry-required":
+        case "missing-crs":
+          setFailure(null);
+          return;
+        default:
+          logNever(blocker);
       }
-      if (
-        geometryColumn !== null &&
-        !result.geometry_columns.some(
-          (column) => column.name === geometryColumn,
-        )
-      ) {
-        setGeometryColumn(result.default_geometry_column);
-        setActionFailure(actionId, {
-          kind: "error",
-          title: failureTitleForAction(action),
-          description:
-            "The selected geometry is no longer available. Choose another geometry to export.",
-          action,
-        });
-        return;
-      }
-      if (result.geometry_columns.length > 0 && geometryColumn === null) {
-        return;
-      }
-      if (
-        action.format === "geojson" &&
-        !result.geometry_columns.find(
-          (column) => column.name === geometryColumn,
-        )?.crs
-      ) {
-        setFailure(null);
-        return;
-      }
-    }
-    retryAction(action);
+    },
+  );
+
+  const createInstallRetry = (action: ExportAction) => {
+    const context = exportContext;
+    return () => {
+      void retryAfterInstall(action, context);
+    };
   };
 
   const toggleExpanded = (format: ExportFormat) => {
@@ -665,14 +763,15 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
             const expanded =
               configurableFormat !== null &&
               expandedFormat === configurableFormat;
+            const FormatHeader = configurableFormat ? "button" : "div";
             const panelId = `export-options-${option.format}`;
+            const descriptionId = `${panelId}-description`;
+            const summaryId = `${panelId}-summary`;
             const rowFailure =
               failure?.action.format === option.format ? failure : null;
             const summary =
               isGeographic(option.format) && hasGeometry
-                ? geometryColumn === ""
-                  ? "(unnamed geometry)"
-                  : (geometryColumn ?? "Choose geometry")
+                ? (geometryDisplayName(geometryColumn) ?? "Choose geometry")
                 : settingsSummary(settings, option.format);
             const selectedGeometryIndex =
               metadata?.geometry_columns.findIndex(
@@ -681,20 +780,14 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
             const eligibility = isGeographic(option.format)
               ? metadata?.formats[option.format]
               : undefined;
-            const selectedGeometry =
-              metadata?.geometry_columns[selectedGeometryIndex];
-            const missingCrs =
-              option.format === "geojson" &&
-              selectedGeometry !== undefined &&
-              !selectedGeometry.crs;
+            const blocker =
+              isGeographic(option.format) && metadata
+                ? geographicBlocker(metadata, option.format, geometryColumn)
+                : null;
             const geometryReason = metadataError
               ? `Could not load geometry options: ${metadataError}`
               : (eligibility?.reason ??
-                (hasGeometry && geometryColumn === null
-                  ? `Choose a primary geometry column to export ${optionLabel}.`
-                  : missingCrs
-                    ? `Geometry column ${geometryColumn === "" ? "(unnamed geometry)" : geometryColumn} needs a CRS for GeoJSON export. Declare its source CRS in Python before exporting.`
-                    : null));
+                geographicBlockerReason(blocker, optionLabel, geometryColumn));
             const missingPackageFailure =
               rowFailure?.kind === "missing-packages" ? rowFailure : null;
             const missingPackages =
@@ -704,13 +797,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                 : []);
             const geographicUnavailable =
               isGeographic(option.format) &&
-              ((!!getExportMetadata && !metadata) ||
-                metadataLoading ||
-                !!metadataError ||
-                eligibility?.available === false ||
-                missingCrs ||
-                (!!metadata?.geometry_columns.length &&
-                  geometryColumn === null));
+              ((!!getExportMetadata && !metadata) || blocker !== null);
             const copyUnavailable =
               isGeographic(option.format) &&
               (geographicUnavailable || missingPackages.length > 0);
@@ -720,55 +807,78 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                 data-testid={`export-row-${option.format}`}
                 className={cn(expanded && "bg-muted/40")}
               >
-                <div className="grid min-h-[60px] grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-1 px-2.5 py-2 hover:bg-accent/50">
-                  {configurableFormat ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`${optionLabel} options`}
-                      aria-expanded={expanded}
-                      aria-controls={panelId}
-                      onClick={() => toggleExpanded(option.format)}
-                    >
-                      <ChevronRightIcon
-                        className={cn(
-                          "h-4 w-4 text-muted-foreground transition-transform",
-                          expanded && "rotate-90",
-                        )}
-                      />
-                    </Button>
-                  ) : (
-                    <span aria-hidden={true} className="h-6 w-6" />
-                  )}
-                  <div className="flex min-w-0 items-center gap-3 pl-1">
-                    <option.icon
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center hover:bg-accent/50">
+                  <FormatHeader
+                    type={configurableFormat ? "button" : undefined}
+                    className={cn(
+                      "grid min-h-[60px] min-w-0 grid-cols-[28px_minmax(0,1fr)] items-center gap-x-1 py-2 pl-2.5 pr-1 text-left",
+                      configurableFormat &&
+                        "cursor-pointer focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring",
+                    )}
+                    aria-label={
+                      configurableFormat ? `${optionLabel} options` : undefined
+                    }
+                    aria-describedby={
+                      configurableFormat
+                        ? [descriptionId, summary && summaryId]
+                            .filter(Boolean)
+                            .join(" ")
+                        : undefined
+                    }
+                    aria-expanded={configurableFormat ? expanded : undefined}
+                    aria-controls={configurableFormat ? panelId : undefined}
+                    onClick={
+                      configurableFormat
+                        ? () => toggleExpanded(option.format)
+                        : undefined
+                    }
+                  >
+                    <span
                       aria-hidden={true}
-                      data-testid={`export-format-icon-${option.format}`}
-                      className="h-4 w-4 shrink-0 text-muted-foreground"
-                    />
-                    <div className="grid min-w-0 gap-1">
-                      <span className="flex min-w-0 items-baseline gap-x-2">
-                        <span className="text-sm font-medium leading-tight">
-                          {optionLabel}
-                        </span>
-                        {summary && (
-                          <span
-                            data-testid={`export-summary-${option.format}`}
-                            className="min-w-0 truncate text-xs text-muted-foreground"
-                          >
-                            {summary}
+                      className="inline-flex h-6 w-6 items-center justify-center"
+                    >
+                      {configurableFormat && (
+                        <ChevronRightIcon
+                          className={cn(
+                            "h-4 w-4 text-muted-foreground transition-transform",
+                            expanded && "rotate-90",
+                          )}
+                        />
+                      )}
+                    </span>
+                    <span className="flex min-w-0 items-center gap-3 pl-1">
+                      <option.icon
+                        aria-hidden={true}
+                        data-testid={`export-format-icon-${option.format}`}
+                        className="h-4 w-4 shrink-0 text-muted-foreground"
+                      />
+                      <span className="grid min-w-0 gap-1">
+                        <span className="flex min-w-0 items-baseline gap-x-2">
+                          <span className="text-sm font-medium leading-tight">
+                            {optionLabel}
                           </span>
-                        )}
+                          {summary && (
+                            <span
+                              id={summaryId}
+                              data-testid={`export-summary-${option.format}`}
+                              className="min-w-0 truncate text-xs text-muted-foreground"
+                            >
+                              {summary}
+                            </span>
+                          )}
+                        </span>
+                        <span
+                          id={descriptionId}
+                          className="text-xs text-muted-foreground leading-tight"
+                        >
+                          {option.format === "parquet" && hasGeometry
+                            ? "Parquet with geometry and CRS metadata"
+                            : option.description}
+                        </span>
                       </span>
-                      <span className="text-xs text-muted-foreground leading-tight">
-                        {option.format === "parquet" && hasGeometry
-                          ? "Parquet with geometry and CRS metadata"
-                          : option.description}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-0.5">
+                    </span>
+                  </FormatHeader>
+                  <div className="flex items-center gap-0.5 pr-2.5">
                     <Tooltip
                       content={
                         option.canDownload
@@ -888,9 +998,7 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                           type="button"
                           size="xs"
                           variant="outline"
-                          onClick={() =>
-                            setMetadataRefresh((current) => current + 1)
-                          }
+                          onClick={metadataRequest.refetch}
                         >
                           Retry
                         </Button>
@@ -906,17 +1014,13 @@ export const ExportActions: React.FC<ExportActionProps> = (props) => {
                         missingPackageFailure?.description ??
                         eligibility?.reason
                       }
-                      onInstall={() => {
-                        void retryAfterInstall(
-                          missingPackageFailure?.action ?? {
-                            destination: "download",
-                            format:
-                              option.format === "geojson"
-                                ? "geojson"
-                                : "parquet",
-                          },
-                        );
-                      }}
+                      onInstall={createInstallRetry(
+                        missingPackageFailure?.action ?? {
+                          destination: "download",
+                          format:
+                            option.format === "geojson" ? "geojson" : "parquet",
+                        },
+                      )}
                       className="items-start"
                     />
                   </div>

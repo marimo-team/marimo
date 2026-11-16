@@ -104,9 +104,9 @@ class EditModeReloadStrategy(ReloadStrategy):
             )
 
         # Auto-run changed cells if configured.
-        watcher_on_save = self._config_manager.get_config()["runtime"][
-            "watcher_on_save"
-        ]
+        watcher_on_save = (
+            self._config_manager.get_config().runtime.watcher_on_save
+        )
         if watcher_on_save == "autorun":
             changed_not_deleted = list(changed_cell_ids - deleted)
             session.put_control_request(

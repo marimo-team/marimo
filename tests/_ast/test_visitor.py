@@ -1120,7 +1120,6 @@ def test_try_block() -> None:
     assert v.defs == {"f", "v", "w", "x", "y", "z", "err", "err2", "err3"}
 
 
-@pytest.mark.skipif("sys.version_info < (3, 11)")
 def test_try_star_block() -> None:
     code = "try:\n  raise ExceptionGroup('eg', [ValueError(1), TypeError(2), OSError(3)])\nexcept* TypeError as e:\n  print(f'caught {type(e)} with nested {e.exceptions}')\nexcept* OSError as f:\n  print(f'caught {type(f)} with nested {f.exceptions}')\nelse:\n  print('Type and Os not raised')\nfinally:\n  print('finally')"
     v = visitor.ScopedVisitor()
@@ -1161,6 +1160,26 @@ def test_type_var_generic_class() -> None:
 
 
 @pytest.mark.skipif("sys.version_info < (3, 12)")
+@pytest.mark.parametrize(
+    ("code", "refs"),
+    [
+        ("class A[T](Base[T]): pass", {"Base"}),
+        ("class A[T](metaclass=Meta[T]): pass", {"Meta"}),
+        ("class A[*Ts](Base[*Ts]): pass", {"Base"}),
+        ("class A[**P](Base[P]): pass", {"Base"}),
+        ("class A[T]:\n    item: list[T]", {"list"}),
+    ],
+)
+def test_type_var_generic_class_bases_and_body(
+    code: str, refs: set[str]
+) -> None:
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+    assert v.defs == {"A"}
+    assert v.refs == refs
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
 def test_type_var_generic_function() -> None:
     expr = cleandoc(
         """
@@ -1174,6 +1193,28 @@ def test_type_var_generic_function() -> None:
     assert v.defs == {"test"}
     # U should not be a ref
     assert v.refs == set()
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
+@pytest.mark.parametrize(
+    "code",
+    [
+        "def f[T](x: T = T): return x",
+        "@T\ndef f[T](x: T): return x",
+    ],
+)
+def test_generic_function_signature_uses_enclosing_scope(code: str) -> None:
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+    assert v.defs == {"f"}
+    assert v.refs == {"T"}
+    assert v.variable_data == {
+        "f": [
+            VariableData(
+                kind="function", required_refs={"T"}, unbounded_refs={"T"}
+            )
+        ]
+    }
 
 
 def test_private_ref_requirement_caught() -> None:

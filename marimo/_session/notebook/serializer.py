@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from marimo._ast.parse import MarimoFileError, is_non_marimo_python_script
 from marimo._schemas.serialization import (
@@ -12,15 +12,26 @@ from marimo._schemas.serialization import (
     NotebookSerializationV1,
 )
 
+if TYPE_CHECKING:
+    from marimo._ast.type_inference import TypeInferenceMode
+
 
 class NotebookSerializer(Protocol):
     """Protocol for notebook format handlers."""
 
-    def serialize(self, notebook: NotebookSerializationV1) -> str:
+    def serialize(
+        self,
+        notebook: NotebookSerializationV1,
+        *,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
+    ) -> str:
         """Convert notebook IR to the target format.
 
         Args:
             notebook: Notebook in intermediate representation
+            infer_types: Inference backend for formats with cell signatures.
+            line_length: Maximum parameter line width for inferred annotations.
 
         Returns:
             Serialized notebook content as string
@@ -56,14 +67,22 @@ class NotebookSerializer(Protocol):
 class PythonNotebookSerializer(NotebookSerializer):
     """Handler for Python (.py) notebook files."""
 
-    def serialize(self, notebook: NotebookSerializationV1) -> str:
+    def serialize(
+        self,
+        notebook: NotebookSerializationV1,
+        *,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
+    ) -> str:
         """Serialize notebook to Python format.
 
         Handles header preservation when converting from other formats.
         """
         from marimo._ast.codegen import generate_filecontents_from_ir
 
-        return generate_filecontents_from_ir(notebook)
+        return generate_filecontents_from_ir(
+            notebook, infer_types=infer_types, line_length=line_length
+        )
 
     def deserialize(
         self, content: str, filepath: str | None = None
@@ -86,8 +105,16 @@ class PythonNotebookSerializer(NotebookSerializer):
 class MarkdownNotebookSerializer(NotebookSerializer):
     """Handler for Markdown (.md) notebook files."""
 
-    def serialize(self, notebook: NotebookSerializationV1) -> str:
+    def serialize(
+        self,
+        notebook: NotebookSerializationV1,
+        *,
+        infer_types: TypeInferenceMode = "off",
+        line_length: int = 79,
+    ) -> str:
         """Serialize notebook to Markdown format."""
+        # Markdown has no cell signatures to annotate.
+        del infer_types, line_length
         from marimo._convert.markdown import convert_from_ir_to_markdown
 
         return convert_from_ir_to_markdown(notebook)

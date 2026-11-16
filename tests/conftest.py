@@ -40,8 +40,7 @@ if TYPE_CHECKING:
     import threading
     from collections.abc import Callable, Generator
     from types import ModuleType, TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._runtime.runtime import Kernel
 
@@ -50,6 +49,22 @@ register_formatters()
 
 # Initialize mimetypes for consistent behavior across platforms (especially Windows)
 initialize_mimetypes()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_jedi_cache(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator[None, None, None]:
+    import jedi
+
+    # Parso's disk cache writes are not atomic across pytest workers.
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(
+            jedi.settings,
+            "cache_directory",
+            str(tmp_path_factory.mktemp("jedi")),
+        )
+        yield
 
 
 def pytest_collection_modifyitems(
@@ -471,7 +486,7 @@ def session_view() -> Generator[SessionView, None, None]:
     yield sv
 
     # Test all operations can be serialized/deserialized
-    for operation in sv.notifications:
+    for operation in sv.snapshot_notifications():
         assert_serialize_roundtrip(operation)
 
 
@@ -683,3 +698,16 @@ def pytest_make_collect_report(collector):
             " (tests/conftest.py)."
         )
     return report
+
+
+@pytest.fixture
+def clean_config_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.provenance import DEPRECATED_ENV_VARS, env_var_name
+    from marimo._config.schema_utils import config_leaf_types
+
+    for name in {
+        *DEPRECATED_ENV_VARS.values(),
+        *(env_var_name(path) for path in config_leaf_types(MarimoConfig)),
+    }:
+        monkeypatch.delenv(name, raising=False)

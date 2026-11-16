@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import secrets
+import shutil
 import signal
 import socket
 import subprocess
@@ -11,10 +12,13 @@ import time
 from abc import ABC, abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Literal
+
+from msgspec import UNSET
 
 from marimo import _loggers
-from marimo._config.config import MarimoConfig
+from marimo._cli.install_hints import get_install_hint
+from marimo._config.config_schema import LanguageServersConfig, MarimoConfig
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
@@ -593,21 +597,25 @@ class PyLspServer(BaseLspServer):
         # pylsp is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pylsp.has():
             LOGGER.info(
-                "pylsp is not installed. Skipping LSP server. Install with: pip install python-lsp-server"
+                "pylsp is not installed. Skipping LSP server. "
+                f"Install with: {get_install_hint('python-lsp-server')}"
             )
             return None
         return await super().start()
 
     def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.pylsp.has():
-            return "pylsp is missing. Install it with `pip install python-lsp-server`."
+            return (
+                "pylsp is missing. Install it with "
+                f"`{get_install_hint('python-lsp-server')}`."
+            )
 
         # Try actually running pylsp to validate it works
         import sys
 
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "pylsp", "--version"],
+                [sys.executable, "-P", "-m", "pylsp", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -626,6 +634,7 @@ class PyLspServer(BaseLspServer):
 
         return [
             sys.executable,
+            "-P",
             "-m",
             "marimo._server._pylsp",
             "--port",
@@ -658,7 +667,10 @@ class BasedpyrightServer(BaseLspServer):
 
     def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.basedpyright.has():
-            return "basedpyright is missing. Install it with `pip install basedpyright`."
+            return (
+                "basedpyright is missing. Install it with "
+                f"`{get_install_hint('basedpyright')}`."
+            )
 
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
@@ -696,14 +708,16 @@ class TyServer(BaseLspServer):
 
     async def start(self) -> AlertNotification | None:
         # ty is not required, so we don't want to alert or fail if it is not installed
-        if not DependencyManager.ty.has():
+        if not (DependencyManager.ty.has() or DependencyManager.which("ty")):
             LOGGER.debug("ty is not installed. Skipping LSP server.")
             return None
         return await super().start()
 
     def validate_requirements(self) -> str | Literal[True]:
-        if not DependencyManager.ty.has():
-            return "ty is missing. Install it with `pip install ty`."
+        if not (DependencyManager.ty.has() or DependencyManager.which("ty")):
+            return (
+                f"ty is missing. Install it with `{get_install_hint('ty')}`."
+            )
 
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
@@ -711,12 +725,21 @@ class TyServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
-        from ty.__main__ import find_ty_bin  # type: ignore
-
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
 
         # Use typed format to avoid quoting issues: ty:<binary_path>
-        ty_command = f"ty:{find_ty_bin()}"
+        try:
+            from ty.__main__ import find_ty_bin  # type: ignore
+
+            ty_command = f"ty:{find_ty_bin()}"
+        except ImportError:
+            # Tools installed with `uv tool install` are only on PATH.
+            ty_bin = shutil.which("ty")
+            if ty_bin is None:
+                raise FileNotFoundError(
+                    "ty executable not found on PATH"
+                ) from None
+            ty_command = f"ty:{ty_bin}"
 
         return [
             "node",
@@ -753,7 +776,10 @@ class PyreflyServer(BaseLspServer):
 
     def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.pyrefly.has():
-            return "Pyrefly is missing. Install it with `pip install pyrefly`."
+            return (
+                "Pyrefly is missing. Install it with "
+                f"`{get_install_hint('pyrefly')}`."
+            )
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
         return True
@@ -822,7 +848,8 @@ class CompositeLspServer(LspServer):
         self.config_reader = config_reader
         self.min_port = min_port
 
-        last_free_port = find_free_port(min_port)
+        # Probing all interfaces can trigger the Windows firewall prompt.
+        last_free_port = find_free_port(min_port, addr="127.0.0.1")
 
         # NOTE: we construct all servers up front regardless of whether they are enabled
         # in order to properly mount them as Starlette routes with their own ports
@@ -832,19 +859,18 @@ class CompositeLspServer(LspServer):
         # We also need to ensure that the ports are unique
         self.servers: dict[str, LspServer] = {}
         for server_name, server_constructor in self.LANGUAGE_SERVERS.items():
-            last_free_port = find_free_port(last_free_port + 1)
+            last_free_port = find_free_port(
+                last_free_port + 1, addr="127.0.0.1"
+            )
             self.servers[server_name] = server_constructor(last_free_port)
 
     def _is_enabled(self, config: MarimoConfig, server_name: str) -> bool:
         if server_name == "copilot":
-            copilot = config["completion"]["copilot"]
+            copilot = config.completion.copilot
             return copilot is True or copilot == "github"
 
-        return cast(
-            bool,
-            cast(Any, config.get("language_servers", {}))
-            .get(server_name, {})
-            .get("enabled", False),
+        return _is_language_server_enabled(
+            config.language_servers, server_name
         )
 
     async def start(self) -> AlertNotification | None:
@@ -989,12 +1015,27 @@ class CompositeLspServer(LspServer):
         )
 
 
+def _is_language_server_enabled(
+    config: LanguageServersConfig, server_name: str
+) -> bool:
+    if server_name == "pylsp":
+        return config.pylsp.enabled
+    if server_name == "basedpyright":
+        return (
+            config.basedpyright is not UNSET
+            and config.basedpyright.enabled is True
+        )
+    if server_name == "ty":
+        return config.ty is not UNSET and config.ty.enabled is True
+    if server_name == "pyrefly":
+        return config.pyrefly is not UNSET and config.pyrefly.enabled is True
+    return False
+
+
 def any_lsp_server_running(config: MarimoConfig) -> bool:
-    # Check if any language servers or copilot are enabled
-    copilot_enabled = config["completion"]["copilot"]
-    language_servers = config.get("language_servers", {})
+    copilot_enabled = config.completion.copilot
     language_servers_enabled = any(
-        cast(dict[str, Any], server).get("enabled", False)
-        for server in language_servers.values()
+        _is_language_server_enabled(config.language_servers, name)
+        for name in CompositeLspServer.LANGUAGE_SERVERS
     )
     return (copilot_enabled is not False) or language_servers_enabled

@@ -82,7 +82,7 @@ regex = re.compile(
     r"[a-z\u00a1-\uffff\U00010000-\U0010ffff]{2,}))"
     r")"
     # port number
-    r"(?::\d{2,5})?"
+    r"(?::\d{1,5})?"
     # resource path
     r"(?:/[-a-z\u00a1-\uffff\U00010000-\U0010ffff0-9._~%!$&'()*+,;=:@/]*)?"
     # query string

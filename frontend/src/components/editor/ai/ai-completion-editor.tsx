@@ -45,7 +45,7 @@ import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
 import { retryWithTimeout } from "@/utils/timeout";
-import { PromptInput } from "./add-cell-with-ai";
+import { PromptInput } from "./prompt-input";
 import {
   AcceptCompletionButton,
   AI_EDIT_ACTION_LABELS,
@@ -408,6 +408,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               </div>
             </Tooltip>
             <Button
+              aria-label="Discard AI completion"
               data-testid="decline-completion-button"
               variant="text"
               size="icon"

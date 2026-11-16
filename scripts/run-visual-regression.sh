@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-readonly PLAYWRIGHT_VERSION="1.63.0"
+readonly PLAYWRIGHT_VERSION="1.64.0"
 readonly PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 readonly EDIT_PORT=2738
 readonly RUN_PORT=2739
@@ -80,7 +80,7 @@ wait_for_server() {
 (
   cd "${FRONTEND_ROOT}"
   exec env XDG_CONFIG_HOME="${CONFIG_ROOT}" \
-    _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE=true \
+    MARIMO_RUNTIME_AUTO_INSTANTIATE=true \
     uv run marimo -q edit -p "${EDIT_PORT}" --headless --no-token
 ) >"${LOG_DIR}/edit.log" 2>&1 &
 EDIT_PID="$!"
@@ -88,7 +88,7 @@ EDIT_PID="$!"
 (
   cd "${FRONTEND_ROOT}"
   exec env XDG_CONFIG_HOME="${CONFIG_ROOT}" \
-    _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE=true \
+    MARIMO_RUNTIME_AUTO_INSTANTIATE=true \
     uv run marimo -q run "${FIXTURE}" -p "${RUN_PORT}" --headless --no-token
 ) >"${LOG_DIR}/run.log" 2>&1 &
 RUN_PID="$!"

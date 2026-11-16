@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 import json
 
 import httpx
@@ -25,13 +24,16 @@ FIXTURES = ROOT / "fixtures"
 MODELS = {
     "record.json": "HostRecord",
     "cell.json": "Cell",
-    "analysis.json": "Analysis",
-    "diagnostic.json": "Error",
+    "cell-withheld.json": "Cell",
     "edit.json": "EditRequest",
-    "edit-conflict-request.json": "EditRequest",
+    "stale-edit-request.json": "EditRequest",
     "edit-response.json": "EditResponse",
     "execution-restored.json": "Execution",
+    "execute-request.json": "ExecuteRequest",
     "run-cells-request.json": "RunRequest",
+    "input-reply-request.json": "InputReplyRequest",
+    "input-reply-response.json": "Input",
+    "interrupt-runtime-response.json": "Runtime",
 }
 
 
@@ -56,6 +58,33 @@ def test_json_examples(path):
 
 
 @pytest.mark.parametrize(
+    ("name", "field"),
+    [
+        ("precondition-failed", "index"),
+        ("precondition-failed", "cell"),
+        ("precondition-failed", "document"),
+        ("decision-required", "decisions"),
+    ],
+)
+def test_problem_variants_require_their_payload(name, field):
+    value = json.loads((FIXTURES / "problems" / f"{name}.json").read_text())
+    del value[field]
+    with pytest.raises(ValidationError):
+        validate("Problem", value)
+
+
+def test_precondition_problem_has_a_fixed_status_and_nullable_cell():
+    value = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text()
+    )
+    value["cell"] = None
+    validate("Problem", value)
+    value["status"] = 409
+    with pytest.raises(ValidationError):
+        validate("Problem", value)
+
+
+@pytest.mark.parametrize(
     "path", sorted(FIXTURES.glob("*.sse")), ids=lambda p: p.name
 )
 async def test_stream_examples(path):
@@ -66,18 +95,6 @@ async def test_stream_examples(path):
             frame.message()
 
 
-@pytest.mark.parametrize("message", [{}, {"analysis": {}}])
-async def test_invalid_analysis_messages_are_rejected(message):
-    data = json.dumps(message)
-    with pytest.raises(ValidationError):
-        Frame(event="analysis", data=data).message()
-
-    stream = f"event: analysis\ndata: {data}\n\nevent: ready\ndata: {{}}\n\n"
-    watch = Watch(frames(lines(stream)), timeout=1)
-    with pytest.raises(ValidationError):
-        await watch.ready()
-
-
 async def test_sse_preserves_multiline_data_comments_and_explicit_ids():
     stream = ": ping\r\nid: 7\r\nevent: future\r\ndata: one\r\ndata:  two\r\n\r\nevent: ready\ndata: {}\n\n"
     assert [frame async for frame in frames(lines(stream))] == [
@@ -85,6 +102,31 @@ async def test_sse_preserves_multiline_data_comments_and_explicit_ids():
         Frame(event="future", data="one\n two", id="7"),
         Frame(event="ready", data="{}"),
     ]
+
+
+@pytest.mark.parametrize(
+    ("event", "known"),
+    [
+        ("display.removed", True),
+        ("execution.removed", True),
+        ("input.removed", False),
+        ("document.removed", False),
+        ("host.removed", False),
+    ],
+)
+async def test_only_declared_removal_events_require_a_removed_message(
+    event, known
+):
+    stream = f"event: {event}\ndata: {{}}\n\nevent: ready\ndata: {{}}\n\n"
+    watch = Watch(frames(lines(stream)), timeout=1)
+    if known:
+        with pytest.raises(ValidationError, match="'id' is a required"):
+            await watch.ready()
+    else:
+        assert [frame.event for frame in await watch.ready()] == [
+            event,
+            "ready",
+        ]
 
 
 def test_required_nullable_fields_and_future_fields():
@@ -98,7 +140,40 @@ def test_required_nullable_fields_and_future_fields():
             validate("Execution", {**value, field: ""})
 
 
-async def test_document_checker_rejects_wrong_hashes_and_ordering():
+def test_cell_source_is_required_but_nullable_only_in_records():
+    cell = json.loads((FIXTURES / "cell.json").read_text())
+    for code in (None, "", cell["code"]):
+        validate("Cell", {**cell, "code": code})
+    missing = {key: value for key, value in cell.items() if key != "code"}
+    with pytest.raises(ValidationError):
+        validate("Cell", missing)
+    for value in ({"id": cell["id"]}, {"id": cell["id"], "code": None}):
+        with pytest.raises(ValidationError):
+            validate("CellInput", value)
+    validate("CellInput", {"id": cell["id"], "code": ""})
+
+
+async def test_document_checker_accepts_withheld_source():
+    snapshot = []
+    async for frame in frames(
+        lines((FIXTURES / "notebook-events.sse").read_text())
+    ):
+        if frame.event == "ready":
+            break
+        snapshot.append(frame)
+    document, cells = document_state(snapshot)
+    for frame in snapshot:
+        if frame.event == "cell":
+            message = frame.message()
+            message["cell"]["code"] = None
+            frame.data = json.dumps(message)
+    assert document_state(snapshot) == (
+        document,
+        {key: {**cell, "code": None} for key, cell in cells.items()},
+    )
+
+
+async def test_document_checker_rejects_cells_after_the_document():
     snapshot = []
     async for frame in frames(
         lines((FIXTURES / "notebook-events.sse").read_text())
@@ -107,13 +182,6 @@ async def test_document_checker_rejects_wrong_hashes_and_ordering():
             break
         snapshot.append(frame)
     document_state(snapshot)
-    broken = copy.deepcopy(snapshot)
-    cell = next(frame for frame in broken if frame.event == "cell")
-    message = cell.message()
-    message["cell"]["code"] += "\n# changed"
-    cell.data = json.dumps(message)
-    with pytest.raises(AssertionError):
-        document_state(broken)
     with pytest.raises(AssertionError, match="cell arrived after"):
         document_state(
             sorted(snapshot, key=lambda frame: frame.event != "document")
@@ -142,3 +210,27 @@ async def test_pings_do_not_extend_a_wait_for_ready():
     watch = Watch(pings(), timeout=0.01)
     with pytest.raises(TimeoutError):
         await watch.ready()
+
+
+def test_code_fingerprints_are_opaque():
+    cell = json.loads((FIXTURES / "cell.json").read_text())
+    cell["code_fingerprint"] = "custom:v1:opaque"
+    validate("Cell", cell)
+    cell["code_fingerprint"] = ""
+    with pytest.raises(ValidationError):
+        validate("Cell", cell)
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (ROOT / "conformance/cases/execution-requests.json").read_text()
+    ),
+    ids=lambda case: f"{case['schema']}: {case['name']}",
+)
+def test_execution_requests(case):
+    if case["valid"]:
+        validate(case["schema"], case["body"])
+    else:
+        with pytest.raises(ValidationError):
+            validate(case["schema"], case["body"])

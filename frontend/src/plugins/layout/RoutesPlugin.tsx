@@ -56,7 +56,7 @@ const RoutesComponent = ({
 
   useEffect(() => {
     // Listen for route changes
-    const listener = (e: PopStateEvent | HashChangeEvent) => {
+    const listener = () => {
       handleFindMatch(window.location);
     };
     window.addEventListener("hashchange", listener);

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
 from marimo import _loggers
 from marimo._save.stores.store import Store
@@ -54,6 +55,25 @@ class RestStore(Store):
             LOGGER.warning(f"GET {url} - Error: {e}")
         return None
 
+    def read(self, key: str) -> bytes | None:
+        url = self._get_url(key)
+        req = urllib.request.Request(url, headers=self.headers)
+        try:
+            with urllib.request.urlopen(req, context=self.context) as response:
+                if response.status == 200:
+                    return response.read()  # type: ignore[no-any-return]
+                raise urllib.error.HTTPError(
+                    url,
+                    response.status,
+                    "Unexpected status",
+                    response.headers,
+                    None,
+                )
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+            raise
+
     def put(self, key: str, value: bytes) -> bool:
         url = self._get_url(key)
         req = urllib.request.Request(
@@ -98,4 +118,5 @@ class RestStore(Store):
         url = self.base_url
         if self.project_id:
             url = f"{url}/{self.project_id}"
-        return f"{url}/{key}"
+        # Keys are logical paths, so even `%` is escaped; `/` stays a separator.
+        return f"{url}/{quote(key, safe='/')}"

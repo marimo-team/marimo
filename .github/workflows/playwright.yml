@@ -13,12 +13,12 @@ permissions:
   contents: read
 
 env:
-  MARIMO_SKIP_UPDATE_CHECK: 1
+  MARIMO_SERVER_SKIP_UPDATE_CHECK: 1
   UV_EXCLUDE_NEWER: "7 days"
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       playwright: ${{ steps.filter.outputs.playwright }}
     steps:
@@ -35,10 +35,10 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
     timeout-minutes: 18 # 2024-01-18 avg: 5.0m max: 7.0m
-    runs-on: ubuntu-24.04
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     container:
       # Keep this tag in sync with EXPECTED_PLAYWRIGHT_VERSION below.
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -58,10 +58,12 @@ jobs:
 
       - name: Write TOML
         run: |
-          echo "[runtime]" > .marimo.toml
-          echo "auto_instantiate=true" >> .marimo.toml
-          echo "[experimental]" >> .marimo.toml
-          echo "layouts=true" >> .marimo.toml
+          {
+            echo "[runtime]"
+            echo "auto_instantiate=true"
+            echo "[experimental]"
+            echo "layouts=true"
+          } > .marimo.toml
 
       # Turn on automatic instantiation for playwright tests
       - name: Update pyproject.toml
@@ -99,12 +101,12 @@ jobs:
 
       - name: 🐍 Install marimo
         run: |
-          echo "MARIMO_VERSION=$(uv run marimo --version)" >> $GITHUB_ENV
+          echo "MARIMO_VERSION=$(uv run marimo --version)" >> "$GITHUB_ENV"
 
       - name: 🎭 Verify Playwright image version
         working-directory: ./frontend
         env:
-          EXPECTED_PLAYWRIGHT_VERSION: 1.63.0
+          EXPECTED_PLAYWRIGHT_VERSION: 1.64.0
         run: |
           ACTUAL_PLAYWRIGHT_VERSION=$(pnpm exec playwright --version)
           ACTUAL_PLAYWRIGHT_VERSION=${ACTUAL_PLAYWRIGHT_VERSION#Version }

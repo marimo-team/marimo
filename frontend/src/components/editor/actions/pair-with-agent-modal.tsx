@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { CheckIcon, CopyIcon } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,18 +17,16 @@ import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
-import { pairPreviewAtom } from "@/core/config/pair";
+import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
 import {
   AGENT_LABELS,
   AGENT_TABS,
   type AgentTab,
   type ConnectionInfo,
-  getFileFromURL,
   getRawPrompt,
   getTerminalCommand,
   maskToken,
-  SKILL_INSTALL,
   TERMINAL_TABS,
 } from "./pair-with-agent-commands";
 
@@ -52,25 +50,78 @@ export const PairWithAgentModal: React.FC<{
 }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<AgentTab>("claude");
   const runtimeManager = useRuntimeManager();
-  const preview = useAtomValue(pairPreviewAtom);
+  const config = useAtomValue(pairConfigAtom);
+  const hostEnabled = config?.hostEnabled ?? false;
   const stableSessionId = useAtomValue(stableSessionIdAtom);
-  const commandStep = preview ? 1 : 2;
+  const lookupIdentity = useMemo(
+    () => ({ hostEnabled, stableSessionId }),
+    [hostEnabled, stableSessionId],
+  );
+  const [lookup, setLookup] = useState<
+    {
+      identity: typeof lookupIdentity;
+    } & ({ status: "ready"; notebookId: string | null } | { status: "error" })
+  >();
+  useEffect(() => {
+    const { hostEnabled, stableSessionId: sessionId } = lookupIdentity;
+    if (!hostEnabled || !sessionId) {
+      return;
+    }
+    let cancelled = false;
+    API.get<Record<string, { session_id: string; notebook_id: string | null }>>(
+      "/sessions",
+    )
+      .then((sessions) => {
+        if (!cancelled) {
+          const session = Object.values(sessions).find(
+            (session) => session.session_id === sessionId,
+          );
+          setLookup(
+            session
+              ? {
+                  identity: lookupIdentity,
+                  status: "ready",
+                  notebookId: session.notebook_id,
+                }
+              : { identity: lookupIdentity, status: "error" },
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLookup({ identity: lookupIdentity, status: "error" });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupIdentity]);
+  const currentLookup =
+    lookup?.identity === lookupIdentity ? lookup : undefined;
+  const verified = !hostEnabled || currentLookup?.status === "ready";
+  const notebookId =
+    hostEnabled && currentLookup?.status === "ready"
+      ? currentLookup.notebookId
+      : undefined;
+  const targetReady = Boolean(stableSessionId) && verified;
   const authToken = useAuthToken();
   const hasToken = Boolean(authToken);
   const connection: ConnectionInfo = {
     url: runtimeManager.httpURL.toString(),
-    file: preview ? undefined : getFileFromURL(window.location.href),
-    session: preview ? (stableSessionId ?? undefined) : undefined,
+    notebook: notebookId ?? undefined,
+    session:
+      targetReady && !notebookId ? (stableSessionId ?? undefined) : undefined,
   };
 
   return (
     <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Pair with an agent</DialogTitle>
+        <DialogTitle>Pair an agent to this notebook</DialogTitle>
         <DialogDescription>
-          Use an AI coding agent to pair-program on this notebook.{" "}
+          Choose your coding agent, then follow the instructions below to
+          connect it to this notebook using marimo pair.{" "}
           <a
-            href="https://links.marimo.app/marimo-pair"
+            href="https://links.marimo.app/docs-marimo-pair"
             target="_blank"
             rel="noopener noreferrer"
             className="underline"
@@ -83,6 +134,13 @@ export const PairWithAgentModal: React.FC<{
       </DialogHeader>
 
       <div className="flex flex-col gap-4 py-2">
+        {!targetReady && (
+          <output className="text-sm text-muted-foreground">
+            {currentLookup?.status === "error"
+              ? "Could not verify this notebook. Close this dialog and try again."
+              : "Waiting for the notebook connection…"}
+          </output>
+        )}
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as AgentTab)}
@@ -101,30 +159,22 @@ export const PairWithAgentModal: React.FC<{
               value={tab}
               className="mt-4 flex flex-col gap-4"
             >
-              {!preview && (
-                <Step
-                  index={1}
-                  title="Install the skill"
-                  hint="Run once per machine."
-                >
-                  <CommandBlock command={SKILL_INSTALL} />
-                </Step>
-              )}
-              <Step index={commandStep} title="Run in your terminal">
+              <Step
+                index={hasToken ? 1 : undefined}
+                title="Run this command in your terminal:"
+              >
                 <CommandBlock
                   command={getTerminalCommand(
                     tab,
                     connection,
                     hasToken,
-                    preview,
+                    config,
                   )}
+                  disabled={!targetReady}
                 />
               </Step>
               {hasToken && authToken && (
-                <Step
-                  index={commandStep + 1}
-                  title="Paste when prompted for a token"
-                >
+                <Step index={2} title="When prompted, paste this token:">
                   <CommandBlock
                     command={authToken}
                     display={maskToken(authToken)}
@@ -136,18 +186,8 @@ export const PairWithAgentModal: React.FC<{
           ))}
 
           <TabsContent value="prompt" className="mt-4 flex flex-col gap-4">
-            {!preview && (
-              <Step
-                index={1}
-                title="Make sure the marimo-pair skill is available to your agent"
-                hint="Skip if your agent already has it."
-              >
-                <CommandBlock command={SKILL_INSTALL} />
-              </Step>
-            )}
             <Step
-              index={commandStep}
-              title="Copy this prompt into your agent"
+              title="Paste this prompt into your coding agent:"
               hint={
                 hasToken
                   ? "Includes your auth token — keep it private."
@@ -155,13 +195,14 @@ export const PairWithAgentModal: React.FC<{
               }
             >
               <CommandBlock
-                command={getRawPrompt(connection, authToken, preview)}
+                command={getRawPrompt(connection, authToken, config)}
                 display={getRawPrompt(
                   connection,
                   authToken ? maskToken(authToken) : null,
-                  preview,
+                  config,
                 )}
                 multiline={true}
+                disabled={!targetReady}
               />
             </Step>
           </TabsContent>
@@ -178,7 +219,7 @@ export const PairWithAgentModal: React.FC<{
 };
 
 const Step: React.FC<{
-  index: number;
+  index?: number;
   title: string;
   hint?: string;
   children: React.ReactNode;
@@ -186,7 +227,8 @@ const Step: React.FC<{
   <div className="flex flex-col gap-2">
     <div className="flex items-baseline gap-2">
       <span className="text-sm font-medium">
-        {index}. {title}
+        {index !== undefined && `${index}. `}
+        {title}
       </span>
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
@@ -199,11 +241,21 @@ const CommandBlock: React.FC<{
   display?: string;
   multiline?: boolean;
   copyLabel?: string;
-}> = ({ command, display, multiline = false, copyLabel = "Copy command" }) => {
+  disabled?: boolean;
+}> = ({
+  command,
+  display,
+  multiline = false,
+  copyLabel = "Copy command",
+  disabled = false,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const copy = Events.stopPropagation(async (e) => {
     e.preventDefault();
+    if (disabled) {
+      return;
+    }
     await copyToClipboard(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -218,6 +270,7 @@ const CommandBlock: React.FC<{
         <Tooltip content="Copied!" open={copied}>
           <Button
             aria-label="Copy prompt"
+            disabled={disabled}
             onClick={copy}
             size="xs"
             variant="ghost"
@@ -240,7 +293,13 @@ const CommandBlock: React.FC<{
         {display ?? command}
       </code>
       <Tooltip content="Copied!" open={copied}>
-        <Button aria-label={copyLabel} onClick={copy} size="xs" variant="ghost">
+        <Button
+          aria-label={copyLabel}
+          onClick={copy}
+          size="xs"
+          variant="ghost"
+          disabled={disabled}
+        >
           {copied ? (
             <CheckIcon size={14} strokeWidth={1.5} />
           ) : (

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md(r"""
     Use `mo.md` with an `f-string` to create markdown that depends on the value of Python objects.
     """)
-    return
 
 
 @app.cell
@@ -19,13 +18,12 @@ def _():
 
 
 @app.cell
-def _(mo, name):
+def _(mo, name: str):
     mo.md(
         f"""
         Hello, {name}!
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -33,7 +31,6 @@ def _(mo):
     mo.md(r"""
     Embed marimo UI elements in markdown directly:
     """)
-    return
 
 
 @app.cell
@@ -51,7 +48,6 @@ def _(mo, text_input):
         Hello, {text_input.value}!
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -59,7 +55,6 @@ def _(mo):
     mo.md(r"""
     Wrap plots and data structures in `mo.as_html()` to hook into marimo's rich media viewer:
     """)
-    return
 
 
 @app.cell
@@ -71,7 +66,6 @@ def _(mo):
         {mo.as_html([1, 2, 3])}
         """
     )
-    return
 
 
 @app.cell

@@ -31,7 +31,7 @@
 }
 
 /* When any element is fullscreen, hide the element with this class */
-:root:has(:fullscreen) .hide-on-fullscreen {
+:root.marimo-fullscreen .hide-on-fullscreen {
   display: none !important;
 }
 

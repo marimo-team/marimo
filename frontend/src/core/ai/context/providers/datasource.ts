@@ -98,8 +98,12 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
   public formatContext(item: DatasourceContextItem): string {
     const data = item.data;
     // Remove certain fields that are not needed in the context
-    const { name, display_name, source, ...filteredDatasource } =
-      data.connection;
+    const {
+      name,
+      display_name: _displayName,
+      source: _source,
+      ...filteredDatasource
+    } = data.connection;
 
     let datasource = filteredDatasource;
     const isInternalEngine = INTERNAL_SQL_ENGINES.has(name as ConnectionName);

@@ -481,10 +481,6 @@ class SessionViewExtension(EventAwareExtension):
         if not isinstance(request, commands.CodeCompletionCommand):
             session.session_view.add_control_request(request)
 
-    def on_received_stdin(self, session: Session, stdin: str) -> None:
-        """Called when stdin is received."""
-        session.session_view.add_stdin(stdin)
-
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
@@ -509,11 +505,6 @@ class QueueExtension(EventAwareExtension):
         del session
         del from_consumer_id
         self.queue_manager.put_control_request(request)
-
-    def on_received_stdin(self, session: Session, stdin: str) -> None:
-        """Called when stdin is received."""
-        del session
-        self.queue_manager.put_input(stdin)
 
 
 class ReplayExtension(EventAwareExtension):
@@ -540,7 +531,7 @@ class ReplayExtension(EventAwareExtension):
 
         # Collect cell ids and codes
         if isinstance(request, ExecuteCellsCommand):
-            cell_ids = request.cell_ids
+            cell_ids = [cell.cell_id for cell in request.execution_requests]
         else:
             cell_ids = request.run_ids
 

@@ -786,6 +786,10 @@ def _resolve_pip_packages(packages: list[str]) -> list[str]:
                     str(req_file),
                     "--output-file",
                     str(out_file),
+                    # Build not needed for best effort
+                    "--no-build",
+                    # Ignore uv.toml/pyproject.toml
+                    "--no-config",
                 ],
                 capture_output=True,
                 text=True,

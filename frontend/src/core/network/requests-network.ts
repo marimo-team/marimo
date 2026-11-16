@@ -70,28 +70,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendDocumentTransaction: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/document/transaction", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendRename: (request) => {
       return getClient()
         .POST("/api/kernel/rename", {
           body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendSave: (request) => {
-      return getClient()
-        .POST("/api/kernel/save", {
-          body: request,
-          parseAs: "text",
           params: getParams(),
         })
         .then(handleResponseReturnNull);
@@ -112,25 +94,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
-    sendInterrupt: () => {
-      return getClient()
-        .POST("/api/kernel/interrupt", {
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendShutdown: () => {
       return getClient()
         .POST("/api/kernel/shutdown")
-        .then(handleResponseReturnNull);
-    },
-    sendRun: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/run", {
-          body: request,
-          params: getParams(),
-        })
         .then(handleResponseReturnNull);
     },
     sendRunScratchpad: async (request) => {
@@ -146,14 +112,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/instantiate", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendDeleteCell: (request) => {
-      return getClient()
-        .POST("/api/kernel/delete", {
           body: request,
           params: getParams(),
         })
@@ -175,6 +133,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    saveLayout: (request) => {
+      return getClient()
+        .POST("/api/kernel/save_layout", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     saveAppConfig: (request) => {
       return getClient()
         .POST("/api/kernel/save_app_config", {
@@ -184,25 +150,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    saveCellConfig: (request) => {
-      return getClient()
-        .POST("/api/kernel/set_cell_config", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendFunctionRequest: (request) => {
       return getClient()
         .POST("/api/kernel/function_call", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendStdin: (request) => {
-      return getClient()
-        .POST("/api/kernel/stdin", {
           body: request,
           params: getParams(),
         })

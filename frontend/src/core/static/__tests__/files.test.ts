@@ -654,19 +654,47 @@ describe("error handling and edge cases", () => {
     unpatch();
   });
 
-  it("should handle malformed URLs gracefully", async () => {
-    const virtualFiles = {};
-    const unpatch = patchFetch(virtualFiles);
+  it("forwards relative URLs and options to the original fetch", async () => {
+    const response = new Response("relative content");
+    const originalFetch = vi.spyOn(window, "fetch").mockResolvedValue(response);
+    const unpatch = patchFetch({});
+    const options = { headers: { Accept: "text/plain" } };
 
-    // Mock Logger.error to avoid test output
+    try {
+      expect(await window.fetch("relative-file.txt", options)).toBe(response);
+      expect(originalFetch).toHaveBeenCalledExactlyOnceWith(
+        "relative-file.txt",
+        options,
+      );
+    } finally {
+      unpatch();
+      originalFetch.mockRestore();
+    }
+  });
+
+  it("preserves the original fetch rejection for malformed URLs", async () => {
+    const error = new TypeError("Invalid URL");
+    const originalFetch = vi.spyOn(window, "fetch").mockRejectedValue(error);
     const loggerSpy = vi
       .spyOn(console, "error")
       .mockImplementation(Functions.NOOP);
+    const unpatch = patchFetch({});
+    const options = { headers: { Accept: "text/plain" } };
 
-    // This should catch the error and fallback to original fetch
-    await window.fetch("not-a-valid-url").catch(() => undefined);
-
-    unpatch();
-    loggerSpy.mockRestore();
+    try {
+      await expect(window.fetch("http://[", options)).rejects.toBe(error);
+      expect(originalFetch).toHaveBeenCalledExactlyOnceWith(
+        "http://[",
+        options,
+      );
+      expect(loggerSpy).toHaveBeenCalledWith(
+        "Error parsing URL",
+        expect.any(TypeError),
+      );
+    } finally {
+      unpatch();
+      originalFetch.mockRestore();
+      loggerSpy.mockRestore();
+    }
   });
 });

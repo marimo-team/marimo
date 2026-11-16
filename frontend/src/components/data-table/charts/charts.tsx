@@ -13,8 +13,8 @@ import {
   XIcon,
 } from "lucide-react";
 import type { JSX } from "react";
-import React, { useMemo, useRef, useState } from "react";
-import { type UseFormReturn, useForm } from "react-hook-form";
+import React, { useMemo, useState } from "react";
+import { type UseFormReturn, useForm, useWatch } from "react-hook-form";
 import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -48,7 +48,12 @@ import { HeatmapForm } from "./forms/heatmap";
 import { PieForm } from "./forms/pie";
 import { LazyChart } from "./lazy-chart";
 import { ChartSchema, type ChartSchemaType, getChartDefaults } from "./schemas";
-import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
+import {
+  createTabId,
+  getChartTabName,
+  type TabName,
+  tabsStorageAtom,
+} from "./storage";
 import { ChartType } from "./types";
 
 const NEW_CHART_TYPE = "bar" as ChartType;
@@ -103,26 +108,28 @@ export const TablePanel: React.FC<TablePanelProps> = ({
 
   const [selectedTab, setSelectedTab] = useState(DEFAULT_TAB_NAME);
   const [tabCounter, setTabCounter] = useState(tabs.length);
-  const prevDisplayHeader = useRef(displayHeader);
+  const [prevDisplayHeader, setPrevDisplayHeader] = useState(displayHeader);
+
+  if (displayHeader !== prevDisplayHeader) {
+    setPrevDisplayHeader(displayHeader);
+  }
 
   // Auto-create a default chart tab when chart builder opens with no tabs
-  if (
-    displayHeader &&
-    !prevDisplayHeader.current &&
-    tabs.length === 0 &&
-    cellId
-  ) {
-    prevDisplayHeader.current = displayHeader;
+  if (displayHeader && !prevDisplayHeader && tabs.length === 0 && cellId) {
     const tabName = getChartTabName(0, NEW_CHART_TYPE);
     const newTabs = new Map(tabsMap);
     newTabs.set(cellId, [
-      { tabName, chartType: NEW_CHART_TYPE, config: getChartDefaults() },
+      {
+        id: createTabId(),
+        tabName,
+        chartType: NEW_CHART_TYPE,
+        config: getChartDefaults(),
+      },
     ]);
     saveTabsMap(newTabs);
     setTabCounter(1);
     setSelectedTab(tabName);
   }
-  prevDisplayHeader.current = displayHeader;
 
   if (!displayHeader || (tabs.length === 0 && !displayHeader)) {
     return dataTable;
@@ -138,6 +145,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     newTabs.set(cellId, [
       ...tabs,
       {
+        id: createTabId(),
         tabName,
         chartType: NEW_CHART_TYPE,
         config: getChartDefaults(),
@@ -236,9 +244,9 @@ export const TablePanel: React.FC<TablePanelProps> = ({
         >
           Table
         </TabsTrigger>
-        {tabs.map((tab, idx) => (
+        {tabs.map((tab) => (
           <TabsTrigger
-            key={idx}
+            key={tab.id}
             className="text-xs"
             value={tab.tabName}
             onClick={() => setSelectedTab(tab.tabName)}
@@ -266,7 +274,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
       <TabsContent className="mt-1 overflow-hidden" value={DEFAULT_TAB_NAME}>
         {dataTable}
       </TabsContent>
-      {tabs.map((tab, idx) => {
+      {tabs.map((tab) => {
         const saveChart = (formValues: ChartSchemaType) => {
           saveTabChart({
             tabName: tab.tabName,
@@ -278,7 +286,11 @@ export const TablePanel: React.FC<TablePanelProps> = ({
           saveTabChartType(tab.tabName, chartType);
         };
         return (
-          <TabsContent key={idx} value={tab.tabName} className="h-[400px] mt-0">
+          <TabsContent
+            key={tab.id}
+            value={tab.tabName}
+            className="h-[400px] mt-0"
+          >
             <ChartPanel
               tableData={data}
               chartConfig={tab.config}
@@ -320,9 +332,10 @@ export const ChartPanel: React.FC<{
   saveChartType,
   getDataUrl,
   fieldTypes,
-  hasSchema = Boolean(fieldTypes?.length),
+  hasSchema: providedHasSchema,
   isLargeDataset,
 }) => {
+  const hasSchema = providedHasSchema ?? Boolean(fieldTypes?.length);
   const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
     defaultValues: chartConfig ?? getChartDefaults(),
@@ -370,20 +383,17 @@ export const ChartPanel: React.FC<{
     // Re-run when the data table changes
   }, [tableData, renderLargeCharts, csvFieldTypes]);
 
-  const formValues = form.watch();
+  // useWatch returns a new object only when a value changes. It is typed as
+  // deeply partial, but the form always starts from complete defaults.
+  const formValues = useWatch({ control: form.control }) as ChartSchemaType;
 
-  // This ensures the chart re-renders when the actual values change
-  const memoizedFormValues = useMemo(() => {
-    return structuredClone(formValues);
-  }, [formValues]);
-
-  const specWithoutData = createSpecWithoutData(
-    selectedChartType,
-    memoizedFormValues,
+  const specWithoutData = createSpecWithoutData({
+    chartType: selectedChartType,
+    formValues,
     theme,
-    "container",
-    CHART_HEIGHT,
-  );
+    width: "container",
+    height: CHART_HEIGHT,
+  });
 
   // Prevent unnecessary re-renders of the chart
   const memoizedChart = useMemo(() => {

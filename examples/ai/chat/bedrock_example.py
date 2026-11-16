@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -30,7 +30,6 @@ def _(mo):
 
     ⚠️ **Note:** You'll need an AWS account with access to the AWS Bedrock service and the specific model you want to use.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -61,7 +60,7 @@ def _():
 
 
 @app.cell
-def _(aws_config, mo):
+def _(aws_config: dict, mo):
     # Display AWS configuration status
     mo.stop(
         not aws_config["has_credentials"],
@@ -84,7 +83,6 @@ def _(aws_config, mo):
             3. Use an AWS profile in ~/.aws/credentials
         """),
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -163,7 +161,6 @@ def _(mo):
     mo.md(r"""
     ## AWS Bedrock Chat
     """)
-    return
 
 
 @app.cell
@@ -222,7 +219,6 @@ def _(config_form, max_tokens, mo, temperature):
     # Display the chat interface
     chatbot = create_chat(config_form)
     chatbot
-    return
 
 
 @app.cell
@@ -243,7 +239,6 @@ def _(mo):
     - That you have requested model access in the AWS Bedrock console
     - That you're using a region where the selected model is available
     """)
-    return
 
 
 if __name__ == "__main__":

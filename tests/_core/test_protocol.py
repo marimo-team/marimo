@@ -12,21 +12,30 @@ from typing import Any
 import msgspec
 import pytest
 
-from marimo._core import protocol
+from marimo._core import protocol, protocol_events
 
 FIXTURES = (
     Path(__file__).resolve().parents[2] / "protocols" / "host" / "fixtures"
 )
+EXPERIMENTAL_FIXTURES = (
+    FIXTURES.parent / "experimental" / "analysis" / "fixtures"
+)
+
 MODELS = {
     "record.json": protocol.HostRecord,
     "cell.json": protocol.Cell,
+    "cell-withheld.json": protocol.Cell,
     "analysis.json": protocol.Analysis,
     "diagnostic.json": protocol.Error,
     "edit.json": protocol.EditRequest,
-    "edit-conflict-request.json": protocol.EditRequest,
+    "stale-edit-request.json": protocol.EditRequest,
     "edit-response.json": protocol.EditResponse,
     "execution-restored.json": protocol.Execution,
+    "execute-request.json": protocol.ExecuteRequest,
     "run-cells-request.json": protocol.RunRequest,
+    "input-reply-request.json": protocol.InputReplyRequest,
+    "input-reply-response.json": protocol.Input,
+    "interrupt-runtime-response.json": protocol.Runtime,
 }
 
 
@@ -80,16 +89,19 @@ def assert_content_hashes(value: Any) -> None:
             assert_content_hashes(child)
     elif isinstance(value, dict):
         for key, child in value.items():
-            if key in {"etag", "code_hash"} or key.endswith("_etag"):
+            if key == "etag" or key.endswith("_etag"):
                 if child is not None and child != "*":
                     assert re.fullmatch(r"[0-9a-f]{16}", child), (key, child)
             assert_content_hashes(child)
-        if "code_hash" in value and isinstance(value.get("code"), str):
-            assert value["code_hash"] == content_hash(value["code"])
-        if {"etag", "config", "name", "code_hash"} <= value.keys():
+        if "code_fingerprint" in value:
+            assert isinstance(value["code_fingerprint"], str)
+            assert value["code_fingerprint"]
+        if {"etag", "config", "name"} <= value.keys() and isinstance(
+            value.get("code"), str
+        ):
             config = value["config"]
             parts = [
-                value["code_hash"],
+                content_hash(value["code"]),
                 value["name"],
                 *(
                     canonical_json(config[key])
@@ -128,15 +140,21 @@ def assert_immutable(value: object) -> None:
 def round_trip(model: type, text: str) -> None:
     wire = json.loads(text)
     assert_content_hashes(wire)
-    value = msgspec.json.decode(
-        json.dumps({**wire, "future_field": True}), type=model
-    )
+    value = msgspec.json.decode(text, type=model)
+    extended = json.dumps({**wire, "future_field": True})
+    if type(value).__struct_config__.forbid_unknown_fields:
+        with pytest.raises(msgspec.ValidationError, match="future_field"):
+            msgspec.json.decode(extended, type=model)
+    else:
+        assert msgspec.json.decode(extended, type=model) == value
     assert json.loads(msgspec.json.encode(value)) == wire
     assert_immutable(value)
 
 
 @pytest.mark.parametrize(
-    "path", sorted(FIXTURES.rglob("*.json")), ids=lambda path: path.name
+    "path",
+    sorted([*FIXTURES.rglob("*.json"), *EXPERIMENTAL_FIXTURES.glob("*.json")]),
+    ids=lambda path: path.name,
 )
 def test_json_models(path: Path) -> None:
     model = (
@@ -148,7 +166,40 @@ def test_json_models(path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "path", sorted(FIXTURES.glob("*.sse")), ids=lambda path: path.name
+    ("name", "field"),
+    [
+        ("precondition-failed", "index"),
+        ("precondition-failed", "cell"),
+        ("precondition-failed", "document"),
+        ("decision-required", "decisions"),
+    ],
+)
+def test_problems_require_their_type_specific_fields(
+    name: str, field: str
+) -> None:
+    value = json.loads((FIXTURES / "problems" / f"{name}.json").read_text())
+    del value[field]
+    with pytest.raises(msgspec.ValidationError, match=field):
+        msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+
+
+def test_precondition_problem_requires_412_and_allows_a_missing_cell() -> None:
+    value = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text()
+    )
+    value["cell"] = None
+    decoded = msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+    assert isinstance(decoded, protocol.PreconditionFailedProblem)
+    assert json.loads(msgspec.json.encode(decoded)) == value
+    value["status"] = 409
+    with pytest.raises(msgspec.ValidationError, match="status"):
+        msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+
+
+@pytest.mark.parametrize(
+    "path",
+    sorted([*FIXTURES.glob("*.sse"), *EXPERIMENTAL_FIXTURES.glob("*.sse")]),
+    ids=lambda path: path.name,
 )
 def test_stream_models(path: Path) -> None:
     events = stream_events(path)
@@ -157,6 +208,7 @@ def test_stream_models(path: Path) -> None:
     for event in events:
         kind = event["event"]
         data = json.loads(event["data"])
+        round_trip(protocol.Event, json.dumps({**event, "data": data}))
         if kind in ("ready", "reset"):
             assert data == {}
             assert ("id" in event) == (kind == "ready")
@@ -167,13 +219,41 @@ def test_stream_models(path: Path) -> None:
         if "id" in event:
             assert event["id"] not in cursors
             cursors.add(event["id"])
-        model = (
-            protocol.RemovedMessage
-            if kind.endswith(".removed")
-            else getattr(protocol, f"{kind.title()}Message")
-        )
-        round_trip(model, event["data"])
     assert not snapshot, f"{path.name}: incomplete snapshot"
+
+
+@pytest.mark.parametrize(
+    "path",
+    sorted([*FIXTURES.glob("*.sse"), *EXPERIMENTAL_FIXTURES.glob("*.sse")]),
+    ids=lambda path: path.name,
+)
+def test_produced_events_match_wire_fixtures(path: Path) -> None:
+    for frame in stream_events(path):
+        expected = {**frame, "data": json.loads(frame["data"])}
+        wire = msgspec.json.decode(json.dumps(expected), type=protocol.Event)
+        if isinstance(wire, (protocol.ReadyEvent, protocol.ResetEvent)):
+            continue
+        if isinstance(wire, protocol_events.RemovalEvent):
+            record_type = getattr(
+                protocol, frame["event"].removesuffix(".removed").title()
+            )
+            produced = protocol_events.removed(
+                record_type,
+                wire.data.id,
+                request_id=wire.data.request_id,
+                time=wire.data.time,
+            )
+        else:
+            value = protocol_events.body(wire)
+            produced = protocol_events.record(
+                value, request_id=wire.data.request_id, time=wire.data.time
+            )
+            assert protocol_events.body(produced) is value
+        # The stream assigns cursors independently of constructing envelopes.
+        encoded = msgspec.json.encode(
+            msgspec.structs.replace(produced, id=wire.id)
+        )
+        assert json.loads(encoded) == expected
 
 
 def test_custom_event_replay_preserves_envelope_and_cursor() -> None:
@@ -240,8 +320,12 @@ def test_catalog_capabilities_and_runtime_stop() -> None:
             obj = data[kind]
             if kind in {"project", "notebook"}:
                 assert set(obj["operations"]) <= host_operations
-                if "runtime.run" in obj["operations"]:
-                    assert "runtime.interrupt" in obj["operations"]
+                if {"runtime.run", "runtime.execute"}.intersection(
+                    obj["operations"]
+                ):
+                    assert {"runtime.interrupt", "runtime.cancel"} <= set(
+                        obj["operations"]
+                    )
             if kind == "notebook":
                 assert obj["project_id"] in state["project"]
             if kind in {"runtime", "attachment"}:
@@ -322,6 +406,7 @@ def assert_document_hash(
         ("run-cells.sse", "succeeded"),
         ("run-failed.sse", "failed"),
         ("run-interrupted.sse", "interrupted"),
+        ("run-stopped.sse", "succeeded"),
         ("notebook-events.sse", "succeeded"),
     ],
 )
@@ -367,7 +452,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                     "run_id",
                     "runtime_id",
                     "cell_id",
-                    "code_hash",
+                    "code_fingerprint",
                     "caused_by",
                 ):
                     assert execution[field] == previous[field]
@@ -377,16 +462,17 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                 )
             if execution["cell_id"] is None:
                 assert execution["code"] is not None
-                assert execution["stale"] is None
-                assert execution["bindings"] == []
             else:
                 assert execution["code"] is None
             if execution["status"] == "queued":
                 assert execution["outcome"] is None
                 assert execution["started_at"] is None
-            if execution["status"] != "completed":
-                assert execution["bindings"] == []
-            else:
+                assert execution["depends_on"] == {}
+            elif previous is not None and previous["status"] != "queued":
+                assert execution["depends_on"] == previous["depends_on"]
+            for revision in execution["depends_on"].values():
+                assert revision is None or revision["update"] >= 0
+            if execution["status"] == "completed":
                 assert execution["outcome"] is not None
             assert (execution["completed_at"] is not None) == (
                 execution["status"] == "completed"
@@ -394,6 +480,17 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
             executions[execution["id"]] = execution
         elif kind in {"console", "display"}:
             assert data[kind]["execution_id"] in executions
+        elif kind == "variable":
+            variable = data["variable"]
+            execution = executions[variable["execution_id"]]
+            assert execution["cell_id"] is not None
+            if variable["revision"]["update"] == 0:
+                # Bound before the execution completes.
+                assert execution["status"] == "running"
+                assert (
+                    variable["revision"]["execution"]
+                    == variable["execution_id"]
+                )
     assert runs
     assert all(r["status"] == "completed" for r in runs.values())
 
@@ -406,9 +503,7 @@ def test_cell_run_request_and_results() -> None:
     request = json.loads(
         (FIXTURES / "run-cells-request.json").read_text(encoding="utf-8")
     )
-    assert request == {
-        "cells": [{"id": "c3", "code_hash": cells["c3"]["code_hash"]}]
-    }
+    assert request == {"cells": [{"id": "c3", "etag": cells["c3"]["etag"]}]}
     executions = {
         m["execution"]["id"]: m["execution"]
         for m in messages("run-cells.sse", "execution")
@@ -416,18 +511,39 @@ def test_cell_run_request_and_results() -> None:
     assert cells["c3"]["code"] == "x = 21"
     assert cells["k7f2"]["code"] == "y = x * 2"
     assert executions["e12"]["caused_by"] is None
-    assert executions["e13"]["caused_by"] == "e12"
+    assert executions["e13"]["caused_by"] is None
+    assert executions["e12"]["depends_on"] == {}
+    assert executions["e13"]["depends_on"] == {
+        "x": {"execution": "e12", "update": 0}
+    }
     for execution in executions.values():
         assert (
-            execution["code_hash"] == cells[execution["cell_id"]]["code_hash"]
+            execution["code_fingerprint"]
+            == cells[execution["cell_id"]]["code_fingerprint"]
         )
         assert execution["outcome"] == {"kind": "value", "display": None}
-    assert executions["e12"]["bindings"] == [
-        {"name": "x", "type": "int", "preview": "21"}
-    ]
-    assert executions["e13"]["bindings"] == [
-        {"name": "y", "type": "int", "preview": "42"}
-    ]
+    variables = {
+        m["variable"]["name"]: m["variable"]
+        for m in messages("run-cells.sse", "variable")
+    }
+    assert variables == {
+        "x": {
+            "id": "e12-x",
+            "execution_id": "e12",
+            "name": "x",
+            "revision": {"execution": "e12", "update": 0},
+            "type": "int",
+            "preview": "21",
+        },
+        "y": {
+            "id": "e13-y",
+            "execution_id": "e13",
+            "name": "y",
+            "revision": {"execution": "e13", "update": 0},
+            "type": "int",
+            "preview": "42",
+        },
+    }
     assert not messages("run-cells.sse", "console")
 
 
@@ -459,16 +575,15 @@ def test_edit_request_response_and_events() -> None:
             assert all(updated[key] == value for key, value in cell.items())
             cells[cell["id"]] = updated
             touched[cell["id"]] = {
-                key: updated[key] for key in ("etag", "code_hash")
+                key: updated[key]
+                for key in ("etag", "code_fingerprint", "version")
             }
-        elif change["kind"] == "delete_cell":
+        else:
+            assert change["kind"] == "delete_cell"
             assert change["base_etag"] == cells.pop(change["id"])["etag"]
             order.remove(change["id"])
             touched[change["id"]] = None
-        else:
-            assert change["kind"] == "set_app_config"
-            assert change["base_etag"] == before["app_config_etag"]
-            assert change["app_config"] == response["document"]["app_config"]
+    assert response["document"]["app_config"] == before["app_config"]
     assert response["document"]["order"] == order
     assert response["cells"] == touched
     assert_document_hash(response["document"], cells)
@@ -491,20 +606,26 @@ def test_edit_request_response_and_events() -> None:
     }
     assert messages("edits.sse", "cell.removed")[0]["id"] == "k7f2"
 
-    conflict_request = json.loads(
-        (FIXTURES / "edit-conflict-request.json").read_text(encoding="utf-8")
+    stale_request = json.loads(
+        (FIXTURES / "stale-edit-request.json").read_text(encoding="utf-8")
     )
-    conflict = json.loads(
-        (FIXTURES / "problems/edit-conflict.json").read_text(encoding="utf-8")
-    )["edit"]
-    assert len(conflict_request["changes"]) == 1
-    change = conflict_request["changes"][0]
+    failed = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert len(stale_request["changes"]) == 1
+    change = stale_request["changes"][0]
     assert change["base_etag"] != cells[change["cell"]["id"]]["etag"]
-    assert conflict == {
-        "change": 0,
-        "cell": cells["c3"],
-        "document": response["document"],
-    }
+    assert (failed["type"], failed["status"]) == (
+        "urn:marimo:problem:precondition-failed",
+        412,
+    )
+    assert (failed["index"], failed["cell"], failed["document"]) == (
+        0,
+        cells["c3"],
+        response["document"],
+    )
 
 
 def test_restored_result_matches_source() -> None:
@@ -513,12 +634,9 @@ def test_restored_result_matches_source() -> None:
         (FIXTURES / "execution-restored.json").read_text(encoding="utf-8")
     )
     assert restored["cell_id"] == source["id"]
-    assert restored["code_hash"] == content_hash(source["code"])
+    assert restored["code_fingerprint"] == source["code_fingerprint"]
     assert restored["run_id"] is None
     assert restored["runtime_id"] is None
-    assert restored["bindings"] == [
-        {"name": "x", "type": "int", "preview": "21"}
-    ]
 
 
 @pytest.mark.parametrize(
@@ -557,3 +675,46 @@ def test_required_nullable_fields(field: str) -> None:
         msgspec.json.decode(
             json.dumps({**wire, field: ""}), type=protocol.Execution
         )
+
+
+def test_cell_source_is_required_but_nullable_only_in_records() -> None:
+    cell = json.loads((FIXTURES / "cell.json").read_text(encoding="utf-8"))
+    for code in (None, "", cell["code"]):
+        value = msgspec.json.decode(
+            json.dumps({**cell, "code": code}), type=protocol.Cell
+        )
+        assert value.code == code
+    missing = {key: value for key, value in cell.items() if key != "code"}
+    with pytest.raises(
+        msgspec.ValidationError, match="missing required field"
+    ):
+        msgspec.json.decode(json.dumps(missing), type=protocol.Cell)
+    for value in ({"id": cell["id"]}, {"id": cell["id"], "code": None}):
+        with pytest.raises(msgspec.ValidationError):
+            msgspec.json.decode(json.dumps(value), type=protocol.CellInput)
+    value = msgspec.json.decode(
+        json.dumps({"id": cell["id"], "code": ""}), type=protocol.CellInput
+    )
+    assert value.code == ""
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (
+            FIXTURES.parent / "conformance/cases/execution-requests.json"
+        ).read_text()
+    ),
+    ids=lambda case: f"{case['schema']}: {case['name']}",
+)
+def test_execution_requests(case: dict[str, Any]) -> None:
+    body = msgspec.json.encode(case["body"])
+    schema = getattr(protocol, case["schema"])
+    if case["valid"]:
+        decoded = msgspec.json.decode(body, type=schema)
+        assert (
+            msgspec.json.decode(msgspec.json.encode(decoded)) == case["body"]
+        )
+    else:
+        with pytest.raises(msgspec.ValidationError):
+            msgspec.json.decode(body, type=schema)

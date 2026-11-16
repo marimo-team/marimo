@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import asdict
 
 import pytest
-from inline_snapshot import snapshot
 
+from marimo._cli.pair.prompts import load_prompt_templates
+from marimo._config.config_schema import DisplayConfig
 from marimo._schemas.session import (
     VERSION,
     Cell,
@@ -20,46 +22,45 @@ from marimo._server.templates.api import (
 from tests._server.templates.utils import parse_mount_config
 
 
-@pytest.mark.parametrize("flag", ["1", "true", " TRUE "])
+def test_render_notebook_tolerates_invalid_config() -> None:
+    config = {"display": {"theme": "invalid", "code_editor_font_size": 18}}
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="edit", config=config
+    )
+    assert (
+        parse_mount_config(html)["config"]["display"]
+        == DisplayConfig(code_editor_font_size=18).to_dict()
+    )
+    assert config == {
+        "display": {"theme": "invalid", "code_editor_font_size": 18}
+    }
+
+
 @pytest.mark.parametrize(
     ("editable", "command"),
     [(True, "uv run marimo"), (False, "uvx marimo@latest")],
 )
-def test_render_notebook_pair_preview(
-    monkeypatch: pytest.MonkeyPatch, flag: str, editable: bool, command: str
+def test_pair_cli_config_uses_installation_command(
+    monkeypatch: pytest.MonkeyPatch, editable: bool, command: str
 ) -> None:
-    monkeypatch.setenv("MARIMO_PAIR_NEXT", flag)
     monkeypatch.setattr(
         "marimo._cli.pair.prompts.is_editable", lambda _: editable
     )
     html = render_notebook(
         code="import marimo\napp = marimo.App()", mode="edit"
     )
-    assert parse_mount_config(html)["pairPreview"] == {
+    assert parse_mount_config(html)["pairConfig"] == {
         "command": command,
-        "templates": snapshot(
-            {
-                "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.\n\nOnce connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).{authentication}",
-                "session": "Session: {session}\n",
-                "token_file": "\n\nFor authenticated Pair commands, pass `--token-file {token_file}`.",
-                "token": "\n\nFor authenticated Pair commands, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
-            }
-        ),
+        "templates": asdict(load_prompt_templates()),
+        "hostEnabled": True,
     }
 
 
-@pytest.mark.parametrize("flag", [None, "", "0", "false"])
-def test_render_notebook_omits_pair_preview(
-    monkeypatch: pytest.MonkeyPatch, flag: str | None
-) -> None:
-    if flag is None:
-        monkeypatch.delenv("MARIMO_PAIR_NEXT", raising=False)
-    else:
-        monkeypatch.setenv("MARIMO_PAIR_NEXT", flag)
+def test_read_mode_disables_agent_aware_ui() -> None:
     html = render_notebook(
-        code="import marimo\napp = marimo.App()", mode="edit"
+        code="import marimo\napp = marimo.App()", mode="read"
     )
-    assert "pairPreview" not in parse_mount_config(html)
+    assert parse_mount_config(html)["pairConfig"]["hostEnabled"] is False
 
 
 class TestRenderNotebook(unittest.TestCase):
@@ -171,6 +172,19 @@ if __name__ == "__main__":
             "type": "slides",
             "data": {"deck": {}},
         }
+
+    def test_render_static_notebook_tolerates_invalid_config(self) -> None:
+        html = render_static_notebook(
+            code=self.code,
+            session_snapshot=self.session_snapshot,
+            config={
+                "display": {"theme": "invalid", "code_editor_font_size": 18}
+            },
+        )
+        assert (
+            parse_mount_config(html)["config"]["display"]
+            == DisplayConfig(code_editor_font_size=18).to_dict()
+        )
 
     def test_render_static_notebook_validates_layout(self) -> None:
         html = render_static_notebook(

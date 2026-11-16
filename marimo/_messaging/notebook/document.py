@@ -13,18 +13,14 @@ that goes through this model is last-write-wins with intra-transaction
 conflict detection (`_validate` catches contradictions like delete +
 update on the same cell within one batch).
 
-`SetCode` is a wholesale replacement without character-level
-merge. Loro CRDT may handle real-time collaborative text editing in
-the future, but cell code would then live outside this model entirely.
+`SetCode` is a wholesale replacement without character-level merge.
 """
 
 from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import TYPE_CHECKING
-
-from marimo._utils.assert_never import assert_never
+from typing import TYPE_CHECKING, assert_never
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator

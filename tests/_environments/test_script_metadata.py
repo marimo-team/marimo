@@ -27,6 +27,27 @@ BLOCK_WITH_TOOL_TABLES = """\
 """
 
 
+@pytest.mark.parametrize(
+    ("manifest", "expected"),
+    [
+        (
+            "# /// script\n# [tool.pixi.workspace]\n# channels = []\n# ///\n",
+            True,
+        ),
+        (
+            "# /// script\n# [tool.marimo.venv]\n# path = '.venv'\n# ///\n",
+            False,
+        ),
+        ("import marimo\n", False),
+        ("# /// script\n# [tool.pixi\n# ///\n", False),
+    ],
+)
+def test_declares_pixi(tmp_path: Path, manifest: str, expected: bool) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(manifest)
+    assert script_metadata.declares_pixi(str(notebook)) is expected
+
+
 def test_loads_returns_none_without_block() -> None:
     assert script_metadata.loads("print('hi')\n") is None
 

@@ -40,8 +40,7 @@ if TYPE_CHECKING:
         Sequence,
     )
     from contextlib import AbstractAsyncContextManager
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runner.result import RunResult

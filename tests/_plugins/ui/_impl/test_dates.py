@@ -12,6 +12,104 @@ from marimo._plugins import ui
 HAS_PANDAS = DependencyManager.pandas.has()
 
 
+@pytest.mark.parametrize("widget", [ui.date, ui.date_range])
+@pytest.mark.parametrize(
+    ("start", "stop"),
+    [
+        (datetime.datetime(2024, 1, 1, 12), None),
+        (None, datetime.datetime(2024, 1, 31, 12)),
+        (
+            datetime.datetime(2024, 1, 1, 12),
+            datetime.datetime(2024, 1, 31, 12),
+        ),
+        (datetime.datetime(2024, 1, 1, 12), datetime.date(2024, 1, 31)),
+        ("2024-01-01", datetime.datetime(2024, 1, 31, 12)),
+    ],
+)
+def test_date_datetime_bounds(widget, start, stop) -> None:
+    picker = widget(start=start, stop=stop)
+    first = datetime.date(2024, 1, 1)
+    last = datetime.date(2024, 1, 31)
+    assert (picker.start, picker.stop) == (
+        first if start is not None else datetime.date.min,
+        last if stop is not None else datetime.date.max,
+    )
+    if widget is ui.date:
+        assert picker.value == (first if start is not None else last)
+    else:
+        assert picker.value == (
+            first if start is not None else last,
+            last if stop is not None else first,
+        )
+    assert picker._args.args == {
+        "start": first.isoformat() if start is not None else "0001-01-01",
+        "stop": last.isoformat() if stop is not None else "9999-12-31",
+        "full-width": False,
+        "disabled": False,
+    }
+
+
+@pytest.mark.parametrize("widget", [ui.date, ui.date_range])
+@pytest.mark.parametrize(
+    "value",
+    [
+        datetime.datetime(2024, 1, 1, 12),
+        datetime.datetime(
+            2024,
+            1,
+            1,
+            23,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-8)),
+        ),
+    ],
+)
+def test_date_datetime_value(widget, value) -> None:
+    expected = datetime.date(2024, 1, 1)
+    picker = widget(value=value if widget is ui.date else (value, value))
+    assert picker.value == (
+        expected if widget is ui.date else (expected, expected)
+    )
+
+    # Bounds and values are compared by date, regardless of time of day.
+    picker = widget(
+        start=datetime.datetime(2024, 1, 1, 18),
+        stop=datetime.datetime(2024, 1, 1, 6),
+        value=value if widget is ui.date else (value, value),
+    )
+    assert picker.value == (
+        expected if widget is ui.date else (expected, expected)
+    )
+
+    with pytest.raises(ValueError, match="The default value"):
+        widget(
+            start="2024-01-02",
+            value=value if widget is ui.date else (value, value),
+        )
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.date, ui.date_range])
+def test_date_pandas_timestamps(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series(
+        [pd.Timestamp("2024-01-01 12:00"), pd.Timestamp("2024-01-31 18:00")]
+    )
+    first, last = datetime.date(2024, 1, 1), datetime.date(2024, 1, 31)
+    picker = widget(start=series.min(), stop=series.max())
+    assert (picker.start, picker.stop, picker.value) == (
+        first,
+        last,
+        first if widget is ui.date else (first, last),
+    )
+    picker = widget(
+        value=series.max()
+        if widget is ui.date
+        else (series.min(), series.max())
+    )
+    assert picker.value == (last if widget is ui.date else (first, last))
+
+
 def test_date() -> None:
     date = ui.date()
     today = date.value
@@ -216,6 +314,34 @@ def test_date_range_from_dataframe() -> None:
     )
     assert date_range_ui.start == datetime.date(2024, 1, 1)
     assert date_range_ui.stop == datetime.date(2024, 1, 31)
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.date, ui.datetime, ui.date_range])
+def test_date_from_empty_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([], dtype="datetime64[ns]")
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+    if widget is ui.datetime:
+        start, stop = "2024-01-01T00:00", "2024-01-02T00:00"
+    else:
+        start, stop = "2024-01-01", "2024-01-02"
+    element = widget.from_series(series, start=start, stop=stop)
+    assert element.start.isoformat().startswith("2024-01-01")
+    assert element.stop.isoformat().startswith("2024-01-02")
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.date, ui.datetime, ui.date_range])
+def test_date_from_all_null_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([pd.NaT, pd.NaT], dtype="datetime64[ns]")
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
 
 
 def test_datetime_precision_default() -> None:

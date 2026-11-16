@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
-from marimo._config.config import MarimoConfig
+from marimo._config.config_schema import MarimoConfig
+from marimo._config.provenance import ConfigPath
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context.types import (
@@ -72,6 +73,10 @@ class KernelRuntimeContext(RuntimeContext):
     @property
     def marimo_config(self) -> MarimoConfig:
         return self._kernel.user_config
+
+    @property
+    def config_overrides(self) -> frozenset[ConfigPath]:
+        return frozenset(self._kernel.config_overrides)
 
     @property
     def lazy(self) -> bool:
@@ -164,6 +169,7 @@ def create_kernel_context(
         VirtualFileStorage,
     )
     from marimo._save.cache import CacheState
+    from marimo._save.loaders import get_loader_key
     from marimo._save.signing_policy import get_signing_policy
     from marimo._save.stores import cache_store_is_untrusted, get_store
 
@@ -198,6 +204,13 @@ def create_kernel_context(
                 parent.cache.signing_policy
                 if parent is not None
                 else get_signing_policy(
+                    kernel.app_metadata.filename, config=kernel.user_config
+                )
+            ),
+            loader=(
+                parent.cache.loader
+                if parent is not None
+                else get_loader_key(
                     kernel.app_metadata.filename, config=kernel.user_config
                 )
             ),

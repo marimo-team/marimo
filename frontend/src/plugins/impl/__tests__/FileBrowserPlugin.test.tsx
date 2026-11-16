@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -88,6 +89,50 @@ beforeAll(() => {
 });
 
 describe("FileBrowserPlugin session cache recovery", () => {
+  it("delays the initial loading overlay and hides it when listing completes", async () => {
+    vi.useFakeTimers();
+    try {
+      let resolveListing: (value: {
+        files: MockFile[];
+        total_count: number;
+        is_truncated: boolean;
+      }) => void = () => undefined;
+      const listDirectory = vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveListing = resolve;
+          }),
+      );
+      const { unmount } = renderBrowser({ list_directory: listDirectory });
+
+      await act(async () => {
+        vi.advanceTimersByTime(199);
+      });
+      expect(screen.queryByText("Listing files...")).not.toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.getByText("Listing files...")).toBeInTheDocument();
+
+      await act(async () => {
+        resolveListing({
+          files: FILES,
+          total_count: FILES.length,
+          is_truncated: false,
+        });
+      });
+      expect(screen.queryByText("Listing files...")).not.toBeInTheDocument();
+      expect(screen.getByText("docs")).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText("Listing files...")).not.toBeInTheDocument();
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("retries a failed cached listing when the plugin resets", async () => {
     const host = document.createElement("marimo-file-browser");
     const wrapper = document.createElement("marimo-ui-element");

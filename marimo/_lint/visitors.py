@@ -5,14 +5,25 @@ from __future__ import annotations
 
 import ast
 
+from marimo._ast.definition_range import DefinitionRange, find_definition_range
+
 
 class VariableLineVisitor(ast.NodeVisitor):
     """AST visitor to find the line number of a variable definition."""
 
-    def __init__(self, target_variable: str):
+    def __init__(self, target_variable: str, source: str | None = None):
         self.target_variable = target_variable
         self.line_number: int | None = None
         self.column_number: int = 1
+        self.definition_range: DefinitionRange | None = None
+        self._source = source
+
+    def visit_Module(self, node: ast.Module) -> None:
+        if self._source is not None:
+            self.definition_range = find_definition_range(
+                node, self.target_variable, self._source
+            )
+        self.generic_visit(node)
 
     def visit_Name(self, node: ast.Name) -> None:
         """Visit Name nodes to find variable definitions."""

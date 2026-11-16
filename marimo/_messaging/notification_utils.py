@@ -10,6 +10,8 @@ import sys
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import msgspec
+
 from marimo import _loggers as loggers
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import (
@@ -87,10 +89,10 @@ class CellNotificationUtils:
                 ```
 
                 to your pyproject.toml, or with the environment variable
-                `MARIMO_OUTPUT_MAX_BYTES`:
+                `MARIMO_RUNTIME_OUTPUT_MAX_BYTES`:
 
                 ```
-                export MARIMO_OUTPUT_MAX_BYTES=10_000_000
+                export MARIMO_RUNTIME_OUTPUT_MAX_BYTES=10000000
                 ```
 
                 Increasing the max output size may cause performance issues.
@@ -218,6 +220,7 @@ class CellNotificationUtils:
         clear_console: bool,
         cell_id: CellId_t,
         execution_id: str | None = None,
+        code: str | None = None,
     ) -> None:
         # Import here to avoid circular dependency
         from marimo._messaging.notification import CellNotification
@@ -233,7 +236,7 @@ class CellNotificationUtils:
             try:
                 ctx = get_context()
                 show_tracebacks = bool(
-                    ctx.marimo_config["runtime"].get("show_tracebacks", False)
+                    ctx.marimo_config.runtime.show_tracebacks
                 )
             except ContextNotInitializedError:
                 pass
@@ -265,22 +268,16 @@ class CellNotificationUtils:
         broadcast_notification(
             CellNotification(
                 cell_id=cell_id,
-                output=CellOutput.errors(safe_errors),
+                output=CellOutput.errors(
+                    safe_errors,
+                    code=code
+                    if code is not None and get_mode() == "edit"
+                    else msgspec.UNSET,
+                ),
                 console=console,
                 status=None,
                 execution_id=execution_id,
             )
-        )
-
-    @staticmethod
-    def broadcast_stale(
-        cell_id: CellId_t, stale: bool, stream: Stream | None = None
-    ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
-        broadcast_notification(
-            CellNotification(cell_id=cell_id, stale_inputs=stale), stream
         )
 
     @staticmethod

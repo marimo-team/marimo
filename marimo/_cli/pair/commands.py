@@ -7,32 +7,38 @@ import os
 import re
 import shlex
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import click
+import msgspec
 
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.pair.client import (
-    AmbiguousSessionError,
-    NoSessionError,
+    AmbiguousNotebookError,
+    NoNotebookError,
+    NoRuntimeError,
+    NotebookUnsupportedError,
+    PairConnectionError,
     PairError,
     PairInputError,
-    StableSessionUnsupportedError,
-    StaleSessionError,
+    RunConflictError,
+    StaleNotebookError,
     display_url,
     execute as execute_code,
     list_sessions,
     load_token,
-    registry_urls,
-    resolve_session,
+    resolve_host,
 )
+from marimo._cli.pair.connection import (
+    ConnectionStore,
+    connection_identity,
+)
+from marimo._cli.pair.discovery import list_running_notebooks
+from marimo._cli.pair.forwarder import ForwarderConfig, start_forwarder
+from marimo._cli.pair.harnesses import detect_target, environment_identity
 from marimo._cli.pair.prompts import render_prompt
+from marimo._cli.pair.target import resolve_target
 from marimo._server.ai.skills import utils as skills_utils
-from marimo._utils.env import is_env_true
-
-SKILL_NAME = "marimo-pair"
-SKILL_FILE = "SKILL.md"
 
 _REFERENCES_DIR = (
     Path(skills_utils.__file__).parent / "marimo-pair" / "references"
@@ -49,136 +55,6 @@ def _token_dir() -> Path:
     if _cached_token_dir is None:
         _cached_token_dir = Path(tempfile.mkdtemp(prefix="marimo-pair-"))
     return _cached_token_dir
-
-
-@dataclass(frozen=True)
-class AgentConfig:
-    name: str
-    skill_dirs: list[Path] = field(default_factory=list)
-
-    def has_skill(self) -> bool:
-        for directory in self.skill_dirs:
-            try:
-                if (directory / SKILL_NAME / SKILL_FILE).exists():
-                    return True
-            except OSError:
-                # Skill detection is advisory. An inaccessible directory must
-                # not prevent marimo from generating the pairing prompt.
-                continue
-        return False
-
-
-def _claude_skill_dirs() -> list[Path]:
-    """Return all directories where a Claude Code skill may be installed.
-
-    Skills can be installed directly or bundled in a marketplace plugin in
-    both the global (`~/.claude`) and local (`.claude`) config directories.
-    """
-    roots = [Path.home() / ".claude", Path.cwd() / ".claude"]
-    subdirs = ["skills", "plugins", str(Path("plugins") / "marketplaces")]
-    return [
-        *[root / sub for root in roots for sub in subdirs],
-        *[
-            skill_dir
-            for root in roots
-            for skill_dir in _plugin_skill_dirs(root)
-        ],
-    ]
-
-
-def _plugin_skill_dirs(root: Path) -> list[Path]:
-    """Return skill directories from marketplace and cached plugins."""
-    plugins = root / "plugins"
-    return [
-        *plugins.glob("marketplaces/*/skills"),
-        *plugins.glob(f"cache/*/{SKILL_NAME}/*/skills"),
-    ]
-
-
-def _codex_skill_dirs() -> list[Path]:
-    """Return directories where a Codex skill may be installed.
-
-    Codex loads repository skills from `.agents/skills` directories between
-    the current directory and repository root. It also loads user and admin
-    skills from `~/.agents/skills` and `/etc/codex/skills`, respectively.
-
-    Keep checking `.codex` for existing direct and plugin installations.
-    """
-    cwd = Path.cwd()
-    home = Path.home()
-    roots = [home / ".codex", cwd / ".codex"]
-    return [
-        *_codex_repository_skill_dirs(cwd),
-        home / ".agents" / "skills",
-        Path("/etc/codex/skills"),
-        *[root / "skills" for root in roots],
-        *[
-            skill_dir
-            for root in roots
-            for skill_dir in _plugin_skill_dirs(root)
-        ],
-    ]
-
-
-def _codex_repository_skill_dirs(cwd: Path) -> list[Path]:
-    """Return Codex skill directories from `cwd` through the repository root."""
-    skill_dirs: list[Path] = []
-    for directory in (cwd, *cwd.parents):
-        skill_dirs.append(directory / ".agents" / "skills")
-        try:
-            is_repository_root = (directory / ".git").exists()
-        except OSError:
-            # Do not search above an ancestor whose repository status cannot
-            # be determined. The global user and admin paths remain available.
-            return skill_dirs
-        if is_repository_root:
-            return skill_dirs
-
-    # Outside a Git repository, Codex still checks the current directory.
-    return skill_dirs[:1]
-
-
-def _opencode_skill_dirs() -> list[Path]:
-    """Return directories where an opencode skill (or compatible layout) may live.
-
-    https://opencode.ai/docs/skills/
-    Checked roots are the parent of `<skill-name>/SKILL.md` for:
-
-    - Project opencode: `.opencode/skills/`
-    - Global opencode: `~/.config/opencode/skills/`
-    - Project Claude-compatible: `.claude/skills/`
-    - Global Claude-compatible: `~/.claude/skills/`
-    - Project agent-compatible: `.agents/skills/`
-    - Global agent-compatible: `~/.agents/skills/`
-    """
-    cwd = Path.cwd()
-    home = Path.home()
-    return [
-        cwd / ".opencode" / "skills",
-        home / ".config" / "opencode" / "skills",
-        cwd / ".claude" / "skills",
-        home / ".claude" / "skills",
-        cwd / ".agents" / "skills",
-        home / ".agents" / "skills",
-    ]
-
-
-def pair_agents() -> dict[str, AgentConfig]:
-    """Return agent configs; paths use `Path.cwd()` at call time."""
-    return {
-        "claude": AgentConfig(
-            name="Claude Code",
-            skill_dirs=_claude_skill_dirs(),
-        ),
-        "codex": AgentConfig(
-            name="Codex",
-            skill_dirs=_codex_skill_dirs(),
-        ),
-        "opencode": AgentConfig(
-            name="opencode",
-            skill_dirs=_opencode_skill_dirs(),
-        ),
-    }
 
 
 def _doc_topics() -> dict[str, str]:
@@ -207,38 +83,52 @@ class _DocsCommand(ColoredCommand):
 
     \b
     Authentication:
-      If a token-file path is supplied, add --token-file <PATH> to every
-      execute and notebook list command. Pass the path, not the file contents.
+      Local discovery and execution use private credentials automatically.
+      For explicit server access, pass --token or --token-file, or set
+      MARIMO_TOKEN. Explicit credentials override local discovery.
 
     \b
     Workflow:
-      If no server is running, start one in the background:
-        marimo edit <notebook.py> --no-token
-      If you do not have the server URL or session:
-        marimo pair notebook list
-      marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
-      import marimo._code_mode as cm
-      async with cm.get_context() as ctx:
-          ctx.packages.add("pandas")
-          cid = ctx.create_cell("import pandas as pd")
-          ctx.run_cell(cid)
-      PY
-      marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
-      import marimo._code_mode as cm
-      async with cm.get_context() as ctx:
-          cell = ctx.cells["<CELL_ID>"]
-          print(cell.status, cell.errors, [o.data for o in cell.console_outputs])
-      PY
+      Start a notebook if needed:
+        marimo edit <notebook.py>
+      Find running local notebooks:
+        marimo pair list
+      Execute using an ID from the list:
+        marimo pair execute --session <ID> --code 'print("hello")'
+      For multiline Python, use --file <PATH>, or --file - for stdin:
+        marimo pair execute --session <ID> --file - <<'PY'
+        import marimo._code_mode as cm
+        async with cm.get_context() as ctx:
+            for cell in ctx.cells.values():
+                print(cell.id, cell.code, cell.status)
+        PY
+      To receive notebook messages in a supported harness:
+        marimo pair connect --url <URL> --notebook <ID>
+      Run marimo pair connect --help to check supported harnesses.
 
     \b
     Target selection:
-      --session takes the session_id from marimo pair notebook list. It does not
-      change when the page reloads or the notebook is renamed. If a command reports
-      an unknown session, the notebook was closed or restarted: run
-      marimo pair notebook list again and pick the new session_id.
-      If one notebook has several sessions, ask the user which one.
-      Do not switch sessions after authentication or connection errors,
+      --session accepts a notebook ID from pair list, or an existing session ID.
+      Local notebook IDs resolve their URL automatically. Existing session IDs
+      require --url. --notebook remains an alias for notebook IDs.
+      With either selector, --url restricts discovery to that server.
+      With --url alone, the server must have exactly one running notebook.
+      If several notebooks are open, ask the user which one.
+      Do not switch notebooks after authentication or connection errors,
       or when execution is unconfirmed.
+
+    \b
+    Agent messages (preview):
+      Inside Codex, Claude Code, or OpenCode, run:
+        marimo pair connect --url <URL> --notebook <NOTEBOOK>.
+      Codex must use its shared daemon and support codex queue.
+      Claude Code requires its native inbox on macOS or Linux.
+      OpenCode 2.x requires its registered local service.
+      Inbound message settings still apply; messages can be held or refused.
+      Notebook agent messages arrive here as messages from marimo.
+      Oversized agent messages include a complete JSON file on this machine.
+      Files remain after detach. Cleanup removes owned files older than 24 hours.
+      Use pair detach --notebook <NOTEBOOK> to stop the inbox.
 
     \b
     Rules:
@@ -261,7 +151,7 @@ class _DocsCommand(ColoredCommand):
       ctx.delete_cell(cid)
       ctx.packages.add("pandas>=2")  # queued, installs on exit
       If a cm call fails, run help(cm):
-        marimo pair execute --url <URL> --session <SESSION> -c 'import marimo._code_mode as cm; help(cm)'
+        marimo pair execute --session <ID> --code 'import marimo._code_mode as cm; help(cm)'
     """,
 )
 def pair() -> None:
@@ -271,20 +161,30 @@ def pair() -> None:
 @click.command(
     cls=ColoredCommand,
     help="""Run Python in the selected live notebook kernel's scratchpad.""",
-    short_help="""Run Python in a live notebook session.""",
+    short_help="""Run Python in a live notebook.""",
 )
 @click.option(
     "--url",
-    required=True,
+    required=False,
     metavar="URL",
-    help="Server URL.",
+    help="Restrict notebook discovery and execution to this server.",
+)
+@click.option(
+    "--notebook",
+    "notebook_id",
+    required=False,
+    metavar="ID",
+    help="Alias for --session when selecting a notebook ID.",
 )
 @click.option(
     "--session",
     "session_id",
-    required=False,
+    default=None,
     metavar="ID",
-    help="Stable session_id from marimo pair notebook list.",
+    help="Notebook ID from pair list, or an existing session ID.",
+)
+@click.option(
+    "--token", help="Server token. Overrides MARIMO_TOKEN and local discovery."
 )
 @click.option(
     "--token-file",
@@ -293,12 +193,15 @@ def pair() -> None:
     help="Read the server token from a local file.",
 )
 @click.option(
+    "--code",
     "-c",
-    "code",
     help="Inline Python.",
 )
 @click.option(
+    "--file",
     "--code-file",
+    "-f",
+    "code_file",
     metavar="PATH",
     help="Read Python from a UTF-8 file, or from stdin when PATH is '-'. Supply exactly one input option.",
 )
@@ -311,15 +214,30 @@ def pair() -> None:
 @click.pass_context
 def execute(
     ctx: click.Context,
-    url: str,
+    url: str | None,
+    notebook_id: str | None,
     session_id: str | None,
     token_file: Path | None,
+    token: str | None,
     code: str | None,
     code_file: str | None,
     stream: bool,
 ) -> None:
+    if notebook_id is not None and session_id is not None:
+        raise click.UsageError("Pass --session or --notebook, not both.")
+    if session_id == "" or notebook_id == "":
+        raise click.UsageError("The session ID must not be empty.")
     if (code is None) == (code_file is None):
-        raise click.UsageError("Specify -c or --code-file.")
+        raise click.UsageError("Specify exactly one of --code or --file.")
+
+    if token is not None and token_file is not None:
+        raise click.UsageError("Pass --token or --token-file, not both.")
+    if token == "":
+        raise click.UsageError("The token must not be empty.")
+    if url is None and session_id is None and notebook_id is None:
+        raise click.UsageError(
+            "Pass --session <ID> from `marimo pair list`, or --url <URL>."
+        )
 
     if code_file == "-":
         code = sys.stdin.read()
@@ -332,14 +250,24 @@ def execute(
     if not code:
         raise click.UsageError("Code must not be empty.")
 
+    selector = "--notebook" if notebook_id is not None else "--session"
     try:
-        token = load_token(token_file, os.environ)
-        if session_id is None:
-            session_id = resolve_session(url=url, token=token)
-        result = execute_code(
+        credential = (
+            token if token is not None else load_token(token_file, os.environ)
+        )
+        target = resolve_target(
             url=url,
             session_id=session_id,
-            token=token,
+            notebook_id=notebook_id,
+            token=credential,
+        )
+        url = target.url
+        notebook_id = target.notebook_id
+        session_id = target.id if notebook_id is None else None
+        result = execute_code(
+            url=target.url,
+            session_id=target.id,
+            token=target.token,
             code=code,
             stdout=sys.stdout,
             stderr=sys.stderr,
@@ -347,20 +275,32 @@ def execute(
         )
     except PairError as error:
         error_text, next_text = _failure_guidance(
-            error, url=url, session_id=session_id
+            error,
+            url=url or "",
+            notebook_id=notebook_id or session_id,
+            selector=selector,
         )
         _emit_failure(
-            error_text, next_text, session_id=session_id, stream=stream
+            error_text,
+            next_text,
+            notebook_id=notebook_id,
+            session_id=session_id if notebook_id is None else None,
+            stream=stream,
         )
         ctx.exit(2)
     except KeyboardInterrupt:
         click.echo("Interrupted.", err=True)
         ctx.exit(1)
 
+    target_id = notebook_id or session_id
+    assert target_id is not None
     next_text = None
     if not result.success:
         next_text = _kernel_next(
-            result.stderr, url=display_url(url), session_id=session_id
+            result.stderr,
+            url=display_url(url),
+            notebook_id=target_id,
+            selector=selector,
         )
 
     if stream:
@@ -369,7 +309,7 @@ def execute(
                 _emit_failure(
                     "Execution failed.",
                     next_text,
-                    session_id=session_id,
+                    notebook_id=notebook_id,
                     stream=True,
                 )
             ctx.exit(1)
@@ -377,10 +317,13 @@ def execute(
 
     payload: dict[str, object] = {
         "success": result.success,
+        "outcome": result.outcome,
         "output": result.output,
         "stdout": result.stdout,
         "stderr": result.stderr,
-        "session": {"id": session_id},
+        ("session" if notebook_id is None else "notebook"): {
+            "id": session_id if notebook_id is None else notebook_id
+        },
     }
     if next_text:
         payload["next"] = next_text
@@ -389,27 +332,22 @@ def execute(
         ctx.exit(1)
 
 
-_TOKEN_NEXT = (
-    "Pass --token-file <path>. If no file exists, check for MARIMO_TOKEN "
-    'with `test -n "$MARIMO_TOKEN"`; the commands use it when set. '
-    "Never print the token. If you have no token, ask the user."
-)
 _HEADLESS_NEXT = (
     "A headless server has no session until a browser opens the notebook."
 )
 
 
-def _execute_prefix(url: str, session_id: str) -> str:
-    """Shell-safe start of an execute command that targets one session."""
+def _execute_prefix(url: str, notebook_id: str, selector: str) -> str:
+    """Shell-safe start of an execute command that targets one notebook."""
     return (
         "marimo pair execute "
-        f"--url {shlex.quote(url)} --session {shlex.quote(session_id)}"
+        f"--url {shlex.quote(url)} {selector} {shlex.quote(notebook_id)}"
     )
 
 
-def _inspect_command(url: str, session_id: str) -> str:
+def _inspect_command(url: str, notebook_id: str, selector: str) -> str:
     return (
-        f"{_execute_prefix(url, session_id)} --code-file - <<'PY'\n"
+        f"{_execute_prefix(url, notebook_id, selector)} --file - <<'PY'\n"
         "import marimo._code_mode as cm\n"
         "async with cm.get_context() as ctx:\n"
         "    for cell in ctx.cells.values():\n"
@@ -418,9 +356,11 @@ def _inspect_command(url: str, session_id: str) -> str:
     )
 
 
-def _read_cell_command(url: str, session_id: str, cell_id: str) -> str:
+def _read_cell_command(
+    url: str, notebook_id: str, cell_id: str, selector: str
+) -> str:
     return (
-        f"{_execute_prefix(url, session_id)} --code-file - <<'PY'\n"
+        f"{_execute_prefix(url, notebook_id, selector)} --file - <<'PY'\n"
         "import marimo._code_mode as cm\n"
         "async with cm.get_context() as ctx:\n"
         f"    cell = ctx.cells[{cell_id!r}]\n"
@@ -430,14 +370,16 @@ def _read_cell_command(url: str, session_id: str, cell_id: str) -> str:
     )
 
 
-def _help_cm_command(url: str, session_id: str) -> str:
+def _help_cm_command(url: str, notebook_id: str, selector: str) -> str:
     return (
-        f"{_execute_prefix(url, session_id)} "
-        "-c 'import marimo._code_mode as cm; help(cm)'"
+        f"{_execute_prefix(url, notebook_id, selector)} "
+        "--code 'import marimo._code_mode as cm; help(cm)'"
     )
 
 
-def _kernel_next(stderr: str, *, url: str, session_id: str) -> str | None:
+def _kernel_next(
+    stderr: str, *, url: str, notebook_id: str, selector: str
+) -> str | None:
     """Recovery guidance for the code-mode mistakes agents make most.
 
     Matches the traceback text the kernel returned. Unknown failures get
@@ -458,7 +400,7 @@ def _kernel_next(stderr: str, *, url: str, session_id: str) -> str | None:
             f"Edits apply when the async with block exits, so '{cell_id}' "
             "does not exist yet in this block. "
             "Read it in a separate execute:\n"
-            + _read_cell_command(url, session_id, cell_id)
+            + _read_cell_command(url, notebook_id, cell_id, selector)
         )
     match = re.search(
         r"AttributeError: '?([\w.]+)'? (?:object )?has no attribute '(\w+)'",
@@ -471,62 +413,86 @@ def _kernel_next(stderr: str, *, url: str, session_id: str) -> str | None:
             hint = " Use ctx.cells[cid] or ctx.cells.values()."
         return (
             f"'{owner}' has no attribute '{name}'.{hint} For the full API:\n"
-            + _help_cm_command(url, session_id)
+            + _help_cm_command(url, notebook_id, selector)
         )
     return None
 
 
 def _failure_guidance(
-    error: PairError, *, url: str, session_id: str | None
+    error: PairError, *, url: str, notebook_id: str | None, selector: str
 ) -> tuple[str, str | None]:
     """Error text and one `next` step for a failure before the kernel ran."""
     safe_url = display_url(url)
-    if isinstance(error, AmbiguousSessionError):
+    if isinstance(error, NoRuntimeError):
+        return str(
+            error
+        ), "Open the saved notebook and start its kernel, then retry."
+    if isinstance(error, RunConflictError):
+        return (
+            str(error),
+            "Check the notebook's kernel state, then retry.",
+        )
+    if isinstance(error, AmbiguousNotebookError):
+        if not error.url:
+            return str(error), (
+                "Run `marimo pair list` and pass --url to select the server."
+            )
         lines = [
-            "Pass --session to choose one. Never switch sessions silently."
+            f"Pass {selector} to choose one. Never switch notebooks silently."
         ]
         lines.extend(
-            f"{session_id}: marimo pair execute --url "
-            f"{display_url(error.url)} --session {session_id} ..."
-            for session_id in error.candidates
+            f"{notebook_id}: marimo pair execute --url "
+            f"{display_url(error.url)} {selector} {shlex.quote(notebook_id)} ..."
+            for notebook_id in error.candidates
         )
         return str(error), "\n".join(lines)
-    if isinstance(error, NoSessionError):
+    if isinstance(error, NoNotebookError):
+        if not error.url:
+            return (
+                str(error),
+                "Run `marimo pair list` to find running local notebooks. Legacy session IDs require --url.",
+            )
         return str(error), (
             f"{_HEADLESS_NEXT} Ask the user to open it, then:\n"
-            f"marimo pair notebook list --url {display_url(error.url)}"
+            f"marimo pair list --url {display_url(error.url)}"
         )
-    if isinstance(error, StableSessionUnsupportedError):
+    if isinstance(error, NotebookUnsupportedError):
         return (
             (
                 f"Server {safe_url} runs a marimo version without "
-                "session_id. Upgrade marimo on the server."
+                "notebook_id. Upgrade marimo on the server."
             ),
             None,
         )
-    if isinstance(error, StaleSessionError):
+    if isinstance(error, StaleNotebookError):
         return (
             (
-                f"No session {session_id or '<ID>'} on {safe_url}. "
-                "The notebook was closed or restarted."
+                f"No notebook {notebook_id or '<ID>'} on {safe_url}. "
+                "Run pair list to find the current notebook."
             ),
-            f"marimo pair notebook list --url {safe_url}",
+            f"marimo pair list --url {safe_url}",
         )
     message = str(error)
     if message == "Authentication failed.":
-        return message, _TOKEN_NEXT
+        return (
+            message,
+            (
+                "Run `marimo pair list` to refresh local discovery, or pass "
+                "--token / --token-file for explicit server authentication."
+            ),
+        )
     if message.startswith("The server URL"):
-        return message, ("Use the url field from:\nmarimo pair notebook list")
-    if message == "Could not connect to the server.":
+        return message, ("Use the url field from:\nmarimo pair list")
+    if isinstance(error, PairConnectionError):
         return f"Could not connect to {safe_url}.", (
-            "Check the URL. To find live servers: marimo pair notebook list"
+            "Check the URL. To find live servers: marimo pair list"
         )
     if message == (
         "The execution response ended before completion was confirmed."
     ):
         return "Outcome unknown. The code may have run. Do not retry it.", (
             "Inspect the notebook first:\n"
-            + _inspect_command(safe_url, session_id or "<SESSION>")
+            + _inspect_command(safe_url, notebook_id or "<ID>", selector)
         )
     return message, None
 
@@ -535,8 +501,9 @@ def _emit_failure(
     error_text: str,
     next_text: str | None,
     *,
-    session_id: str | None,
+    notebook_id: str | None,
     stream: bool,
+    session_id: str | None = None,
 ) -> None:
     if stream:
         click.echo(f"error: {error_text}", err=True)
@@ -557,7 +524,9 @@ def _emit_failure(
             "output": None,
             "stdout": None,
             "stderr": None,
-            "session": {"id": session_id},
+            ("session" if session_id is not None else "notebook"): {
+                "id": session_id if session_id is not None else notebook_id
+            },
         }
     )
     click.echo(json.dumps(payload, indent=2))
@@ -599,30 +568,21 @@ def docs(topic: str | None) -> None:
     help="URL of the running marimo kernel.",
 )
 @click.option(
+    "--notebook",
+    "notebook_id",
+    default=None,
+    type=str,
+    help="Host notebook_id to include in the prompt.",
+)
+@click.option(
     "--session",
     "session_id",
     default=None,
-    type=str,
-    help="Stable session_id to include in the prompt.",
+    help="Notebook ID or stable session ID to include in the prompt.",
 )
-@click.option(
-    "--claude",
-    is_flag=True,
-    default=False,
-    help="Validate that the marimo-pair Claude Code skill is installed.",
-)
-@click.option(
-    "--codex",
-    is_flag=True,
-    default=False,
-    help="Validate that the marimo-pair Codex skill is installed.",
-)
-@click.option(
-    "--opencode",
-    is_flag=True,
-    default=False,
-    help="Validate that the marimo-pair opencode skill is installed.",
-)
+@click.option("--claude", is_flag=True, hidden=True, expose_value=False)
+@click.option("--codex", is_flag=True, hidden=True, expose_value=False)
+@click.option("--opencode", is_flag=True, hidden=True, expose_value=False)
 @click.option(
     "--with-token",
     is_flag=True,
@@ -631,49 +591,13 @@ def docs(topic: str | None) -> None:
 )
 def prompt(
     url: str,
+    notebook_id: str | None,
     session_id: str | None,
-    claude: bool,
-    codex: bool,
-    opencode: bool,
     with_token: bool,
 ) -> None:
-    """
-    Generate a prompt for pair programming.
-
-    Example usage:
-
-        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude)"
-        codex "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --codex)"
-        opencode "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --opencode)"
-
-        # Connect to a specific notebook
-        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --session 'sess-example' --claude)"
-
-        # With an auth token
-        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
-    """
-    preview = is_env_true("MARIMO_PAIR_NEXT")
-    if not preview:
-        selected_agents = {
-            "claude": claude,
-            "codex": codex,
-            "opencode": opencode,
-        }
-        for key, agent in pair_agents().items():
-            if not selected_agents[key]:
-                continue
-            if not agent.has_skill():
-                click.echo(
-                    f"The marimo-pair skill for {agent.name} could not be found.\n\n"
-                    "Please install it with:\n\n"
-                    "  npx skills add marimo-team/marimo-pair\n\n"
-                    "or\n\n"
-                    "  uvx deno -A npm:skills add marimo-team/marimo-pair\n\n"
-                    "More instructions at "
-                    "https://github.com/marimo-team/marimo-pair",
-                    err=True,
-                )
-
+    """Generate CLI instructions for one Notebook or Session."""
+    if notebook_id is not None and session_id is not None:
+        raise click.UsageError("Pass --session or --notebook, not both.")
     token_file: Path | None = None
     if with_token:
         token = click.prompt(
@@ -697,39 +621,13 @@ def prompt(
             finally:
                 os.close(fd)
 
-    if preview:
-        click.echo(
-            render_prompt(
-                url=url,
-                session_id=session_id,
-                token_file=token_file,
-            )
-        )
-        return
-
-    # Shell-quote dynamic values because this command is copy-pasted into a
-    # shell and values may contain spaces or metacharacters.
-    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}"
-    if session_id:
-        execute_cmd += f" --session {shlex.quote(session_id)}"
-
-    token_hint = ""
-    if token_file is not None:
-        token_hint = (
-            f"\n\nAn auth token is stored at {token_file}. "
-            f"Pass it via `{execute_cmd} "
-            f"--token \"$(cat '{token_file}')\"`."
-        )
-
-    # Output the prompt to the wrapper agent CLI
     click.echo(
-        "Use the /marimo-pair skill to pair-program on a running "
-        "marimo notebook.\n\n"
-        f"Connect to the notebook at: {url}\n\n"
-        f"Use `{execute_cmd}` from the marimo-pair "
-        "skill to execute code in the notebook."
-        f"{token_hint}\n\n"
-        "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
+        render_prompt(
+            url=url,
+            notebook_id=notebook_id,
+            session_id=session_id,
+            token_file=token_file,
+        )
     )
 
 
@@ -755,6 +653,7 @@ def _group_notebooks(
                 "server": {"url": url},
                 "name": session.get("filename"),
                 "path": session.get("path"),
+                "notebook_id": session.get("notebook_id"),
                 "sessions": [],
             },
         )
@@ -771,20 +670,11 @@ def _group_notebooks(
     return list(grouped.values())
 
 
-@click.group(
-    cls=ColoredGroup,
-    help="Find active notebooks and their sessions.",
-    short_help="""Find active notebooks and their sessions.""",
-)
-def notebook() -> None:
-    pass
-
-
 @click.command(
     name="list",
     cls=ColoredCommand,
-    help="List active notebooks and their session IDs.",
-    short_help="""List active notebooks and their session IDs.""",
+    help="List active notebooks and their host IDs.",
+    short_help="""List active notebooks and their host IDs.""",
 )
 @click.option(
     "--url",
@@ -804,7 +694,20 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
         token = load_token(token_file, os.environ) if urls else None
     except PairInputError as error:
         raise click.UsageError(str(error)) from error
-    selected_urls = list(urls) if urls else registry_urls()
+    if not urls:
+        local_listing = list_running_notebooks()
+        payload = msgspec.to_builtins(local_listing)
+        if not local_listing.notebooks:
+            payload["next"] = (
+                "No running notebooks found. Open a notebook with "
+                "`marimo edit <notebook.py>`, then run `marimo pair list` again."
+                if not local_listing.warnings
+                else "Some local servers could not be listed. Check the warnings, "
+                "then run `marimo pair list` again."
+            )
+        click.echo(json.dumps(payload, indent=2))
+        return
+    selected_urls = list(urls)
     notebooks: list[dict[str, object]] = []
     warnings: list[str] = []
 
@@ -814,10 +717,10 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
         except PairError as error:
             if isinstance(error, PairInputError) and urls:
                 raise click.UsageError(str(error)) from error
-            if isinstance(error, StableSessionUnsupportedError):
+            if isinstance(error, NotebookUnsupportedError):
                 warnings.append(
                     f"Server {display_url(url)} runs a marimo version "
-                    "without session_id. Upgrade marimo on the server."
+                    "without notebook_id. Upgrade marimo on the server."
                 )
             else:
                 message = str(error).rstrip(".")
@@ -831,7 +734,7 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
     listing: dict[str, object] = {"notebooks": notebooks, "warnings": warnings}
     if any("Authentication failed" in warning for warning in warnings):
         listing["next"] = (
-            "Pass --token-file <path>, then run notebook list --url again. "
+            "Pass --token-file <path>, then run pair list --url again. "
             "If no file exists, check for MARIMO_TOKEN with "
             '`test -n "$MARIMO_TOKEN"`. Never print the token.'
         )
@@ -839,14 +742,101 @@ def list_notebooks(urls: tuple[str, ...], token_file: Path | None) -> None:
         listing["next"] = (
             "No sessions found. If a server is running, pass --url, and "
             "--token-file <path> if it needs a token. Otherwise start one in "
-            "the background: `marimo edit <notebook.py> --no-token`, then run "
-            "`marimo pair notebook list` again."
+            "the background: `marimo edit <notebook.py>`, then run "
+            "`marimo pair list` again."
         )
     click.echo(json.dumps(listing, indent=2))
 
 
-notebook.add_command(list_notebooks)
+@click.command(
+    cls=ColoredCommand,
+    help=(
+        "Connect this harness inbox to a live notebook.\n\n"
+        "Supported harnesses: Codex, Claude Code, and OpenCode (macOS/Linux).\n\n"
+        "OpenCode 2.x requires its registered local service.\n\n"
+        "For other harnesses, use pair execute to work with the notebook."
+    ),
+)
+@click.option("--url", required=True, help="Server URL.")
+@click.option(
+    "--notebook",
+    "notebook_id",
+    required=True,
+    help="Host notebook ID from pair list.",
+)
+@click.option(
+    "--harness",
+    type=click.Choice(["codex", "claude", "opencode"]),
+    help="Select the inbox harness.",
+)
+@click.option(
+    "--pid",
+    type=click.IntRange(min=1),
+    help=(
+        "Process to track for connection lifetime. Defaults to the current harness. "
+        "Its start time is captured automatically."
+    ),
+)
+def connect(
+    url: str, notebook_id: str, harness: str | None, pid: int | None
+) -> None:
+    try:
+        _selected_harness, target = detect_target(os.environ, harness, pid)
+        host = resolve_host(url)
+        identity = connection_identity(
+            notebook_id, target.kind, target.address
+        )
+        store = ConnectionStore()
+        with store.locked(identity):
+            store.stop(identity)
+            start_forwarder(
+                ForwarderConfig(
+                    host.url, notebook_id, identity, host.token, target
+                ),
+                store,
+            )
+        click.echo(
+            f"Connected as {target.label}. Agent messages from this notebook arrive here as messages from marimo."
+        )
+    except (PairError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="Stop the forwarder and detach its notebook inbox.",
+)
+@click.option(
+    "--notebook",
+    "notebook_id",
+    required=True,
+    help="Host notebook ID from pair list.",
+)
+@click.option(
+    "--harness",
+    type=click.Choice(["codex", "claude", "opencode"]),
+    help="Select the harness to disconnect.",
+)
+def detach(notebook_id: str, harness: str | None) -> None:
+    try:
+        store = ConnectionStore()
+        kind, conversation = environment_identity(os.environ, kind=harness)
+        selected = store.select(
+            notebook_id, kind=kind, conversation=conversation
+        )
+        if selected is not None:
+            with store.locked(selected.identity):
+                store.stop(selected.identity)
+        click.echo(
+            "Detached." if selected is not None else "No matching connection."
+        )
+    except (PairError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+
+
+pair.add_command(connect)
+pair.add_command(detach)
 pair.add_command(execute)
 pair.add_command(docs)
-pair.add_command(notebook)
+pair.add_command(list_notebooks)
 pair.add_command(prompt)

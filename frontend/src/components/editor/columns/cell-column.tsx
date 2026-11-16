@@ -4,7 +4,7 @@ import React, { memo, useRef } from "react";
 import type { AppConfig } from "@/core/config/config-schema";
 import { useResizeHandle } from "@/hooks/useResizeHandle";
 import { cn } from "@/utils/cn";
-import type { CellColumnId } from "@/utils/id-tree";
+import type { CellColumnId } from "@/core/cells/layout";
 import { SortableColumn } from "./sortable-column";
 import { storageFn } from "./storage";
 

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -25,12 +25,12 @@ def _(np):
 def _(df):
     # Series
     df[0]
-    return
 
 
 @app.cell
 def _():
     import numpy as np
+
     return (np,)
 
 

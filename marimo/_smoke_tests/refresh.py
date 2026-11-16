@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -10,6 +10,7 @@ app = marimo.App()
 def _():
     import marimo as mo
     import random
+
     return mo, random
 
 
@@ -36,7 +37,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, my_pick, random, refresh):
+def _(mo, my_pick: int, random, refresh):
     refresh
     guess = random.randint(0, 10)
     mo.stop(
@@ -47,7 +48,6 @@ def _(mo, my_pick, random, refresh):
     mo.md(f"Not correct, your guess was {random.randint(0, 10)}").callout(
         kind="warn"
     )
-    return
 
 
 if __name__ == "__main__":

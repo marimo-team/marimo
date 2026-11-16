@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import signal
 import sys
+import threading
 import time
 from typing import TYPE_CHECKING
 
@@ -14,7 +16,11 @@ from marimo._utils.print import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
+    from types import FrameType
+
+_INTERRUPT_DEBOUNCE_SECONDS = 0.1
+_SHUTDOWN_INTERRUPT_GRACE_SECONDS = 1.0
 
 
 class InterruptHandler:
@@ -23,7 +29,46 @@ class InterruptHandler:
         self.shutdown = shutdown
         self.loop = asyncio.get_running_loop()
         self.original_handler = signal.getsignal(signal.SIGINT)
+        self._is_main_thread = (
+            threading.current_thread() is threading.main_thread()
+        )
         self._time_of_last_confirmation: float | None = None
+        self._shutting_down = False
+
+    @contextlib.contextmanager
+    def listen(self) -> Iterator[None]:
+        if not self._is_main_thread:
+            yield
+            return
+        self._add_interrupt_handler()
+        try:
+            yield
+        finally:
+            self._remove_interrupt_handler()
+            signal.signal(signal.SIGINT, self.original_handler)
+
+    def begin_shutdown(self) -> None:
+        if self._shutting_down:
+            return
+        self._shutting_down = True
+        if not self._is_main_thread:
+            return
+        force_quit_after = time.monotonic() + _SHUTDOWN_INTERRUPT_GRACE_SECONDS
+
+        def interrupt_shutdown(signum: int, frame: FrameType | None) -> None:
+            # uv forwards delayed duplicates; a later Ctrl-C can force quit,
+            # even when synchronous cleanup blocks the event loop.
+            if time.monotonic() >= force_quit_after:
+                signal.default_int_handler(signum, frame)
+
+        self._remove_interrupt_handler()
+        signal.signal(signal.SIGINT, interrupt_shutdown)
+
+    def _request_shutdown(self) -> None:
+        if self._shutting_down:
+            return
+        self.begin_shutdown()
+        self.shutdown()
 
     def _add_interrupt_handler(self) -> None:
         try:
@@ -37,61 +82,40 @@ class InterruptHandler:
                 lambda signum, frame: self._interrupt_handler(),  # noqa: ARG005
             )
 
+    def _remove_interrupt_handler(self) -> None:
+        try:
+            self.loop.remove_signal_handler(signal.SIGINT)
+        except NotImplementedError:
+            pass
+
     def _interrupt_handler(self) -> None:
+        if self._shutting_down:
+            return
         if (
             self._time_of_last_confirmation is not None
-            and (time.time() - self._time_of_last_confirmation) < 0.1
+            and (time.monotonic() - self._time_of_last_confirmation)
+            < _INTERRUPT_DEBOUNCE_SECONDS
         ):
             # uv can send two SIGINTs for every one sent by the user's Ctrl+C;
             # this hack prevents us from spamming the user with confirm messages.
             return
 
-        # Restore the original signal handler so re-entering Ctrl+C raises a
-        # keyboard interrupt instead of calling this function again (input is
-        # not re-entrant, so it's not safe to call this function again)
-        try:
-            self.loop.remove_signal_handler(signal.SIGINT)
-        except NotImplementedError:
-            # Windows
-            signal.signal(signal.SIGINT, self.original_handler)
-
-        if self.quiet:
-            self.shutdown()
-
-        try:
-            try:
-                if GLOBAL_SETTINGS.YES:
-                    self.shutdown()
-                    return
-
-                # If not in an interactive terminal, just exit
-                if not sys.stdin.isatty():
-                    self.shutdown()
-                    return
-
-                response = input(
-                    f"\r{TAB}Are you sure you want to quit? (y/N): "
-                )
-                self._time_of_last_confirmation = time.time()
-                if response.lower().strip() == "y":
-                    self.shutdown()
-                    return
-            except (KeyboardInterrupt, EOFError, asyncio.CancelledError):
-                print_()
-                self.shutdown()
-                return
-        except KeyboardInterrupt:
-            # This is a hack to workaround the fact that uv can send two SIGINT for
-            # every one entered by the user. Without this extra except block,
-            # when running under uv, two Ctrl-C's from the user (which uv turns
-            # into three) causes marimo to hang or abort unceremoniously instead
-            # of cleanly exiting.
-            print_()
-            self.shutdown()
+        if self.quiet or GLOBAL_SETTINGS.YES or not sys.stdin.isatty():
+            self._request_shutdown()
             return
 
-        # Program is still alive: restore the interrupt handler
-        self._add_interrupt_handler()
+        # input() blocks the event loop, so Ctrl-C must interrupt it directly.
+        self._remove_interrupt_handler()
+        signal.signal(signal.SIGINT, signal.default_int_handler)
+        try:
+            response = input(f"\r{TAB}Are you sure you want to quit? (y/N): ")
+        except (KeyboardInterrupt, EOFError):
+            self._request_shutdown()
+            print_()
+            return
 
-    def register(self) -> None:
-        self._add_interrupt_handler()
+        self._time_of_last_confirmation = time.monotonic()
+        if response.lower().strip() == "y":
+            self._request_shutdown()
+        else:
+            self._add_interrupt_handler()

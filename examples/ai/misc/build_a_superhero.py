@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -17,7 +17,6 @@ def _(mo):
     mo.md("""
     ## Build a Superhero with Generative AI
     """)
-    return
 
 
 @app.cell
@@ -45,13 +44,13 @@ def _(item, mo):
 
 
 @app.cell
-def _(content, item, mo, openai, openaikey):
+def _(content: str, item, mo, openai, openaikey):
     openai.api_key = openaikey.value
 
     result = None
     if item.value:
         response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
+            model="gpt-5.6-sol",
             messages=[
                 {
                     "role": "system",
@@ -92,7 +91,7 @@ def _(mo, openai, superhero):
 
     if superhero.value:
         catchphraseResponse = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
+            model="gpt-5.6-sol",
             messages=[
                 {"role": "system", "content": "You are a creative assistant."},
                 {
@@ -137,7 +136,6 @@ def _(generate_image_button, mo, openai, superhero):
         url = res["data"][0]["url"]
 
     mo.image(src=url) if url else None
-    return
 
 
 @app.cell

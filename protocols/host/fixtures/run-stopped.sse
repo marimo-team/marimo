@@ -1,0 +1,32 @@
+id: 140
+event: run
+data: {"run":{"id":"run-stopped","notebook_id":"n1","runtime_id":"r1","cells":["c3"],"status":"queued","started_at":null,"completed_at":null,"outcome":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:00Z"}
+
+id: 141
+event: execution
+data: {"execution":{"id":"e15","run_id":"run-stopped","cell_id":"c3","code_fingerprint":"0f71456db2ea83f4","depends_on":{},"status":"queued","outcome":null,"started_at":null,"completed_at":null,"runtime_id":"r1","caused_by":null,"code":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:00Z"}
+
+id: 142
+event: execution
+data: {"execution":{"id":"e16","run_id":"run-stopped","cell_id":"k7f2","code_fingerprint":"db2b9ee97e1ecf4c","depends_on":{},"status":"queued","outcome":null,"started_at":null,"completed_at":null,"runtime_id":"r1","caused_by":"e15","code":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:00Z"}
+
+id: 143
+event: run
+data: {"run":{"id":"run-stopped","notebook_id":"n1","runtime_id":"r1","cells":["c3"],"status":"running","started_at":"2026-10-01T09:23:01Z","completed_at":null,"outcome":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:01Z"}
+
+id: 144
+event: execution
+data: {"execution":{"id":"e15","run_id":"run-stopped","cell_id":"c3","code_fingerprint":"0f71456db2ea83f4","depends_on":{},"status":"running","outcome":null,"started_at":"2026-10-01T09:23:01Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:01Z"}
+
+id: 145
+event: execution
+data: {"execution":{"id":"e15","run_id":"run-stopped","cell_id":"c3","code_fingerprint":"0f71456db2ea83f4","depends_on":{},"status":"completed","outcome":{"kind":"value","display":{"mimetype":"text/html","data":"<span class=\"markdown\">Nothing to do yet.</span>"}},"started_at":"2026-10-01T09:23:01Z","completed_at":"2026-10-01T09:23:01Z","runtime_id":"r1","caused_by":null,"code":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:01Z"}
+
+id: 146
+event: execution
+data: {"execution":{"id":"e16","run_id":"run-stopped","cell_id":"k7f2","code_fingerprint":"db2b9ee97e1ecf4c","depends_on":{"x":null},"status":"completed","outcome":{"kind":"skipped","reason":"upstream-stopped","message":"This cell wasn't run because an ancestor was stopped with `mo.stop`","related":[{"cell_id":"c3","message":"Stopped with `mo.stop`","range":null},{"cell_id":"k7f2","message":"Did not run","range":null}]},"started_at":null,"completed_at":"2026-10-01T09:23:01Z","runtime_id":"r1","caused_by":"e15","code":null},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:01Z"}
+
+id: 147
+event: run
+data: {"run":{"id":"run-stopped","notebook_id":"n1","runtime_id":"r1","cells":["c3"],"status":"completed","started_at":"2026-10-01T09:23:01Z","completed_at":"2026-10-01T09:23:01Z","outcome":"succeeded"},"request_id":"5d3c2b1a-9f8e-4d7c-b6a5-4e3d2c1b0a9f","time":"2026-10-01T09:23:01Z"}
+

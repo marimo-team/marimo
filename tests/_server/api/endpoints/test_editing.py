@@ -7,7 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from tests._server.api.endpoints.ws_helpers import receive_until
+from tests._server.api.endpoints.ws_helpers import (
+    receive_notification,
+    receive_until,
+)
 from tests._server.mocks import token_header, with_session
 
 HAS_FORMATTER = DependencyManager.ruff.has() or DependencyManager.black.has()
@@ -30,20 +33,6 @@ def test_code_autocomplete(client: TestClient) -> None:
         json={
             "id": "completion-123",
             "document": "print('Hello, World!')",
-            "cellId": "cell-123",
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
-
-
-@with_session(SESSION_ID)
-def test_delete_cell(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/delete",
-        headers=HEADERS,
-        json={
             "cellId": "cell-123",
         },
     )
@@ -146,36 +135,6 @@ def test_install_missing_packages_server_source(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
-def test_set_cell_config(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/set_cell_config",
-        headers=HEADERS,
-        json={
-            "configs": {
-                "cell-123": {"runnable": True},
-            },
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
-
-
-@with_session(SESSION_ID)
-def test_stdin(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/stdin",
-        headers=HEADERS,
-        json={
-            "text": "user input",
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
-
-
-@with_session(SESSION_ID)
 def test_focus_cell(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/focus_cell",
@@ -197,7 +156,7 @@ def test_focus_cell_notifies_same_session_kiosk_consumer(
         f"/ws?session_id={SESSION_ID}&kiosk=true&access_token=fake-token",
         headers=auth_token,
     ) as websocket:
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data["op"] == "kernel-ready"
         assert data["data"]["kiosk"] is True
 

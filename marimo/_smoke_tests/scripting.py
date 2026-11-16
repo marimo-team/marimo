@@ -8,26 +8,27 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md("""hello""")
-    return
+    mo.md("""
+    hello
+    """)
 
 
 @app.cell
 def _(mo):
     mo.Html("<script>console.log(document.querySelectorAll('p')[0].textContent)</script>")
-    return
 
 
 if __name__ == "__main__":

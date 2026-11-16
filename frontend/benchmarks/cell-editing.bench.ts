@@ -1,0 +1,133 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import { type Atom, createStore } from "jotai";
+import { bench, describe, expect } from "vitest";
+import { MockNotebook } from "@/__mocks__/notebook";
+import { cellId } from "@/__tests__/branded";
+import {
+  type ReducerCellActions,
+  cellDataAtom,
+  cellErrorsAtom,
+  cellHandleAtom,
+  cellIdToNamesMap,
+  exportedForTesting,
+  needsRunAtom,
+  notebookAtom,
+  notebookOutline,
+  notebookReducer,
+} from "@/core/cells/cells";
+import type { CellData } from "@/core/cells/types";
+import type { DispatchedActionOf } from "@/utils/createReducer";
+
+type CellAction = DispatchedActionOf<ReducerCellActions>;
+
+const options = { time: 500, warmupTime: 200, iterations: 100 };
+const code = Array.from({ length: 20 }, (_, i) => `value_${i} = ${i}`).join(
+  "\n",
+);
+
+for (const count of [10, 25, 100, 1000]) {
+  describe(`${count} cells / 20 lines each`, () => {
+    for (const mode of [
+      "reducer",
+      "store",
+      "cell subscribers",
+      "derived subscribers",
+    ] as const) {
+      describe(`${mode}`, () => {
+        const ids = Array.from({ length: count }, (_, i) =>
+          cellId(`bench-${i}`),
+        );
+        const cellData: Record<string, Partial<CellData>> = {};
+        for (const id of ids) {
+          cellData[id] = { code };
+        }
+        let state = MockNotebook.notebookState({ cellData });
+        const store = createStore();
+        const unsubscribes: Array<() => void> = [];
+        const target = ids[Math.floor(ids.length / 2)];
+        let iteration = 0;
+
+        // The document with the target cell's code in one of two versions,
+        // built once so the timed edit only applies it.
+        const actions = [0, 1].map((version): CellAction => {
+          const cells = ids.map((id) => {
+            const cell = state.cellData[id];
+            return {
+              id,
+              code: id === target ? `${code}\n# ${version}` : cell.code,
+              name: cell.name,
+              config: {
+                column: cell.config.column ?? null,
+                disabled: cell.config.disabled ?? false,
+                hide_code: cell.config.hide_code ?? false,
+                expand_output: cell.config.expand_output ?? false,
+              },
+            };
+          });
+          return {
+            type: "reconcileDocument",
+            payload: {
+              order: ids,
+              cells: new Map(cells.map((cell) => [cell.id, cell])),
+            },
+          };
+        });
+
+        function edit() {
+          const action = actions[iteration++ % 2];
+          if (mode === "reducer") {
+            state = notebookReducer(state, action);
+          } else {
+            store.set(notebookAtom, (previous) =>
+              notebookReducer(previous, action),
+            );
+          }
+        }
+
+        function setup() {
+          state = MockNotebook.notebookState({ cellData });
+          iteration = 0;
+          store.set(notebookAtom, state);
+          const subscribe = (value: Atom<unknown>) => {
+            unsubscribes.push(store.sub(value, () => undefined));
+          };
+          if (mode === "cell subscribers" || mode === "derived subscribers") {
+            for (const id of ids) {
+              subscribe(cellDataAtom(id));
+              subscribe(exportedForTesting.cellRuntimeAtom(id));
+              subscribe(cellHandleAtom(id));
+            }
+          }
+          if (mode === "derived subscribers") {
+            for (const value of [
+              cellErrorsAtom,
+              notebookOutline,
+              cellIdToNamesMap,
+              needsRunAtom,
+            ]) {
+              subscribe(value);
+            }
+          }
+
+          // Verify the fixture really edits one cell, preserving unrelated data.
+          const previous = state;
+          edit();
+          const next = mode === "reducer" ? state : store.get(notebookAtom);
+          expect(next.cellData[target].code).toBe(`${code}\n# 0`);
+          expect(next.cellData[ids[0]]).toBe(previous.cellData[ids[0]]);
+          expect(next.cellRuntime).toBe(previous.cellRuntime);
+        }
+
+        function teardown() {
+          for (const unsubscribe of unsubscribes) {
+            unsubscribe();
+          }
+          unsubscribes.length = 0;
+        }
+
+        bench("one edit", edit, { ...options, setup, teardown });
+      });
+    }
+  });
+}

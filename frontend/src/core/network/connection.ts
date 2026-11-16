@@ -4,11 +4,13 @@ import { atomWithReducer } from "jotai/utils";
 import type { NotificationMessageData } from "../kernel/messages";
 import { isNotebookPage } from "../mode";
 import { waitFor } from "../state/jotai";
-import { type ConnectionStatus, ConnectionState } from "../websocket/types";
+import { type ConnectionStatus, ConnectionState } from "../session/types";
 
 /**
- * Atom for storing the connection status.
- * Initialized to NOT_STARTED.
+ * Shared application state, not the actual event-stream status.
+ *
+ * TODO(MO-8051) Expose read-only connection state and derive UI availability
+ * separately.
  */
 export const connectionAtom = atom<ConnectionStatus>({
   state: ConnectionState.NOT_STARTED,
@@ -72,9 +74,4 @@ export const canInteractWithAppAtom = atom((get) => {
 export const isClosedAtom = atom((get) => {
   const connection = get(connectionAtom);
   return connection.state === ConnectionState.CLOSED;
-});
-
-export const isNotStartedAtom = atom((get) => {
-  const connection = get(connectionAtom);
-  return connection.state === ConnectionState.NOT_STARTED;
 });

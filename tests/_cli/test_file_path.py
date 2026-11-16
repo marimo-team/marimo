@@ -18,6 +18,7 @@ from marimo._cli.files.file_path import (
     GitHubSourceReader,
     LocalFileReader,
     StaticNotebookReader,
+    _create_tmp_file_from_content,
     get_gist_src_url,
     is_gist_src,
     is_github_src,
@@ -560,6 +561,132 @@ def test_gist_source_reader() -> None:
         assert content_call_args[0] == expected_raw_url
 
 
+@pytest.mark.parametrize("infer_suffix", [False, True])
+@pytest.mark.parametrize(
+    "entry", ["file", "directory", "symlink", "dangling-symlink", "hardlink"]
+)
+@pytest.mark.parametrize("filename", ["notebook.py", "../notebook.py"])
+def test_temporary_filename_already_exists(
+    tmp_path: Path, infer_suffix: bool, entry: str, filename: str
+) -> None:
+    original = tmp_path / "original.py"
+    original.write_text("original", encoding="utf-8")
+    missing = tmp_path / "missing.py"
+    temp_directory = tempfile.TemporaryDirectory(dir=tmp_path)
+    with temp_directory as directory:
+        destination = Path(directory) / "notebook.py"
+        if entry == "file":
+            destination.write_text("original", encoding="utf-8")
+        elif entry == "directory":
+            destination.mkdir()
+        elif entry == "symlink":
+            destination.symlink_to(original)
+        elif entry == "dangling-symlink":
+            destination.symlink_to(missing)
+        else:
+            destination.hardlink_to(original)
+
+        with pytest.raises(click.ClickException, match="already exists"):
+            _create_tmp_file_from_content(
+                "new content",
+                filename,
+                temp_directory,
+                infer_suffix=infer_suffix,
+            )
+
+        assert original.read_text(encoding="utf-8") == "original"
+        assert not missing.exists()
+        if entry in ("file", "symlink", "hardlink"):
+            assert destination.read_text(encoding="utf-8") == "original"
+        elif entry == "directory":
+            assert destination.is_dir()
+        else:
+            assert destination.is_symlink()
+
+
+@pytest.mark.parametrize(
+    ("name", "content", "expected"),
+    [
+        ("example", "print('hello')", "example.py"),
+        ("example.txt", "__generated_with = '0.1.0'", "example.py"),
+        ("example.txt", "marimo-version: 0.1.0", "example.md"),
+        ("example.txt", "__generated_with marimo-version", "example.py"),
+        ("example.py", "marimo-version: 0.1.0", "example.py"),
+        ("example.md", "__generated_with = '0.1.0'", "example.md"),
+        ("example.qmd", "print('hello')", "example.qmd"),
+        ("", "marimo-version: 0.1.0", "notebook.md"),
+        ("file:name", "marimo-version: 0.1.0", "notebook.md"),
+        ("../example.md", "marimo-version: 0.1.0", "notebook.md"),
+        ("", "__generated_with marimo-version", "notebook.py"),
+        ("file:name", "print('hello')", "notebook.py"),
+        pytest.param(
+            "a" * 252,
+            "print('hello')",
+            "a" * 252 + ".py",
+            id="suffix-at-limit",
+        ),
+        pytest.param(
+            "a" * 255, "print('hello')", "notebook.py", id="suffix-over-limit"
+        ),
+        pytest.param(
+            "a" * 253 + ".x",
+            "marimo-version: 0.1.0",
+            "notebook.md",
+            id="replacement-suffix-over-limit",
+        ),
+        pytest.param(
+            "é" * 127,
+            "marimo-version: 0.1.0",
+            "notebook.md",
+            id="unicode-suffix-over-limit",
+        ),
+        pytest.param(
+            "a" * 256,
+            "marimo-version: 0.1.0",
+            "notebook.md",
+            id="long-markdown-name",
+        ),
+    ],
+)
+def test_temporary_filename_suffix(
+    name: str, content: str, expected: str
+) -> None:
+    temp_directory = tempfile.TemporaryDirectory()
+    with temp_directory as directory:
+        result = _create_tmp_file_from_content(
+            content, name, temp_directory, infer_suffix=True
+        )
+        assert Path(result) == Path(directory) / expected
+        assert Path(result).read_text(encoding="utf-8") == content
+        with pytest.raises(click.ClickException, match="already exists"):
+            _create_tmp_file_from_content(
+                content + "\nnew content",
+                name,
+                temp_directory,
+                infer_suffix=True,
+            )
+        assert Path(result).read_text(encoding="utf-8") == content
+
+
+def test_temporary_filename_created_before_open() -> None:
+    temp_directory = tempfile.TemporaryDirectory()
+    with temp_directory as directory:
+        destination = Path(directory) / "notebook.py"
+
+        def create_file(path: Path) -> bool:
+            path.write_text("original", encoding="utf-8")
+            return False
+
+        with (
+            patch("marimo._cli.files.file_path.os.path.lexists", create_file),
+            pytest.raises(click.ClickException, match="already exists"),
+        ):
+            _create_tmp_file_from_content(
+                "new content", "notebook.py", temp_directory
+            )
+        assert destination.read_text(encoding="utf-8") == "original"
+
+
 class TestStaticNotebooks:
     VALID_HTML_CONTENT = dedent("""\
         <html>
@@ -578,6 +705,113 @@ class TestStaticNotebooks:
         </html>""")
     INVALID_HTML_CONTENT = """<html><body>no code</body></html>"""
     PYTHON_CODE = "import marimo as mo"
+
+    @pytest.mark.parametrize("remote", [False, True], ids=["local", "remote"])
+    @pytest.mark.parametrize(
+        ("filename", "expected"),
+        [
+            (name, name)
+            for name in [
+                "custom.py",
+                "custom.md",
+                "custom.qmd",
+                "test file.py",
+                " café 测试 🚀.py",
+                ".notebook.py",
+                "a..b.py",
+                "CONSOLE.py",
+                "COM10.py",
+                "%2e%2e%2fexample.py",
+            ]
+        ]
+        + [
+            (name, "notebook.py")
+            for name in [
+                None,
+                "",
+                " ",
+                ".",
+                "..",
+                "...",
+                "./custom.py",
+                "../existing.py",
+                "../../existing.py",
+                "folder/../existing.py",
+                "folder/custom.py",
+                "folder//custom.py",
+                "custom.py/",
+                "/existing.py",
+                "//server/share/custom.py",
+                r"..\existing.py",
+                r"folder\custom.py",
+                r"folder/..\existing.py",
+                r"\existing.py",
+                r"C:\existing.py",
+                "C:/existing.py",
+                "C:existing.py",
+                r"\\server\share\custom.py",
+                r"\\?\C:\existing.py",
+                r"\\.\NUL",
+                "custom.py:stream",
+                "custom.py.",
+                "custom.py ",
+                "custom?.py",
+                "custom*.py",
+                "custom|name.py",
+                'custom"name.py',
+                "custom<name>.py",
+                "NUL",
+                "nul.py",
+                "CON.py",
+                "PRN.md",
+                "AUX.qmd",
+                "CONIN$.py",
+                "CONOUT$.py",
+                "COM1.py",
+                "LPT9.py",
+                "COM¹.py",
+                "LPT².py",
+                "NUL .py",
+                "a" * 256 + ".py",
+                "é" * 128 + ".py",
+                *[
+                    f"custom{chr(char)}.py"
+                    for char in [0, 1, 9, 10, 13, 31, 127, 159]
+                ],
+            ]
+        ],
+    )
+    def test_imported_filename(
+        self, tmp_path: Path, remote: bool, filename: str | None, expected: str
+    ) -> None:
+        existing = tmp_path / "existing.py"
+        existing.write_text("original", encoding="utf-8")
+        if filename is None:
+            filename = str(existing)
+        html = (
+            f"<marimo-code hidden>{uri_encode_component(self.PYTHON_CODE)}</marimo-code>"
+            f"<marimo-filename hidden>{uri_encode_component(filename)}</marimo-filename>"
+        )
+        source = tmp_path / "source.html"
+        source.write_text(html, encoding="utf-8")
+        temp_directory = tempfile.TemporaryDirectory(dir=tmp_path)
+        with (
+            temp_directory as directory,
+            patch(
+                "marimo._cli.files.file_path.TemporaryDirectory",
+                return_value=temp_directory,
+            ),
+            patch("marimo._utils.requests.get") as mock_get,
+        ):
+            mock_get.return_value = Response(200, html.encode("utf-8"), {})
+            path, _ = validate_name(
+                "https://example.com/source.html" if remote else str(source),
+                allow_new_file=False,
+                allow_directory=False,
+            )
+            assert Path(path) == Path(directory) / expected
+            assert Path(path).read_text(encoding="utf-8") == self.PYTHON_CODE
+            assert existing.read_text(encoding="utf-8") == "original"
 
     @patch("marimo._utils.requests.get")
     @patch("marimo._cli.files.file_path.Path.read_text")

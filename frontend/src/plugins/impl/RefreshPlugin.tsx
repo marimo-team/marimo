@@ -119,6 +119,7 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
     <Labeled label={data.label}>
       <span className="inline-flex items-center text-secondary-foreground rounded shadow-sm-solid">
         <Button
+          aria-label="Refresh"
           data-testid="marimo-plugin-refresh-button"
           variant="secondary"
           size="icon"

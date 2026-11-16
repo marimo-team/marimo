@@ -13,11 +13,12 @@ import {
   VisibilityToggleButton,
 } from "@/components/editor/file-tree/tree-actions";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
+import { cellIdsAtom } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import {
@@ -78,6 +79,7 @@ import {
   areChildSchemasResolved,
   areSchemasResolved,
   areTablesResolved,
+  fullyQualifiedTableName,
   isSchemaless,
   schemaSubtreeMatchesSearch,
   shouldExpandDatabaseForSearch,
@@ -132,7 +134,7 @@ const sortedTablesAtom = atom((get) => {
       return 0;
     }
 
-    const index = cellIds.inOrderIds.indexOf(variable.declaredBy[0]);
+    const index = cellIds.indexOf(variable.declaredBy[0]);
     if (index === -1) {
       return 0;
     }
@@ -284,6 +286,7 @@ export const DataSources: React.FC = () => {
         {hasSearch && (
           <button
             type="button"
+            aria-label="Clear table search"
             className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
             onClick={() => setSearchValue("")}
           >
@@ -636,7 +639,7 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   const [prevSearchValue, setPrevSearchValue] = React.useState(searchValue);
   const [prevExpandForSearch, setPrevExpandForSearch] =
     React.useState(expandForSearch);
-  const uniqueValue = `${databaseName}:${schemaPath.join(".")}`;
+  const uniqueValue = JSON.stringify(["schema", databaseName, ...schemaPath]);
   const childSchemas = schema.child_schemas ?? [];
 
   // Re-sync when the query changes or when newly resolved data turns this
@@ -702,7 +705,40 @@ const SchemaNode: React.FC<SchemaNodeProps> = (props) => {
   );
 };
 
-const TableList: React.FC<{
+// Kept outside the component because the React Compiler does not yet
+// support try/finally inside component bodies.
+async function loadTableList(
+  sqlTableContext: SQLTableContext,
+  addTableList: ReturnType<typeof useDataSourceActions>["addTableList"],
+  setLoading: (loading: boolean) => void,
+) {
+  setLoading(true);
+  try {
+    const { engine, database, schema, schemaPath } = sqlTableContext;
+    const previewTableList = await PreviewSQLTableList.request({
+      engine: engine,
+      database: database,
+      schema: schema,
+      schemaPath: schemaPath ?? [],
+    });
+
+    if (!previewTableList?.tables) {
+      throw new Error("No tables available");
+    }
+
+    addTableList({
+      tables: previewTableList.tables,
+      sqlTableContext: sqlTableContext,
+    });
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * This is exported for testing purposes only.
+ */
+export const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
@@ -731,26 +767,7 @@ const TableList: React.FC<{
   // resets tablesResolved to false).
   const { isPending, error } = useAsyncData(async () => {
     if (!tablesResolved && sqlTableContext) {
-      setTablesLoading(true);
-
-      const { engine, database, schema, schemaPath } = sqlTableContext;
-      const previewTableList = await PreviewSQLTableList.request({
-        engine: engine,
-        database: database,
-        schema: schema,
-        schemaPath: schemaPath ?? [],
-      });
-
-      if (!previewTableList?.tables) {
-        setTablesLoading(false);
-        throw new Error("No tables available");
-      }
-
-      addTableList({
-        tables: previewTableList.tables,
-        sqlTableContext: sqlTableContext,
-      });
-      setTablesLoading(false);
+      await loadTableList(sqlTableContext, addTableList, setTablesLoading);
     }
   }, [tablesResolved, sqlTableContext]);
 
@@ -833,13 +850,13 @@ const DatasetTableItem: React.FC<{
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleAddTable = () => {
     maybeAddMarimoImport({
       autoInstantiate,
-      createNewCell,
+      createCell,
       fromCellId: lastFocusedCellId,
     });
     const getCode = () => {
@@ -964,6 +981,7 @@ const DatasetTableItem: React.FC<{
         {renderRowsByColumns()}
         <Tooltip content="Add table to notebook" delayDuration={400}>
           <Button
+            aria-label={`Add table ${table.name} to notebook`}
             className="group-hover:inline-flex hidden"
             variant="text"
             size="icon"
@@ -1054,19 +1072,16 @@ const DatasetColumnItem: React.FC<{
           {isIndexed &&
             renderItemSubtext({ tooltipContent: "Indexed", content: "IDX" })}
         </div>
-        <Tooltip content="Copy column name" delayDuration={400}>
-          <Button
-            variant="text"
-            size="icon"
-            className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
-          >
-            <CopyClipboardIcon
-              tooltip={false}
-              value={column.name}
-              className="h-3 w-3"
-            />
-          </Button>
-        </Tooltip>
+        <CopyClipboardIcon
+          tooltip="Copy column name"
+          value={column.name}
+          ariaLabel={`Copy column name ${column.name}`}
+          className="h-3 w-3"
+          buttonClassName={cn(
+            buttonVariants({ variant: "text", size: "icon" }),
+            "group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground",
+          )}
+        />
         <span className="text-xs text-muted-foreground">
           {column.external_type}
         </span>
@@ -1082,9 +1097,7 @@ const DatasetColumnItem: React.FC<{
               column={column}
               onAddColumnChart={handleAddColumn}
               preview={columnsPreviews.get(
-                sqlTableContext
-                  ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}:${column.name}`
-                  : `${table.name}:${column.name}`,
+                `${fullyQualifiedTableName(sqlTableContext, table.name)}:${column.name}`,
               )}
               sqlTableContext={sqlTableContext}
             />

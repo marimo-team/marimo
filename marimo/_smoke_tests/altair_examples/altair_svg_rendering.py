@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 with app.setup:
@@ -31,7 +31,7 @@ def _():
 
 
 @app.cell
-def _(data):
+def _(data: pd.DataFrame):
     alt.renderers.enable("svg")
 
     chart = alt.Chart(data).mark_point().encode(x="x", y="y")
@@ -42,7 +42,6 @@ def _(data):
 def _(chart):
     # This works
     chart
-    return
 
 
 @app.cell
@@ -51,11 +50,10 @@ def _(chart):
     # (reported in Issue #9015 and fixed in PR #9043).
     # For vstack, align="start" is needed to preserve the image size
     mo.vstack([chart], align="start")
-    return
 
 
 @app.cell
-def _(data):
+def _(data: pd.DataFrame):
     # Issue #9013: SVG rendering breaks image marks
     chart_with_images = (
         alt.Chart(data)
@@ -77,7 +75,6 @@ def _(chart_with_images):
     # This works
     alt.renderers.enable("default")
     chart_with_images
-    return
 
 
 @app.cell
@@ -88,7 +85,6 @@ def _(chart_with_images):
     # it warns the user to enable 'raw_svg=True' for correct rendering.
     alt.renderers.enable("svg")
     chart_with_images
-    return
 
 
 @app.cell
@@ -96,7 +92,6 @@ def _(chart_with_images):
     # Image marks are correctly rendered when 'raw_svg=True' is enabled.
     alt.renderers.enable("svg", raw_svg=True)
     chart_with_images
-    return
 
 
 if __name__ == "__main__":

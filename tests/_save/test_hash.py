@@ -64,7 +64,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "RSccsMCC0dBqvdcnBN1mdxlvKUr4zzR_qupKBW_P_qE"
+            expected_hash = "Qjd-Of0rz70rXMuxdcVvFRvT96WFt-vVqJxDOQ5f5IU"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -534,16 +534,12 @@ class TestHash:
                 _ = sleep
                 return 42
 
-            return
-
         @app.cell
         def _(mo, time):
             @mo.cache
             def module():
                 _ = time.sleep
                 return 42
-
-            return
 
         @app.cell
         def _(direct, module):
@@ -802,7 +798,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "zLpFb6ANG99kP-4yWoH4zdV_FfrUodnEom1tILpF55c"
+            expected_hash = "_ci06ALDK_jmGaPqiuCb27B7XKVYx9_ptO_uc0KM16k"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -855,7 +851,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "IaLyzmZZ4nwXMveSQjMVAa682QAyd2O90iSeHJvlb44"
+            expected_hash = "cAXrntOIgirrLZhFtll7g0J8jZ8SbCi0eFUS8CX80xw"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -908,7 +904,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "6EJfKOu_iB6jpSTtCnUV1kjYy2u96m_w_3VzOUOn5Hg"
+            expected_hash = "FUTSSYa2_hOk6MeTTrrSJGtoPw0jNi_sl9_8mhl_e4s"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -968,7 +964,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "QIjIEzceYIH7WIvdIasBLceU3Ad40kYqTCSBnUmJZV4"
+            expected_hash = "xxzFiLDQpVGtV2GRcbXmsxSIkIWBaLZ3hHpEHxfJ1PA"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -1008,7 +1004,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "1eEgTTthH-FyKbziqYse1ITogQUMat0JW1meFZtMWCI"
+            expected_hash = "Dmsvz-jhSXWM6KJmNSuGSQw3g7exOctsfRyyyaOnzaA"
             return MockLoader, persistent_cache, expected_hash, DNA, copy
 
         @app.cell
@@ -1046,7 +1042,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "ycCqtVaQAODpfHyimtlbxj1TIQB3WtLnhDIGq59yiqw"
+            expected_hash = "4ERGkPoTZ4PHHjoLiQL8kKZMubtVOci2prJPtitADxo"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1110,7 +1106,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "C9MbH1ov4US2mrm_T_clm4VpI9WT97tg5BGEpOAbF1g"
+            expected_hash = "okFuWhbuYo5zTN4so_JJtRDgXjwcGJO_g9PwUrYsFq8"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1151,7 +1147,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "DtWHQ972QmRo2kBlzgoGQDi-bRnRknWZsSFk_rT4lRA"
+            expected_hash = "3P7C_VVSy-3SUBLObosBMb254TpdkngpMNrttAyayrU"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -1208,7 +1204,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "1HlOXWU-oQ5MNB5B9YRNLnHcn3I8sngJvLuHV_ICLGY"
+            expected_hash = "-xemFqty19uKABGO0MxKG9-2rnPWNNnZNf1UDoNAD_I"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell

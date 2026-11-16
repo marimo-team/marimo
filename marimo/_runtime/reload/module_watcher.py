@@ -9,7 +9,6 @@ import time
 from typing import TYPE_CHECKING, Literal
 
 from marimo import _loggers
-from marimo._messaging.types import Stream
 from marimo._runtime import dataflow
 from marimo._runtime.reload.autoreload import (
     ModuleReloader,
@@ -172,7 +171,6 @@ def watch_modules(
     enqueue_run_stale_cells: Callable[[], None],
     should_exit: threading.Event,
     run_is_processed: threading.Event,
-    stream: Stream,
 ) -> None:
     """Watches for changes to modules used by graph
 
@@ -205,7 +203,7 @@ def watch_modules(
             LOGGER.debug(
                 "Found stale modules; acquiring lock to update graph."
             )
-            with graph.lock:
+            with reloader.lock, graph.lock:
                 LOGGER.debug("Acquired graph lock.")
                 stale_importers: set[CellId_t] = set()
                 fresh_importers: dict[CellId_t, set[str]] = {}
@@ -260,7 +258,7 @@ def watch_modules(
                             graph, {cid}, relatives=relatives
                         )
                 for cid in cells_to_mark:
-                    graph.cells[cid].set_stale(stale=True, stream=stream)
+                    graph.cells[cid].set_stale(stale=True)
             LOGGER.debug("Released graph lock and updated stale statuses.")
 
             if mode == "autorun":
@@ -282,7 +280,6 @@ class ModuleWatcher:
         reloader: ModuleReloader,
         mode: Literal["lazy", "autorun"],
         enqueue_run_stale_cells: Callable[[], None],
-        stream: Stream,
     ) -> None:
         # ModuleWatcher uses the graph to determine the modules used by the
         # notebook
@@ -294,8 +291,6 @@ class ModuleWatcher:
         # When False, an ExecuteStaleRequest is inflight to the kernel
         self.run_is_processed = threading.Event()
         self.run_is_processed.set()
-        # To communicate staleness to the FE
-        self.stream = stream
         # If autorun, stale cells are automatically scheduled for execution
         self.mode = mode
         # A callable that signals the kernel to run stale cells
@@ -309,7 +304,6 @@ class ModuleWatcher:
                 self.enqueue_run_stale_cells,
                 self.should_exit,
                 self.run_is_processed,
-                self.stream,
             ),
             daemon=True,
         ).start()

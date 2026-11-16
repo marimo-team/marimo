@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
 from marimo._cli.pair.prompts import get_pair_command, load_prompt_templates
-from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
 from marimo._convert.common.filename import parse_title
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.notification import ModelLifecycleNotification
@@ -23,7 +24,6 @@ from marimo._schemas.session import NotebookSessionV1
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._session.notebook import read_css_file, read_html_head_file
-from marimo._utils.env import is_env_true
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
@@ -93,14 +93,27 @@ def _static_state_block(
     )
 
 
-def _get_mount_config(
+def _get_frontend_config(
+    config: MarimoConfig | PartialMarimoConfig, *, readonly: bool
+) -> PartialMarimoConfig:
+    # Integration settings are only used by the editor.
+    config = config.to_dict() if isinstance(config, MarimoConfig) else config
+    excluded = {"ai", "completion", "mcp"} if readonly else set()
+    return cast(
+        PartialMarimoConfig,
+        {key: value for key, value in config.items() if key not in excluded},
+    )
+
+
+def _render_page_config(
+    html: str,
     *,
     filename: str | None,
     cwd: str | None = None,
     lsp_workspace: LspWorkspace | None = None,
     mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     app_config: _AppConfig | None,
     version: str | None = None,
@@ -111,9 +124,11 @@ def _get_mount_config(
     layout: LayoutConfig | None = None,
 ) -> str:
     """
-    Return a JSON string with custom indentation and sorting.
+    Render the page configuration and legacy template placeholders.
     """
 
+    readonly = mode in ("read", "gallery")
+    frontend_config = _get_frontend_config(user_config, readonly=readonly)
     options: dict[str, Any] = {
         "filename": filename or "",
         "cwd": cwd or "",
@@ -121,8 +136,10 @@ def _get_mount_config(
         "mode": mode,
         "version": version or get_version(),
         "server_token": str(server_token),
-        "user_config": user_config,
-        "config_overrides": config_overrides,
+        "user_config": frontend_config,
+        "config_overrides": _get_frontend_config(
+            config_overrides, readonly=readonly
+        ),
         "app_config": _del_none_or_empty(app_config.asdict())
         if app_config
         else {},
@@ -139,16 +156,14 @@ def _get_mount_config(
         "runtime_config": runtime_config,
     }
 
-    pair_preview = ""
-    if is_env_true("MARIMO_PAIR_NEXT"):
-        pair_preview = ',\n            "pairPreview": ' + json_script(
-            {
-                "command": get_pair_command(),
-                "templates": asdict(load_prompt_templates()),
-            }
-        )
-
-    return """{{
+    pair_config = json_script(
+        {
+            "command": get_pair_command(),
+            "templates": asdict(load_prompt_templates()),
+            "hostEnabled": mode == "edit",
+        }
+    )
+    mount_config = """{{
             "filename": {filename},
             "cwd": {cwd},
             "lspWorkspace": {lsp_workspace},
@@ -162,18 +177,27 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config}{pair_preview}
+            "runtimeConfig": {runtime_config},
+            "pairConfig": {pair_config}
         }}
 """.format(
         **{k: json_script(v) for k, v in options.items()},
-        pair_preview=pair_preview,
+        pair_config=pair_config,
     ).strip()
+
+    # Legacy placeholders are still used by the VS Code plugin.
+    html = html.replace("{{ version }}", options["version"])
+    html = html.replace(
+        "{{ user_config }}", _html_escape(json.dumps(frontend_config))
+    )
+    html = html.replace("{{ server_token }}", str(server_token))
+    return html.replace(MOUNT_CONFIG_TEMPLATE, mount_config)
 
 
 def home_page_template(
     html: str,
     base_url: str,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     mode: SessionMode,
@@ -183,28 +207,19 @@ def home_page_template(
     html = html.replace("{{ title }}", "marimo")
     html = html.replace("{{ filename }}", "")
 
-    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
-    html = html.replace("{{ version }}", get_version())
-    html = html.replace(
-        "{{ user_config }}", _html_escape(json.dumps(user_config))
-    )
-    html = html.replace("{{ server_token }}", str(server_token))
-
     html = _replace_asset_urls(html, asset_url)
 
     app_mode: Literal["home", "gallery"] = (
         "home" if mode == SessionMode.EDIT else "gallery"
     )
-    html = html.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
-            filename=None,
-            mode=app_mode,
-            server_token=server_token,
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=None,
-        ),
+    html = _render_page_config(
+        html,
+        filename=None,
+        mode=app_mode,
+        server_token=server_token,
+        user_config=user_config,
+        config_overrides=config_overrides,
+        app_config=None,
     )
 
     # Add custom CSS from display config
@@ -289,7 +304,7 @@ def notebook_page_template(
     *,
     html: str,
     base_url: str,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
@@ -321,31 +336,22 @@ def notebook_page_template(
 
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
 
-    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
-    html = html.replace("{{ version }}", get_version())
-    html = html.replace(
-        "{{ user_config }}", _html_escape(json.dumps(user_config))
-    )
-    html = html.replace("{{ server_token }}", str(server_token))
-
     html = _replace_asset_urls(html, asset_url)
 
     cwd = os.path.dirname(filepath) if filepath else None
-    html = html.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
-            filename=filename,
-            cwd=cwd,
-            lsp_workspace=lsp_workspace,
-            mode="read" if mode == SessionMode.RUN else "edit",
-            server_token=server_token,
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=app_config,
-            runtime_config=runtime_config,
-            notebook_snapshot=notebook_snapshot,
-            session_snapshot=session_snapshot,
-        ),
+    html = _render_page_config(
+        html,
+        filename=filename,
+        cwd=cwd,
+        lsp_workspace=lsp_workspace,
+        mode="read" if mode == SessionMode.RUN else "edit",
+        server_token=server_token,
+        user_config=user_config,
+        config_overrides=config_overrides,
+        app_config=app_config,
+        runtime_config=runtime_config,
+        notebook_snapshot=notebook_snapshot,
+        session_snapshot=session_snapshot,
     )
 
     html = html.replace(
@@ -413,7 +419,7 @@ def get_default_asset_url() -> str:
 
 def static_notebook_template(
     html: str,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
@@ -438,21 +444,19 @@ def static_notebook_template(
     # but we do need some:
     # - display.theme
     # - display.cell_output
-    html = html.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
-            filename=filename,
-            cwd=None,  # We don't need the cwd for static notebooks
-            mode="read",
-            server_token=server_token,
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=app_config,
-            session_snapshot=session_snapshot,
-            notebook_snapshot=notebook_snapshot,
-            runtime_config=None,
-            layout=layout,
-        ),
+    html = _render_page_config(
+        html,
+        filename=filename,
+        cwd=None,  # We don't need the cwd for static notebooks
+        mode="read",
+        server_token=server_token,
+        user_config=user_config,
+        config_overrides=config_overrides,
+        app_config=app_config,
+        session_snapshot=session_snapshot,
+        notebook_snapshot=notebook_snapshot,
+        runtime_config=None,
+        layout=layout,
     )
 
     html = html.replace(
@@ -531,7 +535,7 @@ def wasm_notebook_template(
     html: str,
     version: str,
     filename: str,
-    user_config: MarimoConfig,
+    user_config: MarimoConfig | PartialMarimoConfig,
     config_overrides: PartialMarimoConfig,
     app_config: _AppConfig,
     mode: Literal["edit", "run"],
@@ -559,23 +563,21 @@ def wasm_notebook_template(
     )
 
     body = body.replace("{{ filename }}", _html_escape("notebook.py"))
-    body = body.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
-            # WASM runtime currently expect this to be notebook.py instead of the actual filename
-            filename="notebook.py",
-            mode="edit" if mode == "edit" else "read",
-            server_token=SkewProtectionToken("unused"),
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=app_config,
-            version=version,
-            show_app_code=show_code,
-            runtime_config=None,
-            session_snapshot=session_snapshot,
-            notebook_snapshot=notebook_snapshot,
-            layout=layout,
-        ),
+    body = _render_page_config(
+        body,
+        # WASM runtime currently expect this to be notebook.py instead of the actual filename
+        filename="notebook.py",
+        mode="edit" if mode == "edit" else "read",
+        server_token=SkewProtectionToken("unused"),
+        user_config=user_config,
+        config_overrides=config_overrides,
+        app_config=app_config,
+        version=version,
+        show_app_code=show_code,
+        runtime_config=None,
+        session_snapshot=session_snapshot,
+        notebook_snapshot=notebook_snapshot,
+        layout=layout,
     )
 
     wasm_attributes = "".join(
@@ -701,6 +703,7 @@ def _inject_custom_css_for_config(
     filename: str | None = None,
 ) -> str:
     """Inject custom CSS from display config into HTML."""
+    config = config.to_dict() if isinstance(config, MarimoConfig) else config
     custom_css = config.get("display", {}).get("custom_css", [])
     if not custom_css:
         return html

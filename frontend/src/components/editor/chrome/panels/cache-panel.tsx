@@ -104,6 +104,7 @@ const CachePanel = () => {
         {/* Header with Refresh Button */}
         <div className="flex items-center justify-end">
           <Button
+            aria-label="Refresh cache"
             variant="ghost"
             size="icon"
             className="h-6 w-6"

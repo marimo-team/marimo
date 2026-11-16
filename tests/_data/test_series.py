@@ -6,13 +6,19 @@ from typing import Any
 import pytest
 
 from marimo._data.series import (
+    NumberSeriesInfo,
     get_category_series_info,
     get_date_series_info,
     get_datetime_series_info,
     get_number_series_info,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from tests._data.mocks import NON_EAGER_LIBS, create_dataframes, create_series
+from tests._data.mocks import (
+    NON_EAGER_LIBS,
+    DFType,
+    create_dataframes,
+    create_series,
+)
 
 HAS_DEPS = (
     DependencyManager.pandas.has()
@@ -169,3 +175,67 @@ def is_pyarrow_type(response: Any) -> bool:
         return isinstance(response, pa.Table)
     except ImportError:
         return False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"A": []}, exclude=NON_EAGER_LIBS),
+)
+def test_empty_series_info(df: Any) -> None:
+    series = df["A"]
+    number_info = get_number_series_info(series)
+    category_info = get_category_series_info(series)
+    date_info = get_date_series_info(series)
+    datetime_info = get_datetime_series_info(series)
+
+    assert number_info.min is None
+    assert number_info.max is None
+    assert category_info.categories == []
+    assert date_info.min is None
+    assert date_info.max is None
+    assert datetime_info.min is None
+    assert datetime_info.max is None
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"A": [None, None]}, exclude=NON_EAGER_LIBS),
+)
+def test_all_null_series_info(df: Any) -> None:
+    series = df["A"]
+    assert get_number_series_info(series).min is None
+    assert get_number_series_info(series).max is None
+    assert get_category_series_info(series).categories == []
+    assert get_date_series_info(series).min is None
+    assert get_date_series_info(series).max is None
+    assert get_datetime_series_info(series).min is None
+    assert get_datetime_series_info(series).max is None
+
+
+@pytest.mark.parametrize("backend", ["pandas", "polars", "pyarrow"])
+@pytest.mark.parametrize(
+    ("values", "minimum", "maximum"),
+    [
+        ([float("nan"), float("nan")], None, None),
+        ([None, float("nan")], None, None),
+        ([None, float("nan"), 1.0, 3.0], 1.0, 3.0),
+        ([float("nan"), float("inf")], float("inf"), float("inf")),
+        ([float("nan"), -float("inf")], -float("inf"), -float("inf")),
+        ([-float("inf"), float("inf")], -float("inf"), float("inf")),
+    ],
+)
+def test_number_series_with_nan_and_infinity(
+    backend: DFType,
+    values: list[float | None],
+    minimum: float | None,
+    maximum: float | None,
+) -> None:
+    pytest.importorskip(backend)
+    df = create_dataframes({"A": values}, include=[backend])[0]
+    assert get_number_series_info(df["A"]) == NumberSeriesInfo(
+        min=minimum,
+        max=maximum,
+        label="" if backend == "pyarrow" else "A",
+    )

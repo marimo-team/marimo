@@ -206,21 +206,33 @@ export class WidgetRuntime {
     controller: AbortController;
   }): Promise<WidgetBinding<ModelState>> {
     const { spec, model, controller } = options;
-    const mod = await WIDGET_DEF_REGISTRY.getModule({
-      jsUrl: spec.url,
-      jsHash: spec.hash,
-      kernelAuthored: true,
-    });
-    const widget = resolveAnyWidget(mod, spec.url);
-    if (!widget) {
-      WIDGET_DEF_REGISTRY.invalidate(spec.hash);
-      throw getInvalidAnyWidgetModuleError(mod, spec.url);
+    const moduleLifetime = new AbortController();
+    let widget: NonNullable<ReturnType<typeof resolveAnyWidget>>;
+    try {
+      const mod = await WIDGET_DEF_REGISTRY.getModule({
+        jsUrl: spec.url,
+        jsHash: spec.hash,
+        kernelAuthored: true,
+        lifetime: moduleLifetime.signal,
+      });
+      const resolved = resolveAnyWidget(mod, spec.url);
+      if (!resolved) {
+        WIDGET_DEF_REGISTRY.invalidate(spec.hash);
+        throw getInvalidAnyWidgetModuleError(mod, spec.url);
+      }
+      widget = resolved;
+    } catch (error) {
+      moduleLifetime.abort();
+      throw error;
     }
+    // From here WidgetBinding owns release, including late cleanup when the
+    // generation is destroyed during initialize.
     return WidgetBinding.create({
       widgetDef: widget,
       model,
       createHost: this.#createHost,
       controller,
+      onDestroy: () => moduleLifetime.abort(),
     });
   }
 

@@ -3,13 +3,14 @@
 import React, { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
-import { getCellNames, useCellActions } from "@/core/cells/cells";
+import { getCellNames } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import {
   getValidName,
   isInternalCellName,
   normalizeName,
 } from "@/core/cells/names";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
@@ -71,9 +72,9 @@ export const NameCellContentEditable: React.FC<{
   value: string;
   className: string;
 }> = ({ value, cellId, className }) => {
-  const { updateCellName } = useCellActions();
+  const edit = useNotebookDocumentEdit();
   const inputProps = useCellNameInput(value, (newName) =>
-    updateCellName({ cellId, name: newName }),
+    edit((tx) => tx.setName(cellId, newName)),
   );
 
   // If the name is the default, don't render the content editable

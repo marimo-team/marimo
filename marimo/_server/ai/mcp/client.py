@@ -8,7 +8,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._config.config import MCPConfig
+from marimo._config.config_schema import MCPConfig
 from marimo._server.ai.mcp.config import (
     MCPConfigComparator,
     MCPServerDefinition,
@@ -201,7 +201,7 @@ class MCPClient:
         """
         # Apply presets before parsing
         config = append_presets(config)
-        mcp_servers = config.get("mcpServers", {})
+        mcp_servers = config.mcpServers
         parsed_servers: dict[str, MCPServerDefinition] = {}
 
         for server_name, server_config in mcp_servers.items():
@@ -349,7 +349,7 @@ class MCPClient:
             except asyncio.CancelledError:
                 await cancel_and_wait(connection_task)
                 raise
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # A lifecycle can time out before it reaches disconnect_event.
                 # Letting it continue would make refresh and shutdown wait on a
                 # task that they cannot signal, so a timeout is terminal.
@@ -537,7 +537,7 @@ class MCPClient:
             # Return the MCP SDK result directly (may already be an error).
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             error_msg = f"Tool {namespaced_tool_name} timed out after {connection.definition.timeout} seconds"
             LOGGER.error(error_msg)
 
@@ -753,7 +753,7 @@ class MCPClient:
 
             return True
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             LOGGER.warning(
                 f"Health check ping timed out after {self.health_check_timeout} seconds for {server_name}"
             )

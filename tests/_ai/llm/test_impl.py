@@ -19,6 +19,7 @@ from marimo._ai.llm._impl import (
     pydantic_ai,
     simple,
 )
+from marimo._config.config_schema import MarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION
 
@@ -375,9 +376,9 @@ class TestOpenAI:
     def test_require_api_key_config(self, mock_get_context):
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {
-            "ai": {"open_ai": {"api_key": "config-key"}}
-        }
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"open_ai": {"api_key": "config-key"}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = openai("gpt-4")
@@ -388,13 +389,19 @@ class TestOpenAI:
     def test_require_api_key_missing(self, mock_get_context):
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"open_ai": {"api_key": ""}}}
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"open_ai": {"api_key": ""}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = openai("gpt-4")
         with pytest.raises(ValueError, match="openai api key not provided"):
             _ = model._require_api_key
 
+    @patch(
+        "marimo._cli.install_hints.infer_package_manager",
+        MagicMock(return_value="pip"),
+    )
     @patch(
         "marimo._dependencies.dependencies.DependencyManager.openai.require"
     )
@@ -423,7 +430,7 @@ class TestOpenAI:
 
             # Verify dependency check was called
             mock_require.assert_called_once_with(
-                "chat model requires openai. `pip install openai`"
+                "chat model requires openai. `python -m pip install openai`"
             )
 
     def test_convert_to_openai_messages(self):
@@ -632,6 +639,10 @@ class TestGroq:
         with pytest.raises(ValueError, match="groq api key not provided"):
             _ = model._require_api_key
 
+    @patch(
+        "marimo._cli.install_hints.infer_package_manager",
+        MagicMock(return_value="pip"),
+    )
     @patch("marimo._dependencies.dependencies.DependencyManager.groq.require")
     def test_dependency_check(self, mock_require):
         """Test that the dependency check is performed."""
@@ -658,7 +669,7 @@ class TestGroq:
 
             # Verify dependency check was called
             mock_require.assert_called_once_with(
-                "chat model requires groq. `pip install groq`"
+                "chat model requires groq. `python -m pip install groq`"
             )
 
     def test_convert_to_groq_messages(self):
@@ -785,9 +796,9 @@ class TestGoogle:
     def test_require_api_key_config(self, mock_get_context: MagicMock) -> None:
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {
-            "ai": {"google": {"api_key": "config-key"}}
-        }
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"google": {"api_key": "config-key"}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = google("gemini-2.5-flash-preview-05-20")
@@ -800,7 +811,9 @@ class TestGoogle:
     ) -> None:
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"google": {"api_key": ""}}}
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"google": {"api_key": ""}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = google("gemini-2.5-flash-preview-05-20")
@@ -997,9 +1010,9 @@ class TestAnthropic:
     def test_require_api_key_config(self, mock_get_context: MagicMock) -> None:
         """Test _require_api_key with config."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {
-            "ai": {"anthropic": {"api_key": "config-key"}}
-        }
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"anthropic": {"api_key": "config-key"}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = anthropic("claude-3-opus-20240229")
@@ -1012,7 +1025,9 @@ class TestAnthropic:
     ) -> None:
         """Test _require_api_key with missing key."""
         mock_context = MagicMock()
-        mock_context.marimo_config = {"ai": {"anthropic": {"api_key": ""}}}
+        mock_context.marimo_config = MarimoConfig.from_dict(
+            {"ai": {"anthropic": {"api_key": ""}}}
+        )
         mock_get_context.return_value = mock_context
 
         model = anthropic("claude-3-opus-20240229")
@@ -1483,6 +1498,10 @@ class TestPydanticAI:
         assert inspect.isasyncgen(result)
 
     @patch(
+        "marimo._cli.install_hints.infer_package_manager",
+        MagicMock(return_value="pip"),
+    )
+    @patch(
         "marimo._dependencies.dependencies.DependencyManager.pydantic_ai.require"
     )
     def test_dependency_check(self, mock_require):
@@ -1491,7 +1510,7 @@ class TestPydanticAI:
         pydantic_ai(mock_agent)
 
         mock_require.assert_called_once_with(
-            "pydantic-ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+            "pydantic-ai chat model requires pydantic-ai. `python -m pip install pydantic-ai`"
         )
 
     def test_build_ui_messages_with_multiple_roles(self):
@@ -1750,3 +1769,106 @@ def test_pydantic_ai_require() -> None:
     mock_agent = MagicMock()
     with pytest.raises(ModuleNotFoundError):
         pydantic_ai(mock_agent)
+
+
+class TestStreamingFallback:
+    """A model that rejects streaming gets a non-streaming request instead.
+
+    The streaming request is made lazily inside a generator, so these tests
+    fake the SDKs and check the fallback end to end, without them installed.
+    """
+
+    STREAMING_ERROR = "This model does not support streaming"
+    messages = [ChatMessage(role="user", content="Test prompt")]  # noqa: RUF012
+
+    def _streaming_error(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError(self.STREAMING_ERROR)
+
+    def test_anthropic(self) -> None:
+        client = MagicMock()
+        client.messages.stream.side_effect = self._streaming_error
+        client.messages.create.return_value = MagicMock(
+            content=[
+                MagicMock(type="thinking", spec=["type", "thinking"]),
+                MagicMock(type="text", text="Fallback response"),
+            ]
+        )
+        fake_sdk = MagicMock(Anthropic=MagicMock(return_value=client))
+
+        with (
+            patch.dict("sys.modules", {"anthropic": fake_sdk}),
+            patch.object(DependencyManager.anthropic, "require"),
+        ):
+            model = anthropic("claude-x", api_key="test-key")
+            result = model(self.messages, ChatModelConfig())
+
+        assert result == "Fallback response"
+        client.messages.create.assert_called_once()
+
+    def test_google(self) -> None:
+        client = MagicMock()
+        client.models.generate_content_stream.side_effect = (
+            self._streaming_error
+        )
+        client.models.generate_content.return_value = MagicMock(
+            text="Fallback response"
+        )
+        genai = MagicMock(Client=MagicMock(return_value=client))
+        fake_sdk = MagicMock(genai=genai)
+
+        with (
+            patch.dict(
+                "sys.modules", {"google": fake_sdk, "google.genai": genai}
+            ),
+            patch.object(DependencyManager.google_ai, "require"),
+        ):
+            model = google("gemini-x", api_key="test-key")
+            result = model(self.messages, ChatModelConfig())
+
+        assert result == "Fallback response"
+        client.models.generate_content.assert_called_once()
+
+    def test_groq(self) -> None:
+        client = MagicMock()
+
+        def create(**kwargs: Any) -> Any:
+            if kwargs.get("stream"):
+                self._streaming_error()
+            message = MagicMock(content="Fallback response")
+            return MagicMock(choices=[MagicMock(message=message)])
+
+        client.chat.completions.create.side_effect = create
+        fake_sdk = MagicMock(Groq=MagicMock(return_value=client))
+
+        with (
+            patch.dict("sys.modules", {"groq": fake_sdk}),
+            patch.object(DependencyManager.groq, "require"),
+        ):
+            model = groq("llama-x", api_key="test-key")
+            result = model(self.messages, ChatModelConfig())
+
+        assert result == "Fallback response"
+        assert (
+            client.chat.completions.create.call_args.kwargs["stream"] is False
+        )
+
+    def test_bedrock(self) -> None:
+        client = MagicMock()
+        client.converse_stream.side_effect = self._streaming_error
+        client.converse.return_value = {
+            "output": {
+                "message": {
+                    "content": [
+                        {"reasoningContent": {"reasoningText": {"text": "…"}}},
+                        {"text": "Fallback response"},
+                    ]
+                }
+            }
+        }
+
+        model = bedrock("bedrock/anthropic.claude-x")
+        with patch.object(model, "_create_client", return_value=client):
+            result = model(self.messages, ChatModelConfig())
+
+        assert result == "Fallback response"
+        client.converse.assert_called_once()

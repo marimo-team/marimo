@@ -1,13 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 from marimo import __version__
 from marimo._types.ids import SessionId
+from tests._server.api.endpoints.ws_helpers import receive_notification
+from tests._server.host.drive import socket_snapshot
 from tests._server.mocks import (
     get_session_manager,
     token_header,
@@ -78,13 +81,20 @@ def test_sessions_stable_id_survives_reconnect(
     with client.websocket_connect(
         f"/ws?session_id={SESSION_ID}", headers=token_header()
     ) as websocket:
-        assert websocket.receive_json()["op"] == "kernel-ready"
+        snapshot = socket_snapshot(websocket)
+        notebook_id = next(
+            e["data"]["notebook"]["id"]
+            for e in snapshot
+            if e["event"] == "notebook"
+        )
+        assert receive_notification(websocket)["op"] == "kernel-ready"
         session = get_session_manager(client).get_session(
             SessionId(SESSION_ID)
         )
         assert session is not None
         expected = {
             "session_id": session.stable_id,
+            "notebook_id": notebook_id,
             "filename": session.app_file_manager.filename,
             "path": session.app_file_manager.path,
         }
@@ -95,7 +105,10 @@ def test_sessions_stable_id_survives_reconnect(
     with client.websocket_connect(
         f"/ws?session_id={connection_id}", headers=token_header()
     ) as websocket:
-        assert websocket.receive_json()["op"] == "reconnected"
+        # The same connection rejoins its session; another resumes it.
+        assert receive_notification(websocket)["op"] == (
+            "alert" if connection_id == SESSION_ID else "kernel-ready"
+        )
         response = client.get("/api/sessions", headers=token_header())
         assert response.status_code == 200, response.text
         assert response.json() == {connection_id: expected}
@@ -105,7 +118,7 @@ def test_sessions_stable_id_changes_after_restart(client: TestClient) -> None:
     with client.websocket_connect(
         f"/ws?session_id={SESSION_ID}", headers=token_header()
     ) as websocket:
-        assert websocket.receive_json()["op"] == "kernel-ready"
+        assert receive_notification(websocket)["op"] == "kernel-ready"
         response = client.get("/api/sessions", headers=token_header())
         assert response.status_code == 200, response.text
         previous = response.json()[SESSION_ID]
@@ -119,7 +132,7 @@ def test_sessions_stable_id_changes_after_restart(client: TestClient) -> None:
     with client.websocket_connect(
         f"/ws?session_id={SESSION_ID}", headers=token_header()
     ) as websocket:
-        assert websocket.receive_json()["op"] == "kernel-ready"
+        assert receive_notification(websocket)["op"] == "kernel-ready"
         response = client.get("/api/sessions", headers=token_header())
         assert response.status_code == 200, response.text
         current = response.json()[SESSION_ID]
@@ -216,6 +229,105 @@ def test_usage_rocm_gpu(client: TestClient) -> None:
     assert memory["used"] == 1069268992
     assert memory["free"] == 8573157376 - 1069268992
     assert memory["percent"] == pytest.approx(1069268992 / 8573157376 * 100)
+
+
+def test_usage_amd_smi_gpu(client: TestClient) -> None:
+    import json
+
+    # `amd-smi static --json`: the product name lives under asic.market_name.
+    static_output = json.dumps(
+        {
+            "gpu_data": [
+                {
+                    "gpu": 0,
+                    "asic": {"market_name": "AMD Radeon 8060S Graphics"},
+                }
+            ]
+        }
+    )
+    # `amd-smi monitor --vram-usage --json`: values carry their own unit, and
+    # on APUs (UMA) this reports the shared pool, not the small carveout that
+    # `amd-smi metric` reports as total_vram. Numbers below are from a
+    # Strix Halo APU: 28672 MB (28 GiB) total, 89 MB used.
+    monitor_output = json.dumps(
+        [
+            {
+                "gpu": 0,
+                "xcp": 0,
+                "vram_used": {"value": 89, "unit": "MB"},
+                "vram_free": {"value": 28583, "unit": "MB"},
+                "vram_total": {"value": 28, "unit": "GB"},
+            },
+            # One row per xcp; the same GPU must not be listed twice.
+            {
+                "gpu": 0,
+                "xcp": 1,
+                "vram_used": {"value": 0, "unit": "MB"},
+                "vram_free": {"value": 28672, "unit": "MB"},
+                "vram_total": {"value": 28, "unit": "GB"},
+            },
+        ]
+    )
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.health._is_gpu_available",
+            return_value="amd",
+        ),
+        patch("subprocess.run") as mock_run,
+    ):
+        mock_run.side_effect = [
+            Mock(stdout=static_output, stderr=""),
+            Mock(stdout=monitor_output, stderr=""),
+        ]
+        response = client.get("/api/usage", headers=token_header())
+    assert response.status_code == 200
+    gpu = response.json()["gpu"]
+    assert len(gpu) == 1
+    assert gpu[0]["index"] == 0
+    assert gpu[0]["name"] == "AMD Radeon 8060S Graphics"
+    memory = gpu[0]["memory"]
+    assert memory["total"] == 28 * 1024**3
+    assert memory["used"] == 89 * 1024**2
+    assert memory["free"] == 28583 * 1024**2
+    assert memory["percent"] == pytest.approx(89 / 28672 * 100)
+
+
+def test_usage_amd_smi_gpu_without_static(client: TestClient) -> None:
+    import json
+
+    monitor_output = json.dumps(
+        [
+            {
+                "gpu": 0,
+                "xcp": 0,
+                "vram_used": {"value": 1, "unit": "GB"},
+                "vram_total": {"value": 24, "unit": "GB"},
+            }
+        ]
+    )
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.health._is_gpu_available",
+            return_value="amd",
+        ),
+        patch("subprocess.run") as mock_run,
+    ):
+        # `amd-smi static` is unavailable, so the name falls back.
+        mock_run.side_effect = [
+            subprocess.CalledProcessError(1, "amd-smi"),
+            Mock(stdout=monitor_output, stderr=""),
+        ]
+        response = client.get("/api/usage", headers=token_header())
+    assert response.status_code == 200
+    gpu = response.json()["gpu"]
+    assert len(gpu) == 1
+    assert gpu[0]["name"] == "AMD GPU"
+    memory = gpu[0]["memory"]
+    assert memory["total"] == 24 * 1024**3
+    assert memory["used"] == 1 * 1024**3
+    assert memory["free"] == 23 * 1024**3
 
 
 @with_session(SESSION_ID)

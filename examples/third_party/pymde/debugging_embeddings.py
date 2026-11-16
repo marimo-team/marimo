@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -19,7 +19,6 @@ def _(mo):
     This notebook shows you the basics of sanity-checking an embedding made
     with the `PyMDE` library. We'll use MNIST as a case study.
     """)
-    return
 
 
 @app.cell
@@ -30,13 +29,11 @@ def _(mo):
     a heuristic, and we'll tell PyMDE to place these pairs near each other in
     the embedding.
     """)
-    return
 
 
 @app.cell
 def _(n_neighbors):
     n_neighbors
-    return
 
 
 @app.cell
@@ -46,7 +43,7 @@ def _(n_neighbors):
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     mo.md(
         """
         Below, we've plotted an embedding along with a CDF of the distortions
@@ -55,11 +52,10 @@ def _(mo, ready):
         that the rest. These will be interesting to examine up close.
         """
     ) if ready else None
-    return
 
 
 @app.cell
-def _(mnist, plt, quadratic_mde, ready):
+def _(mnist, plt, quadratic_mde, ready: bool):
     def compute_embedding():
         _ = quadratic_mde.embed(verbose=True)
         quadratic_mde.plot(color_by=mnist.attributes["digits"])
@@ -87,7 +83,7 @@ def _(mo):
 
 
 @app.cell
-def _(knn, n_neighbors, ready):
+def _(knn, n_neighbors, ready: bool):
     knn_graph = knn(n_neighbors.value) if ready else None
     return (knn_graph,)
 
@@ -104,7 +100,7 @@ def _(functools, mnist, pymde):
 
 
 @app.cell
-def _(knn_graph, mnist, pymde, ready, torch):
+def _(knn_graph, mnist, pymde, ready: bool, torch):
     def construct_mde_problem():
         if torch.cuda.is_available():
             device = "cuda"
@@ -125,7 +121,7 @@ def _(knn_graph, mnist, pymde, ready, torch):
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     mo.md(
         """
         ## Pairs with highest and lowest distortion
@@ -136,18 +132,17 @@ def _(mo, ready):
         them near each other).
         """
     ) if ready else None
-    return
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     n_pairs = mo.ui.slider(5, 10, label="number of pairs")
     n_pairs if ready else None
     return (n_pairs,)
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     mo.md(
         """### Low distortion pairs
 
@@ -155,17 +150,15 @@ def _(mo, ready):
         and that the embedding placed very near each other.
         """
     ) if ready else None
-    return
 
 
 @app.cell
-def _(n_pairs, pairs, plot_pairs, ready):
+def _(n_pairs, pairs, plot_pairs, ready: bool):
     plot_pairs(pairs[-n_pairs.value :]) if ready else None
-    return
 
 
 @app.cell
-def _(mo, ready):
+def _(mo, ready: bool):
     mo.md(
         """
         ### High distortion pairs
@@ -178,13 +171,11 @@ def _(mo, ready):
         data.
         """
     ) if ready else None
-    return
 
 
 @app.cell
-def _(n_pairs, pairs, plot_pairs, ready):
+def _(n_pairs, pairs, plot_pairs, ready: bool):
     plot_pairs(pairs[: n_pairs.value]) if ready else None
-    return
 
 
 @app.cell

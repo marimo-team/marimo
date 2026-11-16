@@ -19,10 +19,10 @@ from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._config.config import VenvConfig
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments.overlay import runtime_overlay
+from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     NotificationMessage,
     StartupProgressNotification,
@@ -60,12 +60,6 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
-
-
-def _get_venv_config(config_manager: MarimoConfigManager) -> VenvConfig:
-    """Get the [tool.marimo.venv] config from a config manager."""
-    config = config_manager.get_config(hide_secrets=False)
-    return cast(VenvConfig, config.get("venv", {}))
 
 
 # How long close_kernel waits for the kernel to dump its profile, and
@@ -158,7 +152,7 @@ class IPCQueueManagerImpl(QueueManager):
     @property
     def input_queue(  # type: ignore[override]
         self,
-    ) -> QueueType[str]:
+    ) -> QueueType[InputReply]:
         return self._ipc.input_queue
 
     @property
@@ -179,6 +173,9 @@ class IPCQueueManagerImpl(QueueManager):
     def close_queues(self) -> None:
         self._ipc.close_queues()
 
+    def request_kernel_stop(self) -> None:
+        self._ipc.request_kernel_stop()
+
     def put_control_request(self, request: commands.CommandMessage) -> None:
         route_control_request(
             request,
@@ -186,9 +183,6 @@ class IPCQueueManagerImpl(QueueManager):
             self.completion_queue,
             self.set_ui_element_queue,
         )
-
-    def put_input(self, text: str) -> None:
-        self.input_queue.put(text)
 
 
 def _decode_tail(tail: deque[bytes]) -> str:
@@ -308,10 +302,14 @@ class IPCKernelManagerImpl(KernelManager):
         from marimo._cli.print import echo, muted
         from marimo._ipc.types import KernelArgs
 
+        resolved = self.config_manager.get_config_with_sources(
+            hide_secrets=False
+        )
         kernel_args = KernelArgs(
             configs=self.configs,
             app_metadata=self.app_metadata,
-            user_config=self.config_manager.get_config(hide_secrets=False),
+            user_config=resolved.config,
+            config_overrides=resolved.override_paths,
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
             profile_path=self.profile_path,
             connection_info=self.connection_info,
@@ -329,8 +327,13 @@ class IPCKernelManagerImpl(KernelManager):
         with environment_operation(
             "prepare", {}, "kernel", self._notify
         ) as operation:
-            venv_config = _get_venv_config(self.config_manager)
-            if self._sandbox and venv_config.get("path"):
+            venv_config = self.config_manager.get_config(
+                hide_secrets=False
+            ).venv
+            # NB. With MARIMO_SANDBOX_AUTO the manifest picks the environment
+            # per notebook, so a configured venv is honored even here.
+            ignore_venv = self._sandbox and not GLOBAL_SETTINGS.SANDBOX_AUTO
+            if ignore_venv and venv_config.path:
                 echo(
                     "Warning: ignoring [tool.marimo.venv] in sandbox mode. "
                     "Use --no-sandbox to edit with the configured environment.",
@@ -339,7 +342,7 @@ class IPCKernelManagerImpl(KernelManager):
             try:
                 configured_python = (
                     None
-                    if self._sandbox
+                    if ignore_venv
                     else get_configured_venv_python(
                         venv_config, base_path=self.app_metadata.filename
                     )
@@ -357,7 +360,7 @@ class IPCKernelManagerImpl(KernelManager):
                 )
                 venv_python = configured_python
 
-                writable = venv_config.get("writable", False)
+                writable = venv_config.writable
 
                 # Configured environments are assumed to be read-only.
                 # If not, then install marimo by default to ensure that the
@@ -409,6 +412,7 @@ class IPCKernelManagerImpl(KernelManager):
                 )
                 cmd: list[str] = [
                     venv_python,
+                    "-P",
                     "-m",
                     "marimo._ipc.launch_kernel",
                 ]
@@ -420,10 +424,10 @@ class IPCKernelManagerImpl(KernelManager):
                 from marimo._environments.errors import EnvironmentManagerError
                 from marimo._environments.sandbox import NotebookSandbox
 
-                backend = backends.current_backend()
+                filename = self.app_metadata.filename
+                backend = backends.backend_for(filename)
                 kernel_args_list = ["-m", "marimo._ipc.launch_kernel"]
                 overlay = runtime_overlay()
-                filename = self.app_metadata.filename
                 sandbox = NotebookSandbox(filename, backend)
                 try:
                     plan = await sandbox.launch_async(
@@ -583,13 +587,13 @@ class IPCKernelManagerImpl(KernelManager):
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if not done:
-                    raise asyncio.TimeoutError
+                    raise TimeoutError
                 if handshake not in done:
                     # Let the reader finish lines printed immediately before
                     # exit, but don't wait on pipes inherited by descendants.
                     try:
                         await asyncio.wait_for(asyncio.shield(handshake), 0.5)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         raise KernelStartupError(
                             f"Kernel exited during startup (exit code {exited.result()})."
                         ) from None
@@ -625,7 +629,7 @@ class IPCKernelManagerImpl(KernelManager):
 
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise KernelStartupError(
                 f"Kernel did not become ready within {_startup_timeout():.0f}s "
                 f"(override with MARIMO_KERNEL_STARTUP_TIMEOUT).\n\n"
@@ -694,9 +698,8 @@ class IPCKernelManagerImpl(KernelManager):
 
     def close_kernel(self, *, graceful: bool = False) -> None:
         if self._process is not None:
-            self.queue_manager.put_control_request(
-                commands.StopKernelCommand()
-            )
+            if self.is_alive():
+                self.queue_manager.request_kernel_stop()
             # A clean stop lets the kernel flush pending work (the
             # profile dump, cache writes) before we kill it. Unlike the
             # multiprocessing manager, every wait here is bounded.
@@ -726,7 +729,10 @@ class IPCKernelManagerImpl(KernelManager):
                 # so user-code subprocesses die too, then the launcher.
                 if self._kernel_pid is not None and sys.platform != "win32":
                     try:
-                        os.killpg(os.getpgid(self._kernel_pid), signal.SIGTERM)
+                        pgid = os.getpgid(self._kernel_pid)
+                        # The ready handshake can precede the kernel's setsid.
+                        if pgid != os.getpgrp():
+                            os.killpg(pgid, signal.SIGTERM)
                     except (ProcessLookupError, PermissionError):
                         pass
                 try:

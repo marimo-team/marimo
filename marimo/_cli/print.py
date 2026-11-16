@@ -67,7 +67,7 @@ class _StyleFn(Protocol):
         self,
         text: str,
         *,
-        fg: str | None = ...,
+        fg: str | int | None = ...,
         bold: bool = ...,
         dim: bool = ...,
     ) -> str: ...
@@ -76,13 +76,15 @@ class _StyleFn(Protocol):
 def _ansi_style(
     text: str,
     *,
-    fg: str | None = None,
+    fg: str | int | None = None,
     bold: bool = False,
     dim: bool = False,
 ) -> str:
     """Minimal ANSI fallback for environments without click (e.g. WASM)."""
     codes: list[int] = []
-    if fg and fg in _ANSI_COLORS:
+    if isinstance(fg, int):
+        codes.extend([38, 5, fg])
+    elif fg and fg in _ANSI_COLORS:
         codes.append(_ANSI_COLORS[fg])
     if bold:
         codes.append(1)
@@ -96,7 +98,7 @@ def _ansi_style(
 def _noop_style(
     text: str,
     *,
-    fg: str | None = None,
+    fg: str | int | None = None,
     bold: bool = False,
     dim: bool = False,
 ) -> str:
@@ -135,7 +137,7 @@ def yellow(text: str, bold: bool = False) -> str:
 
 
 def orange(text: str, bold: bool = False) -> str:
-    return _style(text, fg="yellow", bold=bold)
+    return _style(text, fg=208, bold=bold)
 
 
 def red(text: str, bold: bool = False) -> str:

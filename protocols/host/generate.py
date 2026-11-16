@@ -2,19 +2,40 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "datamodel-code-generator==0.72.0",
+#   "jinja2==3.1.6",
 #   "ruff==0.16.4",
-#   "msgspec[yaml]==0.22.0"
 # ]
 # ///
-"""Generate msgspec models for the marimo host protocol."""
+"""Generate Python bindings from the host OpenAPI document on stdin."""
 
 import argparse
 import ast
+import json
 import subprocess
+import sys
 import tempfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parent
+
+
+REPOSITORY = ROOT.parents[1]
+OPENAPI = REPOSITORY / "packages" / "host-protocol" / "scripts" / "openapi.ts"
+COMMAND = "make host-protocol-codegen"
+
+
+def openapi(*, experimental: bool = False) -> dict[str, Any]:
+    """Ask the host protocol package for its OpenAPI document."""
+    command = [
+        "node",
+        str(OPENAPI),
+        *(["--experimental"] if experimental else []),
+    ]
+    printed = subprocess.run(command, check=True, capture_output=True)
+    document: dict[str, Any] = json.loads(printed.stdout)
+    return document
 
 
 # msgspec decodes tuple fields from JSON arrays without changing the wire format.
@@ -30,7 +51,7 @@ class TupleArrays(ast.NodeTransformer):
 
 
 def sorted_keys(value: Any) -> Any:
-    """Keep model and field ordering independent of the YAML layout."""
+    """Keep model and field ordering independent of the document's layout."""
     if isinstance(value, dict):
         return {key: sorted_keys(value[key]) for key in sorted(value)}
     if isinstance(value, list):
@@ -76,6 +97,91 @@ def tuple_arrays(source: bytes) -> bytes:
     return source
 
 
+def event_adapters(
+    document: dict[str, Any], *, relative_import: bool = False
+) -> str:
+    """Derive typed event adapters from the `Event` union and schema refs."""
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+    schemas = document["components"]["schemas"]
+
+    def reference(value: dict[str, Any]) -> str:
+        ref = value["$ref"]
+        prefix = "#/components/schemas/"
+        if not ref.startswith(prefix):
+            raise ValueError(f"Expected a local schema reference: {ref}")
+        return ref.removeprefix(prefix)
+
+    events = {}
+    for member in schemas["Event"]["anyOf"]:
+        name = reference(member)
+        (tag,) = schemas[name]["properties"]["event"]["enum"]
+        events[tag] = name
+
+    records = {}
+    removals = []
+    for tag, name in sorted(events.items()):
+        data = schemas[name]["properties"]["data"]
+        if "$ref" not in data:
+            continue  # Control events have no record payload.
+        message = reference(data)
+        if tag.endswith(".removed"):
+            removals.append((tag.removesuffix(".removed"), name, message))
+            continue
+        schema = schemas[message]
+        fields = {
+            field: reference(value)
+            for field, value in schema["properties"].items()
+            if "$ref" in value
+            and schemas[reference(value)].get("type") == "object"
+            and field in schema.get("required", [])
+        }
+        if len(fields) != 1:
+            raise ValueError(f"{message} must contain one required record")
+        field, body = next(iter(fields.items()))
+        if set(schema["properties"]) != {field, "request_id", "time"}:
+            raise ValueError(f"Unsupported event metadata in {message}")
+        records[tag] = {
+            "event": name,
+            "message": message,
+            "body": body,
+            "field": field,
+            "requires_time": "time" in schema.get("required", []),
+        }
+
+    removed = []
+    for tag, name, message in removals:
+        if tag not in records:
+            raise ValueError(f"{name} has no corresponding record event")
+        removed.append({**records[tag], "event": name, "message": message})
+
+    env = Environment(
+        loader=FileSystemLoader(Path(__file__).parent / "templates"),
+        undefined=StrictUndefined,
+        keep_trailing_newline=True,
+    )
+    return env.get_template("events.py.jinja2").render(
+        records=list(records.values()),
+        removals=removed,
+        command=COMMAND,
+        relative_import=relative_import,
+    )
+
+
+def format_generated(output_path: Path) -> None:
+    subprocess.run(
+        [
+            "ruff",
+            "format",
+            "--isolated",
+            "--line-length",
+            "79",
+            str(output_path),
+        ],
+        check=True,
+    )
+
+
 def generate_models(document: dict[str, Any], output_path: Path) -> None:
     from datamodel_code_generator import (
         DataModelType,
@@ -90,7 +196,13 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
     template_data = defaultdict(dict)
     for name, schema in schemas.items():
         template_data[name]["base_class_kwargs"] = {"frozen": "True"}
-        if name.endswith("Id") and schema.get("type") == "string":
+        if schema.get("additionalProperties") is False:
+            template_data[name]["base_class_kwargs"][
+                "forbid_unknown_fields"
+            ] = "True"
+        if schema.keys().isdisjoint({"enum", "format"}) and (
+            schema.get("type") == "string"
+        ):
             template_data[name]["newtype"] = True
 
     generate(
@@ -107,6 +219,7 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
         enum_field_as_literal="all",
         strict_nullable=True,
         field_constraints=True,
+        apply_default_values_for_required_fields=True,
         use_annotated=True,
         custom_template_dir=Path(__file__).parent / "templates",
         extra_template_data=template_data,
@@ -115,8 +228,8 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
         custom_file_header=(
             "# Copyright 2026 Marimo. All rights reserved.\n"
             "# AUTO-GENERATED FILE — DO NOT EDIT.\n"
-            "# Generated from protocols/host/openapi.yaml.\n"
-            "# Regenerate with `make host-protocol-codegen`.\n"
+            "# Generated from packages/host-protocol.\n"
+            f"# Regenerate with `{COMMAND}`.\n"
             "# ruff: noqa: TC003 - msgspec resolves annotations at runtime\n"
             "# ruff: noqa: RUF036 - the generator orders unions; the wire shape is the same"
         ),
@@ -124,40 +237,40 @@ def generate_models(document: dict[str, Any], output_path: Path) -> None:
 
     output_path.write_bytes(tuple_arrays(output_path.read_bytes()))
 
-    subprocess.run(
-        [
-            "ruff",
-            "format",
-            "--isolated",
-            "--line-length",
-            "79",
-            str(output_path),
-        ],
-        check=True,
-    )
+    format_generated(output_path)
 
 
 def main() -> None:
-    import msgspec.yaml
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args()
-    root = Path(__file__).resolve().parent
-    destination = root.parents[1] / "marimo" / "_core" / "protocol.py"
-    document = sorted_keys(
-        msgspec.yaml.decode((root / "openapi.yaml").read_bytes())
-    )
+    default_destination = REPOSITORY / "marimo" / "_core"
+    destination = args.output_dir or default_destination
+    document = sorted_keys(json.load(sys.stdin))
+    if not args.check:
+        destination.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as directory:
         output = Path(directory) / "protocol.py"
         generate_models(document, output)
-        content = output.read_bytes()
-        if not destination.exists() or destination.read_bytes() != content:
-            if args.check:
-                raise SystemExit(
-                    "Host models are stale; run make host-protocol-codegen"
-                )
-            destination.write_bytes(content)
+        adapters = Path(directory) / "protocol_events.py"
+        adapters.write_text(
+            event_adapters(
+                document,
+                relative_import=destination.resolve() != default_destination,
+            ),
+            encoding="utf-8",
+        )
+        format_generated(adapters)
+        for generated in (output, adapters):
+            target = destination / generated.name
+            content = generated.read_bytes()
+            if not target.exists() or target.read_bytes() != content:
+                if args.check:
+                    raise SystemExit(
+                        f"Host bindings are stale. Run `{COMMAND}`."
+                    )
+                target.write_bytes(content)
     print("Host protocol models are current.")
 
 

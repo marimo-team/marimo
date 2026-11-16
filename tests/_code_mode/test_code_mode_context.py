@@ -543,7 +543,7 @@ class TestUpdateCell:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
 
         with (
-            patch.dict(k.user_config["save"], {"format_on_save": False}),
+            patch.object(k.user_config.save, "format_on_save", False),
             patch(
                 "marimo._code_mode._context.DefaultFormatter.format",
                 new_callable=AsyncMock,
@@ -560,7 +560,7 @@ class TestUpdateCell:
         await k.run([ExecuteCellCommand(cell_id=CellId_t("0"), code="x = 1")])
 
         with (
-            patch.dict(k.user_config["save"], {"format_on_save": True}),
+            patch.object(k.user_config.save, "format_on_save", True),
             patch(
                 "marimo._code_mode._context.DefaultFormatter.format",
                 new=AsyncMock(return_value={"0": "x = 42"}),
@@ -1530,7 +1530,7 @@ class TestPendingExecutionRequests:
         )
         root = k.graph.cells["root"]
         root.configure({"disabled": True})
-        root.set_stale(True, broadcast=False)
+        root.set_stale(True)
         state_before = {
             cid: (cell.runtime_state, cell.stale, cell.config.asdict())
             for cid, cell in k.graph.cells.items()
@@ -1730,3 +1730,41 @@ class TestErrorReporting:
         captured = capsys.readouterr()
         assert "created and ran" in captured.out
         assert "error in cell" not in captured.err
+
+
+async def test_config_edit_retains_unregistered_error_source(
+    k: Kernel,
+) -> None:
+    source = "x = ("
+    cid = CellId_t("broken")
+    await k.run([ExecuteCellCommand(cell_id=cid, code=source)])
+    assert cid not in k.graph.cells
+    assert k.cell_metadata[cid].code == source
+    cell = NotebookCell(id=cid, code=source, name="", config=CellConfig())
+    with _ctx(k, extra_doc_cells=[cell]) as ctx:
+        async with ctx as nb:
+            nb.edit_cell(str(cid), hide_code=True)
+    assert k.cell_metadata[cid].code == source
+    assert k.cell_metadata[cid].config.hide_code is True
+
+
+async def test_config_edit_retains_semantic_error_source(k: Kernel) -> None:
+    source = "duplicate = 1"
+    cid = CellId_t("first")
+    await k.run(
+        [
+            ExecuteCellCommand(cell_id=cid, code=source),
+            ExecuteCellCommand(
+                cell_id=CellId_t("second"), code="duplicate = 2"
+            ),
+        ]
+    )
+    assert cid in k.errors
+    with _ctx(k) as ctx:
+        async with ctx as nb:
+            nb.edit_cell(str(cid), hide_code=True)
+    await k.run(
+        [ExecuteCellCommand(cell_id=CellId_t("third"), code="unrelated = 3")]
+    )
+    assert cid in k.errors
+    assert k.cell_metadata[cid].code == source

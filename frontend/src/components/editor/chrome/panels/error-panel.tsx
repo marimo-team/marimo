@@ -25,6 +25,7 @@ const ErrorsPanel: React.FC = () => {
             <MarimoErrorOutput
               key={error.cellId}
               errors={error.output.data}
+              code={error.output.code}
               cellId={error.cellId}
             />
           </div>

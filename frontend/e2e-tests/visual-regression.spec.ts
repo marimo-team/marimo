@@ -45,12 +45,6 @@ const VISUAL_CASES = [
   },
 ] satisfies readonly VisualCase[];
 
-function getThemedUrl(app: ApplicationNames, theme: VisualTheme): string {
-  const url = new URL(getAppUrl(app));
-  url.searchParams.set("theme", theme);
-  return url.toString();
-}
-
 async function resolveColor(page: Page, value: string): Promise<string> {
   return page.evaluate((cssValue) => {
     const probe = document.createElement("span");
@@ -67,13 +61,12 @@ async function prepareVisualCase(
   visualCase: VisualCase,
 ): Promise<void> {
   await page.setViewportSize(DESKTOP_VIEWPORT);
-  await page.goto(getThemedUrl(visualCase.app, visualCase.theme));
+  await page.emulateMedia({ colorScheme: visualCase.theme });
+  await page.goto(getAppUrl(visualCase.app));
 
-  if (visualCase.view === "edit") {
-    await maybeRestartKernel(page);
-  } else {
-    await waitForMarimoApp(page);
-  }
+  await (visualCase.view === "edit"
+    ? maybeRestartKernel(page)
+    : waitForMarimoApp(page));
 
   const heading = page.getByRole("heading", {
     name: "Semantic token fixture",
@@ -95,11 +88,9 @@ async function prepareVisualCase(
   );
 
   const saveButton = page.locator("#save-button");
-  if (visualCase.view === "edit") {
-    await expect(saveButton).toBeVisible();
-  } else {
-    await expect(saveButton).toHaveCount(0);
-  }
+  await (visualCase.view === "edit"
+    ? expect(saveButton).toBeVisible()
+    : expect(saveButton).toHaveCount(0));
 
   await page.evaluate(async () => {
     await document.fonts.ready;

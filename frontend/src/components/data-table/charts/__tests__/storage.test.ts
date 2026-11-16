@@ -16,7 +16,7 @@ import { cellId } from "@/__tests__/branded";
 import { availableStorage } from "@/utils/storage/storage";
 import { ChartSchema } from "../schemas";
 import type { TabName } from "../storage";
-import { KEY, tabsStorageAtom } from "../storage";
+import { createTabId, KEY, tabsStorageAtom } from "../storage";
 import { ChartType } from "../types";
 
 describe("Chart Transforms Storage", () => {
@@ -39,6 +39,7 @@ describe("Chart Transforms Storage", () => {
       const store = getDefaultStore();
       const cid = cellId("cell-1");
       const tabData = {
+        id: createTabId(),
         tabName: "Tab 1" as TabName,
         chartType: ChartType.LINE,
         config: ChartSchema.parse({
@@ -63,6 +64,7 @@ describe("Chart Transforms Storage", () => {
       const store = getDefaultStore();
       const cid = cellId("cell-1");
       const tabData1 = {
+        id: createTabId(),
         tabName: "Tab 1" as TabName,
         chartType: ChartType.LINE,
         config: ChartSchema.parse({
@@ -73,6 +75,7 @@ describe("Chart Transforms Storage", () => {
         }),
       };
       const tabData2 = {
+        id: createTabId(),
         tabName: "Tab 2" as TabName,
         chartType: ChartType.BAR,
         config: ChartSchema.parse({

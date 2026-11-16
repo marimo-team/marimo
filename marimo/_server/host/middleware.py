@@ -1,24 +1,30 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Local access and bearer-token authentication for the host API.
 
-Requests must come from loopback and address a loopback name on the
-server's port. The bearer token comes from the host discovery record.
+Host bearer requests must come from loopback and address a loopback name
+on the server's port. The bearer token comes from the host discovery record.
+The notebook event socket and operations also accept the editor's
+authentication.
 """
 
 from __future__ import annotations
 
-import hmac
-import re
-from ipaddress import IPv6Address, ip_address
 from typing import TYPE_CHECKING
 
 from starlette.exceptions import HTTPException
-from starlette.requests import Request
+from starlette.requests import HTTPConnection
 from starlette.routing import Match, Route
+from starlette.websockets import WebSocket
 
 from marimo import _loggers
 from marimo._server.host import HOST_API_PATH
-from marimo._server.host.api import build_app, problem
+from marimo._server.host.api import build_app, editor_routes
+from marimo._server.host.auth import (
+    bearer_matches,
+    host_header_ok,
+    is_loopback,
+)
+from marimo._server.host.notebook_api import problem, status_problem
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -29,8 +35,6 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
-_PORT = re.compile(r"[0-9]{1,5}")
-
 
 class HostApiMiddleware:
     """Authenticate and route host API requests."""
@@ -39,33 +43,47 @@ class HostApiMiddleware:
         self.app = app
         self.prefix = base_url + HOST_API_PATH
         self.host_app = build_app()
+        self.editor_routes = editor_routes(base_url)
 
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
     ) -> None:
-        if scope["type"] != "http" or not self._is_host_path(scope["path"]):
+        if scope["type"] not in (
+            "http",
+            "websocket",
+        ) or not self._is_host_path(scope["path"]):
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope)
+        request = HTTPConnection(scope)
         client = scope.get("client")
         context = getattr(request.app.state, "host_context", None)
         if context is None:
-            response = problem(404, "not-found", "This server is not a host")
-        elif client is None or not _is_loopback(client[0]):
+            response = problem("not-found", "This server is not a host")
+        elif context.bridge.app_sessions is not None:
             response = problem(
-                403, "forbidden", "The host API answers only this machine"
+                "not-found", "App sessions do not expose a host catalog"
             )
-        elif not _host_header_ok(request.headers.get("host"), context.port):
+        elif self._for_editor(scope) and not bearer_matches(
+            request.headers.get("Authorization"), context.token
+        ):
+            # Let the editor middleware load the cookie before authenticating.
+            await self.app(scope, receive, send)
+            return
+        elif client is None or not is_loopback(client[0]):
+            response = problem(
+                "forbidden", "The host API answers only this machine"
+            )
+        elif not host_header_ok(request.headers.get("host"), context.port):
             # Reject remote domain names to prevent DNS rebinding attacks.
             response = problem(
-                403, "forbidden", "The host API answers only its own address"
+                "forbidden", "The host API answers only its own address"
             )
-        elif not _bearer_matches(
+        elif not bearer_matches(
             request.headers.get("Authorization"), context.token
         ):
             response = problem(
-                401, "unauthorized", "Send the host record's token as a bearer"
+                "unauthorized", "Send the host record's token as a bearer"
             )
             response.headers["WWW-Authenticate"] = "Bearer"
         else:
@@ -74,7 +92,11 @@ class HostApiMiddleware:
 
             async def guarded(message: Message) -> None:
                 nonlocal started
-                if message["type"] == "http.response.start":
+                if message["type"] in (
+                    "http.response.start",
+                    "websocket.accept",
+                    "websocket.close",
+                ):
                     started = True
                 await send(message)
 
@@ -86,25 +108,51 @@ class HostApiMiddleware:
                 # The bare router has no exception middleware, so a known
                 # path with an unsupported method surfaces here as a 405.
                 response = _router_problem(exc, scope, self.host_app.routes)
-                await response(scope, receive, send)
+                await _respond(response, scope, receive, send)
             except Exception:
                 if started:
                     # The server logs the failure once it ends the stream.
                     raise
                 LOGGER.exception("The host API failed on %s", scope["path"])
-                response = problem(500, "internal", "The host failed")
-                await response(scope, receive, send)
+                response = problem("internal", "The host failed")
+                await _respond(response, scope, receive, send)
             return
-        await response(scope, receive, send)
+        await _respond(response, scope, receive, send)
 
     def _is_host_path(self, path: str) -> bool:
         return path == self.prefix or path.startswith(self.prefix + "/")
+
+    def _for_editor(self, scope: Scope) -> bool:
+        if scope.get("method") == "OPTIONS":
+            # Match the operation requested by the CORS preflight.
+            scope = {
+                **scope,
+                "method": HTTPConnection(scope).headers.get(
+                    "Access-Control-Request-Method", ""
+                ),
+            }
+        return any(
+            route.matches(scope)[0] is Match.FULL
+            for route in self.editor_routes
+        )
+
+
+async def _respond(
+    response: Response, scope: Scope, receive: Receive, send: Send
+) -> None:
+    if scope["type"] == "websocket":
+        await WebSocket(scope, receive, send).close(
+            code=1008,
+            reason=f"Host API request rejected ({response.status_code})",
+        )
+    else:
+        await response(scope, receive, send)
 
 
 def _router_problem(
     exc: HTTPException, scope: Scope, routes: Sequence[BaseRoute]
 ) -> Response:
-    response = problem(exc.status_code, detail=exc.detail)
+    response = status_problem(exc.status_code, exc.detail)
     if exc.status_code == 405:
         # The router names only the first route that matched the path, but
         # a path can be declared once per method.
@@ -125,46 +173,3 @@ def _methods_declared_for(
         ):
             methods.update(route.methods or ())
     return methods
-
-
-def _is_loopback(host: str) -> bool:
-    if host.lower() == "localhost":
-        return True
-    try:
-        address = ip_address(host)
-    except ValueError:
-        return False
-    if isinstance(address, IPv6Address) and address.ipv4_mapped is not None:
-        address = address.ipv4_mapped
-    return address.is_loopback
-
-
-def _host_header_ok(header: str | None, port: int) -> bool:
-    """Check that the Host header names a loopback address and server port."""
-    if header is None:
-        return False
-    if header.startswith("["):
-        name, closed, after = header.partition("]")
-        if not closed or (after and not after.startswith(":")):
-            return False
-        name = name[1:]
-        given = after[1:]
-    else:
-        name, _, given = header.partition(":")
-    if not _is_loopback(name):
-        return False
-    if given == "":
-        return port == 80
-    return _PORT.fullmatch(given) is not None and int(given) == port
-
-
-def _bearer_matches(authorization: str | None, token: str) -> bool:
-    if authorization is None:
-        return False
-    scheme, _, credentials = authorization.partition(" ")
-    if scheme.lower() != "bearer":
-        return False
-    # Header text is latin-1, and compare_digest rejects non-ASCII str.
-    return hmac.compare_digest(
-        credentials.strip().encode("latin-1"), token.encode()
-    )

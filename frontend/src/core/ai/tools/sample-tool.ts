@@ -50,13 +50,12 @@ export class TestFrontendTool implements AiTool<Input, Output> {
   public async handler({ name }: Input): Promise<Output> {
     // Example: Validate input and throw ToolExecutionError on invalid data
     if (!name.trim()) {
-      throw new ToolExecutionError(
-        "Name cannot be empty",
-        "INVALID_INPUT",
-        false,
-        "Please provide a non-empty name",
-        { field: "name", received: name },
-      );
+      throw new ToolExecutionError("Name cannot be empty", {
+        code: "INVALID_INPUT",
+        isRetryable: false,
+        suggestedFix: "Please provide a non-empty name",
+        meta: { field: "name", received: name },
+      });
     }
 
     return {

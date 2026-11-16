@@ -1,13 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { type Milliseconds, Time } from "@/utils/time";
 
 /**
  * Returns the elapsed time since mount, in milliseconds.
  */
 export function useElapsedTime(initialStartTimeMs: Milliseconds) {
-  const startTime = useRef(initialStartTimeMs);
+  const [startTime] = useState(initialStartTimeMs);
   const [endTime, setEndTime] = useState(initialStartTimeMs);
 
   useEffect(() => {
@@ -21,5 +21,5 @@ export function useElapsedTime(initialStartTimeMs: Milliseconds) {
     return () => clearInterval(interval);
   }, []);
 
-  return endTime - startTime.current;
+  return endTime - startTime;
 }

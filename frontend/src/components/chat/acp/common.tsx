@@ -45,7 +45,7 @@ export const SimpleAccordion: React.FC<SimpleAccordionProps> = ({
       case "error":
         return <XCircleIcon className="h-3 w-3 text-destructive" />;
       case "success":
-        return <CheckCircleIcon className="h-3 w-3 text-(--blue-9)" />;
+        return null;
       default:
         return defaultIcon;
     }
@@ -61,9 +61,8 @@ export const SimpleAccordion: React.FC<SimpleAccordionProps> = ({
       <AccordionItem value="tool-call" className="border-0">
         <AccordionTrigger
           className={cn(
-            "py-1 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 px-2 gap-1 rounded-sm [&[data-state=open]>svg]:rotate-180",
+            "h-auto pl-0 pr-2 py-1 gap-2 rounded text-xs font-normal text-muted-foreground hover:bg-(--slate-2) hover:text-foreground hover:no-underline",
             status === "error" && "text-destructive/80",
-            status === "success" && "text-(--blue-8)",
           )}
         >
           <span className="flex items-center gap-1">
@@ -104,8 +103,8 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = memo(
           return {
             icon: <WifiIcon className="h-3 w-3" />,
             label: "Connected",
-            variant: "default" as const,
-            className: "bg-(--blue-3) text-(--blue-11) border-(--blue-5)",
+            variant: "outline" as const,
+            className: "bg-transparent text-muted-foreground border-border",
           };
         case "connecting":
           return {

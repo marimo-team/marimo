@@ -5,29 +5,38 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any, overload
 
 import msgspec
+from msgspec import UNSET
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
-from marimo._core.errors import Conflict, NoRuntime, NotFound
-from marimo._core.executions import Executions, Released, Removed
+from marimo._core.document import Stale
+from marimo._core.errors import (
+    Conflict,
+    Invalid,
+    NoRuntime,
+    NotFound,
+    PreconditionFailed,
+)
+from marimo._core.executions import Executions, InputChanged, Released, Removed
 from marimo._core.ids import mint
-from marimo._core.stream import Event, Kind, kind_of, message, utcnow
+from marimo._core.stream import RoutedEvent, snapshot_event, utcnow
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterator, Mapping, Sequence
 
     from marimo._core.analysis import Analyzer
     from marimo._core.document import (
-        CellSource,
         Changed,
         Document,
-        DocumentSnapshot,
+        DocumentCell,
     )
     from marimo._core.executions import Change
-    from marimo._core.stream import Body, Sink
+    from marimo._core.protocol_events import Body, RemovableBody, SnapshotBody
+    from marimo._core.stream import Sink
 
 
 LOGGER = logging.getLogger(__name__)
@@ -36,10 +45,11 @@ LOGGER = logging.getLogger(__name__)
 class Notebook:
     """A document, its execution results, and the runtime that produces them.
 
-    The document and cell results remain when the runtime stops.
-    Commands call the backend and publish changes through the sink.
-    Change the document and executions through the notebook so each
-    change reaches the sink.
+    The notebook gives the document its identity and its saved revision,
+    and publishes the records clients read. The document
+    and cell results remain when the runtime stops. Commands call the
+    backend and publish changes through the sink. Change the document
+    and executions through the notebook so each change reaches the sink.
 
     With an analyzer, the notebook requests analysis of each document
     revision and publishes the result when that revision is still
@@ -48,14 +58,26 @@ class Notebook:
 
     def __init__(
         self,
+        notebook_id: protocol.NotebookId,
         document: Document,
         executions: Executions,
         backend: be.Backend,
         sink: Sink,
         *,
+        saved_etag: protocol.Etag | None = None,
         analyzer: Analyzer | None = None,
     ) -> None:
+        self._id = notebook_id
         self._document = document
+        self._saved_etag = saved_etag
+        # Versions order the records clients read. The document's advances
+        # with each change to its content; a cell's is the document version
+        # at which it was created or last changed.
+        self._version = 1
+        self._cell_versions = {cell.id: 1 for cell in document}
+        # The document record as last published, so a change that leaves
+        # it the same publishes nothing.
+        self._published: protocol.Document | None = self._document_record
         self._executions = executions
         self.backend = backend
         self.sink = sink
@@ -75,7 +97,7 @@ class Notebook:
 
     @property
     def document(self) -> Document:
-        """The document owned by this notebook; change it through the notebook."""
+        """The current revision. The notebook's commands produce the next."""
         return self._document
 
     @property
@@ -85,7 +107,42 @@ class Notebook:
 
     @property
     def id(self) -> protocol.NotebookId:
-        return self.document.notebook_id
+        return self._id
+
+    @property
+    def saved_etag(self) -> protocol.Etag | None:
+        """The document revision the store holds, if known."""
+        return self._saved_etag
+
+    def require_revision(self, etags: Sequence[str]) -> None:
+        """Check that the document is at one of `etags`.
+
+        Raises:
+            PreconditionFailed: If it is not, carrying the document as it is.
+        """
+        self._require_open()
+        if self.document.etag not in etags:
+            raise PreconditionFailed(
+                "The document has changed since it was read",
+                index=0,
+                cell=None,
+                document=self._document_record,
+            )
+
+    @property
+    def _document_record(self) -> protocol.Document:
+        """The document as clients read it, built from its current state."""
+        document = self._document
+        return protocol.Document(
+            notebook_id=self._id,
+            order=tuple(cell.id for cell in document),
+            app_config=deepcopy(dict(document.app_config)),
+            etag=document.etag,
+            saved_etag=self._saved_etag,
+            order_etag=document.order_etag,
+            app_config_etag=document.app_config_etag,
+            version=self._version,
+        )
 
     @property
     def runtime(self) -> protocol.Runtime | None:
@@ -105,39 +162,133 @@ class Notebook:
 
     def replace(
         self,
-        cells: Sequence[CellSource],
+        cells: Sequence[DocumentCell],
         app_config: Mapping[str, object],
         *,
+        saved: bool = False,
         request_id: str | None = None,
-    ) -> Changed:
-        """Replace the document and publish its changes."""
-        self._require_open()
-        changed = self.document.replace(cells, app_config)
-        self._publish_changed(changed, request_id)
-        if changed.document is not None:
-            self._request_analysis(request_id)
-        return changed
+    ) -> protocol.EditResponse:
+        """Replace the document and publish its changes.
 
-    def mark_saved(self, *, request_id: str | None = None) -> None:
-        """Mark the current document revision as saved."""
+        With `saved`, the new contents are also the persisted revision.
+        The response carries the version of each cell that changed, and
+        `None` for each cell that was removed.
+        """
         self._require_open()
-        document = self.document.mark_saved()
-        if document is not None:
-            self._publish(document, request_id)
+        self._document, changed = self._document.replace(cells, app_config)
+        if saved:
+            self._saved_etag = self._document.etag
+        with self.sink.deferred():
+            self._publish_changed(changed, request_id)
+            versions: dict[str, protocol.CellVersion | None] = {
+                cell.id: self._cell_version(cell) for cell in changed.cells
+            }
+            for cell_id in changed.removed:
+                versions[cell_id] = None
+            return protocol.EditResponse(
+                document=self._document_record, cells=versions
+            )
+
+    def edit(
+        self, changes: Sequence[protocol.Change], *, request_id: str
+    ) -> protocol.EditResponse:
+        """Apply an edit as one unit and publish its effects.
+
+        Raises:
+            PreconditionFailed: If a precondition is stale. Nothing is applied.
+            Invalid: If a change could not apply to any state.
+        """
+        self._require_open()
+        result = self._document.apply(changes)
+        if isinstance(result, Stale):
+            cell = (
+                None
+                if result.cell_id is None
+                else self._document.cell(result.cell_id)
+            )
+            raise PreconditionFailed(
+                f"change {result.change} names a state the document no "
+                "longer has",
+                index=result.change,
+                cell=None if cell is None else self._cell_record(cell),
+                document=self._document_record,
+            )
+        self._document, applied = result
+        with self.sink.deferred():
+            self._publish_changed(applied.changed, request_id)
+            return protocol.EditResponse(
+                document=self._document_record,
+                cells={
+                    cell_id: None if cell is None else self._cell_version(cell)
+                    for cell_id, cell in applied.cells.items()
+                },
+            )
+
+    def mark_saved(
+        self, etag: protocol.Etag, *, request_id: str | None = None
+    ) -> protocol.Document:
+        """Record `etag` as the persisted revision and return the document.
+
+        The revision may precede the current one, when the document
+        changed while it was being written.
+        """
+        self._require_open()
+        self._saved_etag = etag
+        published = self._refresh()
+        if published is not None:
+            self._publish(published, request_id)
+        return self._document_record
+
+    def _cell_record(self, cell: DocumentCell) -> protocol.Cell:
+        return protocol.Cell(
+            id=cell.id,
+            notebook_id=self._id,
+            code=cell.code,
+            name=cell.name,
+            config=cell.config,
+            etag=cell.etag,
+            code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
+            version=self._cell_versions[cell.id],
+        )
+
+    def _cell_version(self, cell: DocumentCell) -> protocol.CellVersion:
+        return protocol.CellVersion(
+            etag=cell.etag,
+            code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
+            version=self._cell_versions[cell.id],
+        )
+
+    def _refresh(self) -> protocol.Document | None:
+        """Return the document record when it differs from the last published."""
+        record = self._document_record
+        if record == self._published:
+            return None
+        self._published = record
+        return record
 
     def _publish_changed(
         self, changed: Changed, request_id: str | None
     ) -> None:
+        """Publish a document change, then analyze the new revision."""
+        if changed:
+            self._version += 1
+            for cell in changed.cells:
+                self._cell_versions[cell.id] = self._version
+            for cell_id in changed.removed:
+                self._cell_versions.pop(cell_id, None)
         with self.sink.deferred():
             for cell in changed.cells:
-                self._publish(cell, request_id)
+                self._publish(self._cell_record(cell), request_id)
             for cell_id in changed.removed:
                 self._apply(
                     self.executions.remove_cell(protocol.CellId(cell_id))
                 )
-                self._remove("cell", cell_id, request_id)
-            if changed.document is not None:
-                self._publish(changed.document, request_id)
+                self._remove(protocol.Cell, cell_id, request_id)
+            record = self._refresh()
+            if record is not None:
+                self._publish(record, request_id)
+        if changed.etag is not None:
+            self._request_analysis(request_id)
 
     # ---- analysis ------------------------------------------------------
 
@@ -149,22 +300,22 @@ class Notebook:
             self._reanalyze, self._reanalyze_request = True, request_id
             return
         self._analysis_task = asyncio.create_task(
-            self._analyze(self.document.snapshot(), request_id)
+            self._analyze(self._document, request_id)
         )
 
     async def _analyze(
-        self, snapshot: DocumentSnapshot, request_id: str | None
+        self, document: Document, request_id: str | None
     ) -> None:
         assert self._analyzer is not None
         try:
             while not self._closed:
-                etag = snapshot.document.etag
+                etag = document.etag
                 try:
-                    cells = await self._analyzer.analyze(snapshot)
+                    cells = await self._analyzer.analyze(document)
                 except Exception:
                     LOGGER.exception("Could not analyze document %s", etag)
                 else:
-                    if not self._closed and etag == self.document._record.etag:
+                    if not self._closed and etag == self._document.etag:
                         self._analysis = protocol.Analysis(
                             notebook_id=self.id,
                             document_etag=etag,
@@ -178,7 +329,7 @@ class Notebook:
                     return
                 request_id = self._reanalyze_request
                 self._reanalyze, self._reanalyze_request = False, None
-                snapshot = self.document.snapshot()
+                document = self._document
         finally:
             self._analysis_task = None
 
@@ -213,6 +364,7 @@ class Notebook:
                 return runtime
             terminating = replace(runtime, status="terminating")
             self._set_runtime(terminating)
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
             if runtime.status == "failed":
                 self._end_runtime()
             else:
@@ -236,6 +388,7 @@ class Notebook:
             self._replacement = replacement
             terminating = replace(runtime, status="terminating")
             self._set_runtime(terminating)
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
             self.backend.stop(runtime.id)
             return replacement
 
@@ -278,46 +431,168 @@ class Notebook:
         assert self._runtime is not None
         self._apply(self.executions.interrupt())
         runtime, self._runtime = self._runtime, None
-        self._remove("runtime", runtime.id, self._runtime_request)
+        self._remove(protocol.Runtime, runtime.id, self._runtime_request)
         self._runtime_request = None
 
     # ---- runs ----------------------------------------------------------
 
-    def run(self, code: str, *, request_id: str) -> protocol.Run:
-        """Queue scratch code on a running, idle runtime."""
+    @overload
+    def run(
+        self,
+        code: str,
+        *,
+        request_id: str,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
+    ) -> protocol.Run: ...
+
+    @overload
+    def run(
+        self,
+        *,
+        cells: Sequence[protocol.RequestedCell],
+        request_id: str,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
+    ) -> protocol.Run: ...
+
+    def run(
+        self,
+        code: str | None = None,
+        *,
+        cells: Sequence[protocol.RequestedCell] | None = None,
+        request_id: str,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
+    ) -> protocol.Run:
+        """Queue scratch code, or cells of the document, on the runtime.
+
+        Runs start in acceptance order, one at a time, each with the
+        document it was accepted in, recording the requested cells. Each
+        requested cell must be in the document. One that names an `etag`
+        the cell no longer has is a conflict, and nothing runs. The code
+        reads `request`, the request that submitted the run, through
+        `mo.app_meta().request`. `allow_input` permits interactive prompts;
+        unattended runs raise `EOFError` when code requests input.
+
+        Raises:
+            Invalid: If the request does not select exactly one of code
+                and cells, or selects an empty cell sequence.
+            NoRuntime: If the notebook has no runtime.
+            Conflict: If the runtime is not running.
+            PreconditionFailed: If a requested cell is missing or has changed.
+        """
+        if (code is None) == (cells is None):
+            raise Invalid("a run names code or cells, not both")
+        if cells is not None and not cells:
+            raise Invalid("a cell run names at least one cell")
         with self.sink.deferred():
             self._require_open()
             runtime = self._require_runtime()
             if runtime.status != "running":
                 raise Conflict(f"the runtime is {runtime.status}.")
-            active = self.executions.active()
-            if active is not None:
-                raise Conflict(f"run {active.id} is in progress.")
+            targets: list[protocol.CellId] = []
+            for index, requested in enumerate(cells or ()):
+                cell = self._document.cell(requested.id)
+                if cell is None:
+                    raise PreconditionFailed(
+                        f"cell {requested.id} is not in the document.",
+                        index=index,
+                        cell=None,
+                        document=self._document_record,
+                    )
+                if requested.etag is not UNSET and requested.etag != cell.etag:
+                    raise PreconditionFailed(
+                        f"cell {requested.id} has changed since it was read.",
+                        index=index,
+                        cell=self._cell_record(cell),
+                        document=self._document_record,
+                    )
+                targets.append(cell.id)
             run = protocol.Run(
                 id=mint(protocol.RunId, "run"),
                 notebook_id=self.id,
-                caused_by=None,
+                runtime_id=runtime.id,
+                cells=tuple(targets),
                 status="queued",
                 outcome=None,
                 started_at=None,
                 completed_at=None,
             )
             self._apply(self.executions.begin(run, request_id))
-            self.backend.run(run.id, code)
+            if code is not None:
+                self.backend.run(
+                    run.id, code, request=request, allow_input=allow_input
+                )
+            else:
+                self.backend.run_cells(
+                    run.id,
+                    self._document,
+                    targets,
+                    request=request,
+                    allow_input=allow_input,
+                )
             return run
 
-    def interrupt(self, run_id: str) -> protocol.Run:
-        """Request interruption of a run in progress."""
+    def interrupt(self, *, request_id: str | None = None) -> protocol.Runtime:
+        """Request interruption of the runtime's active work and queued runs.
+
+        The runtime stays alive, and work outside a run is interrupted too.
+        Runs and executions report their outcomes once they settle.
+
+        Raises:
+            NoRuntime: If the notebook has no runtime.
+            Conflict: If the runtime is not running.
+        """
+        self._require_open()
+        runtime = self._require_runtime()
+        if runtime.status != "running":
+            raise Conflict(f"the runtime is {runtime.status}.")
+        with self.sink.deferred():
+            self._apply(self.executions.cancel_inputs(), request_id=request_id)
+            self.backend.interrupt()
+        return runtime
+
+    def cancel(
+        self, run_id: str, *, request_id: str | None = None
+    ) -> protocol.Run:
+        """Request cancellation of a run that has not finished."""
         self._require_open()
         run = self.executions.run(protocol.RunId(run_id))
         if run is None:
             raise NotFound(f"notebook {self.id} has no run {run_id}.")
         if run.status == "completed":
             raise Conflict(f"run {run_id} has already ended.")
-        self.backend.interrupt(run.id)
+        with self.sink.deferred():
+            self._apply(
+                self.executions.cancel_inputs(run.id), request_id=request_id
+            )
+            self.backend.cancel(run.id)
         return run
 
+    def reply_input(
+        self, input_id: protocol.ItemId, value: str, *, request_id: str
+    ) -> protocol.Input:
+        """Accept one answer and publish its status under the reply's key."""
+        self._require_open()
+        item = self.executions.pending_input(input_id)
+        with self.sink.deferred():
+            self.backend.reply_input(input_id, value)
+            answered = self.executions.answer(item)
+            self.sink.publish(
+                answered,
+                notebook_id=self.id,
+                run_id=self.executions.run_id_of(answered),
+                request_id=request_id,
+            )
+        return answered
+
     # ---- attachments ---------------------------------------------------
+
+    @property
+    def attachments(self) -> list[protocol.Attachment]:
+        """Return the current attachments in creation order."""
+        return list(self._attachments.values())
 
     def attach(
         self,
@@ -338,8 +613,7 @@ class Notebook:
             "name": name or None,
             "since": utcnow(),
         }
-        if identity is not None:
-            fields["identity"] = identity
+        fields["identity"] = identity
         attachment = msgspec.convert(fields, protocol.Attachment)
         self._attachments[attachment.id] = attachment
         self._publish(attachment, None)
@@ -349,7 +623,7 @@ class Notebook:
         """Remove an attachment if it exists."""
         attachment = self._attachments.pop(attachment_id, None)
         if attachment is not None:
-            self._remove("attachment", attachment.id, None)
+            self._remove(protocol.Attachment, attachment.id, None)
 
     # ---- backend updates -----------------------------------------------
 
@@ -440,32 +714,31 @@ class Notebook:
 
     # ---- stream --------------------------------------------------------
 
-    def _snapshot(self) -> list[Event]:
-        """Return current state as events in dependency order."""
-        bodies: list[Body] = [*self.document, self.document._record]
+    def _records(self) -> Iterator[tuple[SnapshotBody, protocol.RunId | None]]:
+        """Current records in dependency order, borrowed until publication."""
+        for cell in self.document:
+            yield self._cell_record(cell), None
+        yield self._document_record, None
         if self._analysis is not None:
-            bodies.append(self._analysis)
+            yield self._analysis, None
         if self._runtime is not None:
-            bodies.append(self._runtime)
-        bodies.extend(self._attachments.values())
-        events = [
-            Event(kind_of(body), message(body), notebook_id=self.id)
-            for body in bodies
-        ]
-        executions = self.executions
-        for record in executions._records():
-            run_id = executions.run_id_of(record)
-            events.append(
-                Event(
-                    kind_of(record),
-                    message(
-                        record, request_id=executions.snapshot_request(run_id)
-                    ),
-                    notebook_id=self.id,
-                    run_id=run_id,
-                )
+            yield self._runtime, None
+        for attachment in self._attachments.values():
+            yield attachment, None
+        for record in self.executions._records():
+            yield record, self.executions.run_id_of(record)
+
+    def _snapshot(self) -> list[RoutedEvent]:
+        """Return current state as events in dependency order."""
+        return [
+            snapshot_event(
+                record,
+                request_id=self.executions.snapshot_request(run_id),
+                notebook_id=self.id,
+                run_id=run_id,
             )
-        return events
+            for record, run_id in self._records()
+        ]
 
     def _dispose(self, *, request_id: str | None = None) -> None:
         """Close the notebook and remove its state, children first.
@@ -481,7 +754,7 @@ class Notebook:
             self.detach(attachment_id)
         if self._runtime is not None:
             runtime, self._runtime = self._runtime, None
-            self._remove("runtime", runtime.id, request_id)
+            self._remove(protocol.Runtime, runtime.id, request_id)
 
     def _publish(self, body: Body, request_id: str | None) -> None:
         self.sink.publish(
@@ -492,18 +765,20 @@ class Notebook:
 
     def _remove(
         self,
-        kind: Kind,
+        record_type: type[RemovableBody],
         object_id: str,
         request_id: str | None,
     ) -> None:
         self.sink.remove(
-            kind,
+            record_type,
             object_id,
             notebook_id=self.id,
             request_id=request_id,
         )
 
-    def _apply(self, changes: Sequence[Change]) -> None:
+    def _apply(
+        self, changes: Sequence[Change], *, request_id: str | None = None
+    ) -> None:
         """Publish changes and release completed runs."""
         executions = self.executions
         with self.sink.deferred():
@@ -513,19 +788,26 @@ class Notebook:
                     self.backend.forget(change.run_id)
                     continue
                 run_id = executions.run_id_of(change)
-                request_id = executions.request_id(run_id)
+                originating_request = (
+                    request_id
+                    if isinstance(change, (protocol.Input, InputChanged))
+                    and request_id is not None
+                    else executions.request_id(run_id)
+                )
                 if isinstance(change, Removed):
                     self.sink.remove(
-                        change.kind,
+                        change.record_type,
                         change.id,
                         notebook_id=self.id,
                         run_id=run_id,
-                        request_id=request_id,
+                        request_id=originating_request,
                     )
                 else:
                     self.sink.publish(
-                        change,
+                        change.input
+                        if isinstance(change, InputChanged)
+                        else change,
                         notebook_id=self.id,
                         run_id=run_id,
-                        request_id=request_id,
+                        request_id=originating_request,
                     )

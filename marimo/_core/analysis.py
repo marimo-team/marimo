@@ -10,7 +10,7 @@ from marimo._core import protocol
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from marimo._core.document import DocumentSnapshot
+    from marimo._core.document import Document
 
 
 class Analyzer(Protocol):
@@ -18,7 +18,7 @@ class Analyzer(Protocol):
 
     One instance belongs to one notebook. Calls are serialized, allowing
     implementations to cache compilation by cell ID and code hash.
-    Results cover every cell in the snapshot, including syntax errors.
+    Results cover every cell in the document, including syntax errors.
     Unexpected failures raise; they are not document diagnostics.
 
     Implementations must keep the event loop responsive. After cancelling
@@ -26,6 +26,6 @@ class Analyzer(Protocol):
     """
 
     async def analyze(
-        self, snapshot: DocumentSnapshot
+        self, document: Document
     ) -> Mapping[protocol.CellId, protocol.CellAnalysis]:
-        """Analyze a detached snapshot without modifying it."""
+        """Analyze one revision of the document."""

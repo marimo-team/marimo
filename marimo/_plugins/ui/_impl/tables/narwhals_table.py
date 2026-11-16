@@ -13,6 +13,11 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import msgspec
 import narwhals.stable.v2 as nw
+from narwhals.dependencies import (
+    is_duckdb_relation,
+    is_ibis_table,
+    is_polars_lazyframe,
+)
 from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
@@ -35,6 +40,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
     TableManager,
+    regex_literal,
 )
 from marimo._sql.sql_quoting import quote_sql_identifier
 from marimo._utils.narwhals_utils import (
@@ -233,9 +239,17 @@ class NarwhalsTableManager(
             indexed = relation.project(
                 f"{columns}, row_number() OVER () - 1 AS {quoted_index}"
             )
-            selected_columns = ", ".join(
-                f"source.{quote_sql_identifier(name, dialect='duckdb')}"
-                for name in relation.columns
+            requested_index = index_name + "_requested"
+            while requested_index.casefold() in occupied:
+                requested_index += "_"
+            requested_order = index_name + "_order"
+            while requested_order.casefold() in occupied:
+                requested_order += "_"
+            quoted_requested_index = quote_sql_identifier(
+                requested_index, dialect="duckdb"
+            )
+            quoted_requested_order = quote_sql_identifier(
+                requested_order, dialect="duckdb"
             )
             indexed, row_count = _snapshot_duckdb_relation(indexed)
             if max(indices) >= row_count:
@@ -245,7 +259,7 @@ class NarwhalsTableManager(
                 requested = relation.query(
                     view,
                     f"SELECT * FROM unnest([{', '.join(str(int(i)) for i in indices)}]) "
-                    "WITH ORDINALITY AS selected(row_index, ordinal)",
+                    f"WITH ORDINALITY AS selected({quoted_requested_index}, {quoted_requested_order})",
                 )
             finally:
                 relation.query(view, f"DROP VIEW IF EXISTS {view}")
@@ -253,10 +267,10 @@ class NarwhalsTableManager(
                 indexed.set_alias("source")
                 .join(
                     requested.set_alias("selected"),
-                    f"source.{quoted_index} = selected.row_index",
+                    f"source.{quoted_index} = selected.{quoted_requested_index}",
                 )
-                .order("selected.ordinal")
-                .project(selected_columns)
+                .order(quoted_requested_order)
+                .project(columns)
             )
             return self.with_new_data(
                 nw.from_native(selected, pass_through=False)
@@ -308,6 +322,8 @@ class NarwhalsTableManager(
 
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         if self.data.implementation.is_duckdb() and self._geometry_columns:
+            if not set(columns).intersection(self.data.columns):
+                return self
             return self.select_columns(
                 [name for name in self.data.columns if name not in columns]
             )
@@ -442,19 +458,38 @@ class NarwhalsTableManager(
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
 
+        if is_narwhals_lazyframe(self.data):
+            return self._take_lazy(self.data, count, offset)
+
         if offset == 0:
             return self.with_new_data(self.data.head(count))
-        else:
-            if is_narwhals_lazyframe(self.data):
-                # Lazyframes do not support slicing, https://github.com/narwhals-dev/narwhals/issues/2389
-                # So we collect the first n rows
-                data = self.data.head(offset + count).collect()
-                return self.with_new_data(data[offset : offset + count])
-            else:
-                return self.with_new_data(self.data[offset : offset + count])
+        return self.with_new_data(self.data[offset : offset + count])
+
+    def _take_lazy(
+        self, frame: nw.LazyFrame[IntoLazyFrameT], count: int, offset: int
+    ) -> TableManager[Any]:
+        native = frame.to_native()
+        if is_polars_lazyframe(native):
+            return self.with_new_data(
+                nw.from_native(native.slice(offset, count))
+            )
+        if is_duckdb_relation(native):
+            return self.with_new_data(
+                nw.from_native(native.limit(count, offset=offset))
+            )
+        if is_ibis_table(native):
+            return self.with_new_data(
+                nw.from_native(native.limit(count, offset=offset))
+            )
+
+        if offset == 0:
+            return self.with_new_data(frame.head(count))
+        # Narwhals has no portable lazy slicing API for the other backends.
+        data = frame.head(offset + count).collect()
+        return self.with_new_data(data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
-        query = query.lower()
+        pattern = f"(?i){regex_literal(query)}"
 
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():
@@ -465,7 +500,7 @@ class NarwhalsTableManager(
             if is_narwhals_string_type(dtype):
                 # Cast to string as pandas may fail for certain values
                 expressions.append(
-                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
+                    nw.col(column).cast(nw.String).str.contains(pattern)
                 )
             elif dtype == nw.List(nw.String):
                 # TODO: Narwhals doesn't support list.contains
@@ -479,7 +514,7 @@ class NarwhalsTableManager(
                 or dtype == nw.Boolean
             ):
                 expressions.append(
-                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
+                    nw.col(column).cast(nw.String).str.contains(pattern)
                 )
 
         if not expressions:
@@ -768,9 +803,7 @@ class NarwhalsTableManager(
                     bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
-                    epoch = datetime.datetime(
-                        1970, 1, 1, tzinfo=datetime.timezone.utc
-                    )
+                    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
                     bin_end_dt = epoch + datetime.timedelta(
                         seconds=bin_end / ms_time
                     )
@@ -784,9 +817,7 @@ class NarwhalsTableManager(
                     )
                 except (OSError, OverflowError, ValueError):
                     # Fall back to timedelta calculation for old dates
-                    epoch = datetime.datetime(
-                        1970, 1, 1, tzinfo=datetime.timezone.utc
-                    )
+                    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
                     bin_end = epoch + datetime.timedelta(
                         seconds=bin_end / ms_time
                     )
@@ -807,14 +838,16 @@ class NarwhalsTableManager(
             return list(range(total))
         return [round(i * (total - 1) / (size - 1)) for i in range(size)]
 
+    @cached_property
+    def _lazy_num_rows(self) -> int:
+        return int(self.as_lazy_frame().select(nw.len()).collect().item())
+
     def get_num_rows(self, force: bool = True) -> int | None:
-        # If force is true, collect the data and get the number of rows
+        if is_narwhals_lazyframe(self.data):
+            return self._lazy_num_rows if force else None
+
         if force:
             return self.as_frame().shape[0]
-
-        # When lazy, we don't know the number of rows
-        if is_narwhals_lazyframe(self.data):
-            return None
 
         # Otherwise, we can get the number of rows from the shape
         try:

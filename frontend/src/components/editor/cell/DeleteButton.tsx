@@ -5,8 +5,8 @@ import type { RuntimeState } from "@/core/network/types";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import type { ConnectionState } from "@/core/websocket/types";
+} from "@/core/session/connection-utils";
+import type { ConnectionState } from "@/core/session/types";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Button } from "../../ui/button";
@@ -37,6 +37,7 @@ export const DeleteButton = (props: {
   return (
     <Tooltip content={tooltipMsg} usePortal={false}>
       <Button
+        aria-label="Delete cell"
         variant="ghost"
         size="icon"
         onClick={onClick}

@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   CommandDialog,
   CommandEmpty,
@@ -32,6 +32,25 @@ import { commandPaletteAtom } from "./state";
 
 const CommandPalette = () => {
   const [open, setOpen] = useAtom(commandPaletteAtom);
+  const hotkeys = useAtomValue(hotkeysAtom);
+
+  useEventListener(document, "keydown", (e) => {
+    if (parseShortcut(hotkeys.getHotkey("global.commandPalette").key)(e)) {
+      e.preventDefault();
+      setOpen((open) => !open);
+    }
+  });
+
+  return (
+    <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandPaletteContent />
+    </CommandDialog>
+  );
+};
+
+// The dialog mounts these subscriptions only while its content is present.
+const CommandPaletteContent = () => {
+  const setOpen = useSetAtom(commandPaletteAtom);
   const registeredActions = useRegisteredActions();
   const lastFocusedCell = useAtomValue(lastFocusedCellAtom);
   const hotkeys = useAtomValue(hotkeysAtom);
@@ -54,13 +73,6 @@ const CommandPalette = () => {
 
   const { recentCommands, addRecentCommand } = useRecentCommands();
   const recentCommandsSet = new Set(recentCommands);
-
-  useEventListener(document, "keydown", (e) => {
-    if (parseShortcut(hotkeys.getHotkey("global.commandPalette").key)(e)) {
-      e.preventDefault();
-      setOpen((open) => !open);
-    }
-  });
 
   const renderShortcutCommandItem = (
     shortcut: HotkeyAction,
@@ -142,7 +154,7 @@ const CommandPalette = () => {
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <>
       <CommandInput placeholder="Type to search..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
@@ -211,7 +223,7 @@ const CommandPalette = () => {
           })}
         </CommandGroup>
       </CommandList>
-    </CommandDialog>
+    </>
   );
 };
 

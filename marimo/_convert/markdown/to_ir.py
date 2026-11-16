@@ -490,9 +490,12 @@ class ExpandAndClassifyProcessor(BlockProcessor):
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
         assert isinstance(self.parser.md, MarimoMdParser)
+        # Lists are kept too, for options like `auto_download: [html]`.
+        # The root is only read back via `app_config_from_root`, never
+        # serialized, so non-string attribute values are safe here.
         for key, value in self.parser.md.meta.items():
-            if isinstance(value, str):
-                parent.set(key, value)
+            if isinstance(value, (str, list)):
+                parent.set(key, value)  # type: ignore[arg-type]
 
         text: list[str] = []
 

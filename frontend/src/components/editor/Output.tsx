@@ -66,7 +66,10 @@ export type OnRefactorWithAI = (opts: {
  * Renders an output based on an OutputMessage.
  */
 export const OutputRenderer: React.FC<{
-  message: Pick<OutputMessage, "channel" | "data" | "mimetype">;
+  message: Pick<
+    OutputMessage,
+    "channel" | "data" | "mimetype" | "code" | "traceback_format"
+  >;
   cellId?: CellId;
   onRefactorWithAI?: OnRefactorWithAI;
   wrapText?: boolean;
@@ -172,7 +175,9 @@ export const OutputRenderer: React.FC<{
 
     case "application/vnd.marimo+error":
       invariant(Array.isArray(data), "Expected array data");
-      return <MarimoErrorOutput cellId={cellId} errors={data} />;
+      return (
+        <MarimoErrorOutput cellId={cellId} errors={data} code={message.code} />
+      );
 
     case "application/vnd.marimo+traceback":
       invariant(
@@ -183,6 +188,8 @@ export const OutputRenderer: React.FC<{
         <MarimoTracebackOutput
           onRefactorWithAI={onRefactorWithAI}
           traceback={data}
+          tracebackFormat={message.traceback_format}
+          code={message.code}
           cellId={cellId}
         />
       );

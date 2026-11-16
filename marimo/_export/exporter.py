@@ -3,20 +3,20 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._config.config import (
-    DEFAULT_CONFIG,
+from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config_schema import (
     DisplayConfig,
     MarimoConfig,
     SharingConfig,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._config.utils import deep_copy
 from marimo._convert.common.dom_traversal import (
     replace_public_files_with_data_uris,
     replace_virtual_files_with_data_uris,
@@ -39,6 +39,8 @@ from marimo._export._nbconvert import (
     _nbconvert_tag_remove_config,
     _render_webpdf,
     inline_pdf_assets,
+    print_pdf,
+    run_playwright_on_html,
 )
 from marimo._export._status import emit_pdf_export_status
 from marimo._export.dependencies import require_export_dependencies
@@ -63,6 +65,7 @@ from marimo._templates import (
     wasm_notebook_template,
 )
 from marimo._utils import async_path
+from marimo._utils.asyncio_utils import run_on_proactor_loop
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
@@ -129,8 +132,8 @@ class Exporter:
         )
 
         # Serialize notebook state
-        session_snapshot = deep_copy(request.snapshot.session)
-        notebook_snapshot = deep_copy(request.snapshot.notebook)
+        session_snapshot = copy.deepcopy(request.snapshot.session)
+        notebook_snapshot = copy.deepcopy(request.snapshot.notebook)
 
         # Replace virtual files in HTML outputs with data URIs
         session_snapshot, replaced_files = self._inline_virtual_files(
@@ -199,10 +202,10 @@ class Exporter:
         sharing_config: SharingConfig | None = None,
     ) -> MarimoConfig:
         """Prepare config with display and sharing settings for static notebook."""
-        config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
-        config["display"] = display_config
+        config: MarimoConfig = copy.deepcopy(DEFAULT_CONFIG)
+        config.display = display_config
         if sharing_config:
-            config["sharing"] = sharing_config
+            config.sharing = sharing_config
         return config
 
     @staticmethod
@@ -291,6 +294,8 @@ class Exporter:
                 nb_cell["name"] = DEFAULT_CELL_NAME
             for snapshot_cell in session_snapshot["cells"]:
                 snapshot_cell["console"] = []
+                for output in snapshot_cell["outputs"]:
+                    output.pop("code", None)
             return ""
 
         return app_code
@@ -439,7 +444,7 @@ class Exporter:
             request.display_config, request.sharing_config
         )
         # Remove autosave
-        config["save"]["autosave"] = "off"
+        config.save.autosave = "off"
 
         html = wasm_notebook_template(
             html=index_html,
@@ -648,13 +653,6 @@ class Exporter:
                 )
 
     @staticmethod
-    def _to_file_uri(path: str) -> str:
-        import os
-        from urllib.request import pathname2url
-
-        return f"file://{pathname2url(os.path.abspath(path))}"
-
-    @staticmethod
     def _slide_type_for_cell(cell: Any, include_inputs: bool) -> str:
         if include_inputs:
             return "slide"
@@ -667,15 +665,13 @@ class Exporter:
         return "skip"
 
     @staticmethod
+    @run_on_proactor_loop
     async def _export_slides_as_pdf(
         notebook: Any,
         include_inputs: bool,
         filename: str | None = None,
     ) -> bytes | None:
         """Render slides notebook to PDF using Playwright async API."""
-        import os
-        import tempfile
-
         from nbconvert import SlidesExporter
 
         # Add slideshow metadata so each cell becomes a slide.
@@ -695,14 +691,7 @@ class Exporter:
 
         html_data = inline_pdf_assets(html_data, filename)
 
-        # Write HTML to a temp file for Playwright to load
-        with tempfile.NamedTemporaryFile(
-            suffix=".html", delete=False, mode="w", encoding="utf-8"
-        ) as f:
-            f.write(html_data)
-            temp_path = f.name
-
-        try:
+        async def print_slides(url: str) -> bytes:
             from playwright.async_api import (  # type: ignore[import-not-found]
                 async_playwright,
             )
@@ -712,9 +701,8 @@ class Exporter:
                 try:
                     page = await browser.new_page()
                     # ?print-pdf tells reveal.js to use a linear print layout
-                    temp_uri = Exporter._to_file_uri(temp_path)
                     await page.goto(
-                        f"{temp_uri}?print-pdf",
+                        f"{url}?print-pdf",
                         wait_until="networkidle",
                     )
                     await page.evaluate(
@@ -727,6 +715,12 @@ class Exporter:
                           ) {
                             reveal.layout();
                           }
+                          // reveal.js hides inactive slides from assistive
+                          // technology, which also drops their headings from
+                          // the tagged PDF outline. Every slide is printed.
+                          document
+                            .querySelectorAll(".reveal .slides section[aria-hidden]")
+                            .forEach((el) => el.removeAttribute("aria-hidden"));
                         }
                         """
                     )
@@ -739,17 +733,13 @@ class Exporter:
                             "}"
                         )
                     )
-                    pdf_data = await page.pdf(
-                        print_background=True,
-                        prefer_css_page_size=True,
-                    )
+                    return await print_pdf(page, prefer_css_page_size=True)
                 finally:
                     await browser.close()
-        finally:
-            try:
-                os.unlink(temp_path)
-            except OSError:
-                LOGGER.debug("Failed to remove temp slide HTML: %s", temp_path)
+
+        pdf_data = await asyncio.to_thread(
+            run_playwright_on_html, html_data, print_slides
+        )
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("Slides PDF data is not bytes: %s", pdf_data)
@@ -799,11 +789,42 @@ class Exporter:
                 # Skip if source and target are the same
                 return True
 
+            # Copy only between real directories. If either public/ folder is
+            # a symlink, files are copied from, or into, a different location.
+            if public_dir.is_symlink() or target_dir.is_symlink():
+                LOGGER.warning(
+                    f"Skipping public folder: {public_dir} or {target_dir}"
+                    " is a symlink"
+                )
+                return False
+
             LOGGER.debug(f"Copying public folder to {dirpath}")
+            resolved_public = public_dir.resolve()
+
+            # Skip entries that resolve outside public/ or whose destination
+            # is a symlink.
+            def ignore_links(src: str, names: list[str]) -> set[str]:
+                dst = target_dir / Path(src).relative_to(public_dir)
+                skipped = {
+                    name
+                    for name in names
+                    if not (Path(src) / name)
+                    .resolve()
+                    .is_relative_to(resolved_public)
+                    or (dst / name).is_symlink()
+                }
+                for name in skipped:
+                    LOGGER.warning(
+                        f"Skipping {Path(src) / name}: it resolves outside"
+                        f" {public_dir} or its destination is a symlink"
+                    )
+                return skipped
+
             shutil.copytree(
                 public_dir,
                 target_dir,
                 dirs_exist_ok=True,
+                ignore=ignore_links,
             )
             return True
 
@@ -862,10 +883,10 @@ class AutoExporter:
 
             await self._ensure_export_dir_async(filepath.parent)
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
+            written = await loop.run_in_executor(
                 self._executor, self._write_file_sync, filepath, content
             )
-            return revision == self._latest_revisions.get(filepath)
+            return written and revision == self._latest_revisions.get(filepath)
 
     async def save_html(
         self, filename: str | None, html: str, *, revision: int
@@ -882,11 +903,17 @@ class AutoExporter:
     ) -> bool:
         return await self._save_file(filename, ipynb, "ipynb", revision)
 
-    def _write_file_sync(self, filepath: Path, content: str) -> None:
+    def _write_file_sync(self, filepath: Path, content: str) -> bool:
         """Synchronous file write (runs in thread pool)"""
         if content == "":
-            return
+            return True
+        # Do not follow an export file or export directory that is a
+        # symlink, so that exports stay in __marimo__.
+        if filepath.is_symlink() or filepath.parent.is_symlink():
+            LOGGER.warning(f"Skipping auto-export: {filepath} is a symlink")
+            return False
         filepath.write_text(content, encoding="utf-8")
+        return True
 
     async def _ensure_export_dir_async(self, export_dir: Path) -> None:
         """Async directory creation with caching to avoid redundant checks"""

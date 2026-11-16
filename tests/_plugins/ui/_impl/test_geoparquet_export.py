@@ -819,36 +819,18 @@ def test_arrow_geoparquet_registered_extension_storage(
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    name = f"geoarrow.{encoding}"
     storage_type = pa.binary() if encoding == "wkb" else pa.string()
-
-    class GeometryType(pa.ExtensionType):
-        def __init__(self) -> None:
-            super().__init__(storage_type, name)
-
-        def __arrow_ext_serialize__(self) -> bytes:
-            return b'{"crs":"EPSG:4326"}'
-
-        @classmethod
-        def __arrow_ext_deserialize__(
-            cls, _storage_type: Any, _serialized: bytes
-        ) -> Any:
-            return cls()
-
-    extension = GeometryType()
-    pa.register_extension_type(extension)  # type: ignore[arg-type]
-    try:
+    with fixtures.registered_arrow_extension(
+        f"geoarrow.{encoding}", storage_type
+    ) as extension:
         value = fixtures.WKB_POINT_1_2 if encoding == "wkb" else "POINT (1 2)"
-        chunks = [
-            pa.ExtensionArray.from_storage(
-                extension, pa.array([value], type=storage_type)
-            ),
-            pa.ExtensionArray.from_storage(
-                extension, pa.array([None], type=storage_type)
-            ),
-        ]
         source = pa.Table.from_arrays(
-            [pa.array(["point", "null"]), pa.chunked_array(chunks)],
+            [
+                pa.array(["point", "null"]),
+                fixtures.registered_extension_column(
+                    extension, [[value], [None]]
+                ),
+            ],
             names=["name", "geom"],
         )
         subject = widget(source)
@@ -866,8 +848,6 @@ def test_arrow_geoparquet_registered_extension_storage(
         assert frame.crs.to_epsg() == 4326
         assert source["geom"].num_chunks == 2
         assert source["geom"].to_pylist() == [value, None]
-    finally:
-        pa.unregister_extension_type(name)
 
 
 @pytest.mark.requires("geopandas", "pyarrow")
@@ -1099,25 +1079,11 @@ def test_registered_ogc_wkb_metadata(widget: Any, payload: bytes) -> None:
 
     from marimo._plugins.ui._impl.table import DownloadGeoJSONArgs
 
-    class OGCType(pa.ExtensionType):
-        def __init__(self) -> None:
-            super().__init__(pa.binary(), "ogc.wkb")
-
-        def __arrow_ext_serialize__(self) -> bytes:
-            return payload
-
-        @classmethod
-        def __arrow_ext_deserialize__(
-            cls, _storage: Any, _serialized: bytes
-        ) -> Any:
-            return cls()
-
-    extension = OGCType()
-    pa.register_extension_type(extension)  # type: ignore[arg-type]
-    try:
-        values = pa.ExtensionArray.from_storage(
-            extension,
-            pa.array([fixtures.WKB_POINT_1_2, None], type=pa.binary()),
+    with fixtures.registered_arrow_extension(
+        "ogc.wkb", pa.binary(), payload
+    ) as extension:
+        values = fixtures.registered_extension_column(
+            extension, [[fixtures.WKB_POINT_1_2, None]]
         )
         source = pa.Table.from_arrays([values], names=["geom"])
         subject = widget(source)
@@ -1139,8 +1105,6 @@ def test_registered_ogc_wkb_metadata(widget: Any, payload: bytes) -> None:
             )
             assert (response.code, response.url) == ("missing_crs", "")
         assert source["geom"].to_pylist() == [fixtures.WKB_POINT_1_2, None]
-    finally:
-        pa.unregister_extension_type("ogc.wkb")
 
 
 @pytest.mark.requires("geopandas", "pyarrow")

@@ -17,6 +17,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { requestClientAtom } from "@/core/network/requests";
 import type { FileInfo, FileSearchResponse } from "@/core/network/types";
 import { Deferred } from "@/utils/Deferred";
+import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { TreeDndProvider } from "../dnd-wrapper";
 import { FileExplorer } from "../file-explorer";
@@ -27,6 +28,11 @@ import { HOVER_EXPAND_DELAY } from "../use-hover-expand";
 
 vi.mock("../file-viewer", () => ({
   FileViewer: ({ file }: { file: FileInfo }) => <div>Preview: {file.name}</div>,
+}));
+
+vi.mock("@/utils/links", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/utils/links")>()),
+  openNotebook: vi.fn(),
 }));
 
 function file(name: string, isDirectory = false): FileInfo {
@@ -91,6 +97,47 @@ beforeEach(() => {
 });
 
 describe("file browser navigation", () => {
+  it("tabs into the notebook action, returns to its row, and exits the tree", async () => {
+    client.sendListFiles.mockResolvedValue({
+      root: "/workspace",
+      files: [
+        { ...file("notebook.py"), isMarimoFile: true },
+        file("notes.txt"),
+      ],
+    });
+    render(
+      <>
+        <FileExplorer height={300} />
+        <button type="button">After tree</button>
+      </>,
+      { wrapper },
+    );
+    const row = await screen.findByRole("treeitem", { name: "notebook.py" });
+    act(() => row.focus());
+    fireEvent.keyDown(row, { key: "Tab" });
+    const open = screen.getByRole("button", {
+      name: "Open notebook notebook.py",
+    });
+    expect(open).toHaveFocus();
+    fireEvent.keyDown(open, { key: "Tab", shiftKey: true });
+    expect(row).toHaveFocus();
+    fireEvent.keyDown(row, { key: "Tab" });
+    for (const key of ["Enter", " "]) {
+      expect(fireEvent.keyDown(open, { key })).toBe(true);
+      expect(
+        screen.queryByText("Preview: notebook.py"),
+      ).not.toBeInTheDocument();
+    }
+    fireEvent.click(open);
+    expect(openNotebook).toHaveBeenCalledExactlyOnceWith("notebook.py");
+    fireEvent.keyDown(open, { key: "Tab" });
+    expect(screen.getByRole("button", { name: "After tree" })).toHaveFocus();
+    const plain = screen.getByRole("treeitem", { name: "notes.txt" });
+    act(() => plain.focus());
+    fireEvent.keyDown(plain, { key: "Tab" });
+    expect(screen.getByRole("button", { name: "After tree" })).toHaveFocus();
+  });
+
   it("debounces the first character, subsequent edits, and searches after clearing", async () => {
     render(<FileExplorer height={300} />, { wrapper });
     const input = await screen.findByRole("textbox", {

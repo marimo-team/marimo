@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -11,6 +11,7 @@ def _():
     import altair as alt
     import marimo as mo
     import pandas as pd
+
     return alt, mo, pd
 
 
@@ -56,20 +57,17 @@ def _(alt, mo, scatter, y_line):
 @app.cell
 def _(layer_plot):
     layer_plot.selections
-    return
 
 
 @app.cell
 def _(layer_plot):
     print(layer_plot.value)
-    return
 
 
 @app.cell
 def _(df, layer_plot):
     print(layer_plot.apply_selection(df))
     # should return a table of selected points based on the scatter plot
-    return
 
 
 if __name__ == "__main__":

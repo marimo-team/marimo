@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -23,27 +24,23 @@ def _(mo):
 
         em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
     """).center().callout()
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        !!! tip ""
+    mo.md(r"""
+    !!! tip ""
 
-            Importa recordar as seguintes regras de diferenciação de matrizes:
+        Importa recordar as seguintes regras de diferenciação de matrizes:
 
-            $$\frac{\partial\, u'v}{\partial\, v} = \frac{\partial\, v'u}{\partial\, v} = u$$
+        $$\frac{\partial\, u'v}{\partial\, v} = \frac{\partial\, v'u}{\partial\, v} = u$$
 
-            sendo $u$ e $v$ dois vetores.
+        sendo $u$ e $v$ dois vetores.
 
-            $$\frac{\partial\, v'Av}{\partial\, v}=2Av=2v'A$$
+        $$\frac{\partial\, v'Av}{\partial\, v}=2Av=2v'A$$
 
-            em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
-        """
-    )
-    return
+        em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
+    """)
 
 
 @app.cell
@@ -63,7 +60,6 @@ def _(mo):
     """).center()
         }
     )
-    return
 
 
 if __name__ == "__main__":

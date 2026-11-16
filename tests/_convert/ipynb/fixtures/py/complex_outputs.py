@@ -18,7 +18,6 @@ def _(mo):
 
     This notebook tests various output scenarios.
     """)
-    return
 
 
 @app.cell
@@ -26,7 +25,6 @@ def _():
     """Cell with print statements."""
     print("Standard output")
     print("Multiple lines")
-    return
 
 
 @app.cell
@@ -42,7 +40,6 @@ def _(data):
     """Cell with calculations and implicit output."""
     result = sum(data["x"]) + sum(data["y"])
     result
-    return
 
 
 @app.cell
@@ -52,7 +49,6 @@ def _(mo):
     print("Debug info")
     value = 42
     value
-    return
 
 
 @app.cell
@@ -64,7 +60,6 @@ def error_cell():
     if hasattr(sys, "never_exists"):
         raise ValueError("This should not happen")
     success = True
-    return
 
 
 if __name__ == "__main__":

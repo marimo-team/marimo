@@ -29,7 +29,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import { type Parser, parseMixed } from "@lezer/common";
+import { IterMode, type Parser, parseMixed } from "@lezer/common";
 import { tags } from "@lezer/highlight";
 import type {
   DelimiterType,
@@ -231,24 +231,31 @@ export function parseLatex(latexParser: Parser): MarkdownConfig {
       // Test if the node type is one of the math expression
       const delimiterLength = DELIMITER_LENGTH[node.type.name];
       if (delimiterLength) {
-        const from = node.from + delimiterLength;
-        const to = node.to - delimiterLength;
+        const from = node.node.firstChild?.to ?? node.from + delimiterLength;
+        const to = node.node.lastChild?.from ?? node.to - delimiterLength;
 
         // Ensure valid ranges
         if (from >= to || from < 0 || to < 0) {
           return null;
         }
 
-        return {
-          parser: latexParser,
-          // Remove delimiter from LaTeX parser otherwise it won't be highlighted
-          overlay: [
-            {
-              from,
-              to,
-            },
-          ],
-        };
+        // Leave Python replacements to their own parser and highlighter.
+        const overlay: { from: number; to: number }[] = [];
+        let start = from;
+        node.node.cursor(IterMode.IgnoreMounts).iterate((child) => {
+          if (child.name !== "Python") {
+            return;
+          }
+          if (start < child.from) {
+            overlay.push({ from: start, to: child.from });
+          }
+          start = child.to;
+          return false;
+        });
+        if (start < to) {
+          overlay.push({ from: start, to });
+        }
+        return overlay.length ? { parser: latexParser, overlay } : null;
       }
 
       return null;

@@ -1,9 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Milliseconds, Seconds } from "@/utils/time";
-import type { SerializedEditorState } from "../codemirror/types";
 import type { OutputMessage } from "../kernel/messages";
-import type { CellConfig, RuntimeState } from "../network/types";
+import type { CellConfig } from "../network/types";
 import type { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
 import type { Outline } from "./outline";
@@ -15,11 +13,7 @@ export function createCell({
   id,
   name = DEFAULT_CELL_NAME,
   code = "",
-  lastCodeRun = null,
-  lastExecutionTime = null,
-  edited = false,
   config,
-  serializedEditorState = null,
 }: Partial<CellData> & { id: CellId }): CellData {
   return {
     id: id,
@@ -31,10 +25,6 @@ export function createCell({
     },
     name: name,
     code: code,
-    edited: edited,
-    lastCodeRun: lastCodeRun,
-    lastExecutionTime: lastExecutionTime,
-    serializedEditorState: serializedEditorState,
   };
 }
 
@@ -55,14 +45,6 @@ export function createCellRuntimeState(
     outline: null,
     output: null,
     consoleOutputs: [],
-    status: "idle" as RuntimeState,
-    staleInputs: false,
-    interrupted: false,
-    errored: false,
-    stopped: false,
-    runElapsedTimeMs: null,
-    runStartTimestamp: null,
-    lastRunStartTimestamp: null,
     debuggerActive: false,
     ...state,
   };
@@ -77,47 +59,26 @@ export interface CellData {
   name: string;
   /** current contents of the editor */
   code: string;
-  /** whether this cell has been modified since its last run */
-  edited: boolean;
-  /** snapshot of code that was last run */
-  lastCodeRun: string | null;
-  /** execution time on session start / resume */
-  lastExecutionTime: number | null;
   /** cell configuration */
   config: CellConfig;
-  /** serialized state of the underlying editor */
-  serializedEditorState: SerializedEditorState | null;
 }
 
+/**
+ * What the kernel's cell-ops still own. Status, timing, and how a cell last
+ * ended come from the host's executions (see `@/core/executions`).
+ *
+ * TODO(MO-8407): Delete.
+ */
 export interface CellRuntimeState {
-  /** a message encoding the cell's output */
+  /** a message encoding the cell's output. TODO(MO-8404) */
   output: OutputMessage | null;
-  /** TOC outline */
+  /** TOC outline. TODO(MO-8404) */
   outline: Outline | null;
-  /** messages encoding the cell's console outputs. */
-  consoleOutputs: WithResponse<OutputMessage>[];
-  /** current status of the cell */
-  status: RuntimeState;
-  /** whether the cell has stale inputs*/
-  staleInputs: boolean;
-  /** whether this cell has been interrupted since its last run */
-  interrupted: boolean;
-  /** whether this cell was stopped with mo.stop */
-  stopped: boolean;
-  /**
-   * whether marimo encountered an error when trying to register or run
-   * this cell (such as a multiple definition error)
-   */
-  errored: boolean;
-  /** run start time, as seconds since epoch */
-  runStartTimestamp: Seconds | null;
-  /** run elapsed time, in milliseconds */
-  runElapsedTimeMs: Milliseconds | null;
-  /** last run timestamp, as seconds since epoch */
-  lastRunStartTimestamp: Seconds | null;
+  /** messages encoding the cell's console outputs. TODO(MO-8405) */
+  consoleOutputs: ConsoleOutputMessage[];
   /** debugger active */
   debuggerActive: boolean;
-  /** serialization message */
+  /** serialization message. TODO(MO-8414) */
   serialization?: string | null;
 }
 
@@ -129,4 +90,13 @@ export type WithResponse<T> = T & {
    * after sending the message to the kernel.
    */
   response?: string;
+};
+
+/**
+ * A console output as held by the frontend. The id is assigned when the
+ * output arrives and never changes, so it can identify the output while
+ * neighboring outputs collapse, truncate, or receive a stdin response.
+ */
+export type ConsoleOutputMessage = WithResponse<OutputMessage> & {
+  id?: number;
 };

@@ -207,14 +207,14 @@ class TestDuckDBInvalidQueries:
             ("SELECT * FROM table WHERE", ["syntax", "error"]),
             ("SELECT * FROM table ORDER", ["syntax", "error"]),
             ("INSERT INTO", ["syntax", "error"]),
-            ("UPDATE", ["syntax", "error"]),
-            ("DELETE", ["syntax", "error"]),
+            ("UPDATE users SET", ["syntax", "error"]),
+            ("DELETE FROM", ["syntax", "error"]),
             # Unclosed parentheses
             ("SELECT COUNT(*", ["syntax", "error"]),
             # Unclosed quotes
             # ("SELECT 'unclosed string", ["syntax", "error"]), # DuckDB does not raise errors for this case
             # # Invalid function call
-            ("SELECT COUNT(DISTINCT)", ["syntax", "error"]),
+            ("SELECT COUNT(DISTINCT FROM users)", ["syntax", "error"]),
             # # Malformed CASE statement
             ("SELECT CASE WHEN FROM table", ["syntax", "error"]),
             # # Incomplete JOIN
@@ -959,3 +959,15 @@ class TestFormatQueryWithGlobals:
             query, {"col": "id"}, lambda key: key.upper()
         )
         assert result_with_uppercase == "SELECT id FROM TABLE"
+
+
+@pytest.mark.requires("duckdb")
+@pytest.mark.parametrize("query", ["SELECT 1", "SELECT FROM"])
+def test_parse_releases_connection_result(query: str) -> None:
+    import duckdb
+
+    result, error = parse_sql(query, "duckdb")
+    assert error is None
+    assert result is not None
+    assert result.success == (query == "SELECT 1")
+    assert duckdb.sql("SELECT 42").fetchall() == [(42,)]

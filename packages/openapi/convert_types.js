@@ -7,10 +7,10 @@ import ts from "typescript";
 
 /**
  * Map from OpenAPI `format` values (emitted by _enrich_branded_types in
- * commands.py) to the TypeScript brand tag used in TypedString<T>.
+ * schema.py) to the TypeScript brand tag used in TypedString<T>.
  *
  * When a new NewType is added to marimo/_types/ids.py *and* registered in
- * _enrich_branded_types (commands.py), add a corresponding entry here so
+ * _enrich_branded_types (schema.py), add a corresponding entry here so
  * the generated TypeScript carries the branded type.
  */
 const BRANDED_FORMATS = /** @type {const} */ ({

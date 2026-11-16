@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import signal
-from typing import TYPE_CHECKING, Literal
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
 from unittest import mock
 
 import pytest
 
-from marimo._config.config import (
-    CompletionConfig,
-    LanguageServersConfig,
+from marimo._config.config import merge_default_config
+from marimo._config.config_schema import (
     MarimoConfig,
-    merge_default_config,
 )
 from marimo._config.manager import (
     MarimoConfigManager,
+    UserConfigStore,
     get_default_config_manager,
 )
 from marimo._loggers import get_log_directory
@@ -32,7 +32,6 @@ from marimo._utils.platform import is_windows
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
 
 @pytest.fixture
@@ -278,6 +277,7 @@ async def test_pylsp_server():
     assert isinstance(server.validate_requirements(), (str, bool))
     assert server.get_command() == [
         sys.executable,
+        "-P",
         "-m",
         "marimo._server._pylsp",
         "--port",
@@ -406,11 +406,34 @@ def test_copilot_server_node_version_validation():
         assert result is True  # Should fail open
 
 
-def test_composite_server():
+def test_composite_server_probes_loopback_ports():
+    config_reader = get_default_config_manager(current_path=None)
+    min_port = 8000
+    num_servers = len(CompositeLspServer.LANGUAGE_SERVERS)
+    ports = range(min_port, min_port + num_servers + 1)
+
+    with mock.patch(
+        "marimo._server.lsp.find_free_port", side_effect=ports
+    ) as find_free_port:
+        server = CompositeLspServer(config_reader, min_port=min_port)
+
+    assert find_free_port.call_args_list == [
+        mock.call(port, addr="127.0.0.1") for port in ports
+    ]
+    assert [lsp.port for lsp in server.servers.values()] == list(ports)[1:]
+
+
+def test_composite_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(
+        UserConfigStore,
+        "get_config_path",
+        lambda _: str(tmp_path / ".marimo.toml"),
+    )
+
     def as_reader(
-        completion_config: CompletionConfig, config: LanguageServersConfig
+        completion_config: dict[str, Any], config: dict[str, Any]
     ) -> MarimoConfigManager:
-        return get_default_config_manager(current_path=None).with_overrides(
+        return MarimoConfigManager(UserConfigStore()).with_overrides(
             {
                 "completion": completion_config,
                 "language_servers": config,
@@ -422,22 +445,18 @@ def test_composite_server():
         mock_dm.pylsp = mock.MagicMock()
         mock_dm.pylsp.has.return_value = True
         total_lsp_servers = 5
-        config = LanguageServersConfig(
-            {
-                "pylsp": {"enabled": True},
-                "ty": {"enabled": True},
-                "pyrefly": {"enabled": True},
-                "basedpyright": {"enabled": True},
-            }
-        )
-        completion_config = CompletionConfig(
-            {
-                "copilot": True,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
-        config_reader = as_reader(completion_config, config)
+        language_config = {
+            "pylsp": {"enabled": True},
+            "ty": {"enabled": True},
+            "pyrefly": {"enabled": True},
+            "basedpyright": {"enabled": True},
+        }
+        completion_config = {
+            "copilot": True,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert (
@@ -450,15 +469,13 @@ def test_composite_server():
         assert server._is_enabled(config, "basedpyright") is True
 
         # Test with only pylsp
-        config = LanguageServersConfig({"pylsp": {"enabled": True}})
-        completion_config = CompletionConfig(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
-        config_reader = as_reader(completion_config, config)
+        language_config = {"pylsp": {"enabled": True}}
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -468,22 +485,18 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only ty enabled
-        config = LanguageServersConfig(
-            {
-                "ty": {"enabled": True},
-                "pylsp": {"enabled": False},
-                "basedpyright": {"enabled": False},
-                "pyrefly": {"enabled": False},
-            }
-        )
-        completion_config = CompletionConfig(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
-        config_reader = as_reader(completion_config, config)
+        language_config = {
+            "ty": {"enabled": True},
+            "pylsp": {"enabled": False},
+            "basedpyright": {"enabled": False},
+            "pyrefly": {"enabled": False},
+        }
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -494,22 +507,18 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only basedpyright enabled
-        config = LanguageServersConfig(
-            {
-                "basedpyright": {"enabled": True},
-                "pylsp": {"enabled": False},
-                "ty": {"enabled": False},
-                "pyrefly": {"enabled": False},
-            }
-        )
-        completion_config = CompletionConfig(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
-        config_reader = as_reader(completion_config, config)
+        language_config = {
+            "basedpyright": {"enabled": True},
+            "pylsp": {"enabled": False},
+            "ty": {"enabled": False},
+            "pyrefly": {"enabled": False},
+        }
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -520,22 +529,18 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is False
 
         # Test with only pyrefly enabled
-        config = LanguageServersConfig(
-            {
-                "pyrefly": {"enabled": True},
-                "pylsp": {"enabled": False},
-                "basedpyright": {"enabled": False},
-                "ty": {"enabled": False},
-            }
-        )
-        completion_config = CompletionConfig(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
-        config_reader = as_reader(completion_config, config)
+        language_config = {
+            "pyrefly": {"enabled": True},
+            "pylsp": {"enabled": False},
+            "basedpyright": {"enabled": False},
+            "ty": {"enabled": False},
+        }
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -546,15 +551,13 @@ def test_composite_server():
         assert server._is_enabled(config, "pyrefly") is True
 
         # Test with nothing enabled
-        config = LanguageServersConfig({"pylsp": {"enabled": False}})
-        completion_config = CompletionConfig(
-            {
-                "copilot": False,
-                "activate_on_typing": True,
-                "signature_hint_on_typing": False,
-            }
-        )
-        config_reader = as_reader(completion_config, config)
+        language_config = {"pylsp": {"enabled": False}}
+        completion_config = {
+            "copilot": False,
+            "activate_on_typing": True,
+            "signature_hint_on_typing": False,
+        }
+        config_reader = as_reader(completion_config, language_config)
         config = config_reader.get_config()
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
@@ -618,8 +621,12 @@ def test_ty_server_uses_typed_format():
     mock_ty_module = mock.MagicMock()
     mock_ty_module.find_ty_bin.return_value = "/path/to/ty/binary"
 
-    with mock.patch.dict(
-        "sys.modules", {"ty": mock_ty_module, "ty.__main__": mock_ty_module}
+    with (
+        mock.patch.dict(
+            "sys.modules",
+            {"ty": mock_ty_module, "ty.__main__": mock_ty_module},
+        ),
+        mock.patch("shutil.which", return_value="/global/bin/ty"),
     ):
         server = TyServer(port=8000)
         command = server.get_command()
@@ -656,6 +663,96 @@ def test_ty_server_handles_spaces_in_path():
         # Should use typed format and preserve the path with spaces
         assert lsp_command == "ty:/path/with spaces/ty"
         assert "/path/with spaces/ty" in lsp_command
+
+
+@pytest.mark.parametrize("installed", [False, True])
+@pytest.mark.parametrize("on_path", [False, True])
+@pytest.mark.parametrize("node_available", [False, True])
+async def test_ty_server_availability(
+    installed: bool, on_path: bool, node_available: bool
+) -> None:
+    server = TyServer(port=8000)
+    with (
+        mock.patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="pip",
+        ),
+        mock.patch(
+            "marimo._server.lsp.DependencyManager.ty.has",
+            return_value=installed,
+        ),
+        mock.patch(
+            "shutil.which",
+            side_effect={
+                "ty": "/global/bin/ty" if on_path else None,
+                "node": "/bin/node" if node_available else None,
+            }.get,
+        ),
+        mock.patch.object(
+            BaseLspServer, "start", new_callable=mock.AsyncMock
+        ) as start,
+    ):
+        validation = server.validate_requirements()
+        if not (installed or on_path):
+            assert (
+                validation
+                == "ty is missing. Install it with `python -m pip install ty`."
+            )
+        elif not node_available:
+            assert (
+                validation
+                == "node.js binary is missing. Install node at https://nodejs.org/."
+            )
+        else:
+            assert validation is True
+
+        await server.start()
+        assert start.await_count == int(installed or on_path)
+
+
+def test_ty_server_missing_binary() -> None:
+    server = TyServer(port=8000)
+    with (
+        mock.patch.dict("sys.modules", {"ty": None, "ty.__main__": None}),
+        mock.patch("shutil.which", return_value=None),
+        pytest.raises(
+            FileNotFoundError, match="ty executable not found on PATH"
+        ),
+    ):
+        server.get_command()
+
+
+async def test_ty_server_starts_with_binary_on_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_popen: mock.MagicMock,
+):
+    bin_dir = tmp_path / "global tools"
+    bin_dir.mkdir()
+    binary = bin_dir / ("ty.exe" if is_windows() else "ty")
+    binary.touch(mode=0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))
+    server = TyServer(port=8000)
+
+    with (
+        mock.patch.dict("sys.modules", {"ty": None, "ty.__main__": None}),
+        mock.patch(
+            "marimo._server.lsp.DependencyManager.which",
+            return_value=True,
+        ),
+        mock.patch.object(server, "_wait_until_ready", return_value=True),
+        mock.patch.object(server, "_signal_process_tree"),
+    ):
+        try:
+            assert await server.start() is None
+            mock_popen.assert_called_once()
+            command = mock_popen.call_args.args[0]
+            lsp_command = command[command.index("--lsp") + 1]
+            server_type, _, executable = lsp_command.partition(":")
+            assert server_type == "ty"
+            assert Path(executable) == binary
+        finally:
+            server.stop()
 
 
 def test_any_lsp_server_running():

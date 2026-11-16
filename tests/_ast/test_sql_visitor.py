@@ -174,6 +174,29 @@ class TestFindSQLDefs:
         assert find_sql_defs(sql) == SQLDefs(views=[SQLRef(table="test_view")])
 
     @staticmethod
+    @pytest.mark.parametrize(
+        "modifier",
+        ["", "OR REPLACE ", "TEMP ", "TEMPORARY ", "OR REPLACE TEMPORARY "],
+    )
+    def test_find_sql_defs_secure_view(modifier: str) -> None:
+        sql = (
+            f"CREATE {modifier}SECURE /* view modifier */ VIEW "
+            '"memory"."main"."Secure View" AS SELECT * FROM source_table'
+        )
+        assert find_sql_defs(sql) == SQLDefs(
+            views=[
+                SQLRef(table="secure view", schema="main", catalog="memory")
+            ],
+        )
+
+    @staticmethod
+    def test_find_sql_defs_secure_only_modifies_views() -> None:
+        assert find_sql_defs("CREATE SECURE TABLE t (id INT)") == SQLDefs()
+        assert find_sql_defs('CREATE VIEW "secure" AS SELECT 1') == SQLDefs(
+            views=[SQLRef(table="secure")]
+        )
+
+    @staticmethod
     def test_find_sql_defs_unicode_comment_select() -> None:
         assert find_sql_defs("-- комментарий\nSELECT 1 AS x") == SQLDefs()
 
@@ -1166,6 +1189,89 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == {
             SQLRef(table="source_table"),
             SQLRef(table="target_table"),
+        }
+
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "INSERT INTO items VALUES (1) RETURNING *",
+            "UPDATE items SET id = 2 RETURNING *",
+            "DELETE FROM items RETURNING *",
+        ],
+    )
+    def test_dml_cte_reference(self, statement: str) -> None:
+        sql = f"WITH changed AS ({statement}) SELECT * FROM changed"
+        assert find_sql_refs(sql) == {SQLRef(table="items")}
+
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "INSERT INTO changed (id) VALUES (1) RETURNING *",
+            "UPDATE changed SET id = 2 RETURNING *",
+            "DELETE FROM changed RETURNING *",
+        ],
+    )
+    def test_dml_cte_name_matches_target(self, statement: str) -> None:
+        sql = f"WITH changed AS ({statement}) SELECT * FROM changed"
+        assert find_sql_refs(sql) == {SQLRef(table="changed")}
+
+    def test_nested_dml_cte_scope(self) -> None:
+        sql = """
+        SELECT * FROM changed
+        JOIN (
+            WITH changed AS (INSERT INTO items VALUES (1) RETURNING *),
+                 local_rows AS (SELECT * FROM changed)
+            SELECT * FROM local_rows
+        ) sub ON changed.id = sub.id
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="changed"),
+            SQLRef(table="items"),
+        }
+
+    def test_dml_cte_schema_qualified_reference(self) -> None:
+        sql = """
+        WITH changed AS (DELETE FROM items RETURNING *)
+        SELECT * FROM archive.changed a JOIN changed c ON a.id = c.id
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="items"),
+            SQLRef(table="changed", schema="archive"),
+        }
+
+    def test_dml_cte_reads_table_with_same_name(self) -> None:
+        sql = """
+        WITH changed AS (
+            INSERT INTO items SELECT * FROM changed RETURNING *
+        )
+        SELECT * FROM changed
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="items"),
+            SQLRef(table="changed"),
+        }
+
+    def test_dml_cte_with_recursive_source(self) -> None:
+        sql = """
+        WITH RECURSIVE nums AS (
+            SELECT 1 AS id
+            UNION ALL
+            SELECT id + 1 FROM nums WHERE id < 3
+        ), changed AS (INSERT INTO items SELECT * FROM nums RETURNING *)
+        SELECT * FROM changed
+        """
+        assert find_sql_refs(sql) == {SQLRef(table="items")}
+
+    def test_dml_cte_cannot_reference_later_recursive_cte(self) -> None:
+        sql = """
+        WITH RECURSIVE changed AS (
+            INSERT INTO items SELECT * FROM later RETURNING *
+        ), later AS (SELECT 1 AS id)
+        SELECT * FROM changed
+        """
+        assert find_sql_refs(sql) == {
+            SQLRef(table="items"),
+            SQLRef(table="later"),
         }
 
     def test_multiple_statements_with_optimize_error(self) -> None:

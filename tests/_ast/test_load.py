@@ -7,7 +7,6 @@ import textwrap
 
 import pytest
 
-from marimo import _loggers
 from marimo._ast import load
 from marimo._ast.parse import MarimoFileError, NonMarimoPythonScriptError
 
@@ -341,7 +340,6 @@ class TestGetCodes:
     def test_get_bad_kwargs(load_app, caplog) -> None:
         # Should be stderr since warn level
         with caplog.at_level(logging.WARNING):
-            _loggers.marimo_logger().propagate = True
             app = load_app(get_filepath("test_get_bad_kwargs"))
             assert app is not None
 

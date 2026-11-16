@@ -3,6 +3,7 @@
 import { atom } from "jotai";
 import { hasCellsAtom, notebookAtom } from "../cells/cells";
 import { isOutputEmpty } from "../cells/outputs";
+import { notebookQueuedOrRunningCountAtom } from "../executions";
 import { KnownQueryParams } from "../constants";
 import { showCodeInRunModeAtom } from "../meta/state";
 import { type AppMode, initialModeAtom } from "../mode";
@@ -74,37 +75,22 @@ function computeRenderPolicy(input: {
 }
 
 /**
- * Both cell-runtime facts the render policy needs, computed in a single pass
- * over `cellRuntime`:
- * - `hasCachedOutputs`: any cell has a non-empty output.
- * - `allCellsIdle`: every cell's status is idle — nothing queued or running.
- *   Vacuously true for an empty notebook, so `canPaint` still gates on
- *   `hasCells`.
- *
- * Fan out to two boolean selector atoms below so `renderPolicyAtom` only
- * recomputes when one of the booleans actually flips, not on every notebook
+ * Whether any cell has a non-empty output. A boolean selector so
+ * `renderPolicyAtom` only recomputes when it flips, not on every notebook
  * update.
  */
-const cellRuntimeSummaryAtom = atom((get) => {
-  let hasCachedOutputs = false;
-  let allCellsIdle = true;
-  for (const runtime of Object.values(get(notebookAtom).cellRuntime)) {
-    if (!isOutputEmpty(runtime.output)) {
-      hasCachedOutputs = true;
-    }
-    if (runtime.status !== "idle") {
-      allCellsIdle = false;
-    }
-  }
-  return { hasCachedOutputs, allCellsIdle };
-});
-
-const hasCachedOutputsAtom = atom(
-  (get) => get(cellRuntimeSummaryAtom).hasCachedOutputs,
+const hasCachedOutputsAtom = atom((get) =>
+  Object.values(get(notebookAtom).cellRuntime).some(
+    (runtime) => !isOutputEmpty(runtime.output),
+  ),
 );
 
+/**
+ * Nothing queued or running, by the host's executions. Vacuously true for an
+ * empty notebook, so `canPaint` still gates on `hasCells`.
+ */
 const allCellsIdleAtom = atom(
-  (get) => get(cellRuntimeSummaryAtom).allCellsIdle,
+  (get) => get(notebookQueuedOrRunningCountAtom) === 0,
 );
 
 export const renderPolicyAtom = atom<RenderPolicy>((get) =>

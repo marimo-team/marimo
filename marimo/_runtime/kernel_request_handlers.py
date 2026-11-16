@@ -24,12 +24,15 @@ from marimo._messaging.notification import (
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._runtime.commands import (
+    CancelRunCommand,
     CreateNotebookCommand,
     DebugCellCommand,
     DeleteCellCommand,
+    EditCellsCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
+    InstallPackagesCommand,
     InvokeFunctionCommand,
     ModelCommand,
     RenameNotebookCommand,
@@ -82,10 +85,12 @@ class KernelRequestHandlers:
         router.register(DeleteCellCommand, self._handle_delete_cell)
         router.register(ExecuteCellsCommand, self._handle_execute_multiple)
         router.register(SyncGraphCommand, self._handle_sync_graph)
+        router.register(EditCellsCommand, self._handle_edit_cells)
         router.register(
             ExecuteScratchpadCommand, self._handle_execute_scratchpad
         )
         router.register(ExecuteStaleCellsCommand, self._handle_execute_stale)
+        router.register(InstallPackagesCommand, self._handle_install)
         router.register(InvokeFunctionCommand, self._handle_function_call)
         router.register(DebugCellCommand, self._handle_pdb_request)
         router.register(RenameNotebookCommand, self._handle_rename)
@@ -96,6 +101,7 @@ class KernelRequestHandlers:
         router.register(ModelCommand, self._handle_receive_model_message)
         router.register(UpdateUserConfigCommand, self._handle_set_user_config)
         router.register(StopKernelCommand, self._handle_stop)
+        router.register(CancelRunCommand, self._handle_cancel_run)
 
     @contextlib.contextmanager
     def _run_context(self, run_id: str | None = None) -> Iterator[None]:
@@ -152,6 +158,22 @@ class KernelRequestHandlers:
         finally:
             _COMMAND_CYCLE.reset(token)
 
+    def _interrupt_cycle(self) -> None:
+        """Record that the current command's work did not run to completion."""
+        cycle = _COMMAND_CYCLE.get()
+        assert cycle is not None
+        cycle.outcome = "interrupted"
+
+    async def _handle_cancel_run(self, request: CancelRunCommand) -> None:
+        """End a run the control loop cancelled before it executed."""
+        with self._run_context(request.run_id):
+            cycle = _COMMAND_CYCLE.get()
+            assert cycle is not None
+            # Issued from inside another command, as code mode can, the
+            # cancellation names a run that is not this cycle.
+            if cycle.run_id == request.run_id:
+                self._interrupt_cycle()
+
     async def _handle_delete_cell(self, request: DeleteCellCommand) -> None:
         with self._run_context():
             await self._kernel.delete_cell(request)
@@ -162,6 +184,10 @@ class KernelRequestHandlers:
         with self._run_context():
             await self._kernel.set_cell_config(request)
 
+    async def _handle_edit_cells(self, request: EditCellsCommand) -> None:
+        with self._run_context():
+            await self._kernel.edit_cells(request)
+
     async def _handle_instantiate(
         self, request: CreateNotebookCommand
     ) -> None:
@@ -171,8 +197,17 @@ class KernelRequestHandlers:
     async def _handle_execute_multiple(
         self, request: ExecuteCellsCommand
     ) -> None:
-        with self._run_context(), http_request_context(request.request):
-            await self._kernel.run(request.execution_requests)
+        with (
+            self._run_context(request.run_id),
+            stdin_context(request.allow_stdin),
+            http_request_context(request.request),
+        ):
+            discarded = await self._kernel.run(
+                request.execution_requests,
+                discard_after_interrupt=request.run_id is None,
+            )
+            if discarded:
+                self._interrupt_cycle()
 
     async def _handle_sync_graph(self, request: SyncGraphCommand) -> None:
         with self._run_context(), http_request_context(None):
@@ -195,13 +230,21 @@ class KernelRequestHandlers:
             notebook_outputs_context(request.cell_outputs),
             http_request_context(request.request),
         ):
-            await self._kernel.run_scratchpad(request.code)
+            await self._kernel.run_scratchpad(
+                request.code, code_fingerprint=request.code_fingerprint
+            )
 
     async def _handle_execute_stale(
         self, request: ExecuteStaleCellsCommand
     ) -> None:
         with self._run_context(), http_request_context(request.request):
             await self._kernel.run_stale_cells()
+
+    async def _handle_install(self, request: InstallPackagesCommand) -> None:
+        with self._run_context():
+            await self._kernel.packages_callbacks.install_missing_packages(
+                request
+            )
 
     async def _handle_set_ui_element_value(
         self, request: UpdateUIElementCommand
@@ -268,4 +311,3 @@ class KernelRequestHandlers:
 
     async def _handle_stop(self, request: StopKernelCommand) -> None:
         del request
-        return

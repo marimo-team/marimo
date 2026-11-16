@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -17,7 +19,6 @@ import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { requestClientAtom } from "@/core/network/requests";
 import type { MarimoConfig } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
-import { type CodemirrorCellActions, cellActionsState } from "../cells/state";
 import { cellIdState } from "../config/extension";
 import { formatAll, formatEditorViews, formatSQL } from "../format";
 import {
@@ -44,7 +45,6 @@ vi.mock("@/core/config/config", () => ({
   }),
 }));
 
-const updateCellCode = vi.fn();
 const createdViews: EditorView[] = [];
 
 function createEditor(content: string, cellId: CellId) {
@@ -55,19 +55,16 @@ function createEditor(content: string, cellId: CellId) {
       adaptiveLanguageConfiguration({
         cellId,
         completionConfig: {
+          ...defaultUserConfig().completion,
           activate_on_typing: true,
           signature_hint_on_typing: false,
           copilot: false,
-          codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
-        lspConfig: {},
+        lspConfig: { ...defaultUserConfig().language_servers },
       }),
       cellIdState.of(cellId),
-      cellActionsState.of({
-        updateCellCode,
-      } as unknown as CodemirrorCellActions),
     ],
   });
 
@@ -85,7 +82,6 @@ const mockConfig = {
 } as MarimoConfig;
 
 beforeEach(() => {
-  updateCellCode.mockClear();
   vi.clearAllMocks();
   // Set the mock request client in the atom
   store.set(requestClientAtom, mockRequestClient);
@@ -131,16 +127,6 @@ describe("format", () => {
 
       expect(views[cid1].state.doc.toString()).toBe(formattedCode1);
       expect(views[cid2].state.doc.toString()).toBe(formattedCode2);
-      expect(updateCellCode).toHaveBeenCalledWith({
-        cellId: cid1,
-        code: formattedCode1,
-        formattingChange: true,
-      });
-      expect(updateCellCode).toHaveBeenCalledWith({
-        cellId: cid2,
-        code: formattedCode2,
-        formattingChange: true,
-      });
     });
 
     it("should not update editor if formatted code is same as original", async () => {
@@ -161,7 +147,6 @@ describe("format", () => {
       await formatEditorViews(views);
 
       expect(views[cid].state.doc.toString()).toBe(originalCode);
-      expect(updateCellCode).not.toHaveBeenCalled();
     });
   });
 
@@ -194,12 +179,6 @@ describe("format", () => {
         },
         lineLength: 88,
       });
-
-      expect(updateCellCode).toHaveBeenCalledWith({
-        cellId: cid1,
-        code: "import numpy as np",
-        formattingChange: true,
-      });
     });
   });
 
@@ -220,11 +199,6 @@ describe("format", () => {
         WHERE
           id = 1"
       `);
-      expect(updateCellCode).toHaveBeenCalledWith({
-        cellId: cid,
-        code: editor.state.doc.toString(),
-        formattingChange: true,
-      });
     });
 
     it("should not format if language adapter is not SQL", async () => {
@@ -238,7 +212,6 @@ describe("format", () => {
       expect(editor.state.doc.toString()).toBe(
         "SELECT * FROM table WHERE id = 1",
       );
-      expect(updateCellCode).not.toHaveBeenCalled();
     });
   });
 
@@ -257,10 +230,5 @@ describe("format", () => {
       WHERE
         id = 1"
     `);
-    expect(updateCellCode).toHaveBeenCalledWith({
-      cellId: cid,
-      code: editor.state.doc.toString(),
-      formattingChange: true,
-    });
   });
 });

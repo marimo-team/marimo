@@ -1,13 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+import { defaultUserConfig } from "@/core/config/config-schema";
 import { render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
+import { DocumentProvider } from "@/core/notebook/document";
 import { createCellRuntimeState } from "@/core/cells/types";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { OutputMessage } from "@/core/kernel/messages";
@@ -18,9 +22,12 @@ import { OutputArea } from "../Output";
 
 function createTestWrapper() {
   const store = createStore();
+  const { model } = mockDocumentModel(store, null);
   store.set(requestClientAtom, MockRequestClient.create());
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <Provider store={store}>{children}</Provider>
+    <Provider store={store}>
+      <DocumentProvider model={model}>{children}</DocumentProvider>
+    </Provider>
   );
   return { wrapper, store };
 }
@@ -41,7 +48,9 @@ describe("Cell data attributes", () => {
       const cellName = "test_cell";
 
       const userConfig: UserConfig = {
+        ...defaultUserConfig(),
         display: {
+          ...defaultUserConfig().display,
           cell_output: "below",
           code_editor_font_size: 14,
           dataframes: "rich",
@@ -51,15 +60,17 @@ describe("Cell data attributes", () => {
           theme: "light",
           reference_highlighting: false,
         },
-        keymap: { preset: "default" },
+        keymap: { ...defaultUserConfig().keymap, preset: "default" },
         completion: {
+          ...defaultUserConfig().completion,
           activate_on_typing: true,
           signature_hint_on_typing: false,
           copilot: false,
         },
-        formatting: { line_length: 88 },
+        formatting: { line_length: 88, infer_types: "off" },
         package_management: { manager: "pip" },
         runtime: {
+          ...defaultUserConfig().runtime,
           auto_instantiate: false,
           default_sql_output: "native",
           auto_reload: "off",
@@ -72,20 +83,23 @@ describe("Cell data attributes", () => {
           dotenv: [".env"],
         },
         server: {
+          ...defaultUserConfig().server,
           browser: "default",
           follow_symlink: false,
         },
-        save: { autosave: "off", autosave_delay: 1000, format_on_save: false },
-        ai: {},
-      } as UserConfig;
+        save: {
+          autosave: "off",
+          autosave_delay: 1000,
+          format_on_save: false,
+        },
+        ai: defaultUserConfig().ai,
+      };
 
       const notebook = MockNotebook.notebookState({
         cellData: {
           [cid]: {
             code: "",
             name: cellName,
-            edited: false,
-            serializedEditorState: null,
             config: {
               disabled: false,
               hide_code: false,
@@ -96,16 +110,8 @@ describe("Cell data attributes", () => {
       });
 
       notebook.cellRuntime[cid] = createCellRuntimeState({
-        status: "idle",
         output: null,
         consoleOutputs: [],
-        interrupted: false,
-        errored: false,
-        stopped: false,
-        staleInputs: false,
-        runStartTimestamp: null,
-        lastRunStartTimestamp: null,
-        runElapsedTimeMs: null,
         debuggerActive: false,
         outline: null,
       });
@@ -146,17 +152,23 @@ describe("Output data attributes", () => {
       timestamp: 0,
     };
 
+    const store = createStore();
+    const { model } = mockDocumentModel(store, null);
     const { container } = render(
-      <TooltipProvider>
-        <OutputArea
-          output={output}
-          cellId={cid}
-          stale={false}
-          loading={false}
-          allowExpand={true}
-          className="test-output"
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <OutputArea
+              output={output}
+              cellId={cid}
+              stale={false}
+              loading={false}
+              allowExpand={true}
+              className="test-output"
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
     const outputElement = container.querySelector('[data-cell-role="output"]');

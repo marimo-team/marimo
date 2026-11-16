@@ -306,9 +306,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert lazy_manager.take(1, 0).data.collect()["A"].to_list() == [1]
         assert lazy_manager.take(2, 0).data.collect()["A"].to_list() == [1, 2]
 
-        # Converted to eager frame
-        assert lazy_manager.take(2, 1).data["A"].to_list() == [2, 3]
-        assert lazy_manager.take(2, 2).data["A"].to_list() == [3]
+        assert lazy_manager.take(2, 1).data.collect()["A"].to_list() == [2, 3]
+        assert lazy_manager.take(2, 2).data.collect()["A"].to_list() == [3]
 
     def test_take_zero(self) -> None:
         limited_manager = self.manager.take(0, 0)
@@ -1007,6 +1006,72 @@ def test_empty_dataframe(df: Any) -> None:
     assert empty_manager.get_field_types() == []
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"value": range(5)}, include=["pandas", "pyarrow"]),
+)
+@pytest.mark.parametrize(
+    ("count", "offset", "expected"),
+    [(2, 0, [0, 1]), (2, 4, [4]), (2, 5, []), (0, 3, [])],
+)
+def test_take_lazy_without_native_slice(
+    df: Any, count: int, offset: int, expected: list[int]
+) -> None:
+    source = nw.from_native(df).lazy()
+    manager = NarwhalsTableManager.from_dataframe(source)
+
+    page = manager.take(count, offset)
+
+    assert json.loads(page.to_json_str()) == [
+        {"value": value} for value in expected
+    ]
+    assert source.collect().to_dict(as_series=False) == {
+        "value": list(range(5))
+    }
+
+
+@pytest.mark.parametrize(
+    "df", create_dataframes({"A": [1, 2, 3]}, exclude=["duckdb"])
+)
+@pytest.mark.parametrize(("threshold", "expected"), [(0, 3), (1, 2), (3, 0)])
+def test_filtered_row_count(df: Any, threshold: int, expected: int) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    filtered = manager.with_new_data(
+        manager.data.filter(nw.col("A") > threshold)
+    )
+    assert filtered.get_num_rows() == expected
+    assert filtered.get_num_rows() == expected
+    assert manager.get_num_rows() == 3
+
+
+@pytest.mark.requires("polars")
+def test_lazy_row_count_collects_only_scalar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import polars as pl
+
+    collected_shapes: list[tuple[int, int]] = []
+    collect = pl.LazyFrame.collect
+
+    def record_collect(
+        self: pl.LazyFrame, *args: Any, **kwargs: Any
+    ) -> pl.DataFrame:
+        result = collect(self, *args, **kwargs)
+        collected_shapes.append(result.shape)
+        return result
+
+    monkeypatch.setattr(pl.LazyFrame, "collect", record_collect)
+    manager = NarwhalsTableManager.from_dataframe(
+        pl.LazyFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    )
+    assert manager.get_num_rows(force=False) is None
+    assert collected_shapes == []
+    assert manager.get_num_rows() == 3
+    assert manager.get_num_rows() == 3
+    assert manager.get_num_rows(force=False) is None
+    assert collected_shapes == [(1, 1)]
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
@@ -1206,11 +1271,11 @@ def test_get_bin_values_decimal(df: Any) -> None:
                 datetime.timedelta(days=5, hours=5, minutes=5, seconds=5),
             ],
             "datetime_with_tz": [
-                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 2, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 3, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 4, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 5, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 2, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 3, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 4, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 5, 1, tzinfo=datetime.UTC),
             ],
             "dates_multiple": [
                 datetime.date(2021, 1, 1),
@@ -1305,28 +1370,28 @@ class TestGetBinValuesTemporal:
         assert bin_values == [
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 1, 1, 0, 0, tzinfo=datetime.timezone.utc
+                    2021, 1, 1, 0, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 2, 10, 8, 0, tzinfo=datetime.UTC
                 ),
                 count=2,
             ),
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 2, 10, 8, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 3, 22, 8, 0, tzinfo=datetime.UTC
                 ),
                 count=1,
             ),
             BinValue(
                 bin_start=datetime.datetime(
-                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 3, 22, 8, 0, tzinfo=datetime.UTC
                 ),
                 bin_end=datetime.datetime(
-                    2021, 5, 1, 8, 0, tzinfo=datetime.timezone.utc
+                    2021, 5, 1, 8, 0, tzinfo=datetime.UTC
                 ),
                 count=2,
             ),
@@ -1394,12 +1459,29 @@ class TestOldDates:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"A": ["apple", "banana", "cherry"]}),
+    create_dataframes(
+        {
+            "A": [
+                "apple",
+                "banana",
+                "C++",
+                "c++ guide",
+                "ΟΣ",
+                "ος",
+                "οσ",
+                "İstanbul",
+            ]
+        }
+    ),
 )
-def test_search_with_regex(df: Any) -> None:
+def test_search_treats_query_as_literal(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
-    result = manager.search("^[ab]")
-    assert result.get_num_rows() == 2
+    assert manager.search("^[ab]").get_num_rows() == 0
+    assert manager.search("c++").get_num_rows() == 2
+    assert manager.search("C++ G").get_num_rows() == 1
+    assert manager.search("a.b").get_num_rows() == 0
+    assert manager.search("Σ").get_num_rows() == 3
+    assert manager.search("İ").get_num_rows() == 1
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1454,10 +1536,10 @@ def test_sort_values_with_nulls(df: Any) -> None:
             "A": [1, 2, 3, 4],  # Integer
             "B": ["a", "b", "c", "d"],  # String
             "C": [
-                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 1, 2, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 1, 3, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2021, 1, 4, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 1, 2, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 1, 3, tzinfo=datetime.UTC),
+                datetime.datetime(2021, 1, 4, tzinfo=datetime.UTC),
             ],  # Datetime with timezone
             "D": [1.1, 2.2, 3.3, 4.4],  # Float
             "E": [True, False, True, False],  # Boolean

@@ -402,12 +402,13 @@ class TestRuffFunction:
 
         # Check that help command was called first
         help_call = mock_subprocess_safe.call_args_list[0]
-        assert help_call[0] == (sys.executable, "-m", "ruff", "--help")
+        assert help_call[0] == (sys.executable, "-P", "-m", "ruff", "--help")
 
         # Check that format command was called
         format_call = mock_subprocess_safe.call_args_list[1]
         assert format_call[0] == (
             sys.executable,
+            "-P",
             "-m",
             "ruff",
             "format",
@@ -441,6 +442,7 @@ class TestRuffFunction:
         format_call = mock_subprocess_safe.call_args_list[1]
         assert format_call[0] == (
             sys.executable,
+            "-P",
             "-m",
             "ruff",
             "format",

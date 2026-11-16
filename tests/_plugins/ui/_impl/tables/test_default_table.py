@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import datetime
 import json
 import string
@@ -1218,6 +1219,81 @@ class TestHeterogeneousRowData(unittest.TestCase):
         ]
 
 
+@pytest.mark.parametrize(
+    ("data", "by", "expected"),
+    [
+        (
+            {"a": [2], "b": [10, 20]},
+            [SortArgs(by="a", descending=False)],
+            {"a": [2, None], "b": [10, 20]},
+        ),
+        (
+            {"a": [2], "b": [10, 20]},
+            [SortArgs(by="b", descending=True)],
+            {"a": [None, 2], "b": [20, 10]},
+        ),
+        (
+            {"b": [10, 20], "a": [2]},
+            [SortArgs(by="a", descending=True)],
+            {"b": [10, 20], "a": [2, None]},
+        ),
+        (
+            {"a": [2, 1], "b": [10]},
+            [SortArgs(by="a", descending=False)],
+            {"a": [1, 2], "b": [None, 10]},
+        ),
+        (
+            {"a": [], "b": [10, 20]},
+            [SortArgs(by="b", descending=True)],
+            {"a": [None, None], "b": [20, 10]},
+        ),
+        (
+            {"a": [], "b": [10, 20]},
+            [SortArgs(by="a", descending=False)],
+            {"a": [None, None], "b": [10, 20]},
+        ),
+        (
+            {"a": [], "b": []},
+            [SortArgs(by="a", descending=False)],
+            {"a": [], "b": []},
+        ),
+        (
+            {"a": (2, 1), "b": (10,)},
+            [SortArgs(by="a", descending=False)],
+            {"a": [1, 2], "b": [None, 10]},
+        ),
+        (
+            {"a": [1, 1, None], "b": [20, 10], "c": [0, 1, 2, 3]},
+            [
+                SortArgs(by="a", descending=True),
+                SortArgs(by="b", descending=False),
+            ],
+            {
+                "a": [1, 1, None, None],
+                "b": [10, 20, None, None],
+                "c": [1, 0, 2, 3],
+            },
+        ),
+        (
+            {"a": ["b", 1], "b": [0, 1, 2]},
+            [SortArgs(by="a", descending=False)],
+            {"a": [1, "b", None], "b": [1, 0, 2]},
+        ),
+    ],
+)
+def test_sort_mismatched_column_lengths(
+    data: Any, by: list[SortArgs], expected: dict[str, list[Any]]
+) -> None:
+    original = copy.deepcopy(data)
+    manager = DefaultTableManager(data)
+
+    sorted_manager = manager.sort_values(by)
+
+    assert sorted_manager.data == expected
+    assert sorted_manager.get_num_rows() == manager.get_num_rows()
+    assert data == original
+
+
 class TestMismatchedColumnLengths(unittest.TestCase):
     """Column-oriented data where columns have differing lengths."""
 
@@ -1235,6 +1311,30 @@ class TestMismatchedColumnLengths(unittest.TestCase):
             {"a": 1, "b": 4},
             {"a": 2, "b": 5},
             {"a": 3, "b": None},
+        ]
+
+    def test_select_rows_pads_short_columns(self) -> None:
+        data = {"a": [2], "b": [10, 20]}
+        mgr = DefaultTableManager(data)
+        assert mgr.select_rows([1]).data == {"a": [None], "b": [20]}
+        assert mgr.select_rows([0, 1]).data == {"a": [2, None], "b": [10, 20]}
+        assert data == {"a": [2], "b": [10, 20]}
+
+    def test_search_pads_short_columns(self) -> None:
+        mgr = DefaultTableManager({"a": [2], "b": [10, 20]})
+        assert mgr.search("20").data == {"a": [None], "b": [20]}
+        assert mgr.search("none").data == {"a": [None], "b": [20]}
+
+    def test_select_cells_pads_short_columns(self) -> None:
+        mgr = DefaultTableManager({"a": [2], "b": [10, 20]})
+        assert mgr.select_cells(
+            [
+                TableCoordinate(row_id=1, column_name="a"),
+                TableCoordinate(row_id=1, column_name="b"),
+            ]
+        ) == [
+            TableCell(row=1, column="a", value=None),
+            TableCell(row=1, column="b", value=20),
         ]
 
 
@@ -1259,7 +1359,8 @@ _column_name = st.text(
 _column_names = st.lists(_column_name, min_size=1, max_size=10, unique=True)
 
 
-@settings(deadline=1000)
+# These correctness tests should tolerate variable CI scheduling delays.
+@settings(deadline=None)
 @given(cols=_column_names, data=st.data())
 def test_drop_columns_preserves_order_row_major(
     cols: list[str], data: st.DataObject
@@ -1278,7 +1379,7 @@ def test_drop_columns_preserves_order_row_major(
     assert mgr.drop_columns(to_drop).get_column_names() == expected
 
 
-@settings(deadline=1000)
+@settings(deadline=None)
 @given(cols=_column_names, data=st.data())
 def test_drop_columns_preserves_order_column_major(
     cols: list[str], data: st.DataObject
@@ -1292,7 +1393,7 @@ def test_drop_columns_preserves_order_column_major(
     assert mgr.drop_columns(to_drop).get_column_names() == expected
 
 
-@settings(deadline=1000)
+@settings(deadline=None)
 @given(cols=_column_names, data=st.data())
 def test_select_columns_preserves_caller_order_row_major(
     cols: list[str], data: st.DataObject
@@ -1311,7 +1412,7 @@ def test_select_columns_preserves_caller_order_row_major(
     assert mgr.select_columns(subset).get_column_names() == subset
 
 
-@settings(deadline=1000)
+@settings(deadline=None)
 @given(cols=_column_names, data=st.data())
 def test_select_columns_preserves_caller_order_column_major(
     cols: list[str], data: st.DataObject

@@ -58,6 +58,7 @@ import { useColumnPinning } from "./hooks/use-column-pinning";
 import { useScrollContainerHeight } from "./hooks/use-scroll-container-height";
 import { CellSelectionProvider } from "./range-focus/provider";
 import { DataTableBody, renderTableHeader } from "./renderers";
+import { buildHighlightPattern } from "./search-highlight";
 import { TableBottomBar } from "./TableBottomBar";
 import { TableTopBar } from "./TableTopBar";
 import {
@@ -85,6 +86,7 @@ interface DataTableProps<TData> extends Partial<ExportActionProps> {
   setSorting?: OnChangeFn<SortingState>; // controlled sorting
   // Pagination
   totalRows: number | TooManyRows;
+  hasNextPage?: boolean;
   // JSON-serialized size of the currently-rendered data. Forwarded to
   // ExportActions so hosts can size-gate the Export button via downloadSizeLimitAtom.
   sizeBytes?: number | null;
@@ -142,6 +144,7 @@ const DataTableInternal = <TData,>({
   selection,
   totalColumns,
   totalRows,
+  hasNextPage,
   sizeBytes,
   sizeBytesIsLoading,
   manualSorting = false,
@@ -231,6 +234,11 @@ const DataTableInternal = <TData,>({
     return idx + offset;
   }
 
+  const highlightPattern = React.useMemo(
+    () => buildHighlightPattern(searchQuery),
+    [searchQuery],
+  );
+
   const table = useReactTable<TData>({
     _features: [
       ColumnPinning,
@@ -245,10 +253,11 @@ const DataTableInternal = <TData,>({
     ],
     data,
     columns,
-    meta: { rawData },
+    meta: { rawData, highlightPattern },
     getCoreRowModel: getCoreRowModel(),
     // pagination
     rowCount: totalRows === "too_many" ? undefined : totalRows,
+    pageCount: hasNextPage === undefined ? undefined : -1,
     ...(setPaginationState
       ? {
           onPaginationChange: setPaginationState,
@@ -396,6 +405,12 @@ const DataTableInternal = <TData,>({
               </Banner>
             )}
             <Table
+              role={table.options.enableCellSelection ? "grid" : undefined}
+              aria-multiselectable={
+                table.options.enableCellSelection
+                  ? table.options.enableMultiCellSelection
+                  : undefined
+              }
               className={cn(
                 "relative",
                 columns.length <= AUTO_WIDTH_MAX_COLUMNS ? "w-auto" : "w-full",
@@ -420,6 +435,7 @@ const DataTableInternal = <TData,>({
               className="pt-1.5 pb-0.5 border-t border-border"
               totalColumns={totalColumns}
               pagination={pagination}
+              hasNextPage={hasNextPage}
               selection={selection}
               onRowSelectionChange={onRowSelectionChange}
               table={table}

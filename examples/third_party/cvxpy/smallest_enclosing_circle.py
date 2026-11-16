@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -28,7 +28,6 @@ def _(mo):
 
     _Use the slider below to choose the number of circles to sample:_
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -73,13 +72,13 @@ def _(generate_circles, number_of_circles, resample_button):
 
 
 @app.cell
-def _(circles, smallest_enclosing_circle):
+def _(circles: list, smallest_enclosing_circle):
     center, radius = smallest_enclosing_circle(circles)
     return center, radius
 
 
 @app.cell
-def _(center, circles, plot_circle, plt, radius):
+def _(center: None, circles: list, plot_circle, plt, radius: None):
     for (c_i, r_i) in circles:
         plot_circle(c_i, r_i, color='gray')
     plot_circle(center, radius, color='green', label='smallest enclosing circle')
@@ -88,7 +87,6 @@ def _(center, circles, plot_circle, plt, radius):
     plt.legend(loc='upper right')
     plt.gcf().set_size_inches((6, 6))
     plt.gca()
-    return
 
 
 @app.cell
@@ -106,7 +104,6 @@ def _(mo):
     mo.md("""
     ## The solution method
     """)
-    return
 
 
 @app.cell
@@ -148,7 +145,6 @@ def _(mo):
         return (center.value, radius.value)
     ```
     """)
-    return
 
 
 @app.cell

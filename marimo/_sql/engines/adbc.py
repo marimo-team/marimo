@@ -599,6 +599,8 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
                 return None
 
             arrow_table = cursor.fetch_arrow_table()
+            # Conversion errors must not leave completed SQL uncommitted.
+            _try_commit()
 
             def convert_to_polars() -> pl.DataFrame | pl.Series:
                 import polars as pl
@@ -609,14 +611,12 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
                 df: pd.DataFrame = arrow_table.to_pandas()
                 return df
 
-            result = convert_to_output(
+            return convert_to_output(
                 sql_output_format=sql_output_format,
                 to_polars=convert_to_polars,
                 to_pandas=convert_to_pandas,
                 to_native=lambda: arrow_table,
             )
-            _try_commit()
-            return result
         finally:
             try:
                 cursor.close()

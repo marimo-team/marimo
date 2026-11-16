@@ -711,6 +711,59 @@ class TestApp:
         assert not runtime_context_installed()
 
     @staticmethod
+    @pytest.mark.parametrize("execution", ["sync", "async", "running-loop"])
+    @pytest.mark.parametrize("phase", ["writes", "manifest"])
+    def test_run_tears_down_context_after_interrupted_flush(
+        monkeypatch: pytest.MonkeyPatch, execution: str, phase: str
+    ) -> None:
+        import asyncio
+
+        from marimo._runtime.context.types import (
+            runtime_context_installed,
+            teardown_context,
+        )
+        from marimo._save import loaders, manifest
+
+        app = App()
+        if execution == "sync":
+
+            @app.cell
+            def _():
+                x = 1
+                return (x,)
+
+        else:
+
+            @app.cell
+            async def _():
+                import asyncio
+
+                await asyncio.sleep(0)
+                x = 1
+                return (x,)
+
+        def interrupt(*_args: Any) -> None:
+            raise KeyboardInterrupt("interrupted flush")
+
+        if phase == "writes":
+            monkeypatch.setattr(loaders, "flush_active_caches", interrupt)
+        else:
+            monkeypatch.setattr(manifest, "flush_dirty_manifests", interrupt)
+
+        async def run() -> None:
+            app.run()
+
+        try:
+            with pytest.raises(KeyboardInterrupt, match="interrupted flush"):
+                if execution == "running-loop":
+                    asyncio.run(run())
+                else:
+                    app.run()
+            assert not runtime_context_installed()
+        finally:
+            teardown_context()
+
+    @staticmethod
     async def test_run_async_from_running_event_loop_propagates_error() -> (
         None
     ):
@@ -1332,6 +1385,43 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
     assert "value2" in output
 
 
+@pytest.mark.skipif(
+    condition=not DependencyManager.matplotlib.has(),
+    reason="requires matplotlib",
+)
+def test_script_run_does_not_import_matplotlib(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A script run leaves matplotlib alone until a cell imports it.
+
+    Loading it costs a font-cache build on a fresh machine, which can
+    take longer than the notebook itself.
+    """
+    py_file = tmp_path / "no_mpl_script.py"
+    content = """
+    import marimo
+    app = marimo.App()
+
+    @app.cell
+    def __():
+        import sys
+        print("matplotlib" in sys.modules)
+        return
+
+    if __name__ == "__main__":
+        app.run()
+    """
+    py_file.write_text(textwrap.dedent(content))
+    p = subprocess.run(
+        [sys.executable, str(py_file)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert p.returncode == 0, p.stderr
+    assert p.stdout.strip() == "False"
+
+
 # TODO(akshayka): Many of the app composition and embedding tests are flaky in
 # CI. This suggests either cross-test state pollution or a bug in the
 # underlying implementation. These bugs are not high priority to fix, so
@@ -1930,9 +2020,9 @@ class TestAppComposition:
         assert is_external_cell_id(setup_cell_ids[0])
 
 
-class TestInternalAppWithData:
-    """`InternalApp.with_data` rewrites the cell list from the
-    frontend's snapshot during the save round-trip. It must mutate the
+class TestInternalAppApplyData:
+    """`InternalApp.apply_data` rewrites the cell list from the
+    frontend's snapshot during the editor's save. It must mutate the
     existing cell manager in place — Session holds
     `app.cell_manager.document` as a property, so swapping in a fresh
     manager would orphan `session.document`.
@@ -1953,7 +2043,7 @@ class TestInternalAppWithData:
         names = list(cell_manager.names())
         configs = list(cell_manager.configs())
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=cell_ids,
             codes=[c + "  # edited" for c in codes],
             names=names,
@@ -1977,7 +2067,7 @@ class TestInternalAppWithData:
         names = list(internal_app.cell_manager.names())
         configs = list(internal_app.cell_manager.configs())
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=cell_ids,
             codes=[c + "  # edited" for c in codes],
             names=names,
@@ -1999,7 +2089,7 @@ class TestInternalAppWithData:
         original_compiled = internal_app.cell_manager._compiled_cells[cell_id]
         assert original_compiled is not None
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=["x = 2  # renamed-only-here"],
             names=["__"],
@@ -2018,7 +2108,7 @@ class TestInternalAppWithData:
         internal_app, cell_id = self._seed_single()
         compiled = internal_app.cell_manager._compiled_cells
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=["new"],
             codes=["y = 2"],
             names=["__"],
@@ -2040,7 +2130,7 @@ class TestInternalAppWithData:
         internal_app = InternalApp(app)
         cell_id = next(iter(internal_app.cell_manager.cell_ids()))
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=["x = 99"],
             names=["renamed"],
@@ -2069,7 +2159,7 @@ class TestInternalAppWithData:
         doc = internal_app.cell_manager.document
         before = doc.get_cell_version(cell_id)
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=[doc.get_cell(cell_id).code],
             names=["__"],
@@ -2083,7 +2173,7 @@ class TestInternalAppWithData:
         doc = internal_app.cell_manager.document
         before = doc.get_cell_version(cell_id)
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=["x = 2"],
             names=["__"],
@@ -2096,7 +2186,7 @@ class TestInternalAppWithData:
         internal_app, cell_id = self._seed_single()
         doc = internal_app.cell_manager.document
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id, "new"],
             codes=["x = 1", "y = 2"],
             names=["__", "__"],
@@ -2111,7 +2201,7 @@ class TestInternalAppWithData:
         internal_app, cell_id = self._seed_single()
 
         # Drop the original cell.
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=["other"],
             codes=["y = 2"],
             names=["__"],
@@ -2127,19 +2217,19 @@ class TestInternalAppWithData:
         internal_app, cell_id = self._seed_single()
         internal_app.cell_manager.unparsable = True
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=["x = 2"],
             names=["__"],
             configs=[CellConfig()],
         )
 
-        # with_data rebuilds from parsable textual fields, so unparsable
+        # apply_data rebuilds from parsable textual fields, so unparsable
         # resets to the rebuilt manager's value (False).
         assert internal_app.cell_manager.unparsable is False
 
     def test_noop_save_does_not_bump_document_version(self) -> None:
-        # with_data routes through apply(); a save with identical content
+        # apply_data routes through apply(), so a save with identical content
         # produces an empty transaction, which leaves the document version
         # unchanged (consistent with SetCode no-op staying stable).
         internal_app, cell_id = self._seed_single()
@@ -2147,7 +2237,7 @@ class TestInternalAppWithData:
         cell = doc.get_cell(cell_id)
         before = doc.version
 
-        internal_app.with_data(
+        internal_app.apply_data(
             cell_ids=[cell_id],
             codes=[cell.code],
             names=[cell.name],

@@ -18,6 +18,7 @@ from marimo._messaging.notification import (
     DataSourceConnectionsNotification,
     EnvironmentOperationNotification,
     EnvironmentState,
+    EnvironmentStateNotification,
     EsmSpec,
     InterruptedNotification,
     ModelClose,
@@ -280,7 +281,7 @@ class SessionView:
             )
         )
 
-    def add_stdin(self, stdin: str) -> None:
+    def add_stdin(self, stdin: str, *, input_id: str | None = None) -> None:
         self._touch()
 
         """Add a stdin request to the session view."""
@@ -288,6 +289,8 @@ class SessionView:
         for cell_notif in self.cell_notifications.values():
             console_outputs: list[CellOutput] = as_list(cell_notif.console)
             for cell_output in console_outputs:
+                if input_id is not None and cell_output.input_id != input_id:
+                    continue
                 if cell_output.channel == CellChannel.STDIN:
                     cell_output.channel = CellChannel.STDOUT
                     if cell_output.mimetype == "text/password":
@@ -375,6 +378,13 @@ class SessionView:
             )
 
         elif isinstance(notification, VariableValuesNotification):
+            for removed in notification.removed:
+                value = self.variable_values.get(removed.name)
+                if (
+                    value is not None
+                    and value.execution_id == removed.execution_id
+                ):
+                    del self.variable_values[removed.name]
             for value in notification.variables:
                 self.variable_values[value.name] = value
 
@@ -599,8 +609,21 @@ class SessionView:
 
         self.last_execution_time[cell_id] = time_elapsed
 
-    @property
-    def notifications(self) -> list[NotificationMessage]:
+    def snapshot_notifications(self) -> list[NotificationMessage]:
+        """Copy retained notifications for a connecting client.
+
+        The caller supplies kernel-ready before replaying these notifications.
+        """
+        notifications: list[NotificationMessage] = [
+            EnvironmentStateNotification(source=source, state=state)
+            for source, state in self._environment_states.items()
+        ]
+        if self.startup_progress is not None:
+            notifications.append(self.startup_progress)
+        notifications.extend(self._notebook_notifications())
+        return copy.deepcopy(notifications)
+
+    def _notebook_notifications(self) -> list[NotificationMessage]:
         all_notifications: list[NotificationMessage] = []
         if self.variable_notifications.variables:
             all_notifications.append(self.variable_notifications)
@@ -706,6 +729,7 @@ def _merge_consecutive_console_outputs(
             and merged[-1].mimetype == "text/plain"
             and output.mimetype == "text/plain"
             and merged[-1].channel == output.channel
+            and merged[-1].input_id == output.input_id
             and isinstance(merged[-1].data, str)
             and isinstance(output.data, str)
         ):
@@ -715,6 +739,7 @@ def _merge_consecutive_console_outputs(
                 mimetype=merged[-1].mimetype,
                 data=merged[-1].data + output.data,
                 timestamp=merged[-1].timestamp,
+                input_id=merged[-1].input_id,
             )
         else:
             merged.append(output)

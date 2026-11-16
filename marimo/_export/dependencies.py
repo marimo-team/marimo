@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import subprocess
 import sys
-from typing import cast
+from typing import assert_never, cast
 
 from marimo import _loggers
 from marimo._cli.install_hints import (
@@ -20,8 +20,8 @@ from marimo._schemas.export_options import (
     ExportSetupRequirementName,
     ServerExportFormat,
 )
-from marimo._utils.assert_never import assert_never
 from marimo._utils.async_path import isfile
+from marimo._utils.asyncio_utils import run_on_proactor_loop
 
 LOGGER = _loggers.marimo_logger()
 
@@ -70,7 +70,7 @@ async def _install_playwright_chromium() -> None:
     try:
         result = await asyncio.to_thread(
             subprocess.run,
-            [sys.executable, "-m", "playwright", "install", "chromium"],
+            [sys.executable, "-P", "-m", "playwright", "install", "chromium"],
             capture_output=True,
             text=True,
             timeout=_PLAYWRIGHT_INSTALL_TIMEOUT_SECONDS,
@@ -132,14 +132,10 @@ async def get_missing_export_setup(
 
 async def _is_playwright_chromium_installed() -> bool:
     """Return whether Playwright's matching Chromium executable exists."""
-    executable = (
-        await asyncio.to_thread(_get_playwright_chromium_executable_on_windows)
-        if sys.platform == "win32"
-        else await _get_playwright_chromium_executable()
-    )
-    return await isfile(executable)
+    return await isfile(await _get_playwright_chromium_executable())
 
 
+@run_on_proactor_loop
 async def _get_playwright_chromium_executable() -> str:
     """Return the executable expected by the installed Playwright version."""
 
@@ -149,21 +145,6 @@ async def _get_playwright_chromium_executable() -> str:
 
     async with async_playwright() as playwright:
         return cast(str, playwright.chromium.executable_path)
-
-
-def _get_playwright_chromium_executable_on_windows() -> str:
-    # The server uses a Windows SelectorEventLoop, which cannot start the
-    # Playwright driver subprocess. This worker thread owns a Proactor loop.
-    assert sys.platform == "win32"
-    loop = asyncio.ProactorEventLoop()  # type: ignore[attr-defined]
-    try:
-        return cast(
-            str,
-            loop.run_until_complete(_get_playwright_chromium_executable()),
-        )
-    finally:
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        loop.close()
 
 
 def require_export_dependencies(

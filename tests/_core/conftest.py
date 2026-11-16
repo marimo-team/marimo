@@ -4,16 +4,22 @@
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
+import msgspec
 import pytest
 
-from marimo._core import backend as be, protocol
-from marimo._core.document import Document, DocumentSnapshot, code_hash
+from marimo._core import backend as be, protocol, protocol_events
+from marimo._core.code import code_fingerprint
+from marimo._core.document import Document, DocumentCell
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.run_log import RetentionPolicy
-from marimo._core.stream import Event, Sink
+from marimo._core.stream import RoutedEvent, Sink, event_name
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
 
 OPERATIONS = ["notebook.create", "runtime.start", "runtime.run"]
 
@@ -23,6 +29,7 @@ class ScriptedBackend:
 
     def __init__(self) -> None:
         self.calls: list[tuple[object, ...]] = []
+        self.requests: list[be.RequestInfo | None] = []
 
     def start(self, runtime_id: str) -> None:
         self.calls.append(("start", runtime_id))
@@ -30,11 +37,41 @@ class ScriptedBackend:
     def stop(self, runtime_id: str) -> None:
         self.calls.append(("stop", runtime_id))
 
-    def run(self, run_id: str, code: str) -> None:
+    def run(
+        self,
+        run_id: str,
+        code: str,
+        *,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
+    ) -> None:
+        del allow_input
         self.calls.append(("run", run_id, code))
+        self.requests.append(request)
 
-    def interrupt(self, run_id: str) -> None:
-        self.calls.append(("interrupt", run_id))
+    def run_cells(
+        self,
+        run_id: str,
+        document: Document,
+        cell_ids: Sequence[str],
+        *,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
+    ) -> None:
+        del allow_input
+        self.calls.append(
+            ("run_cells", run_id, document.etag, tuple(cell_ids))
+        )
+        self.requests.append(request)
+
+    def interrupt(self) -> None:
+        self.calls.append(("interrupt",))
+
+    def cancel(self, run_id: str) -> None:
+        self.calls.append(("cancel", run_id))
+
+    def reply_input(self, input_id: str, value: str) -> None:
+        self.calls.append(("reply_input", input_id, value))
 
     def forget(self, run_id: str) -> None:
         self.calls.append(("forget", run_id))
@@ -44,16 +81,16 @@ class ScriptedAnalyzer:
     """Expose snapshots and let tests complete analysis explicitly."""
 
     def __init__(self) -> None:
-        self.requests: list[DocumentSnapshot] = []
+        self.requests: list[Document] = []
         self.pending: asyncio.Queue[
             tuple[
-                DocumentSnapshot,
+                Document,
                 asyncio.Future[dict[protocol.CellId, protocol.CellAnalysis]],
             ]
         ] = asyncio.Queue()
 
     async def analyze(
-        self, snapshot: DocumentSnapshot
+        self, snapshot: Document
     ) -> dict[protocol.CellId, protocol.CellAnalysis]:
         result: asyncio.Future[
             dict[protocol.CellId, protocol.CellAnalysis]
@@ -65,7 +102,7 @@ class ScriptedAnalyzer:
     async def next_request(
         self,
     ) -> tuple[
-        DocumentSnapshot,
+        Document,
         asyncio.Future[dict[protocol.CellId, protocol.CellAnalysis]],
     ]:
         return await asyncio.wait_for(self.pending.get(), timeout=5)
@@ -109,11 +146,14 @@ def make_notebook(
     document: Document | None = None,
     analyzer: ScriptedAnalyzer | None = None,
 ) -> Notebook:
+    document = document if document is not None else Document([], {})
     return Notebook(
-        document or Document(record.id, [], {}),
+        record.id,
+        document,
         Executions(),
         backend or ScriptedBackend(),
         sink,
+        saved_etag=document.etag,
         analyzer=analyzer,
     )
 
@@ -152,19 +192,77 @@ async def notebook(host: Host, backend: ScriptedBackend) -> Notebook:
 
 
 @pytest.fixture
-def log(host: Host) -> list[Event]:
+def log(host: Host) -> list[RoutedEvent]:
     """Collect events published during the test."""
-    events: list[Event] = []
+    events: list[RoutedEvent] = []
     host.subscribe(events.append, notebook_id="n1")
     return events
 
 
-def names(events: list[Event]) -> list[str]:
-    return [e.name for e in events]
+class RecordingBridge:
+    """A notebook bridge that counts edits and can hold one in flight."""
+
+    def __init__(self, host: Host) -> None:
+        self.host = host
+        self.edits = 0
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.release.set()
+        self.preconditions: list[Sequence[str] | None] = []
+
+    async def edit(
+        self,
+        notebook_id: str,
+        changes: Sequence[protocol.Change],
+        *,
+        request_id: str,
+    ) -> protocol.EditResponse:
+        self.edits += 1
+        self.started.set()
+        await self.release.wait()
+        notebook = await self.host.notebook(notebook_id)
+        return notebook.edit(changes, request_id=request_id)
+
+    async def save(
+        self,
+        notebook_id: str,
+        *,
+        if_match: Sequence[str] | None,
+        decisions: Mapping[str, str],
+        request_id: str,
+    ) -> protocol.EditResponse:
+        del decisions
+        self.preconditions.append(if_match)
+        notebook = await self.host.notebook(notebook_id)
+        return notebook.edit((), request_id=request_id)
 
 
-def request_ids(events: list[Event]) -> list[object]:
-    return [getattr(e.data, "request_id", None) for e in events]
+@pytest.fixture
+async def bridge() -> RecordingBridge:
+    host = Host(
+        operations=(
+            "notebook.edit",
+            "notebook.save",
+            "runtime.start",
+            "runtime.run",
+        )
+    )
+    host.update_project(project())
+    await add_notebook(
+        host,
+        msgspec.structs.replace(record(), operations=tuple(host.operations)),
+        ScriptedBackend(),
+        document=Document([DocumentCell(protocol.CellId("c1"), "x = 1")], {}),
+    )
+    return RecordingBridge(host)
+
+
+def names(events: list[RoutedEvent]) -> list[str]:
+    return [event_name(e.event) for e in events]
+
+
+def request_ids(events: list[RoutedEvent]) -> list[object]:
+    return [getattr(e.event.data, "request_id", None) for e in events]
 
 
 class Clock:
@@ -202,33 +300,51 @@ def plan(
             ),
         )
     )
-    notebook.observe(be.Status(execution, "running"))
+    notebook.observe(be.Started(execution))
     return execution
 
 
 def finish(notebook: Notebook, execution: protocol.ExecutionId) -> None:
     notebook.observe(
-        be.Concluded(
+        be.Completed(
             execution,
             protocol.ValueOutcome(
                 protocol.DisplayData(mimetype="text/plain", data="value")
             ),
         )
     )
-    notebook.observe(be.Status(execution, "completed"))
 
 
-def fold(events: list[Event], initial: dict | None = None) -> dict:
+def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
     state = dict(initial or {})
-    for event in events:
-        if event.name == "reset":
+    for routed in events:
+        event = routed.event
+        if isinstance(event, protocol.ResetEvent):
             state.clear()
-        elif event.kind in {"run", "execution", "console", "display"}:
-            if event.name.endswith(".removed"):
-                state.pop((event.kind, event.data.id), None)
-            else:
-                body = getattr(event.data, event.kind)
-                state[event.kind, body.id] = body
+        elif isinstance(
+            event,
+            (
+                protocol.RunEvent,
+                protocol.ExecutionEvent,
+                protocol.ConsoleEvent,
+                protocol.DisplayEvent,
+            ),
+        ):
+            body = protocol_events.body(event)
+            state[event_name(event), body.id] = body
+        elif isinstance(
+            event,
+            (
+                protocol.RunRemovedEvent,
+                protocol.ExecutionRemovedEvent,
+                protocol.ConsoleRemovedEvent,
+                protocol.DisplayRemovedEvent,
+            ),
+        ):
+            state.pop(
+                (event_name(event).removesuffix(".removed"), event.data.id),
+                None,
+            )
     return state
 
 
@@ -245,13 +361,12 @@ def retained_execution(
             caused_by=None,
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
             code="42" if cell_id is None else None,
-            code_hash=code_hash("42"),
-            bindings=(),
+            code_fingerprint=code_fingerprint("42"),
+            depends_on={},
             status="completed",
             outcome=protocol.ValueOutcome(
                 protocol.DisplayData(mimetype="text/plain", data="42")
             ),
-            stale=False if cell_id is not None else None,
             started_at=None,
             completed_at=None,
         ),

@@ -50,6 +50,24 @@ def current_backend() -> Backend:
     return "pixi" if GLOBAL_SETTINGS.SANDBOX_BACKEND == "pixi" else "uv"
 
 
+def backend_for(filename: str | None) -> Backend:
+    """The backend that manages `filename`'s environment.
+
+    With `MARIMO_SANDBOX_AUTO` set, a `[tool.pixi]` table in the notebook's
+    manifest selects pixi. Otherwise this is the process backend.
+    """
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._environments import script_metadata
+
+    if (
+        GLOBAL_SETTINGS.SANDBOX_AUTO
+        and filename is not None
+        and script_metadata.declares_pixi(filename)
+    ):
+        return "pixi"
+    return current_backend()
+
+
 def adapter_for(
     backend: Backend, reporter: SandboxReporter | None = None
 ) -> BackendAdapter:
@@ -192,6 +210,7 @@ def launch_isolated(
             *_with_args(requirements),
             "--",
             "python",
+            "-P",
             *args,
         ),
         env=env,
@@ -220,7 +239,7 @@ def launch_fallback(
     env.pop("UV_PROJECT_ENVIRONMENT", None)
     if sys.prefix != sys.base_prefix:
         env["VIRTUAL_ENV"] = sys.prefix
-    return ProcessPlan(argv=(sys.executable, *args), env=env)
+    return ProcessPlan(argv=(sys.executable, "-P", *args), env=env)
 
 
 class _ReportingBackendAdapter:

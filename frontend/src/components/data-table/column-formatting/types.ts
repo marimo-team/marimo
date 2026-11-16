@@ -39,8 +39,7 @@ export interface ColumnFormattingInstance {
   setColumnFormatting: (value?: FormatOption) => void;
   getColumnFormatting?: () => FormatOption | undefined;
   getCanFormat?: () => boolean;
-  // oxlint-disable-next-line typescript/no-explicit-any
-  applyColumnFormatting: (value: any) => any;
+  applyColumnFormatting: (value: unknown) => unknown;
 }
 
 // Use declaration merging to add APIs and state types

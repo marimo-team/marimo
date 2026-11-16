@@ -3,6 +3,7 @@
 import type { TopLevelSpec } from "vega-lite";
 import type { NonNormalizedSpec } from "vega-lite/types_unstable/spec/index.js";
 import type { TopLevelParameter } from "vega-lite/types_unstable/spec/toplevel.js";
+import { Arrays } from "@/utils/arrays";
 
 import { findEncodedFields, makeEncodingInteractive } from "./encodings";
 import { Marks } from "./marks";
@@ -218,7 +219,7 @@ function removeSpecificParamsFromNestedSpecs(
     }
 
     if (filteredParams.length === 0) {
-      const { params, ...rest } = spec;
+      const { params: _params, ...rest } = spec;
       return rest as SpecWithParams;
     }
 
@@ -357,9 +358,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
 
       // If fieldSelection is an array, filter the fields
       if (Array.isArray(fieldSelection)) {
-        legendFields = legendFields.filter((field) =>
-          fieldSelection.includes(field),
-        );
+        legendFields = Arrays.intersection(legendFields, fieldSelection);
       }
     }
 
@@ -420,9 +419,7 @@ function makeLegendSelectable(
   let legendFields = findEncodedFields(spec);
   // If fieldSelection is an array, we filter the fields
   if (Array.isArray(fieldSelection)) {
-    legendFields = legendFields.filter((field) =>
-      fieldSelection.includes(field),
-    );
+    legendFields = Arrays.intersection(legendFields, fieldSelection);
   }
 
   const legendParams = legendFields.map((field) => Params.legend(field));

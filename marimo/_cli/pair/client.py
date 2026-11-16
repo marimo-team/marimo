@@ -3,14 +3,21 @@ from __future__ import annotations
 
 import http.client
 import json
-from dataclasses import dataclass
+import queue
+import socket
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
-from marimo._server.api.utils import format_url_host
-from marimo._server.server_registry import _servers_dir
+from marimo._server.host import (
+    ATTACHMENT_IDENTITY,
+    ATTACHMENT_KIND,
+    ATTACHMENT_NAME,
+    HOST_API_PATH,
+)
 
 if TYPE_CHECKING:
+    import threading
     from collections.abc import Iterable, Iterator, Mapping
     from http.client import HTTPResponse
     from pathlib import Path
@@ -25,13 +32,29 @@ class PairInputError(PairError):
     """Invalid local input that prevents a server operation."""
 
 
-class NoSessionError(PairError):
+class PairConnectionError(PairError):
+    """A transport failure while connecting to the notebook server."""
+
+
+class NoRuntimeError(PairError):
+    """The notebook has no running kernel."""
+
+
+class RunConflictError(PairError):
+    """The host refused the run as a conflict."""
+
+
+class NoNotebookError(PairError):
+    """No notebook was found at the requested server URL."""
+
     def __init__(self, message: str, *, url: str) -> None:
         super().__init__(message)
         self.url = url
 
 
-class AmbiguousSessionError(PairError):
+class AmbiguousNotebookError(PairError):
+    """Discovery found several notebooks and requires an explicit selection."""
+
     def __init__(
         self, message: str, *, url: str, candidates: tuple[str, ...]
     ) -> None:
@@ -40,26 +63,32 @@ class AmbiguousSessionError(PairError):
         self.candidates = candidates
 
 
-class StaleSessionError(PairError):
-    """The server rejected the session ID as unknown."""
+class StaleNotebookError(PairError):
+    """The server rejected the Notebook ID as unknown."""
 
 
-class StableSessionUnsupportedError(PairError):
-    """The server cannot resolve stable session IDs."""
+class NotebookUnsupportedError(PairError):
+    """The server discovery does not expose host notebooks."""
 
 
 @dataclass(frozen=True)
 class SSEEvent:
+    """A parsed server-sent event with an optional stream resume cursor."""
+
     name: str
     data: str
+    id: str | None = None
 
 
 @dataclass(frozen=True)
 class ExecutionResult:
+    """Captured output and final outcome of a notebook execution."""
+
     success: bool
     output: dict[str, str] | None
     stdout: str
     stderr: str
+    outcome: str = "succeeded"
 
 
 def load_token(
@@ -98,19 +127,24 @@ def _endpoint_url(url: str, path: str) -> str:
     ).geturl()
 
 
-def iter_sse(lines: Iterable[bytes]) -> Iterator[SSEEvent]:
+def iter_sse(
+    lines: Iterable[bytes], *, heartbeats: bool = False
+) -> Iterator[SSEEvent]:
     name = "message"
     data: list[str] = []
+    cursor: str | None = None
 
     for raw_line in lines:
         line = raw_line.decode("utf-8").rstrip("\r\n")
         if not line:
             if data:
-                yield SSEEvent(name=name, data="\n".join(data))
+                yield SSEEvent(name=name, data="\n".join(data), id=cursor)
             name = "message"
             data = []
             continue
         if line.startswith(":"):
+            if heartbeats:
+                yield SSEEvent(name="heartbeat", data="")
             continue
 
         field, separator, value = line.partition(":")
@@ -118,16 +152,55 @@ def iter_sse(lines: Iterable[bytes]) -> Iterator[SSEEvent]:
             value = value[1:]
         if field == "event":
             name = value
+        elif field == "id" and "\0" not in value:
+            cursor = value
         elif field == "data":
             data.append(value)
 
     if data:
-        yield SSEEvent(name=name, data="\n".join(data))
+        yield SSEEvent(name=name, data="\n".join(data), id=cursor)
+
+
+def pump_events(
+    events: Iterable[SSEEvent],
+    incoming: queue.Queue[SSEEvent | Exception | None],
+    stopped: threading.Event,
+) -> None:
+    """Read events on a worker thread with bounded, cancellable delivery."""
+
+    def put(value: SSEEvent | Exception | None) -> None:
+        while not stopped.is_set():
+            try:
+                incoming.put(value, timeout=0.1)
+                return
+            except queue.Full:
+                continue
+
+    try:
+        for event in events:
+            if stopped.is_set():
+                return
+            put(event)
+    except (
+        PairError,
+        OSError,
+        http.client.HTTPException,
+        ValueError,
+        AttributeError,
+    ) as error:
+        put(error)
+    finally:
+        put(None)
 
 
 def open_response(
-    *, method: str, url: str, headers: dict[str, str], body: bytes | None
-) -> HTTPResponse:
+    *,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    body: bytes | None,
+    read_timeout: float | None = None,
+) -> EventStream:
     try:
         parsed = urlsplit(url)
         port = parsed.port
@@ -150,32 +223,44 @@ def open_response(
             timeout=5.0,
         )
         connection.connect()
-        if connection.sock is not None:
-            connection.sock.settimeout(None)
+        assert connection.sock is not None
+        response_socket = connection.sock
+        response_socket.settimeout(read_timeout)
         path = parsed.path or "/"
         if parsed.query:
             path = f"{path}?{parsed.query}"
         connection.request(method, path, body=body, headers=headers)
         response = connection.getresponse()
     except (ValueError, http.client.InvalidURL) as error:
+        connection.close()
         raise PairInputError("The server URL is invalid.") from error
     except (OSError, http.client.HTTPException) as error:
-        raise PairError("Could not connect to the server.") from error
+        connection.close()
+        raise PairConnectionError(
+            "Could not connect to the server."
+        ) from error
 
-    _raise_for_status(response)
-    return response
+    try:
+        _raise_for_status(response)
+    except PairError:
+        connection.close()
+        raise
+    return EventStream(response, response_socket)
 
 
-def _response_detail(response: HTTPResponse) -> str | None:
+def _response_problem(response: HTTPResponse) -> tuple[str | None, str | None]:
     try:
         payload = json.loads(response.read())
     except (OSError, UnicodeError, ValueError, http.client.HTTPException):
-        return None
+        return None, None
     if isinstance(payload, dict):
         detail = payload.get("detail")
-        if isinstance(detail, str):
-            return detail
-    return None
+        problem = payload.get("type")
+        return (
+            detail if isinstance(detail, str) else None,
+            problem if isinstance(problem, str) else None,
+        )
+    return None, None
 
 
 def _raise_for_status(response: HTTPResponse) -> None:
@@ -184,14 +269,23 @@ def _raise_for_status(response: HTTPResponse) -> None:
         raise PairError("Authentication failed.")
     if 200 <= response.status < 300:
         return
-    detail = _response_detail(response)
+    detail, problem = _response_problem(response)
     response.close()
     if isinstance(detail, str) and detail.startswith(
         ("Invalid session id", "Invalid stable session id")
     ):
-        raise StaleSessionError(detail)
+        raise StaleNotebookError(detail)
     if detail == "Missing Marimo-Session-Id header":
-        raise StableSessionUnsupportedError
+        raise NotebookUnsupportedError
+    if response.status == 404:
+        raise StaleNotebookError(detail or "Unknown notebook.")
+    if (
+        problem == "urn:marimo:problem:no-runtime"
+        or detail == "The notebook has no running session."
+    ):
+        raise NoRuntimeError(detail or "The notebook has no running kernel.")
+    if problem == "urn:marimo:problem:conflict":
+        raise RunConflictError(detail or "The host refused the run.")
     if detail:
         raise PairError(detail)
     raise PairError(f"Server returned {response.status}.")
@@ -215,12 +309,14 @@ def execute(
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
     body = json.dumps({"code": code}).encode("utf-8")
-    response = open_response(
-        method="POST",
-        url=request_url,
-        headers=headers,
-        body=body,
-    )
+    try:
+        response = open_response(
+            method="POST", url=request_url, headers=headers, body=body
+        )
+    except PairConnectionError as error:
+        raise PairError(
+            "The execution response ended before completion was confirmed."
+        ) from error
     stdout_parts: list[str] = []
     stderr_parts: list[str] = []
 
@@ -257,6 +353,9 @@ def execute(
                         stdout.write(f"{output['data']}\n")
                     return ExecutionResult(
                         success=bool(payload["success"]),
+                        outcome="succeeded"
+                        if payload["success"]
+                        else "failed",
                         output=output,
                         stdout="".join(stdout_parts),
                         stderr="".join(stderr_parts),
@@ -281,6 +380,105 @@ def execute(
         response.close()
 
 
+@dataclass(frozen=True)
+class EventStream:
+    """An HTTP response whose socket can be closed to unblock its reader."""
+
+    response: HTTPResponse
+    socket: socket.socket
+
+    def __iter__(self) -> Iterator[bytes]:
+        return iter(self.response)
+
+    def close(self) -> None:
+        # Shutdown interrupts a blocked reader before closing its file handle.
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        try:
+            self.response.close()
+        finally:
+            self.socket.close()
+
+
+def open_events(
+    *,
+    url: str,
+    notebook: str,
+    token: str | None,
+    identity: str,
+    name: str,
+    cursor: str | None = None,
+    kind: str = "agent",
+    types: str = "custom,attachment",
+    read_timeout: float | None = 45,
+) -> EventStream:
+    headers = {
+        ATTACHMENT_IDENTITY: identity,
+        ATTACHMENT_KIND: kind,
+        ATTACHMENT_NAME: name,
+    }
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+    if cursor is not None:
+        headers["Last-Event-ID"] = cursor
+    return open_response(
+        method="GET",
+        url=_endpoint_url(url, f"/notebooks/{quote(notebook, safe='')}/events")
+        + f"?types={types}",
+        headers=headers,
+        body=None,
+        read_timeout=read_timeout,
+    )
+
+
+@dataclass(frozen=True)
+class HostEndpoint:
+    """Host API address and bearer token from a validated live host record."""
+
+    url: str
+    token: str = field(repr=False)
+
+
+def find_host(url: str, *, root: Path | None = None) -> HostEndpoint | None:
+    from marimo._server.host.record import discover_hosts
+
+    def normalized(value: str) -> tuple[str, str | None, int, str]:
+        parsed = urlsplit(value)
+        if parsed.scheme not in ("http", "https") or parsed.hostname is None:
+            raise PairInputError("The server URL must use http or https.")
+        host = parsed.hostname.lower()
+        if host == "localhost":
+            host = "127.0.0.1"
+        path = parsed.path.rstrip("/")
+        path = path.removesuffix(HOST_API_PATH)
+        return (
+            parsed.scheme,
+            host,
+            parsed.port or (443 if parsed.scheme == "https" else 80),
+            path,
+        )
+
+    try:
+        selected = normalized(url)
+    except ValueError as error:
+        raise PairInputError("The server URL is invalid.") from error
+    for record in discover_hosts(root=root):
+        if normalized(record.url) == selected:
+            return HostEndpoint(record.url, record.token)
+    return None
+
+
+def resolve_host(url: str, *, root: Path | None = None) -> HostEndpoint:
+    host = find_host(url, root=root)
+    if host is None:
+        raise PairError(
+            "No live host record matches this URL. Start a local edit server, or restart the existing server."
+        )
+    return host
+
+
 def list_sessions(
     *, url: str, token: str | None
 ) -> dict[str, dict[str, str | None]]:
@@ -296,7 +494,7 @@ def list_sessions(
     )
     try:
         try:
-            payload = json.load(response)
+            payload = json.load(response.response)
         except (
             OSError,
             UnicodeError,
@@ -320,7 +518,7 @@ def list_sessions(
         if "filename" not in session or "path" not in session:
             raise PairError(message)
         if "session_id" not in session:
-            raise StableSessionUnsupportedError
+            raise NotebookUnsupportedError
         stable_session_id = session["session_id"]
         filename = session["filename"]
         path = session["path"]
@@ -330,67 +528,13 @@ def list_sessions(
             or (path is not None and not isinstance(path, str))
         ):
             raise PairError(message)
+        notebook_id = session.get("notebook_id")
+        if notebook_id is not None and not isinstance(notebook_id, str):
+            raise PairError(message)
         sessions[session_id] = {
             "session_id": stable_session_id,
             "filename": filename,
             "path": path,
+            "notebook_id": notebook_id,
         }
     return sessions
-
-
-def resolve_session(*, url: str, token: str | None) -> str:
-    sessions = list_sessions(url=url, token=token)
-    safe_url = display_url(url)
-    if len(sessions) == 1:
-        stable_session_id = next(iter(sessions.values()))["session_id"]
-        assert stable_session_id is not None
-        return stable_session_id
-    if not sessions:
-        message = f"No running session on {safe_url}."
-        raise NoSessionError(message, url=safe_url)
-
-    candidates = sorted(
-        session["session_id"]
-        for session in sessions.values()
-        if session["session_id"] is not None
-    )
-    message = f"Server {safe_url} has {len(candidates)} running sessions."
-    raise AmbiguousSessionError(
-        message, url=safe_url, candidates=tuple(candidates)
-    )
-
-
-def registry_urls() -> list[str]:
-    import psutil
-
-    urls: list[str] = []
-    for path in sorted(_servers_dir().glob("*.json")):
-        try:
-            with path.open(encoding="utf-8") as file:
-                entry = json.load(file)
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            continue
-        if not isinstance(entry, dict):
-            continue
-        pid = entry.get("pid")
-        host = entry.get("host")
-        port = entry.get("port")
-        base_url = entry.get("base_url")
-        if (
-            type(pid) is not int
-            or not psutil.pid_exists(pid)
-            or not isinstance(host, str)
-            or type(port) is not int
-            or not 1 <= port <= 65535
-            or not isinstance(base_url, str)
-        ):
-            continue
-
-        url_host = format_url_host(host, port, route_bind_all_to_loopback=True)
-        if port == 80:
-            urls.append(f"http://{url_host}{base_url}")
-        elif port == 443:
-            urls.append(f"https://{url_host}{base_url}")
-        else:
-            urls.append(f"http://{url_host}:{port}{base_url}")
-    return urls

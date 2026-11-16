@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -20,19 +20,18 @@ def _():
     import marimo as mo
     from vega_datasets import data
     import pandas as pd
+
     return data, mo, pd
 
 
 @app.cell
 def _(pd):
     editable_table = pd.DataFrame({"a": [2, 2, 12], "b": [2, 5, 6]})
-    return
 
 
 @app.cell
 def _(pd):
     df_with_list = pd.DataFrame([{"a": [1, 2, 3]}])
-    return
 
 
 @app.cell
@@ -69,41 +68,35 @@ def _(df):
 @app.cell
 def _(mo, polars_df):
     mo.ui.table(polars_df)
-    return
 
 
 @app.cell
 def _(mo, pyarrow_df):
     mo.ui.table(pyarrow_df)
-    return
 
 
 @app.cell
 def _(df, mo):
     mo.ui.table(df)
-    return
 
 
 @app.cell
-def _(mo):
+def _(mo, polars_df):
     _df = mo.sql(
         f"""
         SELECT * FROM polars_df
         """
     )
-    return
 
 
 @app.cell
 def _(mo):
     mo.ui.table({"a": [2, 2, 12], "b": [2, 5, 6]})
-    return
 
 
 @app.cell
 def _(mo, polars_df):
     mo.plain(polars_df)
-    return
 
 
 @app.cell
@@ -111,7 +104,6 @@ def _(pd):
     date_range = pd.date_range(start="2023-01-01", periods=10, freq="D")
     date_indexed_df = pd.DataFrame({"Data": range(10)}, index=date_range)
     date_indexed_df
-    return
 
 
 if __name__ == "__main__":

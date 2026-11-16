@@ -32,6 +32,26 @@ describe("useInternalStateWithSync", () => {
     expect(result.current[0]).toBe("new value");
   });
 
+  it("preserves function values without calling them and resets when they change", () => {
+    const initial = vi.fn(() => "initial");
+    const draft = vi.fn(() => "draft");
+    const changed = vi.fn(() => "changed");
+    const { result, rerender } = renderHook(
+      ({ value }) => useInternalStateWithSync(value),
+      { initialProps: { value: initial } },
+    );
+
+    expect(result.current[0]).toBe(initial);
+    act(() => result.current[1](() => draft));
+    rerender({ value: initial });
+    expect(result.current[0]).toBe(draft);
+    rerender({ value: changed });
+    expect(result.current[0]).toBe(changed);
+    expect(initial).not.toHaveBeenCalled();
+    expect(draft).not.toHaveBeenCalled();
+    expect(changed).not.toHaveBeenCalled();
+  });
+
   it("should not update internal state if initial value remains the same", () => {
     const { result, rerender } = renderHook(
       ({ value }) => useInternalStateWithSync(value),

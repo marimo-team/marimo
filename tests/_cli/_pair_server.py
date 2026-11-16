@@ -26,9 +26,17 @@ class PairTestServer:
     url: str
     session_id: str
     stable_session_id: str
+    notebook_id: str
     _process: subprocess.Popen[bytes]
     _websocket: ClientConnection
     _stderr_path: Path
+    _token: str | None = None
+
+    @property
+    def _headers(self) -> dict[str, str]:
+        return (
+            {"Authorization": f"Bearer {self._token}"} if self._token else {}
+        )
 
     def wait_for_kernel(
         self,
@@ -45,7 +53,10 @@ class PairTestServer:
                 )
             request = urllib.request.Request(
                 f"{self.url}/api/kernel/status",
-                headers={"Marimo-Session-Id": self.session_id},
+                headers={
+                    **self._headers,
+                    "Marimo-Session-Id": self.session_id,
+                },
             )
             try:
                 with urllib.request.urlopen(request, timeout=1) as response:
@@ -66,6 +77,7 @@ class PairTestServer:
                 method="POST",
                 data=b"{}",
                 headers={
+                    **self._headers,
                     "Content-Type": "application/json",
                     "Marimo-Session-Id": self.session_id,
                 },
@@ -101,6 +113,7 @@ def _wait_for_server(
     stderr_path: Path,
     *,
     timeout: float = 15.0,
+    token: str | None = None,
 ) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -110,7 +123,11 @@ def _wait_for_server(
                 f"{_tail(stderr_path)}"
             )
         try:
-            with urllib.request.urlopen(url, timeout=1):
+            request = urllib.request.Request(
+                url,
+                headers={"Authorization": f"Bearer {token}"} if token else {},
+            )
+            with urllib.request.urlopen(request, timeout=1):
                 return
         except OSError:
             time.sleep(0.05)
@@ -124,15 +141,23 @@ def _wait_for_kernel_ready(
     websocket: ClientConnection,
     *,
     timeout: float = 10.0,
-) -> None:
+) -> str:
     deadline = time.monotonic() + timeout
+    notebook_id: str | None = None
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError("kernel did not become ready")
-        message = json.loads(websocket.recv(timeout=remaining))
-        if message.get("op") == "kernel-ready":
-            return
+        event = json.loads(websocket.recv(timeout=remaining))
+        if event["event"] == "notebook":
+            notebook_id = event["data"]["notebook"]["id"]
+        if event["event"] != "marimo":
+            continue
+        message = event["data"]["marimo"]
+        if message["op"] == "kernel-ready":
+            # The host publishes notebook identity before kernel-ready.
+            assert isinstance(notebook_id, str), "Missing notebook snapshot"
+            return notebook_id
 
 
 def _stop_process(process: subprocess.Popen[bytes]) -> None:
@@ -147,7 +172,11 @@ def _stop_process(process: subprocess.Popen[bytes]) -> None:
 
 
 def _start_server(
-    notebook: Path, stderr_path: Path, *, attempts: int = 3
+    notebook: Path,
+    stderr_path: Path,
+    *,
+    token: str | None,
+    attempts: int = 3,
 ) -> tuple[subprocess.Popen[bytes], str]:
     for attempt in range(attempts):
         port = _free_port()
@@ -160,17 +189,22 @@ def _start_server(
                     "edit",
                     str(notebook),
                     "--headless",
-                    "--no-token",
+                    *(
+                        ["--token-password", token]
+                        if token
+                        else ["--no-token"]
+                    ),
                     "--no-skew-protection",
                     "--port",
                     str(port),
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=stderr_file,
+                cwd=notebook.parent,
             )
         url = f"http://127.0.0.1:{port}"
         try:
-            _wait_for_server(url, process, stderr_path)
+            _wait_for_server(url, process, stderr_path, token=token)
         except RuntimeError:
             _stop_process(process)
             if attempt + 1 == attempts:
@@ -181,31 +215,41 @@ def _start_server(
 
 
 @contextmanager
-def pair_test_server(tmp_path: Path) -> Generator[PairTestServer, None, None]:
+def pair_test_server(
+    tmp_path: Path, *, token: str | None = None
+) -> Generator[PairTestServer, None, None]:
     notebook = tmp_path / "pair-integration.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     stderr_path = tmp_path / "marimo-stderr.log"
 
-    process, url = _start_server(notebook, stderr_path)
+    process, url = _start_server(notebook, stderr_path, token=token)
     try:
         session_id = f"pair_{uuid.uuid4().hex[:8]}"
         websocket = websockets.sync.client.connect(
             f"{url.replace('http://', 'ws://', 1)}/ws?session_id={session_id}",
             open_timeout=5,
+            additional_headers={"Authorization": f"Bearer {token}"}
+            if token
+            else {},
         )
-        _wait_for_kernel_ready(websocket)
-        with urllib.request.urlopen(
-            f"{url}/api/sessions", timeout=5
-        ) as response:
+        notebook_id = _wait_for_kernel_ready(websocket)
+        request = urllib.request.Request(
+            f"{url}/api/sessions",
+            headers={"Authorization": f"Bearer {token}"} if token else {},
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
             sessions = json.load(response)
+        assert sessions[session_id]["notebook_id"] == notebook_id
         stable_session_id = sessions[session_id]["session_id"]
         server = PairTestServer(
             url=url,
             session_id=session_id,
             stable_session_id=stable_session_id,
+            notebook_id=notebook_id,
             _process=process,
             _websocket=websocket,
             _stderr_path=stderr_path,
+            _token=token,
         )
         try:
             yield server

@@ -3,25 +3,16 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo._core.document import code_hash
-from marimo._server.host.bridge import SessionBridge
-from marimo._server.host.context import HostContext
-from marimo._server.main import create_starlette_app
-from marimo._server.workspace import SingleFileWorkspace
+from marimo._core.code import code_fingerprint
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
-from marimo._utils.marimo_path import MarimoPath
-from tests._server.host.drive import PORT, finished, request, wait_for
-from tests._server.mocks import (
-    get_mock_session_manager,
-    get_starlette_server_state_init,
-)
+from tests._server.host.drive import finished, wait_for
+from tests._server.host.live import key, open_host
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -30,12 +21,6 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
 
     from tests._server.host.drive import Response
-
-AUTH = {"Authorization": "Bearer execution-test"}
-
-
-def key(value: str) -> dict[str, str]:
-    return {**AUTH, "Idempotency-Key": value}
 
 
 @pytest.fixture
@@ -55,44 +40,8 @@ async def live_host(
     tmp_path: Path,
     notebook_source: str,
 ) -> AsyncIterator[tuple[Starlette, str, Response]]:
-    manager = get_mock_session_manager()
-    file = tmp_path / "notebook.py"
-    file.write_text(notebook_source)
-    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(file))
-    manager.redirect_console_to_browser = True
-    app = create_starlette_app(base_url="", enable_auth=True)
-    get_starlette_server_state_init(session_manager=manager).apply(app.state)
-    bridge = SessionBridge(manager)
-    await bridge.open()
-    app.state.host_context = HostContext(
-        bridge=bridge, token="execution-test", port=PORT
-    )
-    notebook = next(iter(bridge.host.notebooks.values()))
-    events, task, disconnect = request(
-        app, "GET", f"/notebooks/{notebook.id}/events", headers=AUTH
-    )
-    try:
-        started = await finished(
-            app,
-            "PUT",
-            f"/notebooks/{notebook.id}/runtime",
-            headers=key("start"),
-        )
-        assert started.status == 202
-        await wait_for(
-            events,
-            lambda response: any(
-                r.get("data", {}).get("runtime", {}).get("status") == "running"
-                for r in response.records
-            ),
-            timeout=15,
-        )
-        yield app, notebook.id, events
-    finally:
-        disconnect()
-        await asyncio.wait_for(task, 5)
-        bridge.close()
-        await manager.shutdown()
+    async with open_host(tmp_path, notebook_source) as host:
+        yield host
 
 
 async def test_move_preserves_the_running_notebook(
@@ -125,7 +74,7 @@ async def test_move_preserves_the_running_notebook(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("after-move"),
         body=b'{"code":"6 * 7"}',
     )
@@ -177,7 +126,7 @@ async def test_scratch_outcomes_from_the_kernel(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("run"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -196,7 +145,7 @@ async def test_scratch_outcomes_from_the_kernel(
     ]
     outcome = execution["outcome"]
     assert execution["code"] == code
-    assert execution["code_hash"]
+    assert execution["code_fingerprint"]
     assert execution["runtime_id"] is not None
     assert execution["caused_by"] is None
     if kind == "value":
@@ -217,8 +166,266 @@ async def test_scratch_outcomes_from_the_kernel(
             outcome["kind"],
             outcome["error"]["kind"],
             outcome["error"]["name"],
-        ) == ("error", "syntax" if name is None else "exception", name)
+        ) == (
+            "error",
+            "invalid-syntax" if name is None else "exception",
+            name,
+        )
         assert outcome["error"]["message"]
+
+
+async def test_cell_runs_preserve_order_with_later_deletions(
+    live_host: tuple[Starlette, str, Response],
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    cell = next(iter(notebook.document))
+    session = next(iter(app.state.session_manager.sessions.values()))
+    runs = f"/notebooks/{notebook_id}/runtime/runs"
+    execute = f"/notebooks/{notebook_id}/runtime/execute"
+    body = json.dumps({"cells": [{"id": cell.id, "etag": cell.etag}]}).encode()
+
+    async def completed(response: Response) -> None:
+        assert response.status == 202, response.body
+        await wait_for(
+            events,
+            lambda stream: any(
+                r.get("data", {}).get("run", {}).get("id")
+                == response.json()["id"]
+                and r["data"]["run"]["status"] == "completed"
+                for r in stream.records
+            ),
+        )
+
+    await completed(
+        await finished(app, "POST", runs, headers=key("warm"), body=body)
+    )
+    # A scratch client must not let a later edit overtake an accepted cell run.
+    async with session.scratchpad_lock:
+        accepted = await finished(
+            app, "POST", runs, headers=key("run"), body=body
+        )
+        assert accepted.status == 202, accepted.body
+        change = {"kind": "delete_cell", "id": cell.id, "base_etag": "*"}
+        edited = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/edits",
+            headers=key("edit"),
+            body=json.dumps({"changes": [change]}).encode(),
+        )
+        assert edited.status == 200, edited.body
+    await completed(accepted)
+
+    assertion = f"assert {cell.id!r} not in _graph.cells"
+    checked = await finished(
+        app,
+        "POST",
+        execute,
+        headers=key("check-graph"),
+        body=json.dumps(
+            {
+                "code": "from marimo._runtime.context import get_context as _ctx\n"
+                "_graph = _ctx().graph\n" + assertion
+            }
+        ).encode(),
+    )
+    await completed(checked)
+    assert (
+        next(
+            r["data"]["run"]["outcome"]
+            for r in reversed(events.records)
+            if r.get("data", {}).get("run", {}).get("id")
+            == checked.json()["id"]
+        )
+        == "succeeded"
+    )
+    assert notebook.document.cell(cell.id) is None
+
+
+@pytest.fixture
+async def gated_host(
+    tmp_path: Path,
+) -> AsyncIterator[tuple[Starlette, str, Response, Path]]:
+    """A notebook whose first cell runs until the test creates `gate`."""
+    gate = tmp_path / "gate"
+    source = (
+        "import marimo\napp = marimo.App()\n"
+        "@app.cell\ndef _():\n"
+        "    import pathlib, time\n"
+        "    for _ in range(1000):\n"
+        f"        if pathlib.Path({str(gate)!r}).exists():\n"
+        "            break\n"
+        "        time.sleep(0.01)\n"
+        "    slow = 1\n    return (slow,)\n"
+        "@app.cell\ndef _():\n    quick = 2\n    return (quick,)\n"
+    )
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        yield app, notebook_id, events, gate
+
+
+def run_transitions(stream: Response, *run_ids: str) -> list[tuple[str, str]]:
+    return [
+        (r["data"]["run"]["id"], r["data"]["run"]["status"])
+        for r in stream.records
+        if r.get("data", {}).get("run", {}).get("id") in run_ids
+    ]
+
+
+def run_outcome(stream: Response, run_id: str) -> str | None:
+    return next(
+        (
+            r["data"]["run"]["outcome"]
+            for r in reversed(stream.records)
+            if r.get("data", {}).get("run", {}).get("id") == run_id
+            and r["data"]["run"]["status"] == "completed"
+        ),
+        None,
+    )
+
+
+def cell_target(cell: object) -> bytes:
+    return json.dumps(
+        {"cells": [{"id": cell.id, "etag": cell.etag}]}  # type: ignore[attr-defined]
+    ).encode()
+
+
+async def test_runs_accepted_while_busy_start_in_order(
+    gated_host: tuple[Starlette, str, Response, Path],
+) -> None:
+    app, notebook_id, events, gate = gated_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    slow, quick = notebook.document
+    runs = f"/notebooks/{notebook_id}/runtime/runs"
+
+    first = await finished(
+        app, "POST", runs, headers=key("first"), body=cell_target(slow)
+    )
+    assert first.status == 202, first.body
+    first_id = first.json()["id"]
+    await wait_for(
+        events, lambda s: (first_id, "running") in run_transitions(s, first_id)
+    )
+
+    second = await finished(
+        app, "POST", runs, headers=key("second"), body=cell_target(quick)
+    )
+    assert second.status == 202, second.body
+    second_id = second.json()["id"]
+    assert second.json()["status"] == "queued"
+    assert second.json()["started_at"] is None
+    await wait_for(
+        events,
+        lambda s: (second_id, "queued") in run_transitions(s, second_id),
+    )
+    assert run_outcome(events, first_id) is None
+
+    gate.touch()
+    await wait_for(events, lambda s: run_outcome(s, second_id) is not None)
+    seen = run_transitions(events, first_id, second_id)
+    assert seen.index((first_id, "completed")) < seen.index(
+        (second_id, "running")
+    )
+    assert run_outcome(events, first_id) == "succeeded"
+    assert run_outcome(events, second_id) == "succeeded"
+
+
+async def test_interrupting_a_queued_run_cancels_it_before_it_starts(
+    gated_host: tuple[Starlette, str, Response, Path],
+) -> None:
+    app, notebook_id, events, gate = gated_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    slow, quick = notebook.document
+    runs = f"/notebooks/{notebook_id}/runtime/runs"
+    execute = f"/notebooks/{notebook_id}/runtime/execute"
+
+    first = await finished(
+        app, "POST", runs, headers=key("first"), body=cell_target(slow)
+    )
+    assert first.status == 202, first.body
+    first_id = first.json()["id"]
+    await wait_for(
+        events, lambda s: (first_id, "running") in run_transitions(s, first_id)
+    )
+    queued = await finished(
+        app, "POST", runs, headers=key("queued"), body=cell_target(quick)
+    )
+    assert queued.status == 202, queued.body
+    queued_id = queued.json()["id"]
+    await wait_for(
+        events,
+        lambda s: (queued_id, "queued") in run_transitions(s, queued_id),
+    )
+
+    cancelled = await finished(
+        app, "DELETE", f"{runs}/{queued_id}", headers=key("cancel")
+    )
+    assert cancelled.status == 202, cancelled.body
+    assert run_outcome(events, first_id) is None
+
+    # The kernel reaches the cancellation once the first run lets it go.
+    gate.touch()
+    await wait_for(events, lambda s: run_outcome(s, queued_id) is not None)
+    assert run_outcome(events, first_id) == "succeeded"
+    assert run_outcome(events, queued_id) == "interrupted"
+    assert not any(
+        r.get("data", {}).get("execution", {}).get("run_id") == queued_id
+        for r in events.records
+    )
+
+    checked = await finished(
+        app,
+        "POST",
+        execute,
+        headers=key("check"),
+        body=json.dumps({"code": "assert 'quick' not in globals()"}).encode(),
+    )
+    assert checked.status == 202
+    await wait_for(
+        events, lambda s: run_outcome(s, checked.json()["id"]) is not None
+    )
+    assert run_outcome(events, checked.json()["id"]) == "succeeded"
+
+
+@pytest.mark.parametrize(
+    "notebook_source",
+    [
+        (
+            "import marimo\napp = marimo.App()\n"
+            "@app.cell\ndef _():\n    answer = input('prompt')\n    return (answer,)\n"
+        )
+    ],
+    indirect=True,
+)
+async def test_host_cell_input_fails_without_waiting_for_stdin(
+    live_host: tuple[Starlette, str, Response],
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    cell = next(iter(notebook.document))
+    accepted = await finished(
+        app,
+        "POST",
+        f"/notebooks/{notebook_id}/runtime/runs",
+        headers=key("run"),
+        body=json.dumps({"cells": [{"id": cell.id}]}).encode(),
+    )
+    assert accepted.status == 202, accepted.body
+    await wait_for(
+        events,
+        lambda stream: any(
+            r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
+            and r["data"]["run"]["status"] == "completed"
+            for r in stream.records
+        ),
+    )
+    [execution] = [
+        r["data"]["execution"]
+        for r in events.records
+        if r.get("data", {}).get("execution", {}).get("status") == "completed"
+    ]
+    assert execution["outcome"]["error"]["name"] == "EOFError"
+    assert notebook.executions.active() is None
 
 
 async def test_background_output_after_a_scratch_run_is_dropped(
@@ -230,7 +437,7 @@ async def test_background_output_after_a_scratch_run_is_dropped(
     current execution to join and never reaches clients.
     """
     app, notebook_id, events = live_host
-    path = f"/notebooks/{notebook_id}/runtime/runs"
+    execute = f"/notebooks/{notebook_id}/runtime/execute"
     code = """import builtins
 import threading
 import marimo as mo
@@ -245,7 +452,7 @@ mo.Thread(target=worker).start()
     first = await finished(
         app,
         "POST",
-        path,
+        execute,
         headers=key("first"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -261,7 +468,7 @@ mo.Thread(target=worker).start()
     second = await finished(
         app,
         "POST",
-        path,
+        execute,
         headers=key("second"),
         body=json.dumps(
             {
@@ -302,11 +509,12 @@ async def test_queued_cancellation_never_executes_the_code(
     session = next(iter(app.state.session_manager.sessions.values()))
     marker = tmp_path / "executed"
     runs = f"/notebooks/{notebook_id}/runtime/runs"
+    execute = f"/notebooks/{notebook_id}/runtime/execute"
     async with session.scratchpad_lock:
         accepted = await finished(
             app,
             "POST",
-            runs,
+            execute,
             headers=key("canceled"),
             body=json.dumps(
                 {
@@ -336,7 +544,7 @@ async def test_queued_cancellation_never_executes_the_code(
     ]
     assert outcome == {"kind": "interrupted"}
     following = await finished(
-        app, "POST", runs, headers=key("next"), body=b'{"code":"42"}'
+        app, "POST", execute, headers=key("next"), body=b'{"code":"42"}'
     )
     assert following.status == 202
     await wait_for(
@@ -356,7 +564,7 @@ async def test_run_retries_return_the_result_even_after_restart(
 ) -> None:
     app, notebook_id, events = live_host
     runtime = f"/notebooks/{notebook_id}/runtime"
-    runs = runtime + "/runs"
+    runs = runtime + "/execute"
     marker = tmp_path / "executions"
     body = json.dumps(
         {
@@ -496,7 +704,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("cascade"),
         body=json.dumps({"code": f"counter.value = {value}"}).encode(),
     )
@@ -557,11 +765,11 @@ async def test_detached_reactivity_starts_a_new_run(
     origin = (
         "import asyncio\n"
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
         "ctx = cm.get_context()\n"
         "async def later():\n"
         "    await asyncio.to_thread(gate.wait)\n"
-        "    await ctx.execute_command(ExecuteCellsCommand(cell_ids=['later'], codes=['print(30)']))\n"
+        "    await ctx.execute_command(ExecuteCellsCommand(execution_requests=[ExecuteCellCommand(cell_id='later', code='print(30)')]))\n"
         "asyncio.create_task(later())"
         if command
         else "mo.Thread(target=lambda: (gate.wait(), set_x(20))).start()"
@@ -574,7 +782,7 @@ async def test_detached_reactivity_starts_a_new_run(
         accepted = await finished(
             app,
             "POST",
-            f"/notebooks/{notebook_id}/runtime/runs",
+            f"/notebooks/{notebook_id}/runtime/execute",
             headers=key(request_id),
             body=json.dumps({"code": code}).encode(),
         )
@@ -641,7 +849,7 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("nested"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -670,11 +878,12 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
     [root] = [e for e in executions if e["cell_id"] is None]
     assert root["outcome"]["kind"] == "value"
     assert "42" in root["outcome"]["display"]["data"]
-    assert all(
-        e["outcome"]["kind"] == "error"
-        for e in executions
-        if e["cell_id"] is not None
-    )
+    children = [e for e in executions if e["cell_id"] is not None]
+    assert all(e["caused_by"] == root["id"] for e in children)
+    assert {e["code_fingerprint"]: e["outcome"]["kind"] for e in children} == {
+        code_fingerprint("x = 1/0"): "error",
+        code_fingerprint("y = x + 1"): "skipped",
+    }
 
 
 async def test_a_fixed_cell_replaces_its_failed_compilation(
@@ -683,15 +892,15 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
     app, notebook_id, events = live_host
     code = (
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand\n"
-        "await cm.get_context().execute_command(ExecuteCellsCommand(cell_ids=['child'], codes=['if !!!']))\n"
-        "await cm.get_context().execute_command(ExecuteCellsCommand(cell_ids=['child'], codes=['x = 42']))\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
+        "await cm.get_context().execute_command(ExecuteCellsCommand(execution_requests=[ExecuteCellCommand(cell_id='child', code='if !!!')]))\n"
+        "await cm.get_context().execute_command(ExecuteCellsCommand(execution_requests=[ExecuteCellCommand(cell_id='child', code='x = 42')]))\n"
         "42"
     )
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("retry"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -710,9 +919,11 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         if r.get("data", {}).get("execution", {}).get("cell_id") == "child"
         and r["data"]["execution"]["status"] == "completed"
     ]
-    assert [(e["code_hash"], e["outcome"]["kind"]) for e in executions] == [
-        (code_hash("if !!!"), "error"),
-        (code_hash("x = 42"), "value"),
+    assert [
+        (e["code_fingerprint"], e["outcome"]["kind"]) for e in executions
+    ] == [
+        (code_fingerprint("if !!!"), "error"),
+        (code_fingerprint("x = 42"), "value"),
     ]
     assert len({e["id"] for e in executions}) == 2
     runs = [
@@ -730,20 +941,20 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
     inner = (
         "x = 42\n"
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
         "await cm.get_context().execute_command(ExecuteCellsCommand("
-        "cell_ids=['b'], codes=['print(x)']))"
+        "execution_requests=[ExecuteCellCommand(cell_id='b', code='print(x)')]))"
     )
     code = (
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand\n"
         "await cm.get_context().execute_command(ExecuteCellsCommand("
-        f"cell_ids=['a', 'b'], codes=[{inner!r}, 'print(x)']))"
+        f"execution_requests=[ExecuteCellCommand(cell_id='a', code={inner!r}), ExecuteCellCommand(cell_id='b', code='print(x)')]))"
     )
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("nested-queue"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -783,7 +994,7 @@ async def test_awaited_commands_join_the_enclosing_run(
     command = (
         f"ExecuteScratchpadCommand(code={child_code!r}, request=None)"
         if nested_scratch
-        else f"ExecuteCellsCommand(cell_ids=['child'], codes=[{child_code!r}])"
+        else f"ExecuteCellsCommand(execution_requests=[ExecuteCellCommand(cell_id='child', code={child_code!r})])"
     )
     sibling = (
         "await cm.get_context().execute_command(ExecuteScratchpadCommand(code='3 * 3', request=None))\n"
@@ -792,14 +1003,14 @@ async def test_awaited_commands_join_the_enclosing_run(
     )
     code = (
         "import marimo._code_mode as cm\n"
-        "from marimo._runtime.commands import ExecuteCellsCommand, ExecuteScratchpadCommand\n"
+        "from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand, ExecuteScratchpadCommand\n"
         f"await cm.get_context().execute_command({command})\n{sibling}42"
     )
     before = len(events.records)
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("awaited"),
         body=json.dumps({"code": code}).encode(),
     )
@@ -830,7 +1041,7 @@ async def test_awaited_commands_join_the_enclosing_run(
     assert root["outcome"]["kind"] == "value"
     assert "42" in root["outcome"]["display"]["data"]
     assert child["outcome"]["kind"] == "error"
-    assert child["code_hash"] == code_hash(child_code)
+    assert child["code_fingerprint"] == code_fingerprint(child_code)
     assert all(e["run_id"] == accepted.json()["id"] for e in executions)
 
 
@@ -882,7 +1093,7 @@ async def test_rename_reactivity_completes_its_run(
     accepted = await finished(
         app,
         "POST",
-        f"/notebooks/{notebook_id}/runtime/runs",
+        f"/notebooks/{notebook_id}/runtime/execute",
         headers=key("after-rename"),
         body=b'{"code":"42"}',
     )

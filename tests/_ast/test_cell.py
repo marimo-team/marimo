@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from marimo import _loggers, notebook_dir
+from marimo import notebook_dir
 from marimo._ast.app import App
 from marimo._ast.cell import CellConfig
 from marimo._runtime.context import runtime_context_installed
@@ -413,12 +413,10 @@ class TestCellRun:
         @app.cell
         def basic(lots, of_, incorrect, args):  # noqa: ARG001
             1  # noqa: B018
-            return
 
         assert basic.run() == (1, {})
         assert len(caplog.records) == 0
         with caplog.at_level(logging.WARNING):
-            _loggers.marimo_logger().propagate = True
             assert basic() == 1
         assert len(caplog.records) == 1
         assert "signature" in caplog.text
@@ -434,7 +432,6 @@ class TestCellRun:
             else:
                 b = a
             b  # noqa: B018
-            return
 
         assert cyclic.run() == (1, {"a": 1, "b": 1})
         assert cyclic() == 1
@@ -456,7 +453,6 @@ class TestReusableCell:
             # non transitive
             x = y - z
             x  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -485,7 +481,6 @@ class TestReusableCell:
         def uses_setup(y):
             z = y - x
             z  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -521,7 +516,6 @@ class TestReusableCell:
         def uses_setup(y):
             z = 0 * something_normally_scoped_for_a() + y - x
             z  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -622,7 +616,6 @@ def help_smoke() -> None:
     @app.cell
     async def f(x) -> None:
         await x
-        return
 
     @app.cell
     def g() -> None:

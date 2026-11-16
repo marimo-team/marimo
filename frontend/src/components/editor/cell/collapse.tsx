@@ -9,13 +9,15 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import type React from "react";
+import { useAtomValue } from "jotai";
 import { memo } from "react";
 import { Toolbar } from "@/components/layout/toolbar";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useNotebook } from "@/core/cells/cells";
+import { columnOf, useLayout } from "@/core/cells/layout";
 import type { CellId } from "@/core/cells/ids";
 import { getDescendantsStatus } from "@/core/cells/utils";
+import { cellExecutionInputsAtom, cellFreshnessAtom } from "@/core/executions";
 import { cn } from "@/utils/cn";
 
 interface Props {
@@ -63,14 +65,22 @@ export const CollapsedCellBanner: React.FC<{
   cellId: CellId;
   count: number;
 }> = memo(({ onClick, count, cellId }) => {
-  const notebook = useNotebook();
-  const states = getDescendantsStatus(notebook, cellId);
+  const executions = useAtomValue(cellExecutionInputsAtom);
+  const freshness = useAtomValue(cellFreshnessAtom);
+  const layout = useLayout();
+  const states = getDescendantsStatus(
+    executions,
+    freshness,
+    columnOf(layout, cellId).folds.get(cellId) ?? [],
+  );
 
   return (
-    <div
+    <button
+      type="button"
+      aria-label={`Expand ${count} collapsed ${count === 1 ? "cell" : "cells"}`}
       onClick={onClick}
       className={cn(
-        "flex items-center justify-between w-[calc(100%-2rem)] h-9 bg-muted rounded-b mx-4 opacity-80 hover:opacity-100 cursor-pointer",
+        "flex items-center justify-between w-[calc(100%-2rem)] h-9 bg-muted rounded-b mx-4 opacity-80 hover:opacity-100 cursor-pointer focus-visible:outline focus-visible:outline-ring",
       )}
     >
       <Toolbar
@@ -102,7 +112,7 @@ export const CollapsedCellBanner: React.FC<{
           </>
         }
       />
-    </div>
+    </button>
   );
 });
 CollapsedCellBanner.displayName = "CollapsedCellBanner";

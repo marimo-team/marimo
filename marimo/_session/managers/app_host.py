@@ -11,6 +11,7 @@ import queue
 from typing import TYPE_CHECKING, TypeVar
 
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._messaging.input import InputReply
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._session.app_host.commands import Channel
@@ -93,7 +94,7 @@ class AppHostQueueManager(QueueManagerProto):
         self.completion_queue: QueueType[commands.OutOfBandCommand] = (
             _AppHostPushQueue(app_host, session_id, Channel.COMPLETION)
         )
-        self.input_queue: QueueType[str] = _AppHostPushQueue(
+        self.input_queue: QueueType[InputReply] = _AppHostPushQueue(
             app_host, session_id, Channel.INPUT
         )
         self.win32_interrupt_queue: None = None
@@ -108,9 +109,6 @@ class AppHostQueueManager(QueueManagerProto):
             self.completion_queue,
             self.set_ui_element_queue,
         )
-
-    def put_input(self, text: str) -> None:
-        self.input_queue.put(text)
 
     def close_queues(self) -> None:
         self._app_host.unregister_stream(self._session_id)
@@ -176,11 +174,15 @@ class AppHostKernelManager(KernelManager):
         self.kernel_task: ProcessLike | threading.Thread | None = None
 
     async def start_kernel(self) -> None:
+        resolved = self._config_manager.get_config_with_sources(
+            hide_secrets=False
+        )
         response = self._app_host.create_kernel(
             session_id=self._session_id,
             configs=self._configs,
             app_metadata=self._app_metadata,
-            user_config=self._config_manager.get_config(hide_secrets=False),
+            user_config=resolved.config,
+            config_overrides=resolved.override_paths,
             # AppHost runs the kernel in a subprocess, so virtual files
             # must be stored in shared memory — otherwise the server
             # process can't serve them on /@file/...

@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -31,6 +31,7 @@ def _():
 
     from lonboard import Map, ScatterplotLayer
     from lonboard.colormap import apply_continuous_cmap
+
     return (
         BrBG_10,
         Map,
@@ -87,13 +88,11 @@ def _(BrBG_10, apply_continuous_cmap, gdf, layer, max_bound, min_bound):
     layer.get_fill_color = apply_continuous_cmap(
         normalized_download_speed, BrBG_10, alpha=0.7
     )
-    return
 
 
 @app.cell
 def _(layer):
     layer.get_fill_color[0]
-    return
 
 
 if __name__ == "__main__":

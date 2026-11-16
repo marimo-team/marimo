@@ -69,8 +69,6 @@ This setting is experimental. Keep in mind:
 
 - The terminal and language servers (LSP) in `marimo edit` still require
   WebSockets and are unaffected by this setting.
-- Real-time collaboration (`rtc_v2`) requires WebSockets and is disabled
-  when using SSE.
 - Make sure proxies do not buffer the `/sse` endpoint's
   `text/event-stream` responses (marimo sends `Cache-Control: no-transform`
   and `X-Accel-Buffering: no` headers, and a keep-alive comment every 20

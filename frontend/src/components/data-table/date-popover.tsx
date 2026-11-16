@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React from "react";
+import React, { useMemo } from "react";
 import { useDateFormatter, useLocale } from "react-aria";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -45,6 +45,7 @@ export const DatePopover: React.FC<DatePopoverProps> = ({
 
 const TimezoneDisplay = ({ date }: { date: Date }) => {
   const { locale } = useLocale();
+  // The system timezone can change without the locale changing.
   const localTimezone = new Intl.DateTimeFormat(locale).resolvedOptions()
     .timeZone;
   const hasSubSeconds = date.getUTCMilliseconds() !== 0;
@@ -116,9 +117,10 @@ const RelativeTime = ({ date }: { date: Date }) => {
   const { locale } = useLocale();
 
   // Initialize relative time formatter with current locale and "auto" numeric style
-  const relativeTimeFormatter = new Intl.RelativeTimeFormat(locale, {
-    numeric: "auto",
-  });
+  const relativeTimeFormatter = useMemo(
+    () => new Intl.RelativeTimeFormat(locale, { numeric: "auto" }),
+    [locale],
+  );
 
   const currentTime = new Date();
   // Get difference in seconds between now and the input date

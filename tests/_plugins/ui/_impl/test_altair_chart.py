@@ -215,18 +215,10 @@ class TestAltairChart:
                     datetime.date(2020, 1, 10),
                 ],
                 "date_column_utc": [
-                    datetime.datetime(
-                        2019, 12, 29, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2020, 1, 1, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2020, 1, 8, tzinfo=datetime.timezone.utc
-                    ),
-                    datetime.datetime(
-                        2020, 1, 10, tzinfo=datetime.timezone.utc
-                    ),
+                    datetime.datetime(2019, 12, 29, tzinfo=datetime.UTC),
+                    datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
+                    datetime.datetime(2020, 1, 8, tzinfo=datetime.UTC),
+                    datetime.datetime(2020, 1, 10, tzinfo=datetime.UTC),
                 ],
                 "datetime_column": [
                     datetime.datetime(2019, 12, 29),
@@ -282,11 +274,11 @@ class TestAltairChart:
             "signal_channel_2": {
                 "date_column_utc": [
                     datetime.datetime(
-                        2019, 12, 29, tzinfo=datetime.timezone.utc
+                        2019, 12, 29, tzinfo=datetime.UTC
                     ).timestamp()
                     * 1000,
                     datetime.datetime(
-                        2020, 1, 1, tzinfo=datetime.timezone.utc
+                        2020, 1, 1, tzinfo=datetime.UTC
                     ).timestamp()
                     * 1000,
                 ]
@@ -365,12 +357,8 @@ class TestAltairChart:
         create_dataframes(
             {
                 "datetime_column_utc": [
-                    datetime.datetime.fromtimestamp(
-                        10000, datetime.timezone.utc
-                    ),
-                    datetime.datetime.fromtimestamp(
-                        20000, datetime.timezone.utc
-                    ),
+                    datetime.datetime.fromtimestamp(10000, datetime.UTC),
+                    datetime.datetime.fromtimestamp(20000, datetime.UTC),
                 ],
                 "datetime_column": [
                     datetime.datetime(2019, 12, 29),
@@ -396,7 +384,7 @@ class TestAltairChart:
                                     2,
                                     46,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat()
                             ],
                             "vlPoint": [1],
@@ -420,7 +408,7 @@ class TestAltairChart:
                                     1,
                                     46,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat(),
                                 datetime.datetime(
                                     1970,
@@ -429,7 +417,7 @@ class TestAltairChart:
                                     1,
                                     46,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat(),
                             ]
                         }
@@ -452,7 +440,7 @@ class TestAltairChart:
                                     1,
                                     0,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat(),
                                 datetime.datetime(
                                     1970,
@@ -461,7 +449,7 @@ class TestAltairChart:
                                     1,
                                     1,
                                     40,
-                                    tzinfo=datetime.timezone.utc,
+                                    tzinfo=datetime.UTC,
                                 ).isoformat(),
                             ]
                         }
@@ -498,10 +486,10 @@ class TestAltairChart:
                         "select_interval": {
                             "datetime_column": [
                                 datetime.datetime(
-                                    2019, 12, 29, tzinfo=datetime.timezone.utc
+                                    2019, 12, 29, tzinfo=datetime.UTC
                                 ).isoformat(),
                                 datetime.datetime(
-                                    2020, 1, 1, tzinfo=datetime.timezone.utc
+                                    2020, 1, 1, tzinfo=datetime.UTC
                                 ).isoformat(),
                             ]
                         }
@@ -520,12 +508,8 @@ class TestAltairChart:
         create_dataframes(
             {
                 "datetime_column_utc": [
-                    datetime.datetime.fromtimestamp(
-                        10000, datetime.timezone.utc
-                    ),
-                    datetime.datetime.fromtimestamp(
-                        20000, datetime.timezone.utc
-                    ),
+                    datetime.datetime.fromtimestamp(10000, datetime.UTC),
+                    datetime.datetime.fromtimestamp(20000, datetime.UTC),
                 ],
                 "datetime_column": [
                     datetime.datetime.fromtimestamp(10000),
@@ -621,10 +605,10 @@ class TestAltairChart:
                         "select_interval": {
                             "datetime_column": [
                                 datetime.datetime(
-                                    2019, 12, 29, tzinfo=datetime.timezone.utc
+                                    2019, 12, 29, tzinfo=datetime.UTC
                                 ).isoformat(),
                                 datetime.datetime(
-                                    2020, 1, 1, tzinfo=datetime.timezone.utc
+                                    2020, 1, 1, tzinfo=datetime.UTC
                                 ).isoformat(),
                             ]
                         }

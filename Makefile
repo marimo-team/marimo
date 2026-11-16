@@ -30,7 +30,7 @@ install-all: fe py
 # ✓ Check if all required tools are installed
 check-prereqs:
 	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required. See https://pnpm.io/installation"; exit 1; }
-	@pnpm -v | grep -vq "^[0-9]\." || { echo "pnpm v10+ is required. Current version: $(shell pnpm -v)"; exit 1; }
+	@pnpm -v | grep -vq "^[0-9]\." || { echo "pnpm v12+ is required. Current version: $(shell pnpm -v)"; exit 1; }
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required. See https://docs.astral.sh/uv/getting-started/installation/"; exit 1; }
 	@command -v node >/dev/null 2>&1 || { echo "Node.js is required. See https://nodejs.org/en/download/"; exit 1; }
 	@node -v | grep -q "v2[0-9]" || { echo "Node.js v20+ is required. Current version: $(shell node -v)"; exit 1; }
@@ -61,16 +61,24 @@ marimo/_lsp: $(shell find packages/lsp)
 .PHONY: dev
 dev: fe-codegen
 	@echo "Starting development servers..."
-	@# Start both processes, with marimo in background
-	@(trap 'kill %1; exit' INT; \
+	@(cleanup() { \
+		trap - INT TERM; \
+		kill "$$backend" 2>/dev/null; \
+		wait "$$backend"; \
+	}; \
+	trap cleanup EXIT; trap 'exit 0' INT TERM; \
 	uv run marimo edit --no-token --headless /tmp --port 2718 & \
-	pnpm dev)
+	backend=$$!; pnpm --dir frontend exec vite)
 dev-sandbox:
 	@echo "Starting development servers..."
-	@# Start both processes, with marimo in background
-	@(trap 'kill %1; exit' INT; \
+	@(cleanup() { \
+		trap - INT TERM; \
+		kill "$$backend" 2>/dev/null; \
+		wait "$$backend"; \
+	}; \
+	trap cleanup EXIT; trap 'exit 0' INT TERM; \
 	uv run marimo edit /tmp/notebook.py --no-token --headless --sandbox & \
-	pnpm dev)
+	backend=$$!; pnpm --dir frontend exec vite)
 
 #############
 # Testing   #
@@ -128,13 +136,18 @@ fe-codegen:
 .PHONY: host-protocol-codegen
 # Generate host protocol Python bindings
 host-protocol-codegen:
-	uv run --locked --script protocols/host/generate.py
+	node packages/host-protocol/scripts/openapi.ts --experimental \
+		| uv run --no-config --locked --script protocols/host/generate.py
 
 .PHONY: host-protocol-check
 # Check host model generation and portable protocol fixtures
 host-protocol-check:
-	uv run --locked --script protocols/host/generate.py --check
-	uv run --locked --project protocols/host/conformance pytest protocols/host/conformance
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+		node packages/host-protocol/scripts/openapi.ts \
+		| uv run --no-config --locked --script protocols/host/generate.py --output-dir "$$tmp"
+	node packages/host-protocol/scripts/openapi.ts --experimental \
+		| uv run --no-config --locked --script protocols/host/generate.py --check
+	uv run --locked --project protocols/host/conformance pytest -c protocols/host/conformance/pyproject.toml protocols/host/conformance protocols/host/experimental
 
 .PHONY: fe-plugin-schema
 # 🔄 Generate frontend plugin API schema

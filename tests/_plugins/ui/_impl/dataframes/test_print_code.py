@@ -1194,13 +1194,13 @@ def test_polars_explode_code_preserves_empty_and_null_rows(
     transform = ExplodeColumnsTransform(
         type=TransformType.EXPLODE_COLUMNS, column_ids=columns
     )
-    runtime = (
-        NarwhalsTransformHandler.handle_explode_columns(
-            nw.from_native(source).lazy(), transform
-        )
-        .collect()
-        .to_native()
+    runtime = NarwhalsTransformHandler.handle_explode_columns(
+        nw.from_native(source), transform
     )
+    assert isinstance(runtime, nw.LazyFrame) == lazy
+    if isinstance(runtime, nw.LazyFrame):
+        runtime = runtime.collect()
+    runtime = runtime.to_native()
     namespace = {"pl": pl, "df": source}
     exec(
         python_print_transforms(

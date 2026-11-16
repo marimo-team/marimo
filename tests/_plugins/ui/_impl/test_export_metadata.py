@@ -171,6 +171,138 @@ def test_missing_geopandas_is_reported(widget: Any) -> None:
 
 
 @pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "factory", [fixtures.gdf_multi_geometry, fixtures.arrow_multi_geometry]
+)
+@pytest.mark.parametrize(
+    ("format_name", "package", "method", "code", "missing_packages"),
+    [
+        ("parquet", "geopandas", "has", "missing_packages", ["geopandas"]),
+        ("geojson", "geopandas", "has", "missing_packages", ["geopandas"]),
+        ("parquet", "pyarrow", "has", "missing_packages", ["pyarrow"]),
+        ("parquet", "geopandas", "has_at_version", "unsupported_version", []),
+        ("geojson", "shapely", "has_at_version", "unsupported_version", []),
+    ],
+)
+def test_metadata_and_download_share_prerequisites(
+    widget: Any,
+    factory: Any,
+    format_name: Literal["parquet", "geojson"],
+    package: str,
+    method: str,
+    code: str,
+    missing_packages: list[str],
+) -> None:
+    subject = widget(factory())
+    with patch.object(
+        getattr(DependencyManager, package), method, return_value=False
+    ):
+        eligibility = subject._get_export_metadata(EmptyArgs()).formats[
+            format_name
+        ]
+        response = subject._download_as(
+            DownloadAsArgs(format=format_name, geometry_column="geom_a")
+        )
+    assert asdict(eligibility) == {
+        "available": False,
+        "reason": response.error,
+        "missing_packages": missing_packages,
+    }
+    assert (response.url, response.code, response.missing_packages) == (
+        "",
+        code,
+        missing_packages or None,
+    )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "factory", [fixtures.gdf_multi_geometry, fixtures.arrow_multi_geometry]
+)
+@pytest.mark.parametrize("format_name", ["parquet", "geojson"])
+def test_package_installation_changes_eligibility_and_download(
+    widget: Any, factory: Any, format_name: Literal["parquet", "geojson"]
+) -> None:
+    subject = widget(factory())
+    with patch.object(DependencyManager.geopandas, "has", return_value=False):
+        assert (
+            not subject._get_export_metadata(EmptyArgs())
+            .formats[format_name]
+            .available
+        )
+        assert (
+            subject._download_as(
+                DownloadAsArgs(format=format_name, geometry_column="geom_a")
+            ).code
+            == "missing_packages"
+        )
+    assert (
+        subject._get_export_metadata(EmptyArgs())
+        .formats[format_name]
+        .available
+    )
+    response = subject._download_as(
+        DownloadAsArgs(format=format_name, geometry_column="geom_a")
+    )
+    assert response.url
+    assert response.error is None
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize(
+    "factory", [fixtures.gdf_multi_geometry, fixtures.arrow_multi_geometry]
+)
+@pytest.mark.parametrize("format_name", ["parquet", "geojson"])
+def test_invalid_choice_precedes_missing_package(
+    widget: Any, factory: Any, format_name: Literal["parquet", "geojson"]
+) -> None:
+    subject = widget(factory())
+    with patch.object(DependencyManager.geopandas, "has", return_value=False):
+        response = subject._download_as(
+            DownloadAsArgs(format=format_name, geometry_column="missing")
+        )
+    assert (response.code, response.column, response.missing_packages) == (
+        "invalid_geometry",
+        "missing",
+        None,
+    )
+    assert response.url == ""
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
+@pytest.mark.parametrize("format_name", ["parquet", "geojson"])
+def test_invalid_declaration_and_missing_package_keep_error_precedence(
+    widget: Any, format_name: Literal["parquet", "geojson"]
+) -> None:
+    subject = widget(fixtures.arrow_malformed_metadata())
+    with patch.object(DependencyManager.geopandas, "has", return_value=False):
+        eligibility = subject._get_export_metadata(EmptyArgs()).formats[
+            format_name
+        ]
+        response = subject._download_as(
+            DownloadAsArgs(format=format_name, geometry_column="geom")
+        )
+    assert asdict(eligibility) == {
+        "available": False,
+        "reason": "Geometry column 'geom' has invalid GeoArrow metadata: expected a JSON object.",
+        "missing_packages": [],
+    }
+    assert (response.url, response.code, response.missing_packages) == (
+        "",
+        "missing_packages",
+        ["geopandas"],
+    )
+    response = subject._download_as(
+        DownloadAsArgs(format=format_name, geometry_column="geom")
+    )
+    assert (response.url, response.code, response.error) == (
+        "",
+        "invalid_metadata",
+        eligibility.reason,
+    )
+
+
+@pytest.mark.requires("geopandas", "pyarrow")
 def test_old_shapely_disables_only_geojson(widget: Any) -> None:
     subject = widget(fixtures.gdf_multi_geometry())
     with patch.object(

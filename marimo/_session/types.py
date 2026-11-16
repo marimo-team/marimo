@@ -13,10 +13,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
+from marimo._messaging.input import InputReply
+
 if TYPE_CHECKING:
     import asyncio
     import threading
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
@@ -44,7 +46,7 @@ class QueueManager(Protocol):
     control_queue: QueueType[commands.CommandMessage]
     set_ui_element_queue: QueueType[commands.BatchableCommand]
     completion_queue: QueueType[commands.OutOfBandCommand]
-    input_queue: QueueType[str]
+    input_queue: QueueType[InputReply]
     stream_queue: QueueType[KernelMessage | None] | None
     win32_interrupt_queue: QueueType[bool] | None
 
@@ -54,10 +56,6 @@ class QueueManager(Protocol):
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         """Put a control request in the control queue."""
-        ...
-
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
         ...
 
 
@@ -139,6 +137,7 @@ class Session(Protocol):
     config_manager: MarimoConfigManager
     session_view: SessionView
     ttl_seconds: int
+    connection_generation: int
     scratchpad_lock: asyncio.Lock
     room: Room
 
@@ -197,8 +196,8 @@ class Session(Protocol):
         """Put a control request in the control queue."""
         ...
 
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
+    def reply_input(self, reply: InputReply) -> None:
+        """Deliver an answer to a specific prompt, or raise on failure."""
         ...
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
@@ -232,6 +231,8 @@ class Session(Protocol):
         request: Any,
         *,
         http_request: commands.HTTPRequest | None,
+        execution_requests: Sequence[commands.ExecuteCellCommand]
+        | None = None,
     ) -> None:
         """Instantiate the app."""
         ...

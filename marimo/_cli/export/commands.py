@@ -172,7 +172,6 @@ def watch_and_export(
             output.write_bytes(result.bytez)
         else:
             echo(result.text)
-        return
 
     if output:
         output_path = Path(output)
@@ -1217,11 +1216,12 @@ def html_wasm(
 
         # Run WASM compatibility lint pass. When bootstrapped, this runs
         # inside the uv sandbox so MW003 introspects the resolved env.
+        from marimo._config.config_schema import LintConfig
         from marimo._lint import run_check
 
         run_check(
             (name,),
-            lint_config={"select": ["MW"]},
+            lint_config=LintConfig(select=["MW"]),
             pipe=lambda msg: echo(msg, err=True),
         )
 

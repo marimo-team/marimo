@@ -7,6 +7,7 @@ import {
 } from "@/components/editor/cell/useDeleteCell";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
 import type { JotaiStore } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
@@ -46,10 +47,11 @@ const { valueAtom: pendingDeleteStateAtom, useActions } = createReducerAndAtoms(
     ) => {
       const { cellIds, deleteCell, deleteManyCells, store } = action;
       const notebook = store.get(notebookAtom);
+      const executions = store.get(cellExecutionInputsAtom);
       const variables = store.get(variablesAtom);
 
       const emptyCells = new Set(
-        notebook.cellIds.inOrderIds.filter(
+        notebook.cellIds.filter(
           (id) => notebook.cellData[id].code.trim() === "",
         ),
       );
@@ -61,8 +63,6 @@ const { valueAtom: pendingDeleteStateAtom, useActions } = createReducerAndAtoms(
           entries.set(cellId, { cellId, type: "simple" });
           continue;
         }
-
-        const runtimeInfo = notebook.cellRuntime[cellId];
 
         // Build defs map for this cell
         const defs = new Map<VariableName, readonly CellId[]>();
@@ -77,11 +77,9 @@ const { valueAtom: pendingDeleteStateAtom, useActions } = createReducerAndAtoms(
         }
 
         let executionDurationMs: number | undefined;
-        if (
-          runtimeInfo?.runElapsedTimeMs &&
-          runtimeInfo.runElapsedTimeMs > 2000
-        ) {
-          executionDurationMs = runtimeInfo.runElapsedTimeMs;
+        const { duration } = cellExecutionView(executions, cellId);
+        if (duration !== null && duration > 2000) {
+          executionDurationMs = duration;
         }
 
         if (defs.size === 0 && executionDurationMs === undefined) {
@@ -134,12 +132,8 @@ export function usePendingDeleteService() {
       submit({ cellIds, deleteCell, deleteManyCells, store });
     },
     clear,
-    get idle() {
-      return entries.size === 0;
-    },
-    get shouldConfirmDelete() {
-      return entries.size > 1;
-    },
+    idle: entries.size === 0,
+    shouldConfirmDelete: entries.size > 1,
   };
 }
 

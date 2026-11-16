@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -21,7 +21,6 @@ def _(mo):
     support for interactive user interface (UI) elements: interacting
     with a UI element will automatically run cells that reference it.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -29,7 +28,6 @@ def _(mo):
     mo.md("""
     ## marimo.ui
     """)
-    return
 
 
 @app.cell
@@ -52,7 +50,6 @@ def _(mo, slider):
     mo.md(f"""
     and here's its value: **{slider.value}**.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -68,7 +65,6 @@ def _(mo):
     drive the execution of your program, letting you build
     interactive notebooks and tools for yourselves and others.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -97,7 +93,6 @@ def _(mo, slider):
             ),
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -105,7 +100,6 @@ def _(mo):
     mo.md("""
     ### Simple elements
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -113,7 +107,6 @@ def _(mo):
     mo.md("""
     marimo has a [large library of simple UI elements](https://docs.marimo.io/api/inputs/index.html). Here are just a few examples:
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -124,7 +117,6 @@ def _(mo):
         a more detailed reference, see our [API docs](https://docs.marimo.io/api/inputs/).
         """
     ).callout(kind="info", title="Examples and API reference")
-    return
 
 
 @app.cell
@@ -137,7 +129,6 @@ def _(mo):
 @app.cell
 def _(number):
     number.value
-    return
 
 
 @app.cell
@@ -150,7 +141,6 @@ def _(mo):
 @app.cell
 def _(checkbox):
     checkbox.value
-    return
 
 
 @app.cell
@@ -163,7 +153,6 @@ def _(mo):
 @app.cell
 def _(text):
     text.value
-    return
 
 
 @app.cell
@@ -176,7 +165,6 @@ def _(mo):
 @app.cell
 def _(text_area):
     text_area.value
-    return
 
 
 @app.cell
@@ -189,7 +177,6 @@ def _(mo):
 @app.cell
 def _(dropdown):
     dropdown.value
-    return
 
 
 @app.cell
@@ -202,7 +189,6 @@ def _(mo):
 @app.cell
 def _(run_button):
     "Run button was clicked!" if run_button.value else "Click the run button!"
-    return
 
 
 @app.cell
@@ -215,7 +201,6 @@ def _(mo):
 @app.cell
 def _(file_upload):
     file_upload.value
-    return
 
 
 @app.cell
@@ -223,7 +208,6 @@ def _(basic_ui_elements, mo):
     mo.md(f"""
     To see more examples, use this dropdown: {basic_ui_elements}
     """)
-    return
 
 
 @app.cell
@@ -236,13 +220,11 @@ def _(basic_ui_elements, construct_element, show_element):
 @app.cell
 def _(selected_element, value):
     value(selected_element)
-    return
 
 
 @app.cell
 def _(basic_ui_elements, documentation):
     documentation(basic_ui_elements.value)
-    return
 
 
 @app.cell(hide_code=True)
@@ -250,7 +232,6 @@ def _(mo):
     mo.md(r"""
     `mo.ui.matrix` lets you edit 2D numeric data interactively.
     """)
-    return
 
 
 @app.cell
@@ -270,7 +251,6 @@ def _(mo):
 @app.cell
 def _(matrix):
     matrix.value
-    return
 
 
 @app.cell(hide_code=True)
@@ -285,7 +265,6 @@ def _(mo):
         create a dynamic set of UI elements, or reduce the number of global
         variables in your program.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -295,7 +274,6 @@ def _(mo):
     When you interact with an element in the array, all cells that reference the
     array are reactively run. If you instead used a regular Python list, cells referring to the list would _not_ be run.
     """)
-    return
 
 
 @app.cell
@@ -310,7 +288,6 @@ def _(mo):
 @app.cell
 def _(array):
     array.value
-    return
 
 
 @app.cell(hide_code=True)
@@ -318,7 +295,6 @@ def _(mo):
     mo.md(r"""
     marimo also comes with `mo.ui.dictionary`, which is analogous to `mo.ui.array`
     """)
-    return
 
 
 @app.cell
@@ -337,7 +313,6 @@ def _(mo):
 @app.cell
 def _(dictionary):
     dictionary.value
-    return
 
 
 @app.cell(hide_code=True)
@@ -345,7 +320,6 @@ def _(composite_elements, mo):
     mo.md(f"""
     To see additional composite elements, use this dropdown: {composite_elements}
     """)
-    return
 
 
 @app.cell
@@ -358,13 +332,11 @@ def _(composite_elements, construct_element, show_element):
 @app.cell
 def _(composite_element, value):
     value(composite_element)
-    return
 
 
 @app.cell
 def _(composite_elements, documentation):
     documentation(composite_elements.value)
-    return
 
 
 @app.cell(hide_code=True)
@@ -377,7 +349,6 @@ def _(mo):
     community. To learn more, [see our
     docs](https://docs.marimo.io/guides/integrating_with_marimo/custom_ui_plugins.html).
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -388,7 +359,6 @@ def _(mo):
     You can look at their code if you're curious how certain parts of this
     tutorial were implemented.
     """)
-    return
 
 
 @app.cell

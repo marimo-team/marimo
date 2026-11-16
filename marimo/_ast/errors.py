@@ -14,6 +14,10 @@ class ImportStarError(SyntaxError):
     pass
 
 
+class LazyImportError(SyntaxError):
+    pass
+
+
 class MultipleDefinitionError(Exception):
     pass
 

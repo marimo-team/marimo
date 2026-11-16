@@ -8,7 +8,7 @@ async function sleep(ms: number) {
 
 describe("batch", () => {
   it("should return the same promise for calls with the same key", async () => {
-    const loader = vi.fn().mockImplementation(async (arg) => {
+    const loader = vi.fn().mockImplementation(async () => {
       await sleep(10);
       return "response";
     });
@@ -25,7 +25,7 @@ describe("batch", () => {
   });
 
   it("should call loader again after the first promise resolves", async () => {
-    const loader = vi.fn().mockImplementation(async (arg) => {
+    const loader = vi.fn().mockImplementation(async () => {
       await sleep(10);
       return "response";
     });
@@ -40,7 +40,7 @@ describe("batch", () => {
   });
 
   it("should handle different keys separately", async () => {
-    const loader = vi.fn().mockImplementation(async (arg) => {
+    const loader = vi.fn().mockImplementation(async () => {
       await sleep(10);
       return "response";
     });

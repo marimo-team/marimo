@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, cast
 from marimo import _loggers as loggers
 from marimo._cli.tips import CliTip
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
+from marimo._core import protocol
 from marimo._server.config import StarletteServerState
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
@@ -20,6 +21,8 @@ if TYPE_CHECKING:
     from starlette.websockets import WebSocket
     from uvicorn import Server
 
+    from marimo._core.notebook import Notebook
+    from marimo._server.host.context import HostContext
     from marimo._session import Session
 
 LOGGER = loggers.marimo_logger()
@@ -47,6 +50,19 @@ class AppStateBase:
     @property
     def session_manager(self) -> SessionManager:
         return self.state.session_manager
+
+    @property
+    def host_context(self) -> HostContext | None:
+        return getattr(self.state, "host_context", None)
+
+    def notebook_for_session(self, session: Session) -> Notebook | None:
+        """Return the host notebook for an edit session, if available."""
+        context = self.host_context
+        return (
+            None
+            if context is None
+            else context.bridge.notebook_for_session(session)
+        )
 
     @property
     def mode(self) -> SessionMode:
@@ -173,8 +189,10 @@ class AppState(AppStateBase):
             raise ValueError(f"Invalid session id: {session_id}")
         return session
 
-    def require_current_session_with_stable_id(self) -> Session:
-        """Resolve a session from the stable or browser routing header."""
+    def require_current_session_with_stable_id(
+        self, *, allow_notebook_id: bool = False
+    ) -> Session:
+        """Resolve a session, optionally accepting notebook IDs for execution."""
         stable_session_id = self.request.headers.get(STABLE_SESSION_ID_HEADER)
         if stable_session_id is None:
             return self.require_current_session()
@@ -187,13 +205,34 @@ class AppState(AppStateBase):
                 ),
             )
 
+        context = self.host_context
+        if allow_notebook_id and context is not None:
+            record = context.bridge.host.notebooks.get(
+                protocol.NotebookId(stable_session_id)
+            )
+            if record is not None:
+                session = context.bridge.session_for_notebook(record.id)
+                if session is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="The notebook has no running session.",
+                    )
+                return session
+        return self.session_by_stable_id(stable_session_id)
+
+    def session_by_stable_id(self, stable_id: str) -> Session:
+        """Resolve a notebook's stable session ID.
+
+        Args:
+            stable_id (str): Stable session ID from the route.
+        """
         session = self.session_manager.get_session_by_stable_id(
-            StableSessionId(stable_session_id)
+            StableSessionId(stable_id)
         )
         if session is None:
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                detail=f"Invalid stable session id: {stable_session_id}",
+                detail=f"Invalid stable session id: {stable_id}",
             )
         return session
 
@@ -235,6 +274,4 @@ class AppState(AppStateBase):
             raise
         if resolved is None:
             return config_manager
-        return config_manager.with_overrides(
-            ScriptConfigReader(resolved).read()
-        )
+        return config_manager.with_partial(ScriptConfigReader(resolved))

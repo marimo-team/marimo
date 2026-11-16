@@ -1,8 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { usePrevious } from "@dnd-kit/utilities";
+import { useAtomValue } from "jotai";
 import { useEffect } from "react";
-import { useCellErrors } from "@/core/cells/cells";
+import { cellErrorCount } from "@/core/cells/cells";
 import { useEventListener } from "@/hooks/useEventListener";
 import successFaviconUrl from "../../assets/circle-check.ico";
 import runningFaviconUrl from "../../assets/circle-play.ico";
@@ -14,13 +15,6 @@ const FAVICON_PATHS = {
   running: runningFaviconUrl,
   error: errorFaviconUrl,
 } as const;
-
-// Cache favicon object URLs lazily
-type FaviconKey = keyof typeof FAVICON_PATHS;
-
-async function getFaviconUrl(key: FaviconKey): Promise<string> {
-  return FAVICON_PATHS[key];
-}
 
 function getOrCreateFavicon(): HTMLLinkElement {
   const existingFavicon =
@@ -44,16 +38,16 @@ function maybeSendNotification(numErrors: number) {
     return;
   }
 
-  const sendNotification = async () => {
+  const sendNotification = () => {
     if (numErrors === 0) {
       new Notification("Execution completed", {
         body: "Your notebook run completed successfully.",
-        icon: await getFaviconUrl("success"),
+        icon: FAVICON_PATHS.success,
       });
     } else {
       new Notification("Execution failed", {
         body: `Your notebook run encountered ${numErrors} error(s).`,
-        icon: await getFaviconUrl("error"),
+        icon: FAVICON_PATHS.error,
       });
     }
   };
@@ -75,7 +69,7 @@ function maybeSendNotification(numErrors: number) {
 
 export const DynamicFavicon = (props: Props) => {
   const { isRunning } = props;
-  const errors = useCellErrors();
+  const numErrors = useAtomValue(cellErrorCount);
 
   useEffect(() => {
     const favicon = getOrCreateFavicon();
@@ -86,46 +80,33 @@ export const DynamicFavicon = (props: Props) => {
       return;
     }
 
-    const updateFavicon = async () => {
-      let key: FaviconKey;
-      // When notebook is running, display running favicon
-      if (isRunning) {
-        key = "running";
-      } else {
-        // When run is complete, display success or error favicon
-        key = errors.length === 0 ? "success" : "error";
-      }
-      favicon.href = await getFaviconUrl(key);
+    const key = isRunning ? "running" : numErrors === 0 ? "success" : "error";
+    favicon.href = FAVICON_PATHS[key];
 
-      // If notebook is in focus, reset favicon after 3 seconds
-      // If not in focus, the focus event listener handles it
-      if (!document.hasFocus()) {
-        return;
-      }
+    if (!document.hasFocus()) {
+      // The focus listener resets the favicon when the user returns.
+      return;
+    }
 
-      const timeoutId = setTimeout(async () => {
-        favicon.href = await getFaviconUrl("idle");
-      }, 3000);
-
-      return () => clearTimeout(timeoutId);
-    };
-
-    updateFavicon();
-  }, [isRunning, errors]);
+    const timeoutId = setTimeout(() => {
+      favicon.href = FAVICON_PATHS.idle;
+    }, 3000);
+    return () => clearTimeout(timeoutId);
+  }, [isRunning, numErrors]);
 
   // Send user notification when run has completed
   const prevRunning = usePrevious(isRunning) ?? isRunning;
   useEffect(() => {
     if (prevRunning && !isRunning) {
-      maybeSendNotification(errors.length);
+      maybeSendNotification(numErrors);
     }
-  }, [errors, prevRunning, isRunning]);
+  }, [numErrors, prevRunning, isRunning]);
 
   // When notebook comes back in focus, reset favicon
-  useEventListener(window, "focus", async (_) => {
+  useEventListener(window, "focus", () => {
     if (!isRunning) {
       const favicon = getOrCreateFavicon();
-      favicon.href = await getFaviconUrl("idle");
+      favicon.href = FAVICON_PATHS.idle;
     }
   });
 

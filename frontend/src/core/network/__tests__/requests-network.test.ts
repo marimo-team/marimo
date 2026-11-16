@@ -4,16 +4,12 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as apiModule from "../api";
-import { visibleForTesting } from "../requests-lazy";
 import { createNetworkRequests } from "../requests-network";
-
-const { ACTIONS } = visibleForTesting;
 
 // Mock dependencies
 vi.mock("../../runtime/config", () => ({
   getRuntimeManager: vi.fn(() => ({
     sessionHeaders: vi.fn(() => ({ "X-Test-Header": "test" })),
-    isLazy: true,
   })),
 }));
 
@@ -62,18 +58,6 @@ describe("createNetworkRequests", () => {
     vi.mocked(apiModule.createClientWithRuntimeManager).mockReturnValue(
       mockClient,
     );
-  });
-
-  it("all request methods have an action defined", () => {
-    const requests = createNetworkRequests();
-    const methodNames = Object.keys(requests);
-
-    for (const methodName of methodNames) {
-      expect(
-        ACTIONS[methodName as keyof typeof ACTIONS],
-        `Method ${methodName} has no action defined`,
-      ).toBeDefined();
-    }
   });
 
   describe("special behavior", () => {

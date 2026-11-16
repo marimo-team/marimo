@@ -1,37 +1,40 @@
 import marimo
 
-__generated_with = "0.23.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md("# `mo.lazy` export smoke test")
-    return
+    mo.md("""
+    # `mo.lazy` export smoke test
+    """)
 
 
 @app.cell
 def _(mo):
-    mo.md("## 1) Eager value (non-callable)")
-    return
+    mo.md("""
+    ## 1) Eager value (non-callable)
+    """)
 
 
 @app.cell
 def _(mo):
     mo.lazy("EAGER_VALUE_MARKER")
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("## 2) Sync function")
-    return
+    mo.md("""
+    ## 2) Sync function
+    """)
 
 
 @app.cell
@@ -40,13 +43,13 @@ def _(mo):
         return "SYNC_FUNCTION_MARKER"
 
     mo.lazy(make_sync)
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("## 3) Async function")
-    return
+    mo.md("""
+    ## 3) Async function
+    """)
 
 
 @app.cell
@@ -55,7 +58,6 @@ def _(mo):
         return "ASYNC_FUNCTION_MARKER"
 
     mo.lazy(make_async)
-    return
 
 
 if __name__ == "__main__":

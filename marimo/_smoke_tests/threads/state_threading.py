@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -8,6 +8,7 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import random
+
     return mo, random
 
 
@@ -26,15 +27,13 @@ def _(g, random):
 
 
 @app.cell
-def _(x):
+def _(x: int):
     x
-    return
 
 
 @app.cell
 def _(s):
     s(6)
-    return
 
 
 @app.cell
@@ -47,19 +46,18 @@ def _(mo):
         while not thread.should_exit:
             s(random.randint(0, 100000))
             time.sleep(1)
+
     return (f,)
 
 
 @app.cell
 def _(f, mo, s):
     mo.Thread(target=f, args=(s,)).start()
-    return
 
 
 @app.cell
 def _(g):
     g()
-    return
 
 
 if __name__ == "__main__":

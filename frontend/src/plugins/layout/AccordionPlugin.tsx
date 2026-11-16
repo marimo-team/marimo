@@ -57,7 +57,8 @@ const AccordionComponent = ({
         return (
           <AccordionItem key={index} value={index.toString()}>
             <AccordionTrigger className="py-2 text-md">
-              {renderHTML({ html: labels[index] })}
+              {/* The host's light DOM can gain a child that has no label. */}
+              {renderHTML({ html: labels[index] ?? "" })}
             </AccordionTrigger>
             <AccordionContent className="text-md">{child}</AccordionContent>
           </AccordionItem>

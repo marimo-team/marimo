@@ -14,14 +14,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# 🤖 Lists/Dicts""")
-    return
+    mo.md("""
+    # 🤖 Lists/Dicts
+    """)
 
 
 @app.cell
@@ -38,7 +39,6 @@ def _(mo):
 @app.cell
 def _(as_list):
     as_list.value
-    return
 
 
 @app.cell
@@ -56,7 +56,6 @@ def _(mo):
 @app.cell
 def _(as_dict):
     as_dict.value
-    return
 
 
 @app.cell
@@ -70,19 +69,20 @@ def _(mo):
 @app.cell
 def _(as_primitives):
     as_primitives.value
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# 🐼 Pandas""")
-    return
+    mo.md("""
+    # 🐼 Pandas
+    """)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.dataframe""")
-    return
+    mo.md("""
+    ## mo.ui.dataframe
+    """)
 
 
 @app.cell
@@ -94,8 +94,9 @@ def _(cars, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.table""")
-    return
+    mo.md("""
+    ## mo.ui.table
+    """)
 
 
 @app.cell
@@ -108,49 +109,49 @@ def _(dataframe, mo):
 @app.cell
 def _(t):
     t.value
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## .value""")
-    return
+    mo.md("""
+    ## .value
+    """)
 
 
 @app.cell
 def _(dataframe):
     dataframe.value
-    return
 
 
 @app.cell
 def _(dataframe):
     dataframe.value["Cylinders"]
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.data_explorer""")
-    return
+    mo.md("""
+    ## mo.ui.data_explorer
+    """)
 
 
 @app.cell
 def _(mo, pl_dataframe):
     mo.ui.data_explorer(pl_dataframe)
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# 🐻‍❄️ Polars""")
-    return
+    mo.md("""
+    # 🐻‍❄️ Polars
+    """)
 
 
 @app.cell
 def _(mo):
-    mo.md("""## mo.ui.dataframe""")
-    return
+    mo.md("""
+    ## mo.ui.dataframe
+    """)
 
 
 @app.cell
@@ -163,13 +164,13 @@ def _(mo, pl_dataframe):
 @app.cell
 def _(pl_dataframe_prime):
     pl_dataframe_prime.value
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.table""")
-    return
+    mo.md("""
+    ## mo.ui.table
+    """)
 
 
 @app.cell
@@ -181,20 +182,21 @@ def _(cars, mo, pl):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.data_explorer""")
-    return
+    mo.md("""
+    ## mo.ui.data_explorer
+    """)
 
 
 @app.cell
 def _(mo, pl_dataframe):
     mo.ui.data_explorer(pl_dataframe)
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# 🏹 Arrow""")
-    return
+    mo.md("""
+    # 🏹 Arrow
+    """)
 
 
 @app.cell
@@ -206,8 +208,9 @@ def _(cars, mo, pa):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## mo.ui.table""")
-    return
+    mo.md("""
+    ## mo.ui.table
+    """)
 
 
 @app.cell
@@ -219,31 +222,27 @@ def _(arrow_table, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## .value""")
-    return
+    mo.md("""
+    ## .value
+    """)
 
 
 @app.cell
 def _(arrow_table_el):
     arrow_table_el.value
-    return
 
 
 @app.cell
 def _(arrow_table, mo):
     mo.ui.data_explorer(arrow_table)
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        rf"""
-        # 💽 Dataframe protocol
-        > See the [API](https://data-apis.org/dataframe-protocol/latest/API.html)
-        """
-    )
-    return
+    mo.md(rf"""
+    # 💽 Dataframe protocol
+    > See the [API](https://data-apis.org/dataframe-protocol/latest/API.html)
+    """)
 
 
 @app.cell
@@ -255,7 +254,6 @@ def _():
         "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
     )
     dask_df
-    return
 
 
 @app.cell
@@ -274,14 +272,14 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(rf"## mo.ui.table")
-    return
+    mo.md(rf"""
+    ## mo.ui.table
+    """)
 
 
 @app.cell
 def _(ibis_penguins):
     ibis_penguins.value
-    return
 
 
 @app.cell
@@ -294,19 +292,18 @@ def _(ibis_data, mo):
 @app.cell
 def _(ibis_penguins):
     ibis_penguins.value
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(rf"## mo.ui.data_explorer")
-    return
+    mo.md(rf"""
+    ## mo.ui.data_explorer
+    """)
 
 
 @app.cell
 def _(ibis_data, mo):
     mo.ui.data_explorer(ibis_data)
-    return
 
 
 @app.cell
@@ -323,13 +320,12 @@ def _():
 
 
 @app.cell
-def _(mo):
+def _(cars, mo):
     _df = mo.sql(
         f"""
         SELECT * FROM cars WHERE Cylinders > 6;
         """
     )
-    return
 
 
 if __name__ == "__main__":

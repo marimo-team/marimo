@@ -10,11 +10,14 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._core import backend as be
+from marimo._messaging.notebook import NotebookDocument
+from marimo._messaging.notification import NotificationMessage
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
-from marimo._session.model import ConnectionState
+from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.types import KernelState
+from marimo._types.ids import ConsumerId
 
 
 class FakeSession:
@@ -25,17 +28,18 @@ class FakeSession:
         self.event_bus = SessionEventBus()
         self.consumers: list[tuple[SessionConsumer, bool]] = []
         self.commands: list[Any] = []
+        self.instantiations: list[Any] = []
+        self.notifications: list[NotificationMessage] = []
         self.submitted = asyncio.Event()
         self.interrupts = 0
         self.closed = False
         self.state = KernelState.RUNNING
         self.exit_info: Any = None
+        self.initialization_id = path or "__new__editor"
         self.app_file_manager = MagicMock()
         self.app_file_manager.path = path
         self.app_file_manager.app.config.asdict_difference.return_value = {}
-        self.document = MagicMock()
-        self.document.cell_ids = []
-        self.document.cells = []
+        self.document = NotebookDocument([])
         self.session_view = MagicMock()
         self.config_manager = MagicMock()
         self.config_manager.get_config.return_value = {
@@ -55,8 +59,16 @@ class FakeSession:
                 consumer.on_detach()
                 return
 
-    def instantiate(self, request: Any, *, http_request: Any) -> None:
-        del request, http_request
+    def instantiate(
+        self,
+        request: Any,
+        *,
+        http_request: Any,
+        execution_requests: Any = None,
+    ) -> None:
+        self.execution_requests = execution_requests
+        del http_request
+        self.instantiations.append(request)
 
     def put_control_request(self, request: Any, from_consumer_id: Any) -> None:
         del from_consumer_id
@@ -88,9 +100,21 @@ class FakeSession:
         for consumer, _ in list(self.consumers):
             consumer.notify(message)
 
+    def notify(
+        self,
+        notification: NotificationMessage,
+        from_consumer_id: ConsumerId | None = None,
+    ) -> None:
+        """What a session does with a notification: record and broadcast."""
+        del from_consumer_id
+        self.notifications.append(notification)
+        self.broadcast(notification)
+
 
 class FakeManager:
     """A session manager with configurable startup results and timing."""
+
+    mode = SessionMode.EDIT
 
     def __init__(self) -> None:
         self.sessions: dict[str, FakeSession] = {}
@@ -125,7 +149,10 @@ class FakeManager:
         if isinstance(self.next_session, Exception):
             raise self.next_session
         session: FakeSession = self.next_session
+        session.initialization_id = file_key
         self.sessions[session_id] = session
+        # The session manager announces a session before its starter attaches.
+        await self.event_bus.emit_session_created(session)  # type: ignore[arg-type]
         session.connect_consumer(session_consumer, main=main)
         return session
 

@@ -9,6 +9,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import msgspec
 import pytest
 
+from marimo._config.config_schema import MarimoConfig
 from marimo._environments.errors import (
     EnvironmentManagerError,
     SandboxRestartRequired,
@@ -890,7 +891,9 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
     # Mock app state
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = mock_session
-    mock_app_state.app_config_manager.package_manager = "pip"
+    mock_app_state.app_config_manager.get_config.return_value = (
+        MarimoConfig.from_dict({"package_management": {"manager": "pip"}})
+    )
 
     mock_request = MagicMock()
 
@@ -925,7 +928,9 @@ def test_get_package_manager_without_ipc_session() -> None:
     # Mock app state
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = mock_session
-    mock_app_state.app_config_manager.package_manager = "uv"
+    mock_app_state.app_config_manager.get_config.return_value = (
+        MarimoConfig.from_dict({"package_management": {"manager": "uv"}})
+    )
 
     mock_request = MagicMock()
 
@@ -951,7 +956,9 @@ def test_get_package_manager_no_session() -> None:
     # Mock app state with no session
     mock_app_state = MagicMock()
     mock_app_state.get_current_session.return_value = None
-    mock_app_state.config_manager.package_manager = "pip"
+    mock_app_state.config_manager.get_config.return_value = (
+        MarimoConfig.from_dict({"package_management": {"manager": "pip"}})
+    )
 
     mock_request = MagicMock()
 
@@ -986,8 +993,8 @@ def test_repair_manifest_without_a_kernel(
     manager.sandbox = True
     manager.workspace = SingleFileWorkspace.from_path(MarimoPath(str(path)))
     monkeypatch.setattr(
-        "marimo._server.api.endpoints.packages.current_backend",
-        lambda: backend,
+        "marimo._server.api.endpoints.packages.backend_for",
+        lambda _path: backend,
     )
     request = {"fileKey": str(path)}
     response = client.post(
@@ -1050,6 +1057,73 @@ def test_manifest_access_uses_workspace_permissions(
 
 
 @pytest.mark.parametrize(
+    ("manifest", "expected_backend"),
+    [
+        ("# [tool.pixi.workspace]\n# channels = []\n", "pixi"),
+        ("", "uv"),
+    ],
+)
+def test_sandbox_auto_resolves_backend_without_a_kernel(
+    client: TestClient,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    manifest: str,
+    expected_backend: str,
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.workspace import SingleFileWorkspace
+    from marimo._utils.marimo_path import MarimoPath
+
+    path = tmp_path / "notebook.py"
+    path.write_text(
+        "# /// script\n# dependencies = []\n" + manifest + "# ///\n"
+        "import marimo\napp = marimo.App()\n"
+    )
+    manager = client.app.state.session_manager
+    manager.sandbox = True
+    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(str(path)))
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_AUTO", True)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_BACKEND", "uv")
+
+    response = client.post(
+        "/api/packages/sandbox", headers=HEADERS, json={"fileKey": str(path)}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["backend"] == expected_backend
+    assert response.json()["filename"] == str(path)
+
+
+def test_sandbox_auto_reports_no_sandbox_for_configured_venv(
+    client: TestClient, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.workspace import SingleFileWorkspace
+    from marimo._utils.marimo_path import MarimoPath
+
+    path = tmp_path / "notebook.py"
+    path.write_text(
+        "# /// script\n# [tool.marimo.venv]\n# path = '.venv'\n"
+        "# [tool.pixi.workspace]\n# channels = []\n# ///\n"
+        "import marimo\napp = marimo.App()\n"
+    )
+    manager = client.app.state.session_manager
+    manager.sandbox = True
+    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(str(path)))
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_AUTO", True)
+
+    response = client.post(
+        "/api/packages/sandbox", headers=HEADERS, json={"fileKey": str(path)}
+    )
+
+    # NB. The venv wins over the pixi table, and a configured-venv kernel
+    # has no sandbox, matching what the session reports after startup.
+    assert response.status_code == 200
+    assert response.json()["backend"] is None
+    assert response.json()["filename"] is None
+
+
+@pytest.mark.parametrize(
     ("endpoint", "operation"),
     [("sandbox", "read_manifest"), ("manifest", "write_manifest")],
 )
@@ -1069,7 +1143,8 @@ def test_manifest_file_errors_are_reported(
     manager.sandbox = True
     manager.workspace = SingleFileWorkspace.from_path(MarimoPath(str(path)))
     monkeypatch.setattr(
-        "marimo._server.api.endpoints.packages.current_backend", lambda: "uv"
+        "marimo._server.api.endpoints.packages.backend_for",
+        lambda _path: "uv",
     )
 
     def denied(*_args: Any, **_kwargs: Any) -> None:

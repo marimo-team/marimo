@@ -5,12 +5,11 @@ import { OutputArea } from "../editor/Output";
 import { memo } from "react";
 import type { CellId } from "@/core/cells/ids";
 import type { CellRuntimeState } from "@/core/cells/types";
+import type { CellRunStatus } from "@/core/executions";
 
-interface SlideContentProps extends Pick<
-  CellRuntimeState,
-  "output" | "status"
-> {
+interface SlideContentProps extends Pick<CellRuntimeState, "output"> {
   cellId: CellId;
+  status: CellRunStatus;
   stale: boolean;
 }
 

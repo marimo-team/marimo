@@ -53,14 +53,36 @@ export const DraggablePopover = ({
           top: position.y,
         }}
       >
-        <div
+        <button
+          type="button"
+          aria-label="Move popup with arrow keys"
           onMouseDown={handleMouseDown}
+          onKeyDown={(e) => {
+            const directions: Record<
+              string,
+              { x: number; y: number } | undefined
+            > = {
+              ArrowLeft: { x: -10, y: 0 },
+              ArrowRight: { x: 10, y: 0 },
+              ArrowUp: { x: 0, y: -10 },
+              ArrowDown: { x: 0, y: 10 },
+            };
+            const offset = directions[e.key];
+            if (offset) {
+              e.preventDefault();
+              e.stopPropagation();
+              setPosition((previous) => ({
+                x: previous.x + offset.x,
+                y: previous.y + offset.y,
+              }));
+            }
+          }}
           className={`flex items-center justify-center absolute top-0 left-1/2 -translate-x-1/2 ${
             isDragging ? "cursor-grabbing" : "cursor-grab"
           }`}
         >
           <GripHorizontalIcon className="h-5 w-5 mt-1 text-muted-foreground/40" />
-        </div>
+        </button>
         {children}
       </PopoverContent>
     </Popover>

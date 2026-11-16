@@ -121,3 +121,12 @@ def test_app_config_overloads_from_env_with_empty_string(
     assert config.css_file == ""
     assert config.html_head_file == ""
     assert config.app_title == ""
+
+
+def test_app_config_sanitize_keeps_default_factory_fields():
+    # `auto_download` uses `default_factory`, so it is not a class attribute.
+    updates = {"auto_download": ["html"], "width": "full", "unknown": 1}
+    assert _AppConfig.sanitize(updates) == {
+        "auto_download": ["html"],
+        "width": "full",
+    }

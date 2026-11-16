@@ -4,12 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSerializedLayout } from "@/core/layout/layout";
 import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom } from "@/core/mode";
-import { connectionAtom } from "@/core/network/connection";
+import { runtimeConfigAtom } from "@/core/runtime/config";
+import { RuntimeManager } from "@/core/runtime/runtime";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
-import { ConnectionState } from "@/core/websocket/types";
-import { pairPreviewAtom } from "@/core/config/pair";
-import { PAIR_PREVIEW } from "./fixtures/pair-preview";
+import { pairConfigAtom } from "@/core/config/pair";
+import { PAIR_CONFIG } from "./fixtures/pair-config";
 import { mount, visibleForTesting } from "../mount";
 
 // Mock React DOM
@@ -58,8 +58,7 @@ describe("mount", () => {
     vi.mocked(isStaticNotebook).mockReturnValue(false);
     store.set(layoutStateAtom, initialLayoutState());
     store.set(kioskModeAtom, false);
-    // Reset connection atom to initial state
-    store.set(connectionAtom, { state: ConnectionState.NOT_STARTED });
+    vi.spyOn(RuntimeManager.prototype, "init").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -84,79 +83,39 @@ describe("mount", () => {
       mockElement,
     );
 
-  it("hydrates the server's Pair preview configuration", () => {
-    const error = mountRead({ pairPreview: PAIR_PREVIEW });
+  it("hydrates the server's Pair configuration", () => {
+    const error = mountRead({ pairConfig: PAIR_CONFIG });
 
     expect(error).toBeUndefined();
-    expect(store.get(pairPreviewAtom)).toEqual(PAIR_PREVIEW);
+    expect(store.get(pairConfigAtom)).toEqual(PAIR_CONFIG);
   });
 
-  it("uses legacy Pair behavior when the host omits preview configuration", () => {
-    store.set(pairPreviewAtom, PAIR_PREVIEW);
+  it("clears Pair configuration when the server omits it", () => {
+    store.set(pairConfigAtom, PAIR_CONFIG);
 
     const error = mountRead();
 
     expect(error).toBeUndefined();
-    expect(store.get(pairPreviewAtom)).toBeUndefined();
+    expect(store.get(pairConfigAtom)).toBeUndefined();
   });
 
-  describe("connection state initialization", () => {
-    it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {
-      mount(
-        {
-          ...baseOptions,
-          runtimeConfig: [{ url: "http://localhost:8080", lazy: false }],
-        },
-        mockElement,
-      );
+  it("starts looking for the page's runtime", () => {
+    mountRead();
 
-      const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(ConnectionState.CONNECTING);
-    });
+    expect(RuntimeManager.prototype.init).toHaveBeenCalledOnce();
+  });
 
-    it("should keep connection as NOT_STARTED when runtimeConfig has lazy=true", () => {
-      mount(
-        {
-          ...baseOptions,
-          runtimeConfig: [{ url: "http://localhost:8080", lazy: true }],
-        },
-        mockElement,
-      );
+  it("accepts a runtime config that still carries `lazy`", () => {
+    const error = mount(
+      {
+        ...baseOptions,
+        runtimeConfig: [{ url: "http://localhost:8080", lazy: true }],
+      },
+      mockElement,
+    );
 
-      const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(ConnectionState.NOT_STARTED);
-    });
-
-    it("should keep connection as NOT_STARTED when no runtimeConfig is provided", () => {
-      mount(
-        {
-          ...baseOptions,
-          runtimeConfig: [],
-        },
-        mockElement,
-      );
-
-      const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(ConnectionState.NOT_STARTED);
-    });
-
-    it("should keep connection as NOT_STARTED for static notebooks even with lazy=false", () => {
-      vi.mocked(isStaticNotebook).mockReturnValue(true);
-
-      // Reset mount state to allow another mount
-      visibleForTesting.reset();
-
-      mount(
-        {
-          ...baseOptions,
-          runtimeConfig: [{ url: "http://localhost:8080", lazy: false }],
-        },
-        mockElement,
-      );
-
-      const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(ConnectionState.NOT_STARTED);
-    });
+    expect(error).toBeUndefined();
+    expect(store.get(runtimeConfigAtom).url).toBe("http://localhost:8080");
   });
 
   it("hydrates the layout embedded in the mount config", () => {

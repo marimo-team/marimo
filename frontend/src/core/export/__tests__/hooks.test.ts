@@ -67,11 +67,6 @@ describe("useEnrichCellOutputs", () => {
         cellId,
         {
           output: cell.output || null,
-          status: cell.status || "idle",
-          interrupted: false,
-          errored: false,
-          runStartTimestamp: null,
-          runElapsedTimeMs: null,
           stallTime: null as unknown as number,
           ...cell,
         } as CellRuntimeState,

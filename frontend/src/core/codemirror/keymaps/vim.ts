@@ -37,7 +37,7 @@ export function vimKeymapExtension(): Extension[] {
           if (isAtEndOfEditor(ev, true) && isInVimNormalMode(ev)) {
             const actions = ev.state.facet(cellActionsState);
             const cellId = ev.state.facet(cellIdState);
-            actions.moveToNextCell({ cellId, before: false, noCreate: true });
+            actions.moveToNextCell({ cellId, before: false, create: false });
             return true;
           }
           return false;
@@ -51,7 +51,7 @@ export function vimKeymapExtension(): Extension[] {
           if (isAtStartOfEditor(ev) && isInVimNormalMode(ev)) {
             const actions = ev.state.facet(cellActionsState);
             const cellId = ev.state.facet(cellIdState);
-            actions.moveToNextCell({ cellId, before: true, noCreate: true });
+            actions.moveToNextCell({ cellId, before: true, create: false });
             return true;
           }
           return false;
@@ -369,7 +369,7 @@ class CodeMirrorVimSync {
       // We use onIdle to keep the focused editor snappy
       onIdle(() => {
         if (!skipBroadcast) {
-          this.broadcastModeChange(instance, e.mode, e.subMode);
+          this.broadcastModeChange(instance, e.mode);
         }
         this.isBroadcasting = false;
       });
@@ -380,11 +380,7 @@ class CodeMirrorVimSync {
     this.instances.delete(instance);
   }
 
-  public broadcastModeChange(
-    originInstance: EditorView,
-    mode: string,
-    subMode?: string,
-  ) {
+  public broadcastModeChange(originInstance: EditorView, mode: string) {
     invariant(
       "exitInsertMode" in Vim,
       "Vim does not have an exitInsertMode method",

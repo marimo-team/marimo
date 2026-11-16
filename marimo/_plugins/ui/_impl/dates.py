@@ -25,11 +25,14 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 Numeric = int | float
+NO_VALUE: Final = object()
 
 
 @mddoc
 class date(UIElement[str, dt.date]):
     """A date picker with an optional start and stop date.
+
+    Datetime inputs for `start`, `stop`, and `value` use only their date portion.
 
     Examples:
         ```python
@@ -90,11 +93,11 @@ class date(UIElement[str, dt.date]):
         full_width: bool = False,
         disabled: bool = False,
     ) -> None:
-        if isinstance(start, str):
+        if start is not None:
             start = self._convert_value(start)
-        if isinstance(stop, str):
+        if stop is not None:
             stop = self._convert_value(stop)
-        if isinstance(value, str):
+        if value is not None:
             value = self._convert_value(value)
 
         if value is None:
@@ -146,18 +149,29 @@ class date(UIElement[str, dt.date]):
         Returns:
             date: A date picker initialized with the series' min and max dates as bounds.
         """
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_date_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return date(start=start, stop=stop, label=label, **kwargs)
 
-    def _convert_value(self, value: str) -> dt.date:
+    def _convert_value(self, value: str | dt.date) -> dt.date:
         # Catch different initialization formats
-        if isinstance(value, dt.date):
-            return value
         if isinstance(value, dt.datetime):
             return value.date()
+        if isinstance(value, dt.date):
+            return value
         # This is date-only input; preserve `strptime`'s accepted formats.
         return dt.datetime.strptime(  # noqa: DTZ007
             value, self.DATE_FORMAT
@@ -298,9 +312,20 @@ class datetime(UIElement[str | None, dt.datetime | None]):
         Returns:
             datetime: A datetime picker initialized with the series' min and max datetimes as bounds.
         """
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_datetime_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return datetime(start=start, stop=stop, label=label, **kwargs)
 
@@ -349,6 +374,8 @@ class datetime(UIElement[str | None, dt.datetime | None]):
 class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
     """A date range picker over an interval.
 
+    Datetime inputs for `start`, `stop`, and `value` use only their date portion.
+
     Examples:
         ```python
         date_range = mo.ui.date_range(
@@ -395,9 +422,9 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         full_width: bool = False,
         disabled: bool = False,
     ):
-        if isinstance(start, str):
+        if start is not None:
             start = self._convert_single_value(start)
-        if isinstance(stop, str):
+        if stop is not None:
             stop = self._convert_single_value(stop)
         if value is not None:
             value = self._convert_value(value)
@@ -457,9 +484,20 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         Returns:
             date_range: A date range picker initialized with the series' min and max dates as bounds.
         """
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_date_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return date_range(start=start, stop=stop, label=label, **kwargs)
 
@@ -472,10 +510,10 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         )
 
     def _convert_single_value(self, value: str | dt.date) -> dt.date:
-        if isinstance(value, dt.date):
-            return value
         if isinstance(value, dt.datetime):
             return value.date()
+        if isinstance(value, dt.date):
+            return value
         # This is date-only input; preserve `strptime`'s accepted formats.
         return dt.datetime.strptime(  # noqa: DTZ007
             value, self.DATEFORMAT

@@ -104,8 +104,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
     from os import PathLike
     from types import TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._ast.cell_manager import CellManager
     from marimo._code_mode.screenshot import _ScreenshotSession
@@ -1823,7 +1822,10 @@ class AsyncCodeModeContext:
         for cell_id, cfg in resolved_configs.items():
             if cell_id in self.graph.cells:
                 self.graph.cells[cell_id].configure(cfg.asdict())
-            self._kernel.cell_metadata[cell_id] = CellMetadata(config=cfg)
+            metadata = self._kernel.cell_metadata.setdefault(
+                cell_id, CellMetadata()
+            )
+            metadata.config = cfg
 
         # Build document transaction ops from the plan and broadcast
         # a single NotebookDocumentTransactionNotification.
@@ -1871,7 +1873,7 @@ class AsyncCodeModeContext:
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code when save-time formatting is enabled."""
-        if not self._kernel.user_config["save"]["format_on_save"]:
+        if not self._kernel.user_config.save.format_on_save:
             return plan
 
         existing_code = {cell.id: cell.code for cell in self._document.cells}
@@ -1887,7 +1889,7 @@ class AsyncCodeModeContext:
             return plan
 
         try:
-            line_length = self._kernel.user_config["formatting"]["line_length"]
+            line_length = self._kernel.user_config.formatting.line_length
             formatter = DefaultFormatter(line_length=line_length)
             formatted = await formatter.format(
                 to_format,

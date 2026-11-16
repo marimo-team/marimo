@@ -97,7 +97,7 @@ export const PANELS: PanelDescriptor[] = [
     type: "ai",
     Icon: BotIcon,
     label: "AI",
-    tooltip: "Chat & Agents",
+    tooltip: "Chat",
     defaultSection: "sidebar",
     additionalKeywords: ["chat", "copilot", "assistant"],
   },

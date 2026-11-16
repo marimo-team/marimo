@@ -3314,6 +3314,18 @@ components:
                 type: string
             - type: string
               const: all
+        columnTypes:
+          default: {}
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            anyOf:
+              - type: string
+                const: boolean
+              - type: array
+                items:
+                  type: string
         columnSizingMode:
           default: auto
           type: string
@@ -5638,6 +5650,10 @@ components:
             - type: number
             - type: string
               const: too_many
+        has_next_page:
+          type:
+            - boolean
+            - "null"
         cell_styles:
           anyOf:
             - type: object

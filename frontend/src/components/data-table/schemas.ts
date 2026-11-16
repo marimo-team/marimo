@@ -3,42 +3,6 @@
 import z from "zod";
 import { rpc } from "@/plugins/core/rpc";
 
-export type DownloadFormat = "csv" | "json" | "parquet" | "tsv" | "geojson";
-
-/**
- * Per-request export options. Each field is optional. A missing field keeps
- * the widget's default for that setting.
- */
-export interface DownloadAsOptions {
-  separator?: string;
-  encoding?: string;
-  ensure_ascii?: boolean;
-}
-
-export interface DownloadAsRequest {
-  format: DownloadFormat;
-  options?: DownloadAsOptions;
-  geometry_column?: string | null;
-}
-
-export type DownloadAsArgs = (req: DownloadAsRequest) => Promise<{
-  url: string;
-  filename: string;
-  error?: string | null;
-  missing_packages?: string[] | null;
-  code?:
-    | "geometry_required"
-    | "invalid_geometry"
-    | "invalid_metadata"
-    | "unsupported_representation"
-    | "unsupported_version"
-    | "missing_packages"
-    | "missing_crs"
-    | "conversion_failed"
-    | null;
-  column?: string | null;
-}>;
-
 const DownloadRequestSchema = z.object({
   geometry_column: z.string().nullish(),
   options: z
@@ -87,6 +51,20 @@ export const DownloadGeoJSONSchema = rpc
       ]),
     }),
   );
+
+export type DownloadAsRequest =
+  | z.infer<typeof DownloadAsSchema.input>
+  | z.infer<typeof DownloadGeoJSONSchema.input>;
+
+type DownloadResponse =
+  | z.infer<typeof DownloadAsSchema.output>
+  | z.infer<typeof DownloadGeoJSONSchema.output>;
+
+export type DownloadFormat = DownloadAsRequest["format"];
+export type DownloadAsOptions = NonNullable<DownloadAsRequest["options"]>;
+export type DownloadAsArgs = (
+  req: DownloadAsRequest,
+) => Promise<DownloadResponse>;
 
 export type DownloadAsFunction = (
   req: z.infer<typeof DownloadAsSchema.input>,

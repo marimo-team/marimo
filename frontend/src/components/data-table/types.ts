@@ -6,6 +6,7 @@ import type { DataType } from "@/core/kernel/messages";
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
     rawData?: TData[]; // raw data for filtering/copying (present only if format_mapping is provided)
+    highlightPattern?: RegExp; // built from the committed search query that produced the current rows
   }
 }
 

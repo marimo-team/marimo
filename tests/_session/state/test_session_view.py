@@ -1,13 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, Literal
-from unittest.mock import patch
 
 import msgspec
 import pytest
 
 from marimo._ast.cell import RuntimeStateType
+from marimo._core.protocol import ExecutionId, Revision
 from marimo._data.models import (
     Database,
     DataSourceConnection,
@@ -27,6 +28,7 @@ from marimo._messaging.notification import (
     EnvironmentOperationNotification,
     EnvironmentOperationStatus,
     EnvironmentState,
+    EnvironmentStateNotification,
     EsmSpec,
     ModelClose,
     ModelCustom,
@@ -44,7 +46,9 @@ from marimo._messaging.notification import (
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    StartupProgressNotification,
     VariableDeclarationNotification,
+    VariableRemoval,
     VariablesNotification,
     VariableValue,
     VariableValuesNotification,
@@ -78,6 +82,18 @@ updated_output = CellOutput(
     data="Updated output",
     mimetype="text/plain",
 )
+
+
+@pytest.fixture
+def fixed_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = SimpleNamespace(time=lambda: 123)
+    for module in (
+        "marimo._messaging.cell_output",
+        "marimo._messaging.notification",
+        "marimo._session.state.session_view",
+    ):
+        monkeypatch.setattr(f"{module}.time", clock)
+
 
 initial_status: RuntimeStateType = "running"
 updated_status: RuntimeStateType = "running"
@@ -210,6 +226,31 @@ def test_session_view_variable_values(session_view: SessionView) -> None:
     variables_names = session_view.variable_values.keys()
     # var1 was removed, var2 was not changed, var3 has no value yet
     assert list(variables_names) == ["var2"]
+
+
+def test_variable_removals_only_remove_the_named_binding(
+    session_view: SessionView,
+) -> None:
+    value = VariableValue(
+        name="x", value="1", datatype="int", execution_id="new"
+    )
+    session_view.add_notification(
+        VariableValuesNotification(variables=[value])
+    )
+    for execution_id in ("old", "new", "new"):
+        session_view.add_raw_notification(
+            serialize_kernel_message(
+                VariableValuesNotification(
+                    variables=[],
+                    removed=[
+                        VariableRemoval(name="x", execution_id=execution_id)
+                    ],
+                )
+            )
+        )
+        assert session_view.variable_values == (
+            {"x": value} if execution_id == "old" else {}
+        )
 
 
 def test_ui_values(session_view: SessionView) -> None:
@@ -691,8 +732,9 @@ class TestModelReplayState:
 def test_last_run_code(session_view: SessionView) -> None:
     session_view.add_control_request(
         ExecuteCellsCommand(
-            cell_ids=[cell_id],
-            codes=["print('hello')"],
+            execution_requests=[
+                ExecuteCellCommand(cell_id=cell_id, code="print('hello')")
+            ]
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello')"
@@ -700,8 +742,14 @@ def test_last_run_code(session_view: SessionView) -> None:
     # Can overwrite values and add multiple
     session_view.add_control_request(
         ExecuteCellsCommand(
-            cell_ids=[cell_id, "cell_2"],
-            codes=["print('hello world')", "print('hello world')"],
+            execution_requests=[
+                ExecuteCellCommand(
+                    cell_id=cell_id, code="print('hello world')"
+                ),
+                ExecuteCellCommand(
+                    cell_id="cell_2", code="print('hello world')"
+                ),
+            ]
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello world')"
@@ -723,10 +771,23 @@ def test_last_run_code(session_view: SessionView) -> None:
     assert session_view.last_executed_code[cell_id] == "print('hello')"
 
 
-def test_serialize_parse_variable_value() -> None:
+@pytest.mark.parametrize("execution_id", [None, "execution-1"])
+def test_serialize_parse_variable_value(execution_id: str | None) -> None:
     original = create_variable_value(name="var1", value=1)
+    original.execution_id = execution_id
+    original.revision = (
+        Revision(ExecutionId(execution_id), 2) if execution_id else None
+    )
     serialized = serialize(original)
-    assert serialized == {"datatype": "int", "name": "var1", "value": "1"}
+    assert serialized == {
+        "datatype": "int",
+        "name": "var1",
+        "value": "1",
+        "execution_id": execution_id,
+        "revision": (
+            {"execution": execution_id, "update": 2} if execution_id else None
+        ),
+    }
     parsed = parse_raw(serialized, VariableValue)
     assert parsed == original
 
@@ -1011,7 +1072,9 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     assert INTERNAL_DUCKDB_ENGINE in names
 
     # Check connectors in operations
-    assert session_view.data_connectors in session_view.notifications
+    assert (
+        session_view.data_connectors in session_view.snapshot_notifications()
+    )
 
     # Filter out connections from variables
     session_view.add_raw_notification(
@@ -1208,12 +1271,8 @@ def test_add_cell_notification(session_view: SessionView) -> None:
     assert session_view.cell_notifications[cell_id].status == initial_status
 
 
-# patch time
-@patch("time.time", return_value=123)
-def test_combine_console_outputs(
-    time_mock: Any, session_view: SessionView
-) -> None:
-    del time_mock
+@pytest.mark.usefixtures("fixed_time")
+def test_combine_console_outputs(session_view: SessionView) -> None:
     session_view.add_notification(
         CellNotification(
             cell_id=cell_id,
@@ -1270,12 +1329,11 @@ def test_combine_console_outputs(
     ]
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_explicit_empty_console_clears_mid_run(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """An explicit `console=[]` clears the session view, even while running."""
-    del time_mock
     session_view.add_notification(
         CellNotification(
             cell_id=cell_id,
@@ -1315,9 +1373,8 @@ def test_explicit_empty_console_clears_mid_run(
     assert session_view.cell_notifications[cell_id].console == []
 
 
-@patch("time.time", return_value=123)
-def test_stdin(time_mock: Any, session_view: SessionView) -> None:
-    del time_mock
+@pytest.mark.usefixtures("fixed_time")
+def test_stdin(session_view: SessionView) -> None:
     session_view.add_notification(
         CellNotification(
             cell_id=cell_id,
@@ -1346,12 +1403,42 @@ def test_stdin(time_mock: Any, session_view: SessionView) -> None:
     ]
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
+def test_stdin_merging_preserves_prompt_identity(
+    session_view: SessionView,
+) -> None:
+    for prompt, input_id in (
+        ("First", "first"),
+        (": ", "first"),
+        ("Second", "second"),
+    ):
+        session_view.add_notification(
+            CellNotification(
+                cell_id=cell_id,
+                console=CellOutput.stdin(prompt, input_id=input_id),
+            )
+        )
+    assert session_view.cell_notifications[cell_id].console == [
+        CellOutput.stdin("First: ", input_id="first"),
+        CellOutput.stdin("Second", input_id="second"),
+    ]
+    session_view.add_stdin("reply", input_id="second")
+    assert session_view.cell_notifications[cell_id].console == [
+        CellOutput.stdin("First: ", input_id="first"),
+        CellOutput(
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data="Second reply\n",
+            input_id="second",
+        ),
+    ]
+
+
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_consecutive_text_plain_outputs(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """Test that consecutive text/plain outputs with same channel are merged."""
-    del time_mock
 
     # Add multiple consecutive stdout outputs
     session_view.add_notification(
@@ -1388,12 +1475,11 @@ def test_merge_consecutive_text_plain_outputs(
     )
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_different_channels_not_merged(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """Test that outputs with different channels are not merged."""
-    del time_mock
 
     session_view.add_notification(
         CellNotification(
@@ -1422,12 +1508,11 @@ def test_merge_different_channels_not_merged(
     )
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_different_mimetypes_not_merged(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """Test that outputs with different mimetypes are not merged."""
-    del time_mock
 
     session_view.add_notification(
         CellNotification(
@@ -1456,12 +1541,11 @@ def test_merge_different_mimetypes_not_merged(
     )
 
 
-@patch("time.time", return_value=123)
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_with_non_string_data_not_merged(
-    time_mock: Any, session_view: SessionView
+    session_view: SessionView,
 ) -> None:
     """Test that outputs with non-string data are not merged."""
-    del time_mock
 
     session_view.add_notification(
         CellNotification(
@@ -1486,9 +1570,8 @@ def test_merge_with_non_string_data_not_merged(
     assert len(session_view.cell_notifications[cell_id].console) == 2
 
 
-@patch("time.time", return_value=123)
-def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
-    del time_mock
+@pytest.mark.usefixtures("fixed_time")
+def test_get_cell_outputs(session_view: SessionView) -> None:
     cell_2_id = "cell_2"
     session_view.add_notification(
         CellNotification(
@@ -1533,11 +1616,8 @@ def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
     }
 
 
-@patch("time.time", return_value=123)
-def test_get_cell_console_outputs(
-    time_mock: Any, session_view: SessionView
-) -> None:
-    del time_mock
+@pytest.mark.usefixtures("fixed_time")
+def test_get_cell_console_outputs(session_view: SessionView) -> None:
     cell_2_id = "cell_2"
     session_view.add_notification(
         CellNotification(
@@ -1830,7 +1910,7 @@ def test_session_view_startup_logs_operations_exclude_done(
     session_view.add_notification(start_log)
 
     # Should include in operations while in progress
-    operations = session_view.notifications
+    operations = session_view.snapshot_notifications()
     startup_ops = [
         op for op in operations if isinstance(op, StartupLogsNotification)
     ]
@@ -1842,7 +1922,7 @@ def test_session_view_startup_logs_operations_exclude_done(
     session_view.add_notification(done_log)
 
     # Should not include done startup logs in operations
-    operations = session_view.notifications
+    operations = session_view.snapshot_notifications()
     startup_ops = [
         op for op in operations if isinstance(op, StartupLogsNotification)
     ]
@@ -2428,3 +2508,53 @@ def test_preparation_remains_available_after_package_changes(
             logs={},
         ),
     ]
+
+
+def test_snapshot_notifications_preserve_replay_order(
+    session_view: SessionView,
+) -> None:
+    progress = StartupProgressNotification(
+        phase="starting-kernel", logs="Ready\n", log_mode="replace"
+    )
+    model = ModelLifecycleNotification(
+        model_id=WidgetModelId("model"),
+        message=ModelOpen(state={"value": 1}, buffer_paths=[], buffers=[]),
+    )
+    cell = CellNotification(
+        cell_id=cell_id,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="old output",
+        ),
+        status="idle",
+    )
+    # The output can arrive before its widget model exists.
+    for notification in (cell, model, progress):
+        session_view.add_notification(notification)
+
+    notifications = session_view.snapshot_notifications()
+    assert notifications == [
+        EnvironmentStateNotification(
+            source="kernel",
+            state=EnvironmentState(restart_required=False, operations=[]),
+        ),
+        EnvironmentStateNotification(
+            source="server",
+            state=EnvironmentState(restart_required=False, operations=[]),
+        ),
+        progress,
+        model,
+        cell,
+    ]
+    captured = msgspec.json.encode(notifications)
+    session_view.update_cell_outputs({cell_id: ("text/plain", "new output")})
+    session_view.add_notification(
+        StartupProgressNotification(
+            phase="starting-kernel", logs="More logs\n", log_mode="append"
+        )
+    )
+    assert msgspec.json.encode(notifications) == captured
+    assert (
+        msgspec.json.encode(session_view.snapshot_notifications()) != captured
+    )

@@ -1,10 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
 import traceback
 from typing import Any
 
 import pytest
 
 from marimo._ast.cell import CellImpl
+from marimo._config.config_schema import MarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import MarimoSQLError
 from marimo._messaging.notification import (
@@ -65,9 +68,11 @@ async def test_debugger_lifecycle_gated_by_flag(
         return runner._evaluator.lifecycles
 
     def with_flag(value: bool) -> Any:
-        experimental = {**k.user_config.get("experimental", {})}
+        experimental = {**k.user_config.to_dict().get("experimental", {})}
         experimental["debugger"] = value
-        return {**k.user_config, "experimental": experimental}
+        return MarimoConfig.from_dict(
+            {**k.user_config.to_dict(), "experimental": experimental}
+        )
 
     def has_debugger(items: list[Any]) -> bool:
         return any(isinstance(item, DebuggerLifecycle) for item in items)
@@ -104,8 +109,13 @@ async def test_line_timing_lifecycle_gated_by_flag(
         ]
 
     def with_flags(**flags: bool) -> Any:
-        experimental = {**k.user_config.get("experimental", {}), **flags}
-        return {**k.user_config, "experimental": experimental}
+        experimental = {
+            **k.user_config.to_dict().get("experimental", {}),
+            **flags,
+        }
+        return MarimoConfig.from_dict(
+            {**k.user_config.to_dict(), "experimental": experimental}
+        )
 
     # line_timing alone: one lifecycle, watching without a debugger — even
     # when a debugger instance is available.
@@ -384,7 +394,6 @@ async def test_runner_dispatches_to_registered_plugin_executor(
 ) -> None:
     """A factory registered against `marimo.cell.executor` is the one
     the kernel `Runner` dispatches through."""
-    from typing import Any
 
     from marimo._runtime.executor.evaluator import _EXECUTOR_REGISTRY
 
@@ -757,3 +766,41 @@ async def test_run_all_swallows_sigint_raise_and_fires_on_finish(
         "on_finish_hooks must see the cells that were still queued "
         "when SIGINT fired"
     )
+
+
+async def test_traceback_keeps_source_captured_before_await(
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import Mock
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._runtime.exceptions import MarimoRuntimeException
+
+    k = execution_kernel
+    request = exec_req.get("original_source = 1")
+    await k.run([request])
+    runner = Runner(
+        roots={request.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=NotebookCellHooks(),
+    )
+
+    async def replace_cell(_cell: CellImpl) -> RunResult:
+        k.graph.cells[request.cell_id] = compile_cell(
+            "replacement_source = 2", cell_id=request.cell_id
+        )
+        exception = MarimoRuntimeException()
+        exception.__cause__ = ValueError("bad")
+        return RunResult(output=None, exception=exception)
+
+    writer = Mock()
+    monkeypatch.setattr(runner, "evaluate_interruptible", replace_cell)
+    monkeypatch.setattr(
+        "marimo._runtime.runner.cell_runner.write_traceback", writer
+    )
+    await runner.run(request.cell_id)
+    assert writer.call_args.kwargs["code"] == "original_source = 1"

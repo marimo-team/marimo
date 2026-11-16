@@ -71,7 +71,7 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   });
 
   const handleChange = useEvent((newValue: string) => {
-    setLocalValue((_) => newValue);
+    setLocalValue(newValue);
     if (typeof props.debounce === "number") {
       setValueDebounced(newValue);
     } else if (!props.debounce) {

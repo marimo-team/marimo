@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { createStore } from "jotai";
 import { describe, expect, it } from "vitest";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { connectionAtom } from "../../../network/connection";
 import { dynamicReadonly, isEditorReadonly } from "../extension";
 

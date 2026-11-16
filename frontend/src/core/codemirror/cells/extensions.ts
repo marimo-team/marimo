@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
-import { type Extension, Prec } from "@codemirror/state";
+import { type Extension, Prec, Transaction } from "@codemirror/state";
 import {
   EditorView,
   type KeyBinding,
@@ -14,7 +14,6 @@ import {
   clearPendingCutAtom,
   pendingCutCellIdsAtom,
 } from "@/core/cells/pending-cut-service";
-import { loroSyncAnnotation } from "@/core/codemirror/rtc/loro/sync";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -24,7 +23,6 @@ import { createObservable } from "@/core/state/observable";
 import { formatKeymapExtension } from "../extensions";
 import { formattingChangeEffect } from "../format";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
-import { getEditorCodeAsPython } from "../language/utils";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import {
   breakpointGutter,
@@ -190,7 +188,7 @@ function cellKeymaps({
 
           if (isAtStartOfEditor(ev)) {
             const actions = ev.state.facet(cellActionsState);
-            actions.moveToNextCell({ cellId, before: true, noCreate: true });
+            actions.moveToNextCell({ cellId, before: true, create: false });
             return true;
           }
           return false;
@@ -207,7 +205,7 @@ function cellKeymaps({
 
           if (isAtEndOfEditor(ev)) {
             const actions = ev.state.facet(cellActionsState);
-            actions.moveToNextCell({ cellId, before: false, noCreate: true });
+            actions.moveToNextCell({ cellId, before: false, create: false });
             return true;
           }
           return false;
@@ -219,7 +217,7 @@ function cellKeymaps({
         stopPropagation: true,
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: false, noCreate: true });
+          actions.moveToNextCell({ cellId, before: false, create: false });
           return true;
         },
       },
@@ -229,7 +227,7 @@ function cellKeymaps({
         stopPropagation: true,
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: true, noCreate: true });
+          actions.moveToNextCell({ cellId, before: true, create: false });
           return true;
         },
       },
@@ -260,7 +258,7 @@ function cellKeymaps({
         run: (ev) => {
           ev.contentDOM.blur();
           const actions = ev.state.facet(cellActionsState);
-          actions.createNewCell({ cellId, before: true });
+          actions.createCell({ before: cellId });
           return true;
         },
       },
@@ -271,7 +269,7 @@ function cellKeymaps({
         run: (ev) => {
           ev.contentDOM.blur();
           const actions = ev.state.facet(cellActionsState);
-          actions.createNewCell({ cellId, before: false });
+          actions.createCell({ after: cellId });
           return true;
         },
       },
@@ -324,26 +322,15 @@ function cellKeymaps({
  */
 function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
   const onChangePlugin = EditorView.updateListener.of((update) => {
-    if (update.docChanged) {
-      // Check if the doc update was a formatting change
-      // e.g. changing from python to markdown
-      const isFormattingChange = update.transactions.some((tr) =>
-        tr.effects.some((effect) => effect.is(formattingChangeEffect)),
-      );
-      const nextCode = getEditorCodeAsPython(update.view);
-      const cellActions = update.view.state.facet(cellActionsState);
-      const cellId = update.view.state.facet(cellIdState);
-      cellActions.updateCellCode({
-        cellId,
-        code: nextCode,
-        formattingChange: isFormattingChange,
-      });
+    if (!update.docChanged) {
+      return;
+    }
+    const cellId = update.view.state.facet(cellIdState);
 
-      // Clear pending cut state if this cell was marked for cut
-      const pendingCutCellIds = store.get(pendingCutCellIdsAtom);
-      if (pendingCutCellIds.has(cellId)) {
-        store.set(clearPendingCutAtom);
-      }
+    // Clear pending cut state if this cell was marked for cut
+    const pendingCutCellIds = store.get(pendingCutCellIdsAtom);
+    if (pendingCutCellIds.has(cellId)) {
+      store.set(clearPendingCutAtom);
     }
   });
 
@@ -382,8 +369,9 @@ function shouldAutorunMarkdownUpdate({
   }
 
   return transactions.some((tr) => {
-    // Ignore RTC sync changes to avoid duplicate runs from remote edits.
-    if (tr.annotation(loroSyncAnnotation) !== undefined) {
+    // Ignore remote changes to avoid duplicate runs. The client that made the
+    // edit runs it.
+    if (tr.annotation(Transaction.remote)) {
       return false;
     }
 

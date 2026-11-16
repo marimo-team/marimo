@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { NotebookId } from "@marimo-team/client/protocol";
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
@@ -9,14 +10,14 @@ import { isStaticNotebook } from "../static/static-state";
 import { isWasm } from "../wasm/utils";
 import type { RuntimeConfig } from "./types";
 
+const knownQueryParams = new Set(Object.values(KnownQueryParams));
+
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
   private config: RuntimeConfig;
-  private lazy: boolean;
 
-  public constructor(config: RuntimeConfig, lazy = false) {
+  public constructor(config: RuntimeConfig) {
     this.config = config;
-    this.lazy = lazy;
     // Validate the URL on construction
     try {
       new URL(this.config.url);
@@ -26,14 +27,6 @@ export class RuntimeManager {
         { cause: error },
       );
     }
-
-    if (!this.lazy) {
-      this.init();
-    }
-  }
-
-  public get isLazy(): boolean {
-    return this.lazy;
   }
 
   public get httpURL(): URL {
@@ -44,7 +37,7 @@ export class RuntimeManager {
     return this.httpURL.origin === window.location.origin;
   }
 
-  private get isServerless(): boolean {
+  public get isServerless(): boolean {
     return isWasm() || isIslands() || isStaticNotebook();
   }
 
@@ -71,10 +64,7 @@ export class RuntimeManager {
     }
 
     for (const [key, value] of currentParams.entries()) {
-      if (
-        restrictToKnownQueryParams &&
-        !Object.values(KnownQueryParams).includes(key)
-      ) {
+      if (restrictToKnownQueryParams && !knownQueryParams.has(key)) {
         continue;
       }
       baseUrl.searchParams.set(key, value);
@@ -129,32 +119,32 @@ export class RuntimeManager {
     return asWsUrl(this.appendCrossOriginAuth(url).toString());
   }
 
-  /**
-   * Search params for a session connection: the base URL's params, merged
-   * with the current page's, plus the session id.
-   */
-  private getSessionSearchParams(sessionId: SessionId): URLSearchParams {
-    const baseUrl = new URL(this.config.url);
-    const searchParams = new URLSearchParams(baseUrl.search);
-
-    // Merge in current page's query parameters
-    const currentParams = new URLSearchParams(window.location.search);
-    currentParams.forEach((value, key) => {
-      // Don't override base URL params
-      if (!searchParams.has(key)) {
-        searchParams.set(key, value);
-      }
-    });
-
-    searchParams.set(KnownQueryParams.sessionId, sessionId);
-    return searchParams;
+  /** Keep notebook page parameters separate from connection options. */
+  private getSessionURL(path: string, sessionId: SessionId): URL {
+    const url = this.formatHttpURL({ path });
+    const notebookParams = new URLSearchParams(this.httpURL.search);
+    const pageParams = new URLSearchParams(window.location.search);
+    for (const key of pageParams.keys()) {
+      notebookParams.delete(key);
+    }
+    for (const [key, value] of pageParams) {
+      notebookParams.append(key, value);
+    }
+    // These parameters are internal and are not exposed by mo.query_params().
+    notebookParams.delete(KnownQueryParams.accessToken);
+    notebookParams.delete("refresh_token");
+    notebookParams.delete(KnownQueryParams.sessionId);
+    url.searchParams.set("query_params", notebookParams.toString());
+    url.searchParams.set(KnownQueryParams.sessionId, sessionId);
+    return url;
   }
 
   /**
    * The WebSocket URL of the runtime.
    */
   public getWsURL(sessionId: SessionId): URL {
-    return this.formatWsURL("/ws", this.getSessionSearchParams(sessionId));
+    const url = this.getSessionURL("/ws", sessionId);
+    return asWsUrl(this.appendCrossOriginAuth(url).toString());
   }
 
   /**
@@ -164,11 +154,7 @@ export class RuntimeManager {
    * (see `headers()`) instead of the URL.
    */
   public getSseURL(sessionId: SessionId): URL {
-    const url = this.formatHttpURL({
-      path: "/sse",
-      searchParams: this.getSessionSearchParams(sessionId),
-      restrictToKnownQueryParams: false,
-    });
+    const url = this.getSessionURL("/sse", sessionId);
     // The page URL can still carry access_token (merged in from the
     // current page's params, before auth cleanup strips it); never
     // forward it — a token in the URL leaks into proxy/server logs.
@@ -177,10 +163,15 @@ export class RuntimeManager {
   }
 
   /**
-   * The WebSocket Sync URL of the runtime, for real-time updates.
+   * The host API URL of a notebook, below which its operations are served.
+   * Requests send auth in headers (see `headers()`), never in the URL.
    */
-  public getWsSyncURL(sessionId: SessionId): URL {
-    return this.formatWsURL("/ws_sync", this.getSessionSearchParams(sessionId));
+  public getNotebookURL(notebookId: NotebookId): URL {
+    const url = this.formatHttpURL({
+      path: `/api/marimo/v1/notebooks/${encodeURIComponent(notebookId)}`,
+    });
+    url.searchParams.delete(KnownQueryParams.accessToken);
+    return url;
   }
 
   /**

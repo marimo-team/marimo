@@ -13,21 +13,18 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # HoloViews in marimo
-        ```
-        pip install holoviews
-        ```
-        """
-    )
-    return
+    mo.md("""
+    # HoloViews in marimo
+    ```
+    pip install holoviews
+    ```
+    """)
 
 
 @app.cell
@@ -71,33 +68,34 @@ def _(backend, hv, mo, station_info):
 
 @app.cell
 def _(mo):
-    mo.md("""## Area chart""")
-    return
+    mo.md("""
+    ## Area chart
+    """)
 
 
 @app.cell
 def _(hv, np):
     xs = np.linspace(0, np.pi * 4, 40)
     hv.Area((xs, np.sin(xs)))
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""## Scatter chart""")
-    return
+    mo.md("""
+    ## Scatter chart
+    """)
 
 
 @app.cell
 def _(scatter):
     scatter
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# HV Plot""")
-    return
+    mo.md("""
+    # HV Plot
+    """)
 
 
 @app.cell
@@ -106,13 +104,13 @@ def _():
     from bokeh.sampledata.penguins import data as df
 
     df.hvplot.scatter(x="bill_length_mm", y="bill_depth_mm", by="species")
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Composed Views""")
-    return
+    mo.md("""
+    # Composed Views
+    """)
 
 
 @app.cell
@@ -128,13 +126,11 @@ def _():
 @app.cell
 def _(df3, df4):
     df3.hvplot.line("x", "y") * df4.hvplot.line("x", "y")
-    return
 
 
 @app.cell
 def _(df3, df4):
     df3.hvplot.line("x", "y") + df4.hvplot.line("x", "y")
-    return
 
 
 if __name__ == "__main__":

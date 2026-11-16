@@ -103,12 +103,16 @@ def test_accordion_expanded(
 @pytest.mark.parametrize("multiple", [False, True])
 def test_empty_accordion_expanded(multiple: bool) -> None:
     result = accordion({}, multiple=multiple, expanded=True)
-    assert "data-expanded='[]'" in result.text
+    match = re.search("data-expanded='(.*?)'", result.text)
+    assert match is not None
+    assert json.loads(html.unescape(match[1])) == []
 
 
 def test_accordion_default_collapsed() -> None:
     result = accordion({"Summary": "Overview"})
-    assert "data-expanded='[]'" in result.text
+    match = re.search("data-expanded='(.*?)'", result.text)
+    assert match is not None
+    assert json.loads(html.unescape(match[1])) == []
 
 
 @pytest.mark.parametrize("multiple", [False, True])

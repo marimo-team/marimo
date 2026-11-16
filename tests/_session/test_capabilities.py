@@ -113,3 +113,12 @@ def test_editor_can_do_everything() -> None:
     assert consumer_can(EDITOR, commands.ExecuteCellsCommand) is True
     assert consumer_can(EDITOR, commands.UpdateUIElementCommand) is True
     assert consumer_can(EDITOR, commands.InvokeFunctionCommand) is True
+
+
+def test_client_and_notebook_commands_are_disjoint() -> None:
+    client = set(typing.get_args(commands.ClientCommand))
+    notebook = set(typing.get_args(commands.NotebookCommand))
+
+    assert not (client & notebook), sorted(
+        c.__name__ for c in client & notebook
+    )

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -16,6 +16,7 @@ app = marimo.App(width="medium")
 def _():
     import os
     import marimo as mo
+
     return mo, os
 
 
@@ -37,13 +38,11 @@ def _(mo):
             "value": lambda x: x + 1,
         },
     )
-    return
 
 
 @app.cell
 def _(v):
     v.value
-    return
 
 
 if __name__ == "__main__":
