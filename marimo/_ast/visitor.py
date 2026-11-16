@@ -1151,14 +1151,17 @@ class ScopedVisitor(ast.NodeVisitor):
                             LexicalScope.CLASS,
                         ):
                             scopes = [
-                                scope
-                                for scope in self._visible_blocks()
-                                if scope.scope_kind
+                                enclosing
+                                for enclosing in self._visible_blocks()
+                                if enclosing.scope_kind
                                 in (LexicalScope.FUNCTION, LexicalScope.CLASS)
                             ]
-                            for scope in scopes:
-                                if scope.scope_kind is LexicalScope.FUNCTION:
-                                    scope.forward_locals[node.id].append(
+                            for enclosing in scopes:
+                                if (
+                                    enclosing.scope_kind
+                                    is LexicalScope.FUNCTION
+                                ):
+                                    enclosing.forward_locals[node.id].append(
                                         (node, scopes)
                                     )
                         node.id = mangled_name
