@@ -7,6 +7,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { useTheme } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
+import { LRUCache } from "@/utils/lru";
 
 interface Props {
   diagram: string;
@@ -55,9 +56,33 @@ const DEFAULT_CONFIG: MermaidConfig = {
   },
 };
 
+// Avoid re-rendering unchanged diagrams. Promises are cached to
+// de-duplicate concurrent render requests.
+const svgCache = new LRUCache<
+  string,
+  Promise<{ svg: string; renderId: string }>
+>(64);
+
+// Gantt charts draw a "today" marker from the current time.
+const TIME_DEPENDENT_DIAGRAM_TYPES = new Set(["gantt"]);
+
+// mermaid's config is global and read when a render starts, so concurrent
+// diagrams with different themes could otherwise render with each other's
+// config (and that SVG would be cached under the wrong key).
+let renderQueue: Promise<unknown> = Promise.resolve();
+
+function renderWithConfig(id: string, diagram: string, config: MermaidConfig) {
+  const result = renderQueue.then(() => {
+    mermaid.initialize(config);
+    return mermaid.render(id, diagram, undefined);
+  });
+  renderQueue = result.catch(() => undefined);
+  return result;
+}
+
 function randomAlpha() {
   const alphabet = "abcdefghijklmnopqrstuvwxyz";
-  const length = 6;
+  const length = 12;
   return Array.from(
     { length },
     () => alphabet[Math.floor(Math.random() * alphabet.length)],
@@ -65,31 +90,48 @@ function randomAlpha() {
 }
 
 const Mermaid: React.FC<Props> = ({ diagram, theme, themeVariables }) => {
+  // Long and prefixed to prevent collisions with SVG diagram text; when reading
+  // from the cache, we use replaceAll to swap the id.
   // oxlint-disable-next-line react/hook-use-state
-  const [id] = useState(() => randomAlpha());
+  const [id] = useState(() => `mermaid-${randomAlpha()}`);
 
   const darkMode = useTheme().theme === "dark";
   const resolvedTheme = theme ?? (darkMode ? "dark" : "forest");
-  mermaid.initialize({
-    ...DEFAULT_CONFIG,
-    theme: resolvedTheme as MermaidConfig["theme"],
-    themeVariables,
-    darkMode: darkMode,
-  });
 
   // Frontmatter does not work with newlines, so we trim the diagram to avoid these errors
   const trimmedDiagram = diagram.trim();
 
   const { data: svg, error } = useAsyncData(async () => {
-    const result = await mermaid
-      .render(id, trimmedDiagram, undefined)
-      .catch((error) => {
-        document.getElementById(id)?.remove();
-        Logger.warn("Failed to render mermaid diagram", error);
-        throw error;
+    const key = JSON.stringify([
+      trimmedDiagram,
+      resolvedTheme,
+      darkMode,
+      themeVariables,
+    ]);
+    let cached = svgCache.get(key);
+    if (cached === undefined) {
+      cached = renderWithConfig(id, trimmedDiagram, {
+        ...DEFAULT_CONFIG,
+        theme: resolvedTheme as MermaidConfig["theme"],
+        themeVariables,
+        darkMode,
+      }).then((result) => {
+        if (TIME_DEPENDENT_DIAGRAM_TYPES.has(result.diagramType)) {
+          svgCache.delete(key);
+        }
+        return { svg: result.svg, renderId: id };
       });
+      svgCache.set(key, cached);
+    }
+    const result = await cached.catch((error) => {
+      svgCache.delete(key);
+      document.getElementById(id)?.remove();
+      Logger.warn("Failed to render mermaid diagram", error);
+      throw error;
+    });
 
-    return result.svg;
+    // The SVG's styles and markers are scoped by its render id.
+    return result.svg.replaceAll(result.renderId, id);
   }, [trimmedDiagram, id, darkMode, resolvedTheme, themeVariables]);
 
   if (error) {
