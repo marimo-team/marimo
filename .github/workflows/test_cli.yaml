@@ -140,7 +140,7 @@ jobs:
     if: ${{ needs.changes.outputs.cli == 'true' }}
     name: Tests CLI on ${{ matrix.os }} ${{ matrix.python-version }}
     runs-on: "${{ matrix.os == 'windows-latest' && (vars.CI_RUNNER_WINDOWS || 'windows-latest') || (matrix.os) }}"
-    timeout-minutes: 10 # 2024-01-18 avg: 2.5m max: 4.5m
+    timeout-minutes: 15 # 2026-11-16 windows: setup 3m, tests 6.5m, process cleanup 1m+
     strategy:
       matrix:
         python-version: ["3.12"]
