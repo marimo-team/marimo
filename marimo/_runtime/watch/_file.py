@@ -26,7 +26,7 @@ def watch_file(
     path: Path, state: FileState, should_exit: threading.Event
 ) -> None:
     """Watch a file for changes and update the state."""
-    last_mtime: float = 0
+    last_mtime = state._initial_mtime
     current_mtime = last_mtime
     sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
     while not should_exit.is_set():
@@ -66,8 +66,14 @@ class FileState(PathState):
         watch_file
     )
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, path: Path, *args: Any, **kwargs: Any) -> None:
+        # Read the baseline before the watcher thread starts, so an edit that
+        # lands before the thread runs is still reported.
+        try:
+            self._initial_mtime = path.stat().st_mtime
+        except OSError:
+            self._initial_mtime = 0.0
+        super().__init__(path, *args, **kwargs)
         self._debounced = False
         self._debounce_lock = threading.Lock()
 
