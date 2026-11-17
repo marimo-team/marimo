@@ -13,6 +13,7 @@ from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleTuple
 from marimo._messaging.notification import (
+    BreakpointsNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -46,6 +47,7 @@ from marimo._runtime.commands import (
     ExecuteCellsCommand,
     ModelCommand,
     ModelUpdateMessage,
+    SetBreakpointsCommand,
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
@@ -191,6 +193,7 @@ class SessionView:
         self.variable_values: dict[str, VariableValue] = {}
         # Map of object id to value.
         self.ui_values: dict[str, Any] = {}
+        self.breakpoints = BreakpointsNotification(breakpoints={})
         # Map of cell id to the last code that was executed in that cell.
         self.last_executed_code: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
@@ -238,6 +241,10 @@ class SessionView:
         if isinstance(request, UpdateUIElementCommand):
             for object_id, value in request.ids_and_values:
                 self._add_ui_value(object_id, value)
+        elif isinstance(request, SetBreakpointsCommand):
+            self.breakpoints = BreakpointsNotification(
+                breakpoints=request.breakpoints
+            )
         elif isinstance(request, (ExecuteCellsCommand, SyncGraphCommand)):
             for execution_request in request.execution_requests:
                 self._add_last_run_code(execution_request)
@@ -624,7 +631,7 @@ class SessionView:
         return copy.deepcopy(notifications)
 
     def _notebook_notifications(self) -> list[NotificationMessage]:
-        all_notifications: list[NotificationMessage] = []
+        all_notifications: list[NotificationMessage] = [self.breakpoints]
         if self.variable_notifications.variables:
             all_notifications.append(self.variable_notifications)
         if self.variable_values:

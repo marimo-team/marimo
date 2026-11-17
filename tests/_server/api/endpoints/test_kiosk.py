@@ -77,6 +77,10 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                     receive_notification(other_websocket)["op"]
                     == "environment-state"
                 )
+            assert receive_notification(other_websocket)["data"] == {
+                "op": "breakpoints",
+                "breakpoints": {},
+            }
 
             # Edit the notebook through the host
             response = client.post(

@@ -14,9 +14,8 @@ import { Logger } from "@/utils/Logger";
  *   currently executing (driven by `active-line` notifications), plus when
  *   the frontend first saw execution on that line. Only one cell runs at a
  *   time, so a single global value suffices.
- * - `breakpointsAtom` holds the user's gutter breakpoints, session-only. It is
- *   the source of truth; mutations are mirrored to the kernel via
- *   `sendSetBreakpoints`.
+ * - `breakpointsAtom` mirrors the session's breakpoint notifications, with
+ *   optimistic gutter edits sent through `sendSetBreakpoints`.
  */
 
 export interface ActiveLine {
@@ -103,14 +102,6 @@ export function clearCellBreakpoints(cellId: CellId): void {
   next.delete(cellId);
   store.set(breakpointsAtom, next);
   sendBreakpoints(next);
-}
-
-/** Re-push the current breakpoints to a freshly started kernel, whose `MarimoPdb` starts empty. */
-export function resyncBreakpoints(): void {
-  const current = store.get(breakpointsAtom);
-  if (current.size > 0) {
-    sendBreakpoints(current);
-  }
 }
 
 /** Toggle a breakpoint at `(cellId, line)` and sync the full set to the kernel. */

@@ -56,6 +56,23 @@ components:
       - description
       title: BannerNotification
       type: object
+    BreakpointsNotification:
+      description: The session's complete breakpoint set, restored on connection.
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        op:
+          enum:
+          - breakpoints
+      required:
+      - op
+      - breakpoints
+      title: BreakpointsNotification
+      type: object
     CacheClearedNotification:
       description: "Execution cache cleared result.\n\n    Attributes:\n        bytes_freed:\
         \ Bytes freed by clearing cache."

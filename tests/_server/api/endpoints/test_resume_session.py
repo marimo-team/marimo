@@ -30,6 +30,7 @@ from tests._server.api.endpoints.ws_helpers import (
     create_response,
     headers,
     receive_notification,
+    receive_until,
 )
 from tests._server.host.drive import socket_snapshot
 from tests._server.mocks import (
@@ -113,6 +114,65 @@ def test_refresh_session(client: TestClient) -> None:
     # Check the session switch IDs
     assert not get_session(client, "456")
     assert get_session(client, "789")
+
+
+@pytest.mark.parametrize("refresh", [False, True])
+def test_breakpoints_follow_the_server_session(
+    client: TestClient, refresh: bool
+) -> None:
+    with client.websocket_connect(
+        _create_ws_url("breakpoints-1")
+    ) as websocket:
+        assert receive_until("breakpoints", websocket)["data"] == {
+            "op": "breakpoints",
+            "breakpoints": {},
+        }
+        for breakpoints in ({"cell1": [1, 3]}, {"cell2": [2]}):
+            response = client.post(
+                "/api/kernel/pdb/breakpoints",
+                headers=headers("breakpoints-1"),
+                json={"breakpoints": breakpoints},
+            )
+            assert response.status_code == 200, response.text
+
+    session_id = "breakpoints-2" if refresh else "breakpoints-1"
+    with client.websocket_connect(_create_ws_url(session_id)) as websocket:
+        assert receive_until("breakpoints", websocket)["data"] == {
+            "op": "breakpoints",
+            "breakpoints": {"cell2": [2]},
+        }
+        response = client.post(
+            "/api/kernel/pdb/breakpoints",
+            headers=headers(session_id),
+            json={"breakpoints": {}},
+        )
+        assert response.status_code == 200, response.text
+
+    with client.websocket_connect(_create_ws_url(session_id)) as websocket:
+        assert receive_until("breakpoints", websocket)["data"] == {
+            "op": "breakpoints",
+            "breakpoints": {},
+        }
+        response = client.post(
+            "/api/kernel/pdb/breakpoints",
+            headers=headers(session_id),
+            json={"breakpoints": {"cell2": [2]}},
+        )
+        assert response.status_code == 200, response.text
+
+    response = client.post(
+        "/api/home/shutdown_session",
+        headers=headers(session_id),
+        json={"sessionId": session_id},
+    )
+    assert response.status_code == 200, response.text
+    with client.websocket_connect(_create_ws_url(session_id)) as websocket:
+        ready = receive_notification(websocket)["data"]
+        assert ready["resumed"] is False
+        assert receive_until("breakpoints", websocket)["data"] == {
+            "op": "breakpoints",
+            "breakpoints": {},
+        }
 
 
 def test_refresh_resumes_directory_workspace_session(

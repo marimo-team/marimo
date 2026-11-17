@@ -3827,6 +3827,17 @@ export interface components {
       region_name?: string;
     };
     /**
+     * BreakpointsNotification
+     * @description The session's complete breakpoint set, restored on connection.
+     */
+    BreakpointsNotification: {
+      breakpoints: {
+        [key: string]: number[];
+      };
+      /** @enum {unknown} */
+      op: "breakpoints";
+    };
+    /**
      * CacheClearedNotification
      * @description Execution cache cleared result.
      *
@@ -6267,6 +6278,7 @@ export interface components {
       | components["schemas"]["CacheClearedNotification"]
       | components["schemas"]["CacheInfoNotification"]
       | components["schemas"]["FocusCellNotification"]
+      | components["schemas"]["BreakpointsNotification"]
       | components["schemas"]["ActiveLineNotification"]
       | components["schemas"]["NotebookDocumentTransactionNotification"]
       | components["schemas"]["ConsumerCapabilitiesNotification"];

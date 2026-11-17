@@ -1027,6 +1027,13 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
+class BreakpointsNotification(Notification, tag="breakpoints"):
+    """The session's complete breakpoint set, restored on connection."""
+
+    name: ClassVar[str] = "breakpoints"
+    breakpoints: dict[CellId_t, list[int]]
+
+
 class ActiveLineNotification(Notification, tag="active-line"):
     """Reports the line a cell's frame watcher is currently executing.
 
@@ -1153,6 +1160,7 @@ NotificationMessage = (
     # Kiosk
     | FocusCellNotification
     # Debugger
+    | BreakpointsNotification
     | ActiveLineNotification
     # Document
     | NotebookDocumentTransactionNotification

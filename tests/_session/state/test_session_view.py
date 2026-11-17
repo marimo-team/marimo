@@ -20,6 +20,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
+    BreakpointsNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -2544,6 +2545,7 @@ def test_snapshot_notifications_preserve_replay_order(
             state=EnvironmentState(restart_required=False, operations=[]),
         ),
         progress,
+        BreakpointsNotification(breakpoints={}),
         model,
         cell,
     ]

@@ -393,6 +393,23 @@ components:
       required: []
       title: BedrockConfig
       type: object
+    BreakpointsNotification:
+      description: The session's complete breakpoint set, restored on connection.
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        op:
+          enum:
+          - breakpoints
+      required:
+      - op
+      - breakpoints
+      title: BreakpointsNotification
+      type: object
     CacheClearedNotification:
       description: "Execution cache cleared result.\n\nAttributes:\n    bytes_freed:\
         \ Bytes freed by clearing cache."
@@ -4458,6 +4475,7 @@ components:
       - $ref: '#/components/schemas/CacheClearedNotification'
       - $ref: '#/components/schemas/CacheInfoNotification'
       - $ref: '#/components/schemas/FocusCellNotification'
+      - $ref: '#/components/schemas/BreakpointsNotification'
       - $ref: '#/components/schemas/ActiveLineNotification'
       - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
       - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
@@ -4466,6 +4484,7 @@ components:
           active-line: '#/components/schemas/ActiveLineNotification'
           alert: '#/components/schemas/AlertNotification'
           banner: '#/components/schemas/BannerNotification'
+          breakpoints: '#/components/schemas/BreakpointsNotification'
           cache-cleared: '#/components/schemas/CacheClearedNotification'
           cache-info: '#/components/schemas/CacheInfoNotification'
           cell-op: '#/components/schemas/CellNotification'
