@@ -381,13 +381,21 @@ class Executions:
                                     result.execution.run_id,
                                 )
                             )
-            case be.Concluded(execution_id=execution_id, outcome=outcome):
+            case be.Displayed(execution_id=execution_id, display=display):
                 if (
                     result := self._results.get(execution_id)
-                ) is not None and result.execution.status != "completed":
+                ) is not None and (
+                    result.execution.status != "completed"
+                    or isinstance(
+                        result.execution.outcome, protocol.ValueOutcome
+                    )
+                ):
                     changes.append(
                         self._set_execution(
-                            replace(result.execution, outcome=outcome)
+                            replace(
+                                result.execution,
+                                outcome=protocol.ValueOutcome(display),
+                            )
                         )
                     )
             case be.Done(run_id=run_id, outcome=outcome):

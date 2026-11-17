@@ -132,12 +132,13 @@ class RunTranslator:
         if execution is None:
             return []
         out = self._console(execution, notification)
-        if execution.ended or self._finished:
-            return out
         if notification.output is not None:
             output = notification.output
-            if output.channel == CellChannel.MARIMO_ERROR and isinstance(
-                output.data, list
+            if (
+                not execution.ended
+                and not self._finished
+                and output.channel == CellChannel.MARIMO_ERROR
+                and isinstance(output.data, list)
             ):
                 execution.errors.extend(output.data)
             elif output.channel == CellChannel.OUTPUT:
@@ -146,12 +147,14 @@ class RunTranslator:
                     if isinstance(output.data, str)
                     else json.dumps(output.data)
                 )
-                execution.outcome = protocol.ValueOutcome(
+                display = (
                     None
                     if output.mimetype == "text/plain" and text == ""
                     else displayed(output.mimetype, text)
                 )
-                out.append(be.Concluded(execution.id, execution.outcome))
+                if not execution.ended:
+                    execution.outcome = protocol.ValueOutcome(display)
+                out.append(be.Displayed(execution.id, display))
         return out
 
     def _plan(self, notification: ExecutionNotification) -> be.Planned:
