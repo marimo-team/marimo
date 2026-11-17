@@ -12,6 +12,7 @@ from typing import (
     Protocol,
     cast,
 )
+from urllib.parse import quote
 
 if TYPE_CHECKING:
     from typing import TypeAlias
@@ -90,6 +91,21 @@ class ASGIAppBuilder(abc.ABC):
 ValidateCallback: TypeAlias = Callable[[str, "Scope"], Awaitable[bool] | bool]
 
 
+def _slash_redirect_url(scope: Scope) -> str:
+    path = scope["path"]
+    root_path = scope.get("root_path", "").rstrip("/")
+    if (
+        root_path
+        and path != root_path
+        and not path.startswith(root_path + "/")
+    ):
+        path = root_path + path
+    # ASGI paths are decoded; quote delimiters before adding the query string.
+    url = quote("/" + path.lstrip("/").rstrip("/") + "/", safe="/")
+    query = scope.get("query_string", b"").decode("latin-1")
+    return f"{url}?{query}" if query else url
+
+
 class DynamicDirectoryMiddleware:
     def __init__(
         self,
@@ -118,25 +134,11 @@ class DynamicDirectoryMiddleware:
         )
 
     def _redirect_response(self, scope: Scope) -> Response:
-        from starlette.requests import Request
         from starlette.responses import RedirectResponse
 
-        request = Request(scope)
-
-        # Get the path and query string
-        path = request.url.path
-        query_string = request.url.query
-
-        # Build the redirect URL with query params
-        redirect_url = f"{path}/"
-        root_path = request.scope.get("root_path", "").rstrip("/")
-        if root_path and not redirect_url.startswith(root_path):
-            redirect_url = f"{root_path}{redirect_url}"
-        if query_string:
-            redirect_url = f"{redirect_url}?{query_string}"
-
-        LOGGER.debug(f"Redirecting to: {redirect_url}")
-        return RedirectResponse(url=redirect_url, status_code=307)
+        return RedirectResponse(
+            url=_slash_redirect_url(scope), status_code=307
+        )
 
     def _is_within_directory(self, path: Path) -> bool:
         """Check that `path` resolves to a location within the directory.
@@ -601,17 +603,9 @@ def create_asgi_app(
             )
 
             def redirect_to_slash(request: Request) -> Response:
-                path = request.url.path
-                if not path.startswith("/"):
-                    path = f"/{path}"
-                if not path.endswith("/"):
-                    path = f"{path}/"
-                root_path = request.scope.get("root_path", "").rstrip("/")
-                if root_path and not path.startswith(root_path):
-                    path = f"{root_path}{path}"
-                if request.url.query:
-                    path = f"{path}?{request.url.query}"
-                return RedirectResponse(url=path, status_code=301)
+                return RedirectResponse(
+                    url=_slash_redirect_url(request.scope), status_code=301
+                )
 
             for path, root, middleware in self._mount_configs:
                 if root not in self._app_cache:

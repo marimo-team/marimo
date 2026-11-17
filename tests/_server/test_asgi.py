@@ -17,6 +17,7 @@ from starlette.testclient import TestClient
 from marimo._server.asgi import (
     ASGIAppBuilder,
     DynamicDirectoryMiddleware,
+    _slash_redirect_url,
     create_asgi_app,
 )
 from tests._server.conftest import join_kernel_thread_tasks
@@ -250,91 +251,6 @@ class TestASGIAppBuilder(unittest.TestCase):
         # Health check
         response = client.get("/marimo/app1/health")
         assert response.status_code == 200, response.text
-
-    def test_nested_submount_redirect(self) -> None:
-        """Test that submount paths redirect to absolute path with trailing slash without duplication."""
-        builder = (
-            create_asgi_app(quiet=True, include_code=True)
-            .with_app(path="/sales", root=self.app1)
-            .with_app(path="/sales/invoices", root=self.app2)
-        )
-        app = builder.build()
-        client = TestClient(app)
-
-        # Single path redirects to absolute /sales/
-        response = client.get("/sales", follow_redirects=False)
-        assert response.status_code == 301
-        assert response.headers["location"] == "/sales/"
-
-        # Nested path redirects to absolute /sales/invoices/, not relative sales/invoices/
-        response = client.get("/sales/invoices", follow_redirects=False)
-        assert response.status_code == 301
-        assert response.headers["location"] == "/sales/invoices/"
-
-        # Following redirect resolves correctly to /sales/invoices/ (not /sales/sales/invoices/)
-        response = client.get("/sales/invoices", follow_redirects=True)
-        assert response.status_code == 200
-        assert str(response.url) == "http://testserver/sales/invoices/"
-        assert "app2.py" in response.text
-
-    def test_nested_submount_redirect_preserves_query_params(self) -> None:
-        """Test that redirects preserve query parameters."""
-        builder = create_asgi_app(quiet=True, include_code=True).with_app(
-            path="/sales/invoices", root=self.app2
-        )
-        app = builder.build()
-        client = TestClient(app)
-
-        response = client.get(
-            "/sales/invoices?date=2024&tab=overview",
-            follow_redirects=False,
-        )
-        assert response.status_code == 301
-        assert (
-            response.headers["location"]
-            == "/sales/invoices/?date=2024&tab=overview"
-        )
-
-    def test_nested_submount_redirect_mounted_at_non_root(self) -> None:
-        """Test nested redirects when the ASGI app is mounted under a parent path."""
-        builder = (
-            create_asgi_app(quiet=True, include_code=True)
-            .with_app(path="/sales", root=self.app1)
-            .with_app(path="/sales/invoices", root=self.app2)
-        )
-        app = builder.build()
-
-        base_app = Starlette()
-        base_app.mount("/portal", app)
-        client = TestClient(base_app)
-
-        # Direct access to submount under parent prefix
-        response = client.get(
-            "/portal/sales/invoices",
-            follow_redirects=False,
-        )
-        assert response.status_code == 301
-        assert response.headers["location"] == "/portal/sales/invoices/"
-
-        # With query params
-        response = client.get(
-            "/portal/sales/invoices?query=test",
-            follow_redirects=False,
-        )
-        assert response.status_code == 301
-        assert (
-            response.headers["location"]
-            == "/portal/sales/invoices/?query=test"
-        )
-
-        # Following redirect loads correctly
-        response = client.get(
-            "/portal/sales/invoices",
-            follow_redirects=True,
-        )
-        assert response.status_code == 200
-        assert str(response.url) == "http://testserver/portal/sales/invoices/"
-        assert "app2.py" in response.text
 
     def test_app_with_middleware(self):
         # Create a simple middleware
@@ -1497,3 +1413,67 @@ def default_app_builder(base_url: str, file_path: str) -> Starlette:
 
     app.add_route("/{path:path}", handle)
     return app
+
+
+@pytest.mark.parametrize("dynamic", [False, True])
+@pytest.mark.parametrize("prefix", ["", "/portal", "/portal/nested"])
+@pytest.mark.parametrize(
+    ("name", "encoded_name"),
+    [
+        ("invoices", "invoices"),
+        ("sales report", "sales%20report"),
+        ("café", "caf%C3%A9"),
+    ],
+)
+def test_notebook_slash_redirect(
+    tmp_path: Path, dynamic: bool, prefix: str, name: str, encoded_name: str
+) -> None:
+    notebook = tmp_path / f"{name}.py"
+    notebook.write_text(contents)
+    builder = create_asgi_app(quiet=True, include_code=True)
+    if dynamic:
+        builder.with_dynamic_directory(path="/sales", directory=str(tmp_path))
+    else:
+        builder.with_app(path=f"/sales/{name}", root=str(notebook))
+        parent = tmp_path / "parent.py"
+        parent.write_text(contents)
+        builder.with_app(path="/sales", root=str(parent))
+    app = Starlette()
+    app.mount(prefix or "/", builder.build())
+    query = "?tab=a%2Fb&tab=c+d&empty=&flag&percent=%25"
+    path = f"{prefix}/sales/{encoded_name}"
+    with TestClient(app) as client:
+        response = client.get(path + query, follow_redirects=False)
+        assert response.status_code == (307 if dynamic else 301)
+        assert response.headers["location"] == path + "/" + query
+        response = client.get(path + query)
+        assert response.status_code == 200
+        assert len(response.history) == 1
+
+
+@pytest.mark.parametrize(
+    ("root_path", "path", "expected"),
+    [
+        ("/portal", "/sales/invoices", "/portal/sales/invoices/"),
+        ("/portal/", "/sales/invoices", "/portal/sales/invoices/"),
+        ("/portal", "/portal/sales/invoices", "/portal/sales/invoices/"),
+        (
+            "/portal",
+            "/portal-other/invoices",
+            "/portal/portal-other/invoices/",
+        ),
+        ("/portal", "/portal", "/portal/"),
+        ("", "/report?#%", "/report%3F%23%25/"),
+        ("", "//example.com/report", "/example.com/report/"),
+    ],
+)
+def test_slash_redirect_scope(
+    root_path: str, path: str, expected: str
+) -> None:
+    scope: Scope = {
+        "type": "http",
+        "root_path": root_path,
+        "path": path,
+        "query_string": b"value=%2F&value=+&empty=",
+    }
+    assert _slash_redirect_url(scope) == expected + "?value=%2F&value=+&empty="
