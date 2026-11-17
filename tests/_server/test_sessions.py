@@ -684,6 +684,28 @@ def __():
     )
     file_key = str(tmp_file)
 
+    class WatchingConsumer(MockSessionConsumer):
+        def __init__(self) -> None:
+            super().__init__()
+            self.updated = asyncio.Event()
+
+        def notify(self, notification: KernelMessage) -> None:
+            super().notify(notification)
+            if isinstance(
+                self.notify_calls[-1], NotebookDocumentTransactionNotification
+            ):
+                self.updated.set()
+
+    async def wait_for_updates(*consumers: WatchingConsumer) -> None:
+        await asyncio.wait_for(
+            asyncio.gather(
+                *(consumer.updated.wait() for consumer in consumers)
+            ),
+            timeout=5,
+        )
+        for consumer in consumers:
+            consumer.updated.clear()
+
     try:
         # Create a session manager with file watching enabled
         workspace = SingleFileWorkspace.from_path(MarimoPath(tmp_file))
@@ -710,7 +732,7 @@ def __():
             watch=True,
         )
 
-        session_consumer = MockSessionConsumer()
+        session_consumer = WatchingConsumer()
 
         # Create a session
         await session_manager.create_session(
@@ -735,11 +757,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer)
 
         # Check that a document transaction was sent with the new code
         tx_ops = [
@@ -750,7 +768,7 @@ def __():
         assert len(tx_ops) >= 1
 
         # Create another session for the same file
-        session_consumer2 = MockSessionConsumer()
+        session_consumer2 = WatchingConsumer()
         await session_manager.create_session(
             session_id=SessionId("test2"),
             session_consumer=session_consumer2,
@@ -773,11 +791,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer, session_consumer2)
 
         # Both sessions should receive the update
         update_ops = [
@@ -808,11 +822,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer2.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer2)
 
         # Only one session should receive the update
         update_ops2 = [

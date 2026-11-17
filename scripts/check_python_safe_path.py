@@ -6,7 +6,7 @@ Python strings. Recognizes `sys.executable`, Python paths, and common interprete
 names. Does not resolve arbitrary aliases or commands built through mutations.
 
 Usage: uv run python scripts/check_python_safe_path.py [FILE_OR_DIR ...]
-Defaults to `marimo/`.
+Defaults to production Python files in `marimo/` (excluding smoke notebooks).
 """
 
 from __future__ import annotations
@@ -110,7 +110,12 @@ def offending_lines(path: Path) -> list[int]:
 
 
 def main(argv: list[str]) -> int:
-    targets = [Path(arg) for arg in argv] or [REPO_ROOT / "marimo"]
+    targets = [Path(arg) for arg in argv] or [
+        path
+        for path in (REPO_ROOT / "marimo").iterdir()
+        if path.name != "_smoke_tests"
+        and (path.is_dir() or path.suffix == ".py")
+    ]
     failed = False
     for target in targets:
         paths = sorted(target.rglob("*.py")) if target.is_dir() else [target]
