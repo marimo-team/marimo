@@ -58,6 +58,11 @@ marimo/_static: $(shell find frontend/src) $(wildcard frontend/*)
 marimo/_lsp: $(shell find packages/lsp)
 	./scripts/buildlsp.sh
 
+.PHONY: license-snapshot
+# Generate the third-party dependency license snapshot
+license-snapshot:
+	./scripts/generate_license.sh
+
 .PHONY: dev
 dev: fe-codegen
 	@echo "Starting development servers..."

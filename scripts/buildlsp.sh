@@ -25,6 +25,7 @@ if pnpm turbo build --filter @marimo-team/lsp; then
     # the period after dist/ is important here.
     cp -R packages/lsp/dist/. marimo/_lsp/copilot/
   fi
+  cp packages/lsp/node_modules/@github/copilot-language-server/LICENSE marimo/_lsp/copilot/LICENSE
   echo "Compilation succeeded.\n"
 else
   echo "LSP compilation failed.\n"
