@@ -246,7 +246,7 @@ describe("document synchronization", () => {
     expect(value()?.code).toBe("local");
 
     store.set(backendAtom, backend);
-    await vi.advanceTimersByTimeAsync(400);
+    await vi.advanceTimersByTimeAsync(100);
     expect(sent).toHaveBeenCalledOnce();
   });
 });

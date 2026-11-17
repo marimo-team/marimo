@@ -42,7 +42,7 @@ interface Submission {
 const RETRY_WINDOW_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 3;
-const DEBOUNCE_MS = 400;
+const BATCH_WINDOW_MS = 100;
 
 function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -133,19 +133,21 @@ export function createDocumentSync({
       if (running || failure) {
         return;
       }
-      clearTimer();
       const changes = store.get(state.changesAtom);
       if (changes === null || store.get(backendAtom) === null) {
+        clearTimer();
         store.set(statusAtom, { status: "unavailable" });
       } else if (changes.length === 0) {
+        clearTimer();
         // Release unsent reversals instead of keeping an invisible override.
         store.set(state.submitAtom);
         store.set(statusAtom, { status: "idle" });
-      } else {
-        store.set(statusAtom, { status: "pending" });
+      } else if (timer === undefined) {
+        // Only the first batch waits. The drain sends later edits on confirmation.
         timer = setTimeout(() => {
           void flush().catch(() => undefined);
-        }, DEBOUNCE_MS);
+        }, BATCH_WINDOW_MS);
+        store.set(statusAtom, { status: "pending" });
       }
     } finally {
       refreshing = false;
