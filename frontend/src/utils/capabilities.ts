@@ -8,7 +8,7 @@ import { once } from "./once";
  */
 export interface IframeCapabilities {
   /** Whether the app is running inside an iframe */
-  isEmbedded: boolean;
+  isEmbeddeds: boolean;
   /** Whether localStorage is available */
   hasLocalStorage: boolean;
   /** Whether sessionStorage is available */
