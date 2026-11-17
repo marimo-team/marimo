@@ -245,25 +245,35 @@ or by running `marimo tutorial markdown`.
 
 ### How do I use logging in marimo?
 
-Use Python's standard [`logging`](https://docs.python.org/3/library/logging.html)
-module. In the editor, messages written to standard output or standard error
-appear below the cell and in the **Logs** tab of the
-[developer panel](guides/editor_features/panels.md). Configure logger and handler
-levels in Python to choose which messages are emitted; the panel's **STDOUT**
-and **STDERR** labels identify streams, not Python log levels.
+You can use Python's standard
+[`logging`](https://docs.python.org/3/library/logging.html) module. In the editor,
+messages appear below the cell and in **Logs** in the
+[developer panel](guides/editor_features/panels.md). Configure logging levels in
+Python to control which messages are emitted:
 
-To clear the console below a cell while retaining its messages in Logs, call
-[`mo.output.clear_console()`][marimo.output.clear_console] after logging in the
-same cell. This clears all of that cell's console output, including `print()`
-output, without changing its visual output or other cells' consoles. Messages
-can appear before the clear call, and later writes appear again: this does not
-provide a destination that sends messages exclusively to Logs.
+```python
+import logging
 
-Toggle the developer panel with `Cmd/Ctrl-J` and select **Logs** to view messages.
-Its **Clear** button clears the panel's history without clearing cell consoles;
-hiding the panel does not stop logging. For apps served with `marimo run`,
-console output goes to the invoking terminal by default; pass
-`--redirect-console-to-browser` to send it to the browser instead.
+logging.basicConfig(level=logging.INFO)
+logging.info("Loading data")
+logging.warning("Some rows contain missing values")
+```
+
+Within a cell, call [`mo.output.clear_console()`][marimo.output.clear_console]
+after logging to clear the console below that cell while retaining its messages
+in **Logs**:
+
+```python
+import marimo as mo
+
+logging.warning("Some rows contain missing values")
+mo.output.clear_console()
+```
+
+This also clears the cell's `print()` output, without affecting its visual output
+or other cells' consoles. Messages can appear before the clear call. For apps
+served with `marimo run`, console output goes to the invoking terminal by default.
+Pass `--redirect-console-to-browser` to send it to the browser instead.
 
 <a name="faq-plots"></a>
 
