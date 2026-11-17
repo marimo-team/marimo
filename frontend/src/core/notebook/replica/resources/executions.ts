@@ -2,7 +2,12 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { NotebookResource } from "@marimo-team/client";
-import { type Result, type Results, retainResult } from "./results";
+import {
+  type Result,
+  type Results,
+  retainResult,
+  retainScratchResult,
+} from "./results";
 
 /** A console line, display, or input an execution produced, tagged by kind. */
 export type Item =
@@ -31,6 +36,7 @@ export interface Executions {
   /** The execution on the stream for each cell that has one. */
   readonly latest: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>;
   readonly results: Results;
+  readonly scratch: Result | null;
 }
 
 type Kind =
@@ -147,7 +153,7 @@ export function resumeResults(
   for (const [id, execution] of resumed) {
     const retained =
       execution.record.cell_id === null
-        ? null
+        ? previous.scratch
         : previous.results.get(execution.record.cell_id);
     const before =
       previous.executions.get(id) ??
@@ -172,7 +178,17 @@ export function resumeResults(
         : { record: execution.record, outputVersion: execution.outputVersion },
     );
   }
-  return { ...next, executions: resumed, results };
+  const scratch =
+    next.scratch === null ? null : resumed.get(next.scratch.record.id);
+  return {
+    ...next,
+    executions: resumed,
+    results,
+    scratch:
+      scratch == null
+        ? previous.scratch
+        : retainScratchResult(previous.scratch, scratch),
+  };
 }
 
 export const executions: NotebookResource<Executions, Kind> = {
@@ -181,6 +197,7 @@ export const executions: NotebookResource<Executions, Kind> = {
     executions: new Map(),
     latest: new Map(),
     results: new Map(),
+    scratch: null,
   },
   on: {
     cell: (state, { data }) =>
@@ -214,6 +231,7 @@ export const executions: NotebookResource<Executions, Kind> = {
       return {
         ...set(state, execution),
         results: retainResult(state.results, execution),
+        scratch: retainScratchResult(state.scratch, execution),
       };
     },
     "execution.removed": (state, { data }) => remove(state, data.id),

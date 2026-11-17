@@ -38,6 +38,7 @@ const NO_EXECUTIONS: Executions = {
   executions: new Map(),
   latest: new Map(),
   results: new Map(),
+  scratch: null,
 };
 const NO_RESULTS: Results = new Map();
 const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();

@@ -54,6 +54,7 @@ function setup(runs: Protocol.Run[]) {
     executions: new Map(),
     latest: new Map(),
     results: new Map(),
+    scratch: null,
   });
   return { store, replica, interrupt };
 }

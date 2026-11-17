@@ -95,6 +95,7 @@ function inputs({
 }): CellFreshnessInputs {
   const stream: Executions = {
     results: new Map(),
+    scratch: null,
     runs: new Map(),
     executions: new Map(executions.map((e) => [e.record.id, e])),
     latest: new Map(

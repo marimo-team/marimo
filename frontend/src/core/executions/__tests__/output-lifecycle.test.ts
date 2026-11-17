@@ -15,6 +15,7 @@ import {
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { Deferred } from "@/utils/Deferred";
 import { cellOutputAtom, clearCellOutputs } from "../atoms";
+import { scratchOutputView } from "../output";
 
 const C1 = cellId("c1");
 const value = (data: string): Protocol.Outcome => ({
@@ -130,5 +131,71 @@ describe("output lifetime", () => {
     expect(store.get(cellOutputAtom(C1))).toBeNull();
     emit({ ...next, outcome: value("A") });
     expect(store.get(cellOutputAtom(C1))?.data).toBe("A");
+  });
+  it("keeps the scratch display after its execution expires", async () => {
+    const { store, replica, emit, remove, snapshot } = await setup();
+    const scratch = MockExecutions.completed("scratch", {
+      cell_id: null,
+      outcome: value("scratch result"),
+    });
+    snapshot([scratch]);
+    const before = scratchOutputView(store.get(replica.executionsAtom));
+    expect(before?.data).toBe("scratch result");
+    remove(scratch);
+    expect(store.get(replica.executionsAtom).executions.size).toBe(0);
+    expect(scratchOutputView(store.get(replica.executionsAtom))).toEqual(
+      before,
+    );
+    snapshot([]);
+    expect(scratchOutputView(store.get(replica.executionsAtom))).toEqual(
+      before,
+    );
+
+    const next = {
+      ...MockExecutions.running("scratch"),
+      cell_id: null,
+      started_at: "2026-10-01T09:22:00Z",
+    };
+    emit(next);
+    expect(scratchOutputView(store.get(replica.executionsAtom))).toEqual(
+      before,
+    );
+    emit({ ...next, outcome: value("next") });
+    expect(scratchOutputView(store.get(replica.executionsAtom))?.data).toBe(
+      "next",
+    );
+    emit({
+      ...next,
+      status: "completed",
+      completed_at: "2026-10-01T09:22:01Z",
+      outcome: value("next"),
+    });
+    remove(next);
+    expect(scratchOutputView(store.get(replica.executionsAtom))?.data).toBe(
+      "next",
+    );
+    snapshot([], "n2");
+    expect(scratchOutputView(store.get(replica.executionsAtom))).toBeNull();
+  });
+
+  it("keeps scratch output cleared when an empty execution expires", async () => {
+    const { store, replica, emit, remove, snapshot } = await setup();
+    snapshot([
+      MockExecutions.completed("scratch", {
+        cell_id: null,
+        outcome: value("old"),
+      }),
+    ]);
+    const cleared = MockExecutions.completed("scratch", {
+      cell_id: null,
+      outcome: { kind: "value", display: null },
+      completed_at: "2026-10-01T09:22:00Z",
+    });
+    emit(cleared);
+    expect(scratchOutputView(store.get(replica.executionsAtom))).toBeNull();
+    remove(cleared);
+    expect(scratchOutputView(store.get(replica.executionsAtom))).toBeNull();
+    snapshot([]);
+    expect(scratchOutputView(store.get(replica.executionsAtom))).toBeNull();
   });
 });

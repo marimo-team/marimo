@@ -42,3 +42,22 @@ export function retainResult(state: Results, result: Result): Results {
   }
   return new Map(state).set(cellId, { record, outputVersion });
 }
+
+/** Keep just the latest scratch display, independently of execution history. */
+export function retainScratchResult(
+  previous: Result | null,
+  result: Result,
+): Result | null {
+  const { record, outputVersion } = result;
+  if (record.cell_id !== null || record.outcome === null) {
+    return previous;
+  }
+  const time = (execution: Protocol.Execution) =>
+    Date.parse(
+      execution.completed_at ?? execution.started_at ?? "1970-01-01T00:00:00Z",
+    );
+  if (previous !== null && time(previous.record) > time(record)) {
+    return previous;
+  }
+  return { record, outputVersion };
+}

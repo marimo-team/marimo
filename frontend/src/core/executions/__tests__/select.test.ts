@@ -81,6 +81,7 @@ function inputs({
   blocked?: ReadonlySet<string>;
 }): CellExecutionInputs {
   const stream: Executions = {
+    scratch: null,
     results,
     runs: new Map(runs.map((r) => [r.id, r])),
     executions: new Map(executions.map((e) => [e.record.id, e])),

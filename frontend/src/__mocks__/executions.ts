@@ -72,7 +72,17 @@ function mirror(records: readonly Protocol.Execution[]): Executions {
       variables: new Map(),
     });
   }
-  return { runs: new Map(), executions, latest, results: results(records) };
+  const scratch = records.findLast(
+    (record) => record.cell_id === null && record.outcome !== null,
+  );
+  return {
+    runs: new Map(),
+    executions,
+    latest,
+    results: results(records),
+    scratch:
+      scratch === undefined ? null : { record: scratch, outputVersion: 0 },
+  };
 }
 
 function results(records: readonly Protocol.Execution[]): Results {

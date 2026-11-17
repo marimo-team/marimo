@@ -317,22 +317,10 @@ export function cellOutputsView(
 }
 
 /**
- * What the scratchpad shows: the outcome of its latest scratch execution
- * that has one.
- *
- * A newer run that has shown nothing yet leaves the previous output up,
- * as a cell's does. One interrupted before it started has no start time,
- * so executions are ordered by when they last changed.
+ * The latest scratch display, retained until a newer execution shows one.
  */
 export function scratchOutputView(executions: Executions): CellOutput | null {
-  let scratch: Protocol.Execution | undefined;
-  for (const { record } of executions.executions.values()) {
-    if (record.cell_id !== null || record.outcome === null) {
-      continue;
-    }
-    if (scratch === undefined || endedAt(record) >= endedAt(scratch)) {
-      scratch = record;
-    }
-  }
-  return scratch === undefined ? null : outcomeOutput(scratch);
+  return executions.scratch === null
+    ? null
+    : outcomeOutput(executions.scratch.record);
 }
