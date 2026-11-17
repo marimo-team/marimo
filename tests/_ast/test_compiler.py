@@ -109,6 +109,20 @@ class TestClassScope:
 
     @staticmethod
     @pytest.mark.parametrize(
+        "signature",
+        ["def value(self) -> x: ...", "def value(self, a: x): ..."],
+    )
+    def test_annotation_reads_cell_before_later_class_attribute(
+        signature: str,
+    ) -> None:
+        cell = compile_cell(
+            "class C:\n" + indent(f"{signature}\nx = 0", "    ")
+        )
+        assert cell.defs == {"C"}
+        assert cell.refs == {"x"}
+
+    @staticmethod
+    @pytest.mark.parametrize(
         "expression",
         [
             "[item for item in x]",

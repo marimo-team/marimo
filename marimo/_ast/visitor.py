@@ -464,8 +464,11 @@ class ScopedVisitor(ast.NodeVisitor):
         #   print(x)
         # x = 0
         # ```
+        #
+        # A class body runs once, top to bottom, so a later class binding
+        # never satisfies an earlier read.
         if (
-            variable_data.kind != "method"
+            block.scope_kind is not LexicalScope.CLASS
             and name in self._refs
             and any(block in ref.parent_blocks for ref in self._refs[name])
         ):
