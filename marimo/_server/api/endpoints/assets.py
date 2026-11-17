@@ -123,6 +123,15 @@ except RuntimeError:
 
 FILE_QUERY_PARAM_KEY = "file"
 
+# Image types served as OpenGraph thumbnails. Other files get the placeholder.
+_OG_THUMBNAIL_MEDIA_TYPES: dict[str, str] = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
 # Hardening headers for HTML page responses. They supplement the
 # token-stripping redirect below and disable MIME sniffing.
 #
@@ -274,13 +283,20 @@ def og_thumbnail(*, request: Request) -> Response:
                 file_path = normalize_path(marimo_dir / Path(*parts[1:]))
             else:
                 file_path = normalize_path(notebook_dir / rel_path)
+            media_type = _OG_THUMBNAIL_MEDIA_TYPES.get(
+                file_path.suffix.lower()
+            )
             # Only allow serving from the notebook's __marimo__ directory.
             try:
-                if file_path.is_file():
+                if media_type and file_path.is_file():
                     validator.validate_inside_directory(marimo_dir, file_path)
                     return FileResponse(
                         file_path,
-                        headers={"Cache-Control": "max-age=3600"},
+                        media_type=media_type,
+                        headers={
+                            "Cache-Control": "max-age=3600",
+                            "X-Content-Type-Options": "nosniff",
+                        },
                     )
             except HTTPException:
                 # Treat invalid paths as a miss; fall back to placeholder.
