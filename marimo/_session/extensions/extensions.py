@@ -327,9 +327,8 @@ class NotificationListenerExtension(SessionExtension):
     ) -> None:
         """Best-effort persistence of code-mode mutations to disk.
 
-        Only `source="code-mode"` transactions persist; `"kernel"`
-        bookkeeping (e.g. instantiation cell-order broadcasts) is skipped
-        so opening or running a notebook never rewrites it on disk.
+        Only `source="code-mode"` transactions persist, so opening or
+        running a notebook never rewrites it on disk.
         Skipped in run mode and for unnamed notebooks. Failures surface as
         an `AlertNotification` toast; they never raise out of the
         interceptor.
