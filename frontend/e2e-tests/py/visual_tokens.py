@@ -1,6 +1,4 @@
 # /// script
-# [tool.marimo.display]
-# theme = "system"
 # [tool.marimo.runtime]
 # auto_instantiate = true
 # ///
