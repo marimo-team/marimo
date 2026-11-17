@@ -253,14 +253,10 @@ function clearOutputs(
 ): void {
   clearCellOutputs(store, cellIds);
   store.set(notebookAtom, (state) =>
-    cellIds.reduce(
-      (next, cellId) =>
-        notebookReducer(next, {
-          type: "clearCellConsoleOutput",
-          payload: { cellId },
-        }),
-      state,
-    ),
+    notebookReducer(state, {
+      type: "clearCellConsoleOutputs",
+      payload: { cellIds },
+    }),
   );
 }
 

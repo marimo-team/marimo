@@ -119,6 +119,9 @@ describe("clearing a running cell", () => {
 describe("clearAllCellOutputsAtom", () => {
   it("clears every cell", () => {
     const store = setup();
+    const before = store.get(notebookAtom);
+    Object.freeze(before.cellRuntime);
+    Object.values(before.cellRuntime).forEach(Object.freeze);
     store.set(clearAllCellOutputsAtom);
 
     expect(store.get(cellOutputAtom(A))).toBeNull();
@@ -126,5 +129,7 @@ describe("clearAllCellOutputsAtom", () => {
     const { cellRuntime } = store.get(notebookAtom);
     expect(cellRuntime[A].consoleOutputs).toEqual([PROMPT]);
     expect(cellRuntime[B].consoleOutputs).toEqual([]);
+    expect(before.cellRuntime[A].consoleOutputs).toEqual([STDOUT, PROMPT]);
+    expect(before.cellRuntime[B].consoleOutputs).toEqual([STDOUT]);
   });
 });

@@ -297,20 +297,33 @@ const {
     };
   },
   clearCellConsoleOutput: (state, action: { cellId: CellId }) => {
-    const { cellId } = action;
-    return updateCellRuntimeState({
-      state,
-      cellId,
-      cellReducer: (cell) => ({
-        ...cell,
-        // Remove everything except unresponsed stdin
-        consoleOutputs: cell.consoleOutputs.filter(
-          (output) => output.channel === "stdin" && output.response == null,
-        ),
-      }),
-    });
+    return clearConsoleOutputs(state, [action.cellId]);
+  },
+  clearCellConsoleOutputs: (state, action: { cellIds: readonly CellId[] }) => {
+    return clearConsoleOutputs(state, action.cellIds);
   },
 });
+
+function clearConsoleOutputs(
+  state: NotebookState,
+  cellIds: readonly CellId[],
+): NotebookState {
+  const cellRuntime = { ...state.cellRuntime };
+  for (const cellId of cellIds) {
+    const cell = cellRuntime[cellId];
+    if (cell === undefined) {
+      Logger.warn(`Cell ${cellId} not found in state`);
+      continue;
+    }
+    cellRuntime[cellId] = {
+      ...cell,
+      consoleOutputs: cell.consoleOutputs.filter(
+        (output) => output.channel === "stdin" && output.response == null,
+      ),
+    };
+  }
+  return { ...state, cellRuntime };
+}
 
 // Helper function to update a cell in the array
 function updateCellRuntimeState({
