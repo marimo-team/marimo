@@ -6,6 +6,11 @@ import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { cellOutputAtom } from "@/core/executions";
+import {
+  cell,
+  document,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { executions } from "@/core/notebook/replica/resources/executions";
 import { clearAllCellOutputsAtom, clearCellOutputAtom } from "../actions";
 import { notebookAtom } from "../cells";
@@ -13,6 +18,12 @@ import type { ConsoleOutputMessage } from "../types";
 
 const A = cellId("a");
 const B = cellId("b");
+const DOCUMENT = withCells(document(), {
+  c1: null,
+  c2: null,
+  [A]: cell(A, ""),
+  [B]: cell(B, ""),
+});
 
 const STDOUT: ConsoleOutputMessage = {
   channel: "stdout",
@@ -41,10 +52,15 @@ function setup() {
       },
     }),
   );
-  MockExecutions.seed(store, [
-    MockExecutions.shown(A, { mimetype: "text/plain", data: "a" }),
-    MockExecutions.shown(B, { mimetype: "text/plain", data: "b" }),
-  ]);
+  MockExecutions.seed(
+    store,
+    [
+      MockExecutions.shown(A, { mimetype: "text/plain", data: "a" }),
+      MockExecutions.shown(B, { mimetype: "text/plain", data: "b" }),
+    ],
+    null,
+    DOCUMENT,
+  );
   return store;
 }
 
@@ -76,7 +92,7 @@ describe("clearing a running cell", () => {
       { mimetype: "text/plain", data: "so far" },
       { status: "running", completed_at: null },
     );
-    const replica = MockExecutions.seed(store, [running]);
+    const replica = MockExecutions.seed(store, [running], null, DOCUMENT);
     store.set(clearCellOutputAtom, { cellId: A });
     expect(store.get(cellOutputAtom(A))).toBeNull();
 

@@ -187,11 +187,18 @@ export const cellFreshnessAtom = atom((get) =>
 const clearedOutputsAtom =
   atom<Marks<ReadonlyMap<Protocol.CellId, ClearedOutput>>>(null);
 
+const displayedNotebookAtom = atom((get): ShownNotebook | null => {
+  const replica = get(activeNotebookReplicaAtom);
+  const document = replica === null ? null : get(replica.shownDocumentAtom);
+  return replica === null || document === null
+    ? null
+    : { replica, id: document.revision.notebook_id };
+});
+
 /** What every cell's output derives from. Pair with `cellOutputView`. */
 export const cellOutputInputsAtom = atom((get): CellOutputInputs => {
   const replica = get(activeNotebookReplicaAtom);
-  const notebookId =
-    replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
+  const notebookId = get(displayedNotebookAtom)?.id ?? null;
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
@@ -248,7 +255,11 @@ export function clearCellOutputs(
       });
     }
   }
-  store.set(clearedOutputsAtom, mark(store, next));
+  const notebook = store.get(displayedNotebookAtom);
+  store.set(
+    clearedOutputsAtom,
+    notebook === null ? null : { notebook, value: next },
+  );
 }
 
 /** The runtime's status, null while the notebook has none or the stream is not ready. */
