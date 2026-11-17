@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import Mermaid from "../mermaid/mermaid";
 
@@ -135,5 +135,122 @@ describe("Mermaid render cache", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  test("updates use temporary IDs separate from the displayed SVG", async () => {
+    const view = render(<Mermaid diagram="graph TD; UpdateA --> B" />);
+    await waitFor(() =>
+      expect(view.container.querySelector("svg")).not.toBeNull(),
+    );
+    const displayed = view.container.querySelector("svg");
+    mermaidMock.render.mockImplementationOnce(async (id) => {
+      expect(document.getElementById(id)).toBeNull();
+      expect(displayed?.isConnected).toBe(true);
+      return {
+        diagramType: "flowchart-v2",
+        svg: `<svg id="${id}"><text>Updated</text></svg>`,
+      };
+    });
+    view.rerender(<Mermaid diagram="graph TD; UpdateB --> C" />);
+    await waitFor(() => expect(view.container.textContent).toBe("Updated"));
+    expect(mermaidMock.render).toHaveBeenCalledTimes(2);
+  });
+
+  test("shared failures clean up temporary DOM and allow queued work to continue", async () => {
+    let temporaryId = "";
+    mermaidMock.render.mockImplementationOnce(async (id) => {
+      temporaryId = id;
+      const wrapper = document.createElement("div");
+      wrapper.id = `d${id}`;
+      wrapper.innerHTML = `<svg id="${id}"></svg>`;
+      document.body.append(wrapper);
+      throw new Error("drawing failed");
+    });
+    const failed = render(
+      <>
+        <Mermaid diagram="graph TD; SharedFailure" />
+        <Mermaid diagram="graph TD; SharedFailure" />
+        <Mermaid diagram="graph TD; AfterFailure" />
+      </>,
+    );
+    await waitFor(() => {
+      expect(
+        failed.container.textContent?.match(/drawing failed/g),
+      ).toHaveLength(2);
+      expect(failed.container.querySelectorAll("svg")).toHaveLength(1);
+    });
+    expect(document.getElementById(`d${temporaryId}`)).toBeNull();
+    expect(document.getElementById(temporaryId)).toBeNull();
+    await renderSvg("graph TD; SharedFailure");
+    expect(mermaidMock.render).toHaveBeenCalledTimes(3);
+  });
+
+  test("initialization failures do not poison the render queue or cache", async () => {
+    mermaidMock.initialize.mockImplementationOnce(() => {
+      throw new Error("invalid config");
+    });
+    const failed = render(<Mermaid diagram="graph TD; InitFailure" />);
+    await waitFor(() =>
+      expect(failed.container.textContent).toContain("invalid config"),
+    );
+    failed.unmount();
+    await renderSvg("graph TD; InitFailure");
+    expect(mermaidMock.render).toHaveBeenCalledTimes(1);
+  });
+
+  test("waits for fonts before caching a measured layout", async () => {
+    const original = Object.getOwnPropertyDescriptor(document, "fonts");
+    const fonts = Promise.withResolvers<undefined>();
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { ready: fonts.promise },
+    });
+    try {
+      render(<Mermaid diagram="graph TD; FontLoading" />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mermaidMock.render).not.toHaveBeenCalled();
+      await act(async () => {
+        fonts.resolve(undefined);
+      });
+      await waitFor(() => expect(mermaidMock.render).toHaveBeenCalledTimes(1));
+      await renderSvg("graph TD; FontLoading");
+      expect(mermaidMock.render).toHaveBeenCalledTimes(1);
+    } finally {
+      fonts.resolve(undefined);
+      if (original) {
+        Object.defineProperty(document, "fonts", original);
+      } else {
+        Reflect.deleteProperty(document, "fonts");
+      }
+    }
+  });
+
+  test("an evicted request failing does not evict its replacement", async () => {
+    const pending = Promise.withResolvers<{
+      diagramType: string;
+      svg: string;
+    }>();
+    mermaidMock.render.mockImplementationOnce(() => pending.promise);
+    const first = render(<Mermaid diagram="graph TD; EvictedFailure" />);
+    await waitFor(() => expect(mermaidMock.render).toHaveBeenCalledTimes(1));
+    const rest = render(
+      <>
+        {Array.from({ length: 64 }, (_, i) => (
+          <Mermaid key={i} diagram={`graph TD; Eviction${i}`} />
+        ))}
+        <Mermaid diagram="graph TD; EvictedFailure" />
+      </>,
+    );
+    await act(async () => {
+      pending.reject(new Error("evicted render failed"));
+    });
+    await waitFor(() =>
+      expect(rest.container.querySelectorAll("svg")).toHaveLength(65),
+    );
+    first.unmount();
+    await renderSvg("graph TD; EvictedFailure");
+    expect(mermaidMock.render).toHaveBeenCalledTimes(66);
   });
 });

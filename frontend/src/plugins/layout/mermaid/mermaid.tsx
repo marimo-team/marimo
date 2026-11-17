@@ -56,26 +56,51 @@ const DEFAULT_CONFIG: MermaidConfig = {
   },
 };
 
-// Avoid re-rendering unchanged diagrams. Promises are cached to
-// de-duplicate concurrent render requests.
 const svgCache = new LRUCache<
   string,
   Promise<{ svg: string; renderId: string }>
 >(64);
 
-// Gantt charts draw a "today" marker from the current time.
-const TIME_DEPENDENT_DIAGRAM_TYPES = new Set(["gantt"]);
-
-// mermaid's config is global and read when a render starts, so concurrent
-// diagrams with different themes could otherwise render with each other's
-// config (and that SVG would be cached under the wrong key).
+// Mermaid reads global config when a render starts.
 let renderQueue: Promise<unknown> = Promise.resolve();
 
-function renderWithConfig(id: string, diagram: string, config: MermaidConfig) {
-  const result = renderQueue.then(() => {
-    mermaid.initialize(config);
-    return mermaid.render(id, diagram, undefined);
+function renderDiagram(diagram: string, config: MermaidConfig) {
+  const key = JSON.stringify([diagram, config]);
+  const cached = svgCache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  // Temporary render IDs must never match SVGs already owned by React.
+  const renderId = `mermaid-${randomAlpha()}`;
+  const evict = () => {
+    if (svgCache.get(key) === result) {
+      svgCache.delete(key);
+    }
+  };
+  const result = renderQueue.then(async () => {
+    try {
+      // Cached layouts must be measured with the loaded fonts.
+      await document.fonts?.ready;
+      mermaid.initialize(config);
+      const { svg, diagramType } = await mermaid.render(renderId, diagram);
+      // Gantt charts draw a "today" marker from the current time.
+      if (diagramType === "gantt") {
+        evict();
+      }
+      return { svg, renderId };
+    } catch (error) {
+      evict();
+      Logger.warn("Failed to render mermaid diagram", error);
+      throw error;
+    } finally {
+      // Mermaid leaves its temporary elements behind on some failures.
+      document.getElementById(renderId)?.remove();
+      document.getElementById(`d${renderId}`)?.remove();
+      document.getElementById(`i${renderId}`)?.remove();
+    }
   });
+  svgCache.set(key, result);
   renderQueue = result.catch(() => undefined);
   return result;
 }
@@ -102,32 +127,11 @@ const Mermaid: React.FC<Props> = ({ diagram, theme, themeVariables }) => {
   const trimmedDiagram = diagram.trim();
 
   const { data: svg, error } = useAsyncData(async () => {
-    const key = JSON.stringify([
-      trimmedDiagram,
-      resolvedTheme,
-      darkMode,
+    const result = await renderDiagram(trimmedDiagram, {
+      ...DEFAULT_CONFIG,
+      theme: resolvedTheme as MermaidConfig["theme"],
       themeVariables,
-    ]);
-    let cached = svgCache.get(key);
-    if (cached === undefined) {
-      cached = renderWithConfig(id, trimmedDiagram, {
-        ...DEFAULT_CONFIG,
-        theme: resolvedTheme as MermaidConfig["theme"],
-        themeVariables,
-        darkMode,
-      }).then((result) => {
-        if (TIME_DEPENDENT_DIAGRAM_TYPES.has(result.diagramType)) {
-          svgCache.delete(key);
-        }
-        return { svg: result.svg, renderId: id };
-      });
-      svgCache.set(key, cached);
-    }
-    const result = await cached.catch((error) => {
-      svgCache.delete(key);
-      document.getElementById(id)?.remove();
-      Logger.warn("Failed to render mermaid diagram", error);
-      throw error;
+      darkMode,
     });
 
     // The SVG's styles and markers are scoped by its render id.
