@@ -18,6 +18,15 @@ export interface CellExecutionView {
   readonly blocked: boolean;
   /** Null until the cell completes once, and while it runs again. */
   readonly outcome: CellOutcome | null;
+  /**
+   * Whether the notebook's runtime produced the cell's result.
+   *
+   * A result restored from storage, or kept from a runtime that has since
+   * been replaced, still shows, but nothing it bound exists in the
+   * runtime. True when there is no result or no runtime to compare, as on
+   * a static page.
+   */
+  readonly live: boolean;
   /** When the current run started, or the last one, since the epoch. */
   readonly startedAt: Milliseconds | null;
   /** How long the last completed execution took, null while the cell runs again. */
@@ -42,6 +51,8 @@ export interface CellExecutionInputs {
   readonly requested: ReadonlySet<Protocol.CellId>;
   /** Cells the kernel reports as blocked by a disabled ancestor. */
   readonly blocked: ReadonlySet<Protocol.CellId>;
+  /** The notebook's runtime, null while it has none or the stream is not ready. */
+  readonly runtimeId: Protocol.RuntimeId | null;
 }
 
 export function outcomeOf(record: Protocol.Execution): CellOutcome | null {
@@ -137,6 +148,10 @@ export function cellExecutionView(
     status,
     blocked: inputs.blocked.has(id),
     outcome: settled && result !== null ? outcomeOf(result) : null,
+    live:
+      result === null ||
+      inputs.runtimeId === null ||
+      result.runtime_id === inputs.runtimeId,
     startedAt,
     duration,
     rendered,
