@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from marimo._cli.pair.client import PairInputError
+from marimo._cli.pair.client import (
+    NoSupportedInboxError,
+    PairInputError,
+    UnsupportedInboxError,
+)
 from marimo._cli.pair.delivery import ProcessHandle
 from marimo._cli.pair.harnesses.claude import ClaudeHarness
 from marimo._cli.pair.harnesses.codex import CodexHarness
@@ -47,7 +51,11 @@ def harness_for(kind: str) -> Harness:
 
 
 def detect_target(
-    env: Mapping[str, str], harness: str | None, pid: int | None = None
+    env: Mapping[str, str],
+    harness: str | None,
+    pid: int | None = None,
+    *,
+    check_ready: bool = True,
 ) -> tuple[Harness, DeliveryTarget]:
     process = None
     if pid is not None:
@@ -69,7 +77,9 @@ def detect_target(
     for candidate in registered_harnesses():
         if harness is not None and candidate.kind != harness:
             continue
-        target = candidate.detect(env, process=process)
+        target = candidate.detect(
+            env, process=process, check_ready=check_ready
+        )
         if target is not None:
             found.append((candidate, target))
     if len(found) > 1:
@@ -77,7 +87,16 @@ def detect_target(
             "Nested harnesses detected. Pass --harness <kind>."
         )
     if not found:
-        raise PairInputError(
+        raise NoSupportedInboxError(
             "No supported inbox detected. Run connect inside Codex, Claude Code, or OpenCode."
         )
     return found[0]
+
+
+def try_detect_target(
+    env: Mapping[str, str],
+) -> tuple[Harness, DeliveryTarget] | None:
+    try:
+        return detect_target(env, None, check_ready=False)
+    except (NoSupportedInboxError, UnsupportedInboxError):
+        return None

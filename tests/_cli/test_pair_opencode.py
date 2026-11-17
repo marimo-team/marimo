@@ -35,7 +35,7 @@ pytestmark = pytest.mark.skipif(
 
 
 class OpenCodeServer:
-    """An authenticated transport double for the OpenCode 2.x API."""
+    """An authenticated transport double for the OpenCode 2.0 API."""
 
     def __init__(self) -> None:
         self.authorization = (
@@ -172,9 +172,9 @@ def test_unconfigured_and_unsupported_version() -> None:
     assert OpenCodeHarness().detect({}) is None
     assert OpenCodeHarness().identity({}) is None
     assert isinstance(harness_for("opencode"), OpenCodeHarness)
-    with pytest.raises(PairInputError, match=r"require OpenCode 2\.x"):
+    with pytest.raises(PairInputError, match=r"require OpenCode 2\.0"):
         OpenCodeHarness().detect({"OPENCODE": "1"})
-    with pytest.raises(PairInputError, match=r"require OpenCode 2\.x"):
+    with pytest.raises(PairInputError, match=r"require OpenCode 2\.0"):
         OpenCodeHarness().identity({"OPENCODE": "1"})
 
 
