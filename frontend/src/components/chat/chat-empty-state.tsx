@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { PlugIcon } from "lucide-react";
 import { usePairWithAgentModal } from "@/components/editor/actions/pair-with-agent";
 import { Button } from "@/components/ui/button";
 import { isWasm } from "@/core/wasm/utils";
@@ -65,18 +64,20 @@ export const ChatEmptyState = () => {
         <NotebookIllustration />
         <p className="text-center text-xs leading-5 text-muted-foreground">
           Ask questions, write code, build charts, and summarize insights.
+          {!isWasm() && (
+            <>
+              {" "}
+              <Button
+                type="button"
+                variant="link"
+                className="inline h-auto p-0 text-xs font-normal whitespace-normal"
+                onClick={openPairWithAgentModal}
+              >
+                Pair your own coding agent
+              </Button>
+            </>
+          )}
         </p>
-        {!isWasm() && (
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto gap-1.5 p-0 text-xs font-normal"
-            onClick={openPairWithAgentModal}
-          >
-            <PlugIcon className="size-3.5" aria-hidden={true} />
-            Pair your own coding agent
-          </Button>
-        )}
       </div>
     </div>
   );
