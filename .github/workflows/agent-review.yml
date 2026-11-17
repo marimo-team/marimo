@@ -17,6 +17,6 @@ jobs:
       checks: read
       statuses: read
       id-token: write # Doppler OIDC
-    uses: marimo-team/.github/.github/workflows/agent-review.yml@ac77e28169c8aeb5af6bb0caf8e8aed8e7cdadff
+    uses: marimo-team/.github/.github/workflows/agent-review.yml@958cd8e43048b7ab69caf9a2d0f0aa37a9205891
     with:
-      policy-ref: ac77e28169c8aeb5af6bb0caf8e8aed8e7cdadff
+      policy-ref: 958cd8e43048b7ab69caf9a2d0f0aa37a9205891
