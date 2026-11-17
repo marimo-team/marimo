@@ -67,8 +67,7 @@ class FileState(PathState):
     )
 
     def __init__(self, path: Path, *args: Any, **kwargs: Any) -> None:
-        # Read the baseline before the watcher thread starts, so an edit that
-        # lands before the thread runs is still reported.
+        # Initialize time to the current `mtime` for watching.
         try:
             self._initial_mtime = path.stat().st_mtime
         except OSError:
