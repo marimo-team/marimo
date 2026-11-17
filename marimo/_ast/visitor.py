@@ -8,11 +8,12 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Literal, Union, get_args
+from typing import TYPE_CHECKING, Any, Literal, Union
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.errors import ImportStarError, LazyImportError
+from marimo._ast.private_names import find_cell_level_names
 from marimo._ast.sql_visitor import (
     SQLDefs,
     SQLKind,
@@ -189,13 +190,6 @@ class Block:
         default_factory=lambda: defaultdict(list)
     )
     scope_kind: LexicalScope = LexicalScope.MODULE
-    # Names made local by `except ... as` or `del`, which are not definitions
-    local_names: set[Name] = field(default_factory=set)
-    # Mangled loads in nested scopes that a later definition in this block
-    # captures, with the scopes between each load and this block.
-    forward_locals: dict[Name, list[tuple[ast.Name, list[Block]]]] = field(
-        default_factory=lambda: defaultdict(list), compare=False, repr=False
-    )
 
     def is_defined(self, name: str) -> bool:
         return name in self.defs
@@ -278,6 +272,9 @@ class ScopedVisitor(ast.NodeVisitor):
         )
         self.is_local = (lambda _: False) if ignore_local else is_local
         self.language: Language = "python"
+        # Nodes whose private name refers to the cell's own binding,
+        # resolved for the whole tree on the first visit.
+        self._cell_level: set[ast.AST] | None = set() if ignore_local else None
 
     @property
     def defs(self) -> set[Name]:
@@ -331,16 +328,20 @@ class ScopedVisitor(ast.NodeVisitor):
             if any(ref.deleted for ref in self._refs[name])
         }
 
-    def _if_local_then_mangle(
-        self, name: str, ignore_scope: bool = False
-    ) -> str:
-        """Mangle local variable name declared at top-level scope."""
-        if self.is_local(name) and (
-            len(self.block_stack) == 1 or ignore_scope
-        ):
-            return f"_{self.id}{name}"
-        else:
-            return name
+    def visit(self, node: ast.AST) -> Any:
+        if self._cell_level is None:
+            self._cell_level = find_cell_level_names(node, self.is_local)
+        return super().visit(node)
+
+    def _mangle(self, name: str) -> str:
+        """Rename a private name to the cell-specific global."""
+        return f"_{self.id}{name}" if self.is_local(name) else name
+
+    def _mangle_if_cell_level(self, node: ast.AST, name: str) -> str:
+        """Mangle a private name that refers to the cell's own binding."""
+        if node in (self._cell_level or ()):
+            return self._mangle(name)
+        return name
 
     def _get_alias_name(
         self, node: ast.alias, import_node: ast.ImportFrom | None = None
@@ -377,7 +378,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 )
             return basename
         else:
-            node.asname = self._if_local_then_mangle(node.asname)
+            node.asname = self._mangle_if_cell_level(node, node.asname)
             return node.asname
 
     def _visible_blocks(self) -> Iterator[Block]:
@@ -471,23 +472,6 @@ class ScopedVisitor(ast.NodeVisitor):
         ):
             # `name` was used as a capture, not a reference
             self._remove_ref(name, block)
-        if variable_data.kind in get_args(SQLKind):
-            # SQL definitions do not bind Python names.
-            return
-        for node, scopes in block.forward_locals.pop(name, []):
-            for scope in scopes:
-                # `global` applies to the whole function, wherever it appears.
-                if node.id in scope.global_names:
-                    break
-                # A class body that binds the name reads it from the class
-                # namespace or globals.
-                if scope.scope_kind is LexicalScope.CLASS and (
-                    scope.is_defined(name) or name in scope.local_names
-                ):
-                    break
-                if scope is block:
-                    node.id = name
-                    break
 
     def _define(
         self, node: NamedNode | None, name: Name, variable_data: VariableData
@@ -616,8 +600,12 @@ class ScopedVisitor(ast.NodeVisitor):
             for stmt in node.body:
                 self.visit(stmt)
             for handler in node.handlers:
-                if handler.name is not None:
-                    self.block_stack[-1].local_names.add(handler.name)
+                if handler.name is not None and len(self.block_stack) > 1:
+                    # Only a `global` declaration makes a nested handler bind
+                    # the cell's name; a top-level handler name stays raw.
+                    handler.name = self._mangle_if_cell_level(
+                        handler, handler.name
+                    )
                 self._push_obscured_scope(obscured=handler.name)
                 self.visit(handler)
                 self._pop_obscured_scope()
@@ -729,7 +717,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
-        node.name = self._if_local_then_mangle(node.name)
+        node.name = self._mangle_if_cell_level(node, node.name)
         refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
@@ -743,7 +731,7 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(
         self, node: ast.AsyncFunctionDef
     ) -> ast.AsyncFunctionDef:
-        node.name = self._if_local_then_mangle(node.name)
+        node.name = self._mangle_if_cell_level(node, node.name)
         refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
@@ -761,7 +749,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
-        node.name = self._if_local_then_mangle(node.name)
+        node.name = self._mangle_if_cell_level(node, node.name)
         refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
@@ -941,7 +929,6 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_arg(self, node: ast.arg) -> ast.arg:
-        node.arg = self._if_local_then_mangle(node.arg)
         self._define(node, node.arg, VariableData(kind="variable"))
         return node
 
@@ -1056,10 +1043,11 @@ class ScopedVisitor(ast.NodeVisitor):
                     LexicalScope.COMPREHENSION,
                     LexicalScope.ANNOTATION,
                 ):
-                    node.target.id = self._if_local_then_mangle(
-                        node.target.id,
-                        ignore_scope=(block == self.block_stack[0]),
+                    node.target.id = self._mangle_if_cell_level(
+                        node.target, node.target.id
                     )
+                    if node.target.id in block.global_names:
+                        block_idx = 0
                     self._define_in_block(
                         node.target.id,
                         VariableData(kind="variable"),
@@ -1098,7 +1086,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 return node
 
         if isinstance(node.ctx, ast.Store):
-            node.id = self._if_local_then_mangle(node.id)
+            node.id = self._mangle_if_cell_level(node, node.id)
             self._define(
                 node,
                 node.id,
@@ -1119,54 +1107,17 @@ class ScopedVisitor(ast.NodeVisitor):
         ):
             self._add_ref(node, node.id, deleted=True)
         elif self.is_local(node.id):
-            if isinstance(node.ctx, ast.Del):
-                self.block_stack[-1].local_names.add(node.id)
-            mangled_name = self._if_local_then_mangle(
-                node.id, ignore_scope=True
-            )
-            for block in self._visible_blocks():
-                if block == self.block_stack[0]:
-                    # A local (underscore-prefixed) reference resolves
-                    # against the top-level block. Leave it raw only when
-                    # the raw name is a top-level definition, which happens
-                    # solely for no-alias underscore imports (`from pkg
-                    # import _c` — the user has no control over the
-                    # package's symbol name, so it is deliberately not
-                    # mangled). Everything else is mangled: names whose
-                    # mangled def exists, forward references (e.g. the body
-                    # of a recursive underscore-prefixed function, visited
-                    # before its name is registered), and references to
-                    # names this cell never defines — the latter guarantees
-                    # one cell's raw import can never leak into another
-                    # cell through the shared globals.
-                    if block.is_defined(mangled_name) or not block.is_defined(
-                        node.id
-                    ):
-                        # A free name resolves to an enclosing function's
-                        # binding even when that binding comes later in the
-                        # source, so a later definition can still unmangle it.
-                        if self.block_stack[-1].scope_kind in (
-                            LexicalScope.FUNCTION,
-                            LexicalScope.COMPREHENSION,
-                            LexicalScope.CLASS,
-                        ):
-                            scopes = [
-                                enclosing
-                                for enclosing in self._visible_blocks()
-                                if enclosing.scope_kind
-                                in (LexicalScope.FUNCTION, LexicalScope.CLASS)
-                            ]
-                            for enclosing in scopes:
-                                if (
-                                    enclosing.scope_kind
-                                    is LexicalScope.FUNCTION
-                                ):
-                                    enclosing.forward_locals[node.id].append(
-                                        (node, scopes)
-                                    )
-                        node.id = mangled_name
-                elif block.is_defined(node.id):
-                    break
+            mangled_name = self._mangle_if_cell_level(node, node.id)
+            # Leave a cell-level name raw only when the raw name is a
+            # top-level definition, which happens solely for no-alias
+            # underscore imports (`from pkg import _c`): the user has no
+            # control over the package's symbol name, so it is deliberately
+            # not mangled. Mangling every other cell-level name guarantees
+            # one cell's raw import can never leak into another cell through
+            # the shared globals.
+            top = self.block_stack[0]
+            if top.is_defined(mangled_name) or not top.is_defined(node.id):
+                node.id = mangled_name
         else:
             # Not a reference; ast.Load, ast.Del on a variable that's already
             # defined; invoke the callback
@@ -1200,10 +1151,7 @@ class ScopedVisitor(ast.NodeVisitor):
         return node
 
     def visit_Global(self, node: ast.Global) -> ast.Global:
-        node.names = [
-            self._if_local_then_mangle(name, ignore_scope=True)
-            for name in node.names
-        ]
+        node.names = [self._mangle(name) for name in node.names]
         for name in node.names:
             self.block_stack[-1].global_names.add(name)
             # We only add a reference if the name is not
@@ -1275,7 +1223,7 @@ class ScopedVisitor(ast.NodeVisitor):
     # marimo, match statements should really only be used in local scopes.
     def visit_MatchAs(self, node: ast.MatchAs) -> ast.MatchAs:
         if node.name is not None:
-            node.name = self._if_local_then_mangle(node.name)
+            node.name = self._mangle_if_cell_level(node, node.name)
             self._define(
                 node,
                 node.name,
@@ -1288,7 +1236,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
     def visit_MatchMapping(self, node: ast.MatchMapping) -> ast.MatchMapping:
         if node.rest is not None:
-            node.rest = self._if_local_then_mangle(node.rest)
+            node.rest = self._mangle_if_cell_level(node, node.rest)
             self._define(
                 node,
                 node.rest,
@@ -1302,7 +1250,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
     def visit_MatchStar(self, node: ast.MatchStar) -> ast.MatchStar:
         if node.name is not None:
-            node.name = self._if_local_then_mangle(node.name)
+            node.name = self._mangle_if_cell_level(node, node.name)
             self._define(
                 node,
                 node.name,
