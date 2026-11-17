@@ -1069,14 +1069,7 @@ const ChatPanelBody = () => {
           ref={scrollContainerRef}
           onScroll={handleScroll}
         >
-          {isNewThread && !isTurnActive && !error && (
-            <ChatEmptyState
-              onSelectPrompt={(prompt) => {
-                setNewThreadInput(prompt);
-                focusInputAndMoveToEnd(newThreadInputRef);
-              }}
-            />
-          )}
+          {isNewThread && !isTurnActive && !error && <ChatEmptyState />}
           <TooltipProvider>
             {messages.map((message, idx) => {
               const isLast = idx === messages.length - 1;
