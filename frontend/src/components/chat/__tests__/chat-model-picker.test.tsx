@@ -28,10 +28,7 @@ vi.mock("@/components/app-config/state", () => ({
 
 function renderPicker(reasoning: boolean) {
   const knownModel = [...getKnownModelMaps().modelMap.values()].find(
-    (model) =>
-      model.provider === "openai" &&
-      model.roles.includes("chat") &&
-      model.capabilities.includes("thinking"),
+    (model) => model.provider === "openai" && model.model === "gpt-6.1-sol",
   );
   if (!knownModel) {
     throw new Error("Expected a known OpenAI reasoning model");
@@ -41,10 +38,17 @@ function renderPicker(reasoning: boolean) {
     : { ...knownModel, model: "custom-model", name: "custom-model" };
   const modelId = `${model.provider}/${model.model}`;
   const store = createStore();
+  const config = store.get(userConfigAtom);
   store.set(userConfigAtom, {
-    ...store.get(userConfigAtom),
+    ...config,
     ai: {
-      models: { chat_model: modelId, custom_models: [], displayed_models: [] },
+      ...config.ai,
+      models: {
+        ...config.ai.models,
+        chat_model: modelId,
+        custom_models: [],
+        displayed_models: [],
+      },
     },
   });
   render(

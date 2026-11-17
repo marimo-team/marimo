@@ -6,10 +6,14 @@ import {
   getEffectiveChatOptions,
 } from "../chat-model-config";
 import type { ChatOptions } from "@/core/network/types";
+import { defaultUserConfig } from "@/core/config/config-schema";
 
 function resolveModel(model = "openai/gpt-6-luna", displayed: string[] = []) {
+  const ai = defaultUserConfig().ai;
   return getChatModelConfig({
+    ...ai,
     models: {
+      ...ai.models,
       chat_model: model,
       custom_models: [],
       displayed_models: displayed,
