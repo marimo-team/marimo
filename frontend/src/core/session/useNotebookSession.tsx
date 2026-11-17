@@ -33,7 +33,6 @@ import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import {
   breakpointsAtom,
-  resyncBreakpoints,
   setActiveLine,
 } from "../codemirror/cells/debugger-state";
 import { notebookCells } from "../cells/utils";
@@ -159,11 +158,7 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
           (msg.data.stable_session_id as StableSessionId | null | undefined) ??
             null,
         );
-        // A freshly started kernel has no breakpoints of its own; re-push
-        // the client's set so they still apply, and clear the stale
-        // highlighted line from the previous kernel instance.
         setActiveLine(null);
-        resyncBreakpoints();
         return;
       }
 
