@@ -474,16 +474,6 @@ class ScopedVisitor(ast.NodeVisitor):
         if variable_data.kind in get_args(SQLKind):
             # SQL definitions do not bind Python names.
             return
-        self._resolve_forward_locals(name, block)
-
-    def _mark_local(self, name: Name) -> None:
-        """Make a name local to the current block without defining it."""
-        block = self.block_stack[-1]
-        block.local_names.add(name)
-        self._resolve_forward_locals(name, block)
-
-    def _resolve_forward_locals(self, name: Name, block: Block) -> None:
-        """Point earlier nested loads of `name` at `block`'s binding."""
         for node, scopes in block.forward_locals.pop(name, []):
             for scope in scopes:
                 # `global` applies to the whole function, wherever it appears.
@@ -627,7 +617,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 self.visit(stmt)
             for handler in node.handlers:
                 if handler.name is not None:
-                    self._mark_local(handler.name)
+                    self.block_stack[-1].local_names.add(handler.name)
                 self._push_obscured_scope(obscured=handler.name)
                 self.visit(handler)
                 self._pop_obscured_scope()
@@ -1130,7 +1120,7 @@ class ScopedVisitor(ast.NodeVisitor):
             self._add_ref(node, node.id, deleted=True)
         elif self.is_local(node.id):
             if isinstance(node.ctx, ast.Del):
-                self._mark_local(node.id)
+                self.block_stack[-1].local_names.add(node.id)
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )

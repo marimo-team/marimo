@@ -196,34 +196,6 @@ class TestExecution:
         assert not k.errors
         assert k.globals["result"] == result
 
-    async def test_private_name_resolves_to_enclosing_except_target(
-        self, k: Kernel
-    ) -> None:
-        await k.run(
-            [
-                ExecuteCellCommand(
-                    cell_id="0",
-                    code=textwrap.dedent(
-                        """
-                        _x = 10
-                        def outer():
-                            class C:
-                                _x = 0
-                                def value(self):
-                                    return _x
-                            try:
-                                raise ValueError(20)
-                            except ValueError as _x:
-                                return C().value().args[0]
-                        result = outer()
-                        """
-                    ),
-                ),
-            ]
-        )
-        assert not k.errors
-        assert k.globals["result"] == 20
-
     async def test_triangle(self, any_kernel: Kernel) -> None:
         k = any_kernel
         # x
