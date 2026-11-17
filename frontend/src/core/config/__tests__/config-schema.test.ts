@@ -16,6 +16,24 @@ import {
   UserConfigSchema,
 } from "../config-schema";
 
+test("legacy Codeium selection disables completion without resetting other settings", () => {
+  expect(
+    UserConfigSchema.parse({
+      completion: {
+        copilot: "codeium",
+        codeium_api_key: "legacy-secret",
+        auto_close_pairs: false,
+      },
+      display: { theme: "dark" },
+    }),
+  ).toEqual(
+    UserConfigSchema.parse({
+      completion: { copilot: false, auto_close_pairs: false },
+      display: { theme: "dark" },
+    }),
+  );
+});
+
 test("legacy Manual config resolves to Read only", () => {
   const config = UserConfigSchema.parse({ ai: { mode: "manual" } });
   expect(config).toEqual(UserConfigSchema.parse({ ai: { mode: "ask" } }));

@@ -335,7 +335,7 @@ class TestMsgpackIPC:
         control:         CommandMessage (discriminated union)
         ui_element:      BatchableCommand (discriminated union)
         completion:      CodeCompletionCommand
-        input:           str
+        input:           InputReply
         win32_interrupt: bool
         stream:          bytes
     """
@@ -399,9 +399,8 @@ class TestMsgpackIPC:
         assert decoded == cmd
 
     def test_primitive_channels(self) -> None:
-        """str (input), bool (win32_interrupt), and bytes (stream) channels."""
+        """bool (win32_interrupt) and bytes (stream) channels."""
         for value, typ in [
-            ("user_input", str),
             (True, bool),
             (b'{"op": "cell-op"}', bytes),
         ]:

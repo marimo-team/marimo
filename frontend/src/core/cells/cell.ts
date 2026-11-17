@@ -5,7 +5,6 @@ import type {
   CellRunStatus,
 } from "@/core/executions";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
-import { parseOutline } from "../dom/outline";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import type { CellRuntimeState, ConsoleOutputMessage } from "./types";
@@ -35,16 +34,6 @@ export function transitionCell(
   if (message.status === "queued") {
     nextCell.debuggerActive = false;
   }
-  // A skipped cell's output is the notice that an ancestor stopped it, which
-  // has nothing to do with the run that is starting.
-  if (
-    message.status === "running" &&
-    errorTypes(cell.output).some((type) => type.includes("ancestor"))
-  ) {
-    nextCell.output = null;
-  }
-
-  nextCell.output = message.output ?? nextCell.output;
   // Tri-state partial update: an omitted field (undefined) leaves the hint
   // unchanged; null explicitly clears it; a string sets it.
   if (message.serialization !== undefined) {
@@ -95,8 +84,6 @@ export function transitionCell(
         ]);
   }
   nextCell.consoleOutputs = consoleOutputs;
-  // Derive outline from output
-  nextCell.outline = parseOutline(nextCell.output);
 
   // Transition PDB
   const newConsoleOutputs = [message.console].flat().filter(Boolean);

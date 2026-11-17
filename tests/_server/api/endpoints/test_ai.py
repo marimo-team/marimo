@@ -24,6 +24,7 @@ from marimo._server.ai.prompts import (
 from marimo._server.ai.tools.types import ToolCallResult
 from marimo._server.ai.tracing import SpanInfo
 from marimo._server.api.endpoints.ai import (
+    _missing_mcp_dependencies_message,
     get_provider_config,
     resolve_completion_messages,
 )
@@ -869,6 +870,18 @@ def test_chat_with_code(
     client: TestClient, mock_stream_completion: Any
 ) -> None:
     user_config_manager = get_session_config_manager(client)
+    messages = _create_messages("Help me create a dataframe")
+    messages[0]["parts"].insert(
+        0,
+        {
+            "type": "data-marimo-notebook",
+            "data": {
+                "sessionId": SESSION_ID,
+                "cellIds": ["a"],
+                "cells": [{"id": "a", "code": "import pandas as pd"}],
+            },
+        },
+    )
 
     # Create a mock StreamingResponse
     from starlette.responses import StreamingResponse
@@ -889,11 +902,9 @@ def test_chat_with_code(
             "/api/ai/chat",
             headers=HEADERS,
             json={
-                "messages": _create_messages("Help me create a dataframe"),
-                "uiMessages": _create_messages("Help me create a dataframe"),
+                "uiMessages": messages,
                 "model": "gpt-4-turbo",
                 "variables": [],
-                "includeOtherCode": "import pandas as pd",
                 "context": {},
                 "id": "123",
             },
@@ -901,6 +912,10 @@ def test_chat_with_code(
         assert response.status_code == 200, response.text
         # Verify stream_completion was called
         mock_stream_completion.assert_called_once()
+        kwargs = mock_stream_completion.call_args.kwargs
+        assert kwargs["messages"] == messages
+        assert "import pandas as pd" not in kwargs["system_prompt"]
+        assert SESSION_ID not in kwargs["system_prompt"]
         assert (
             mock_stream_completion.call_args.kwargs["enable_capabilities"]
             is False
@@ -1428,3 +1443,20 @@ def test_ai_endpoints_forward_conversation_id(
         assert factory.call_args.kwargs["session_id"] == expected_session_id
 
     check_endpoint(client, temp_marimo_file)
+
+
+def test_missing_mcp_dependencies_message() -> None:
+    with (
+        patch(
+            "marimo._cli.install_hints.infer_package_manager",
+            return_value="uv",
+        ),
+        patch(
+            "marimo._cli.install_hints._is_uv_project_context",
+            return_value=True,
+        ),
+        patch("marimo._cli.install_hints.is_windows", return_value=False),
+    ):
+        assert _missing_mcp_dependencies_message() == (
+            "Missing dependencies. Install with: uv add 'marimo[mcp]'"
+        )

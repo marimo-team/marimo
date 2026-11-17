@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -12,6 +13,7 @@ from dirty_equals import IsStr
 from inline_snapshot import snapshot
 from starlette.websockets import WebSocketDisconnect
 
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import (
     AlertNotification,
@@ -23,7 +25,11 @@ from marimo._server.host import HOST_API_PATH
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._session.managers.ipc import KernelStartupError
+from marimo._session.notebook import AppFileManager
+from marimo._session.state.serialize import get_session_cache_file
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
+from marimo._utils.code import hash_code
+from marimo._version import __version__
 from tests._server.api.endpoints.ws_helpers import headers
 from tests._server.host.drive import socket_snapshot
 from tests._server.mocks import get_session_manager, run_cells
@@ -103,6 +109,63 @@ def receive_completed_run(
     """Read until the host run's cycle has ended; an edit's cycle may come first."""
     while not completed(websocket.receive_json(), run_id):
         pass
+
+
+def test_editor_opens_with_the_results_an_earlier_session_stored(
+    client: TestClient, editor_host: SessionBridge
+) -> None:
+    # With autorun off the session keeps its own cache of this file, and
+    # starts writing it as soon as it exists.
+    manager = get_session_manager(client)
+    manager._config_manager = manager._config_manager.with_overrides(
+        {
+            "runtime": {
+                **DEFAULT_CONFIG.runtime.to_dict(),
+                "auto_instantiate": False,
+            }
+        }
+    )
+    (notebook_id,) = editor_host.host.notebooks
+    file = editor_host.index.file_of(notebook_id)
+    assert file is not None
+    (code,) = AppFileManager(str(file)).app.cell_manager.codes()
+    cache = get_session_cache_file(file)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": None,
+                },
+                "cells": [
+                    {
+                        "id": "earlier",
+                        "code_hash": hash_code(code),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "stored"}}
+                        ],
+                        "console": [],
+                    }
+                ],
+            }
+        )
+    )
+
+    with client.websocket_connect(socket_url(editor_host)) as websocket:
+        opening = socket_snapshot(websocket)
+
+    assert [
+        event["data"]["execution"]["outcome"]
+        for event in opening
+        if event["event"] == "execution"
+    ] == [
+        {
+            "kind": "value",
+            "display": {"mimetype": "text/plain", "data": "stored"},
+        }
+    ]
 
 
 @pytest.mark.parametrize("types", [None, "marimo", "marimo,run"])

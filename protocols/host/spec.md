@@ -189,6 +189,12 @@ execution completes, as long as its results remain retained. Input requires a
 running execution, because the host must still be able to accept an answer or
 interrupt the work that is waiting for it.
 
+Background work may also replace or clear a value outcome's display while the
+execution is retained. Such updates MUST preserve its completed status,
+timestamps, and dependency revisions, and MUST NOT change a non-value outcome
+into a value. Updates from a removed execution MUST NOT affect a newer
+execution of the same cell.
+
 ### Inputs
 
 An **input** records an execution's request for a line of text, such as a call

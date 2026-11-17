@@ -686,31 +686,61 @@ def test_openai_default_thinking(
         pytest.param(
             "claude-opus-4-7",
             # Opus 4.7 disallows sampling settings, so no temperature.
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_7_adaptive_no_sampling",
         ),
         pytest.param(
             "claude-opus-4-6",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_6",
         ),
         pytest.param(
             "claude-sonnet-4-6",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_4_6",
         ),
         pytest.param(
             "claude-opus-4-5-20251101",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_5",
         ),
         pytest.param(
             "claude-3-7-sonnet-20250219",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_3_7",
         ),
@@ -722,7 +752,13 @@ def test_openai_default_thinking(
         # corrected upstream, behavior here will follow automatically.
         pytest.param(
             "claude-3-5-sonnet-20241022",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_3_5_trusts_profile",
         ),

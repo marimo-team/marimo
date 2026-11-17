@@ -2,8 +2,8 @@
 
 /** What a handler may know about the stream beyond the event. */
 export interface HandlerContext {
-  /** `snapshot` until `ready` arrives and `live` after it. */
-  readonly phase: "snapshot" | "live";
+  /** Initial snapshot, resumed replay, or caught up after `ready`. */
+  readonly phase: "snapshot" | "replay" | "live";
 }
 
 /** Pure handlers for a resource's events. */

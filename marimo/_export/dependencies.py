@@ -70,7 +70,7 @@ async def _install_playwright_chromium() -> None:
     try:
         result = await asyncio.to_thread(
             subprocess.run,
-            [sys.executable, "-m", "playwright", "install", "chromium"],
+            [sys.executable, "-P", "-m", "playwright", "install", "chromium"],
             capture_output=True,
             text=True,
             timeout=_PLAYWRIGHT_INSTALL_TIMEOUT_SECONDS,

@@ -163,6 +163,10 @@ def format_config_docs(cls: type[Config]) -> str:
                 output.append(
                     details_prefix + muted(f"Type: {_format_type(annotation)}")
                 )
+                if flags := extra.get("cli_flag"):
+                    output.append(
+                        details_prefix + muted("CLI flag: " + ", ".join(flags))
+                    )
                 if item.default is UNSET:
                     output.append("")
                     continue

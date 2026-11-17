@@ -16,6 +16,7 @@ from marimo._config.config import (
     DEFAULT_CONFIG,
     merge_config,
     merge_default_config,
+    parse_config,
 )
 from marimo._config.config_schema import MarimoConfig
 from marimo._config.manager import UserConfigStore
@@ -507,3 +508,20 @@ def test_configuration_wire_round_trip_preserves_external_format() -> None:
 def test_cache_store_accepts_builtin_and_custom_names(store: str) -> None:
     config = config_schema.StoreConfig.from_dict({"type": store})
     assert config.to_dict() == {"type": store, "args": {}}
+
+
+def test_removed_codeium_provider_preserves_other_settings() -> None:
+    config = parse_config(
+        {
+            "completion": {
+                "copilot": "codeium",
+                "codeium_api_key": "legacy-secret",
+                "auto_close_pairs": False,
+            },
+            "display": {"theme": "dark"},
+        }
+    )
+    assert config == MarimoConfig(
+        completion=config_schema.CompletionConfig(auto_close_pairs=False),
+        display=config_schema.DisplayConfig(theme="dark"),
+    )

@@ -5,6 +5,7 @@ from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
+from marimo._cli.install_hints import get_install_hint
 from marimo._config.types import SqlOutputType
 from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
@@ -313,7 +314,7 @@ def convert_to_output(
 def raise_df_import_error(pkg: str) -> None:
     raise ModuleNotFoundError(
         "pandas or polars is required to execute sql. "
-        + "You can install them with 'pip install pandas polars'",
+        + f"You can install them with '{get_install_hint(['pandas', 'polars'])}'",
         name=pkg,
     )
 

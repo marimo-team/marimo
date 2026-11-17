@@ -17,6 +17,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG, merge_config
 from marimo._config.config_schema import FileBrowserConfig
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.input import InputReply
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.pyodide_session import (
     AsyncQueueManager,
@@ -592,15 +593,14 @@ async def test_strip_version_resilience(
         )
 
 
-async def test_pyodide_session_put_input(
+async def test_pyodide_session_reply_input(
     pyodide_session: PyodideSession,
 ) -> None:
-    # Test putting input
-    input_text = "test input"
-    pyodide_session.put_input(input_text)
+    reply = InputReply("prompt", "test input")
+    pyodide_session.reply_input(reply)
 
     assert not pyodide_session._queue_manager.input_queue.empty()
-    assert await pyodide_session._queue_manager.input_queue.get() == input_text
+    assert await pyodide_session._queue_manager.input_queue.get() == reply
 
 
 @pytest.mark.parametrize(
@@ -826,14 +826,6 @@ def test_pyodide_bridge_put_control_request(
     pyodide_bridge.put_control_request(request_json)
 
     assert not pyodide_bridge.session._queue_manager.control_queue.empty()
-
-
-def test_pyodide_bridge_put_input(pyodide_bridge: PyodideBridge) -> None:
-    """Test putting input through the bridge."""
-    test_input = "test input"
-    pyodide_bridge.put_input(test_input)
-
-    assert not pyodide_bridge.session._queue_manager.input_queue.empty()
 
 
 def test_pyodide_bridge_code_complete(pyodide_bridge: PyodideBridge) -> None:

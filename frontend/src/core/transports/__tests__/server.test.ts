@@ -292,7 +292,7 @@ describe.each(["websocket", "sse"] as const)(
         : "http://localhost/sse";
 
     it.each(["automatic", "manual"])(
-      "discards the cursor and replica when the session changes on %s reconnect",
+      "discards the cursor and waits for the new session's snapshot on %s reconnect",
       async (recovery) => {
         vi.useFakeTimers();
         let target = `${base}?session_id=s1`;
@@ -323,15 +323,19 @@ describe.each(["websocket", "sse"] as const)(
           await client.reconnect();
         }
         const second = await connection.opened();
+        // The earlier session's document stays on show, but nothing edits
+        // against it and nothing says the notebook is ready.
         expect({
           cursor: second.cursor,
           notebook: store.get(client.notebookAtom),
           document: store.get(client.documentAtom),
+          shown: store.get(client.shownDocumentAtom)?.revision.notebook_id,
           attachments: store.get(client.attachmentsAtom),
         }).toEqual({
           cursor: null,
           notebook: null,
           document: null,
+          shown: "n1",
           attachments: [],
         });
 

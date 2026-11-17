@@ -167,14 +167,71 @@ describe("NotebookReplica lifetime", () => {
     const second = await opened();
     expect(second.cursor).toBe("97");
     second.receive({ event: "reset", data: {} });
+    // What was on show stays until the snapshot that replaces it is ready.
+    const replacement = fixtureMessages("notebook-events.sse").map((event) =>
+      JSON.parse(JSON.stringify(event).replaceAll('"n1"', '"n2"')),
+    );
+    const ready = fixtureEvents("notebook-events.sse").findIndex(
+      (event) => event.event === "ready",
+    );
+    replacement.slice(0, ready).forEach(second.receive);
     expect(store.get(client.documentAtom)).toBeNull();
-    for (const event of fixtureMessages("notebook-events.sse")) {
-      second.receive(
-        JSON.parse(JSON.stringify(event).replaceAll('"n1"', '"n2"')),
-      );
-    }
+    expect(store.get(client.shownDocumentAtom)?.revision.notebook_id).toBe(
+      "n1",
+    );
+    replacement.slice(ready).forEach(second.receive);
     expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n2");
+    expect(store.get(client.shownDocumentAtom)).toBe(
+      store.get(client.documentAtom),
+    );
     expect(store.get(client.connectionAtom).state).toBe(ConnectionState.OPEN);
+    expect(store.get(client.notebookAtom)?.id).toBe("n2");
+  });
+
+  it("preserves output revisions across an unchanged replacement snapshot", async () => {
+    const { connect, opened, client, store } = setup();
+    connect(lifetime().signal);
+    const { receive } = await opened();
+    const snapshot = fixtureMessages("notebook-events.sse");
+    snapshot.forEach(receive);
+    const before = store.get(client.executionsAtom);
+    expect(
+      [...before.executions.values()].some(
+        (execution) => execution.outputVersion > 0,
+      ),
+    ).toBe(true);
+
+    receive({ event: "reset", data: {} });
+    snapshot.filter((event) => event.event !== "ready").forEach(receive);
+    receive({ event: "ready", id: "98", data: {} });
+    expect(store.get(client.executionsAtom)).toEqual(before);
+  });
+
+  it("keeps what is on show when the snapshot replacing it is interrupted", async () => {
+    vi.useFakeTimers();
+    const { connect, opened, client, store } = setup();
+    connect(lifetime().signal);
+    const first = await opened();
+    fixtureMessages("notebook-events.sse").forEach(first.receive);
+    const replacement = fixtureMessages("notebook-events.sse").map((event) =>
+      JSON.parse(JSON.stringify(event).replaceAll('"n1"', '"n2"')),
+    );
+
+    first.receive({ event: "reset", data: {} });
+    replacement.slice(0, 3).forEach(first.receive);
+    first.drop();
+    await backoff();
+    expect(store.get(client.documentAtom)).toBeNull();
+    expect(store.get(client.shownDocumentAtom)?.revision.notebook_id).toBe(
+      "n1",
+    );
+
+    // The partial snapshot cannot be resumed, so the stream starts over.
+    const second = await opened();
+    expect(second.cursor).toBeNull();
+    second.receive({ event: "reset", data: {} });
+    replacement.forEach(second.receive);
+    expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n2");
     expect(store.get(client.notebookAtom)?.id).toBe("n2");
   });
 
@@ -515,6 +572,32 @@ describe("NotebookReplica attachments", () => {
       );
     },
   );
+
+  it("keeps presence hidden across a second disconnect until an empty replay is ready", async () => {
+    vi.useFakeTimers();
+    const { client, store, attempt, opened } = await open();
+    fixtureMessages("notebook-events.sse").forEach(attempt.receive);
+    const confirmed = store.get(client.documentAtom);
+    attempt.drop();
+    await backoff();
+    const replay = await opened();
+    replay.receive({
+      event: "attachment.removed",
+      id: "98",
+      data: { id: browser.id },
+    });
+    expect(store.get(client.attachmentsAtom)).toEqual([]);
+    replay.drop();
+    await backoff();
+    const resumed = await opened();
+    expect(resumed.cursor).toBe("98");
+    expect(store.get(client.documentAtom)).toBe(confirmed);
+    expect(store.get(client.attachmentsAtom)).toEqual([]);
+    expect(store.get(client.notebookAtom)).toBeNull();
+    resumed.receive({ event: "ready", id: "98", data: {} });
+    expect(store.get(client.attachmentsAtom)).toEqual([agent]);
+    expect(store.get(client.notebookAtom)?.id).toBe("n1");
+  });
 
   it.each(["drop", "stop", "removed", "abort"])(
     "clears presence on %s and ignores messages after disposal",

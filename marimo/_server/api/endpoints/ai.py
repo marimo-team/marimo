@@ -13,6 +13,7 @@ from starlette.responses import (
 
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
+from marimo._cli.install_hints import get_install_hint
 from marimo._config.config_schema import AiConfig, MarimoConfig
 from marimo._config.types import CopilotMode
 from marimo._secrets.secrets import get_secret_value
@@ -24,6 +25,7 @@ from marimo._server.ai.config import (
     get_max_tokens,
 )
 from marimo._server.ai.mcp import MCPServerStatus, get_mcp_client
+from marimo._server.ai.model_discovery import discover_models
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
@@ -51,6 +53,7 @@ from marimo._server.models.models import (
     InvokeAiToolResponse,
     MCPRefreshResponse,
     MCPStatusResponse,
+    ProviderModelsResponse,
 )
 from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
@@ -67,6 +70,13 @@ LOGGER = _loggers.marimo_logger()
 
 # Router for file ai
 router = APIRouter()
+
+
+def _missing_mcp_dependencies_message() -> str:
+    return (
+        "Missing dependencies. Install with: "
+        f"{get_install_hint('marimo[mcp]')}"
+    )
 
 
 def resolve_completion_messages(
@@ -103,11 +113,67 @@ def get_ai_config(config: MarimoConfig) -> AiConfig:
 
 
 def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
+    def secret_resolver(key: str) -> str | None:
+        return get_secret_value(key, config)
+
     return AnyProviderConfig.for_model(
         model,
         get_ai_config(config),
-        secret_resolver=lambda key: get_secret_value(key, config),
+        secret_resolver=secret_resolver,
     )
+
+
+@router.get("/models/{provider_name}")
+@requires("edit")
+async def list_provider_models(*, request: Request) -> Response:
+    """
+    description: List models for a supported provider without modifying configuration.
+    parameters:
+      - in: path
+        name: provider_name
+        schema:
+          type: string
+        required: true
+        description: Provider identifier, such as `openrouter` or a custom-provider name.
+    responses:
+      200:
+        description: Available models for the provider.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderModelsResponse"
+    """
+    app_state = AppState(request)
+    session = app_state.get_current_session()
+    config_manager = (
+        session.config_manager
+        if session is not None
+        else app_state.config_manager
+    )
+    config = config_manager.get_config(hide_secrets=False)
+    ai_config = get_ai_config(config)
+    provider_name = request.path_params["provider_name"]
+
+    def secret_resolver(key: str) -> str | None:
+        return get_secret_value(key, config)
+
+    if provider_name in ai_config.custom_providers:
+        provider = AnyProviderConfig.for_custom_provider(
+            ai_config, provider_name, secret_resolver=secret_resolver
+        )
+    elif provider_name == "openrouter":
+        provider = AnyProviderConfig.for_openrouter(
+            ai_config, secret_resolver=secret_resolver
+        )
+    else:
+        raise HTTPException(
+            status_code=404, detail="Model discovery is not available."
+        )
+    response = StructResponse(
+        ProviderModelsResponse(models=await discover_models(provider))
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @router.post("/completion")
@@ -240,9 +306,7 @@ async def ai_chat(
         mode = "ask"
     system_prompt = get_chat_system_prompt(
         custom_rules=custom_rules,
-        include_other_code=body.include_other_code,
         mode=mode,
-        session_id=session_id,
     )
 
     max_tokens = get_max_tokens(config)
@@ -513,7 +577,7 @@ async def mcp_status(
         return StructResponse(
             MCPStatusResponse(
                 status="error",
-                error="Missing dependencies. Install with: pip install marimo[mcp]",
+                error=_missing_mcp_dependencies_message(),
                 servers={},
             )
         )
@@ -607,7 +671,7 @@ async def mcp_refresh(
         return StructResponse(
             MCPRefreshResponse(
                 success=False,
-                error="Missing dependencies. Install with: pip install marimo[mcp]",
+                error=_missing_mcp_dependencies_message(),
                 servers={},
             )
         )

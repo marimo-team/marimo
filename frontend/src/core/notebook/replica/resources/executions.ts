@@ -2,6 +2,12 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { NotebookResource } from "@marimo-team/client";
+import {
+  type Result,
+  type Results,
+  retainResult,
+  retainScratchResult,
+} from "./results";
 
 /** A console line, display, or input an execution produced, tagged by kind. */
 export type Item =
@@ -10,8 +16,7 @@ export type Item =
   | (Protocol.Input & { readonly kind: "input" });
 
 /** An execution on the stream, with the items and variables it has produced. */
-export interface Execution {
-  readonly record: Protocol.Execution;
+export interface Execution extends Result {
   /** Items by id. `itemsInOrder` sorts them by `seq`. */
   readonly items: ReadonlyMap<Protocol.ItemId, Item>;
   /** The variables the execution bound, by item id. */
@@ -21,9 +26,8 @@ export interface Execution {
 /**
  * Runs and executions as the stream reports them.
  *
- * Nothing outlives its removal. The host removes a cell's previous
- * execution before it publishes the next one, so `results` keeps each
- * cell's last completed record for display.
+ * Items and variables leave with their execution. Each cell's last result
+ * stays for display while a new execution runs.
  */
 export interface Executions {
   readonly runs: ReadonlyMap<Protocol.RunId, Protocol.Run>;
@@ -31,9 +35,18 @@ export interface Executions {
   readonly executions: ReadonlyMap<Protocol.ExecutionId, Execution>;
   /** The execution on the stream for each cell that has one. */
   readonly latest: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>;
+  readonly results: Results;
+  readonly scratch: Result | null;
 }
 
-type Kind = "run" | "execution" | "console" | "display" | "input" | "variable";
+type Kind =
+  | "cell"
+  | "run"
+  | "execution"
+  | "console"
+  | "display"
+  | "input"
+  | "variable";
 
 /** An execution's items in the order they were produced. */
 export function itemsInOrder(execution: Pick<Execution, "items">): Item[] {
@@ -124,9 +137,77 @@ function unbind(state: Executions, itemId: Protocol.ItemId): Executions {
   return state;
 }
 
+function sameOutcome(a: Protocol.Execution, b: Protocol.Execution): boolean {
+  return (
+    a.outcome === b.outcome ||
+    JSON.stringify(a.outcome) === JSON.stringify(b.outcome)
+  );
+}
+
+/** Carry displayed results and their revisions through a replacement snapshot. */
+export function resumeResults(
+  next: Executions,
+  previous: Executions,
+): Executions {
+  const resumed = new Map(next.executions);
+  for (const [id, execution] of resumed) {
+    const retained =
+      execution.record.cell_id === null
+        ? previous.scratch
+        : previous.results.get(execution.record.cell_id);
+    const before =
+      previous.executions.get(id) ??
+      (retained?.record.id === id ? retained : undefined);
+    if (before !== undefined) {
+      resumed.set(id, {
+        ...execution,
+        outputVersion:
+          before.outputVersion +
+          (sameOutcome(before.record, execution.record) ? 0 : 1),
+      });
+    }
+  }
+  const results = new Map(next.results);
+  for (const [cellId, result] of results) {
+    const execution =
+      result === null ? undefined : resumed.get(result.record.id);
+    results.set(
+      cellId,
+      execution === undefined
+        ? (previous.results.get(cellId) ?? null)
+        : { record: execution.record, outputVersion: execution.outputVersion },
+    );
+  }
+  const scratch =
+    next.scratch === null ? null : resumed.get(next.scratch.record.id);
+  return {
+    ...next,
+    executions: resumed,
+    results,
+    scratch:
+      scratch == null
+        ? previous.scratch
+        : retainScratchResult(previous.scratch, scratch),
+  };
+}
+
 export const executions: NotebookResource<Executions, Kind> = {
-  initial: { runs: new Map(), executions: new Map(), latest: new Map() },
+  initial: {
+    runs: new Map(),
+    executions: new Map(),
+    latest: new Map(),
+    results: new Map(),
+    scratch: null,
+  },
   on: {
+    cell: (state, { data }) =>
+      state.results.has(data.cell.id)
+        ? state
+        : { ...state, results: new Map(state.results).set(data.cell.id, null) },
+    "cell.removed": (state, { data }) => ({
+      ...state,
+      results: without(state.results, data.id),
+    }),
     run: (state, { data }) => ({
       ...state,
       runs: new Map(state.runs).set(data.run.id, data.run),
@@ -137,11 +218,21 @@ export const executions: NotebookResource<Executions, Kind> = {
         : state,
     execution: (state, { data: { execution: record } }) => {
       const previous = state.executions.get(record.id);
-      return set(state, {
+      const execution: Execution = {
         record,
+        outputVersion:
+          previous === undefined
+            ? 0
+            : previous.outputVersion +
+              (sameOutcome(previous.record, record) ? 0 : 1),
         items: previous?.items ?? new Map(),
         variables: previous?.variables ?? new Map(),
-      });
+      };
+      return {
+        ...set(state, execution),
+        results: retainResult(state.results, execution),
+        scratch: retainScratchResult(state.scratch, execution),
+      };
     },
     "execution.removed": (state, { data }) => remove(state, data.id),
     console: (state, { data }) =>

@@ -14,7 +14,6 @@ from functools import partial
 from multiprocessing import get_context
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from textwrap import dedent
 from typing import Any
 from unittest.mock import MagicMock
@@ -685,6 +684,28 @@ def __():
     )
     file_key = str(tmp_file)
 
+    class WatchingConsumer(MockSessionConsumer):
+        def __init__(self) -> None:
+            super().__init__()
+            self.updated = asyncio.Event()
+
+        def notify(self, notification: KernelMessage) -> None:
+            super().notify(notification)
+            if isinstance(
+                self.notify_calls[-1], NotebookDocumentTransactionNotification
+            ):
+                self.updated.set()
+
+    async def wait_for_updates(*consumers: WatchingConsumer) -> None:
+        await asyncio.wait_for(
+            asyncio.gather(
+                *(consumer.updated.wait() for consumer in consumers)
+            ),
+            timeout=5,
+        )
+        for consumer in consumers:
+            consumer.updated.clear()
+
     try:
         # Create a session manager with file watching enabled
         workspace = SingleFileWorkspace.from_path(MarimoPath(tmp_file))
@@ -711,7 +732,7 @@ def __():
             watch=True,
         )
 
-        session_consumer = MockSessionConsumer()
+        session_consumer = WatchingConsumer()
 
         # Create a session
         await session_manager.create_session(
@@ -736,11 +757,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer)
 
         # Check that a document transaction was sent with the new code
         tx_ops = [
@@ -751,7 +768,7 @@ def __():
         assert len(tx_ops) >= 1
 
         # Create another session for the same file
-        session_consumer2 = MockSessionConsumer()
+        session_consumer2 = WatchingConsumer()
         await session_manager.create_session(
             session_id=SessionId("test2"),
             session_consumer=session_consumer2,
@@ -774,11 +791,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer, session_consumer2)
 
         # Both sessions should receive the update
         update_ops = [
@@ -809,11 +822,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer2.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer2)
 
         # Only one session should receive the update
         update_ops2 = [
@@ -1090,23 +1099,18 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             await session_manager.shutdown()
 
 
-async def test_session_manager_file_rename() -> None:
+async def test_session_manager_file_rename(tmp_path: Path) -> None:
     """Test that file renaming works correctly with file watching."""
-    # Create two temporary files
-    with (
-        NamedTemporaryFile(delete=False, suffix=".py") as tmp_file1,
-    ):
-        tmp_path1 = Path(tmp_file1.name)
-        # Write initial notebook content
-        tmp_file1.write(
-            b"""import marimo
+    tmp_path1 = tmp_path / "notebook.py"
+    tmp_path1.write_text(
+        """import marimo
 app = marimo.App()
 
 @app.cell
 def __():
     1
 """
-        )
+    )
 
     new_path = tmp_path1.with_suffix(".1.py")
 
@@ -1146,9 +1150,10 @@ def __():
             main=True,
         )
 
-        # Try to rename to a non-existent file
+        parent_file = tmp_path / "not_a_directory"
+        parent_file.write_text("")
         success, error = await session_manager.rename_session(
-            session_id, "/nonexistent/file.py"
+            session_id, str(parent_file / "file.py")
         )
         assert not success
         assert error is not None

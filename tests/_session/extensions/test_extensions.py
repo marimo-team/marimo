@@ -412,18 +412,6 @@ class TestSessionViewExtension:
         mock_session.session_view.add_control_request.assert_not_called()
         extension.on_detach()
 
-    def test_stdin_added_to_view(self, mock_session, event_bus) -> None:
-        """Test that stdin is added to session view."""
-        extension = SessionViewExtension()
-        extension.on_attach(mock_session, event_bus)
-
-        extension.on_received_stdin(mock_session, "test input")
-
-        mock_session.session_view.add_stdin.assert_called_once_with(
-            "test input"
-        )
-        extension.on_detach()
-
     def test_notification_added_to_view(self, mock_session, event_bus) -> None:
         """Test that notifications are added to session view."""
         extension = SessionViewExtension()
@@ -445,7 +433,6 @@ class TestQueueExtension:
     def queue_manager(self):
         manager = Mock()
         manager.put_control_request = Mock()
-        manager.put_input = Mock()
         return manager
 
     def test_lifecycle(self, mock_session, event_bus, queue_manager) -> None:
@@ -482,18 +469,6 @@ class TestQueueExtension:
         extension.on_received_command(mock_session, cmd, None)
 
         queue_manager.put_control_request.assert_called_once_with(cmd)
-        extension.on_detach()
-
-    def test_stdin_added_to_queue(
-        self, mock_session, event_bus, queue_manager
-    ) -> None:
-        """Test that stdin is added to queue."""
-        extension = QueueExtension(queue_manager)
-        extension.on_attach(mock_session, event_bus)
-
-        extension.on_received_stdin(mock_session, "test input")
-
-        queue_manager.put_input.assert_called_once_with("test input")
         extension.on_detach()
 
 
@@ -662,15 +637,15 @@ class TestEventBusEmitSafety:
         listener_a = Mock()
         listener_b = Mock()
 
-        listener_a.on_received_stdin = lambda _s, _t: (
+        listener_a.on_notification_sent = lambda _s, _t: (
             calls.append("a"),
             bus.unsubscribe(listener_a),
         )
-        listener_b.on_received_stdin = lambda _s, _t: calls.append("b")
+        listener_b.on_notification_sent = lambda _s, _t: calls.append("b")
 
         bus.subscribe(listener_a)
         bus.subscribe(listener_b)
-        bus.emit_received_stdin(Mock(), "hi")
+        bus.emit_notification_sent(Mock(), Mock())
 
         # Both were called even though a unsubscribed itself mid-emit
         assert calls == ["a", "b"]

@@ -789,11 +789,42 @@ class Exporter:
                 # Skip if source and target are the same
                 return True
 
+            # Copy only between real directories. If either public/ folder is
+            # a symlink, files are copied from, or into, a different location.
+            if public_dir.is_symlink() or target_dir.is_symlink():
+                LOGGER.warning(
+                    f"Skipping public folder: {public_dir} or {target_dir}"
+                    " is a symlink"
+                )
+                return False
+
             LOGGER.debug(f"Copying public folder to {dirpath}")
+            resolved_public = public_dir.resolve()
+
+            # Skip entries that resolve outside public/ or whose destination
+            # is a symlink.
+            def ignore_links(src: str, names: list[str]) -> set[str]:
+                dst = target_dir / Path(src).relative_to(public_dir)
+                skipped = {
+                    name
+                    for name in names
+                    if not (Path(src) / name)
+                    .resolve()
+                    .is_relative_to(resolved_public)
+                    or (dst / name).is_symlink()
+                }
+                for name in skipped:
+                    LOGGER.warning(
+                        f"Skipping {Path(src) / name}: it resolves outside"
+                        f" {public_dir} or its destination is a symlink"
+                    )
+                return skipped
+
             shutil.copytree(
                 public_dir,
                 target_dir,
                 dirs_exist_ok=True,
+                ignore=ignore_links,
             )
             return True
 
@@ -852,10 +883,10 @@ class AutoExporter:
 
             await self._ensure_export_dir_async(filepath.parent)
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
+            written = await loop.run_in_executor(
                 self._executor, self._write_file_sync, filepath, content
             )
-            return revision == self._latest_revisions.get(filepath)
+            return written and revision == self._latest_revisions.get(filepath)
 
     async def save_html(
         self, filename: str | None, html: str, *, revision: int
@@ -872,11 +903,17 @@ class AutoExporter:
     ) -> bool:
         return await self._save_file(filename, ipynb, "ipynb", revision)
 
-    def _write_file_sync(self, filepath: Path, content: str) -> None:
+    def _write_file_sync(self, filepath: Path, content: str) -> bool:
         """Synchronous file write (runs in thread pool)"""
         if content == "":
-            return
+            return True
+        # Do not follow an export file or export directory that is a
+        # symlink, so that exports stay in __marimo__.
+        if filepath.is_symlink() or filepath.parent.is_symlink():
+            LOGGER.warning(f"Skipping auto-export: {filepath} is a symlink")
+            return False
         filepath.write_text(content, encoding="utf-8")
+        return True
 
     async def _ensure_export_dir_async(self, export_dir: Path) -> None:
         """Async directory creation with caching to avoid redundant checks"""

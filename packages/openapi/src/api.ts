@@ -284,6 +284,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/models/{provider_name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description List models for a supported provider without modifying configuration. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description Provider identifier, such as `openrouter` or a custom-provider name. */
+          provider_name: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Available models for the provider. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ProviderModelsResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/cache/clear": {
     parameters: {
       query?: never;
@@ -2668,47 +2707,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/stdin": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["StdinRequest"];
-        };
-      };
-      responses: {
-        /** @description Send input to the stdin stream */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/takeover": {
     parameters: {
       query?: never;
@@ -4108,7 +4106,6 @@ export interface components {
     ChatRequest: {
       /** @default null */
       id?: string | null;
-      includeOtherCode: string;
       /** @default null */
       model?: string | null;
       options?: components["schemas"]["ChatOptions"];
@@ -4221,13 +4218,11 @@ export interface components {
        * @description Deprecated completion API endpoint. Use an AI provider configuration instead.
        */
       base_url?: string | null;
-      /** @description the Codeium API key */
-      codeium_api_key?: string | null;
       /**
-       * @description one of `"github"`, `"codeium"`, or `"custom"`
+       * @description one of `"github"` or `"custom"`
        * @default false
        */
-      copilot: boolean | ("codeium" | "custom" | "github");
+      copilot: boolean | ("custom" | "github");
       /**
        * @deprecated
        * @description Deprecated completion model. Use ai.models.autocomplete_model instead.
@@ -6519,6 +6514,15 @@ export interface components {
       schemaPath?: string[];
       tableName: string;
     };
+    /** ProviderModel */
+    ProviderModel: {
+      id: string;
+      name: string;
+    };
+    /** ProviderModelsResponse */
+    ProviderModelsResponse: {
+      models: components["schemas"]["ProviderModel"][];
+    };
     /**
      * PyreflyLanguageServerConfig
      * @description Configuration options for Pyrefly Language Server.
@@ -7010,6 +7014,16 @@ export interface components {
      */
     ServerConfig: {
       /**
+       * @description Allowed origins for HTTP and WebSocket connections.
+       * @default []
+       */
+      allow_origins: string[];
+      /**
+       * @description Base URL for the server, starting with / and without a trailing slash.
+       * @default
+       */
+      base_url: string;
+      /**
        * @description the web browser to use. `"default"` or a browser registered with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
        * @default default
        */
@@ -7025,6 +7039,36 @@ export interface components {
        */
       follow_symlink: boolean;
       /**
+       * @description Do not launch a browser.
+       * @default false
+       */
+      headless: boolean;
+      /**
+       * @description Host to bind to.
+       * @default 127.0.0.1
+       */
+      host: string;
+      /**
+       * @description Send notebook source code to clients in run mode. Edit mode always includes code.
+       * @default false
+       */
+      include_code: boolean;
+      /**
+       * @description Port to bind to (0-65535). If unset or 0, find an available port.
+       * @default null
+       */
+      port: number | null;
+      /**
+       * @description Address of the reverse proxy.
+       * @default null
+       */
+      proxy: string | null;
+      /**
+       * @description Redirect console output to the browser. This option only applies to run mode. Edit mode always redirects output to the browser.
+       * @default false
+       */
+      redirect_console_to_browser: boolean;
+      /**
        * @description Only send session cookies over HTTPS. Enable when serving behind TLS.
        * @default false
        */
@@ -7034,16 +7078,45 @@ export interface components {
        * @default null
        */
       session_secret: string | null;
+      /** @description Seconds before closing a disconnected session. Defaults to unlimited in edit mode and 120 in run mode; null means unlimited. */
+      session_ttl?: number | null;
+      /**
+       * @description Enable protection against frontend and server version mismatches.
+       * @default true
+       */
+      skew_protection: boolean;
       /**
        * @description Skip checking for marimo updates when starting the editor.
        * @default false
        */
       skip_update_check: boolean;
       /**
+       * @description Shut down after this many minutes without a connection.
+       * @default null
+       */
+      timeout: number | null;
+      /** @description Enable token authentication. Defaults to true in edit mode and false in run mode. */
+      token?: boolean;
+      /**
+       * @description Password used for token authentication. Mutually exclusive with token_password_file.
+       * @default null
+       */
+      token_password: string | null;
+      /**
+       * @description File containing the token password, or - to read from stdin. Mutually exclusive with token_password.
+       * @default null
+       */
+      token_password_file: string | null;
+      /**
        * @description experimental. The transport used to stream kernel messages to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"` (default) uses the `/ws` WebSocket endpoint; `"sse"` uses server-sent events over HTTP, for deployments behind proxies or services that do not support WebSockets. The terminal and LSP still require WebSockets.
        * @enum {unknown}
        */
       transport?: "sse" | "websocket";
+      /**
+       * @description Watch notebook files for changes; reload code in edit mode or the application in run mode.
+       * @default false
+       */
+      watch: boolean;
     };
     /** Format: session-id */
     SessionId: TypedString<"SessionId">;
@@ -7228,10 +7301,6 @@ export interface components {
       op: "startup-progress";
       /** @enum {unknown} */
       phase: "preparing-environment" | "starting-kernel";
-    };
-    /** StdinRequest */
-    StdinRequest: {
-      text: string;
     };
     /**
      * StorageDownloadReadyNotification

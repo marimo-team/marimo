@@ -19,12 +19,12 @@ class InputReply(msgspec.Struct, frozen=True):
 
 
 class ReplyQueue(Protocol):
-    def put_nowait(self, item: str | InputReply) -> None: ...
+    def put_nowait(self, item: InputReply) -> None: ...
 
-    def get_nowait(self) -> str | InputReply: ...
+    def get_nowait(self) -> InputReply: ...
 
 
-def deliver_reply(replies: ReplyQueue, reply: str | InputReply) -> None:
+def deliver_reply(replies: ReplyQueue, reply: InputReply) -> None:
     """Queue `reply` for the kernel, displacing one the kernel never took.
 
     The queue holds a single reply, and only one prompt waits for input at

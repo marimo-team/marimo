@@ -182,6 +182,7 @@ class PDFRasterizationRequest:
     filename: str | None
     filepath: str | None
     options: PDFRasterizationOptions
+    webpdf: bool = False
     live_page_url: LivePageURLProvider | None = None
     status_callback: PDFExportStatusCallback | None = None
 

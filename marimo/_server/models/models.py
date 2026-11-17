@@ -268,10 +268,6 @@ class SaveUserConfigurationRequest(msgspec.Struct, rename="camel"):
     config: dict[str, Any]
 
 
-class StdinRequest(msgspec.Struct, rename="camel"):
-    text: str
-
-
 class InvokeAiToolRequest(msgspec.Struct, rename="camel"):
     tool_name: str
     arguments: dict[str, Any]
@@ -281,6 +277,15 @@ class InvokeAiToolResponse(BaseResponse):
     tool_name: str
     result: Any
     error: str | None = None
+
+
+class ProviderModel(msgspec.Struct, rename="camel"):
+    id: str
+    name: str
+
+
+class ProviderModelsResponse(msgspec.Struct, rename="camel"):
+    models: list[ProviderModel]
 
 
 class MCPStatusResponse(msgspec.Struct, rename="camel"):

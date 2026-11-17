@@ -13,11 +13,6 @@ import {
   rejectInlineCompletion,
 } from "@marimo-team/codemirror-ai";
 import {
-  copilotPlugin as codeiumCopilotPlugin,
-  codeiumOtherDocumentsConfig,
-  Language,
-} from "@valtown/codemirror-codeium";
-import {
   type InlineCompletionItem,
   type InlineCompletionList,
   type InlineCompletionParams,
@@ -30,7 +25,6 @@ import { Logger } from "@/utils/Logger";
 import { languageAdapterState } from "../language/extension";
 import { isInVimMode } from "../utils";
 import { COPILOT_FILENAME, copilotServer, getCopilotClient } from "./client";
-import { getCodes } from "./getCodes";
 import { isCopilotEnabled } from "./state";
 import { trimAutocompleteResponse } from "./trim-utils";
 
@@ -54,26 +48,6 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
   }
 
   const extensions: Extension[] = [];
-
-  if (config.copilot === "codeium" && config.codeium_api_key) {
-    extensions.push(
-      codeiumCopilotPlugin({
-        apiKey: config.codeium_api_key,
-        language: Language.PYTHON,
-      }),
-      codeiumOtherDocumentsConfig.of({
-        override: async () => {
-          return [
-            {
-              text: getCodes(""),
-              language: Language.PYTHON,
-              editorLanguage: "python",
-            },
-          ];
-        },
-      }),
-    );
-  }
 
   if (config.copilot === "github") {
     extensions.push(
