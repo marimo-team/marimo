@@ -1,16 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 import { describe, expect, it } from "vitest";
-import {
-  getCellConfigs,
-  initialNotebookState,
-  type NotebookState,
-} from "@/core/cells/cells";
+import { MockExecutions } from "@/__mocks__/executions";
+import { initialNotebookState, type NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { CellData } from "@/core/cells/types";
+import type { CellFreshnessLookup } from "@/core/executions";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { MultiColumn } from "@/utils/id-tree";
 import {
+  cellNeedsRun,
   disabledCellIds,
   enabledCellIds,
   isUninstantiated,
@@ -18,372 +16,193 @@ import {
   staleCellIds,
 } from "../utils";
 
-describe("getCellConfigs", () => {
-  it("should return correct cell configs with column indices", () => {
-    // Create mock cell IDs
-    const cellId1 = CellId.create();
-    const cellId2 = CellId.create();
-    const cellId3 = CellId.create();
-    const cellId4 = CellId.create();
+type Cells = Record<
+  string,
+  { edited?: boolean; disabled?: boolean; staleInputs?: boolean }
+>;
 
-    // Create a mock NotebookState
-    const mockState: NotebookState = {
-      ...initialNotebookState(),
-      cellIds: MultiColumn.from([
-        [cellId1, cellId2],
-        [cellId3, cellId4],
+function notebook(cells: Cells): NotebookState {
+  return {
+    cellIds: Object.keys(cells),
+    cellData: Object.fromEntries(
+      Object.entries(cells).map(([id, cell]) => [
+        id,
+        { config: { disabled: cell.disabled } },
       ]),
-      cellData: {
-        [cellId1]: {
-          id: cellId1,
-          config: { hide_code: false, disabled: false },
-        } as CellData,
-        [cellId2]: {
-          id: cellId2,
-          config: { hide_code: true, disabled: false },
-        } as CellData,
-        [cellId3]: {
-          id: cellId3,
-          config: { hide_code: false, disabled: true },
-        } as CellData,
-        [cellId4]: {
-          id: cellId4,
-          config: { hide_code: true, disabled: true },
-        } as CellData,
-      },
-      cellRuntime: {} as Record<CellId, CellRuntimeState>,
+    ),
+    cellRuntime: Object.fromEntries(Object.keys(cells).map((id) => [id, {}])),
+  } as any;
+}
+
+/** Freshness as the host would report it for `cells`. */
+function freshness(cells: Cells): CellFreshnessLookup {
+  return (id) => {
+    const cell = cells[id];
+    return {
+      sourceChanged: cell?.edited ?? false,
+      inputsChanged: cell?.staleInputs ?? false,
     };
-
-    // Call the function
-    const result = getCellConfigs(mockState);
-
-    // Assert the results
-    expect(result).toEqual([
-      { hide_code: false, disabled: false, column: 0 },
-      { hide_code: true, disabled: false, column: null },
-      { hide_code: false, disabled: true, column: 1 },
-      { hide_code: true, disabled: true, column: null },
-    ]);
-
-    // Check that the original state was not modified
-    expect(mockState.cellData[cellId1].config).toEqual({
-      hide_code: false,
-      disabled: false,
-    });
-    expect(mockState.cellData[cellId2].config).toEqual({
-      hide_code: true,
-      disabled: false,
-    });
-    expect(mockState.cellData[cellId3].config).toEqual({
-      hide_code: false,
-      disabled: true,
-    });
-    expect(mockState.cellData[cellId4].config).toEqual({
-      hide_code: true,
-      disabled: true,
-    });
-  });
-
-  it("should handle single column", () => {
-    const cellId1 = CellId.create();
-    const mockState: NotebookState = {
-      ...initialNotebookState(),
-      cellIds: MultiColumn.from([[cellId1]]),
-      cellData: {
-        [cellId1]: {
-          id: cellId1,
-          config: { hide_code: false, disabled: false },
-        } as CellData,
-      },
-      untouchedNewCells: new Set(),
-    };
-
-    const result = getCellConfigs(mockState);
-    expect(result).toEqual([
-      { hide_code: false, disabled: false, column: null },
-    ]);
-  });
-
-  it("should handle empty notebook state", () => {
-    const mockState: NotebookState = initialNotebookState();
-    const result = getCellConfigs(mockState);
-
-    expect(result).toEqual([]);
-  });
-});
+  };
+}
 
 describe("staleCellIds", () => {
-  it("should return cell IDs that have not been instantiated when auto-instantiate is false", () => {
-    const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
-      cellData: {
-        cell1: {
-          lastExecutionTime: null,
-          edited: false,
-          config: { disabled: false },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: null,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-        cell2: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
+  it("should return cell IDs that have never run", () => {
+    const cells: Cells = { cell1: {}, cell2: {} };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.completed("cell2"),
+    ]);
 
-    const result = staleCellIds(state);
-
-    expect(result).toEqual(["cell1"]);
-  });
-
-  it("should use lastExecutionTime when runElapsedTimeMs is null", () => {
-    const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
-      cellData: {
-        cell1: {
-          lastExecutionTime: null,
-          edited: false,
-          config: { disabled: false },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: null,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-        cell2: {
-          runElapsedTimeMs: null,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
-
-    const result = staleCellIds(state);
-
-    expect(result).toEqual(["cell1"]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should return cell IDs that are edited", () => {
-    const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
-      cellData: {
-        cell1: {
-          lastExecutionTime: 123,
-          edited: true,
-          config: { disabled: false },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-        cell2: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
+    const cells: Cells = { cell1: { edited: true }, cell2: {} };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.completed("cell1"),
+      MockExecutions.completed("cell2"),
+    ]);
 
-    const result = staleCellIds(state);
-
-    expect(result).toEqual(["cell1"]);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should return cell IDs that are interrupted", () => {
-    const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
-      cellData: {
-        cell1: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: true,
-          stopped: false,
-          staleInputs: false,
-        },
-        cell2: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
+    const cells: Cells = { cell1: {}, cell2: {} };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.interrupted("cell1"),
+      MockExecutions.completed("cell2"),
+    ]);
 
-    const result = staleCellIds(state);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
+  });
 
-    expect(result).toEqual(["cell1"]);
+  it("should return cell IDs with stale inputs", () => {
+    const cells: Cells = { cell1: { staleInputs: true }, cell2: {} };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.completed("cell1"),
+      MockExecutions.completed("cell2"),
+    ]);
+
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell1",
+    ]);
   });
 
   it("should not return cell IDs that are disabled", () => {
-    const state: NotebookState = {
-      cellIds: MultiColumn.from([["cell1", "cell2"]]),
-      cellData: {
-        cell1: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: true },
-        },
-        cell2: {
-          lastExecutionTime: 123,
-          edited: false,
-          config: { disabled: false },
-        },
-      },
-      cellRuntime: {
-        cell1: {
-          runElapsedTimeMs: 456,
-          status: "disabled-transitively",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: true,
-        },
-        cell2: {
-          runElapsedTimeMs: 456,
-          status: "idle",
-          errored: false,
-          interrupted: false,
-          stopped: false,
-          staleInputs: false,
-        },
-      },
-    } as any;
+    const cells: Cells = {
+      cell1: { disabled: true, staleInputs: true },
+      cell2: { staleInputs: true },
+    };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs(
+      [MockExecutions.completed("cell1"), MockExecutions.completed("cell2")],
+      { blocked: new Set(["cell2"]) },
+    );
 
-    const result = staleCellIds(state);
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);
+  });
+});
 
-    expect(result).toEqual([]);
+describe("staleCellIds with a run in progress", () => {
+  it("leaves a running cell alone unless its source changed since", () => {
+    const cells: Cells = { cell1: {}, cell2: { edited: true } };
+    const state = notebook(cells);
+    const executions = MockExecutions.inputs([
+      MockExecutions.running("cell1"),
+      MockExecutions.running("cell2"),
+    ]);
+
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([
+      "cell2",
+    ]);
+  });
+
+  it("leaves a submitted cell alone until the host has planned its run", () => {
+    const cells: Cells = { cell1: { edited: true } };
+    const state = notebook(cells);
+    const ran = MockExecutions.completed("cell1");
+    const executions = MockExecutions.inputs([ran], {
+      requested: new Set(["cell1"]),
+    });
+
+    expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);
+  });
+});
+
+describe("cellNeedsRun", () => {
+  const blocked = { interrupted: false, disabled: false, blocked: true };
+
+  it("flags a blocked cell whose source changed, whatever its inputs did", () => {
+    expect(
+      cellNeedsRun({
+        ...blocked,
+        freshness: freshness({ c: { edited: true, staleInputs: true } })("c"),
+      }),
+    ).toBe(true);
+  });
+
+  it("does not flag a blocked cell for changed inputs alone", () => {
+    expect(
+      cellNeedsRun({
+        ...blocked,
+        freshness: freshness({ c: { staleInputs: true } })("c"),
+      }),
+    ).toBe(false);
   });
 });
 
 describe("isUninstantiated", () => {
-  it("should return true if autoInstantiate is false and cell has not run", () => {
-    const result = isUninstantiated({
-      executionTime: null,
-      status: "idle",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(true);
+  it("should return true if the cell has not run", () => {
+    expect(
+      isUninstantiated({ status: "idle", outcome: null, live: true }),
+    ).toBe(true);
   });
 
-  it("should return false if cell has run", () => {
-    const result = isUninstantiated({
-      executionTime: 123,
-      status: "idle",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
+  it("should return false if the cell has run", () => {
+    expect(
+      isUninstantiated({ status: "idle", outcome: "value", live: true }),
+    ).toBe(false);
   });
 
-  it("should return false if cell is currently queued or running", () => {
-    let result = isUninstantiated({
-      executionTime: null,
-      status: "queued",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
-
-    result = isUninstantiated({
-      executionTime: null,
-      status: "running",
-      errored: false,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
+  it("should return true if another runtime produced the cell's result", () => {
+    // Restored from storage, or kept across a kernel restart: the output
+    // shows, and nothing the cell bound exists in this runtime.
+    expect(
+      isUninstantiated({ status: "idle", outcome: "value", live: false }),
+    ).toBe(true);
+    expect(
+      isUninstantiated({ status: "running", outcome: null, live: false }),
+    ).toBe(false);
   });
 
-  it("should return false if cell is in an error state", () => {
-    let result = isUninstantiated({
-      executionTime: null,
-      status: "idle",
-      errored: true,
-      interrupted: false,
-      stopped: false,
-    });
-    expect(result).toBe(false);
+  it("should return false if the cell is currently queued or running", () => {
+    expect(
+      isUninstantiated({ status: "queued", outcome: null, live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "running", outcome: null, live: true }),
+    ).toBe(false);
+  });
 
-    result = isUninstantiated({
-      executionTime: null,
-      status: "idle",
-      errored: false,
-      interrupted: true,
-      stopped: false,
-    });
-    expect(result).toBe(false);
-
-    result = isUninstantiated({
-      executionTime: null,
-      status: "idle",
-      errored: false,
-      interrupted: false,
-      stopped: true,
-    });
-    expect(result).toBe(false);
+  it("should return false if the cell ended without a value", () => {
+    expect(
+      isUninstantiated({ status: "idle", outcome: "error", live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "idle", outcome: "interrupted", live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "idle", outcome: "skipped", live: true }),
+    ).toBe(false);
   });
 });
 
@@ -395,7 +214,7 @@ describe("disabledCellIds", () => {
 
     const state: NotebookState = {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[cellId1, cellId2, cellId3]]),
+      cellIds: [cellId1, cellId2, cellId3],
       cellData: {
         [cellId1]: { id: cellId1, config: { disabled: true } } as CellData,
         [cellId2]: { id: cellId2, config: { disabled: false } } as CellData,
@@ -416,7 +235,7 @@ describe("enabledCellIds", () => {
 
     const state: NotebookState = {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[cellId1, cellId2, cellId3]]),
+      cellIds: [cellId1, cellId2, cellId3],
       cellData: {
         [cellId1]: { id: cellId1, config: { disabled: true } } as CellData,
         [cellId2]: { id: cellId2, config: { disabled: false } } as CellData,

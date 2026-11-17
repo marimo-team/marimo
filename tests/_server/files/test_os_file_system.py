@@ -685,14 +685,14 @@ class TestIsMarimoFile:
         py_file.write_text("print(0)".ljust(len(notebook)))
         unchanged_stat = py_file.stat()
         with patch(
-            "marimo._server.files.os_file_system.time.monotonic",
-            return_value=100,
+            "marimo._server.files.os_file_system.time",
         ) as clock:
+            clock.monotonic.return_value = 100
             assert fs._is_marimo_file(str(py_file), unchanged_stat) is False
             py_file.write_text(notebook)
-            clock.return_value = 104
+            clock.monotonic.return_value = 104
             assert fs._is_marimo_file(str(py_file), unchanged_stat) is False
-            clock.return_value = 105
+            clock.monotonic.return_value = 105
             assert fs._is_marimo_file(str(py_file), unchanged_stat) is True
 
     def test_python_marimo_file(

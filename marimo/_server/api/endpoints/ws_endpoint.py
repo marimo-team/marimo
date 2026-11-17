@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from starlette.responses import StreamingResponse
 
 from marimo import _loggers
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -15,13 +14,11 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
     WebSocketConnectionValidator,
     parse_connection_params,
 )
-from marimo._server.api.endpoints.ws.ws_rtc_handler import RTCWebSocketHandler
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.host import stream_options
 from marimo._server.host.lifespan import ensure_host
 from marimo._server.host.session import SessionEventStream
 from marimo._server.router import APIRouter
-from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.sse import SSE_HEADERS, format_close_event
 
 if TYPE_CHECKING:
@@ -37,8 +34,6 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 router = APIRouter()
-
-DOC_MANAGER = LoroDocManager()
 
 
 @router.websocket("/ws")
@@ -85,7 +80,6 @@ async def _session_events(
         bridge=context.bridge,
         manager=AppState(connection).session_manager,
         params=params,
-        doc_manager=DOC_MANAGER,
         types=types,
         cursor=cursor,
     )
@@ -135,9 +129,8 @@ async def sse_endpoint(request: Request) -> StreamingResponse:
             WebSocketCodes.UNAUTHORIZED, WebSocketCloseReason.UNAUTHORIZED
         )
 
-    # Extract and validate connection parameters. SSE cannot carry the
-    # /ws_sync document stream, so RTC is disabled.
-    params = parse_connection_params(app_state, allow_rtc=False)
+    # Extract and validate connection parameters
+    params = parse_connection_params(app_state)
     if isinstance(params, ConnectionRejection):
         return _close_only_stream(params.code, params.reason)
 
@@ -160,47 +153,3 @@ async def sse_endpoint(request: Request) -> StreamingResponse:
                 yield event
 
     return _sse_response(stream())
-
-
-# WebSocket endpoint for LoroDoc synchronization
-@router.websocket("/ws_sync")
-async def ws_sync(
-    websocket: WebSocket,
-) -> None:
-    """WebSocket endpoint for LoroDoc synchronization (RTC)."""
-    app_state = AppState(websocket)
-    validator = WebSocketConnectionValidator(websocket, app_state)
-
-    # Validate authentication before proceeding
-    if not await validator.validate_auth():
-        return
-
-    # Check if Loro is available
-    if not DependencyManager.loro.has():
-        LOGGER.warning("RTC: Loro is not installed, closing websocket")
-        await websocket.close(
-            WebSocketCodes.NORMAL_CLOSE,
-            WebSocketCloseReason.LORO_NOT_INSTALLED,
-        )
-        return
-
-    # Extract file key
-    file_key = await validator.extract_file_key_only()
-    if file_key is None:
-        return
-
-    # Verify session exists
-    manager = app_state.session_manager
-    session = manager.get_session_by_file_key(file_key)
-    if session is None:
-        LOGGER.warning(
-            f"RTC: Closing websocket - no session found for file key {file_key}"
-        )
-        await websocket.close(
-            WebSocketCodes.FORBIDDEN, WebSocketCloseReason.NOT_ALLOWED
-        )
-        return
-
-    # Handle RTC connection
-    handler = RTCWebSocketHandler(websocket, file_key, DOC_MANAGER)
-    await handler.handle()

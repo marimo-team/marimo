@@ -36,6 +36,7 @@ from tests._server.templates.utils import (
 from tests.mocks import (
     _sanitize_version,
     delete_lines_with_files,
+    fake_async_playwright,
     simplify_images,
     simplify_plotly,
     snapshotter,
@@ -751,6 +752,97 @@ class TestExportHTML:
 
         # Clean up
         shutil.rmtree(public_dir)
+
+    @staticmethod
+    def test_cli_export_html_wasm_public_folder_skips_external_symlinks(
+        temp_marimo_file: str,
+    ) -> None:
+        notebook_dir = Path(temp_marimo_file).parent
+        (notebook_dir / "other.txt").write_text("other")
+        (notebook_dir / "assets").mkdir()
+        (notebook_dir / "assets" / "logo.txt").write_text("logo")
+        public_dir = notebook_dir / "public"
+        public_dir.mkdir()
+        (public_dir / "data.txt").write_text("public")
+        (public_dir / "notes.txt").write_text("updated")
+        existing = notebook_dir / "existing.txt"
+        existing.write_text("original")
+        out_dir = notebook_dir / "out"
+        (out_dir / "public").mkdir(parents=True)
+        try:
+            (public_dir / "other.txt").symlink_to("../other.txt")
+            (public_dir / "assets").symlink_to(notebook_dir / "assets")
+            (public_dir / "data-link.txt").symlink_to("data.txt")
+            (out_dir / "public" / "notes.txt").symlink_to(existing)
+        except OSError:
+            pytest.skip("symlinks are not available")
+
+        p = _run_export(
+            "html-wasm", temp_marimo_file, "--output", str(out_dir)
+        )
+        _assert_success(p)
+        assert (out_dir / "public" / "data.txt").read_text() == "public"
+        assert (out_dir / "public" / "data-link.txt").read_text() == "public"
+        assert not (out_dir / "public" / "other.txt").exists()
+        assert not (out_dir / "public" / "assets").exists()
+        assert existing.read_text() == "original"
+
+    @staticmethod
+    def test_cli_export_html_wasm_skips_symlinked_public_folders(
+        temp_marimo_file: str,
+    ) -> None:
+        notebook_dir = Path(temp_marimo_file).parent
+        other_dir = notebook_dir / "other"
+        other_dir.mkdir()
+        linked_out = notebook_dir / "linked-out"
+        linked_out.mkdir()
+        try:
+            (notebook_dir / "public").symlink_to(".")
+            (linked_out / "public").symlink_to(other_dir)
+        except OSError:
+            pytest.skip("symlinks are not available")
+
+        out_dir = notebook_dir / "out"
+        p = _run_export(
+            "html-wasm", temp_marimo_file, "--output", str(out_dir)
+        )
+        _assert_success(p)
+        assert not (out_dir / "public").exists()
+
+        (notebook_dir / "public").unlink()
+        (notebook_dir / "public").mkdir()
+        (notebook_dir / "public" / "data.txt").write_text("data")
+        p = _run_export(
+            "html-wasm", temp_marimo_file, "--output", str(linked_out)
+        )
+        _assert_success(p)
+        assert list(other_dir.iterdir()) == []
+
+    @staticmethod
+    def test_cli_export_html_wasm_skips_symlinked_non_wheel(
+        tmp_path: Path,
+    ) -> None:
+        readme = tmp_path / "README.txt"
+        readme.write_bytes(b"not a wheel")
+        try:
+            (tmp_path / "helper-1.0.0-py3-none-any.whl").symlink_to(readme)
+        except OSError:
+            pytest.skip("symlinks are not available")
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(
+            notebook,
+            "    return\n",
+            '# /// script\n# dependencies = ["helper @ ./helper-1.0.0-py3-none-any.whl"]\n# ///\n',
+        )
+
+        out_dir = tmp_path / "out"
+        p = _run_export("html-wasm", str(notebook), "--output", str(out_dir))
+        _assert_success(p)
+        assert not any(
+            path.read_bytes() == b"not a wheel"
+            for path in out_dir.rglob("*")
+            if path.is_file()
+        )
 
     @staticmethod
     def test_cli_export_html_wasm_cloudflare(temp_marimo_file: str) -> None:
@@ -2060,6 +2152,67 @@ class TestExportPDF:
         assert "Exporting PDF: rendering PDF via WebPDF..." in result.output
         assert "Exporting PDF: done." in result.output
         assert mock_run_app.await_count == 1
+
+
+def test_thumbnail_screenshots_from_a_selector_loop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._cli.export import thumbnail
+    from marimo._utils.marimo_path import MarimoPath
+
+    loops: dict[str, asyncio.AbstractEventLoop] = {}
+
+    def record(name: str) -> Any:
+        async def side_effect(*_: object, **__: object) -> Any:
+            loops[name] = asyncio.get_running_loop()
+            return mock.DEFAULT
+
+        return side_effect
+
+    playwright = mock.MagicMock()
+    launch = playwright.chromium.launch = mock.AsyncMock(
+        side_effect=record("launch")
+    )
+    page = launch.return_value.new_context.return_value.new_page.return_value
+    page.screenshot.side_effect = record("screenshot")
+    async_api = mock.MagicMock()
+    async_api.async_playwright = fake_async_playwright(playwright)
+    monkeypatch.setitem(sys.modules, "playwright.async_api", async_api)
+    (tmp_path / "_static").mkdir()
+    monkeypatch.setattr(thumbnail, "marimo_package_path", lambda: tmp_path)
+    monkeypatch.setattr(
+        thumbnail,
+        "_render_html",
+        mock.AsyncMock(side_effect=record("render"), return_value="<html>"),
+    )
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("import marimo\n")
+
+    with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
+        runner.run(
+            thumbnail._generate_thumbnails(
+                notebooks=[MarimoPath(notebook)],
+                width=1200,
+                height=630,
+                scale=1,
+                timeout_ms=0,
+                output=tmp_path / "thumbnail.png",
+                overwrite=True,
+                include_code=False,
+                execute=False,
+                notebook_args=(),
+                continue_on_error=False,
+                sandbox=None,
+            )
+        )
+        # Sessions render on the caller's loop. Playwright objects only work
+        # on the loop that started their driver.
+        assert loops["render"] is runner.get_loop()
+        assert loops["screenshot"] is loops["launch"]
+
+    page.screenshot.assert_awaited_once_with(
+        path=str(tmp_path / "thumbnail.png"), full_page=False
+    )
 
 
 @pytest.mark.skipif(

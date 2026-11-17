@@ -7,12 +7,11 @@ import {
   createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { SaveNotebookRequest } from "@/core/network/types";
 import { decodeUtf8 } from "@/utils/strings";
 import { Deferred } from "../../../utils/Deferred";
 import { prettyError } from "../../../utils/errors";
 import { Logger } from "../../../utils/Logger";
-import type { ParentSchema } from "../rpc";
+import type { ParentSchema, PersistNotebookRequest } from "../rpc";
 import type { WasmRuntimeConfig } from "../runtime-config";
 import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
@@ -70,14 +69,14 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
     return WasmFileSystem.readNotebook(self.pyodide);
   },
-  saveNotebook: async (opts: SaveNotebookRequest) => {
-    await pyodideReadyPromise; // Make sure loading is done
-    const saveFile = self.pyodide.runPython(`
-      from marimo._pyodide.bootstrap import save_file
-
-      save_file
-    `);
-    await saveFile(JSON.stringify(opts), WasmFileSystem.NOTEBOOK_FILENAME);
+  writeNotebook: async ({ filename, contents }: PersistNotebookRequest) => {
+    await pyodideReadyPromise;
+    const directory = filename.substring(0, filename.lastIndexOf("/"));
+    if (directory) {
+      self.pyodide.FS.mkdirTree(directory);
+    }
+    self.pyodide.FS.writeFile(filename, contents);
+    self.pyodide.FS.writeFile(WasmFileSystem.NOTEBOOK_FILENAME, contents);
     await WasmFileSystem.persistFilesToRemote(self.pyodide);
   },
 });

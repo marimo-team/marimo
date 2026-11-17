@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import ast
 import json
+import sys
+import warnings
 from functools import partial
 from inspect import cleandoc
 from pathlib import Path
+from runpy import run_path
 from textwrap import dedent
 from typing import Any
 from unittest.mock import patch
@@ -19,7 +22,7 @@ from marimo._ast import codegen, compiler, load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._ast.names import is_internal_cell_name
+from marimo._ast.names import SETUP_CELL_NAME, is_internal_cell_name
 from marimo._schemas.notebook import NotebookV1
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
@@ -792,6 +795,28 @@ app._unparsable_cell(
         config = _AppConfig(auto_download=["html"])
         result = codegen.generate_app_constructor(config)
         assert result == 'app = marimo.App(auto_download=["html"])'
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "title",
+        ['He said "hi"', "it's", "both \"double\" and 'single'", "two\nlines"],
+    )
+    def test_generate_app_constructor_quotes_strings(title: str) -> None:
+        result = codegen.generate_app_constructor(_AppConfig(app_title=title))
+        (call,) = ast.parse(result).body
+        assert isinstance(call, ast.Assign)
+        assert isinstance(call.value, ast.Call)
+        (keyword,) = call.value.keywords
+        assert keyword.arg == "app_title"
+        assert ast.literal_eval(keyword.value) == title
+
+    @staticmethod
+    def test_generate_app_constructor_prefers_double_quotes() -> None:
+        config = _AppConfig(app_title="plain", css_file=r"a\b.css")
+        result = codegen.generate_app_constructor(config)
+        assert result == (
+            'app = marimo.App(app_title="plain", css_file="a\\\\b.css")'
+        )
 
     @staticmethod
     def test_generate_file_contents_overwrite_default_cell_names() -> None:
@@ -2344,3 +2369,113 @@ def test_format_markdown_preserves_surrounding_source(
     code: str, expected: str
 ) -> None:
     assert codegen.format_markdown(compile_cell(code)) == expected
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 15), reason="`lazy import` requires Python 3.15"
+)
+class TestLazyImports:
+    @staticmethod
+    def test_lazy_import_in_regular_cell_saves_as_unparsable_cell(
+        tmp_path: Path,
+    ) -> None:
+        contents = wrap_generate_filecontents(
+            ["lazy import json", "x = 1"], ["one", "two"]
+        )
+        assert "app._unparsable_cell" in contents
+        assert "lazy import json" in contents
+        compile(contents, "<notebook>", "exec")
+        path = tmp_path / "notebook.py"
+        path.write_text(contents)
+        app = load.load_app(path)
+        assert app is not None
+        assert list(app._cell_manager.codes()) == ["lazy import json", "x = 1"]
+
+    @staticmethod
+    def test_lazy_import_in_setup_cell_serializes(tmp_path: Path) -> None:
+        contents = wrap_generate_filecontents(
+            ["lazy import json\nX = 1", "y = json.dumps(X)"],
+            [SETUP_CELL_NAME, "two"],
+        )
+        assert "with app.setup:" in contents
+        assert "    lazy import json" in contents
+        assert "app._unparsable_cell" not in contents
+        compile(contents, "<notebook>", "exec")
+        path = tmp_path / "notebook.py"
+        path.write_text(contents)
+        app = load.load_app(path)
+        assert app is not None
+        assert list(app._cell_manager.codes()) == [
+            "lazy import json\nX = 1",
+            "y = json.dumps(X)",
+        ]
+        _, defs = run_path(str(path))["app"].run()
+        assert defs["y"] == "1"
+
+
+def _markdown_value(code: str) -> str:
+    (stmt,) = ast.parse(code).body
+    (arg,) = stmt.value.args  # type: ignore[attr-defined]
+    if isinstance(arg, ast.JoinedStr):
+        (arg,) = arg.values
+    assert isinstance(arg, ast.Constant)
+    assert isinstance(arg.value, str)
+    return arg.value
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        # Raw string: a doubled quote is content, not an escape
+        (
+            'mo.md(\n    r"""\n    !!! tip ""\n    """\n)',
+            'mo.md(r"""\n!!! tip ""\n""")',
+        ),
+        # Raw string: a code sample with an empty JS string stays terminated
+        (
+            'mo.md(\n    r"""\n    const myVar = "";\n    """\n)',
+            'mo.md(r"""\nconst myVar = "";\n""")',
+        ),
+        # Non-raw string: an escaped backslash stays escaped
+        (
+            'mo.md(\n    """\n    `field=\'value\\\\.data\'`\n    """\n)',
+            'mo.md("""\n`field=\'value\\\\.data\'`\n""")',
+        ),
+        # Non-raw string: escape sequences are kept as written
+        ('mo.md("tab\\there")', 'mo.md("""\ntab\\there\n""")'),
+        # f-string: doubled braces stay doubled
+        ('mo.md(f"{{x}}")', 'mo.md(f"""\n{{x}}\n""")'),
+        # A bare triple quote in the body cannot move into """ quotes
+        ('mo.md(r\'has """\')', "mo.md(r'''\nhas \"\"\"\n''')"),
+        ('mo.md(\'has """\')', "mo.md('''\nhas \"\"\"\n''')"),
+    ],
+)
+def test_format_markdown_preserves_string_value(
+    code: str, expected: str
+) -> None:
+    formatted = codegen.format_markdown(compile_cell(code))
+    assert formatted == expected
+    with warnings.catch_warnings():
+        # An invalid escape sequence is only a SyntaxWarning
+        warnings.simplefilter("error")
+        compile(formatted, "<cell>", "exec")
+    assert (
+        _markdown_value(formatted)
+        == "\n" + dedent(_markdown_value(code)).strip() + "\n"
+    )
+
+
+def test_format_markdown_keeps_cell_with_escaped_newline() -> None:
+    # Dedenting the physical lines would leave `bar` indented but not `baz`.
+    code = 'mo.md("""foo\\n    bar\n    baz""")'
+    assert codegen.format_markdown(compile_cell(code)) == code
+
+
+def test_trailing_comment_on_final_expression_round_trips() -> None:
+    from marimo._convert.converters import MarimoConvert
+
+    source = wrap_generate_filecontents(
+        ["x = 1", "x  # Uses the default renderer"], ["a", "b"]
+    )
+    assert "    x  # Uses the default renderer\n" in source
+    assert MarimoConvert.from_py(source).to_py() == source

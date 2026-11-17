@@ -1,8 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
-# Generated from protocols/host/openapi.yaml.
-# Experimental features: analysis
-# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis`.
+# Generated from packages/host-protocol.
+# Regenerate with `make host-protocol-codegen`.
 """Typed envelope adapters. Payload ownership stays with the caller."""
 
 from __future__ import annotations
@@ -26,6 +25,7 @@ Body: TypeAlias = (
     | protocol.Document
     | protocol.Execution
     | protocol.Host
+    | protocol.Input
     | protocol.Notebook
     | protocol.Project
     | protocol.Run
@@ -41,6 +41,7 @@ SnapshotBody: TypeAlias = (
     | protocol.Document
     | protocol.Execution
     | protocol.Host
+    | protocol.Input
     | protocol.Notebook
     | protocol.Project
     | protocol.Run
@@ -57,6 +58,7 @@ RecordEvent: TypeAlias = (
     | protocol.DocumentEvent
     | protocol.ExecutionEvent
     | protocol.HostEvent
+    | protocol.InputEvent
     | protocol.NotebookEvent
     | protocol.ProjectEvent
     | protocol.RunEvent
@@ -168,6 +170,15 @@ def record(
     request_id: str | UnsetType = UNSET,
     time: datetime | UnsetType = UNSET,
 ) -> protocol.HostEvent: ...
+
+
+@overload
+def record(
+    value: protocol.Input,
+    *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime | UnsetType = UNSET,
+) -> protocol.InputEvent: ...
 
 
 @overload
@@ -289,6 +300,13 @@ def record(
                 )
             )
 
+        case protocol.Input():
+            return protocol.InputEvent(
+                protocol.InputMessage(
+                    input=value, request_id=request_id, time=time
+                )
+            )
+
         case protocol.Notebook():
             return protocol.NotebookEvent(
                 protocol.NotebookMessage(
@@ -364,6 +382,10 @@ def body(event: protocol.HostEvent) -> protocol.Host: ...
 
 
 @overload
+def body(event: protocol.InputEvent) -> protocol.Input: ...
+
+
+@overload
 def body(event: protocol.NotebookEvent) -> protocol.Notebook: ...
 
 
@@ -412,6 +434,9 @@ def body(event: RecordEvent) -> Body:
 
         case protocol.HostEvent(data=data):
             return data.host
+
+        case protocol.InputEvent(data=data):
+            return data.input
 
         case protocol.NotebookEvent(data=data):
             return data.notebook

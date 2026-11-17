@@ -15,7 +15,9 @@ import pytest
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG, merge_config
+from marimo._config.config_schema import FileBrowserConfig
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.input import InputReply
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.pyodide_session import (
     AsyncQueueManager,
@@ -30,6 +32,7 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     DebugCellCommand,
     DeleteCellCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
@@ -351,8 +354,9 @@ async def test_pyodide_session_put_control_request(
 ) -> None:
     # Test putting control requests
     execution_request = ExecuteCellsCommand(
-        cell_ids=[CellId_t("test")],
-        codes=["test"],
+        execution_requests=[
+            ExecuteCellCommand(cell_id=CellId_t("test"), code="test")
+        ]
     )
     set_ui_element_request = UpdateUIElementCommand(
         object_ids=[UIElementId("test")], values=["test"]
@@ -589,15 +593,14 @@ async def test_strip_version_resilience(
         )
 
 
-async def test_pyodide_session_put_input(
+async def test_pyodide_session_reply_input(
     pyodide_session: PyodideSession,
 ) -> None:
-    # Test putting input
-    input_text = "test input"
-    pyodide_session.put_input(input_text)
+    reply = InputReply("prompt", "test input")
+    pyodide_session.reply_input(reply)
 
     assert not pyodide_session._queue_manager.input_queue.empty()
-    assert await pyodide_session._queue_manager.input_queue.get() == input_text
+    assert await pyodide_session._queue_manager.input_queue.get() == reply
 
 
 @pytest.mark.parametrize(
@@ -618,11 +621,11 @@ async def test_pyodide_session_put_input(
         ),
         # Cell execution and management
         (
-            '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}',
+            '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "print(1)"}]}',
             ExecuteCellsCommand,
         ),
         (
-            '{"type": "execute-cells", "cellIds": ["cell-1", "cell-2"], "codes": ["x=1", "y=2"]}',
+            '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "x=1"}, {"type": "execute-cell", "cellId": "cell-2", "code": "y=2"}]}',
             ExecuteCellsCommand,
         ),
         (
@@ -819,18 +822,10 @@ def test_pyodide_bridge_put_control_request(
     pyodide_bridge: PyodideBridge,
 ) -> None:
     """Test putting control requests through the bridge."""
-    request_json = '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}'
+    request_json = '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "print(1)"}]}'
     pyodide_bridge.put_control_request(request_json)
 
     assert not pyodide_bridge.session._queue_manager.control_queue.empty()
-
-
-def test_pyodide_bridge_put_input(pyodide_bridge: PyodideBridge) -> None:
-    """Test putting input through the bridge."""
-    test_input = "test input"
-    pyodide_bridge.put_input(test_input)
-
-    assert not pyodide_bridge.session._queue_manager.input_queue.empty()
 
 
 def test_pyodide_bridge_code_complete(pyodide_bridge: PyodideBridge) -> None:
@@ -874,45 +869,39 @@ async def test_pyodide_bridge_format(pyodide_bridge: PyodideBridge) -> None:
     assert "cell-1" in response["codes"]
 
 
-def test_pyodide_bridge_save(
+async def test_pyodide_bridge_document_export(
     pyodide_bridge: PyodideBridge,
-    pyodide_app_file: Path,
 ) -> None:
-    request_json = json.dumps(
-        {
-            "cellIds": ["test"],
-            "codes": ['message = "NEW"'],
-            "names": ["_"],
-            "configs": [{}],
-            "filename": str(pyodide_app_file),
-        }
+    result = json.loads(
+        await pyodide_bridge.notebook.call(
+            json.dumps(
+                {
+                    "operation": "notebook.edit",
+                    "params": {"notebook_id": pyodide_bridge.notebook.id},
+                    "headers": {"idempotency-key": "edit-1"},
+                    "body": {
+                        "changes": [
+                            {
+                                "kind": "put_cell",
+                                "base_etag": None,
+                                "cell": {
+                                    "id": "test",
+                                    "code": 'message = "NEW"',
+                                },
+                            }
+                        ]
+                    },
+                }
+            )
+        )
     )
-
-    pyodide_bridge.save(request_json)
+    assert result["status"] == 200, result
 
     request = json.dumps({"download": False})
     script = json.loads(pyodide_bridge.export_script(request))
     markdown = json.loads(pyodide_bridge.export_markdown(request))
     assert 'message = "NEW"' in script["contents"]
     assert 'message = "NEW"' in markdown["contents"]
-
-
-def test_pyodide_bridge_save_app_config(
-    pyodide_bridge: PyodideBridge,
-    pyodide_app_file: Path,
-) -> None:
-    del pyodide_app_file
-    """Test saving app config through the bridge."""
-    request_json = json.dumps(
-        {
-            "config": {
-                "width": "full",
-            }
-        }
-    )
-
-    # Should not raise
-    pyodide_bridge.save_app_config(request_json)
 
 
 def test_pyodide_bridge_save_user_config(
@@ -996,10 +985,12 @@ def test_pyodide_bridge_file_roots(
     monkeypatch.setattr(
         pyodide_bridge.file_system, "get_root", lambda: str(primary)
     )
-    monkeypatch.setitem(
+    monkeypatch.setattr(
         pyodide_bridge.session._initial_user_config,
         "file_browser",
-        {"folders": [{"path": str(shared), "name": "Shared"}]},
+        FileBrowserConfig.from_dict(
+            {"folders": [{"path": str(shared), "name": "Shared"}]}
+        ),
     )
 
     response = json.loads(pyodide_bridge.file_roots())

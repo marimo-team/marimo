@@ -87,7 +87,6 @@ notifications
   QueryParamsClearNotification
   QueryParamsDeleteNotification
   QueryParamsSetNotification
-  ReconnectedNotification
   ReloadNotification
   RemoveUIElementsNotification
   SQLMetadata

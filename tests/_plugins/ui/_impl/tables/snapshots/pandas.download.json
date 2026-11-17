@@ -15,7 +15,7 @@
         "period_range": "2017Q1",
         "interval_range": "(2017-01-01 00:00:00, 2017-01-02 00:00:00]",
         "delta": [
-            "P1DT6H5M1.000030S"
+            "P1DT6H5M1.000030001S"
         ],
         "none": null,
         "infs": null,
@@ -77,7 +77,7 @@
         "period_range": "2017Q2",
         "interval_range": "(2017-01-02 00:00:00, 2017-01-03 00:00:00]",
         "delta": [
-            "P1DT6H5M1.000030S",
+            "P1DT6H5M1.000030001S",
             "P0DT0H0M0.000015500S"
         ],
         "none": null,
@@ -140,7 +140,7 @@
         "period_range": "2017Q3",
         "interval_range": "(2017-01-03 00:00:00, 2017-01-04 00:00:00]",
         "delta": [
-            "P1DT6H5M1.000030S",
+            "P1DT6H5M1.000030001S",
             "P0DT0H0M0.000015500S",
             null
         ],

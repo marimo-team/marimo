@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -27,14 +27,16 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Multi-Catalog Ibis Backend Tests""")
-    return
+    mo.md(r"""
+    # Multi-Catalog Ibis Backend Tests
+    """)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## DuckDB Multi-Catalog with Temp Tables""")
-    return
+    mo.md(r"""
+    ## DuckDB Multi-Catalog with Temp Tables
+    """)
 
 
 @app.cell
@@ -68,7 +70,6 @@ def _(duckdb_con):
         .select(_.product, _.price, _.quantity, _.total_value)
         .order_by(_.total_value.desc())
     )
-    return
 
 
 @app.cell
@@ -76,13 +77,13 @@ def _(duckdb_con):
     # Query the temp table using Ibis API with deferred API
     temp_customers_table = duckdb_con.table("temp_customers")
     temp_query = temp_customers_table.order_by(_.customer_id)
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## DuckDB Attached Catalogs""")
-    return
+    mo.md(r"""
+    ## DuckDB Attached Catalogs
+    """)
 
 
 @app.cell
@@ -99,7 +100,6 @@ def _(duckdb_con, ibis):
     # Create tables in specific catalogs using dot notation
     duckdb_con.create_table("inventory", obj=inventory_data, database="catalog_a.main", overwrite=True)
     duckdb_con.create_table("orders", obj=orders_data, database="catalog_b.main", overwrite=True)
-    return
 
 
 @app.cell
@@ -115,13 +115,13 @@ def _(duckdb_con):
     )
 
     cross_catalog_query
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## DataFusion Backend""")
-    return
+    mo.md(r"""
+    ## DataFusion Backend
+    """)
 
 
 @app.cell
@@ -152,7 +152,6 @@ def _(datafusion_con):
     )
 
     datafusion_con.create_table("electronics", electronics_query, overwrite=True)
-    return
 
 
 if __name__ == "__main__":

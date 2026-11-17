@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from marimo._config.config import CopilotMode
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._config.types import CopilotMode
 from marimo._server.ai.ids import AiModelId
 from marimo._tracer import server_tracer
 

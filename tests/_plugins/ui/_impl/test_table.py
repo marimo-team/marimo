@@ -7,7 +7,7 @@ import json
 from asyncio import CancelledError
 from datetime import date, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from unittest.mock import patch
 
 import pytest
@@ -2935,17 +2935,13 @@ def test_lazy_dataframe(df: Any) -> None:
         # Verify the lazy flag is set
         assert table._lazy is True
 
-        # Check that the banner text indicates lazy loading
-        assert (
-            table._get_banner_text()
-            == f"Previewing only the first {num_rows} rows."
-        )
+        assert table._get_banner_text() == ""
 
         # Verify the component args are set
         assert table._component_args["lazy"] is True
         assert table._component_args["total-rows"] == "too_many"
         assert table._component_args["page-size"] == num_rows
-        assert table._component_args["pagination"] is False
+        assert table._component_args["pagination"] is True
         assert table._component_args["data"] == []
         assert table._component_args["total-columns"] == 0
         assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
@@ -2961,6 +2957,7 @@ def test_lazy_dataframe(df: Any) -> None:
         search_args = SearchTableArgs(page_size=num_rows, page_number=0)
         search_response = table._search(search_args)
         assert search_response.total_rows == "too_many"
+        assert search_response.has_next_page is True
 
         # Check that only the preview rows are returned
         json_data = json.loads(search_response.data)
@@ -3840,37 +3837,55 @@ def test_chart_csv_preserves_control_flow(error: BaseException) -> None:
 
 @pytest.mark.requires("polars")
 @pytest.mark.parametrize("lazy", [False, True])
-@pytest.mark.parametrize("container", ["map", "struct"])
-def test_binary_export_failure_is_contained(
-    lazy: bool, container: str
+@pytest.mark.parametrize("export_format", ["csv", "tsv"])
+def test_polars_map_download(
+    lazy: bool, export_format: Literal["csv", "tsv"]
 ) -> None:
+    import polars as pl
+
+    map_dtype = getattr(pl, "Map", None)
+    if map_dtype is None:
+        pytest.skip("Map dtype requires Polars 2")
+    source = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "value": pl.Series(
+                [{1: b"abc"}, {}, None], dtype=map_dtype(pl.Int64, pl.Binary)
+            ),
+        }
+    )
+    table = ui.table(source.lazy() if lazy else source)
+    response = table._download_as(DownloadAsArgs(format=export_format))
+    assert response.error is None
+    separator = "\t" if export_format == "tsv" else ","
+    rows = csv.DictReader(
+        io.StringIO(from_data_uri(response.url)[1].decode()),
+        delimiter=separator,
+    )
+    assert list(rows) == [
+        {"id": "0", "value": '[{"key":1,"value":"abc"}]'},
+        {"id": "1", "value": "[]"},
+        {"id": "2", "value": ""},
+    ]
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("lazy", [False, True])
+def test_binary_export_failure_is_contained(lazy: bool) -> None:
     import polars as pl
 
     from marimo._plugins.ui._impl.tables.polars_table import (
         PolarsTableManagerFactory,
     )
 
-    map_dtype = getattr(pl, "Map", None)
-    if container == "map":
-        if map_dtype is None:
-            pytest.skip("Map dtype requires Polars 2")
-        values = [{1: b"abc"}, {}, None]
-        dtype = map_dtype(pl.Int64, pl.Binary)
-        expected_error = pl.exceptions.ComputeError
-        expected_json = [
-            {"value": {"1": "abc"}},
-            {"value": {}},
-            {"value": None},
-        ]
-    else:
-        values = [{"binary": b"abc"}, {"binary": None}, None]
-        dtype = pl.Struct({"binary": pl.Binary})
-        expected_error = pl.exceptions.PanicException
-        expected_json = [
-            {"value": {"binary": "abc"}},
-            {"value": {"binary": None}},
-            {"value": None},
-        ]
+    values = [{"binary": b"abc"}, {"binary": None}, None]
+    dtype = pl.Struct({"binary": pl.Binary})
+    expected_error = pl.exceptions.PanicException
+    expected_json = [
+        {"value": {"binary": "abc"}},
+        {"value": {"binary": None}},
+        {"value": None},
+    ]
     source = pl.DataFrame({"value": pl.Series(values, dtype=dtype)})
     data = source.lazy() if lazy else source
     manager = PolarsTableManagerFactory.create()(data)
@@ -3890,3 +3905,102 @@ def test_binary_export_failure_is_contained(
     assert data_format == "json"
     assert json.loads(from_data_uri(url)[1]) == expected_json
     assert manager.collect().equals(source)
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"value": range(6)}, include=NON_EAGER_LIBS),
+)
+@pytest.mark.parametrize(
+    ("page_number", "expected", "has_next_page"),
+    [(0, [5, 4], True), (1, [3, 2], True), (2, [1, 0], False), (3, [], False)],
+)
+def test_lazy_table_pagination(
+    df: Any, page_number: int, expected: list[int], has_next_page: bool
+) -> None:
+    table = ui.table.lazy(df, page_size=2)
+    response = table._search(
+        SearchTableArgs(
+            page_size=2,
+            page_number=page_number,
+            sort=[SortArgs(by="value", descending=True)],
+        )
+    )
+    assert (
+        json.loads(response.data),
+        response.total_rows,
+        response.has_next_page,
+    ) == ([{"value": value} for value in expected], "too_many", has_next_page)
+
+    empty = table._search(
+        SearchTableArgs(
+            page_size=2,
+            page_number=0,
+            filters=FilterGroup(
+                type="group",
+                operator="and",
+                children=[
+                    FilterCondition(
+                        type="condition",
+                        column_id="value",
+                        operator=">",
+                        value=10,
+                    )
+                ],
+            ),
+        )
+    )
+    assert (json.loads(empty.data), empty.total_rows, empty.has_next_page) == (
+        [],
+        "too_many",
+        False,
+    )
+
+
+@pytest.mark.parametrize(
+    "df", create_dataframes({"value": range(1000)}, include=NON_EAGER_LIBS)
+)
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_lazy_table_pagination_collects_one_bounded_page(
+    df: Any, wrapped: bool
+) -> None:
+    import narwhals.stable.v2 as nw
+
+    collected_shapes: list[tuple[int, int]] = []
+    collect = nw.LazyFrame.collect
+
+    def record_collect(
+        frame: nw.LazyFrame[Any], *args: Any, **kwargs: Any
+    ) -> nw.DataFrame[Any]:
+        result = collect(frame, *args, **kwargs)
+        collected_shapes.append(result.shape)
+        return result
+
+    with patch.object(nw.LazyFrame, "collect", record_collect):
+        table = ui.table.lazy(
+            nw.from_native(df) if wrapped else df, page_size=10
+        )
+        assert collected_shapes == []
+        response = table._search(SearchTableArgs(page_size=10, page_number=50))
+
+    assert (
+        json.loads(response.data),
+        response.has_next_page,
+        collected_shapes,
+    ) == ([{"value": value} for value in range(500, 510)], True, [(11, 1)])
+    assert nw.from_native(df).collect().shape == (1000, 1)
+
+
+@pytest.mark.parametrize(
+    "df", create_dataframes({"value": range(6)}, include=NON_EAGER_LIBS)
+)
+def test_lazy_table_pagination_of_limited_plan(df: Any) -> None:
+    import narwhals.stable.v2 as nw
+
+    source = nw.from_native(df).sort("value", descending=True).head(5)
+    table = ui.table.lazy(source.to_native(), page_size=3)
+    response = table._search(SearchTableArgs(page_size=3, page_number=1))
+    assert (json.loads(response.data), response.has_next_page) == (
+        [{"value": 2}, {"value": 1}],
+        False,
+    )

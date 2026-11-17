@@ -24,7 +24,7 @@
   },
   "rules": {
     // === Marimo custom rules ===
-    "marimo/host-imports": "error",
+    "marimo/replica-imports": "error",
     "marimo/module-entry": "error",
     "marimo/add-event-listener-object": "error",
     "marimo/remove-event-listener-object": "error",
@@ -151,6 +151,16 @@
     "vitest/no-commented-out-tests": "warn",
   },
   "overrides": [
+    {
+      // Clock-dependent labels already read the current time during render.
+      "files": [
+        "src/components/data-table/date-popover.tsx",
+        "src/components/editor/cell/CellStatus.tsx"
+      ],
+      "rules": {
+        "react/purity": "warn"
+      }
+    },
     {
       "files": [
         "**/__mocks__/**",

@@ -3,14 +3,15 @@
 import type { EditorView } from "@codemirror/view";
 import { z } from "zod";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import {
-  type CellPosition as NotebookCellPosition,
-  type NotebookState,
-  notebookAtom,
-} from "@/core/cells/cells";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import type { CreateCellOptions } from "@/core/cells/actions";
 import { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
-import type { CellColumnId } from "@/utils/id-tree";
+import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
+import {
+  type CellColumnId,
+  type Layout,
+  layoutAtom,
+} from "@/core/cells/layout";
 import { stagedAICellsAtom } from "../staged-cells";
 import {
   type AiTool,
@@ -24,7 +25,7 @@ import type { CopilotMode } from "./registry";
 
 const description: ToolDescription = {
   baseDescription:
-    "Perform editing operations on the current notebook. You should prefer to create new cells unless you need to edit existing cells. Call this tool multiple times to perform multiple edits. Separate code into logical individual cells to take advantage of the notebook's reactive execution model.",
+    "Propose cell edits for the user to review in the current notebook. You should prefer to create new cells unless you need to edit existing cells. Call this tool multiple times to perform multiple edits. Separate code into logical individual cells to take advantage of the notebook's reactive execution model.",
   prerequisites: [
     "If you are updating existing cells, you need the cellIds. If they are not known, call the lightweight_cell_map_tool to find out.",
   ],
@@ -86,7 +87,7 @@ export class EditNotebookTool implements AiTool<
     { edit }: EditNotebookInput,
     toolContext: ToolNotebookContext,
   ): Promise<ToolOutputBase> => {
-    const { addStagedCell, createNewCell, store } = toolContext;
+    const { addStagedCell, createCell, store } = toolContext;
 
     switch (edit.type) {
       case "update_cell": {
@@ -117,7 +118,12 @@ export class EditNotebookTool implements AiTool<
 
         // If previous edit was from a new cell, just replace editor code with the new code
         if (existingStagedCell?.type === "add_cell") {
-          updateEditorCodeFromPython(editorView, code);
+          const update = prepareCellCodeUpdate(editorView.state, code, {
+            initialize: true,
+          });
+          if (update) {
+            editorView.dispatch(update);
+          }
           break;
         }
 
@@ -137,15 +143,20 @@ export class EditNotebookTool implements AiTool<
           edit: { type: "update_cell", previousCode: previousCode },
         });
 
-        updateEditorCodeFromPython(editorView, code);
+        const update = prepareCellCodeUpdate(editorView.state, code, {
+          initialize: true,
+        });
+
+        if (update) {
+          editorView.dispatch(update);
+        }
 
         break;
       }
       case "add_cell": {
         const { position, code } = edit;
 
-        let notebookPosition: NotebookCellPosition = "__end__";
-        let before = false;
+        let placement: CreateCellOptions = {};
         const newCellId = CellId.create();
         const notebook = store.get(notebookAtom);
 
@@ -175,11 +186,12 @@ export class EditNotebookTool implements AiTool<
             }
 
             this.validateCellIdExists(cellId, notebook);
-            notebookPosition = cellId;
-            before = position.before;
+            placement = position.before
+              ? { before: cellId }
+              : { after: cellId };
             break;
           }
-          case "column_end": {
+          case "column_end":
             if (!position.columnIndex) {
               throw new ToolExecutionError(
                 "Column index is required for add_cell with column_end position",
@@ -192,21 +204,19 @@ export class EditNotebookTool implements AiTool<
               );
             }
 
-            const columnId = this.getColumnId(position.columnIndex, notebook);
-            notebookPosition = { type: "__end__", columnId };
+            placement = {
+              endOf: this.getColumnId(
+                position.columnIndex,
+                store.get(layoutAtom),
+              ),
+            };
             break;
-          }
+
           case "notebook_end":
-            // Use default: notebookPosition = "__end__"
             break;
         }
 
-        createNewCell({
-          cellId: notebookPosition,
-          before,
-          code,
-          newCellId,
-        });
+        createCell({ ...placement, code, id: newCellId });
 
         addStagedCell({
           cellId: newCellId,
@@ -251,14 +261,12 @@ export class EditNotebookTool implements AiTool<
       next_steps: [
         "If you need to perform more edits, call this tool again.",
         "You should use the lint notebook tool to check for errors and lint issues. Fix them by editing the notebook.",
-        "You should use the run stale cells tool to run the cells that have been edited or newly added. This allows you to see the output of the cells and fix any errors.",
       ],
     };
   };
 
   private validateCellIdExists(cellId: CellId, notebook: NotebookState) {
-    const cellIds = notebook.cellIds;
-    if (!cellIds.getColumns().some((column) => column.idSet.has(cellId))) {
+    if (!notebook.cellIds.includes(cellId)) {
       throw new ToolExecutionError("Cell not found", {
         code: "CELL_NOT_FOUND",
         isRetryable: false,
@@ -267,12 +275,8 @@ export class EditNotebookTool implements AiTool<
     }
   }
 
-  private getColumnId(
-    columnIndex: number,
-    notebook: NotebookState,
-  ): CellColumnId {
-    const cellIds = notebook.cellIds;
-    const columns = cellIds.getColumns();
+  private getColumnId(columnIndex: number, layout: Layout): CellColumnId {
+    const { columns } = layout;
 
     if (columnIndex < 0 || columnIndex >= columns.length) {
       throw new ToolExecutionError("Column index is out of range", {

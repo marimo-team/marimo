@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -16,7 +16,6 @@ def _(mo):
     mo.md("""
     # Model Comparison
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -25,11 +24,10 @@ def _(mo):
     !!! tip "This notebook is best viewed as an app."
         Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
     """)
-    return
 
 
 @app.cell(hide_code=True)
-def _(NUMBER_OF_EXAMPLES, mo):
+def _(NUMBER_OF_EXAMPLES: int, mo):
     get_index, set_index = mo.state(0)
 
 
@@ -48,7 +46,7 @@ def _(NUMBER_OF_EXAMPLES, mo):
 
 
 @app.cell(hide_code=True)
-def _(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
+def _(NUMBER_OF_EXAMPLES: int, get_index, mo, set_index):
     index = mo.ui.number(
         0,
         NUMBER_OF_EXAMPLES - 1,
@@ -66,11 +64,10 @@ def _(mo):
     mo.md(f"""
     _Models A and B both predict spans. Which do you prefer?_
     """)
-    return
 
 
 @app.cell(hide_code=True)
-def _(NUMBER_OF_EXAMPLES, mo, num_a_preferred, num_b_preferred):
+def _(NUMBER_OF_EXAMPLES: int, mo, num_a_preferred: int, num_b_preferred: int):
     mo.ui.table(
         [
             {"Model": "A", "Score": f"{num_a_preferred}/{NUMBER_OF_EXAMPLES}"},
@@ -78,22 +75,19 @@ def _(NUMBER_OF_EXAMPLES, mo, num_a_preferred, num_b_preferred):
         ],
         selection=None,
     )
-    return
 
 
 @app.cell
 def _(index, mo, next_button, previous_button):
     mo.hstack([index, previous_button, next_button], justify="center")
-    return
 
 
 @app.cell(hide_code=True)
-def _(CHOICES_PATH, get_choices, index, mo, write_choices):
+def _(CHOICES_PATH: str, get_choices, index, mo, write_choices):
     preference = get_choices()[index.value]
     mo.stop(preference is None, mo.md("**Choose the better model**.").center())
     write_choices(get_choices(), CHOICES_PATH)
     mo.md(f"You prefer **model {preference}**.").center()
-    return
 
 
 @app.cell(hide_code=True)
@@ -105,11 +99,10 @@ def _(mo):
         ],
         justify="space-around",
     )
-    return
 
 
 @app.cell(hide_code=True)
-def _(CHOICES_PATH, PARAGRAPHS, load_choices, mo):
+def _(CHOICES_PATH: str, PARAGRAPHS: list, load_choices, mo):
     get_choices, set_choices = mo.state(
         load_choices(CHOICES_PATH, len(PARAGRAPHS))
     )
@@ -132,11 +125,10 @@ def _(index, mo, set_choices):
         ),
     )
     mo.hstack([model_A, model_B], justify="space-around")
-    return
 
 
 @app.cell(hide_code=True)
-def _(PARAGRAPHS, SPANS, index, mo):
+def _(PARAGRAPHS: list, SPANS: list, index, mo):
     model_A_prediction = mo.md(
         annotate(
             PARAGRAPHS[index.value],
@@ -160,7 +152,6 @@ def _(mo, model_A_prediction, model_B_prediction):
     mo.hstack(
         [model_A_prediction, model_B_prediction], gap=2, justify="space-around"
     )
-    return
 
 
 @app.cell
@@ -200,7 +191,7 @@ def _(json, os):
 
 
 @app.cell
-def _(PARAGRAPHS, random):
+def _(PARAGRAPHS: list, random):
     random.seed(0)
 
 
@@ -239,7 +230,7 @@ def annotate(text, span, color):
 
 
 @app.cell
-def _(PARAGRAPHS):
+def _(PARAGRAPHS: list):
     NUMBER_OF_EXAMPLES = len(PARAGRAPHS)
     return (NUMBER_OF_EXAMPLES,)
 

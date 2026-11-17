@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from marimo._messaging.input import InputReply
 from marimo._messaging.notification import InterruptedNotification
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.streams import ThreadSafeStream
@@ -34,7 +35,7 @@ def test_stream_write_preserves_signal_configuration(
     if broken_pipe:
         pipe.send.side_effect = BrokenPipeError
     stream = ThreadSafeStream(
-        pipe=pipe, input_queue=Queue[str](), redirect_console=False
+        pipe=pipe, input_queue=Queue[InputReply](), redirect_console=False
     )
     message = serialize_kernel_message(InterruptedNotification())
     with monkeypatch.context() as patch:
@@ -52,7 +53,7 @@ def test_stream_write_defers_forwarded_interrupt(
     lock_states: list[bool] = []
     pipe = Mock()
     stream = ThreadSafeStream(
-        pipe=pipe, input_queue=Queue[str](), redirect_console=False
+        pipe=pipe, input_queue=Queue[InputReply](), redirect_console=False
     )
     handler = SigintHandler(
         lambda *_args: lock_states.append(stream.stream_lock.locked())

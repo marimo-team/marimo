@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any
 
 from marimo import _loggers
 
 LOGGER = _loggers.marimo_logger()
 
 
-def infer_variable_name(value: Any, fallback: str) -> str:
+def infer_variable_name(value: object, fallback: str) -> str:
     """Infer the variable name that holds `value` in the caller's caller.
 
     Walks up two frames (skipping this helper and the direct caller) and

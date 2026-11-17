@@ -9,8 +9,10 @@ import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import msgspec
 import pytest
 
+from marimo._messaging.input import InputReply
 from marimo._session.managers.ipc import construct_kernel_env
 
 
@@ -33,12 +35,17 @@ class TestIPCConnection:
         try:
             # Host sends input to kernel (what happens when user
             # responds to an input() prompt)
-            test_input = "user response"
+            test_input = InputReply("prompt", "user response")
             host_conn.input.queue.put(test_input)
 
             # Kernel receives input
             received = kernel_conn.input.queue.get(timeout=1.0)
             assert received == test_input
+            assert kernel_conn.input.decoder is not None
+            with pytest.raises(msgspec.ValidationError):
+                kernel_conn.input.decoder.decode(
+                    msgspec.msgpack.encode("unaddressed")
+                )
         finally:
             host_conn.close()
             kernel_conn.close()
@@ -348,14 +355,12 @@ class TestCloseKernel:
         return manager
 
     def test_graceful_waits_bounded_for_exit(self) -> None:
-        from marimo._runtime import commands
         from marimo._session.managers.ipc import GRACEFUL_EXIT_TIMEOUT
 
         manager = self._closable_manager()
         manager.close_kernel(graceful=True)
 
-        (request,), _ = manager.queue_manager.put_control_request.call_args
-        assert isinstance(request, commands.StopKernelCommand)
+        manager.queue_manager.request_kernel_stop.assert_called_once_with()
         manager.queue_manager.close_queues.assert_called_once()
         manager._process.wait.assert_called_once_with(
             timeout=GRACEFUL_EXIT_TIMEOUT
@@ -365,6 +370,83 @@ class TestCloseKernel:
         manager = self._closable_manager()
         manager.close_kernel()
         manager._process.wait.assert_not_called()
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups")
+    @pytest.mark.parametrize("kernel_pgid", [100, 200])
+    def test_close_before_kernel_creates_process_group(
+        self, monkeypatch: pytest.MonkeyPatch, kernel_pgid: int
+    ) -> None:
+        from marimo._session.managers import ipc
+
+        manager = self._closable_manager()
+        manager._kernel_pid = 123
+        manager.kernel_task = MagicMock()
+        killpg = MagicMock()
+        cleanup = MagicMock()
+        monkeypatch.setattr(os, "getpgrp", lambda: 100)
+        monkeypatch.setattr(os, "getpgid", lambda _pid: kernel_pgid)
+        monkeypatch.setattr(os, "killpg", killpg)
+        monkeypatch.setattr(ipc, "try_kill_process_and_group", cleanup)
+
+        manager.close_kernel()
+
+        if kernel_pgid == 100:
+            killpg.assert_not_called()
+        else:
+            killpg.assert_called_once_with(kernel_pgid, ipc.signal.SIGTERM)
+        cleanup.assert_called_once_with(manager.kernel_task)
+
+    @pytest.mark.requires("zmq")
+    @pytest.mark.parametrize("returncode", [None, 0])
+    def test_close_without_kernel_receiver(
+        self, returncode: int | None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import zmq
+
+        from marimo._ipc.queue_manager import QueueManager
+        from marimo._session.managers.ipc import IPCQueueManagerImpl
+
+        original_send = zmq.Socket.send
+        sent = False
+
+        def send(
+            socket: zmq.Socket[bytes], data: bytes, *, flags: int = 0
+        ) -> None:
+            nonlocal sent
+            # Check before sending so a blocking regression fails, not hangs.
+            assert flags == zmq.DONTWAIT
+            sent = True
+            original_send(socket, data, flags=flags)
+
+        monkeypatch.setattr(zmq.Socket, "send", send)
+        ipc, _ = QueueManager.create()
+        manager = self._closable_manager()
+        manager.queue_manager = IPCQueueManagerImpl(ipc)
+        manager._process.poll.return_value = returncode
+        try:
+            manager.close_kernel()
+            assert ipc.conn.context.closed
+            assert sent == (returncode is None)
+        finally:
+            ipc.close_queues()
+
+    @pytest.mark.requires("zmq")
+    def test_stop_reaches_connected_kernel(self) -> None:
+        import zmq
+
+        from marimo._ipc.queue_manager import QueueManager
+        from marimo._runtime.commands import StopKernelCommand
+        from marimo._session.managers.ipc import IPCQueueManagerImpl
+
+        host, info = QueueManager.create()
+        kernel = QueueManager.connect(info)
+        try:
+            assert host.conn.control.socket.poll(1000, zmq.POLLOUT)
+            IPCQueueManagerImpl(host).request_kernel_stop()
+            assert kernel.control_queue.get(timeout=1) == StopKernelCommand()
+        finally:
+            kernel.close_queues()
+            host.close_queues()
 
     def test_profiling_close_waits_for_flush(self) -> None:
         from marimo._session.managers.ipc import PROFILE_FLUSH_TIMEOUT
@@ -408,7 +490,7 @@ def test_launch_kernel_handshake_reports_identity() -> None:
         "from unittest.mock import patch, MagicMock\n"
         "import marimo._ipc.launch_kernel as lk\n"
         "with patch.object(\n"
-        "    lk.KernelArgs, 'decode_json', return_value=MagicMock()\n"
+        "    lk.KernelArgs, 'decode_json', return_value=MagicMock(user_config={})\n"
         "), patch.object(lk.QueueManager, 'connect', MagicMock()), \\\n"
         "        patch.object(lk.runtime, 'launch_kernel', MagicMock()):\n"
         "    lk.main()\n"
@@ -546,7 +628,8 @@ async def test_startup_owns_kernel_process_and_pipes(
             "marimo._session.managers.ipc.subprocess.Popen",
             lambda cmd, **kwargs: popen(
                 [sys.executable, "-c", code]
-                if cmd == [sys.executable, "-m", "marimo._ipc.launch_kernel"]
+                if cmd
+                == [sys.executable, "-P", "-m", "marimo._ipc.launch_kernel"]
                 else cmd,
                 **kwargs,
             ),

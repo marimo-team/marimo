@@ -5,7 +5,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias, Union
 
-from marimo._config.config import MarimoConfig, OnCellChangeType
+from marimo._config.config_schema import MarimoConfig
+from marimo._config.types import OnCellChangeType
 from marimo._messaging.errors import Error
 from marimo._types.ids import CellId_t
 

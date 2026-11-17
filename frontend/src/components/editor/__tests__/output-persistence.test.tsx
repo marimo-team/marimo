@@ -3,40 +3,45 @@ import { render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
+import { mockDocumentModel } from "@/__mocks__/document";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
-import type { CellRuntimeState } from "@/core/cells/types";
-import { createCellRuntimeState } from "@/core/cells/types";
+import { DocumentProvider } from "@/core/notebook/document";
+import {
+  cell,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { defaultUserConfig } from "@/core/config/config-schema";
 import type { AppMode } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { Cell } from "../notebook-cell";
 
 const cid = cellId("test");
+const PERSIST = { mimetype: "text/html", data: "<span>persist me</span>" };
 
 function createTestWrapper() {
   const store = createStore();
+  const { model } = mockDocumentModel(store, null);
   store.set(requestClientAtom, MockRequestClient.create());
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <Provider store={store}>{children}</Provider>
+    <Provider store={store}>
+      <DocumentProvider model={model}>{children}</DocumentProvider>
+    </Provider>
   );
   return { wrapper, store };
 }
 
-function seedNotebook(
-  store: ReturnType<typeof createStore>,
-  runtimeOverrides: Partial<CellRuntimeState> = {},
-) {
+function seedNotebook(store: ReturnType<typeof createStore>) {
   const notebook = MockNotebook.notebookState({
     cellData: {
       [cid]: {
         code: "1 + 1",
         name: "test_cell",
-        edited: false,
-        serializedEditorState: null,
         config: {
           disabled: false,
           hide_code: false,
@@ -44,16 +49,6 @@ function seedNotebook(
         },
       },
     },
-  });
-  notebook.cellRuntime[cid] = createCellRuntimeState({
-    status: "idle",
-    output: {
-      channel: "output",
-      mimetype: "text/html",
-      data: "<span>persist me</span>",
-      timestamp: 0,
-    },
-    ...runtimeOverrides,
   });
   store.set(notebookAtom, notebook);
 }
@@ -86,6 +81,7 @@ beforeAll(() => {
 describe("output persistence across mode changes", () => {
   it("preserves the output DOM node when toggling edit <-> present", () => {
     const { store, wrapper } = createTestWrapper();
+    MockExecutions.seed(store, [MockExecutions.shown(cid, PERSIST)]);
     seedNotebook(store);
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
@@ -136,6 +132,7 @@ describe("output persistence across mode changes", () => {
 
   it("hides all edit chrome while presenting", () => {
     const { store, wrapper } = createTestWrapper();
+    MockExecutions.seed(store, [MockExecutions.shown(cid, PERSIST)]);
     seedNotebook(store);
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
@@ -184,11 +181,22 @@ describe("output persistence across mode changes", () => {
 
   it("does not dim edited-but-not-run outputs as stale while presenting", () => {
     const { store, wrapper } = createTestWrapper();
+    // The host holds newer source than the cell last ran with
+    MockExecutions.seed(
+      store,
+      [MockExecutions.shown(cid, PERSIST, { code_fingerprint: "ran" })],
+      null,
+      withCells(
+        documentOf(),
+        {
+          c1: null,
+          c2: null,
+          [cid]: cell(cid, "1 + 1", { code_fingerprint: "edited" }),
+        },
+        [cid],
+      ),
+    );
     seedNotebook(store);
-    // Mark the cell as edited without re-running it
-    const notebook = store.get(notebookAtom);
-    notebook.cellData[cid] = { ...notebook.cellData[cid], edited: true };
-    store.set(notebookAtom, { ...notebook });
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
     expect(container.querySelector(".marimo-output-stale")).toBeTruthy();
@@ -203,15 +211,8 @@ describe("output persistence across mode changes", () => {
 
   it("hides errored cells while presenting without unmounting them", () => {
     const { store, wrapper } = createTestWrapper();
-    seedNotebook(store, {
-      errored: true,
-      output: {
-        channel: "marimo-error",
-        mimetype: "application/vnd.marimo+error",
-        data: [{ type: "exception", exception_type: "ValueError", msg: "!" }],
-        timestamp: 0,
-      },
-    });
+    MockExecutions.seed(store, [MockExecutions.errored(cid)]);
+    seedNotebook(store);
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
 

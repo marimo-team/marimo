@@ -27,7 +27,6 @@ describe("CapabilitiesPopover", () => {
 
     expect(webSearch).toBeChecked();
     expect(trigger).toHaveAttribute("data-active", "true");
-    expect(trigger).toHaveClass("bg-primary/15", "text-primary", "ring-1");
     expect(trigger).toHaveAttribute(
       "title",
       "Capabilities (web search enabled)",

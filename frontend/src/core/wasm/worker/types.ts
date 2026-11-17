@@ -30,7 +30,6 @@ import type {
   FormatCellsRequest,
   FormatResponse,
   SaveAppConfigurationRequest,
-  SaveNotebookRequest,
   SaveUserConfigurationRequest,
   Snippets,
 } from "../../network/types";
@@ -73,13 +72,11 @@ export interface WasmSession {
 
 export interface RawBridge {
   put_control_request(operation: ClientCommand): Promise<string>;
-  put_input(input: string): Promise<string>;
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
   read_snippets(): Promise<Snippets>;
   get_environment_info(): Promise<EnvironmentInfo>;
   format(request: FormatCellsRequest): Promise<FormatResponse>;
-  save(request: SaveNotebookRequest): Promise<string>;
   copy(request: CopyNotebookRequest): Promise<string>;
   save_app_config(request: SaveAppConfigurationRequest): Promise<string>;
   save_user_config(request: SaveUserConfigurationRequest): Promise<null>;
@@ -112,13 +109,12 @@ export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge
   : undefined;
 
 export type SerializedBridge = {
-  [P in Exclude<keyof RawBridge, "save">]: RawBridge[P] extends (
+  [P in keyof RawBridge]: RawBridge[P] extends (
     payload: string,
   ) => Promise<unknown>
     ? (payload: string) => Promise<string>
     : RawBridge[P];
 } & {
-  save(payload: string): Promise<void>;
   notebook: {
     readonly id: string;
     subscribe(
@@ -128,6 +124,13 @@ export type SerializedBridge = {
     ): Promise<void>;
     unsubscribe(id: string): void;
     call(call: string): Promise<string>;
+    transaction(request: string): Promise<void>;
+    set_layout(layout: string): Promise<void>;
+    set_persistence(
+      persist: (contents: string, filename: string) => Promise<void>,
+    ): void;
+    set_package_loader(load: (code: string) => Promise<void>): void;
+    allow_input(allowed: boolean): void;
     destroy(): void;
   };
 };

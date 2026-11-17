@@ -2,7 +2,6 @@
 # ruff: noqa: E402
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from marimo._runtime._wasm import ensure_wasm_runtime_bootstrapped
@@ -10,22 +9,14 @@ from marimo._runtime._wasm import ensure_wasm_runtime_bootstrapped
 ensure_wasm_runtime_bootstrapped()
 
 from marimo._config.config import merge_config
-from marimo._runtime.commands import (
-    AppMetadata,
-    CreateNotebookCommand,
-    ExecuteCellCommand,
-    SerializedQueryParams,
-    UpdateUIElementCommand,
-)
+from marimo._runtime.commands import AppMetadata, SerializedQueryParams
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._server.app_defaults import AppDefaults
-from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
-from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
 
@@ -37,28 +28,7 @@ def instantiate(
 
     This function is called by the WebAssembly frontend.
     """
-
-    app = session.app_manager.app
-    session.instantiated = True
-    execution_requests = tuple(
-        ExecuteCellCommand(
-            cell_id=cell_data.cell_id,
-            code=cell_data.code,
-            request=None,
-        )
-        for cell_data in app.cell_manager.cell_data()
-    )
-
-    session.put_control_request(
-        CreateNotebookCommand(
-            execution_requests=execution_requests,
-            cell_ids=tuple(app.cell_manager.cell_ids()),
-            set_ui_element_value_request=UpdateUIElementCommand(
-                object_ids=[], values=[], request=None
-            ),
-            auto_run=auto_instantiate,
-        )
-    )
+    session.instantiate(auto_run=auto_instantiate)
 
 
 def create_session(
@@ -94,8 +64,8 @@ def create_session(
     app_file_manager = AppFileManager(
         filename=filename,
         defaults=AppDefaults(
-            width=user_config["display"]["default_width"],
-            sql_output=user_config["runtime"]["default_sql_output"],
+            width=user_config.display.default_width,
+            sql_output=user_config.runtime.default_sql_output,
         ),
     )
     app = app_file_manager.app
@@ -121,21 +91,3 @@ def create_session(
     bridge = PyodideBridge(session)
 
     return session, bridge
-
-
-def save_file(
-    request: str,
-    filename: str,
-) -> None:
-    """
-    Save the app to the given filename.
-
-    Args:
-        request: serialized/stringified SaveNotebookRequest
-        filename: the filename of the app
-
-    This function is called by the WebAssembly frontend.
-    """
-    parsed = parse_raw(json.loads(request), SaveNotebookRequest)
-    app_file_manager = AppFileManager(filename=filename)
-    app_file_manager.save(parsed)

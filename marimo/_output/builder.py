@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import html
+
 
 class _HTMLBuilder:
     @staticmethod
@@ -74,12 +76,15 @@ class _HTMLBuilder:
         *,
         src: str | None = None,
         controls: bool = True,
+        style: str | None = None,
     ) -> str:
         params: list[tuple[str, str | None]] = []
         if src:
             params.append(("src", src))
         if controls:
             params.append(("controls", ""))
+        if style:
+            params.append(("style", style))
 
         if len(params) == 0:
             return "<audio></audio>"
@@ -291,10 +296,13 @@ class _HTMLBuilder:
 
 
 def _join_params(params: list[tuple[str, str | None]]) -> str:
-    # Filter None
-    params = [(k, v) for k, v in params if v is not None]
-
-    return " ".join([f"{k}='{v}'" if v != "" else f"{k}" for k, v in params])
+    return " ".join(
+        [
+            f"{k}='{html.escape(str(v))}'" if v != "" else f"{k}"
+            for k, v in params
+            if v is not None
+        ]
+    )
 
 
 h = _HTMLBuilder()

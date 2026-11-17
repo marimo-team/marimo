@@ -3,9 +3,8 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import os.path
-import re
 import sys
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import Mock, patch
 
 import pytest
@@ -611,48 +610,64 @@ def test_display_protocol_takes_precedence() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_lazyframe_renders_mermaid_html() -> None:
+@pytest.mark.parametrize("engine", [None, "streaming", "in-memory"])
+def test_lazyframe_renders_mermaid_html(
+    monkeypatch: pytest.MonkeyPatch,
+    engine: Literal["streaming", "in-memory"] | None,
+) -> None:
     register_formatters()
 
     import polars as pl
 
+    is_polars_2 = DependencyManager.polars.has_at_version(
+        min_version="2.0.0", quiet=True
+    )
+    if engine is not None and not is_polars_2:
+        pytest.skip("Engine affinity requires newer Polars")
+
     ldf = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}).lazy()
 
+    def fail_collect(*_args: Any, **_kwargs: Any) -> None:
+        pytest.fail("Formatting a LazyFrame must not execute its query")
+
+    monkeypatch.setattr(pl.LazyFrame, "collect", fail_collect)
     formatter = get_formatter(ldf)
     assert formatter is not None
-    mimetype, contents = formatter(ldf)
+    with pl.Config() as config:
+        if is_polars_2:
+            config.set_engine_affinity(engine)
+        mimetype, contents = formatter(ldf)
     assert mimetype == "text/html"
     assert "<marimo-mermaid" in contents
+    assert "Streaming plan" not in contents
+    expected_node = (
+        "in-memory-source"
+        if is_polars_2 and engine != "in-memory"
+        else "TABLE"
+    )
+    assert expected_node in contents
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_polars_dot_to_mermaid() -> None:
-    import polars as pl
-
-    ldf = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}).lazy()
-
-    result = polars_dot_to_mermaid(ldf._ldf.to_dot(optimized=True))
+    result = polars_dot_to_mermaid(
+        r'graph polars_query { p1[label="TABLE\nπ */2"] }'
+    )
     assert result == 'graph TD\n\tp1["TABLE\nπ */2"]'
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_polars_dot_to_mermaid_complex() -> None:
-    import polars as pl
-
-    ldf = (
-        pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-        .lazy()
-        .filter(pl.col("A") > 1)
-        .select(pl.col("A"), pl.col("B").alias("B_renamed"))
-        .join(pl.DataFrame({"A": [1]}).lazy(), on="A")
-    )
-
-    result = polars_dot_to_mermaid(ldf._ldf.to_dot(optimized=True))
-
-    # Normalize polars' query-plan wording so we assert on the graph structure,
-    # not on the exact wording.
-    result = re.sub(r'FILTER BY .*?(?="\])', "FILTER BY <predicate>", result)
-    result = re.sub(r"π \S+/\d+", "π <n>/<n>", result)
+    dot = r"""digraph polars_query {
+  p2 -> p1
+  p3 -> p2
+  p4 -> p3
+  p4[label="TABLE\nπ <n>/<n>"]
+  p3[label="FILTER BY <predicate>"]
+  p2[label="π <n>/<n>"]
+  p5 -> p1
+  p5[label="TABLE\nπ <n>/<n>"]
+  p1[label="JOIN INNER\nleft: [col(\"A\")];\nright: [col(\"A\")]"]
+}"""
+    result = polars_dot_to_mermaid(dot)
 
     assert (
         result
@@ -666,6 +681,19 @@ def test_polars_dot_to_mermaid_complex() -> None:
 \tp3 --> p2
 \tp4 --> p3
 \tp5 --> p1"""
+    )
+
+
+def test_polars_dot_to_mermaid_physical_nodes() -> None:
+    dot = r"""digraph polars {
+4294967297 [label="in-memory-source\ncols: a",style=filled,fillcolor="0.16 0.3 1.0"];
+4294967298 [label="select\na = col(\"a\")"];
+4294967297 -> 4294967298;
+}"""
+    assert polars_dot_to_mermaid(dot) == (
+        'graph TD\n\t4294967297["in-memory-source\ncols: a"]'
+        '\n\t4294967298["select\na = col(#quot;a#quot;)"]'
+        "\n\t4294967297 --> 4294967298"
     )
 
 

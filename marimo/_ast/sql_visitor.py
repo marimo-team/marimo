@@ -223,6 +223,14 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
             ):
                 i += 1  # Skip 'TEMPORARY' or 'TEMP'
 
+            # DuckDB 1.x tokenizes SECURE as an identifier.
+            if (
+                i + 1 < len(tokens)
+                and token_extractor.token_str(i).lower() == "secure"
+                and token_extractor.is_keyword(i + 1, "view")
+            ):
+                i += 1
+
             is_table = False
             is_view = False
             is_schema = False

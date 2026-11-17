@@ -1,19 +1,21 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Box plots""")
-    return
+    mo.md(r"""
+    # Box plots
+    """)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Example 1""")
-    return
+    mo.md(r"""
+    ## Example 1
+    """)
 
 
 @app.cell
@@ -44,13 +46,13 @@ def _():
 @app.cell
 def _(boxplot, mo):
     mo.ui.altair_chart(boxplot)
-    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Example 2""")
-    return
+    mo.md(r"""
+    ## Example 2
+    """)
 
 
 @app.cell
@@ -72,12 +74,12 @@ def _(pl):
 @app.cell
 def _(boxplot2, mo):
     mo.ui.altair_chart(boxplot2)
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

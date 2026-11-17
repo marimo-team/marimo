@@ -17,7 +17,7 @@ server {
     server_name your-domain.com;
 
     location / {
-        proxy_set_header    Host $host;
+        proxy_set_header    Host $http_host;
         proxy_set_header    X-Real-IP $remote_addr;
         proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header    X-Forwarded-Proto $scheme;
@@ -41,6 +41,8 @@ server {
 
 - `server_name`: Replace with your domain name
 - `proxy_pass`: Points to your marimo application (default port is 2718)
+- `Host $http_host`: Preserves the public hostname and port
+- `X-Forwarded-Proto $scheme`: Passes the public HTTP or HTTPS scheme to marimo
 - WebSocket support: The following lines are required for marimo to function properly:
 
   ```nginx
@@ -56,8 +58,12 @@ server {
 1. Start your marimo application:
 
 ```bash
-marimo run app.py --host 127.0.0.1 --port 2718
+marimo run app.py --host 127.0.0.1 --port 2718 --allow-origins http://your-domain.com
 ```
+
+Replace `http://your-domain.com` with the public origin that users open in their browser.
+For HTTPS, use `https://your-domain.com`.
+These options also apply to `marimo edit`.
 
 2. Test your nginx configuration:
 
@@ -78,6 +84,29 @@ Your marimo application should now be accessible at your domain.
 For production deployments, it's recommended to use HTTPS. You can use [Certbot](https://certbot.eff.org/) to automatically configure SSL with Let's Encrypt certificates.
 
 ## Common Issues
+
+### WebSocket connection returns HTTP 403
+
+WebSocket connections use the public origin from the browser.
+A proxy can change the `Host` header or the scheme before the request reaches marimo.
+This can cause the origin comparison to fail.
+
+If the public hostname differs from `--host`, set `--allow-origins` to the public origin.
+This configuration also applies when the proxy changes `Host`:
+
+```bash
+marimo run app.py --host 127.0.0.1 --port 2718 --allow-origins https://your-domain.com
+```
+
+An origin contains a scheme and a hostname, plus a port for non-default ports, such as `https://your-domain.com:8443`.
+It has no path or trailing slash, even for applications with a `--base-url`.
+For multiple public origins, repeat `--allow-origins`.
+The `X-Forwarded-Host` header does not replace this configuration.
+
+For HTTPS connections, retain `proxy_set_header X-Forwarded-Proto $scheme` in nginx.
+Uvicorn uses this header only from trusted proxies.
+If nginx connects from an address other than `127.0.0.1`, set `FORWARDED_ALLOW_IPS` to the proxy addresses before you start marimo.
+Use a comma-separated list of the proxy addresses, as described in [Uvicorn's configuration](https://uvicorn.dev/settings/#http).
 
 ### Kernel Not Found
 

@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -80,7 +80,7 @@ def _():
 
 
 @app.cell
-def _(qwerty):
+def _(qwerty: int):
     """
     hello, this is a cell
     hello, this is a cell
@@ -153,9 +153,8 @@ def _(qwerty):
 
 
 @app.cell
-def _(a):
+def _(a: str):
     a
-    return
 
 
 if __name__ == "__main__":

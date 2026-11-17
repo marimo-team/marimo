@@ -59,7 +59,7 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { SearchInput } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { disableFileDownloadsAtom } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
@@ -697,15 +697,11 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
 
   const Icon = FILE_ICON[fileType];
   const { openPrompt } = useImperativeModal();
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
 
   const handleInsertCode = (code: string) => {
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    createCell({ after: lastFocusedCellId, code });
   };
 
   const fileExplorer = use(RequestingTreeContext);

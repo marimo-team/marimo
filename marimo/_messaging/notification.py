@@ -17,7 +17,7 @@ import msgspec
 
 from marimo import _loggers as loggers
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig, RuntimeStateType
+from marimo._ast.cell import RuntimeStateType
 from marimo._core.protocol import Revision
 from marimo._data._external_storage.models import (
     StorageEntry,
@@ -90,10 +90,13 @@ class Notification(msgspec.Struct, tag_field="op"):
 class ExecutionNotification(Notification, tag="execution"):
     """An attempt's lifecycle, independent of a cell's displayed status.
 
-    `planned` supplies the source and identity before output is reported.
+    `planned` includes the execution ID and code fingerprint before any output.
+    `code` is null when source is withheld.
     `running` means evaluation began. `completed` follows the final output
     and errors, including for attempts that never ran. Buffered and background
     console output may still arrive with the completed attempt's identity.
+    A completed attempt that never ran and reported no error names why in
+    `skipped`, such as `superseded` when a newer attempt replaced it.
     """
 
     name: ClassVar[str] = "execution"
@@ -102,8 +105,10 @@ class ExecutionNotification(Notification, tag="execution"):
     run_id: str | None
     phase: Literal["planned", "running", "completed"]
     code: str | None = None
+    code_fingerprint: str | None = None
     caused_by: str | None = None
     depends_on: dict[str, Revision | None] | None = None
+    skipped: str | None = None
 
 
 class CellNotification(Notification, tag="cell-op"):
@@ -119,7 +124,6 @@ class CellNotification(Notification, tag="cell-op"):
         output: Cell's output. Use CellOutput.empty() to clear.
         console: Console messages. Single/list appends, [] clears, None unchanged.
         status: Execution status (idle/running/stale/queued/disabled-transitively).
-        stale_inputs: Whether cell has stale inputs from changed dependencies.
         run_id: Execution run ID for tracing. Auto-set from context.
         execution_id: Evaluation of this cell producing the update, when known.
         serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
@@ -131,7 +135,6 @@ class CellNotification(Notification, tag="cell-op"):
     output: CellOutput | None = None
     console: CellOutput | list[CellOutput] | None = None
     status: RuntimeStateType | None = None
-    stale_inputs: bool | None = None
     run_id: RunId_t | None = None
     execution_id: str | None = None
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
@@ -439,15 +442,9 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     """Kernel ready for execution. First notification sent at startup.
 
     Attributes:
-        cell_ids: Cell IDs in order.
-        codes: Source code for each cell.
-        names: Cell names/titles.
         layout: Notebook layout config.
-        configs: Per-cell configuration.
         resumed: Whether resumed from previous session.
         ui_values: Previous UI element values if resumed.
-        last_executed_code: Last executed code per cell if resumed.
-        last_execution_time: Last execution time per cell if resumed.
         app_config: Application configuration.
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
@@ -457,15 +454,9 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     """
 
     name: ClassVar[str] = "kernel-ready"
-    cell_ids: tuple[CellId_t, ...]
-    codes: tuple[str, ...]
-    names: tuple[str, ...]
     layout: LayoutConfig | None
-    configs: tuple[CellConfig, ...]
     resumed: bool
     ui_values: dict[str, JSONType] | None
-    last_executed_code: dict[CellId_t, str] | None
-    last_execution_time: dict[CellId_t, float] | None
     app_config: _AppConfig
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
@@ -623,12 +614,6 @@ class EnvironmentOperationNotification(
     packages: PackageStatusType
     logs: dict[str, str]
     log_mode: Literal["append", "replace"]
-
-
-class ReconnectedNotification(Notification, tag="reconnected"):
-    """WebSocket reconnection confirmed."""
-
-    name: ClassVar[str] = "reconnected"
 
 
 class StartupLogsNotification(Notification, tag="startup-logs"):
@@ -1127,7 +1112,6 @@ NotificationMessage = (
     | RemoveUIElementsNotification
     # Notebook lifecycle
     | ReloadNotification
-    | ReconnectedNotification
     | InterruptedNotification
     | CompletedRunNotification
     | KernelReadyNotification

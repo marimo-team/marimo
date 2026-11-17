@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
+import { createRPCRequestHandler } from "rpc-anywhere";
 import { toast } from "@/components/ui/use-toast";
 import { userConfigAtom } from "@/core/config/config";
 import { serializeBlob } from "@/utils/blob";
@@ -11,8 +12,10 @@ import { reloadSafe } from "@/utils/reload-safe";
 import { once } from "@/utils/once";
 import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
-import { notebookIsRunningAtom } from "../cells/cells";
-import { createWasmNotebookBackend } from "../host";
+import { notebookIsRunningAtom } from "../executions";
+import { activeNotebookReplicaAtom } from "../session/active-notebook";
+import { flushDocument } from "../cells/document";
+import { createWasmNotebookBackend } from "../transports/wasm";
 import type { ClientCommand } from "../kernel/messages";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
@@ -41,7 +44,7 @@ import type {
 import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
 import { PyodideRouter } from "./router";
-import { getWorkerRPC } from "./rpc";
+import { getWorkerRPC, type PersistNotebookRequest } from "./rpc";
 import { getWasmRuntimeConfig } from "./runtime-config";
 import { createShareableLink } from "./share";
 import { wasmInitStateAtom } from "./state";
@@ -68,9 +71,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private saveRpc: SaveWorker | undefined;
-  private pendingSessionSave: Promise<unknown> = Promise.resolve();
   private notebookConsumers = new Map<string, (event: unknown) => void>();
   private interruptBuffer?: Uint8Array;
+  /** Runs asked to stop before they ran; the buffer is raised once they do. */
+  private pendingInterrupts = new Set<string>();
+
+  // Match the worker mutation receipt window, including requests still in flight.
+  private interruptReceipts = new Map<string, { expiresAt: number }>();
 
   public initialized = new Deferred<void>();
 
@@ -80,7 +87,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return {
         readFile: throwNotImplemented,
         readNotebook: async () => (await notebookFileStore.readFile()) ?? "",
-        saveNotebook: throwNotImplemented,
+        writeNotebook: throwNotImplemented,
       };
     }
 
@@ -95,7 +102,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       },
     );
 
-    const rpc = getWorkerRPC<SaveWorkerSchema>(saveWorker);
+    const rpc = getWorkerRPC<SaveWorkerSchema>(saveWorker, undefined, Infinity);
     rpc.send.bootstrap(runtimeConfig);
     return rpc.proxy.request;
   }
@@ -114,11 +121,28 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
 
     // Create the RPC
-    this.rpc = getWorkerRPC<WorkerSchema>(worker);
+    this.rpc = getWorkerRPC<WorkerSchema>(
+      worker,
+      createRPCRequestHandler({
+        persistNotebook: async (snapshot: PersistNotebookRequest) => {
+          if (!this.saveRpc) {
+            throw new Error("Notebook storage is not initialized");
+          }
+          await this.saveRpc.writeNotebook(snapshot);
+          notebookFileStore.saveFile(snapshot.contents);
+          fallbackFileStore.saveFile(snapshot.contents);
+          return null;
+        },
+      }),
+      // Synchronous Python execution can block worker requests indefinitely.
+      Infinity,
+    );
     this.rpc.send.bootstrap(runtimeConfig);
 
     this.rpc.addMessageListener("notebookEvent", ({ id, event }) => {
-      this.notebookConsumers.get(id)?.(JSON.parse(event));
+      const parsed: unknown = JSON.parse(event);
+      this.raisePendingInterrupt(parsed);
+      this.notebookConsumers.get(id)?.(parsed);
     });
 
     // Listeners
@@ -209,11 +233,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   public async createNotebookBackend() {
     await this.initialized.promise;
-    const { id } = await this.rpc.proxy.request.notebookInfo();
     return createWasmNotebookBackend({
-      notebookId: id,
       subscribe: async (cursor, emit, signal) => {
-        await this.initialized.promise;
         signal.throwIfAborted();
         const id = generateUUID();
         this.notebookConsumers.set(id, emit);
@@ -234,10 +255,103 @@ export class PyodideBridge implements RunRequests, EditRequests {
         }
       },
       call: async (call) => {
-        await this.initialized.promise;
-        return this.rpc.proxy.request.notebookCall(call);
+        if (
+          call.operation !== "runtime.interrupt" &&
+          call.operation !== "runtime.cancel"
+        ) {
+          return this.rpc.proxy.request.notebookCall(call);
+        }
+        const now = performance.now();
+        for (const [key, receipt] of this.interruptReceipts) {
+          if (receipt.expiresAt <= now) {
+            this.interruptReceipts.delete(key);
+          }
+        }
+        const key = call.headers["idempotency-key"];
+        if (!key || this.interruptReceipts.has(key)) {
+          return this.rpc.proxy.request.notebookCall(call);
+        }
+        const receipt = { expiresAt: Infinity };
+        this.interruptReceipts.set(key, receipt);
+        // The worker cannot take a call while a cell runs, so the interrupt
+        // is raised on the shared buffer first and the call follows.
+        // A queued run is ended by the worker, unless it starts before the
+        // call arrives. Then it is raised once the run reports running.
+        if (call.operation === "runtime.interrupt") {
+          this.interruptEveryRun();
+        } else if (call.operation === "runtime.cancel") {
+          if (this.isRunning(call.params.run_id)) {
+            this.raiseInterrupt();
+          } else {
+            this.pendingInterrupts.add(call.params.run_id);
+          }
+        }
+        try {
+          const reply = await this.rpc.proxy.request.notebookCall(call);
+          if (
+            typeof reply === "object" &&
+            reply !== null &&
+            "status" in reply &&
+            reply.status !== 202
+          ) {
+            this.interruptReceipts.delete(key);
+          }
+          return reply;
+        } finally {
+          // A lost reply may still have committed; retries must not signal new work.
+          receipt.expiresAt = performance.now() + 300_000;
+        }
       },
     });
+  }
+
+  /** Raise the buffer for a pending interrupt whose run has started. */
+  private raisePendingInterrupt(event: unknown): void {
+    if (this.pendingInterrupts.size === 0) {
+      return;
+    }
+    const frame = event as {
+      event?: string;
+      data?: { run?: { id: string; status: string } };
+    };
+    const run = frame.event === "run" ? frame.data?.run : undefined;
+    if (run === undefined || !this.pendingInterrupts.has(run.id)) {
+      return;
+    }
+    if (run.status === "running") {
+      this.pendingInterrupts.delete(run.id);
+      this.raiseInterrupt();
+    } else if (run.status === "completed") {
+      this.pendingInterrupts.delete(run.id);
+    }
+  }
+
+  /**
+   * Signal work outside runs too. Python ignores the signal while idle;
+   * the following host call consumes it before acknowledging the interrupt.
+   */
+  private interruptEveryRun(): void {
+    this.raiseInterrupt();
+    const replica = store.get(activeNotebookReplicaAtom);
+    if (replica === null) {
+      return;
+    }
+    for (const run of store.get(replica.executionsAtom).runs.values()) {
+      if (run.status === "queued") {
+        this.pendingInterrupts.add(run.id);
+      }
+    }
+  }
+
+  /** Whether the host reports `runId` as running, so a cell is executing. */
+  private isRunning(runId: string): boolean {
+    const replica = store.get(activeNotebookReplicaAtom);
+    if (replica === null) {
+      return false;
+    }
+    return (
+      store.get(replica.executionsAtom).runs.get(runId)?.status === "running"
+    );
   }
 
   public sendRename: EditRequests["sendRename"] = async ({ filename }) => {
@@ -255,43 +369,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  public sendSave: EditRequests["sendSave"] = async (request) => {
-    if (!this.saveRpc) {
-      Logger.warn("Save RPC not initialized");
-      return null;
-    }
-
-    const durableSave = this.saveRpc.saveNotebook(request);
-    // Generated exports read the session-owned app in the main worker.
-    this.pendingSessionSave = this.pendingSessionSave
-      .catch(() => undefined)
-      .then(async () => {
-        await durableSave;
-        await this.rpc.proxy.request.saveNotebook(request);
-      });
-    void this.pendingSessionSave.catch((error) => {
-      Logger.error(error);
-    });
-
-    await durableSave;
-    const code = await this.readCode();
-    if (code.contents) {
-      notebookFileStore.saveFile(code.contents);
-      fallbackFileStore.saveFile(code.contents);
-    }
+  public saveLayout: EditRequests["saveLayout"] = async ({ layout }) => {
+    await this.rpc.proxy.request.setNotebookLayout(layout ?? null);
     return null;
   };
 
   public sendCopy: EditRequests["sendCopy"] = async () => {
     throwNotImplemented();
-  };
-
-  public sendStdin: EditRequests["sendStdin"] = async (request) => {
-    await this.rpc.proxy.request.bridge({
-      functionName: "put_input",
-      payload: request.text,
-    });
-    return null;
   };
 
   public sendPdb: EditRequests["sendPdb"] = async () => {
@@ -302,15 +386,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     throwNotImplemented();
   };
 
-  public sendRun: EditRequests["sendRun"] = async (request) => {
-    await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
-
-    await this.putControlRequest({
-      type: "execute-cells",
-      ...request,
-    });
-    return null;
-  };
   public sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (
     request,
   ) => {
@@ -322,13 +397,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return null;
   };
-  public sendInterrupt: EditRequests["sendInterrupt"] = async () => {
+  private raiseInterrupt(): void {
     if (this.interruptBuffer !== undefined) {
       // 2 sends a SIGINT
       this.interruptBuffer[0] = 2;
     }
-    return null;
-  };
+  }
   public sendShutdown: EditRequests["sendShutdown"] = async () => {
     window.close();
     return null;
@@ -339,14 +413,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: request,
     });
     return response as FormatResponse;
-  };
-
-  public sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
-    await this.putControlRequest({
-      type: "delete-cell",
-      ...request,
-    });
-    return null;
   };
 
   public sendInstallMissingPackages: EditRequests["sendInstallMissingPackages"] =
@@ -394,14 +460,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     await this.rpc.proxy.request.bridge({
       functionName: "save_app_config",
       payload: request,
-    });
-    return null;
-  };
-
-  public saveCellConfig: EditRequests["saveCellConfig"] = async (request) => {
-    await this.putControlRequest({
-      type: "update-cell-config",
-      ...request,
     });
     return null;
   };
@@ -560,7 +618,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public exportAsHTML: EditRequests["exportAsHTML"] = async (
     request: ExportAsHTMLRequest,
   ) => {
-    await this.pendingSessionSave;
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_html",
       payload: withDevAssetUrl(request),
@@ -571,7 +629,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public exportAsMarkdown: EditRequests["exportAsMarkdown"] = async (
     request: ExportAsMarkdownRequest,
   ) => {
-    await this.pendingSessionSave;
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_markdown",
       payload: request,
@@ -582,7 +640,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public exportAsScript: EditRequests["exportAsScript"] = async (
     request: ExportAsScriptRequest,
   ) => {
-    await this.pendingSessionSave;
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_script",
       payload: request,
@@ -652,8 +710,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return null;
   };
-
-  public sendDocumentTransaction = () => Promise.resolve(null);
 
   public addPackage: EditRequests["addPackage"] = async (request) => {
     return this.rpc.proxy.request.addPackage(request);

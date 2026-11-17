@@ -12,7 +12,7 @@ import type { ComponentProps } from "react";
 import { JsonRpcError } from "use-acp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
-import type { PromptInput } from "@/components/editor/ai/add-cell-with-ai";
+import type { PromptInput } from "@/components/editor/ai/prompt-input";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { pendingAiPromptAtom } from "@/core/ai/state";
@@ -54,7 +54,7 @@ vi.mock("use-acp", async (importOriginal) => ({
   useAcpClient: () => client,
 }));
 
-vi.mock("@/components/editor/ai/add-cell-with-ai", () => ({
+vi.mock("@/components/editor/ai/prompt-input", () => ({
   PromptInput: ({
     value,
     onChange,
@@ -254,19 +254,24 @@ describe("AgentPanel prompt submission", () => {
     });
   });
 
-  it("clears busy state when a cancelled prompt settles", async () => {
-    const response = Promise.withResolvers<{ stopReason: string }>();
-    agent.prompt.mockReturnValueOnce(response.promise);
-    await renderPanel();
-    submitPrompt();
-    await waitFor(() => expect(agent.prompt).toHaveBeenCalledOnce());
-    expect(screen.getByText("Agent is working...")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
-    await act(async () => response.resolve({ stopReason: "cancelled" }));
-    expect(agent.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
-    expect(screen.queryByText("Agent is working...")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Dismiss" }),
-    ).not.toBeInTheDocument();
-  });
+  it.each([0, 1])(
+    "clears busy state after cancellation through Stop button %i",
+    async (buttonIndex) => {
+      const response = Promise.withResolvers<{ stopReason: string }>();
+      agent.prompt.mockReturnValueOnce(response.promise);
+      await renderPanel();
+      submitPrompt();
+      await waitFor(() => expect(agent.prompt).toHaveBeenCalledOnce());
+      expect(screen.getByText("Agent is working...")).toBeInTheDocument();
+      const stopButtons = screen.getAllByRole("button", { name: "Stop" });
+      expect(stopButtons).toHaveLength(2);
+      fireEvent.click(stopButtons[buttonIndex]);
+      await act(async () => response.resolve({ stopReason: "cancelled" }));
+      expect(agent.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+      expect(screen.queryByText("Agent is working...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Dismiss" }),
+      ).not.toBeInTheDocument();
+    },
+  );
 });

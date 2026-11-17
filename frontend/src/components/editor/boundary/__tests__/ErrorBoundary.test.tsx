@@ -14,7 +14,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import type { EnvironmentInfo } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { ErrorBoundary } from "../ErrorBoundary";
 
 vi.mock("@/utils/copy", () => ({

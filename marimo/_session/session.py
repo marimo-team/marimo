@@ -15,6 +15,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
 from marimo._core.ids import mint
+from marimo._messaging.input import InputReply, deliver_reply
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
@@ -67,7 +68,7 @@ from marimo._types.ids import ConsumerId, StableSessionId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
     from marimo._environments.sandbox import NotebookSandbox
     from marimo._runtime.virtual_file import VirtualFileStorageType
@@ -118,7 +119,7 @@ class SessionImpl(Session):
             ScriptConfigReader(app_file_manager.path)
         )
         config = config_manager.get_config(hide_secrets=False)
-        configured_venv = config.get("venv", {}).get("path")
+        configured_venv = config.venv.path
 
         configs = app_file_manager.app.cell_manager.config_map()
 
@@ -192,9 +193,7 @@ class SessionImpl(Session):
             cache_enabled = not auto_instantiate
             cache_mode = CacheMode.READ_WRITE
         else:
-            cache_enabled = config_manager.get_config()["runtime"].get(
-                "serve_cached_sessions_in_apps", False
-            )
+            cache_enabled = config_manager.get_config().runtime.serve_cached_sessions_in_apps
             cache_mode = CacheMode.READ
 
         extensions = [
@@ -246,6 +245,8 @@ class SessionImpl(Session):
         self.initialization_id = initialization_id
         self._stable_id = mint(StableSessionId, "sess")
         self.app_file_manager = app_file_manager
+        # Read configuration on each save to pick up later edits.
+        self.app_file_manager.config_reader = config_manager
         self.room = Room()
         self.connection_generation = 0
         self._kernel_manager = kernel_manager
@@ -429,9 +430,12 @@ class SessionImpl(Session):
             self.room.get_capabilities(consumer), type(request)
         )
 
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
-        self._event_bus.emit_received_stdin(self, text)
+    def reply_input(self, reply: InputReply) -> None:
+        queue = self.extensions.get(QueueExtension)
+        if queue is None or self._closed:
+            raise RuntimeError("The session waiting for input has closed")
+        deliver_reply(queue.queue_manager.input_queue, reply)
+        self.session_view.add_stdin(reply.value, input_id=reply.input_id)
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
         """
@@ -520,27 +524,23 @@ class SessionImpl(Session):
         request: InstantiateNotebookRequest,
         *,
         http_request: HTTPRequest | None,
+        execution_requests: Sequence[ExecuteCellCommand] | None = None,
     ) -> None:
         """Instantiate the app."""
         app = self.app_file_manager.app
 
-        # If codes are provided, use them instead of the file codes
-        # This is used when the frontend has local edits that should be
-        # used instead of the stored file (e.g. local editing before connecting).
-        codes = request.codes or app.cell_manager.code_map()
-
-        execution_requests = tuple(
-            ExecuteCellCommand(
-                cell_id=cell_id,
-                code=code,
-                request=http_request,
-            )
-            for cell_id, code in codes.items()
-        )
+        if execution_requests is None:
+            codes = request.codes or app.cell_manager.code_map()
+            execution_requests = [
+                ExecuteCellCommand(
+                    cell_id=cell_id, code=code, request=http_request
+                )
+                for cell_id, code in codes.items()
+            ]
 
         self.put_control_request(
             CreateNotebookCommand(
-                execution_requests=execution_requests,
+                execution_requests=tuple(execution_requests),
                 cell_ids=tuple(app.cell_manager.cell_ids()),
                 set_ui_element_value_request=UpdateUIElementCommand(
                     object_ids=request.object_ids,

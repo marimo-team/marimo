@@ -92,7 +92,12 @@ export const ChatHistoryPopover: React.FC<ChatHistoryPopoverProps> = ({
     <Popover open={open} onOpenChange={setOpen}>
       <Tooltip content="Previous chats">
         <PopoverTrigger asChild={true}>
-          <Button variant="text" size="icon" aria-label="Previous chats">
+          <Button
+            className="chat-control"
+            variant="text"
+            size="icon"
+            aria-label="Previous chats"
+          >
             <ClockIcon className="h-4 w-4" />
           </Button>
         </PopoverTrigger>

@@ -5,19 +5,13 @@ import type * as api from "@marimo-team/marimo-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { cellId } from "@/__tests__/branded";
-import { parseOutline } from "@/core/dom/outline";
-import { MultiColumn, visibleForTesting } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { SETUP_CELL_ID } from "../ids";
-import { notebookStateFromSession } from "../session";
+import { readExport } from "../session";
 
 // Mock dependencies
 vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
-
-vi.mock("@/core/dom/outline", () => ({
-  parseOutline: vi.fn(),
-}));
 
 type SessionCell = api.Session["NotebookSessionV1"]["cells"][0];
 type NotebookCell = api.Notebook["NotebookV1"]["cells"][0];
@@ -25,10 +19,16 @@ type NotebookCell = api.Notebook["NotebookV1"]["cells"][0];
 // Test constants
 const CELL_1 = cellId("cell-1");
 
-describe("notebookStateFromSession", () => {
+/** The snapshot's record of a cell. */
+function cellIn(result: ReturnType<typeof readExport>, id: string) {
+  const cell = result.snapshot?.cells.find((cell) => cell.id === id);
+  invariant(cell, `no cell ${id}`);
+  return cell;
+}
+
+describe("readExport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    visibleForTesting.reset();
   });
 
   // Test data factories
@@ -86,59 +86,190 @@ describe("notebookStateFromSession", () => {
     cells,
   });
 
+  describe("results", () => {
+    it("carries a data output as a completed execution of the snapshot's source", () => {
+      const result = readExport({
+        session: createSession([
+          createSessionCell(
+            "c1",
+            [{ type: "data", data: { "text/html": "<b>1</b>" } }],
+            [],
+            "hash-1",
+          ),
+        ]),
+        notebook: createNotebook([
+          createNotebookCell("c1", { code: "1", code_hash: "hash-1" }),
+        ]),
+        filename: null,
+        appConfig: {},
+      });
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.results).toEqual([
+        expect.objectContaining({
+          cell_id: "c1",
+          code_fingerprint: "hash-1",
+          status: "completed",
+          outcome: {
+            kind: "value",
+            display: { mimetype: "text/html", data: "<b>1</b>" },
+          },
+        }),
+      ]);
+    });
+
+    it.each([
+      {
+        name: "lines without trailing newlines",
+        traceback: ["Traceback", "ValueError: bad"],
+        expectedTraceback: "Traceback\nValueError: bad",
+      },
+      {
+        name: "lines with trailing newlines",
+        traceback: ["Traceback\n", "ValueError: bad"],
+        expectedTraceback: "Traceback\nValueError: bad",
+      },
+      {
+        name: "no traceback",
+        traceback: [],
+        expectedTraceback: null,
+      },
+    ])(
+      "carries an exception with $name, and nothing for an empty cell",
+      ({ traceback, expectedTraceback }) => {
+        const result = readExport({
+          session: createSession([
+            createSessionCell(
+              "c1",
+              [
+                {
+                  type: "error",
+                  ename: "ValueError",
+                  evalue: "bad",
+                  traceback,
+                },
+              ],
+              [],
+              "hash-1",
+            ),
+            createSessionCell("c2", [], [], "hash-2"),
+          ]),
+          notebook: createNotebook([
+            createNotebookCell("c1", { code: "x", code_hash: "hash-1" }),
+            createNotebookCell("c2", { code: "", code_hash: "hash-2" }),
+          ]),
+          filename: null,
+          appConfig: {},
+        });
+        invariant(result.snapshot, "no snapshot");
+        expect(result.snapshot.results?.map((r) => r.cell_id)).toEqual(["c1"]);
+        expect(result.snapshot.results?.[0]?.outcome).toEqual({
+          kind: "error",
+          error: expect.objectContaining({
+            kind: "exception",
+            name: "ValueError",
+            message: "bad",
+            traceback:
+              expectedTraceback === null
+                ? null
+                : { mimetype: "text/plain", data: expectedTraceback },
+          }),
+        });
+      },
+    );
+  });
+
   describe("validation", () => {
     it("logs error for both session and notebook null/undefined", () => {
-      const result = notebookStateFromSession(null, null);
-      expect(result).toBeNull();
+      const result = readExport({
+        session: null,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
+      expect(result.snapshot).toBeNull();
     });
 
     it("logs error when session and notebook have different cells", () => {
       const session = createSession([createSessionCell("cell-1")]);
       const notebook = createNotebook([createNotebookCell("cell-2", {})]);
 
-      const result = notebookStateFromSession(session, notebook);
+      const result = readExport({
+        session: session,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
       expect(Logger.warn).toHaveBeenCalledWith(
         "Session and notebook have different cells, attempted merge.",
       );
       // Should have the same cell structure as notebook
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([["cell-2"]]).inOrderIds,
-      );
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.document.order).toEqual(["cell-2"]);
     });
   });
 
   describe("null/undefined inputs", () => {
     it("returns null when both session and notebook are null", () => {
-      const result = notebookStateFromSession(null, null);
-      expect(result).toBeNull();
+      const result = readExport({
+        session: null,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
+      expect(result.snapshot).toBeNull();
     });
 
     it("returns null when both session and notebook are undefined", () => {
-      const result = notebookStateFromSession(undefined, undefined);
-      expect(result).toBeNull();
+      const result = readExport({
+        session: undefined,
+        notebook: undefined,
+        filename: null,
+        appConfig: {},
+      });
+      expect(result.snapshot).toBeNull();
     });
 
     it("returns null when session is null and notebook is undefined", () => {
-      const result = notebookStateFromSession(null, undefined);
-      expect(result).toBeNull();
+      const result = readExport({
+        session: null,
+        notebook: undefined,
+        filename: null,
+        appConfig: {},
+      });
+      expect(result.snapshot).toBeNull();
     });
   });
 
   describe("session only scenarios", () => {
     it("creates state from session with single cell", () => {
       const session = createSession([createSessionCell("cell-1")]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([[CELL_1]]).inOrderIds,
-      );
-      expect(result.cellData[CELL_1].code).toBe("");
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.document.order).toEqual([CELL_1]);
+      // The session knows outputs, not source; the host withholds it as null.
+      expect(cellIn(result, CELL_1).code).toBeNull();
       expect(result.cellRuntime[CELL_1]).toBeDefined();
+    });
+
+    it("carries the page's filename and app config into the snapshot", () => {
+      const session = createSession([createSessionCell("cell-1")]);
+      const result = readExport({
+        session,
+        notebook: null,
+        filename: "notebook.py",
+        appConfig: { width: "full" },
+      });
+
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.notebook.name).toBe("notebook.py");
+      expect(result.snapshot.document.app_config).toEqual({ width: "full" });
     });
 
     it("creates state from session with multiple cells", () => {
@@ -146,14 +277,16 @@ describe("notebookStateFromSession", () => {
         createSessionCell("cell-1"),
         createSessionCell("cell-2"),
       ]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([["cell-1", "cell-2"]]).inOrderIds,
-      );
-      expect(Object.keys((result as any).cellData)).toEqual([
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.document.order).toEqual(["cell-1", "cell-2"]);
+      expect(result.snapshot.cells.map((cell) => cell.id)).toEqual([
         "cell-1",
         "cell-2",
       ]);
@@ -173,24 +306,24 @@ describe("notebookStateFromSession", () => {
       const session = createSession([
         createSessionCell("cell-1", [errorOutput]),
       ]);
-      const result = notebookStateFromSession(session, null);
-
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "marimo-error",
-        data: [
-          {
-            type: "exception",
-            exception_type: "ValueError",
-            msg: "Something went wrong",
-            raising_cell: null,
-            traceback: "Traceback line 1",
-          },
-        ],
-        mimetype: "application/vnd.marimo+error",
-        timestamp: 0,
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
       });
+
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "error",
+        error: expect.objectContaining({
+          kind: "exception",
+          name: "ValueError",
+          message: "Something went wrong",
+          traceback: { mimetype: "text/plain", data: "Traceback line 1" },
+        }),
+      });
+
+      invariant(result.snapshot, "no snapshot");
     });
 
     it("restores matching code from the session", () => {
@@ -219,19 +352,13 @@ describe("notebookStateFromSession", () => {
           ],
         ),
       ]);
-      const state = notebookStateFromSession(session, null);
-      invariant(state, "state is null");
-      expect(state.cellRuntime[CELL_1].output).toMatchObject({
-        code,
-        data: [
-          {
-            type: "exception",
-            exception_type: "ValueError",
-            msg: "cached failure",
-            traceback: "Traceback\nValueError: cached failure",
-          },
-        ],
+      const state = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
       });
+      invariant(state.snapshot, "no snapshot");
       expect(state.cellRuntime[CELL_1].consoleOutputs[0].code).toBe(code);
       expect(state.cellRuntime[CELL_1].consoleOutputs[0]).toMatchObject({
         traceback_format: "text",
@@ -249,16 +376,19 @@ describe("notebookStateFromSession", () => {
       const session = createSession([
         createSessionCell("cell-1", [dataOutput]),
       ]);
-      const result = notebookStateFromSession(session, null);
-
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "output",
-        data: "Hello World",
-        mimetype: "text/plain",
-        timestamp: 0,
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
       });
+
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "value",
+        display: { mimetype: "text/plain", data: "Hello World" },
+      });
+
+      invariant(result.snapshot, "no snapshot");
     });
 
     it("handles console outputs in session cell", () => {
@@ -279,10 +409,14 @@ describe("notebookStateFromSession", () => {
       const session = createSession([
         createSessionCell("cell-1", [], consoleOutputs),
       ]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
+      invariant(result.snapshot, "no snapshot");
       expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([
         {
           channel: "stdout",
@@ -298,38 +432,6 @@ describe("notebookStateFromSession", () => {
         },
       ]);
     });
-
-    it("calls parseOutline when output exists", () => {
-      const mockOutline = { items: [] };
-      vi.mocked(parseOutline).mockReturnValue(mockOutline);
-
-      const dataOutput = {
-        type: "data" as const,
-        data: { "text/html": "<h1>Title</h1>" },
-      };
-      const session = createSession([
-        createSessionCell("cell-1", [dataOutput]),
-      ]);
-      const result = notebookStateFromSession(session, null);
-
-      expect(parseOutline).toHaveBeenCalledWith({
-        channel: "output",
-        data: "<h1>Title</h1>",
-        mimetype: "text/html",
-        timestamp: 0,
-      });
-      invariant(result, "result is null");
-      expect(result.cellRuntime[CELL_1].outline).toBe(mockOutline);
-    });
-
-    it("sets outline to null when no output exists", () => {
-      const session = createSession([createSessionCell("cell-1")]);
-      const result = notebookStateFromSession(session, null);
-
-      expect(parseOutline).not.toHaveBeenCalled();
-      invariant(result, "result is null");
-      expect(result.cellRuntime[CELL_1].outline).toBeNull();
-    });
   });
 
   describe("notebook only scenarios", () => {
@@ -340,27 +442,29 @@ describe("notebookStateFromSession", () => {
           name: "my_cell",
         }),
       ]);
-      const result = notebookStateFromSession(null, notebook);
+      const result = readExport({
+        session: null,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([[CELL_1]]).inOrderIds,
-      );
-      expect(result.cellData[CELL_1]).toEqual({
-        id: "cell-1",
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.document.order).toEqual([CELL_1]);
+      expect(cellIn(result, CELL_1)).toEqual({
+        id: CELL_1,
+        notebook_id: "embedded",
         name: "my_cell",
         code: "print('hello')",
-        edited: false,
-        lastCodeRun: null,
-        lastExecutionTime: null,
         config: {
           hide_code: false,
           disabled: false,
           column: null,
           expand_output: false,
         },
-        serializedEditorState: null,
+        etag: `embedded:${CELL_1}`,
+        code_fingerprint: `embedded:${CELL_1}:code`,
+        version: 1,
       });
     });
 
@@ -377,11 +481,15 @@ describe("notebookStateFromSession", () => {
           },
         }),
       ]);
-      const result = notebookStateFromSession(null, notebook);
+      const result = readExport({
+        session: null,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellData[CELL_1].config).toEqual({
+      invariant(result.snapshot, "no snapshot");
+      expect(cellIn(result, CELL_1).config).toEqual({
         hide_code: true,
         disabled: true,
         column: 1,
@@ -402,24 +510,28 @@ describe("notebookStateFromSession", () => {
         },
       };
       const notebook = createNotebook([notebookCell]);
-      const result = notebookStateFromSession(null, notebook);
+      const result = readExport({
+        session: null,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellData[CELL_1]).toEqual({
-        id: "cell-1",
-        name: "",
-        code: "",
-        edited: false,
-        lastCodeRun: null,
-        lastExecutionTime: null,
+      invariant(result.snapshot, "no snapshot");
+      expect(cellIn(result, CELL_1)).toEqual({
+        id: CELL_1,
+        notebook_id: "embedded",
+        name: "_",
+        code: null,
         config: {
           hide_code: false,
           disabled: false,
           column: null,
           expand_output: false,
         },
-        serializedEditorState: null,
+        etag: `embedded:${CELL_1}`,
+        code_fingerprint: `embedded:${CELL_1}:code`,
+        version: 1,
       });
     });
 
@@ -436,27 +548,29 @@ describe("notebookStateFromSession", () => {
         },
       };
       const notebook = createNotebook([notebookCell as any]);
-      const result = notebookStateFromSession(null, notebook);
+      const result = readExport({
+        session: null,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([[SETUP_CELL_ID]]).inOrderIds,
-      );
-      expect(result.cellData[SETUP_CELL_ID]).toEqual({
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.document.order).toEqual([SETUP_CELL_ID]);
+      expect(cellIn(result, SETUP_CELL_ID)).toEqual({
         id: SETUP_CELL_ID,
+        notebook_id: "embedded",
         name: "setup",
         code: "import marimo as mo",
-        edited: false,
-        lastCodeRun: null,
-        lastExecutionTime: null,
         config: {
           hide_code: false,
           disabled: false,
           column: null,
           expand_output: false,
         },
-        serializedEditorState: null,
+        etag: `embedded:${SETUP_CELL_ID}`,
+        code_fingerprint: `embedded:${SETUP_CELL_ID}:code`,
+        version: 1,
       });
     });
   });
@@ -483,24 +597,28 @@ describe("notebookStateFromSession", () => {
           name: "my_cell",
         }),
       ]);
-      const result = notebookStateFromSession(session, notebook);
+      const result = readExport({
+        session: session,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellData[CELL_1]).toEqual({
-        id: "cell-1",
+      invariant(result.snapshot, "no snapshot");
+      expect(cellIn(result, CELL_1)).toEqual({
+        id: CELL_1,
+        notebook_id: "embedded",
         name: "my_cell",
         code: "print('hello')",
-        edited: false,
-        lastCodeRun: null,
-        lastExecutionTime: null,
         config: {
           hide_code: false,
           disabled: false,
           column: null,
           expand_output: false,
         },
-        serializedEditorState: null,
+        etag: `embedded:${CELL_1}`,
+        code_fingerprint: `embedded:${CELL_1}:code`,
+        version: 1,
       });
       // Null result means no output.
       expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
@@ -516,13 +634,15 @@ describe("notebookStateFromSession", () => {
         createNotebookCell("cell-1", {}),
       ]);
 
-      const result = notebookStateFromSession(session, notebook);
+      const result = readExport({
+        session: session,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([["cell-2", "cell-1"]]).inOrderIds,
-      );
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.document.order).toEqual(["cell-2", "cell-1"]);
     });
 
     it("creates state when session and notebook have identical cell arrays", () => {
@@ -535,59 +655,82 @@ describe("notebookStateFromSession", () => {
         createNotebookCell("cell-2", {}),
       ]);
 
-      const result = notebookStateFromSession(session, notebook);
+      const result = readExport({
+        session: session,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
       expect(Logger.error).not.toHaveBeenCalled();
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([["cell-1", "cell-2"]]).inOrderIds,
-      );
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.document.order).toEqual(["cell-1", "cell-2"]);
     });
   });
 
   describe("empty cells scenarios", () => {
     it("warns and returns null when session has empty cells array", () => {
       const session = createSession([]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).toBeNull();
+      expect(result.snapshot).toBeNull();
     });
 
     it("warns and returns null when notebook has empty cells array", () => {
       const notebook = createNotebook([]);
-      const result = notebookStateFromSession(null, notebook);
+      const result = readExport({
+        session: null,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).toBeNull();
+      expect(result.snapshot).toBeNull();
     });
 
     it("warns and returns null when both have empty cells arrays", () => {
       const session = createSession([]);
       const notebook = createNotebook([]);
-      const result = notebookStateFromSession(session, notebook);
+      const result = readExport({
+        session: session,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).toBeNull();
+      expect(result.snapshot).toBeNull();
     });
   });
 
   describe("edge cases", () => {
     it("handles session cell with no outputs", () => {
       const session = createSession([createSessionCell("cell-1", [])]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellRuntime[CELL_1].output).toBeNull();
+      invariant(result.snapshot, "no snapshot");
       expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
-      expect(result.cellRuntime[CELL_1].outline).toBeNull();
     });
 
     it("handles session cell with empty console array", () => {
       const session = createSession([createSessionCell("cell-1", [], [])]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
+      invariant(result.snapshot, "no snapshot");
       expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
     });
 
@@ -597,15 +740,16 @@ describe("notebookStateFromSession", () => {
         { type: "data" as const, data: { "text/plain": "Second" } },
       ];
       const session = createSession([createSessionCell("cell-1", outputs)]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "output",
-        data: "First",
-        mimetype: "text/plain",
-        timestamp: 0,
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "value",
+        display: { mimetype: "text/plain", data: "First" },
       });
     });
 
@@ -620,16 +764,19 @@ describe("notebookStateFromSession", () => {
       const session = createSession([
         createSessionCell("cell-1", [dataOutput]),
       ]);
-      const result = notebookStateFromSession(session, null);
-
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "output",
-        data: "Plain text",
-        mimetype: "text/plain",
-        timestamp: 0,
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
       });
+
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "value",
+        display: { mimetype: "text/plain", data: "Plain text" },
+      });
+
+      invariant(result.snapshot, "no snapshot");
     });
 
     it("handles data output with empty data object", () => {
@@ -640,36 +787,44 @@ describe("notebookStateFromSession", () => {
       const session = createSession([
         createSessionCell("cell-1", [dataOutput]),
       ]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "output",
-        data: undefined,
-        mimetype: undefined,
-        timestamp: 0,
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "value",
+        display: null,
       });
     });
 
     it("returns correct structure with all expected properties", () => {
       const session = createSession([createSessionCell("cell-1")]);
-      const result = notebookStateFromSession(session, null);
+      const result = readExport({
+        session: session,
+        notebook: null,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
-      expect(result).toHaveProperty("cellIds");
-      expect(result).toHaveProperty("cellData");
-      expect(result).toHaveProperty("cellRuntime");
-      expect(result).toHaveProperty("cellHandles");
-      expect(result).toHaveProperty("history");
-      expect(result).toHaveProperty("scrollKey");
-      expect(result).toHaveProperty("cellLogs");
-
-      expect(result.cellHandles).toEqual({});
-      expect(result.history).toEqual([]);
-      expect(result.scrollKey).toBeNull();
-      expect(result.cellLogs).toEqual([]);
+      invariant(result.snapshot, "no snapshot");
+      expect(result.snapshot.notebook).toEqual({
+        id: "embedded",
+        project_id: "embedded",
+        path: null,
+        name: "",
+        updated_at: null,
+      });
+      expect(result.snapshot.document).toMatchObject({
+        notebook_id: "embedded",
+        order: result.snapshot.cells.map((cell) => cell.id),
+        version: 1,
+      });
+      expect(Object.keys(result.cellRuntime)).toEqual(
+        result.snapshot.document.order,
+      );
     });
   });
 
@@ -764,25 +919,26 @@ describe("notebookStateFromSession", () => {
       ];
       const session = createSession(sessionCells);
       const notebook = createNotebook(notebookCells);
-      const result = notebookStateFromSession(session, notebook);
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
+      const result = readExport({
+        session: session,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
+      invariant(result.snapshot, "no snapshot");
       // Should have all cell IDs in order
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([
-          ["cell-a", "cell-b", "cell-c", "cell-d", "cell-e", "cell-f"],
-        ]).inOrderIds,
-      );
+      expect(result.snapshot.document.order).toEqual([
+        "cell-a",
+        "cell-b",
+        "cell-c",
+        "cell-d",
+        "cell-e",
+        "cell-f",
+      ]);
       // Should have correct code and output for each cell
       for (const code of ["a", "b", "c", "d", "e", "f"]) {
         const cid = cellId(`cell-${code}`);
-        expect(result.cellData[cid].code).toBe(code);
-        expect(result.cellRuntime[cid].output).toEqual({
-          channel: "output",
-          data: `${code.toUpperCase()}!`,
-          mimetype: "text/plain",
-          timestamp: 0,
-        });
+        expect(cellIn(result, cid).code).toBe(code);
       }
     });
 
@@ -868,47 +1024,34 @@ describe("notebookStateFromSession", () => {
 
       const session = createSession(sessionCells);
       const notebook = createNotebook(notebookCells);
-      const result = notebookStateFromSession(session, notebook);
+      const result = readExport({
+        session: session,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
+      invariant(result.snapshot, "no snapshot");
 
       // Should have notebook cell IDs in order (notebook is canonical)
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([["cell-a", "cell-c", "cell-z", "cell-e", "cell-g"]])
-          .inOrderIds,
-      );
+      expect(result.snapshot.document.order).toEqual([
+        "cell-a",
+        "cell-c",
+        "cell-z",
+        "cell-e",
+        "cell-g",
+      ]);
 
       // Should have correct code for each cell
-      expect(result.cellData[cellId("cell-a")].code).toBe("a");
-      expect(result.cellData[cellId("cell-c")].code).toBe("c");
-      expect(result.cellData[cellId("cell-z")].code).toBe("z");
-      expect(result.cellData[cellId("cell-e")].code).toBe("e");
-      expect(result.cellData[cellId("cell-g")].code).toBe("g");
+      expect(cellIn(result, "cell-a").code).toBe("a");
+      expect(cellIn(result, "cell-c").code).toBe("c");
+      expect(cellIn(result, "cell-z").code).toBe("z");
+      expect(cellIn(result, "cell-e").code).toBe("e");
+      expect(cellIn(result, "cell-g").code).toBe("g");
 
       // Should have session outputs for matching cells (a, c, e)
-      expect(result.cellRuntime[cellId("cell-a")].output).toEqual({
-        channel: "output",
-        data: "A!",
-        mimetype: "text/plain",
-        timestamp: 0,
-      });
-      expect(result.cellRuntime[cellId("cell-c")].output).toEqual({
-        channel: "output",
-        data: "C!",
-        mimetype: "text/plain",
-        timestamp: 0,
-      });
-      expect(result.cellRuntime[cellId("cell-e")].output).toEqual({
-        channel: "output",
-        data: "E!",
-        mimetype: "text/plain",
-        timestamp: 0,
-      });
 
       // Should have no output for new cells (z, g) - they get stub session cells
-      expect(result.cellRuntime[cellId("cell-z")].output).toBeNull();
-      expect(result.cellRuntime[cellId("cell-g")].output).toBeNull();
 
       // Should log warning about different cells
       expect(Logger.warn).toHaveBeenCalledWith(
@@ -1002,42 +1145,33 @@ describe("notebookStateFromSession", () => {
 
       const session = createSession(sessionCells);
       const notebook = createNotebook(notebookCells);
-      const result = notebookStateFromSession(session, notebook);
+      const result = readExport({
+        session: session,
+        notebook: notebook,
+        filename: null,
+        appConfig: {},
+      });
 
-      expect(result).not.toBeNull();
-      invariant(result, "result is null");
+      invariant(result.snapshot, "no snapshot");
 
       // Should have notebook cell IDs in order (notebook is canonical)
-      expect(result.cellIds.inOrderIds).toEqual(
-        MultiColumn.from([["cell-1", "cell-2", "cell-3"]]).inOrderIds,
-      );
+      expect(result.snapshot.document.order).toEqual([
+        "cell-1",
+        "cell-2",
+        "cell-3",
+      ]);
 
       // Should have correct code from notebook
-      expect(result.cellData[cellId("cell-1")].code).toBe("1 / 0");
-      expect(result.cellData[cellId("cell-2")].code).toBe('mo.md("Hello")');
-      expect(result.cellData[cellId("cell-3")].code).toBe(
-        "x = mo.ui.slider(0, 10)",
-      );
+      expect(cellIn(result, "cell-1").code).toBe("1 / 0");
+      expect(cellIn(result, "cell-2").code).toBe('mo.md("Hello")');
+      expect(cellIn(result, "cell-3").code).toBe("x = mo.ui.slider(0, 10)");
 
       // cell-1: No matching session cell (hash is null), gets stub session cell
-      expect(result.cellRuntime[cellId("cell-1")].output).toBeNull();
       expect(result.cellRuntime[cellId("cell-1")].consoleOutputs).toEqual([]);
 
       // cell-2: Matches session cell-1 by hash (moMd), gets its output
-      expect(result.cellRuntime[cellId("cell-2")].output).toEqual({
-        channel: "output",
-        data: "Welcome to marimo!",
-        mimetype: "text/markdown",
-        timestamp: 0,
-      });
 
       // cell-3: Matches session cell-2 by hash (slider), gets its output
-      expect(result.cellRuntime[cellId("cell-3")].output).toEqual({
-        channel: "output",
-        data: "",
-        mimetype: "text/plain",
-        timestamp: 0,
-      });
 
       // Should log warning about different cells (merge had edit distance > 0)
       expect(Logger.warn).toHaveBeenCalledWith(

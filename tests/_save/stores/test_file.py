@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
+
+import pytest
 
 import marimo._save.stores.file as file_mod
 from marimo import _loggers
@@ -53,6 +56,69 @@ class TestFileStore:
         result = store.clear("nonexistent")
         assert result is False
 
+    def test_clear_removes_a_key_stored_in_parts(self, tmp_path) -> None:
+        """A value written under a key prefix is cleared with that key."""
+        store = FileStore(tmp_path / "test_store")
+        store.put("entry/return.pickle", b"test data")
+        store.put("entry/x.pickle", b"more data")
+
+        assert store.clear("entry") is True
+        assert not (tmp_path / "test_store" / "entry").exists()
+        assert store.clear("entry") is False
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="symlinks need a privileged user"
+    )
+    @pytest.mark.parametrize("key", ["linked/entry", "linked/../entry"])
+    def test_clear_does_not_follow_a_parent_symlink(
+        self, tmp_path, key: str
+    ) -> None:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "entry").write_bytes(b"keep")
+        (tmp_path / "entry").write_bytes(b"parent")
+        store_dir = tmp_path / "store"
+        store_dir.mkdir()
+        (store_dir / "linked").symlink_to(outside, target_is_directory=True)
+        store = FileStore(str(store_dir))
+        store.put("entry", b"local")
+
+        assert store.clear(key) is False
+        assert (outside / "entry").read_bytes() == b"keep"
+        assert (tmp_path / "entry").read_bytes() == b"parent"
+        assert store.read("entry") == b"local"
+
+    def test_clear_removes_an_empty_entry_without_creating_directories(
+        self, tmp_path
+    ) -> None:
+        store_dir = tmp_path / "store"
+        store = FileStore(str(store_dir))
+        assert store.clear("missing/entry") is False
+        assert not store_dir.exists()
+
+        store.put("entry", b"")
+
+        assert store.clear("entry") is True
+        assert not (store_dir / "entry").exists()
+
+    @pytest.mark.parametrize(
+        "key",
+        ["", ".", "../test_store", "blk/..", "../outside", "blk/../../x"],
+    )
+    def test_clear_never_reaches_the_root_or_past_it(
+        self, tmp_path: Path, key: str
+    ) -> None:
+        """A key can come from a file on disk. Whatever it spells, `clear`
+        removes at most one entry below the store's root, never the root."""
+        store = FileStore(tmp_path / "test_store")
+        store.put("blk/key", b"x")
+        (tmp_path / "outside").write_bytes(b"o")
+
+        assert store.clear(key) is False
+        assert store.get("blk/key") == b"x"
+        assert (tmp_path / "outside").exists()
+        assert (tmp_path / "test_store").is_dir()
+
     def test_default_path_is_lazy(self) -> None:
         """Default save_path is not resolved at construction time."""
         store = FileStore()
@@ -86,6 +152,20 @@ class TestDefaultSavePath:
         path = FileStore()._default_save_path()
 
         assert path == Path("__marimo__", "cache")
+
+    def test_clearable_root_is_where_clear_acts(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(file_mod, "notebook_dir", lambda: tmp_path)
+
+        def deny_mkdir(self: Path, *_args: object, **_kwargs: object) -> None:
+            raise PermissionError(f"read-only: {self}")
+
+        monkeypatch.setattr(Path, "mkdir", deny_mkdir)
+        store = FileStore()
+
+        assert store.clearable_root() == store.save_path
+        assert store.clearable_root() == Path("__marimo__", "cache")
 
     def test_existing_read_only_target_falls_back_to_cwd(
         self, tmp_path, monkeypatch

@@ -1,5 +1,5 @@
 {
-  "type": "tag:marimo.io,2026:host/conflict",
+  "type": "urn:marimo:problem:conflict",
   "title": "Conflict",
   "status": 409,
   "detail": "forecasts.py has a runtime; stop it before deleting."

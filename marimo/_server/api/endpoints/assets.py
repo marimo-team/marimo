@@ -60,13 +60,11 @@ router = APIRouter()
 root = normalize_path(marimo_package_path() / "_static")
 
 server_config = (
-    get_default_config_manager(current_path=None)
-    .get_config()
-    .get("server", {})
+    get_default_config_manager(current_path=None).get_config().server
 )
 
 assets_dir = root / "assets"
-follow_symlinks = server_config.get("follow_symlink", False)
+follow_symlinks = server_config.follow_symlink
 
 
 def _missing_index_html_detail() -> str:

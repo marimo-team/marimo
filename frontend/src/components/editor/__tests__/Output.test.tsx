@@ -1,9 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createStore, Provider } from "jotai";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { cellId } from "@/__tests__/branded";
+import { DocumentProvider } from "@/core/notebook/document";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OutputArea, OutputRenderer } from "../Output";
+
+const store = createStore();
+const { model } = mockDocumentModel(store, null);
 
 describe("OutputRenderer renderFallback prop", () => {
   it("should use renderFallback for unsupported mimetypes", () => {
@@ -70,31 +76,39 @@ describe("OutputRenderer renderFallback prop", () => {
 describe("OutputArea null/undefined handling", () => {
   it("should render null when output is null", () => {
     const { container } = render(
-      <TooltipProvider>
-        <OutputArea
-          output={null}
-          cellId={cellId("test")}
-          stale={false}
-          loading={false}
-          allowExpand={true}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <OutputArea
+              output={null}
+              cellId={cellId("test")}
+              stale={false}
+              loading={false}
+              allowExpand={true}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
     expect(container.innerHTML).toBe("");
   });
 
   it("should render null when output is undefined", () => {
     const { container } = render(
-      <TooltipProvider>
-        <OutputArea
-          // @ts-expect-error -- testing runtime safety for undefined output
-          output={undefined}
-          cellId={cellId("test")}
-          stale={false}
-          loading={false}
-          allowExpand={true}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <OutputArea
+              // @ts-expect-error -- testing runtime safety for undefined output
+              output={undefined}
+              cellId={cellId("test")}
+              stale={false}
+              loading={false}
+              allowExpand={true}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
     expect(container.innerHTML).toBe("");
   });
@@ -184,19 +198,23 @@ describe("OutputArea fullscreen exit control", () => {
 
   const renderOutput = () =>
     render(
-      <TooltipProvider>
-        <OutputArea
-          output={{
-            channel: "output",
-            data: "Hello World",
-            mimetype: "text/plain",
-          }}
-          cellId={cellId("test")}
-          stale={false}
-          loading={false}
-          allowExpand={true}
-        />
-      </TooltipProvider>,
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <OutputArea
+              output={{
+                channel: "output",
+                data: "Hello World",
+                mimetype: "text/plain",
+              }}
+              cellId={cellId("test")}
+              stale={false}
+              loading={false}
+              allowExpand={true}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>,
     );
 
   const enterFullscreen = (container: HTMLElement) => {

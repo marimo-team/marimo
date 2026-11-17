@@ -12,7 +12,7 @@ import type { UserConfig } from "@/core/config/config-schema";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
-  SaveNotebookRequest,
+  SaveLayoutRequest,
 } from "@/core/network/types";
 import { decodeUtf8 } from "@/utils/strings";
 import { Deferred } from "../../../utils/Deferred";
@@ -82,15 +82,33 @@ async function getNotebook() {
   return session.bridge.notebook;
 }
 
-const requestHandler = createRPCRequestHandler({
-  notebookInfo: async () => {
-    const notebook = await getNotebook();
-    try {
-      return { id: notebook.id };
-    } finally {
-      notebook.destroy();
+/** Load the packages `code` imports, with marimo's SQL heuristics. */
+async function loadPackagesForCode(code: string) {
+  const span = t.startSpan("loadPackages");
+  await pyodideReadyPromise; // Make sure loading is done
+
+  if (shouldLoadDuckDBPackages(code)) {
+    // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
+    code = `import pandas\n${code}`;
+    code = `import duckdb\n${code}`;
+    code = `import sqlglot\n${code}`;
+
+    // Polars + SQL requires pyarrow, and installing
+    // after notebook load does not work. As a heuristic,
+    // if it appears that the notebook uses polars, add pyarrow.
+    if (code.includes("polars")) {
+      code = `import pyarrow\n${code}`;
     }
-  },
+  }
+
+  await self.pyodide.loadPackagesFromImports(code, {
+    messageCallback: Logger.log,
+    errorCallback: Logger.error,
+  });
+  span.end();
+}
+
+const requestHandler = createRPCRequestHandler({
   notebookSubscribe: (request: { id: string; cursor: string | null }) => {
     let canceled = false;
     const subscribing = (async () => {
@@ -172,6 +190,21 @@ const requestHandler = createRPCRequestHandler({
         queryParameters: opts.queryParameters,
         userConfig: opts.userConfig,
       });
+      const notebook = session.bridge.notebook;
+      try {
+        notebook.set_persistence(async (contents, filename) => {
+          // Keep file operations in the execution worker from syncing stale source.
+          self.pyodide.FS.writeFile(filename, contents);
+          self.pyodide.FS.writeFile(WasmFileSystem.NOTEBOOK_FILENAME, contents);
+          await rpc.proxy.request.persistNotebook({ filename, contents });
+        });
+        // Host runs name cells, so the worker loads their imports itself.
+        notebook.set_package_loader(loadPackagesForCode);
+        // This worker serves the editor, whose user can answer a prompt.
+        notebook.allow_input(true);
+      } finally {
+        notebook.destroy();
+      }
       sessionReady.resolve(session);
       rpc.send.initializingMessage({
         message: "Initializing notebook...",
@@ -187,33 +220,7 @@ const requestHandler = createRPCRequestHandler({
     return;
   },
 
-  /**
-   * Load packages
-   */
-  loadPackages: async (code: string) => {
-    const span = t.startSpan("loadPackages");
-    await pyodideReadyPromise; // Make sure loading is done
-
-    if (shouldLoadDuckDBPackages(code)) {
-      // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-      code = `import pandas\n${code}`;
-      code = `import duckdb\n${code}`;
-      code = `import sqlglot\n${code}`;
-
-      // Polars + SQL requires pyarrow, and installing
-      // after notebook load does not work. As a heuristic,
-      // if it appears that the notebook uses polars, add pyarrow.
-      if (code.includes("polars")) {
-        code = `import pyarrow\n${code}`;
-      }
-    }
-
-    await self.pyodide.loadPackagesFromImports(code, {
-      messageCallback: Logger.log,
-      errorCallback: Logger.error,
-    });
-    span.end();
-  },
+  loadPackages: (code: string) => loadPackagesForCode(code),
 
   /**
    * Read a file
@@ -298,13 +305,13 @@ const requestHandler = createRPCRequestHandler({
     };
   },
 
-  /**
-   * Save the notebook
-   */
-  saveNotebook: async (opts: SaveNotebookRequest) => {
-    await pyodideReadyPromise; // Make sure loading is done
-    const { bridge } = await sessionReady.promise;
-    await bridge.save(JSON.stringify(opts));
+  setNotebookLayout: async (layout: SaveLayoutRequest["layout"]) => {
+    const notebook = await getNotebook();
+    try {
+      await notebook.set_layout(JSON.stringify(layout));
+    } finally {
+      notebook.destroy();
+    }
   },
 
   /**
@@ -403,6 +410,8 @@ const rpc = createRPC<WorkerSchema, ParentSchema>({
     transportId: TRANSPORT_ID,
   }),
   requestHandler,
+  // Persistence can include bootstrapping the storage worker.
+  maxRequestTime: Infinity,
 });
 
 rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
@@ -410,8 +419,6 @@ rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
 rpc.send("ready", {});
 
 const namesThatRequireSync = new Set<keyof RawBridge>([
-  "save",
-  "save_app_config",
   "rename_file",
   "create_file_or_directory",
   "delete_file_or_directory",

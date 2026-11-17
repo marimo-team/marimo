@@ -69,7 +69,17 @@ export class Literal implements PythonCode {
       return "None";
     }
     if (typeof this.value === "string") {
-      return `'${this.value}'`;
+      // Escape sequences in JSON strings are also valid in Python. Requote with
+      // single quotes, and escape the line breaks that `str.splitlines()` splits
+      // on but `JSON.stringify` does not escape.
+      const escaped = JSON.stringify(this.value)
+        .slice(1, -1)
+        .replaceAll('\\"', '"')
+        .replaceAll("'", "\\'")
+        .replaceAll("\u0085", "\\x85")
+        .replaceAll("\u2028", "\\u2028")
+        .replaceAll("\u2029", "\\u2029");
+      return `'${escaped}'`;
     }
     if (typeof this.value === "boolean") {
       return this.value ? "True" : "False";
@@ -104,7 +114,7 @@ export class Literal implements PythonCode {
         if (code === "") {
           return "";
         }
-        return `'${key}': ${code}`;
+        return `${new Literal(key).toCode()}: ${code}`;
       };
 
       const formattedEntries = entries

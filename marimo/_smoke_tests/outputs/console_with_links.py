@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -29,25 +29,23 @@ def _():
         .interactive()
     )
     _chart
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
-    return
 
 
 @app.cell
 def _():
     import sys
+
     return (sys,)
 
 
 @app.cell
 def _(sys):
     sys.stdout.write("Here is a link in stdout: https://marimo.io\n")
-    return
 
 
 @app.cell
@@ -55,13 +53,11 @@ def _(sys):
     sys.stderr.write(
         "Here is a link in stderr: https://github.com/marimo-team/marimo\n"
     )
-    return
 
 
 @app.cell
 def _():
     print("Here is a link in a print statement: https://docs.marimo.io")
-    return
 
 
 @app.cell
@@ -71,13 +67,11 @@ def _(sys):
     )
     sys.stderr.write("Here is a command in stderr: pip install pandas\n")
     print("Here is a command in a print statement: pip install polars")
-    return
 
 
 @app.cell
 def _():
     print("You need to: pip install polars")
-    return
 
 
 @app.cell
@@ -95,7 +89,6 @@ def _():
 
     print("Flags after package: uv add polars -U")
     print("Flags after package: pip install pandas --upgrade")
-    return
 
 
 if __name__ == "__main__":

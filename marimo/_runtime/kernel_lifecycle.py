@@ -9,13 +9,18 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import copy
 import dataclasses
 import queue as _queue
-from typing import TYPE_CHECKING, Any, TypeVar
+from collections import deque
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from marimo import _loggers
 from marimo._runtime import patches
 from marimo._runtime.commands import (
+    CancelRunCommand,
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
     ModelCommand,
     OutOfBandCommand,
     StopKernelCommand,
@@ -41,7 +46,8 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Iterator
 
     from marimo._ast.cell import CellConfig
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.provenance import ConfigPath
     from marimo._messaging.types import KernelStreams
     from marimo._runtime import marimo_pdb
     from marimo._runtime.commands import (
@@ -73,6 +79,7 @@ class KernelArgs:
     control_queue: ControlQueue
     set_ui_element_queue: UIElementQueue
     virtual_file_storage: VirtualFileStorageType | None
+    config_overrides: tuple[ConfigPath, ...] = ()
 
     @property
     def is_edit_mode(self) -> bool:
@@ -87,6 +94,12 @@ _Q = TypeVar("_Q")
 _T = TypeVar("_T")
 
 
+class CommandHandler(Protocol):
+    """What the control loop needs from a kernel."""
+
+    async def handle_message(self, request: CommandMessage) -> None: ...
+
+
 def drain_stale(queue: Any, *, latest: _T) -> _T:
     """Discard stale items queued behind `latest` and return the newest.
 
@@ -98,6 +111,46 @@ def drain_stale(queue: Any, *, latest: _T) -> _T:
             latest = queue.get_nowait()
         except (asyncio.QueueEmpty, _queue.Empty):
             return latest
+
+
+def drain_pending(queue: Any, pending: deque[CommandMessage]) -> None:
+    """Move what the queue already holds onto `pending`, applying cancellations.
+
+    A cancellation takes the place of the pending run it names, so the
+    kernel ends that run as interrupted where it would have executed. A run
+    is enqueued before any cancellation naming it, so a cancellation whose
+    run is not pending arrived after that run started and is dropped.
+
+    Drains via `get_nowait()` until exhausted, like `drain_stale`.
+    """
+    while True:
+        try:
+            request = queue.get_nowait()
+        except (asyncio.QueueEmpty, _queue.Empty):
+            return
+        except Exception as e:
+            # e.g. the queue's pipe was torn down by server shutdown. The
+            # blocking read reports it and ends the loop.
+            LOGGER.debug("kernel queue.get_nowait() failed %s", e)
+            return
+        if isinstance(request, CancelRunCommand):
+            cancel_pending_run(pending, request)
+        elif request is not None:
+            pending.append(request)
+
+
+def cancel_pending_run(
+    pending: deque[CommandMessage], cancel: CancelRunCommand
+) -> None:
+    for index, request in enumerate(pending):
+        if (
+            isinstance(
+                request, (ExecuteCellsCommand, ExecuteScratchpadCommand)
+            )
+            and request.run_id == cancel.run_id
+        ):
+            pending[index] = cancel
+            return
 
 
 def collapse_out_of_band(
@@ -135,7 +188,7 @@ def _build_hooks(
     )
 
     hooks = create_default_hooks()
-    if is_edit_mode and user_config["runtime"].get("reactive_tests", False):
+    if is_edit_mode and user_config.runtime.reactive_tests:
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
@@ -164,9 +217,9 @@ def create_kernel(
     user_config = args.user_config
     # Run mode forces autorun and disables the module autoreloader.
     if not args.is_edit_mode:
-        user_config = user_config.copy()
-        user_config["runtime"]["on_cell_change"] = "autorun"
-        user_config["runtime"]["auto_reload"] = "off"
+        user_config = copy.deepcopy(user_config)
+        user_config.runtime.on_cell_change = "autorun"
+        user_config.runtime.auto_reload = "off"
 
     # Deferred to break the runtime.py <-> kernel_lifecycle.py import cycle.
     from marimo._runtime.runtime import Kernel
@@ -182,6 +235,7 @@ def create_kernel(
         ),
         debugger_override=args.debugger,
         user_config=user_config,
+        config_overrides=args.config_overrides,
         enqueue_control_request=make_control_enqueuer(
             args.control_queue,
             args.set_ui_element_queue,
@@ -224,7 +278,7 @@ async def asyncio_queue_reader(
 
 
 async def listen_messages(
-    kernel: Kernel,
+    kernel: CommandHandler,
     control_queue: _Q,
     set_ui_element_queue: UIElementQueue,
     get_request: Callable[[_Q], Awaitable[CommandMessage | None]],
@@ -233,23 +287,36 @@ async def listen_messages(
 
     `get_request` adapts the queue-read mechanism so this loop can drive
     either a threading/multiprocessing queue or an `asyncio.Queue`.
+
+    Commands are handled in order. Before each one, the loop takes whatever
+    the queue already holds, so a `CancelRunCommand` reaches the kernel in
+    place of the earlier-enqueued run it names.
     """
     ui_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
+    pending: deque[CommandMessage] = deque()
 
     while True:
-        try:
-            request = await get_request(control_queue)
-        except InterruptedError:
-            # Windows: SIGINT can abort a blocking queue read with EINTR;
-            # the interrupt is handled by the signal handler, keep reading.
-            continue
-        except Exception as e:
-            # e.g. the queue's pipe was torn down by server shutdown
-            LOGGER.debug("kernel queue.get() failed %s", e)
-            return
-
-        if request is None:
-            continue
+        if pending:
+            # Give user background tasks a turn between commands, as the
+            # blocking read did.
+            await asyncio.sleep(0)
+        else:
+            try:
+                request = await get_request(control_queue)
+            except InterruptedError:
+                # Windows: SIGINT can abort a blocking queue read with EINTR;
+                # the interrupt is handled by the signal handler, keep reading.
+                continue
+            except Exception as e:
+                # e.g. the queue's pipe was torn down by server shutdown
+                LOGGER.debug("kernel queue.get() failed %s", e)
+                return
+            # A cancellation read on its own names a run that already left.
+            if request is None or isinstance(request, CancelRunCommand):
+                continue
+            pending.append(request)
+        drain_pending(control_queue, pending)
+        request = pending.popleft()
         LOGGER.debug("Received control request: %s", type(request).__name__)
         if isinstance(request, StopKernelCommand):
             return

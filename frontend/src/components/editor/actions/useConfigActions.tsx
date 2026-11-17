@@ -8,7 +8,7 @@ import type { ActionButton } from "./types";
 
 export function useConfigActions() {
   const [config, setConfig] = useResolvedMarimoConfig();
-  const [appConfig, setAppConfig] = useAppConfig();
+  const appConfig = useAppConfig();
   const { saveAppConfig, saveUserConfig } = useRequestClient();
 
   const handleUserConfig = async (values: Partial<UserConfig>) => {
@@ -17,10 +17,9 @@ export function useConfigActions() {
     });
   };
 
+  // The host document carries the saved config back.
   const handleAppConfig = async (values: AppConfig) => {
-    await saveAppConfig({ config: values }).then(() => {
-      setAppConfig(values);
-    });
+    await saveAppConfig({ config: values });
   };
 
   const actions: ActionButton[] = [

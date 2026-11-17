@@ -30,7 +30,6 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionRejection,
     parse_connection_params,
 )
-from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import format_url_host, open_url_in_browser
 from marimo._server.host import (
     ATTACHMENT_IDENTITY,
@@ -119,7 +118,7 @@ async def _not_found(scope, receive, send) -> None:  # type: ignore[no-untyped-d
             code=1008, reason="No such route"
         )
         return
-    await problem(404, "not-found", "No such route")(scope, receive, send)
+    await problem("not-found", "No such route")(scope, receive, send)
 
 
 async def _notebook(request: HTTPConnection) -> Notebook:
@@ -163,9 +162,9 @@ async def _notebook_events(request: Request) -> Response:
     try:
         notebook = await _notebook(request)
     except NotFound as e:
-        return problem(404, "not-found", str(e))
+        return problem("not-found", str(e))
     except Conflict as e:
-        return problem(409, "conflict", str(e))
+        return problem("conflict", str(e))
     cursor = _cursor(request)
     if isinstance(cursor, Response):
         return cursor
@@ -174,7 +173,7 @@ async def _notebook_events(request: Request) -> Response:
         return types
     run_id = request.query_params.get("run_id")
     if run_id == "":
-        return problem(400, "invalid-request", "run_id must not be empty")
+        return problem("invalid-request", "run_id must not be empty")
     try:
         attachment = notebook.attach(
             identity=request.headers.get(ATTACHMENT_IDENTITY),
@@ -182,7 +181,7 @@ async def _notebook_events(request: Request) -> Response:
             name=request.headers.get(ATTACHMENT_NAME),
         )
     except msgspec.ValidationError as e:
-        return problem(400, "invalid-request", _attachment_problem(e))
+        return problem("invalid-request", _attachment_problem(e))
     return _stream(
         context,
         cursor,
@@ -264,7 +263,6 @@ async def _editor_events_ws(websocket: WebSocket) -> None:
         bridge=bridge,
         manager=manager,
         params=params,
-        doc_manager=DOC_MANAGER,
         types=types,
         cursor=cursor,
     ).start()
@@ -346,14 +344,14 @@ def _cursor(request: HTTPConnection) -> str | Response | None:
     try:
         return stream_options.cursor(request)
     except ValueError as exc:
-        return problem(400, "invalid-request", str(exc))
+        return problem("invalid-request", str(exc))
 
 
 def _types(request: HTTPConnection) -> set[str] | Response | None:
     try:
         return stream_options.types(request)
     except ValueError as exc:
-        return problem(400, "invalid-request", str(exc))
+        return problem("invalid-request", str(exc))
 
 
 def _attachment_problem(error: msgspec.ValidationError) -> str:
@@ -566,7 +564,7 @@ async def _open_notebook(request: Request) -> Reply:
     auth_token = state.session_manager.auth_token
     if not AuthToken.is_empty(auth_token):
         url += f"&{TOKEN_QUERY_PARAM}={quote(str(auth_token))}"
-    browser = state.config_manager.get_config()["server"]["browser"]
+    browser = state.config_manager.get_config().server.browser
     # Keep blocking browser discovery off the event loop.
     threading.Thread(
         target=_open_quietly, args=(browser, url), daemon=True

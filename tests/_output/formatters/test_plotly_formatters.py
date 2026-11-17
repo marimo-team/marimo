@@ -27,7 +27,7 @@ async def test_plotly_template_ignores_dark_theme(
     monkeypatch.setattr(pio.templates, "default", "plotly")
 
     user_config = copy.deepcopy(DEFAULT_CONFIG)
-    user_config["display"]["theme"] = "dark"
+    user_config.display.theme = "dark"
 
     with mocked_kernel_session(user_config=user_config) as tk:
         register_formatters()

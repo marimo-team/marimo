@@ -5,34 +5,36 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-
-import msgspec
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._core import backend as be, protocol
+from marimo._core.errors import NoRuntime
+from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
-    CellNotification,
-    CompletedRunNotification,
-    ExecutionNotification,
-    InterruptedNotification,
     NotebookDocumentTransactionNotification,
     StartupProgressNotification,
     VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import (
+    CancelRunCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     HTTPRequest,
 )
-from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.host.events import notification_event
-from marimo._server.host.translate import RunTranslator
+from marimo._server.host.handover import Handover, Turn
+from marimo._server.host.translate import (
+    RunTranslator,
+    RunTranslators,
+    variable_messages,
+)
 from marimo._server.scratchpad import snapshot_for_scratchpad
 from marimo._session.consumer import SessionConsumer
-from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.model import ConnectionState
 from marimo._session.requests import InstantiateNotebookRequest
 from marimo._session.types import KernelState
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
@@ -75,9 +77,13 @@ class _Kernel:
 class _Run:
     session: Session
     translator: RunTranslator
+    turn: Turn
     done: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task[object] | None = None
     submitted: bool = False
+    """The kernel has this run's command."""
+    interrupt_requested: bool = False
+    """A cancellation was sent for this run while the kernel had it queued."""
 
 
 class SessionBackend(SessionConsumer):
@@ -90,7 +96,7 @@ class SessionBackend(SessionConsumer):
     def __init__(
         self,
         notebook_id: protocol.NotebookId,
-        file: Callable[[], str | None],
+        file_key: Callable[[], str],
         manager: SessionManager,
         observe: Observe,
         sink: Sink,
@@ -98,11 +104,14 @@ class SessionBackend(SessionConsumer):
         session_attached: Callable[[], None] | None = None,
         session_detached: Callable[[Session], None] | None = None,
         *,
+        cell_order: Callable[[], Sequence[str]] = tuple,
         request_metadata: RequestMetadata | None = None,
     ) -> None:
         self._notebook_id = notebook_id
-        self._file = file
-        """Resolve the notebook's current path after file moves."""
+        self._file_key = file_key
+        """Resolve the key the notebook's sessions start under, after file moves."""
+        self._cell_order = cell_order
+        """The document's cell ids in order, for errors that name cells."""
         self._manager = manager
         self._observe = observe
         self._sink = sink
@@ -114,8 +123,10 @@ class SessionBackend(SessionConsumer):
         """Called with the session that detached, before its exit is reported."""
         self._request_metadata = request_metadata
         self._kernel: _Kernel | None = None
-        self._run: _Run | None = None
-        self._translators: dict[str, RunTranslator] = {}
+        self._runs: dict[protocol.RunId, _Run] = {}
+        """Runs this backend submitted that have not finished, by run id."""
+        self._handover = Handover()
+        self._translators = RunTranslators(cell_order)
 
     @property
     def session(self) -> Session | None:
@@ -132,22 +143,22 @@ class SessionBackend(SessionConsumer):
         )
 
     async def _start(self, kernel: _Kernel, session_id: SessionId) -> None:
-        file = self._file()
-        if file is None:
-            self._fail(kernel, "The notebook has no file to run")
-            return
+        # An untitled notebook starts from no file, as it does for the
+        # editor, under the key the editor's tab rejoins it by. The host's
+        # document reaches the session once it attaches.
+        file_key = self._file_key()
         try:
             await self._manager.create_session(
                 session_id,
                 self,
                 {},
-                file,
+                file_key,
                 auto_instantiate=False,
                 main=False,
             )
         except Exception as e:
             LOGGER.warning(
-                "Kernel for %s failed to start", file, exc_info=True
+                "Kernel for %s failed to start", file_key, exc_info=True
             )
             self._fail(kernel, str(e) or type(e).__name__)
             return
@@ -175,49 +186,105 @@ class SessionBackend(SessionConsumer):
         # Closing an unregistered session still detaches its consumers.
         session.close()
 
-    def run(self, run_id: protocol.RunId, code: str) -> None:
+    def run(
+        self,
+        run_id: protocol.RunId,
+        code: str,
+        *,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
+    ) -> None:
         session = self.session
         if session is None:
             return
-        run = _Run(session, RunTranslator(run_id, code))
-        self._run = run
-        self._watch_run(run, self._run_code(run, code))
+        run = self._accept(
+            session, RunTranslator(run_id, code, self._cell_order)
+        )
+        # Server adapters pass HTTPRequest through the core's RequestInfo protocol.
+        self._watch_run(
+            run,
+            self._run_code(
+                run, code, cast(HTTPRequest | None, request), allow_input
+            ),
+        )
 
     def run_cells(
         self,
         run_id: protocol.RunId,
         document: Document,
         cell_ids: Sequence[protocol.CellId],
+        *,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         session = self.session
         if session is None:
             return
-        run = _Run(session, RunTranslator(run_id, None))
-        self._run = run
-        codes = {CellId_t(cell.id): cell.code for cell in document}
-        targets = [CellId_t(cell_id) for cell_id in cell_ids]
+        run = self._accept(
+            session, RunTranslator(run_id, None, self._cell_order)
+        )
         try:
+            cells = {
+                cell.id: ExecuteCellCommand(
+                    cell_id=CellId_t(cell.id),
+                    code=cell.code,
+                    code_fingerprint=cell.code_fingerprint,
+                )
+                for cell in document
+            }
+            execution_requests = tuple(cells.values())
+            command = ExecuteCellsCommand(
+                execution_requests=[cells[cell_id] for cell_id in cell_ids],
+                request=cast(HTTPRequest | None, request),
+                run_id=run_id,
+                allow_stdin=allow_input,
+            )
+            if not run.turn.ready:
+                # A run ahead is still preparing, such as a scratch run
+                # waiting for the scratchpad.
+                self._watch_run(
+                    run,
+                    self._run_cells_after(run, execution_requests, command),
+                )
+                return
             # Enqueue before returning so later document edits follow the run.
-            session.instantiate(
-                InstantiateNotebookRequest(
-                    object_ids=[], values=[], auto_run=False, codes=codes
-                ),
-                http_request=None,
-            )
-            self._submit(
-                run,
-                ExecuteCellsCommand(
-                    cell_ids=targets,
-                    codes=[codes[cell_id] for cell_id in targets],
-                    request=self._http_request(session),
-                    run_id=run_id,
-                    allow_stdin=False,
-                ),
-            )
+            self._submit_cells(run, execution_requests, command)
         except Exception as exception:
             self._finish_run(run, exception)
             return
         self._watch_run(run, run.done.wait())
+
+    def _accept(self, session: Session, translator: RunTranslator) -> _Run:
+        run = _Run(session, translator, self._handover.take())
+        self._runs[translator.run_id] = run
+        return run
+
+    def _submit_cells(
+        self,
+        run: _Run,
+        execution_requests: Sequence[ExecuteCellCommand],
+        command: ExecuteCellsCommand,
+    ) -> None:
+        run.session.instantiate(
+            InstantiateNotebookRequest(
+                object_ids=[],
+                values=[],
+                auto_run=False,
+            ),
+            http_request=None,
+            execution_requests=execution_requests,
+        )
+        self._submit(run, command)
+
+    async def _run_cells_after(
+        self,
+        run: _Run,
+        execution_requests: Sequence[ExecuteCellCommand],
+        command: ExecuteCellsCommand,
+    ) -> None:
+        await run.turn.wait()
+        self._submit_cells(run, execution_requests, command)
+        await run.done.wait()
 
     def _watch_run(
         self, run: _Run, coroutine: Coroutine[object, object, object]
@@ -237,10 +304,18 @@ class SessionBackend(SessionConsumer):
 
     def _submit(self, run: _Run, command: CommandMessage) -> None:
         run.submitted = True
-        self._translators[run.translator.run_id] = run.translator
+        self._translators.add(run.translator)
         run.session.put_control_request(command, from_consumer_id=None)
+        self._handover.finish(run.turn)
 
-    async def _run_code(self, run: _Run, code: str) -> None:
+    async def _run_code(
+        self,
+        run: _Run,
+        code: str,
+        request: HTTPRequest | None,
+        allow_input: bool,
+    ) -> None:
+        await run.turn.wait()
         session = run.session
         async with session.scratchpad_lock:
             # Register notebook definitions once, without executing cells.
@@ -255,20 +330,30 @@ class SessionBackend(SessionConsumer):
                 run,
                 ExecuteScratchpadCommand(
                     code=code,
-                    request=self._http_request(session),
+                    request=self._scratch_request(session, request),
                     notebook_cells=cells,
                     cell_outputs=outputs,
                     run_id=run.translator.run_id,
-                    allow_stdin=False,
+                    allow_stdin=allow_input,
                 ),
             )
             await run.done.wait()
 
-    def _http_request(self, session: Session) -> HTTPRequest | None:
+    def _scratch_request(
+        self, session: Session, request: HTTPRequest | None
+    ) -> HTTPRequest | None:
+        """Add screenshot credentials only to scratch runs."""
+        meta: dict[str, Encodable] = (
+            {}
+            if self._request_metadata is None
+            else self._request_metadata(session)
+        )
+        if request is not None:
+            return replace(request, meta={**request.meta, **meta})
         if self._request_metadata is None:
             return None
-        # Host runs have no HTTP origin. Give the URL fields the same
-        # keys a real request has so notebook code can read them.
+        # A run without a request still reads a request, so give the URL
+        # fields the keys a real one has.
         empty_url: dict[str, Encodable] = {
             "path": "",
             "port": None,
@@ -285,12 +370,14 @@ class SessionBackend(SessionConsumer):
             path_params={},
             cookies={},
             user={},
-            meta=self._request_metadata(session),
+            meta=meta,
         )
 
     def _finish_run(self, run: _Run, exception: BaseException | None) -> None:
-        if self._run is run:
-            self._run = None
+        if self._runs.get(run.translator.run_id) is not run:
+            return
+        del self._runs[run.translator.run_id]
+        self._handover.finish(run.turn)
         error = None
         if isinstance(exception, asyncio.CancelledError):
             run.translator.interrupted = True
@@ -311,9 +398,26 @@ class SessionBackend(SessionConsumer):
             for message in run.translator.finish(error=error):
                 self._observe(message)
 
-    def interrupt(self, run_id: protocol.RunId) -> None:
-        run = self._run
-        if run is None or run.translator.run_id != run_id:
+    def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
+        session = self.session
+        if session is None:
+            raise NoRuntime("The runtime waiting for input has ended")
+        session.reply_input(InputReply(input_id, value))
+
+    def interrupt(self) -> None:
+        session = self.session
+        if session is None:
+            return
+        for run_id, run in list(self._runs.items()):
+            if not run.translator.started:
+                self.cancel(run_id)
+        # The kernel ignores the signal while idle, so it interrupts the
+        # work in flight, with or without a run, and nothing that follows.
+        session.try_interrupt()
+
+    def cancel(self, run_id: protocol.RunId) -> None:
+        run = self._runs.get(run_id)
+        if run is None:
             translator = self._translators.get(run_id)
             if (
                 translator is not None
@@ -324,13 +428,36 @@ class SessionBackend(SessionConsumer):
             return
         if run.done.is_set():
             return
-        if run.submitted:
+        if not run.submitted:
+            if run.task is not None:
+                run.task.cancel()
+        elif run.translator.started:
             run.session.try_interrupt()
-        elif run.task is not None:
-            run.task.cancel()
+        else:
+            # The kernel drops a queued run when the cancellation reaches it.
+            # One that started first is interrupted on its next report.
+            run.interrupt_requested = True
+            run.session.put_control_request(
+                CancelRunCommand(run_id=run_id), from_consumer_id=None
+            )
 
     def forget(self, run_id: protocol.RunId) -> None:
-        self._translators.pop(run_id, None)
+        self._translators.forget(run_id)
+
+    def apply(self, command: CommandMessage) -> None:
+        """Send the kernel a command in turn with the runs handed over.
+
+        An edit that followed a run must not reach the kernel before it.
+        """
+        session = self.session
+        if session is None:
+            return
+
+        def put() -> None:
+            if self.session is session:
+                session.put_control_request(command, from_consumer_id=None)
+
+        self._handover.submit(put)
 
     # Existing sessions
 
@@ -380,9 +507,9 @@ class SessionBackend(SessionConsumer):
         if session.kernel_state() is KernelState.STOPPED:
             info = session.kernel_exit_info()
             reason = info.message if info is not None else "The kernel died"
-        run = self._run
-        if run is not None and run.task is not None:
-            run.task.cancel()
+        for run in list(self._runs.values()):
+            if run.task is not None:
+                run.task.cancel()
         self._translators.clear()
         self._observe(be.Exited(kernel.runtime_id, reason))
 
@@ -394,32 +521,8 @@ class SessionBackend(SessionConsumer):
 
     def _handle_notification(self, message: NotificationMessage) -> None:
         if isinstance(message, VariableValuesNotification):
-            for removed in message.removed:
-                self._observe(
-                    be.Unbound(
-                        protocol.ExecutionId(removed.execution_id),
-                        removed.name,
-                    )
-                )
-            for value in message.variables:
-                if value.execution_id is None or value.revision is None:
-                    continue
-                self._observe(
-                    be.Produced(
-                        protocol.Variable(
-                            execution_id=protocol.ExecutionId(
-                                value.execution_id
-                            ),
-                            id=protocol.ItemId(
-                                f"{value.execution_id}-variable-{value.name}"
-                            ),
-                            name=value.name,
-                            preview=value.value,
-                            revision=value.revision,
-                            type=value.datatype,
-                        )
-                    )
-                )
+            for out in variable_messages(message):
+                self._observe(out)
             return
         if isinstance(message, NotebookDocumentTransactionNotification):
             if self._document_changed is not None and self.session is not None:
@@ -430,52 +533,30 @@ class SessionBackend(SessionConsumer):
                 phase = _PHASES.get(message.phase, message.phase)
                 self._observe(be.Starting(kernel.runtime_id, phase))
             return
-        if not isinstance(
-            message,
-            (
-                CellNotification,
-                ExecutionNotification,
-                CompletedRunNotification,
-                InterruptedNotification,
-            ),
-        ):
+        if self.session is None:
             return
-        run_id = message.run_id
-        if run_id is None:
-            return
-        run = self._run
-        translator = self._translators.get(run_id)
+        translator, reports = self._translators.feed(message)
+        for reported in reports:
+            self._observe(reported)
         if translator is None:
-            if (
-                not isinstance(message, ExecutionNotification)
-                or message.phase != "planned"
-                or self.session is None
-            ):
-                return
-            translator = RunTranslator(
-                protocol.RunId(run_id),
-                message.code if message.cell_id == SCRATCH_CELL_ID else None,
-            )
-            self._translators[run_id] = translator
-            self._observe(be.Scheduled(translator.run_id))
-        # Run kernels omit source from native notifications. App documents are
-        # immutable, so recover the submitted source for host revision hashes.
-        # Keep the native message private and unchanged in the shared log.
+            return
+        run = self._runs.get(translator.run_id)
+        if run is not None and translator is not run.translator:
+            run = None
         if (
-            isinstance(message, ExecutionNotification)
-            and message.phase == "planned"
-            and message.code is None
-            and self._manager.mode is SessionMode.RUN
-            and self.session is not None
+            run is not None
+            and run.interrupt_requested
+            and translator.started
+            and not translator.completed
         ):
-            cell = self.session.document.get(message.cell_id)
-            if cell is not None:
-                message = msgspec.structs.replace(message, code=cell.code)
-        for out in translator.feed(message):
-            self._observe(out)
+            # The cancellation arrived after the kernel started this run.
+            run.interrupt_requested = False
+            run.session.try_interrupt()
         if translator.completed:
-            if run is not None and translator is run.translator:
+            if run is not None:
+                # Publish completion before processing the next run's events.
+                self._finish_run(run, None)
                 run.done.set()
             else:
-                for out in translator.finish():
-                    self._observe(out)
+                for reported in translator.finish():
+                    self._observe(reported)

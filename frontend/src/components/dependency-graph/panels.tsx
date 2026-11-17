@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import React, { memo, useId } from "react";
 import { type Edge, Panel } from "reactflow";
-import { getCellEditorView, useCellActions } from "@/core/cells/cells";
+import { getCellEditorView } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 import type { Variable, Variables } from "@/core/variables/types";

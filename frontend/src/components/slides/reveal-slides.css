@@ -1,5 +1,10 @@
 @import "reveal.js/reveal.css";
 
+/* Reveal scales the canvas; responsive rem sizes would reflow its content. */
+html:has(.reveal.mo-slides-theme) {
+  font-size: 100%;
+}
+
 /* Neutralize reveal-viewport styles so the slides inherit marimo's defaults */
 .reveal-viewport {
   background-color: transparent;
@@ -10,10 +15,6 @@
 }
 .reveal-viewport:fullscreen {
   background-color: var(--background);
-}
-.reveal-viewport:fullscreen .mo-slide-content {
-  padding-left: 2rem;
-  padding-right: 2rem;
 }
 .reveal-viewport::backdrop {
   background-color: var(--background);

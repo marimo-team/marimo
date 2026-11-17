@@ -37,23 +37,23 @@ class Unsupported(HostError):
     """The host does not offer the command."""
 
 
-class EditConflict(Conflict):
-    """A change named a state the document no longer has.
+class PreconditionFailed(HostError):
+    """The request named a state the document no longer has.
 
-    Carries the index of the first stale change, the cell it named as it
-    now is, and the document as it now is.
+    Carries the position of the first stale entry in the request, the
+    cell it named as it now is, and the document as it now is.
     """
 
     def __init__(
         self,
         message: str,
         *,
-        change: int,
+        index: int,
         cell: protocol.Cell | None,
         document: protocol.Document,
     ) -> None:
         super().__init__(message)
-        self.change = change
+        self.index = index
         self.cell = cell
         self.document = document
 

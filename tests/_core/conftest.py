@@ -10,7 +10,8 @@ import msgspec
 import pytest
 
 from marimo._core import backend as be, protocol, protocol_events
-from marimo._core.document import Document, DocumentCell, code_hash
+from marimo._core.code import code_fingerprint
+from marimo._core.document import Document, DocumentCell
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -28,6 +29,7 @@ class ScriptedBackend:
 
     def __init__(self) -> None:
         self.calls: list[tuple[object, ...]] = []
+        self.requests: list[be.RequestInfo | None] = []
 
     def start(self, runtime_id: str) -> None:
         self.calls.append(("start", runtime_id))
@@ -35,18 +37,41 @@ class ScriptedBackend:
     def stop(self, runtime_id: str) -> None:
         self.calls.append(("stop", runtime_id))
 
-    def run(self, run_id: str, code: str) -> None:
+    def run(
+        self,
+        run_id: str,
+        code: str,
+        *,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
+    ) -> None:
+        del allow_input
         self.calls.append(("run", run_id, code))
+        self.requests.append(request)
 
     def run_cells(
-        self, run_id: str, document: Document, cell_ids: Sequence[str]
+        self,
+        run_id: str,
+        document: Document,
+        cell_ids: Sequence[str],
+        *,
+        request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
+        del allow_input
         self.calls.append(
             ("run_cells", run_id, document.etag, tuple(cell_ids))
         )
+        self.requests.append(request)
 
-    def interrupt(self, run_id: str) -> None:
-        self.calls.append(("interrupt", run_id))
+    def interrupt(self) -> None:
+        self.calls.append(("interrupt",))
+
+    def cancel(self, run_id: str) -> None:
+        self.calls.append(("cancel", run_id))
+
+    def reply_input(self, input_id: str, value: str) -> None:
+        self.calls.append(("reply_input", input_id, value))
 
     def forget(self, run_id: str) -> None:
         self.calls.append(("forget", run_id))
@@ -336,7 +361,7 @@ def retained_execution(
             caused_by=None,
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
             code="42" if cell_id is None else None,
-            code_hash=code_hash("42"),
+            code_fingerprint=code_fingerprint("42"),
             depends_on={},
             status="completed",
             outcome=protocol.ValueOutcome(

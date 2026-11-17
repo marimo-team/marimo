@@ -3,37 +3,83 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
+import { MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
-import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
 import {
-  type CellRuntimeState,
-  createCellRuntimeState,
-} from "@/core/cells/types";
+  cell,
+  document as documentOf,
+  withCells,
+} from "@/core/notebook/document/__tests__/fixtures";
+import { type NotebookState, notebookAtom } from "@/core/cells/cells";
+import { createCellRuntimeState } from "@/core/cells/types";
 import { defaultUserConfig } from "@/core/config/config-schema";
+import type { CellOutput } from "@/core/executions";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { resolveRequestClient } from "@/core/network/resolve";
 import type { CellConfig } from "@/core/network/types";
-import { ConnectionState } from "@/core/websocket/types";
-import { MultiColumn } from "@/utils/id-tree";
-import type { Milliseconds, Seconds } from "@/utils/time";
+import { ConnectionState } from "@/core/session/types";
 import { Cell as EditorCell } from "../components/editor/notebook-cell";
 import { TooltipProvider } from "../components/ui/tooltip";
 
 type Story = StoryObj<typeof Cell>;
 
 interface CellOverrides {
-  runElapsedTimeMs?: Milliseconds;
-  output?: CellRuntimeState["output"];
-  edited?: boolean;
-  interrupted?: boolean;
-  errored?: boolean;
-  status?: CellRuntimeState["status"];
-  staleInputs?: boolean;
+  output?: CellOutput | null;
+  /** How the cell's result is outdated, as the host would report it. */
+  freshness?: "edited" | "replaced" | "both";
   config?: CellConfig;
 }
 
 const EMPTY_OVERRIDES: Readonly<CellOverrides> = {};
+
+/**
+ * Give the replica a completed execution that showed `output`, and whose
+ * source was edited since, whose input a newer execution replaced, or both.
+ */
+function seedResult(
+  store: ReturnType<typeof createStore>,
+  cid: CellId,
+  output: CellOutput | null,
+  freshness: CellOverrides["freshness"],
+) {
+  const ran = MockExecutions.completed(cid, {
+    code_fingerprint: "ran",
+    depends_on:
+      freshness === undefined || freshness === "edited"
+        ? {}
+        : { x: { execution: "gone", update: 0 } },
+    outcome: {
+      kind: "value",
+      display:
+        output === null
+          ? null
+          : {
+              mimetype: output.mimetype,
+              data:
+                typeof output.data === "string"
+                  ? output.data
+                  : JSON.stringify(output.data),
+            },
+    },
+  });
+  const document =
+    freshness === undefined
+      ? null
+      : withCells(
+          documentOf(),
+          {
+            c1: null,
+            c2: null,
+            [cid]: cell(cid, "import marimo as mo", {
+              code_fingerprint: freshness === "replaced" ? "ran" : "edited",
+            }),
+          },
+          [cid],
+        );
+  MockExecutions.seed(store, [ran], null, document);
+}
 
 const Cell: React.FC<{
   overrides?: CellOverrides;
@@ -45,33 +91,16 @@ const Cell: React.FC<{
         id: cid,
         name: "cell_1",
         code: "import marimo as mo",
-        edited: overrides.edited ?? false,
-        serializedEditorState: null,
         config: {
           hide_code: overrides.config?.hide_code ?? false,
           disabled: overrides.config?.disabled ?? false,
           column: null,
         },
-        lastCodeRun: null,
-        lastExecutionTime: null,
       },
     },
-    cellIds: MultiColumn.from([[cid]]),
+    cellIds: [cid],
     cellRuntime: {
-      [cid]: createCellRuntimeState({
-        output: overrides.output ?? null,
-        runElapsedTimeMs: overrides.runElapsedTimeMs ?? (10 as Milliseconds),
-        status: overrides.status ?? "idle",
-        consoleOutputs: [],
-        interrupted: overrides.interrupted ?? false,
-        errored: overrides.errored ?? false,
-        stopped: false,
-        staleInputs: overrides.staleInputs ?? false,
-        runStartTimestamp: 0 as Seconds,
-        lastRunStartTimestamp: 0 as Seconds,
-        debuggerActive: false,
-        outline: null,
-      }),
+      [cid]: createCellRuntimeState(),
     },
     cellHandles: {
       [cid]: createRef(),
@@ -79,11 +108,11 @@ const Cell: React.FC<{
     cellLogs: [],
     history: [],
     scrollKey: null,
-    untouchedNewCells: new Set(),
   };
 
   const store = createStore();
   store.set(notebookAtom, notebook);
+  seedResult(store, cid, overrides.output ?? null, overrides.freshness);
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   return (
@@ -124,7 +153,6 @@ export const WithOutput: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -142,7 +170,6 @@ export const WithLargeOutput: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>".repeat(
@@ -163,8 +190,7 @@ export const UnsavedEditsOutput: Story = {
       <TooltipProvider>
         <Cell
           overrides={{
-            runElapsedTimeMs: 20 as Milliseconds,
-            edited: true,
+            freshness: "edited",
             output: {
               channel: "output",
               data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -184,8 +210,6 @@ export const InterruptedOutput: Story = {
       <TooltipProvider>
         <Cell
           overrides={{
-            runElapsedTimeMs: 20 as Milliseconds,
-            interrupted: true,
             output: {
               channel: "output",
               data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -204,8 +228,6 @@ export const WithError: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          errored: true,
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -223,7 +245,6 @@ export const Disabled: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
           config: {
             disabled: true,
             hide_code: false,
@@ -246,8 +267,6 @@ export const DisabledTransitively: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          status: "disabled-transitively",
           output: {
             channel: "output",
             data: "This data is stale because a parent is disabled",
@@ -265,9 +284,7 @@ export const StaleStatus: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          status: "disabled-transitively",
-          staleInputs: true,
+          freshness: "replaced",
           output: {
             channel: "output",
             data: "This data is stale because a parent is disabled",
@@ -285,10 +302,7 @@ export const StaleAndEditedStatus: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          status: "disabled-transitively",
-          staleInputs: true,
-          edited: true,
+          freshness: "both",
           output: {
             channel: "output",
             data: "This data is stale because a parent is disabled, but this cell has been edited since.",
@@ -306,14 +320,12 @@ export const DisabledAndStaleStatus: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
           config: {
             column: null,
             disabled: true,
             hide_code: false,
           },
-          status: "disabled-transitively",
-          staleInputs: true,
+          freshness: "replaced",
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -331,8 +343,6 @@ export const Running: Story = {
     <div className="p-20 max-w-4xl">
       <Cell
         overrides={{
-          runElapsedTimeMs: 20 as Milliseconds,
-          status: "running",
           output: {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",

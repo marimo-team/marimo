@@ -13,6 +13,20 @@ LOGGER = _loggers.marimo_logger()
 CONFIG_FILENAME = ".marimo.toml"
 
 
+def drop_none_values(values: dict[str, Any]) -> None:
+    """Remove null-valued keys in place because TOML cannot represent them."""
+    for key in list(values):
+        value = values[key]
+        if value is None:
+            del values[key]
+        elif isinstance(value, dict):
+            drop_none_values(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    drop_none_values(item)
+
+
 def _is_parent(parent_path: str, child_path: str) -> bool:
     # Check if parent is actually a parent of child
     # paths must be real/absolute paths
@@ -148,11 +162,3 @@ def is_trusted_user_config_path(path: str) -> bool:
         except OSError:
             pass
     return real in trusted
-
-
-def deep_copy(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {k: deep_copy(v) for k, v in obj.items()}  # type: ignore
-    if isinstance(obj, list):
-        return [deep_copy(v) for v in obj]  # type: ignore
-    return obj

@@ -12,6 +12,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
+from marimo._output.utils import create_style, normalize_dimension
 from marimo._plugins.core.media import io_to_data_url
 
 if TYPE_CHECKING:
@@ -105,6 +106,9 @@ def audio(
     src: str | bytes | io.BytesIO | io.BufferedReader | Path | NDArray[Any],
     rate: int | None = None,
     normalize: bool = True,
+    *,
+    width: int | str | None = None,
+    style: dict[str, Any] | None = None,
 ) -> Html:
     """Render an audio file as HTML.
 
@@ -118,6 +122,8 @@ def audio(
         normalize: Whether to rescale NumPy array audio to its max range (`True` by default).
             If `False`, values must be in `[-1, 1]`, or an error is raised.
             Does not apply to non-array audio sources.
+        width: Optional width of the audio element (e.g. `300` or `"100%"`).
+        style: Optional dictionary of CSS styles to apply to the audio element.
 
     Returns:
         An audio player as an `Html` object.
@@ -132,4 +138,13 @@ def audio(
         ```
     """
     resolved_src = get_resolved_src(src, rate, normalize)
-    return Html(h.audio(src=resolved_src, controls=True))
+    styles = (
+        create_style(
+            {
+                "width": normalize_dimension(width),
+                **(style or {}),
+            }
+        )
+        or None
+    )
+    return Html(h.audio(src=resolved_src, controls=True, style=styles))

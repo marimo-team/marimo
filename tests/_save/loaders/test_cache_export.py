@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from marimo._config.config_schema import MarimoConfig
 from marimo._runtime.callbacks.cache import (
     CacheCallbacks,
     cache_cells_enabled,
@@ -89,10 +90,22 @@ def test_dump_cache_manifests_skips_non_file_stores(tmp_path: Path) -> None:
 
 
 def test_cache_cells_enabled_reads_config() -> None:
-    assert cache_cells_enabled({"runtime": {"cache_cells": True}}) is True
-    assert cache_cells_enabled({"runtime": {"cache_cells": False}}) is False
-    assert cache_cells_enabled({"runtime": {}}) is False
-    assert cache_cells_enabled({}) is False
+    assert (
+        cache_cells_enabled(
+            MarimoConfig.from_dict({"runtime": {"cache_cells": True}})
+        )
+        is True
+    )
+    assert (
+        cache_cells_enabled(
+            MarimoConfig.from_dict({"runtime": {"cache_cells": False}})
+        )
+        is False
+    )
+    assert (
+        cache_cells_enabled(MarimoConfig.from_dict({"runtime": {}})) is False
+    )
+    assert cache_cells_enabled(MarimoConfig.from_dict({})) is False
 
 
 def test_teardown_dumps_only_when_caching_enabled(

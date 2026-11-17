@@ -209,7 +209,7 @@ const TraceBlockBody: React.FC<{
       const elapsedTime = cellRun.elapsedTime ?? 0;
       return {
         cell: cellRun.cellId,
-        cellNum: cellIds.inOrderIds.indexOf(cellRun.cellId),
+        cellNum: cellIds.indexOf(cellRun.cellId),
         startTimestamp: formatChartTime(cellRun.startTime),
         endTimestamp: formatChartTime(cellRun.startTime + elapsedTime),
         elapsedTime: formatElapsedTime(elapsedTime * 1000),

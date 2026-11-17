@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from typing import Any
 
 from marimo import _loggers
-from marimo._config.config import ExportType, SqlOutputType, WidthType
+from marimo._config.types import ExportType, SqlOutputType, WidthType
 from marimo._utils.env import env_to_value
 
 LOGGER = _loggers.marimo_logger()
@@ -45,7 +45,10 @@ class _AppConfig:
     @staticmethod
     def sanitize(updates: dict[str, Any]) -> dict[str, Any]:
         """Return only recognized config keys, silently dropping others."""
-        return {k: v for k, v in updates.items() if hasattr(_AppConfig, k)}
+        # Check dataclass fields rather than class attributes: fields
+        # declared with `default_factory` are not class attributes.
+        known = {f.name for f in fields(_AppConfig)}
+        return {k: v for k, v in updates.items() if k in known}
 
     @staticmethod
     def from_untrusted_dict(

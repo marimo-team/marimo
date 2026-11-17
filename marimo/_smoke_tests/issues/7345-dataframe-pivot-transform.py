@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.25.2"
 app = marimo.App(width="columns")
 
 
@@ -12,6 +12,7 @@ def _():
     import ibis as ib
 
     from vega_datasets import data
+
     return data, ib, mo, pd, pl
 
 
@@ -27,19 +28,16 @@ def _(data, ib, pd, pl):
 @app.cell(column=1)
 def _(df_pandas, mo):
     mo.ui.dataframe(df_pandas)
-    return
 
 
 @app.cell
 def _(df_polars, mo):
     mo.ui.dataframe(df_polars)
-    return
 
 
 @app.cell
 def _(df_ibis, mo):
     mo.ui.dataframe(df_ibis)
-    return
 
 
 @app.cell(column=2)
@@ -61,7 +59,6 @@ def _(df_pandas):
     ]
     df_pandas_next = df_pandas_next.reset_index()
     df_pandas_next
-    return
 
 
 @app.cell
@@ -80,7 +77,6 @@ def _(df_polars):
         else col
     )
     df_polars_next
-    return
 
 
 @app.cell
@@ -101,7 +97,6 @@ def _(df_ibis):
         }
     )
     df_ibis_next.to_polars()
-    return
 
 
 if __name__ == "__main__":

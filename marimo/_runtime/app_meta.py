@@ -45,7 +45,7 @@ class AppMeta:
         except ContextNotInitializedError:
             marimo_config = DEFAULT_CONFIG
 
-        theme = marimo_config["display"]["theme"] or "light"
+        theme = marimo_config.display.theme or "light"
         if theme == "system":
             # TODO(mscolnick): have frontend tell the backend the system theme
             return "light"

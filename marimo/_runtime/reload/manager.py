@@ -63,7 +63,6 @@ class AutoreloadManager:
                     reloader=self._reloader,
                     enqueue_run_stale_cells=self._kernel._execute_stale_cells_callback,
                     mode=mode,
-                    stream=self._kernel.stream,
                 )
         else:
             self._reloader = None
@@ -115,6 +114,15 @@ class AutoreloadManager:
             )
             if cell_id is not None:
                 self._reloader.record_cell_run(cell_id)
+                # Ensure watcher queue is consistent with kernel state.
+                graph = self._kernel.graph
+                cell = graph.cells.get(cell_id)
+                if (
+                    cell is not None
+                    and cell.stale
+                    and not graph.is_any_ancestor_stale(cell_id)
+                ):
+                    cell.set_stale(stale=False)
         try:
             yield
         finally:

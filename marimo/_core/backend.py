@@ -24,9 +24,34 @@ from typing import TYPE_CHECKING, Protocol
 from marimo._core import protocol
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from marimo._core.document import Document
+
+
+class RequestInfo(Protocol):
+    """The HTTP request that submitted a run, as cells read it.
+
+    Notebook code reads the request that ran it through
+    `mo.app_meta().request`, so a backend hands these fields to the kernel.
+    """
+
+    @property
+    def url(self) -> Mapping[str, object]: ...
+    @property
+    def base_url(self) -> Mapping[str, object]: ...
+    @property
+    def headers(self) -> Mapping[str, str]: ...
+    @property
+    def query_params(self) -> Mapping[str, Sequence[str]]: ...
+    @property
+    def path_params(self) -> Mapping[str, object]: ...
+    @property
+    def cookies(self) -> Mapping[str, str]: ...
+    @property
+    def user(self) -> object: ...
+    @property
+    def meta(self) -> Mapping[str, object]: ...
 
 
 class Backend(Protocol):
@@ -48,24 +73,64 @@ class Backend(Protocol):
     def stop(self, runtime_id: protocol.RuntimeId) -> None:
         """Stop the runtime's kernel and report `Exited` once it has."""
 
-    def run(self, run_id: protocol.RunId, code: str) -> None:
-        """Evaluate scratch code and report the run's progress and output."""
+    def run(
+        self,
+        run_id: protocol.RunId,
+        code: str,
+        *,
+        request: RequestInfo | None,
+        allow_input: bool = False,
+    ) -> None:
+        """Evaluate scratch code and report the run's progress and output.
+
+        Runs are handed over in acceptance order and reach the kernel in
+        that order, however long each takes to prepare. `request` is the
+        request that submitted the run, if one did, for the code to read.
+        `allow_input` lets the runtime serve the run's prompts. Without it,
+        a prompt fails with `EOFError`.
+        """
 
     def run_cells(
         self,
         run_id: protocol.RunId,
         document: Document,
         cell_ids: Sequence[protocol.CellId],
+        *,
+        request: RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         """Run cells of `document` and report the run's progress and output.
 
-        The kernel registers the requested cells and any pending ancestors
-        from initialization before running them. Dependents run as the
-        runtime's configuration says.
+        Handed over like `run`, with the document the run was accepted in
+        and the request that submitted it.
+        Requested cells and pending ancestors are registered before
+        execution. Dependent cells follow the runtime's execution
+        configuration. Each execution reports the fingerprint submitted
+        with its cell.
         """
 
-    def interrupt(self, run_id: protocol.RunId) -> None:
-        """Interrupt a run and report an `interrupted` execution outcome."""
+    def cancel(self, run_id: protocol.RunId) -> None:
+        """End a run and report its `interrupted` outcome.
+
+        A run the kernel has not started completes without running. One
+        the kernel could not stop at once is stopped as it progresses.
+        """
+
+    def interrupt(self) -> None:
+        """Interrupt the kernel's active work and end every unfinished run.
+
+        Work the kernel does outside a run is interrupted too. A run the
+        kernel has not started completes without running, and each run
+        reports its `interrupted` outcome. An idle kernel is left alone,
+        so nothing is held over for work that starts later.
+        """
+
+    def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
+        """Arrange delivery of `value` to the prompt `input_id` alone.
+
+        The answer is not retained. A reply to a prompt that is no longer
+        pending must not reach a later prompt.
+        """
 
     def forget(self, run_id: protocol.RunId) -> None:
         """Release a run the host no longer retains.
@@ -112,14 +177,13 @@ class Scheduled:
     """The runtime scheduled a run independently of a host API request."""
 
     run_id: protocol.RunId
-    caused_by: protocol.ExecutionId | None = None
 
 
 @dataclass(frozen=True)
 class PlannedExecution:
     id: protocol.ExecutionId
     cell_id: str | None
-    code_hash: str
+    code_fingerprint: str
     code: str | None
     caused_by: protocol.ExecutionId | None = None
 
@@ -141,7 +205,7 @@ class Started:
 
 @dataclass(frozen=True)
 class Completed:
-    """An execution finished with its final outcome and input revisions."""
+    """An execution finished with its outcome and input revisions."""
 
     execution_id: protocol.ExecutionId
     outcome: protocol.Outcome
@@ -154,10 +218,16 @@ class Completed:
 class Produced:
     """An item produced by an execution.
 
-    Reusing an item ID replaces its previous value.
+    Reusing an item ID replaces its previous value, except for inputs:
+    each prompt is produced once, and the host owns its later status changes.
     """
 
-    item: protocol.Console | protocol.Display | protocol.Variable
+    item: (
+        protocol.Console
+        | protocol.Display
+        | protocol.Variable
+        | protocol.Input
+    )
 
 
 @dataclass(frozen=True)
@@ -169,11 +239,11 @@ class Unbound:
 
 
 @dataclass(frozen=True)
-class Concluded:
-    """An execution outcome, final when the execution completes."""
+class Displayed:
+    """Replace a value display while its execution's result is retained."""
 
     execution_id: protocol.ExecutionId
-    outcome: protocol.Outcome
+    display: protocol.DisplayData | None
 
 
 @dataclass(frozen=True)
@@ -199,6 +269,6 @@ Message = (
     | Completed
     | Produced
     | Unbound
-    | Concluded
+    | Displayed
     | Done
 )

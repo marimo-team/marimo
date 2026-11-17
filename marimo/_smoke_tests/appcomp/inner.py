@@ -2,20 +2,22 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(mo):
-    mo.md("# Innermost")
-    return
+    mo.md("""
+    # Innermost
+    """)
 
 
 @app.cell
@@ -23,8 +25,9 @@ def _():
     x_initial_value = 1
     return (x_initial_value,)
 
+
 @app.cell
-def _(mo, x_initial_value):
+def _(mo, x_initial_value: int):
     x = mo.ui.number(x_initial_value, 10)
     return (x,)
 
@@ -32,7 +35,6 @@ def _(mo, x_initial_value):
 @app.cell
 def _(x):
     x
-    return
 
 
 @app.cell
@@ -44,12 +46,11 @@ def _(mo):
 @app.cell
 def _(y):
     y
-    return
+
 
 @app.cell
 def _(x, y):
     x.value + y.value
-    return
 
 
 if __name__ == "__main__":

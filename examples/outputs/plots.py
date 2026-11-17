@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -32,7 +32,6 @@ def _(mo):
     mo.md("""
     Output a plot object, such as an axis or figure, to see the plot.
     """)
-    return
 
 
 @app.cell
@@ -42,7 +41,7 @@ def _(plt):
     x = np.linspace(0, 10)
     plt.plot(x, x**2)
     plt.gca()
-    return (x,)
+    return np, x
 
 
 @app.cell(hide_code=True)
@@ -51,14 +50,12 @@ def _(mo):
     Calling `show()` methods displays the plot in the console area, which can be
     helpful for debugging because console outputs do not show up in the "app" preview.
     """)
-    return
 
 
 @app.cell
-def _(plt, x):
+def _(plt, x: tuple):
     plt.plot(x, x**3)
     plt.show()
-    return
 
 
 @app.cell(hide_code=True)
@@ -67,7 +64,6 @@ def _(mo):
     Wrap an `Axes` in `mo.ui.matplotlib` to enable reactive selections.
     Click-drag for box selection, shift-drag for lasso selection.
     """)
-    return
 
 
 @app.cell
@@ -83,7 +79,6 @@ def _(mo, np, plt):
 @app.cell
 def _(scatter_fig):
     scatter_fig.value
-    return
 
 
 if __name__ == "__main__":

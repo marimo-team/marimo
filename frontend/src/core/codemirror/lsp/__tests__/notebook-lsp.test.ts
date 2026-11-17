@@ -11,7 +11,6 @@ import type { CellId } from "@/core/cells/ids";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCell } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
-import { MultiColumn } from "@/utils/id-tree";
 import { topologicalCodesAtom } from "../../copilot/getCodes";
 import { lspWorkspaceAtom } from "@/core/saving/file-state";
 import { languageAdapterState } from "../../language/extension";
@@ -69,7 +68,7 @@ describe("merged document with unmounted editors", () => {
   it("should include the code of cells whose editors are not mounted", () => {
     store.set(notebookAtom, {
       ...initialNotebookState(),
-      cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
+      cellIds: [Cells.cell1, Cells.cell2],
       cellData: {
         [Cells.cell1]: createCell({ id: Cells.cell1, code: "import math" }),
         [Cells.cell2]: createCell({

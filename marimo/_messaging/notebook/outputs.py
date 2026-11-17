@@ -28,6 +28,12 @@ from marimo._types.ids import CellId_t
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    from marimo._messaging.notebook.document import (
+        NotebookCell,
+        NotebookDocument,
+    )
+    from marimo._session.state.session_view import SessionView
+
 
 class CellOutputs(msgspec.Struct):
     """Per-cell output snapshot delivered alongside the document snapshot.
@@ -67,3 +73,18 @@ def notebook_outputs_context(
         yield
     finally:
         _current_outputs.reset(token)
+
+
+def scratchpad_snapshot(
+    document: NotebookDocument, view: SessionView
+) -> tuple[tuple[NotebookCell, ...], CellOutputs]:
+    """Snapshot a document and its view's per-cell outputs for code_mode.
+
+    Passed on `ExecuteScratchpadCommand` so `cm.get_context()` can expose
+    cells and their last outputs.
+    """
+    cell_ids = document.cell_ids
+    return tuple(document.cells), CellOutputs(
+        output=view.get_cell_outputs(cell_ids),
+        console_outputs=view.get_cell_console_outputs(cell_ids),
+    )

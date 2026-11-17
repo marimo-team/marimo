@@ -22,11 +22,7 @@ const VariablePanel: React.FC = () => {
   }
 
   return (
-    <VariableTable
-      className="flex-1"
-      cellIds={cellIds.inOrderIds}
-      variables={variables}
-    />
+    <VariableTable className="flex-1" cellIds={cellIds} variables={variables} />
   );
 };
 

@@ -221,7 +221,8 @@ const DEFAULT_HOT_KEY = {
     key: "Mod-h",
   },
   "cell.aiCompletion": {
-    name: "AI completion",
+    name: "Refactor cell",
+    additionalKeywords: ["AI", "AI completion"],
     group: "Editing",
     key: "Mod-Shift-e",
   },

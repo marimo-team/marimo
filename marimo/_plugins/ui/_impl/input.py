@@ -35,6 +35,7 @@ from marimo._runtime.functions import Function
 LOGGER = _loggers.marimo_logger()
 
 Numeric = int | float
+NO_VALUE: Final = object()
 
 
 @mddoc
@@ -131,9 +132,20 @@ class number(UIElement[Numeric | None, Numeric | None]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> number:
         """Create a number picker from a dataframe series."""
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_number_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return number(start=start, stop=stop, label=label, **kwargs)
 
@@ -350,9 +362,20 @@ class slider(UIElement[Numeric, Numeric]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> slider:
         """Create a slider from a dataframe series."""
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_number_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return slider(start=start, stop=stop, label=label, **kwargs)
 
@@ -552,9 +575,20 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
     @staticmethod
     def from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
         """Create a range slider from a dataframe series."""
+        start = kwargs.pop("start", NO_VALUE)
+        stop = kwargs.pop("stop", NO_VALUE)
         info = get_number_series_info(series)
-        start = kwargs.pop("start", info.min)
-        stop = kwargs.pop("stop", info.max)
+        if start is NO_VALUE:
+            start = info.min
+        if stop is NO_VALUE:
+            stop = info.max
+        if (start is NO_VALUE or start is None) and (
+            stop is NO_VALUE or stop is None
+        ):
+            raise ValueError(
+                "Cannot infer both start and stop from an empty or all-null series; "
+                "provide explicit bounds."
+            )
         label = kwargs.pop("label", info.label)
         return range_slider(start=start, stop=stop, label=label, **kwargs)
 

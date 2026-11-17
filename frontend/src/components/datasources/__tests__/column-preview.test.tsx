@@ -12,11 +12,10 @@ import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { DatasetColumnPreview } from "../column-preview";
 
-const { createNewCell } = vi.hoisted(() => ({ createNewCell: vi.fn() }));
+const { createCell } = vi.hoisted(() => ({ createCell: vi.fn() }));
 
-vi.mock("@/core/cells/cells", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/core/cells/cells")>()),
-  useCellActions: () => ({ createNewCell }),
+vi.mock("@/core/cells/actions", () => ({
+  useCellActions: () => ({ createCell }),
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -179,12 +178,11 @@ describe("DatasetColumnPreview chart actions", () => {
           name: `Add chart to notebook for ${column.name}`,
         }),
       );
-      expect(createNewCell).toHaveBeenLastCalledWith({
+      expect(createCell).toHaveBeenLastCalledWith({
+        after: null,
         code: `chart_${column.name}`,
-        before: false,
-        cellId: "__end__",
       });
     }
-    expect(createNewCell).toHaveBeenCalledTimes(2);
+    expect(createCell).toHaveBeenCalledTimes(2);
   });
 });

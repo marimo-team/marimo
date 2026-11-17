@@ -17,10 +17,15 @@ import {
   notebookAtom,
   notebookReducer,
 } from "../cells/cells";
+import { followDocument } from "../cells/document";
+import { notebookCells } from "../cells/utils";
+import { createDocumentModel } from "../notebook/document";
 import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import { createNotebookReplica } from "../notebook/replica";
+import { observeCellMessage } from "../executions";
 import {
   handleCellNotificationeration,
   handleKernelReady,
@@ -31,6 +36,10 @@ import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
 import { initialModeAtom } from "../mode";
 import { requestClientAtom } from "../network/requests";
+import {
+  activeDocumentModelAtom,
+  activeNotebookReplicaAtom,
+} from "../session/active-notebook";
 import { store as defaultStore } from "../state/jotai";
 import type { IslandsPyodideBridge } from "./bridge";
 import { MarimoIslandElement } from "./components/web-components";
@@ -124,6 +133,26 @@ export async function initializeIslands(
     handleNotification(notification, actions, store, sessionGeneration);
   });
 
+  // The notebook's cells follow the managed session's host document.
+  const replica = createNotebookReplica(store);
+  replica.connect(bridge.notebookBackend, { onNotification: Functions.NOOP });
+  store.set(activeNotebookReplicaAtom, replica);
+  const documentModel = createDocumentModel({
+    store,
+    documentAtom: replica.documentAtom,
+    shownDocumentAtom: replica.shownDocumentAtom,
+    backendAtom: replica.backendAtom,
+  });
+  const lifetime = new AbortController();
+  documentModel.start({ signal: lifetime.signal });
+  store.set(activeDocumentModelAtom, documentModel);
+  followDocument({
+    store,
+    model: documentModel,
+    reconcile: actions.reconcileDocument,
+    signal: lifetime.signal,
+  });
+
   // Track first user interaction before initialization completes
   document.addEventListener(
     MarimoValueInputEvent.TYPE,
@@ -175,7 +204,6 @@ function handleNotification(
       case "startup-logs":
       case "startup-progress":
       case "interrupted":
-      case "reconnected":
       case "cache-cleared":
       case "cache-info":
       case "kernel-startup-error":
@@ -196,11 +224,10 @@ function handleNotification(
       case "kernel-ready":
         handleKernelReady(msg, {
           autoInstantiate: true,
-          setCells: actions.setCells,
+          cells: notebookCells(store.get(notebookAtom)),
+          resetCellRuntimes: actions.resetCellRuntimes,
           setLayoutData: Functions.NOOP,
-          setAppConfig: Functions.NOOP,
           setCapabilities: Functions.NOOP,
-          setKernelState: Functions.NOOP,
           onError: Logger.error,
         });
         if (!window.customElements?.get(ISLAND_TAG_NAMES.ISLAND)) {
@@ -225,6 +252,7 @@ function handleNotification(
         return;
 
       case "cell-op":
+        observeCellMessage(store, msg);
         handleCellNotificationeration(msg, actions.handleCellMessage);
         return;
 

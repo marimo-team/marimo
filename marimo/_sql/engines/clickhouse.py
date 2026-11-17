@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.sql_utils import classify_sql_statement
-from marimo._config.config import SqlOutputType
+from marimo._config.types import SqlOutputType
 from marimo._data.models import (
     Database,
     DataTable,

@@ -18,6 +18,7 @@ from marimo._runtime._wasm._duckdb.sources import (
     remote_file_source_from_table,
 )
 from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.utils import is_duckdb_v2
 from tests.conftest import ExecReqProvider, mock_pyodide
 
 pytestmark = pytest.mark.requires("duckdb", "pandas", "sqlglot")
@@ -349,6 +350,14 @@ def _query_parity_cases() -> list[QueryParityCase]:
         ".geojson",
         b'{"type":"FeatureCollection","features":[]}',
     )
+    populated_geojson = RemoteFixture(
+        "https://example.com/populated.geojson",
+        ".geojson",
+        (
+            b'{"type":"FeatureCollection","features":['
+            b'{"type":"Feature","properties":{"name":"marimo"},"geometry":null}]}'
+        ),
+    )
     text = RemoteFixture("https://example.com/a.txt", ".txt", b"hello")
     blob = RemoteFixture("https://example.com/a.bin", ".bin", b"\x00\x01")
     return [
@@ -491,8 +500,13 @@ def _query_parity_cases() -> list[QueryParityCase]:
         ),
         QueryParityCase(
             "geojson-reader",
-            f"SELECT type FROM read_json_auto('{geojson.url}')",
+            f"SELECT * FROM read_json_auto('{geojson.url}')",
             (geojson,),
+        ),
+        QueryParityCase(
+            "populated-geojson-reader",
+            f"SELECT * FROM read_json_auto('{populated_geojson.url}')",
+            (populated_geojson,),
         ),
         QueryParityCase(
             "text-and-blob",
@@ -778,9 +792,50 @@ class TestDuckDBWasmQueryPatch:
         assert (
             patch_result.query == "SELECT * FROM __marimo_wasm_duckdb_remote_0"
         )
-        assert _records(next(iter(patch_result.tables.values()))) == [
-            {"type": "FeatureCollection", "features": []}
-        ]
+        expected = (
+            []
+            if is_duckdb_v2()
+            else [{"type": "FeatureCollection", "features": []}]
+        )
+        assert _records(next(iter(patch_result.tables.values()))) == expected
+
+    @staticmethod
+    def test_rewrites_populated_geojson_literal() -> None:
+        with (
+            mock_pyodide(),
+            patch(
+                "marimo._runtime._wasm._fetch.fetch_url_bytes",
+                return_value=(
+                    b'{"type":"FeatureCollection","features":['
+                    b'{"type":"Feature","properties":{"name":"marimo"},"geometry":null}]}'
+                ),
+            ),
+        ):
+            patch_result = patch_duckdb_query_for_wasm(
+                "FROM 'https://example.com/a.geojson'",
+            )
+
+        assert patch_result is not None
+        assert (
+            patch_result.query == "SELECT * FROM __marimo_wasm_duckdb_remote_0"
+        )
+        expected = (
+            [{"geometry": None, "name": "marimo"}]
+            if is_duckdb_v2()
+            else [
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "properties": {"name": "marimo"},
+                            "geometry": None,
+                        }
+                    ],
+                }
+            ]
+        )
+        assert _records(next(iter(patch_result.tables.values()))) == expected
 
     @staticmethod
     def test_avoids_reserved_table_names() -> None:
@@ -924,7 +979,15 @@ class TestDuckDBWasmMoSqlIntegration:
                 ]
             )
 
-        assert executing_kernel.globals["result"] is None
+        result = executing_kernel.globals["result"]
+        if is_duckdb_v2():
+            import duckdb
+
+            assert isinstance(result, duckdb.DuckDBPyRelation)
+            assert result.columns == ["Count"]
+            assert result.fetchall() == [(2,)]
+        else:
+            assert result is None
         assert executing_kernel.globals["rows"] == [
             ("ford", 25),
             ("toyota", 18),

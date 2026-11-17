@@ -13,32 +13,18 @@ import {
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   BotMessageSquareIcon,
-  HatGlasses,
-  ArrowRightIcon,
   Loader2,
-  type LucideIcon,
-  MessageCircleIcon,
-  NotebookText,
   PlusIcon,
-  SparklesIcon,
   SettingsIcon,
-  CodeIcon,
+  XIcon,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-} from "@/components/ui/select";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
+import { getSupportedAttachmentTypes } from "@/core/ai/attachments";
 import { useAIConfigActions } from "@/core/ai/config";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
-import { AiModelId } from "@/core/ai/ids/ids";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import {
   activeChatAtom,
@@ -49,39 +35,32 @@ import {
   pendingAiPromptAtom,
 } from "@/core/ai/state";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
-import {
-  type CopilotMode,
-  FRONTEND_TOOL_REGISTRY,
-} from "@/core/ai/tools/registry";
-import { useCellActions } from "@/core/cells/cells";
+import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
+import { useCellActions } from "@/core/cells/actions";
 import { aiAtom, aiModelConfiguredAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { isWasm } from "@/core/wasm/utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
-import {
-  PairWithAgentBanner,
-  PairWithAgentButton,
-} from "../editor/actions/pair-with-agent";
-import { PairWithAgentModal } from "../editor/actions/pair-with-agent-modal";
-import { PromptInput } from "../editor/ai/add-cell-with-ai";
+import { PairWithAgentBanner } from "../editor/actions/pair-with-agent";
+import { PromptInput } from "../editor/ai/prompt-input";
+import { PendingAICells } from "../editor/chrome/wrapper/pending-ai-cells";
 import {
   addContextCompletion,
-  CONTEXT_TRIGGER,
   isContextAttachment,
   resolveChatContext,
 } from "../editor/ai/completion-utils";
 import { StreamingChunkTransport } from "../editor/ai/transport/chat-transport";
+import { PanelHeaderActions } from "../editor/chrome/panels/panel-header";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
-import { useImperativeModal } from "../modal/ImperativeModal";
+import "./chat-typography.css";
 import { MCPStatusIndicator } from "../mcp/mcp-status-indicator";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
+import { toast } from "../ui/use-toast";
 import {
   AddContextButton,
   AttachFileButton,
@@ -94,33 +73,66 @@ import {
   getAbortReasonFromChunk,
   resolveChatAbortReason,
 } from "./chat-abort";
-import { renderUIMessage } from "./chat-display";
+import { AgentActivity } from "./agent-activity";
+import { getAnswerText, renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
+import { ChatEmptyState } from "./chat-empty-state";
 import { CapabilitiesPopover } from "./capabilities-popover";
+import { NotebookAccessSelector } from "./notebook-access-selector";
 import {
   type ChatMessagePart,
   convertToFileUIPart,
   generateChatTitle,
   handleToolCall,
+  hasAssistantProgress,
   hasPendingToolCalls,
   hasUnresolvedToolCalls,
-  isLastMessageReasoning,
-  PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
   type QueuedUserMessage,
   shouldFlushQueue,
   useFileState,
   useMessageQueue,
+  validateChatAttachments,
 } from "./chat-utils";
-import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import { notebookCellCodes } from "@/core/codemirror/copilot/getCodes";
+import { getSessionId } from "@/core/kernel/session";
+import { withNotebookContext } from "./notebook-context";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 import { useChatControllerId } from "./use-chat-controller-id";
+import { isChatBusy, useChatGeneration } from "./use-chat-generation";
+import { useAssistantTurn } from "./use-assistant-turn";
+import { UserMessage } from "./user-message";
 
 // Default mode for the AI
-const DEFAULT_MODE = "manual";
+const DEFAULT_MODE = "ask";
+
+async function readChatAttachments(
+  files: File[],
+): Promise<FileUIPart[] | null> {
+  try {
+    return await convertToFileUIPart(files);
+  } catch {
+    toast({
+      title: "Could not read attachments",
+      description: "Try selecting the files again.",
+      variant: "danger",
+    });
+    return null;
+  }
+}
 
 const QueuedMessageDisplay = memo(
-  ({ message }: { message: QueuedUserMessage }) => {
+  ({
+    message,
+    isLoading,
+    onSend,
+    onRemove,
+  }: {
+    message: QueuedUserMessage;
+    isLoading: boolean;
+    onSend?: () => void;
+    onRemove: () => void;
+  }) => {
     const textParts = message.parts.filter(
       (p): p is TextUIPart => p.type === "text",
     );
@@ -131,13 +143,28 @@ const QueuedMessageDisplay = memo(
 
     return (
       <div className="flex justify-end">
-        <div className="w-[95%] bg-background border border-dashed p-2 rounded-sm opacity-70">
+        <div className="w-[95%] bg-background border border-dashed p-2 rounded-[10px] opacity-70">
           {fileParts.map((filePart, idx) => (
             <AttachmentRenderer attachment={filePart} key={idx} />
           ))}
           <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
             <span className="wrap-break-word">{content}</span>
-            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            {isLoading && (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            )}
+            {onSend && (
+              <Button variant="ghost" size="sm" onClick={onSend}>
+                Send
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Remove queued message"
+              onClick={onRemove}
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
       </div>
@@ -164,50 +191,51 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { handleClick } = useOpenSettingsToTab();
 
   return (
-    <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
-      <Tooltip content="New chat">
-        <Button
-          aria-label="New chat"
-          variant="text"
-          size="icon"
-          onClick={onNewChat}
-        >
-          <PlusIcon className="h-4 w-4" />
-        </Button>
-      </Tooltip>
-      <div className="flex items-center gap-2">
-        <Tooltip content="Connect your agent">
-          <PairWithAgentButton className="mr-1" label="Connect" />
-        </Tooltip>
-        <MCPStatusIndicator />
-        <Tooltip content="AI Settings">
+    <PanelHeaderActions>
+      <div className="mo-ai-panel flex w-full shrink-0 items-center font-sans text-sm">
+        <div className="flex w-full items-center gap-1">
           <Button
-            variant="text"
-            size="xs"
-            className="hover:bg-foreground/10 py-2"
-            onClick={() => handleClick("ai")}
+            variant="ghost"
+            size="sm"
+            className="chat-control gap-1.5 font-normal"
+            onClick={onNewChat}
           >
-            <SettingsIcon className="h-4 w-4" />
+            <PlusIcon className="size-4" aria-hidden={true} />
+            New chat
           </Button>
-        </Tooltip>
-        <ChatHistoryPopover
-          activeChatId={activeChatId}
-          setActiveChat={setActiveChat}
-          onDeleteChats={onDeleteChats}
-          isLoading={isLoading}
-        />
+          <ChatHistoryPopover
+            activeChatId={activeChatId}
+            setActiveChat={setActiveChat}
+            onDeleteChats={onDeleteChats}
+            isLoading={isLoading}
+          />
+          <div className="ml-auto flex items-center gap-2">
+            <MCPStatusIndicator />
+            <Tooltip content="AI Settings">
+              <Button
+                className="chat-control"
+                aria-label="AI Settings"
+                variant="ghost"
+                size="icon"
+                onClick={() => handleClick("ai")}
+              >
+                <SettingsIcon className="size-4" aria-hidden={true} />
+              </Button>
+            </Tooltip>
+          </div>
+        </div>
       </div>
-    </div>
+    </PanelHeaderActions>
   );
 };
 
 interface ChatMessageProps {
   message: UIMessage;
   index: number;
-  onEdit: (index: number, newValue: string) => void;
-  isStreamingReasoning: boolean;
+  onEdit: (index: number, newValue: string) => Promise<boolean>;
   isLast: boolean;
   isActive: boolean;
+  turnStartedAt: number | null;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }
 
@@ -216,78 +244,40 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
     message,
     index,
     onEdit,
-    isStreamingReasoning,
     isLast,
     isActive,
+    turnStartedAt,
     addToolApprovalResponse,
   }) => {
-    const renderUserMessage = (message: UIMessage) => {
-      const textParts = message.parts?.filter(
-        (p): p is TextUIPart => p.type === "text",
-      );
-      const content = textParts?.map((p) => p.text).join("\n");
-      const fileParts = message.parts?.filter(
-        (p): p is FileUIPart => p.type === "file",
-      );
-
+    if (message.role === "user") {
       return (
-        <div className="w-[95%] bg-background border p-1 rounded-sm">
-          {fileParts?.map((filePart, idx) => (
-            <AttachmentRenderer attachment={filePart} key={idx} />
-          ))}
-          <PromptInput
-            key={message.id}
-            value={content}
-            placeholder="Type your message..."
-            onChange={() => {
-              // noop
-            }}
-            onSubmit={(_e, newValue) => {
-              if (!newValue.trim()) {
-                return;
-              }
-              onEdit(index, newValue);
-            }}
-            onClose={() => {
-              // noop
-            }}
+        <div className="group flex justify-end">
+          <UserMessage
+            message={message}
+            canEdit={!isActive}
+            onEdit={(newValue) => onEdit(index, newValue)}
           />
         </div>
       );
-    };
+    }
 
-    const renderOtherMessage = (message: UIMessage) => {
-      const textParts = message.parts.filter(
-        (p): p is TextUIPart => p.type === "text",
-      );
-      const content = textParts.map((p) => p.text).join("\n");
-
-      return (
+    return (
+      <div className="group relative flex justify-start">
         <div className="w-[95%] wrap-break-word">
-          <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
+          <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+            <CopyClipboardIcon
+              className="h-3 w-3"
+              value={() => getAnswerText(message)}
+            />
           </div>
           {renderUIMessage({
             message,
-            isStreamingReasoning,
             isLast,
             isActive,
+            turnStartedAt,
             addToolApprovalResponse,
           })}
         </div>
-      );
-    };
-
-    return (
-      <div
-        className={cn(
-          "flex group relative",
-          message.role === "user" ? "justify-end" : "justify-start",
-        )}
-      >
-        {message.role === "user"
-          ? renderUserMessage(message)
-          : renderOtherMessage(message)}
       </div>
     );
   },
@@ -316,108 +306,37 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   }) => {
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
-    const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
-    const currentProvider = AiModelId.parse(currentModel).providerId;
 
     const { saveModeChange } = useAIConfigActions();
 
-    const modeOptions: {
-      value: CopilotMode;
-      label: string;
-      subtitle: string;
-      Icon: LucideIcon;
-    }[] = [
-      {
-        value: "manual",
-        label: "Manual",
-        subtitle: "Pure chat, no tool usage",
-        Icon: MessageCircleIcon,
-      },
-      {
-        value: "ask",
-        label: "Ask",
-        subtitle: "AI with access to read-only tools like documentation search",
-        Icon: NotebookText,
-      },
-      {
-        value: "agent",
-        label: "Agent",
-        subtitle: "AI with access to read and write tools",
-        Icon: HatGlasses,
-      },
-      {
-        value: "code_mode",
-        label: "Code Mode (beta)",
-        subtitle:
-          "AI with access to the notebook's kernel. Potentially destructive.",
-        Icon: CodeIcon,
-      },
-    ];
-
-    const isAttachmentSupported =
-      PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
-
-    const currentModeOption = modeOptions.find((o) => o.value === currentMode);
-    const CurrentModeIcon = currentModeOption?.Icon;
-    const CurrentModeLabel = currentModeOption?.label;
-
     return (
       <TooltipProvider>
-        <div className="px-3 py-2 border-t border-border/20 flex flex-wrap items-center gap-1">
-          <div className="flex flex-wrap items-center gap-1">
-            <Select value={currentMode} onValueChange={saveModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5 shrink-0">
-                {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
-                <span className="text-nowrap">{CurrentModeLabel}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium">
-                    AI Mode
-                  </SelectLabel>
-                  {modeOptions.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      className="text-xs py-1"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <span className="mt-1 text-muted-foreground">
-                          <option.Icon className="h-3 w-3" />
-                        </span>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-semibold">{option.label}</span>
-                          <span className="text-muted-foreground">
-                            {option.subtitle}
-                          </span>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+        <div className="chat-input-footer px-3 py-2 border-t border-border/20 flex items-center gap-2">
+          <div className="chat-input-selectors flex min-w-0 flex-1 items-center gap-1">
+            <NotebookAccessSelector
+              value={currentMode}
+              onValueChange={saveModeChange}
+            />
             <AIModelDropdown
               placeholder="Model"
-              triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm max-w-[200px]"
+              triggerClassName="chat-control chat-selector h-6 text-xs rounded-sm min-w-0 max-w-[200px] flex-1"
               iconSize="small"
               showAddCustomModelDocs={true}
               forRole="chat"
             />
-            <CapabilitiesPopover />
           </div>
-          <div className="flex flex-row ml-auto">
+          <div className="chat-input-actions flex shrink-0 items-center gap-0.5 ml-auto">
+            <CapabilitiesPopover />
             <AddContextButton
               handleAddContext={onAddContext}
               isLoading={isLoading}
             />
-            {isAttachmentSupported && (
-              <AttachFileButton
-                fileInputRef={fileInputRef}
-                isLoading={isLoading}
-                onAddFiles={onAddFiles}
-              />
-            )}
+            <AttachFileButton
+              fileInputRef={fileInputRef}
+              isLoading={isLoading}
+              onAddFiles={onAddFiles}
+              accept=""
+            />
             <SendButton
               isLoading={isLoading}
               onStop={onStop}
@@ -434,9 +353,8 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 ChatInputFooter.displayName = "ChatInputFooter";
 
 interface ChatInputProps {
-  placeholder?: string;
+  isReadingFiles: boolean;
   input: string;
-  inputClassName?: string;
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   inputRef: React.RefObject<ReactCodeMirrorRef | null>;
@@ -449,9 +367,8 @@ interface ChatInputProps {
 
 const ChatInput: React.FC<ChatInputProps> = memo(
   ({
-    placeholder,
+    isReadingFiles,
     input,
-    inputClassName,
     setInput,
     onSubmit,
     inputRef,
@@ -468,8 +385,8 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     });
 
     return (
-      <div className="relative shrink-0 flex flex-col border-t">
-        <div className={cn("px-2 py-1.5", inputClassName)}>
+      <div className="relative shrink-0 flex flex-col">
+        <div className="px-2 py-1.5">
           <PromptInput
             className="max-h-[400px]"
             inputRef={inputRef}
@@ -478,11 +395,11 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={onClose}
             onAddFiles={onAddFiles}
-            placeholder={placeholder || "Type your message..."}
+            placeholder="Type your message. Use @ to reference variables and cells."
           />
         </div>
         <ChatInputFooter
-          isEmpty={!input.trim()}
+          isEmpty={!input.trim() || isReadingFiles}
           onAddContext={() => addContextCompletion(inputRef)}
           onSendClick={handleSendClick}
           isLoading={isLoading}
@@ -496,26 +413,6 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 );
 
 ChatInput.displayName = "ChatInput";
-
-const PairWithAgentCallout: React.FC<{
-  onPairWithAgent: () => void;
-}> = ({ onPairWithAgent }) => {
-  if (isWasm()) {
-    return null;
-  }
-
-  return (
-    <Button
-      variant="text"
-      className="gap-1.5 text-sm text-link hover:underline"
-      onClick={onPairWithAgent}
-    >
-      <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-      <span>Connect your own agent to this notebook</span>
-      <ArrowRightIcon className="h-3 w-3 shrink-0" />
-    </Button>
-  );
-};
 
 const ChatPanel = () => {
   const aiConfigured = useAtomValue(aiModelConfiguredAtom);
@@ -554,12 +451,24 @@ const ChatPanelBody = () => {
   const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
-  const { files, addFiles, clearFiles, removeFile } = useFileState();
+  const ai = useAtomValue(aiAtom);
+  const supportedTypes = getSupportedAttachmentTypes(
+    ai?.models?.chat_model || DEFAULT_AI_MODEL,
+  );
+  const {
+    files,
+    addFiles,
+    clearFiles,
+    removeFile,
+    validateFiles,
+    isReadingFiles,
+  } = useFileState(supportedTypes);
   const {
     messages: queuedMessages,
     enqueue: enqueueUserMessage,
     flushNext: flushNextQueuedMessage,
     clear: clearQueuedMessages,
+    remove: removeQueuedMessage,
     hasQueuedRef,
   } = useMessageQueue();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
@@ -572,9 +481,10 @@ const ChatPanelBody = () => {
     lastAbortReasonRef.current = null;
     setAbortNotice(null);
   });
+  const turn = useAssistantTurn();
+  const resetTurn = turn.reset;
   const runtimeManager = useRuntimeManager();
-  const { invokeAiTool, sendRun } = useRequestClient();
-  const { openModal, closeModal } = useImperativeModal();
+  const { invokeAiTool } = useRequestClient();
 
   const activeChatId = activeChat?.id;
   const { chatControllerId, renewDraftChatId } =
@@ -582,12 +492,10 @@ const ChatPanelBody = () => {
   const store = useStore();
 
   const { addStagedCell } = useStagedAICellsActions();
-  const { createNewCell, prepareForRun } = useCellActions();
+  const { createCell } = useCellActions();
   const toolContext: ToolNotebookContext = {
     addStagedCell,
-    createNewCell,
-    prepareForRun,
-    sendRun,
+    createCell,
     store,
   };
 
@@ -597,6 +505,7 @@ const ChatPanelBody = () => {
     error,
     status,
     regenerate,
+    setMessages,
     stop,
     addToolOutput,
     addToolApprovalResponse,
@@ -604,7 +513,8 @@ const ChatPanelBody = () => {
   } = useChat({
     id: chatControllerId,
     throttle: AI_SDK_UI_THROTTLE_MS,
-    sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
+    sendAutomaticallyWhen: ({ messages }) =>
+      !turn.hasEnded && hasPendingToolCalls(messages),
     messages: activeChat?.messages || [], // initial messages
     transport: new StreamingChunkTransport(
       {
@@ -626,7 +536,6 @@ const ChatPanelBody = () => {
 
           const completionBody = {
             uiMessages: options.messages,
-            includeOtherCode: getCodes(""),
             options: store.get(chatOptionsAtom),
           };
 
@@ -651,7 +560,26 @@ const ChatPanelBody = () => {
         }
       },
     ),
-    onFinish: ({ messages, isError, isAbort, finishReason }) => {
+    onFinish: ({
+      messages: finishedMessages,
+      isError,
+      isAbort,
+      finishReason,
+    }) => {
+      // useChat routes every chat's callbacks to the latest one. Its
+      // setMessages isn't a React setter: the updater runs synchronously.
+      const finished: { messages?: typeof finishedMessages } = {};
+      setMessages((current) => {
+        if (current.at(-1)?.id !== finishedMessages.at(-1)?.id) {
+          return current;
+        }
+        finished.messages = turn.finish(finishedMessages, { isAbort, isError });
+        return finished.messages;
+      });
+      const { messages } = finished;
+      if (!messages) {
+        return;
+      }
       setChatState((prev) => {
         return replaceMessagesInChat({
           chatState: prev,
@@ -694,10 +622,41 @@ const ChatPanelBody = () => {
     },
   });
 
-  const sendUserMessage = useEvent((parts: ChatMessagePart[]) => {
-    clearAbortState();
-    sendMessage({ role: "user", parts });
+  const contextualize = useEvent(
+    (parts: ChatMessagePart[], history: UIMessage[]) =>
+      withNotebookContext(parts, history, {
+        sessionId: getSessionId(),
+        cells:
+          store.get(aiAtom)?.mode === "code_mode"
+            ? undefined
+            : store.get(notebookCellCodes),
+      }),
+  );
+
+  const validateMessageAttachments = useEvent((parts: ChatMessagePart[]) => {
+    const currentModel =
+      store.get(aiAtom)?.models?.chat_model || DEFAULT_AI_MODEL;
+    return validateChatAttachments(
+      parts,
+      getSupportedAttachmentTypes(currentModel),
+    );
   });
+
+  const sendUserMessage = useEvent(
+    (
+      parts: ChatMessagePart[],
+      messageId?: string,
+      history: UIMessage[] = messages,
+    ) => {
+      clearAbortState();
+      turn.start();
+      sendMessage({
+        role: "user",
+        parts: contextualize(parts, history),
+        ...(messageId ? { messageId } : {}),
+      });
+    },
+  );
 
   const tryFlushQueuedMessages = useEvent(
     (
@@ -715,20 +674,56 @@ const ChatPanelBody = () => {
           hasUnresolvedToolCalls: hasUnresolvedToolCalls(chatMessages),
         })
       ) {
-        flushNextQueuedMessage(sendUserMessage);
+        flushNextQueuedMessage(sendUserMessage, validateMessageAttachments);
       }
     },
   );
 
-  const isLoading = status === "submitted" || status === "streaming";
+  const isLoading = isChatBusy(status);
+  const isTurnActive = turn.isActive({
+    isLoading,
+    hasError: error != null,
+    messages,
+  });
+  useChatGeneration(isTurnActive);
+
+  const stopTurn = useEvent(() => {
+    if (isLoading) {
+      turn.stop();
+      void stop();
+      return;
+    }
+    // Between requests there is no stream to abort, so `onFinish` won't run.
+    const stopped = turn.finish(messages, { isAbort: true, isError: false });
+    setMessages(stopped);
+    setChatState((prev) =>
+      replaceMessagesInChat({
+        chatState: prev,
+        chatId: prev.activeChatId,
+        messages: stopped,
+      }),
+    );
+    tryFlushQueuedMessages(stopped, { isError: false, isAbort: true });
+  });
+
+  const respondToApproval = useEvent(
+    (response: Parameters<ChatAddToolApproveResponseFunction>[0]) => {
+      turn.resume(messages.at(-1));
+      return addToolApprovalResponse(response);
+    },
+  );
   // useEvent reads the latest loading state, even when called after an await
   // (e.g. resolving @-context) that outlives the original render's closure.
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
-    if (isLoading || hasQueuedRef.current) {
+    if (!validateMessageAttachments(parts)) {
+      return false;
+    }
+    if (isTurnActive || hasQueuedRef.current) {
       enqueueUserMessage(parts);
     } else {
       sendUserMessage(parts);
     }
+    return true;
   });
 
   const handleScroll = useEvent(() => {
@@ -757,16 +752,17 @@ const ChatPanelBody = () => {
     });
   });
 
-  // Check if we're currently streaming reasoning in the latest message
-  const isStreamingReasoning =
-    isLoading && messages.length > 0 && isLastMessageReasoning(messages);
-
   // Pin to the bottom while the user is already there.
   useEffect(() => {
     setIsScrolledToBottom(true);
     clearQueuedMessages();
     clearAbortState();
   }, [activeChatId, clearQueuedMessages, clearAbortState]);
+
+  // Creating a chat keeps the draft's controller, so its turn survives.
+  useEffect(() => {
+    resetTurn();
+  }, [chatControllerId, resetTurn]);
 
   useEffect(() => {
     if (!isScrolledToBottom) {
@@ -813,24 +809,27 @@ const ChatPanelBody = () => {
 
   const createNewThread = useEvent(
     async (initialMessage: string, initialAttachments?: File[]) => {
-      startNewChatState(initialMessage);
-
-      const fileParts =
-        initialAttachments && initialAttachments.length > 0
-          ? await convertToFileUIPart(initialAttachments)
-          : undefined;
+      if (!validateFiles(initialAttachments ?? [])) {
+        return;
+      }
+      const fileParts = await readChatAttachments(initialAttachments ?? []);
+      if (fileParts === null) {
+        return;
+      }
       const { contextPart, attachments } =
         await resolveChatContext(initialMessage);
 
-      sendMessage({
-        role: "user",
-        parts: [
-          { type: "text" as const, text: initialMessage },
-          ...(contextPart ? [contextPart] : []),
-          ...(fileParts ?? []),
-          ...attachments,
-        ],
-      });
+      const parts: ChatMessagePart[] = [
+        { type: "text" as const, text: initialMessage },
+        ...(contextPart ? [contextPart] : []),
+        ...fileParts,
+        ...attachments,
+      ];
+      if (!validateMessageAttachments(parts)) {
+        return;
+      }
+      startNewChatState(initialMessage);
+      sendUserMessage(parts, undefined, []);
       clearFiles();
       setInput("");
     },
@@ -866,10 +865,6 @@ const ChatPanelBody = () => {
     });
   });
 
-  const handlePairWithAgent = useEvent(() => {
-    openModal(<PairWithAgentModal onClose={closeModal} />);
-  });
-
   const handleMessageEdit = useEvent(
     async (index: number, newValue: string) => {
       const editedMessage = messages[index];
@@ -882,46 +877,63 @@ const ChatPanelBody = () => {
         ) ?? [];
       const { contextPart, attachments } = await resolveChatContext(newValue);
 
-      const messageId = editedMessage.id;
-      sendMessage({
-        messageId: messageId, // replace the message
-        role: "user",
-        parts: [
-          { type: "text", text: newValue },
-          ...(contextPart ? [contextPart] : []),
-          ...userFileParts,
-          ...attachments,
-        ],
-      });
+      const parts: ChatMessagePart[] = [
+        { type: "text", text: newValue },
+        ...(contextPart ? [contextPart] : []),
+        ...userFileParts,
+        ...attachments,
+      ];
+      if (!validateMessageAttachments(parts)) {
+        return false;
+      }
+      sendUserMessage(parts, editedMessage.id, messages.slice(0, index));
+      return true;
     },
   );
 
   const handleChatInputSubmit = useEvent(
     async (e: KeyboardEvent | undefined, newValue: string): Promise<void> => {
-      if (!newValue.trim()) {
+      if (!newValue.trim() || !validateFiles(files)) {
         return;
       }
       if (newMessageInputRef.current?.view) {
         storePrompt(newMessageInputRef.current.view);
       }
-      const fileParts = files ? await convertToFileUIPart(files) : undefined;
+      const fileParts = await readChatAttachments(files);
+      if (fileParts === null) {
+        return;
+      }
       const { contextPart, attachments } = await resolveChatContext(newValue);
 
       e?.preventDefault();
-      submitOrQueue([
+      const submitted = submitOrQueue([
         { type: "text", text: newValue },
         ...(contextPart ? [contextPart] : []),
-        ...(fileParts ?? []),
+        ...fileParts,
         ...attachments,
       ]);
+      if (!submitted) {
+        return;
+      }
       setInput("");
       clearFiles();
     },
   );
 
-  const handleReload = () => {
+  const canContinue = hasAssistantProgress(messages);
+  const handleRecovery = () => {
+    if (canContinue) {
+      sendUserMessage([
+        {
+          type: "text",
+          text: "Your previous response was interrupted. Continue from the last recorded step.",
+        },
+      ]);
+      return;
+    }
     clearAbortState();
-    regenerate();
+    turn.start();
+    void regenerate();
   };
 
   const handleNewThreadSubmit = useEvent(() => {
@@ -936,19 +948,27 @@ const ChatPanelBody = () => {
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
 
-  const submitPendingPrompt = useEvent(async (prompt: string) => {
-    if (activeChatId == null) {
+  const startPendingChat = useEvent((prompt: string) => {
+    if (store.get(chatStateAtom).activeChatId == null) {
       startNewChatState(prompt);
-      // Starting a chat swaps the new-thread input for the regular input;
-      // carry over any draft the user had typed so it isn't lost.
+      // Context resolution can outlive the render that started it.
       setInput(newThreadInput);
     }
+  });
+
+  const submitPendingPrompt = useEvent(async (prompt: string) => {
     const { contextPart, attachments } = await resolveChatContext(prompt);
-    submitOrQueue([
+    const parts: ChatMessagePart[] = [
       { type: "text", text: prompt },
       ...(contextPart ? [contextPart] : []),
       ...attachments,
-    ]);
+    ];
+    if (!validateMessageAttachments(parts)) {
+      setPendingPrompt({ prompt, submit: false, append: true });
+      return;
+    }
+    startPendingChat(prompt);
+    submitOrQueue(parts);
   });
 
   const isNewThread = messages.length === 0;
@@ -960,14 +980,20 @@ const ChatPanelBody = () => {
       return;
     }
     setPendingPrompt(null);
-    const { prompt, submit } = pendingPrompt;
+    const { prompt, submit, append } = pendingPrompt;
+    const applyPrompt = (draft: string) =>
+      append
+        ? draft.includes(prompt.trim())
+          ? draft
+          : `${draft}${draft ? " " : ""}${prompt}`
+        : prompt;
     if (submit) {
       void submitPendingPrompt(prompt);
     } else if (isNewThread) {
-      setNewThreadInput(prompt);
+      setNewThreadInput(applyPrompt);
       focusInputAndMoveToEnd(newThreadInputRef);
     } else {
-      setInput(prompt);
+      setInput(applyPrompt);
       focusInputAndMoveToEnd(newMessageInputRef);
     }
   }, [pendingPrompt, setPendingPrompt, isNewThread, submitPendingPrompt]);
@@ -975,26 +1001,26 @@ const ChatPanelBody = () => {
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
-      placeholder={`Ask anything, ${CONTEXT_TRIGGER} to include context about tables or dataframes`}
+      isReadingFiles={isReadingFiles}
       input={newThreadInput}
       inputRef={newThreadInputRef}
-      inputClassName="px-1 py-0"
       setInput={setNewThreadInput}
       onSubmit={handleNewThreadSubmit}
-      isLoading={isLoading}
-      onStop={stop}
+      isLoading={isTurnActive}
+      onStop={stopTurn}
       fileInputRef={fileInputRef}
       onAddFiles={addFiles}
       onClose={handleOnCloseThread}
     />
   ) : (
     <ChatInput
+      isReadingFiles={isReadingFiles}
       input={input}
       setInput={setInput}
       onSubmit={handleChatInputSubmit}
       inputRef={newMessageInputRef}
-      isLoading={isLoading}
-      onStop={stop}
+      isLoading={isTurnActive}
+      onStop={stopTurn}
       onClose={() => newMessageInputRef.current?.editor?.blur()}
       fileInputRef={fileInputRef}
       onAddFiles={addFiles}
@@ -1002,12 +1028,7 @@ const ChatPanelBody = () => {
   );
 
   const filesPills = files && files.length > 0 && (
-    <div
-      className={cn(
-        "flex flex-row gap-1 flex-wrap p-1",
-        isNewThread && "py-2 px-1",
-      )}
-    >
+    <div className="flex flex-row gap-1 flex-wrap px-3 pt-2">
       {files?.map((file) => (
         <FileAttachmentPill
           file={file}
@@ -1018,8 +1039,20 @@ const ChatPanelBody = () => {
     </div>
   );
 
+  const composer = (
+    <div className="@container rounded-[10px] border border-border bg-background">
+      {filesPills}
+      {isReadingFiles && (
+        <output className="px-3 pt-2 text-xs text-muted-foreground">
+          Reading attachments…
+        </output>
+      )}
+      {chatInput}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-[calc(100%-53px)]">
+    <div className="mo-ai-panel flex flex-col flex-1 min-h-0 font-prose text-sm leading-6">
       <TooltipProvider>
         <ChatHeader
           onNewChat={handleNewChat}
@@ -1032,48 +1065,82 @@ const ChatPanelBody = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
         <div
-          className="flex-1 px-3 bg-(--slate-1) gap-4 py-3 flex flex-col overflow-y-auto"
+          className="flex-1 px-3 bg-background gap-4 py-3 flex flex-col overflow-y-auto"
           ref={scrollContainerRef}
           onScroll={handleScroll}
         >
-          {isNewThread && (
-            <div className="flex flex-col gap-2">
-              <div className="rounded-md border bg-background">
-                {filesPills}
-                {chatInput}
-              </div>
-              <PairWithAgentCallout onPairWithAgent={handlePairWithAgent} />
-            </div>
+          {isNewThread && !isTurnActive && !error && (
+            <ChatEmptyState
+              onSelectPrompt={(prompt) => {
+                setNewThreadInput(prompt);
+                focusInputAndMoveToEnd(newThreadInputRef);
+              }}
+            />
+          )}
+          <TooltipProvider>
+            {messages.map((message, idx) => {
+              const isLast = idx === messages.length - 1;
+              return (
+                <ChatMessageDisplay
+                  key={message.id}
+                  message={message}
+                  index={idx}
+                  onEdit={handleMessageEdit}
+                  isLast={isLast}
+                  isActive={isTurnActive}
+                  turnStartedAt={isLast ? turn.startedAt : null}
+                  addToolApprovalResponse={respondToApproval}
+                />
+              );
+            })}
+          </TooltipProvider>
+
+          {isTurnActive && messages.at(-1)?.role === "user" && (
+            <AgentActivity
+              running={true}
+              thinking={true}
+              timing={
+                turn.startedAt == null
+                  ? undefined
+                  : { startedAt: turn.startedAt }
+              }
+            />
           )}
 
-          {messages.map((message, idx) => (
-            <ChatMessageDisplay
+          {queuedMessages.map((message, idx) => (
+            <QueuedMessageDisplay
               key={message.id}
               message={message}
-              index={idx}
-              onEdit={handleMessageEdit}
-              isStreamingReasoning={isStreamingReasoning}
-              isLast={idx === messages.length - 1}
-              isActive={isLoading}
-              addToolApprovalResponse={addToolApprovalResponse}
+              isLoading={isTurnActive}
+              onRemove={() => {
+                removeQueuedMessage(message.id);
+                if (idx === 0 && !isTurnActive) {
+                  tryFlushQueuedMessages(messages, {
+                    isError: error != null,
+                    isAbort: false,
+                  });
+                }
+              }}
+              onSend={
+                idx === 0 &&
+                !isTurnActive &&
+                !hasPendingToolCalls(messages) &&
+                !hasUnresolvedToolCalls(messages)
+                  ? () =>
+                      tryFlushQueuedMessages(messages, {
+                        isError: false,
+                        isAbort: false,
+                      })
+                  : undefined
+              }
             />
           ))}
-
-          {queuedMessages.map((message) => (
-            <QueuedMessageDisplay key={message.id} message={message} />
-          ))}
-
-          {isLoading && (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          )}
 
           {error && (
             <div className="flex items-center justify-center space-x-2 mb-4">
               <ErrorBanner error={error || new Error("Unknown error")} />
-              <Button variant="outline" size="sm" onClick={handleReload}>
-                Retry
+              <Button variant="outline" size="sm" onClick={handleRecovery}>
+                {canContinue ? "Continue" : "Retry"}
               </Button>
             </div>
           )}
@@ -1096,21 +1163,8 @@ const ChatPanelBody = () => {
         />
       </div>
 
-      {isLoading && (
-        <div className="w-full flex justify-center items-center z-20 border-t">
-          <Button variant="linkDestructive" size="sm" onClick={stop}>
-            Stop
-          </Button>
-        </div>
-      )}
-
-      {/* For existing threads, we place the chat input at the bottom */}
-      {!isNewThread && (
-        <>
-          {filesPills}
-          {chatInput}
-        </>
-      )}
+      {!isTurnActive && <PendingAICells />}
+      <div className="shrink-0 p-3">{composer}</div>
     </div>
   );
 };

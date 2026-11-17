@@ -18,7 +18,7 @@ function renderBanner(sharing?: {
   store.set(filenameAtom, "/notebooks/my notebook.py");
   store.set(userConfigAtom, {
     ...defaultUserConfig(),
-    sharing,
+    sharing: sharing ?? null,
   });
   window.__MARIMO_STATIC__ = { files: {} };
 

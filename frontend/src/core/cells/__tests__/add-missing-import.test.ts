@@ -107,35 +107,34 @@ describe("maybeAddMissingImport", () => {
         }),
       );
 
-      const createNewCell = vi.fn();
+      const createCell = vi.fn();
       const result = addImport({
         autoInstantiate: false,
-        createNewCell,
+        createCell,
         fromCellId: Cell1,
         before: false,
       });
 
       // Should not create a new cell since the import already exists
-      expect(createNewCell).not.toHaveBeenCalled();
+      expect(createCell).not.toHaveBeenCalled();
       expect(result).toBeNull();
     }
   });
 
   it("should create a marimo import before the source cell when requested", () => {
-    const createNewCell = vi.fn();
+    const createCell = vi.fn();
 
     const result = maybeAddMarimoImport({
       autoInstantiate: false,
-      createNewCell,
+      createCell,
       fromCellId: Cell2,
       before: true,
     });
 
     expect(result).not.toBeNull();
-    expect(createNewCell).toHaveBeenCalledWith(
+    expect(createCell).toHaveBeenCalledWith(
       expect.objectContaining({
-        cellId: Cell2,
-        before: true,
+        before: Cell2,
         code: "import marimo as mo",
       }),
     );

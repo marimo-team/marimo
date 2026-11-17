@@ -17,6 +17,7 @@ import type { DataTableSelection } from "./types";
 
 interface TableBottomBarProps<TData> {
   pagination: boolean;
+  hasNextPage?: boolean;
   totalColumns: number;
   selection?: DataTableSelection;
   onRowSelectionChange?: (value: RowSelectionState) => void;
@@ -30,6 +31,7 @@ interface TableBottomBarProps<TData> {
 
 export const TableBottomBar = <TData,>({
   pagination,
+  hasNextPage,
   totalColumns,
   selection,
   onRowSelectionChange,
@@ -147,7 +149,7 @@ export const TableBottomBar = <TData,>({
     const { totalColumns: effectiveTotalColumns, hiddenColumns } =
       getColumnCountForDisplay(table, totalColumns);
     const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
-      numRows: table.getRowCount(),
+      numRows: hasNextPage === undefined ? table.getRowCount() : "too_many",
       totalColumns: effectiveTotalColumns,
       hiddenColumns,
       locale,
@@ -178,6 +180,7 @@ export const TableBottomBar = <TData,>({
           <DataTablePagination
             table={table}
             tableLoading={tableLoading}
+            hasNextPage={hasNextPage}
             showPageSizeSelector={showPageSizeSelector}
           />
         )}

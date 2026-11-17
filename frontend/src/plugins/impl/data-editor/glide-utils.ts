@@ -8,8 +8,10 @@ import {
 import type { DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
+import { normalizeBoolean } from "./column-types";
 import type {
   ColumnEdit,
+  ColumnType,
   EditorRow,
   Edits,
   ModifiedGridColumn,
@@ -64,7 +66,12 @@ export function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
 export function isValidCellValue(
   dataType: DataType | undefined,
   value: unknown,
+  columnType?: ColumnType,
 ): boolean {
+  if (Array.isArray(columnType)) {
+    return typeof value === "string" && columnType.includes(value);
+  }
+
   switch (dataType) {
     case "number":
       return Number.isFinite(Number(value));
@@ -125,7 +132,6 @@ export function pasteCells(options: {
   const { range } = selection.current;
   const { x: startCol, y: startRow } = range;
 
-  // Read clipboard data
   navigator.clipboard
     .readText()
     .then((clipboardText) => {
@@ -133,49 +139,32 @@ export function pasteCells(options: {
         return;
       }
 
-      // Parse tab-separated values
-      const rows = clipboardText.split("\n").filter((row) => row.trim());
-      const parsedData: string[][] = [];
-
-      for (const row of rows) {
-        const cells = row.split("\t");
-        parsedData.push(cells);
-      }
-
-      if (parsedData.length === 0) {
-        return;
-      }
+      const parsedData = clipboardText
+        .split("\n")
+        .filter((row) => row.trim())
+        .map((row) => row.split("\t"));
 
       const edits: Edits["edits"] = [];
       const editableColumnSet =
         editableColumns === "all" ? null : new Set(editableColumns);
 
       for (const [rowIndex, dataRow] of parsedData.entries()) {
-        if (!dataRow) {
-          continue;
-        }
-
         const targetRowIdx = startRow + rowIndex;
 
-        // Check if we've exceeded the data bounds
         if (targetRowIdx >= data.length) {
           break;
         }
 
         for (const [colIndex, cellValue] of dataRow.entries()) {
-          if (cellValue === undefined) {
-            continue;
-          }
-
           const targetColIdx = startCol + colIndex;
 
-          // Check if we've exceeded the column bounds
           if (targetColIdx >= columns.length) {
             break;
           }
 
           const column = columns[targetColIdx];
-          const columnType = column.dataType;
+          const dataType = column.dataType;
+          const columnType = column.configuredType;
           const editable =
             editableColumnSet === null || editableColumnSet.has(column.title);
 
@@ -183,13 +172,19 @@ export function pasteCells(options: {
             continue;
           }
 
-          // Convert the value based on the cell type
           let convertedValue: unknown = cellValue;
 
-          switch (columnType) {
+          if (
+            Array.isArray(columnType) &&
+            !isValidCellValue(dataType, cellValue, columnType)
+          ) {
+            continue;
+          }
+
+          switch (dataType) {
             case "integer": {
               const numValue = Number(cellValue);
-              if (!isValidCellValue(columnType, cellValue)) {
+              if (!isValidCellValue(dataType, cellValue, columnType)) {
                 continue;
               }
               convertedValue = Number.isSafeInteger(numValue)
@@ -199,17 +194,24 @@ export function pasteCells(options: {
             }
             case "number": {
               const numValue = Number(cellValue);
-              if (!isValidCellValue(columnType, numValue)) {
+              if (!isValidCellValue(dataType, numValue, columnType)) {
                 continue;
               }
               convertedValue = numValue;
               break;
             }
-            case "boolean": {
-              const boolValue = cellValue.toLowerCase();
-              convertedValue = boolValue === "true" || boolValue === "1";
+            case "boolean":
+              if (column.configuredType !== "boolean") {
+                convertedValue =
+                  cellValue.toLowerCase() === "true" || cellValue === "1";
+                break;
+              }
+              try {
+                convertedValue = normalizeBoolean(cellValue, column.title);
+              } catch {
+                continue;
+              }
               break;
-            }
             case "string":
             case "date":
             case "datetime":
@@ -218,16 +220,13 @@ export function pasteCells(options: {
             case "unknown":
               break;
             default:
-              logNever(columnType);
+              logNever(dataType);
               continue;
           }
 
-          // Get the column ID from the columns array using the title
-          const columnId = columns[targetColIdx].title;
-
           edits.push({
             rowIdx: targetRowIdx,
-            columnId,
+            columnId: column.title,
             value: convertedValue,
           });
         }

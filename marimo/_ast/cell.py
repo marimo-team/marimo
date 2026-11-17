@@ -407,16 +407,8 @@ class CellImpl:
         self._run_result_status.state = run_result_status
         self._run_result_status.exception = exception
 
-    def set_stale(
-        self, stale: bool, stream: Stream | None = None, broadcast: bool = True
-    ) -> None:
-        from marimo._messaging.notification_utils import CellNotificationUtils
-
+    def set_stale(self, stale: bool) -> None:
         self._stale.state = stale
-        if broadcast:
-            CellNotificationUtils.broadcast_stale(
-                cell_id=self.cell_id, stale=stale, stream=stream
-            )
 
     def set_output(self, output: Any) -> None:
         self._output.output = output

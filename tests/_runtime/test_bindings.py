@@ -18,6 +18,7 @@ from marimo._messaging.notification import (
 from marimo._runtime import runtime
 from marimo._runtime.commands import (
     DeleteCellCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     UpdateCellConfigCommand,
@@ -30,7 +31,7 @@ from tests._runtime._helpers.session import mocked_kernel_session
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from marimo._config.config import ExecutionType
+    from marimo._config.types import ExecutionType
     from marimo._messaging.notification import NotificationMessage
     from marimo._runtime.runtime import Kernel
     from tests.conftest import MockedKernel
@@ -39,8 +40,14 @@ if TYPE_CHECKING:
 async def run(kernel: Kernel, **cells: str) -> None:
     await kernel.router.dispatch(
         ExecuteCellsCommand(
-            cell_ids=[CellId_t(cid) for cid in cells],
-            codes=list(cells.values()),
+            execution_requests=[
+                ExecuteCellCommand(cell_id=cell_id, code=code)
+                for cell_id, code in zip(
+                    [CellId_t(cid) for cid in cells],
+                    list(cells.values()),
+                    strict=True,
+                )
+            ]
         )
     )
 

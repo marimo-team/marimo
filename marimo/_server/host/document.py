@@ -41,10 +41,11 @@ from marimo._runtime.commands import EditCellsCommand
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
     from marimo._core.document import Document
     from marimo._messaging.notebook import NotebookDocument
+    from marimo._runtime.commands import CommandMessage
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
 
@@ -113,15 +114,21 @@ def to_notebook_cell(cell: DocumentCell) -> NotebookCell:
     )
 
 
-def apply_to_session(session: Session, document: Document) -> None:
+def apply_to_session(
+    session: Session,
+    document: Document,
+    put: Callable[[CommandMessage], None] | None = None,
+) -> None:
     """Apply the document's cells and order to the session as one transaction.
 
     The session tells its consumers, so the frontend sees the edit and
     the host backend mirrors it back as a no-op. The kernel is told of
-    the edit as one command, so nothing runs code the document no longer
-    has: changed code is registered without running, and a cell the edit
-    deletes or disables is gone before any run the deletion causes. The
-    app config is the session's own and is left alone.
+    the edit as one command. Deletions and configs take effect before
+    any run the edit causes, so a cell the edit deletes or disables does
+    not run when a cell it depended on goes. Code reaches the kernel for
+    cells that have never run, so their first run uses it. A cell that
+    has run keeps its code until its next run, and enabling it runs that
+    code. The app config is the session's own and is left alone.
     """
     transaction, command = apply_to_document(session.document, document)
     if transaction is None:
@@ -130,7 +137,12 @@ def apply_to_session(session: Session, document: Document) -> None:
         NotebookDocumentTransactionNotification(transaction=transaction),
         from_consumer_id=None,
     )
-    if command is not None:
+    if command is None:
+        return
+    if put is not None:
+        # The backend keeps the edit in turn with runs it is still preparing.
+        put(command)
+    else:
         session.put_control_request(command, from_consumer_id=None)
 
 

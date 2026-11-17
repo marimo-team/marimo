@@ -1,9 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { JSX } from "react"; /* Copyright 2026 Marimo. All rights reserved. */
-import { useCellActions, useCellIds, useCellNames } from "@/core/cells/cells";
+import { useCellIds, useCellNames } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
+import { scrollToCell } from "@/core/cells/scrollCellIntoView";
 import { goToCellLine } from "@/core/codemirror/go-to-definition/utils";
 import { useFilename } from "@/core/saving/filename";
 import { cn } from "@/utils/cn";
@@ -26,7 +28,7 @@ export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant, onClick, formatCellName, skipScroll } =
     props;
   const cellName = useCellNames()[cellId] ?? "";
-  const cellIndex = useCellIds().inOrderIds.indexOf(cellId);
+  const cellIndex = useCellIds().indexOf(cellId);
   const { showCellIfHidden } = useCellActions();
   const formatName = formatCellName ?? ((name: string) => name);
 
@@ -105,15 +107,14 @@ export function scrollAndHighlightCell(
   skipScroll?: boolean,
 ): boolean {
   const cellHtmlId = HTMLCellId.create(cellId);
-  const cell: HTMLElement | null = document.getElementById(cellHtmlId);
+  const cell = skipScroll
+    ? document.getElementById(cellHtmlId)
+    : scrollToCell(cellId);
   const isCellErrored = cell?.classList.contains("has-error");
 
   if (cell === null) {
     Logger.error(`Cell ${cellHtmlId} not found on page.`);
     return false;
-  }
-  if (!skipScroll) {
-    cell.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   if (variant === "destructive" || (isCellErrored && variant === undefined)) {

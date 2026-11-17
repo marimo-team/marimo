@@ -42,6 +42,7 @@ test("change the cell to a markdown cell and toggle hide code", async ({
   await openCellActions(page, title);
   await page.getByText("Show code").click();
   await expect(cellEditor).toBeVisible();
+  await expect(cellEditor.locator(".cm-content")).toBeFocused();
 
   // Hide code
   await openCellActions(page, title);

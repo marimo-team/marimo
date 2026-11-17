@@ -97,7 +97,10 @@ class Snapshot:
             for name, revision in execution.depends_on.items()
             if (reason := self._dependency(name, revision)) is not None
         ]
-        if execution.code_hash != self.cells[execution.cell_id].code_hash:
+        if (
+            execution.code_fingerprint
+            != self.cells[execution.cell_id].code_fingerprint
+        ):
             reasons.append("edited")
         return min(reasons, key=_ORDER.index, default=None)
 

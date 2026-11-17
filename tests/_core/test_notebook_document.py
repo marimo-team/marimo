@@ -16,11 +16,11 @@ from marimo._core.document import (
     Stale,
     app_config_etag,
     cell_etag,
-    code_hash,
     document_etag,
+    etag,
     order_etag,
 )
-from marimo._core.errors import EditConflict, Invalid
+from marimo._core.errors import Invalid, PreconditionFailed
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -142,14 +142,8 @@ class TestEtags:
         document = Document(fixture_cells(), {"width": "full"})
 
         c1, c3, k7f2 = document
-        assert (c3.code_hash, c3.etag) == (
-            "0f71456db2ea83f4",
-            "5cf78587dcf22d8d",
-        )
-        assert (k7f2.code_hash, k7f2.etag) == (
-            "db2b9ee97e1ecf4c",
-            "f199b5f48ae0aabb",
-        )
+        assert c3.etag == "5cf78587dcf22d8d"
+        assert k7f2.etag == "f199b5f48ae0aabb"
         assert c1.etag == "48d6363150d6281c"
         assert document.order_etag == "b9c412c2d7d63161"
         assert document.app_config_etag == "283513048dfeb45b"
@@ -157,7 +151,7 @@ class TestEtags:
         assert hosted(document).saved_etag == document.etag
 
     def test_are_derived_from_their_parts(self) -> None:
-        hashed = code_hash("x = 21")
+        hashed = etag("x = 21")
         assert cell_etag(hashed, "_", HIDDEN) != cell_etag(
             hashed,
             "_",
@@ -378,6 +372,16 @@ class TestFromRecords:
         assert restored == notebook.document
         assert document.saved_etag != restored.etag
 
+    def test_restoring_recomputes_fingerprints_from_older_schemes(
+        self,
+    ) -> None:
+        notebook = hosted(Document(fixture_cells(), {}))
+        document, cells = records(notebook)
+        cells = [
+            replace(cell, code_fingerprint="previous-scheme") for cell in cells
+        ]
+        assert Document.restore(document, cells) == notebook.document
+
     def test_rejects_withheld_source(self) -> None:
         document, cells = records(hosted(Document(fixture_cells(), {})))
         cells[0] = replace(cells[0], code=None)
@@ -483,7 +487,9 @@ class TestNotebookRecords:
         )
         assert same.document.version == 2
         assert same.cells["c1"] == protocol.CellVersion(
-            etag=cells[0].etag, code_hash=cells[0].code_hash, version=1
+            etag=cells[0].etag,
+            code_fingerprint=cells[0].code_fingerprint,
+            version=1,
         )
 
         # A reload changes content like any edit.
@@ -500,12 +506,12 @@ class TestNotebookRecords:
         before, cells = records(notebook)
         (_, c3, _) = cells
 
-        with pytest.raises(EditConflict) as raised:
+        with pytest.raises(PreconditionFailed) as raised:
             notebook.edit(
                 [put("c3", "x = 22", "0000000000000000")], request_id="e"
             )
 
-        assert raised.value.change == 0
+        assert raised.value.index == 0
         assert raised.value.cell == c3
         assert raised.value.document == before
         assert notebook.document is document
@@ -550,7 +556,7 @@ class TestNotebook:
             cells={
                 "c1": protocol.CellVersion(
                     etag=published.etag,
-                    code_hash=published.code_hash,
+                    code_fingerprint=published.code_fingerprint,
                     version=published.version,
                 )
             },
