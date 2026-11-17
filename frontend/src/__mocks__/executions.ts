@@ -14,6 +14,7 @@ import {
   type NotebookBackend,
   type NotebookReplica,
   type Results,
+  type Result,
 } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 
@@ -71,14 +72,19 @@ function mirror(records: readonly Protocol.Execution[]): Executions {
       variables: new Map(),
     });
   }
-  return { runs: new Map(), executions, latest };
+  return { runs: new Map(), executions, latest, results: results(records) };
 }
 
 function results(records: readonly Protocol.Execution[]): Results {
-  const results = new Map<Protocol.CellId, Protocol.Execution>();
+  const results = new Map<Protocol.CellId, Result | null>();
   for (const record of records) {
-    if (record.cell_id !== null && record.status === "completed") {
-      results.set(record.cell_id, record);
+    if (record.cell_id !== null) {
+      if (!results.has(record.cell_id)) {
+        results.set(record.cell_id, null);
+      }
+      if (record.status === "completed") {
+        results.set(record.cell_id, { record, outputVersion: 0 });
+      }
     }
   }
   return results;

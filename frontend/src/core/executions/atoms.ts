@@ -37,6 +37,7 @@ const NO_EXECUTIONS: Executions = {
   runs: new Map(),
   executions: new Map(),
   latest: new Map(),
+  results: new Map(),
 };
 const NO_RESULTS: Results = new Map();
 const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();
@@ -247,11 +248,10 @@ export function clearCellOutputs(
   const next = new Map(inputs.cleared);
   for (const cellId of cellIds) {
     const shown = shownExecution(inputs, cellId);
-    if (shown?.outcome != null) {
+    if (shown?.record.outcome != null) {
       next.set(cellId, {
-        execution: shown.id,
-        outcome: shown.outcome,
-        version: inputs.executions.executions.get(shown.id)?.outputVersion ?? 0,
+        execution: shown.record.id,
+        version: shown.outputVersion,
       });
     }
   }

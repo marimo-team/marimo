@@ -53,6 +53,7 @@ function setup(runs: Protocol.Run[]) {
     runs: new Map(runs.map((run) => [run.id, run])),
     executions: new Map(),
     latest: new Map(),
+    results: new Map(),
   });
   return { store, replica, interrupt };
 }

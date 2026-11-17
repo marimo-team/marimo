@@ -229,9 +229,7 @@ describe("cellOutputView", () => {
     const first = MockExecutions.completed(C1, {
       outcome: { kind: "value", display: HTML },
     });
-    const cleared = new Map([
-      [C1, { execution: first.id, outcome: first.outcome!, version: 0 }],
-    ]);
+    const cleared = new Map([[C1, { execution: first.id, version: 0 }]]);
     expect(cellOutputView(inputs([first], cleared), C1)).toBeNull();
 
     const second = MockExecutions.completed(C1, {
@@ -240,26 +238,17 @@ describe("cellOutputView", () => {
     expect(cellOutputView(inputs([second], cleared), C1)).not.toBeNull();
   });
 
-  it("hides what a running cell showed when cleared until it shows something new", () => {
+  it("keeps a cleared running display hidden when it completes", () => {
     const running = MockExecutions.completed(C1, {
       status: "running",
       completed_at: null,
       outcome: { kind: "value", display: HTML },
     });
-    const cleared = new Map([
-      [C1, { execution: running.id, outcome: running.outcome!, version: 0 }],
-    ]);
+    const cleared = new Map([[C1, { execution: running.id, version: 0 }]]);
     expect(cellOutputView(inputs([running], cleared), C1)).toBeNull();
 
     const finished = { ...running, status: "completed" as const };
     expect(cellOutputView(inputs([finished], cleared), C1)).toBeNull();
-
-    const more = { mimetype: "text/plain", data: "more" };
-    const grown = {
-      ...running,
-      outcome: { kind: "value" as const, display: more },
-    };
-    expect(cellOutputView(inputs([grown], cleared), C1)?.data).toBe("more");
   });
 });
 

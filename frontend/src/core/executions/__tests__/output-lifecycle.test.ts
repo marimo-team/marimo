@@ -82,4 +82,53 @@ describe("output lifetime", () => {
     disconnect();
     expect(store.get(cellOutputAtom(C1))).toBeNull();
   });
+  it("keeps a changed display visible after its execution retires", async () => {
+    const { store, replica, emit, remove, snapshot } = await setup();
+    const result = MockExecutions.completed(C1, { outcome: value("A") });
+    snapshot([result]);
+    clearCellOutputs(store, [C1]);
+    expect(store.get(cellOutputAtom(C1))).toBeNull();
+
+    emit({ ...result, outcome: value("B") });
+    emit({ ...result, outcome: value("A") });
+    // No reader needs to observe the intermediate display for it to count.
+    snapshot([{ ...result, outcome: value("A") }]);
+    remove(result);
+    const running = MockExecutions.running(C1);
+    emit(running);
+    expect(store.get(replica.executionsAtom).executions.has(result.id)).toBe(
+      false,
+    );
+    expect(store.get(cellOutputAtom(C1))?.data).toBe("A");
+    snapshot([running]);
+    expect(store.get(cellOutputAtom(C1))?.data).toBe("A");
+  });
+
+  it("keeps a clear through completion and retirement, until a newer result", async () => {
+    const { store, emit, remove, snapshot } = await setup();
+    const running = MockExecutions.running(C1);
+    snapshot([running]);
+    emit({ ...running, outcome: value("A") });
+    clearCellOutputs(store, [C1]);
+    expect(store.get(cellOutputAtom(C1))).toBeNull();
+
+    const completed = {
+      ...running,
+      status: "completed" as const,
+      completed_at: MockExecutions.T1,
+      outcome: value("A"),
+    };
+    emit(completed);
+    expect(store.get(cellOutputAtom(C1))).toBeNull();
+    snapshot([completed]);
+    expect(store.get(cellOutputAtom(C1))).toBeNull();
+    remove(completed);
+    const next = MockExecutions.running(C1);
+    emit(next);
+    expect(store.get(cellOutputAtom(C1))).toBeNull();
+    snapshot([next]);
+    expect(store.get(cellOutputAtom(C1))).toBeNull();
+    emit({ ...next, outcome: value("A") });
+    expect(store.get(cellOutputAtom(C1))?.data).toBe("A");
+  });
 });

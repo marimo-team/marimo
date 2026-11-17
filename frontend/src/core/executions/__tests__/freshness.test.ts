@@ -2,7 +2,7 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import { describe, expect, it } from "vitest";
-import type { Execution, Executions } from "@/core/notebook/replica";
+import type { Execution, Executions, Result } from "@/core/notebook/replica";
 import { type CellFreshnessInputs, freshnessOf } from "../freshness";
 
 const T0 = "2026-10-01T09:20:11Z";
@@ -94,6 +94,7 @@ function inputs({
   results?: Protocol.Execution[];
 }): CellFreshnessInputs {
   const stream: Executions = {
+    results: new Map(),
     runs: new Map(),
     executions: new Map(executions.map((e) => [e.record.id, e])),
     latest: new Map(
@@ -102,17 +103,17 @@ function inputs({
       ),
     ),
   };
-  const retained = new Map<Protocol.CellId, Protocol.Execution | null>(
+  const retained = new Map<Protocol.CellId, Result | null>(
     cells.map((c) => [c.id, null]),
   );
   for (const result of results) {
     if (result.cell_id !== null) {
-      retained.set(result.cell_id, result);
+      retained.set(result.cell_id, { record: result, outputVersion: 0 });
     }
   }
   return {
     cells: new Map(cells.map((c) => [c.id, c])),
-    executions: stream,
+    executions: { ...stream, results: retained },
     results: retained,
   };
 }

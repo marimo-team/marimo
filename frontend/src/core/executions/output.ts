@@ -12,7 +12,7 @@
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { CellId } from "@/core/cells/ids";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
-import type { Executions, Results } from "@/core/notebook/replica";
+import type { Executions, Result, Results } from "@/core/notebook/replica";
 
 /** A host error shown as its message and the cells involved. */
 export interface HostDiagnostic {
@@ -33,11 +33,9 @@ export type CellOutput = Omit<OutputMessage, "data"> & {
   readonly data: OutputMessage["data"] | readonly CellError[];
 };
 
-/** What every cell's output derives from. */
-/** The execution a cell showed when it was cleared, and what it showed. */
+/** The execution and display revision hidden by this browser. */
 export interface ClearedOutput {
   readonly execution: Protocol.ExecutionId;
-  readonly outcome: Protocol.Outcome;
   readonly version: number;
 }
 
@@ -244,21 +242,24 @@ function outcomeDisplay(record: Protocol.Execution): CellOutput | null {
 export function shownExecution(
   inputs: Pick<CellOutputInputs, "executions" | "results">,
   id: Protocol.CellId,
-): Protocol.Execution | null {
+): Result | null {
   const latestId = inputs.executions.latest.get(id);
   const latest =
     latestId === undefined
       ? undefined
-      : inputs.executions.executions.get(latestId)?.record;
+      : inputs.executions.executions.get(latestId);
   if (
     latest !== undefined &&
-    latest.outcome !== null &&
-    latest.status !== "completed"
+    latest.record.outcome !== null &&
+    latest.record.status !== "completed"
   ) {
     return latest;
   }
   const result = inputs.results.get(id) ?? null;
-  if (latest?.status === "running" && result?.outcome?.kind === "skipped") {
+  if (
+    latest?.record.status === "running" &&
+    result?.record.outcome?.kind === "skipped"
+  ) {
     return null;
   }
   return result;
@@ -272,26 +273,11 @@ export function shownExecution(
  */
 function stillCleared(
   cleared: ClearedOutput | undefined,
-  record: Protocol.Execution,
-  version: number | undefined,
+  shown: Result,
 ): boolean {
-  if (cleared === undefined || cleared.execution !== record.id) {
-    return false;
-  }
-  if (version !== undefined && cleared.version !== version) {
-    return false;
-  }
-  const before = cleared.outcome;
-  const now = record.outcome;
-  if (before.kind !== "value" || now?.kind !== "value") {
-    return before.kind === now?.kind;
-  }
   return (
-    before.display === now.display ||
-    (before.display !== null &&
-      now.display !== null &&
-      before.display.mimetype === now.display.mimetype &&
-      before.display.data === now.display.data)
+    cleared?.execution === shown.record.id &&
+    cleared.version === shown.outputVersion
   );
 }
 
@@ -301,17 +287,10 @@ export function cellOutputView(
   id: Protocol.CellId,
 ): CellOutput | null {
   const shown = shownExecution(inputs, id);
-  if (
-    shown === null ||
-    stillCleared(
-      inputs.cleared.get(id),
-      shown,
-      inputs.executions.executions.get(shown.id)?.outputVersion,
-    )
-  ) {
+  if (shown === null || stillCleared(inputs.cleared.get(id), shown)) {
     return null;
   }
-  return outcomeOutput(shown, inputs.cells);
+  return outcomeOutput(shown.record, inputs.cells);
 }
 
 /**

@@ -96,7 +96,7 @@ function awaited(inputs: CellExecutionInputs, id: Protocol.CellId): boolean {
   }
   const planned =
     latestOf(inputs.executions, id)?.record.run_id ??
-    inputs.results.get(id)?.run_id;
+    inputs.results.get(id)?.record.run_id;
   for (const run of inputs.executions.runs.values()) {
     if (
       run.status !== "completed" &&
@@ -114,7 +114,7 @@ export function cellExecutionView(
   id: Protocol.CellId,
 ): CellExecutionView {
   const latest = latestOf(inputs.executions, id);
-  const result = inputs.results.get(id) ?? null;
+  const result = inputs.results.get(id)?.record ?? null;
   let status: CellRunStatus = "idle";
   let startedAt = result === null ? null : millis(result.started_at);
   let rendered = false;
