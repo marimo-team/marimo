@@ -238,7 +238,7 @@ class TestIsCodeModeRequest:
 
     def test_run_endpoint(self) -> None:
         req = HTTPRequest(
-            url={"path": "/api/kernel/run"},
+            url={"path": "/api/marimo/v1/notebooks/nb-1/runtime/runs"},
             base_url={},
             headers={},
             query_params={},

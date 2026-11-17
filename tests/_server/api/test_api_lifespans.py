@@ -3,13 +3,56 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from marimo._config.config_schema import MarimoConfig
+from marimo._config.manager import MarimoConfigManager, UserConfigStore
 from marimo._server.api import lifespans
 from marimo._session.model import SessionMode
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+async def test_signal_handler_begins_shutdown_before_manager_cleanup() -> None:
+    state = MagicMock()
+    shutting_down = False
+
+    def begin_shutdown() -> None:
+        nonlocal shutting_down
+        shutting_down = True
+
+    async def shutdown() -> None:
+        assert shutting_down
+
+    state.session_manager.shutdown = AsyncMock(side_effect=shutdown)
+    with (
+        patch.object(lifespans.AppState, "from_app", return_value=state),
+        patch.object(lifespans, "InterruptHandler") as handler,
+    ):
+        handler.return_value.begin_shutdown.side_effect = begin_shutdown
+        async with lifespans.signal_handler(MagicMock()):
+            handler.return_value.listen.assert_called_once_with()
+            assert not shutting_down
+
+    state.session_manager.shutdown.assert_awaited_once_with()
+
+
+async def test_signal_handler_lifespan_in_worker_thread() -> None:
+    state = MagicMock()
+    state.session_manager.shutdown = AsyncMock()
+
+    async def run_lifespan() -> None:
+        async with lifespans.signal_handler(MagicMock()):
+            pass
+
+    with patch.object(lifespans.AppState, "from_app", return_value=state):
+        await asyncio.to_thread(lambda: asyncio.run(run_lifespan()))
+
+    state.session_manager.shutdown.assert_awaited_once_with()
 
 
 async def test_browser_launch_does_not_block_event_loop_or_lifespan() -> None:
@@ -125,3 +168,53 @@ async def test_lsp_cleanup_after_error() -> None:
                 raise RuntimeError("server failed")
 
     cancel_and_wait.assert_awaited_once_with(task)
+
+
+async def test_mcp_startup_preserves_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("")
+    user = UserConfigStore()
+    monkeypatch.setattr(user, "get_config_path", lambda: str(config_path))
+    manager = MarimoConfigManager(user).with_overrides(
+        {
+            "mcp": {
+                "mcpServers": {
+                    "local": {
+                        "command": "example",
+                        "env": {"API_KEY": "test-secret"},
+                    },
+                    "remote": {
+                        "url": "https://example.com/mcp",
+                        "headers": {"Authorization": "Bearer test-secret"},
+                    },
+                }
+            }
+        }
+    )
+    state = MagicMock()
+    state.config_manager = manager
+    state.session_manager.mode = SessionMode.EDIT
+    configured = asyncio.Event()
+    client = MagicMock()
+    client.configure = AsyncMock(side_effect=lambda _config: configured.set())
+    client.disconnect_from_all_servers = AsyncMock()
+    monkeypatch.setattr(lifespans.AppState, "from_app", lambda _app: state)
+    monkeypatch.setattr("marimo._server.ai.mcp.get_mcp_client", lambda: client)
+    monkeypatch.setattr(lifespans, "print_mcp_client", lambda _config: None)
+
+    async with lifespans.mcp(MagicMock()):
+        await asyncio.wait_for(configured.wait(), timeout=1)
+
+    client.configure.assert_awaited_once_with(
+        manager.get_config(hide_secrets=False).mcp
+    )
+    client.disconnect_from_all_servers.assert_awaited_once_with()
+    assert manager.get_config().mcp.to_dict() == {
+        "mcpServers": {
+            "local": {"command": "example"},
+            "remote": {"url": "https://example.com/mcp"},
+        },
+        "presets": [],
+    }

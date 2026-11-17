@@ -10,13 +10,15 @@ from marimo._core import calls, protocol
 from marimo._core.backend import RequestInfo
 from marimo._core.calls import (
     CALLS,
+    CancelCall,
     InterruptCall,
     MutationHeaders,
+    NotebookParams,
     OperationCall,
     RunParams,
 )
 from marimo._core.operations import NotebookBridge
-from protocols.host.generate import compose
+from tests.utils import host_openapi
 
 NOTEBOOK = protocol.NotebookId("n1")
 
@@ -29,22 +31,50 @@ def test_calls_decode_from_request_parts() -> None:
 
     headers = {"idempotency-key": "k", "authorization": "Bearer t"}
     assert decode(
-        operation="runtime.interrupt",
+        operation="runtime.cancel",
         params={"notebook_id": "n1", "run_id": "r1"},
         headers=headers,
-    ) == InterruptCall(
+    ) == CancelCall(
         RunParams(NOTEBOOK, protocol.RunId("r1")), MutationHeaders("k")
     )
+    assert decode(
+        operation="runtime.interrupt",
+        params={"notebook_id": "n1"},
+        headers=headers,
+    ) == InterruptCall(NotebookParams(NOTEBOOK), MutationHeaders("k"))
     for invalid in (
-        {"operation": "runtime.interrupt", "params": {"notebook_id": "n1"}},
+        {"operation": "runtime.cancel", "params": {"notebook_id": "n1"}},
         {"operation": "notebook.missing", "params": {"notebook_id": "n1"}},
     ):
         with pytest.raises(msgspec.ValidationError):
             decode(**invalid, headers=headers)
 
 
+@pytest.mark.parametrize(
+    ("operation", "body"),
+    [
+        ("runtime.run", {"code": "1"}),
+        ("runtime.run", {"cells": []}),
+        ("runtime.run", {"cells": [{"id": "c1"}], "code": "1"}),
+        ("runtime.execute", {"cells": [{"id": "c1"}]}),
+        ("runtime.execute", {"code": "1", "cells": [{"id": "c1"}]}),
+    ],
+)
+def test_execution_calls_reject_the_other_operations_payload(operation, body):
+    with pytest.raises(msgspec.ValidationError):
+        msgspec.convert(
+            {
+                "operation": operation,
+                "params": {"notebook_id": "n1"},
+                "headers": {"idempotency-key": "k"},
+                "body": body,
+            },
+            OperationCall,
+        )
+
+
 def test_calls_match_the_spec() -> None:
-    document = compose()
+    document = host_openapi()
 
     def resolve(value: dict[str, Any]) -> dict[str, Any]:
         if "$ref" not in value:

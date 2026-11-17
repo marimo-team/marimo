@@ -10,7 +10,7 @@ import {
   type OperationCall,
   type OperationsBelow,
   request,
-  type Result,
+  type ResultOf,
   type Target,
 } from "../request.ts";
 import { NotebookEvents, type NotebookEventsOptions } from "./events.ts";
@@ -58,19 +58,19 @@ class NotebookOperations {
   public update(
     changes: Protocol.UpdateNotebookRequest,
     options?: MutationOptions,
-  ): Promise<Result<Protocol.NotebookOutput>> {
+  ): Promise<ResultOf<"notebook.update">> {
     return this.#send("notebook.update", { body: changes, options });
   }
 
   /** Delete the notebook. */
-  public delete(options?: MutationOptions): Promise<Result<undefined>> {
+  public delete(
+    options?: MutationOptions,
+  ): Promise<ResultOf<"notebook.delete">> {
     return this.#send("notebook.delete", { options });
   }
 
   /** Ask the host for a URL that opens the notebook for people. */
-  public open(
-    options?: MutationOptions,
-  ): Promise<Result<Protocol.OpenNotebookResponseOutput>> {
+  public open(options?: MutationOptions): Promise<ResultOf<"notebook.open">> {
     return this.#send("notebook.open", { options });
   }
 
@@ -78,7 +78,7 @@ class NotebookOperations {
   public edit(
     changes: readonly Protocol.Change[],
     options?: MutationOptions,
-  ): Promise<Result<Protocol.EditResponseOutput>> {
+  ): Promise<ResultOf<"notebook.edit">> {
     return this.#send("notebook.edit", {
       body: { changes: [...changes] },
       options,
@@ -86,20 +86,16 @@ class NotebookOperations {
   }
 
   /** Write the document to the notebook's store. */
-  public save(
-    options?: SaveOptions,
-  ): Promise<Result<Protocol.EditResponseOutput>> {
+  public save(options?: SaveOptions): Promise<ResultOf<"notebook.save">> {
     return this.#send("notebook.save", {
       body: { decisions: options?.decisions },
-      headers: { "If-Match": options?.ifMatch },
+      headers: { "if-match": options?.ifMatch },
       options,
     });
   }
 
   /** Start a runtime for the notebook. */
-  public start(
-    options?: DecisionOptions,
-  ): Promise<Result<Protocol.RuntimeOutput>> {
+  public start(options?: DecisionOptions): Promise<ResultOf<"runtime.start">> {
     return this.#send("runtime.start", {
       body: { decisions: options?.decisions },
       options,
@@ -107,37 +103,47 @@ class NotebookOperations {
   }
 
   /** Stop the notebook's runtime. */
-  public stop(
-    options?: MutationOptions,
-  ): Promise<Result<Protocol.RuntimeOutput>> {
+  public stop(options?: MutationOptions): Promise<ResultOf<"runtime.stop">> {
     return this.#send("runtime.stop", { options });
   }
 
   /** Restart the notebook's runtime. */
   public restart(
     options?: MutationOptions,
-  ): Promise<Result<Protocol.RuntimeOutput>> {
+  ): Promise<ResultOf<"runtime.restart">> {
     return this.#send("runtime.restart", { options });
   }
 
-  /** Run document cells in the notebook's runtime. */
+  /**
+   * Run notebook cells.
+   *
+   * The notebook's execution settings determine which dependent cells also run.
+   * Follow the notebook stream for progress and results.
+   */
   public run({
     cells,
     ...options
-  }: { readonly cells: Protocol.RequestedCell[] } & MutationOptions): Promise<
-    Result<Protocol.RunOutput>
-  > {
+  }: Protocol.RunRequest & MutationOptions): Promise<ResultOf<"runtime.run">> {
     return this.#send("runtime.run", { body: { cells }, options });
   }
 
-  /** Execute scratch code in the notebook's runtime. */
+  /**
+   * Execute Python code.
+   *
+   * The code can use the notebook's current values. Assignments stay local to
+   * this call, but changes to shared objects persist.
+   *
+   * On marimo hosts, `marimo._code_mode.get_context()` provides access to
+   * cells, captured outputs, and notebook editing methods.
+   * Follow the notebook stream for progress and results.
+   */
   public execute({
     code,
     ...options
-  }: { readonly code: string } & MutationOptions): Promise<
-    Result<Protocol.RunOutput>
+  }: Protocol.ExecuteRequest & MutationOptions): Promise<
+    ResultOf<"runtime.execute">
   > {
-    return this.#send("runtime.run", { body: { code }, options });
+    return this.#send("runtime.execute", { body: { code }, options });
   }
 
   /** Answer one pending input. Acceptance does not imply execution resumed. */
@@ -145,7 +151,7 @@ class NotebookOperations {
     inputId: Protocol.ItemId,
     reply: Protocol.InputReplyRequest,
     options?: MutationOptions,
-  ): Promise<Result<Protocol.InputOutput>> {
+  ): Promise<ResultOf<"runtime.input">> {
     return this.#send("runtime.input", {
       params: { input_id: inputId },
       body: reply,
@@ -153,12 +159,21 @@ class NotebookOperations {
     });
   }
 
-  /** Interrupt a run. */
+  /** Interrupt active work and end queued runs in the notebook's runtime. */
   public interrupt(
-    runId: Protocol.RunId,
     options?: MutationOptions,
-  ): Promise<Result<Protocol.RunOutput>> {
-    return this.#send("runtime.interrupt", {
+  ): Promise<ResultOf<"runtime.interrupt">> {
+    return this.#send("runtime.interrupt", { options });
+  }
+
+  /** Cancel one run without affecting other runs. */
+  public cancel({
+    runId,
+    ...options
+  }: { readonly runId: Protocol.RunId } & MutationOptions): Promise<
+    ResultOf<"runtime.cancel">
+  > {
+    return this.#send("runtime.cancel", {
       params: { run_id: runId },
       options,
     });

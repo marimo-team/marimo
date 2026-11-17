@@ -169,7 +169,12 @@ class AppHost:
             cmd = list(self._plan.argv)
             env = self._plan.env
         else:
-            cmd = [sys.executable, "-m", "marimo._session.app_host.main"]
+            cmd = [
+                sys.executable,
+                "-P",
+                "-m",
+                "marimo._session.app_host.main",
+            ]
             env = None
         LOGGER.debug("Launching app host: %s", " ".join(cmd))
 

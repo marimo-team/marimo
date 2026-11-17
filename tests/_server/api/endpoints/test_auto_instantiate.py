@@ -3,25 +3,24 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
-from marimo._messaging.notification import KernelReadyNotification
-from marimo._session.model import SessionMode
-from marimo._utils.parse_dataclass import parse_raw
-from tests._server.api.endpoints.ws_helpers import receive_notification
-from tests._server.mocks import token_header
+import pytest
+
+from marimo._session.session import SessionImpl
+from marimo._types.ids import SessionId
+from tests._server.api.endpoints.ws_helpers import (
+    receive_notification,
+    receive_until,
+)
+from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
-
-def _create_headers(session_id: str) -> dict[str, str]:
-    """Create headers with both token and session ID."""
-    return {
-        **token_header("fake-token"),
-        "Marimo-Session-Id": session_id,
-    }
+    from marimo._config.manager import UserConfigStore
 
 
 def _create_ws_url(session_id: str) -> str:
@@ -31,107 +30,58 @@ def _create_ws_url(session_id: str) -> str:
 class TestAutoInstantiateEditMode:
     """Tests for auto-instantiate in edit mode."""
 
-    def test_kernel_ready_auto_instantiated_false_in_edit_mode(
-        self, client: TestClient
+    @pytest.mark.parametrize("auto_instantiate", [True, False])
+    def test_a_new_session_runs_the_notebook_when_autorun_is_on(
+        self,
+        client: TestClient,
+        user_config_manager: UserConfigStore,
+        auto_instantiate: bool,
     ) -> None:
-        """In edit mode, auto_instantiated should be False."""
-        session_id = "test-edit-mode"
-        ws_url = _create_ws_url(session_id)
+        Path(user_config_manager.get_config_path()).write_text(
+            f"[runtime]\nauto_instantiate = {str(auto_instantiate).lower()}\n"
+        )
+        session_id = "test-edit-startup"
 
-        with client.websocket_connect(ws_url) as websocket:
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
+        with client.websocket_connect(_create_ws_url(session_id)) as websocket:
+            assert receive_notification(websocket)["op"] == "kernel-ready"
+            receive_until("completed-run", websocket)
 
-            kernel_ready = parse_raw(data["data"], KernelReadyNotification)
-            # In edit mode, auto_instantiated should be False
-            assert kernel_ready.auto_instantiated is False
-
-    def test_instantiate_endpoint_allowed_in_edit_mode(
-        self, client: TestClient
-    ) -> None:
-        """In edit mode, /instantiate endpoint should be allowed."""
-        session_id = "test-instantiate-edit"
-        ws_url = _create_ws_url(session_id)
-        headers = _create_headers(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            # Wait for the session to be fully established
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            # The /instantiate endpoint should work in edit mode
-            response = client.post(
-                "/api/kernel/instantiate",
-                headers=headers,
-                json={"objectIds": [], "values": [], "autoRun": False},
+            session = get_session_manager(client).get_session(
+                SessionId(session_id)
             )
-            assert response.status_code == 200
+            assert session is not None
+            (cell_id,) = session.app_file_manager.app.cell_manager.cell_ids()
+            ran = cell_id in session.session_view.last_execution_time
+            assert ran is auto_instantiate
 
-
-class TestAutoInstantiateRunMode:
-    """Tests for auto-instantiate in run mode."""
-
-    def test_kernel_ready_auto_instantiated_true_in_run_mode(
+    def test_reconnecting_does_not_instantiate_again(
         self, client: TestClient
     ) -> None:
-        """In run mode, auto_instantiated should be True."""
-        from tests._server.mocks import get_session_manager
+        ws_url = _create_ws_url("test-edit-reconnect")
 
-        session_manager = get_session_manager(client)
-        session_id = "test-run-mode"
+        with patch.object(
+            SessionImpl,
+            "instantiate",
+            autospec=True,
+            side_effect=SessionImpl.instantiate,
+        ) as instantiate:
+            with client.websocket_connect(ws_url) as websocket:
+                assert receive_notification(websocket)["op"] == "kernel-ready"
+                receive_until("completed-run", websocket)
+            with client.websocket_connect(ws_url) as websocket:
+                assert receive_notification(websocket)["op"] == "alert"
 
-        # Switch to run mode
-        session_manager.mode = SessionMode.RUN
-        ws_url = _create_ws_url(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            kernel_ready = parse_raw(data["data"], KernelReadyNotification)
-            # In run mode, auto_instantiated should be True
-            assert kernel_ready.auto_instantiated is True
-
-    def test_instantiate_endpoint_blocked_in_run_mode(
-        self, client: TestClient
-    ) -> None:
-        """In run mode, /instantiate endpoint should return 401 (Unauthorized).
-
-        The @requires("edit") decorator checks for edit permissions, and in run mode
-        users only have "read" permissions, so they get 401 Unauthorized.
-        """
-        from tests._server.mocks import get_session_manager
-
-        session_manager = get_session_manager(client)
-        session_id = "test-instantiate-run"
-        headers = _create_headers(session_id)
-
-        session_manager.mode = SessionMode.RUN
-        ws_url = _create_ws_url(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            # Wait for the session to be fully established
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            # The /instantiate endpoint should be blocked in run mode
-            # Returns 401 because @requires("edit") checks permissions
-            response = client.post(
-                "/api/kernel/instantiate",
-                headers=headers,
-                json={"objectIds": [], "values": [], "autoRun": False},
-            )
-            assert response.status_code == 401
+        assert instantiate.call_count == 1
 
 
 class TestAutoInstantiateHTTPRequest:
     """Tests for HTTP request propagation during auto-instantiate."""
 
     def test_auto_instantiate_passes_http_request(self) -> None:
-        """Verify _auto_instantiate passes HTTPRequest from the connection.
+        """Verify _instantiate passes HTTPRequest from the connection.
 
         This verifies the fix for the issue where mo.app_meta().request
-        returned None in run mode because _auto_instantiate was passing
+        returned None in run mode because the server's instantiate was passing
         http_request=None instead of extracting it from the connection.
         """
         from marimo._server.api.endpoints.ws.ws_session_connector import (
@@ -152,7 +102,7 @@ class TestAutoInstantiateHTTPRequest:
             "marimo._runtime.commands.HTTPRequest.from_request",
             return_value=mock_http_request,
         ) as mock_from_request:
-            connector._auto_instantiate(mock_session)
+            connector._instantiate(mock_session)
 
         mock_from_request.assert_called_once_with(connector.connection)
         assert (
@@ -207,29 +157,3 @@ class TestInstantiateNotebookRequest:
             "cell2": "x = 1",
         }
         assert request_with_codes.auto_run is True
-
-    def test_instantiate_endpoint_without_codes_uses_file_codes(
-        self, client: TestClient
-    ) -> None:
-        """Test that instantiate without codes uses file codes."""
-        session_id = "test-file-codes"
-        ws_url = _create_ws_url(session_id)
-        headers = _create_headers(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            # Get the kernel-ready message
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            # Send instantiate without codes (should use file codes)
-            response = client.post(
-                "/api/kernel/instantiate",
-                headers=headers,
-                json={
-                    "objectIds": [],
-                    "values": [],
-                    "autoRun": True,
-                    # No codes field
-                },
-            )
-            assert response.status_code == 200

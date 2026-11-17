@@ -84,7 +84,12 @@ export const UserConfigSchema = z
         signature_hint_on_typing: z.boolean().prefault(false),
         auto_close_pairs: z.boolean().prefault(true),
         copilot: z
-          .union([z.boolean(), z.enum(["github", "codeium", "custom"])])
+          .union([
+            z.boolean(),
+            z.enum(["github", "custom"]),
+            // Disable legacy Codeium selections without resetting other settings.
+            z.literal("codeium").transform(() => false as const),
+          ])
           .prefault(false)
           .transform((copilot) => {
             if (copilot === true) {
@@ -92,7 +97,6 @@ export const UserConfigSchema = z
             }
             return copilot;
           }),
-        codeium_api_key: z.string().nullish(),
       })
       .prefault({}),
     save: z
@@ -219,8 +223,24 @@ export const UserConfigSchema = z
       .prefault(() => ({})),
     server: z
       .looseObject({
+        host: z.string().optional(),
+        port: z.number().int().min(0).max(65535).nullish(),
+        proxy: z.string().nullish(),
+        base_url: z.string().optional(),
+        allow_origins: z.array(z.string()).optional(),
+        headless: z.boolean().optional(),
+        watch: z.boolean().optional(),
+        skew_protection: z.boolean().optional(),
+        timeout: z.number().nullish(),
+        session_ttl: z.number().int().nullish(),
+        token: z.boolean().optional(),
+        token_password: z.string().nullish(),
+        token_password_file: z.string().nullish(),
+        include_code: z.boolean().optional(),
+        redirect_console_to_browser: z.boolean().optional(),
         skip_update_check: z.boolean().optional(),
         session_cookie_secure: z.boolean().optional(),
+        session_cookie_partitioned: z.boolean().optional(),
         session_secret: z.string().nullish().prefault(null),
         disable_file_downloads: z.boolean().prefault(false),
         transport: z.enum(["websocket", "sse"]).optional(),

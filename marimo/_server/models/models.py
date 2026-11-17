@@ -11,11 +11,8 @@ from marimo._runtime.commands import (
     CodeCompletionCommand,
     DebugCellCommand,
     DiscoverDataSourcesCommand,
-    ExecuteCellCommand,
-    ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     GetCacheInfoCommand,
-    HTTPRequest,
     InstallPackagesCommand,
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
@@ -248,32 +245,6 @@ class FocusCellRequest(msgspec.Struct, rename="camel"):
     cell_id: CellId_t
 
 
-class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
-    # ids of cells to run
-    cell_ids: list[CellId_t]
-    # code to register/run for each cell
-    codes: list[str]
-    # incoming request, e.g. from Starlette or FastAPI
-    request: HTTPRequest | None = None
-
-    def as_command(self) -> ExecuteCellsCommand:
-        return ExecuteCellsCommand(
-            execution_requests=[
-                ExecuteCellCommand(cell_id=cell_id, code=code)
-                for cell_id, code in zip(
-                    self.cell_ids, self.codes, strict=True
-                )
-            ],
-            request=self.request,
-        )
-
-    # Validate same length
-    def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
-
-
 class SaveLayoutRequest(msgspec.Struct, rename="camel"):
     """The notebook's layout, written beside it; `None` removes it."""
 
@@ -297,10 +268,6 @@ class SaveUserConfigurationRequest(msgspec.Struct, rename="camel"):
     config: dict[str, Any]
 
 
-class StdinRequest(msgspec.Struct, rename="camel"):
-    text: str
-
-
 class InvokeAiToolRequest(msgspec.Struct, rename="camel"):
     tool_name: str
     arguments: dict[str, Any]
@@ -310,6 +277,15 @@ class InvokeAiToolResponse(BaseResponse):
     tool_name: str
     result: Any
     error: str | None = None
+
+
+class ProviderModel(msgspec.Struct, rename="camel"):
+    id: str
+    name: str
+
+
+class ProviderModelsResponse(msgspec.Struct, rename="camel"):
+    models: list[ProviderModel]
 
 
 class MCPStatusResponse(msgspec.Struct, rename="camel"):

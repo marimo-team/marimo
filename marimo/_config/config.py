@@ -116,6 +116,9 @@ def merge_config_dict(
     merged = deep_merge(config, new_config, replace_paths=replace_paths)
 
     # Patches for backward compatibility
+    completion = merged.get("completion")
+    if isinstance(completion, dict) and completion.get("copilot") == "codeium":
+        merged["completion"] = {**completion, "copilot": False}
     if "runtime" in merged:
         if merged["runtime"].get("auto_reload") is False:
             merged["runtime"]["auto_reload"] = "off"

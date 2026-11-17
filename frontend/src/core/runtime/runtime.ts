@@ -14,13 +14,10 @@ const knownQueryParams = new Set(Object.values(KnownQueryParams));
 
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
-  private starting: Promise<void> | undefined;
   private config: RuntimeConfig;
-  private lazy: boolean;
 
-  public constructor(config: RuntimeConfig, lazy = false) {
+  public constructor(config: RuntimeConfig) {
     this.config = config;
-    this.lazy = lazy;
     // Validate the URL on construction
     try {
       new URL(this.config.url);
@@ -30,14 +27,6 @@ export class RuntimeManager {
         { cause: error },
       );
     }
-
-    if (!this.lazy) {
-      this.init();
-    }
-  }
-
-  public get isLazy(): boolean {
-    return this.lazy;
   }
 
   public get httpURL(): URL {
@@ -344,25 +333,6 @@ export class RuntimeManager {
    */
   public async waitForHealthy(): Promise<void> {
     return this.initialHealthyCheck.promise;
-  }
-
-  /**
-   * Start the runtime once and wait until it is healthy.
-   *
-   * A run, the connect button, and the notebook stream can each ask for
-   * the runtime, so the first call starts it and later calls join that
-   * attempt. An attempt that gave up is forgotten, so the next call tries
-   * again instead of failing on the old result.
-   */
-  public start(): Promise<void> {
-    this.starting ??= this.init()
-      .then(() => this.waitForHealthy())
-      .catch((error: unknown) => {
-        this.starting = undefined;
-        this.initialHealthyCheck = new Deferred<void>();
-        throw error;
-      });
-    return this.starting;
   }
 
   public headers(): KnownHeaders {

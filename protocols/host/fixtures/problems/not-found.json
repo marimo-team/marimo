@@ -1,5 +1,5 @@
 {
-  "type": "tag:marimo.io,2026:host/not-found",
+  "type": "urn:marimo:problem:not-found",
   "title": "Not found",
   "status": 404,
   "detail": "No notebook with id n9."

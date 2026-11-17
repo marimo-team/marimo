@@ -6,7 +6,6 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import type { createStore } from "jotai";
 import type { DocumentModel } from "@/core/notebook/document";
 import { toast } from "@/components/ui/use-toast";
-import { startRuntimeIfLazy } from "@/core/runtime/config";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
@@ -19,18 +18,6 @@ import {
 } from "./atoms";
 
 type Store = ReturnType<typeof createStore>;
-
-/**
- * Start a lazy runtime and wait until the host reports it running.
- *
- * The host refuses a run while its runtime is not running, so a request
- * made during startup waits here instead of failing. It rejects once the
- * runtime cannot come up, so the request is not left waiting.
- */
-export async function waitForRuntime(store: Store): Promise<void> {
-  await startRuntimeIfLazy();
-  await waitForRuntimeRunning(store);
-}
 
 /**
  * Get this browser's edits to the host before a command that names cells.
@@ -69,7 +56,7 @@ export async function runCells(
   // notebook, has been seen.
   let request = requestRun(store, cellIds);
   try {
-    await waitForRuntime(store);
+    await waitForRuntimeRunning(store);
     request ??= requestRun(store, cellIds);
     if (request === null) {
       throw new Error("No notebook is shown");

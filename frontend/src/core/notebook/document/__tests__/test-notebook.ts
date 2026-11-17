@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Result } from "@marimo-team/client";
+import type { ResultOf } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, type createStore } from "jotai/vanilla";
 import { vi } from "vitest";
@@ -23,6 +23,12 @@ export function createTestNotebook(
 ) {
   const host = createTestHost(initial);
   const source = atom<Document | null>(initial);
+  // Like the replica, a reset empties the source but keeps what is shown.
+  const shown = atom<Document | null>(initial);
+  function deliver(document: Document) {
+    store.set(source, document);
+    store.set(shown, document);
+  }
   const requests: PendingRequest[] = [];
   const waiting: Deferred<PendingRequest>[] = [];
   const documents: Document[] = [];
@@ -41,8 +47,8 @@ export function createTestNotebook(
       "The test host answers edits that carry a key and a signal",
     );
     signal.throwIfAborted();
-    const reply = new Deferred<Result<Protocol.EditResponseOutput>>();
-    let outcome: Result<Protocol.EditResponseOutput> | undefined;
+    const reply = new Deferred<ResultOf<"notebook.edit">>();
+    let outcome: ResultOf<"notebook.edit"> | undefined;
     const abort = () => reply.reject(signal.reason);
     const finish = () => signal.removeEventListener("abort", abort);
     signal.addEventListener("abort", abort, { once: true });
@@ -82,6 +88,7 @@ export function createTestNotebook(
   });
   const notebook = {
     documentAtom: source,
+    shownDocumentAtom: shown,
     backendAtom: atom(fakeBackend({ edit })),
     edit,
   };
@@ -112,8 +119,9 @@ export function createTestNotebook(
             kind: "put_cell",
             base_etag: cell.etag,
             cell: {
-              ...cell,
+              id,
               code: cell.code,
+              name: cell.name,
               ...patch,
               config: { ...cell.config, ...patch.config },
             },
@@ -134,7 +142,7 @@ export function createTestNotebook(
           next !== undefined,
           "No document update is waiting for delivery",
         );
-        store.set(source, next);
+        deliver(next);
       },
       reset() {
         documents.length = 0;
@@ -142,7 +150,12 @@ export function createTestNotebook(
       },
       deliverSnapshot() {
         documents.length = 0;
-        store.set(source, host.document());
+        deliver(host.document());
+      },
+      /** Complete a reset with another notebook, as session brokering can. */
+      deliverSnapshotOf(document: Document) {
+        documents.length = 0;
+        deliver(document);
       },
     },
   };

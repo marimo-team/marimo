@@ -555,41 +555,6 @@ async def test_anthropic_request_with_tool_history() -> None:
     }
 
 
-@pytest.mark.skipif(
-    not DependencyManager.anthropic.has()
-    or not DependencyManager.pydantic_ai.has(),
-    reason="anthropic or pydantic_ai not installed",
-)
-def test_anthropic_process_part_text_file() -> None:
-    """Test Anthropic converts text file parts to text parts."""
-    from pydantic_ai.ui.vercel_ai.request_types import FileUIPart, TextUIPart
-
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = AnthropicProvider("claude-3-opus-20240229", config)
-
-    # Test text file conversion - base64 encoded "Hello, World!"
-    text_file_part = FileUIPart(
-        type="file",
-        media_type="text/plain",
-        url="data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==",
-        filename="test.txt",
-    )
-    result = provider.process_part(text_file_part)
-    assert isinstance(result, TextUIPart)
-    assert result.text == "Hello, World!"
-
-    # Test image file is not converted
-    image_file_part = FileUIPart(
-        type="file",
-        media_type="image/png",
-        url="data:image/png;base64,iVBORw0KGgo=",
-        filename="test.png",
-    )
-    result = provider.process_part(image_file_part)
-    assert isinstance(result, FileUIPart)
-    assert result.media_type == "image/png"
-
-
 @pytest.mark.parametrize(
     ("provider_kind", "model_name", "base_url", "expected_thinking"),
     [
@@ -686,31 +651,61 @@ def test_openai_default_thinking(
         pytest.param(
             "claude-opus-4-7",
             # Opus 4.7 disallows sampling settings, so no temperature.
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_7_adaptive_no_sampling",
         ),
         pytest.param(
             "claude-opus-4-6",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_6",
         ),
         pytest.param(
             "claude-sonnet-4-6",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_4_6",
         ),
         pytest.param(
             "claude-opus-4-5-20251101",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="opus_4_5",
         ),
         pytest.param(
             "claude-3-7-sonnet-20250219",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_3_7",
         ),
@@ -722,7 +717,13 @@ def test_openai_default_thinking(
         # corrected upstream, behavior here will follow automatically.
         pytest.param(
             "claude-3-5-sonnet-20241022",
-            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
+            {
+                "max_tokens": 1024,
+                "anthropic_cache": True,
+                "anthropic_cache_instructions": True,
+                "anthropic_cache_tool_definitions": True,
+                "thinking": True,
+            },
             True,
             id="sonnet_3_5_trusts_profile",
         ),

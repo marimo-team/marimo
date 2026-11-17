@@ -16,6 +16,9 @@ OPERATIONS = [
     "runtime.restart",
     "runtime.run",
     "runtime.input",
+    "runtime.execute",
+    "runtime.interrupt",
+    "runtime.cancel",
 ]
 """Supported operations advertised in the `host` object."""
 

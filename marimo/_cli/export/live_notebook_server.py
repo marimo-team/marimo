@@ -94,6 +94,7 @@ class LiveNotebookServer(AbstractContextManager["LiveNotebookServer"]):
 
         command = [
             sys.executable,
+            "-P",
             "-m",
             "marimo",
             # We don't want to prompt for anything.

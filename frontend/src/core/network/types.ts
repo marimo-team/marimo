@@ -72,7 +72,6 @@ export type SandboxResponse = schemas["SandboxResponse"];
 export type UpdateManifestRequest = schemas["UpdateManifestRequest"];
 export type SyncSandboxResponse = schemas["SyncSandboxResponse"];
 export type PackageOperationResponse = schemas["PackageOperationResponse"];
-export type InstantiateNotebookRequest = schemas["InstantiateNotebookRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
 export type ListSecretKeysRequest = schemas["ListSecretKeysRequest"];
@@ -116,7 +115,6 @@ export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
 export type Snippet = schemas["Snippet"];
 export type SnippetSection = schemas["SnippetSection"];
 export type Snippets = schemas["Snippets"];
-export type StdinRequest = schemas["StdinRequest"];
 export type SuccessResponse = schemas["SuccessResponse"];
 export type UpdateUIElementValuesRequest =
   schemas["UpdateUIElementValuesRequest"];
@@ -148,7 +146,6 @@ export type StorageDownloadRequest = schemas["StorageDownloadRequest"];
 export interface RunRequests {
   sendComponentValues: (request: UpdateUIElementValuesRequest) => Promise<null>;
   sendModelValue: (request: ModelRequest) => Promise<null>;
-  sendInstantiate: (request: InstantiateNotebookRequest) => Promise<null>;
   sendFunctionRequest: (request: InvokeFunctionRequest) => Promise<null>;
 }
 
@@ -163,9 +160,7 @@ export interface EditRequests {
    */
   saveLayout: (request: SaveLayoutRequest) => Promise<null>;
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
-  sendStdin: (request: StdinRequest) => Promise<null>;
   sendRunScratchpad: (request: ExecuteScratchpadRequest) => Promise<null>;
-  sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatCellsRequest) => Promise<FormatResponse>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;

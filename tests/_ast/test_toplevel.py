@@ -603,6 +603,27 @@ class GenericTypeParameter[T]:
         status = TopLevelStatus.from_cell(cell, BUILTINS)
         assert status.type == TopLevelType.TOPLEVEL, status.hint
 
+    @staticmethod
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="Requires Python 3.12+ for generic type parameter syntax",
+    )
+    @pytest.mark.parametrize(
+        "code",
+        [
+            "class Box[T]:\n    item: T",
+            "class Box[T](list[T]): ...",
+        ],
+    )
+    def test_class_generic_type_parameter_in_body_and_bases(
+        code: str,
+    ) -> None:
+        from marimo._ast.compiler import compile_cell
+
+        cell = compile_cell(code, cell_id="test")
+        status = TopLevelStatus.from_cell(cell, BUILTINS)
+        assert status.type == TopLevelType.TOPLEVEL, status.hint
+
 
 class TestTopLevelHook:
     @staticmethod

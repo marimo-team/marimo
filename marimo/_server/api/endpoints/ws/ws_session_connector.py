@@ -182,10 +182,7 @@ class SessionConnector:
 
         await self.handler._prepare_session(new_session)
         self._notify_kernel_ready(new_session)
-
-        # In run mode, auto-instantiate server-side (frontend won't call it)
-        if self._is_run_mode:
-            self._auto_instantiate(new_session)
+        self._instantiate(new_session)
 
     def _extract_query_params(self) -> QueryParams:
         """Read notebook parameters independently of stream options."""
@@ -206,20 +203,24 @@ class SessionConnector:
             resumed=False,
             ui_values={},
             kiosk=False,
-            auto_instantiated=self._is_run_mode,
         )
         self.handler.status = ConnectionState.OPEN
         self.handler._replay_previous_session(session)
 
-    def _auto_instantiate(self, session: Session) -> None:
-        """Auto-instantiate the session (used in run mode)."""
+    def _instantiate(self, session: Session) -> None:
+        """Register the notebook's cells in a new kernel, and run them if configured.
+
+        An app always runs. An edited notebook runs when
+        `runtime.auto_instantiate` is set, and otherwise only renders its
+        Markdown.
+        """
         from marimo._runtime.commands import HTTPRequest
 
         session.instantiate(
             InstantiateNotebookRequest(
                 object_ids=[],
                 values=[],
-                auto_run=True,
+                auto_run=self._is_run_mode or self.params.auto_instantiate,
             ),
             http_request=HTTPRequest.from_request(self.connection),
         )

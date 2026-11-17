@@ -6,7 +6,6 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import type * as api from "@marimo-team/marimo-api";
 import { mergeArray } from "@/utils/edit-distance";
 import { Logger } from "@/utils/Logger";
-import { parseOutline } from "../dom/outline";
 import type { StaticNotebookSnapshot } from "../transports/static";
 import { CellId, SETUP_CELL_ID } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
@@ -277,44 +276,10 @@ function createCellRuntimeFromSession(
     return runtimeState;
   }
 
-  const primaryOutput = primaryOutputOf(sessionCell);
-
-  if (primaryOutput) {
-    if (primaryOutput.type === "error") {
-      runtimeState.output = {
-        channel: "marimo-error",
-        data: [
-          {
-            type: "exception",
-            exception_type: primaryOutput.ename,
-            msg: primaryOutput.evalue,
-            raising_cell: null,
-            traceback: normalizeTraceback(primaryOutput.traceback),
-          },
-        ],
-        mimetype: "application/vnd.marimo+error",
-        timestamp: DEFAULT_TIMESTAMP,
-      };
-    } else if (primaryOutput.type === "data") {
-      const mimeType = Object.keys(primaryOutput.data)[0];
-      const data = Object.values(primaryOutput.data)[0];
-      runtimeState.output = {
-        channel: "output",
-        data: data as {},
-        mimetype: mimeType as "application/json",
-        timestamp: DEFAULT_TIMESTAMP,
-      };
-    }
-    if (runtimeState.output && primaryOutput.code !== undefined) {
-      runtimeState.output.code = primaryOutput.code;
-    }
-  }
-
   const consoleOutputs = sessionCell.console || [];
 
   return {
     ...runtimeState,
-    outline: runtimeState.output ? parseOutline(runtimeState.output) : null,
     consoleOutputs: consoleOutputs.map((consoleOutput) => {
       // Handle StreamMediaOutput (type: "streamMedia")
       if (consoleOutput.type === "streamMedia") {
@@ -351,9 +316,9 @@ function createCellRuntimeFromSession(
 /**
  * Read the session and notebook a page embeds.
  *
- * The cells become a host snapshot the replica starts from, and the session's
- * outputs seed each cell's runtime until the kernel speaks. Null when the page
- * carries no cells.
+ * The cells become a host snapshot the replica starts from, with the
+ * session's outputs as its results. Its console output seeds each cell's
+ * runtime until the kernel speaks. Null when the page carries no cells.
  */
 export function readExport({
   session,

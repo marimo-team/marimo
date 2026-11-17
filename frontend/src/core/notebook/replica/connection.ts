@@ -4,7 +4,6 @@ export const ConnectionState = {
   NOT_STARTED: "NOT_STARTED",
   CONNECTING: "CONNECTING",
   OPEN: "OPEN",
-  CLOSING: "CLOSING",
   CLOSED: "CLOSED",
 } as const;
 
@@ -29,10 +28,7 @@ export type ConnectionStatus =
       state: typeof ConnectionState.CONNECTING;
     }
   | {
-      state:
-        | typeof ConnectionState.OPEN
-        | typeof ConnectionState.CLOSING
-        | typeof ConnectionState.NOT_STARTED;
+      state: typeof ConnectionState.OPEN | typeof ConnectionState.NOT_STARTED;
     };
 
 /** The recovery policy for a closed connection. */

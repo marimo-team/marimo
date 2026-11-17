@@ -36,7 +36,7 @@ class PyodideStream(Stream):
     def __init__(
         self,
         pipe: Callable[[KernelMessage], None],
-        input_queue: asyncio.Queue[str | InputReply],
+        input_queue: asyncio.Queue[InputReply],
         cell_id: CellId_t | None = None,
     ):
         self.pipe = pipe
@@ -215,8 +215,5 @@ class PyodideStdin(Stdin):
                 except TimeoutError:
                     continue
                 require_active_execution()
-                # TODO(MO-8506): Delete the unaddressed reply with the stdin endpoint.
-                if isinstance(reply, str):
-                    return reply
                 if reply.input_id == input_id:
                     return reply.value

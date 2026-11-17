@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import sys
 
 from marimo._config.config import parse_config
@@ -27,6 +28,8 @@ def main() -> None:
     used by external consumers (e.g., marimo-lsp). Changing this path is a
     BREAKING CHANGE and should be done with care and proper deprecation.
     """
+    # Readiness makes the kernel interruptible before its handler is installed.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     args = KernelArgs.decode_json(sys.stdin.buffer.read())
     queue_manager = QueueManager.connect(args.connection_info)
 

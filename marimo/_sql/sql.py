@@ -37,7 +37,7 @@ from marimo._sql.utils import (
     raise_df_import_error,
 )
 from marimo._types.ids import VariableName
-from marimo._utils.assert_never import log_never
+from marimo._utils.log_never import log_never
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 

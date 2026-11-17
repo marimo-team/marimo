@@ -138,9 +138,8 @@ export function deriveLayout(
 
 /**
  * The layout of the notebook's cells: the document's order and columns,
- * this browser's column ids and folds, and the kernel's outlines.
- *
- * TODO(MO-8404): Outlines come from the host.
+ * this browser's column ids and folds, and the headings in each cell's
+ * output.
  */
 export const layoutAtom = atom((get): Layout => {
   const model = get(activeDocumentModelAtom);

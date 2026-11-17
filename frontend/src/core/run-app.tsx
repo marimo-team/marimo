@@ -49,7 +49,6 @@ export const RunApp: React.FC<AppProps> = ({ appConfig, hideHeader }) => {
   }, [sendComponentValues]);
 
   const { connection, reconnect, documentModel } = useNotebookSession({
-    autoInstantiate: true,
     sessionId: getSessionId(),
   });
 

@@ -12,6 +12,7 @@ import {
   vi,
 } from "vitest";
 import { cellId } from "@/__tests__/branded";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { notebookAtom } from "@/core/cells/cells";
@@ -249,21 +250,18 @@ function setNotebook(id: string, output?: string): void {
   const runtimeCellId = cellId(id);
   store.set(
     notebookAtom,
-    MockNotebook.notebookState({
-      cellData: { [runtimeCellId]: {} },
-      cellRuntime: output
-        ? {
-            [runtimeCellId]: {
-              output: {
-                channel: "output",
-                data: `<div>${output}</div>`,
-                mimetype: "text/html",
-                timestamp: 0,
-              },
-            },
-          }
-        : undefined,
-    }),
+    MockNotebook.notebookState({ cellData: { [runtimeCellId]: {} } }),
+  );
+  MockExecutions.seed(
+    store,
+    output === undefined
+      ? []
+      : [
+          MockExecutions.shown(runtimeCellId, {
+            mimetype: "text/html",
+            data: `<div>${output}</div>`,
+          }),
+        ],
   );
 }
 

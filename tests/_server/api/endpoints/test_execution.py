@@ -34,6 +34,8 @@ from tests._server.api.endpoints.ws_helpers import (
 )
 from tests._server.mocks import (
     get_session_manager,
+    get_single_notebook_id,
+    run_cells,
     token_header,
     with_read_session,
     with_session,
@@ -116,38 +118,6 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
-    def test_instantiate(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/instantiate",
-            headers=HEADERS,
-            json={
-                "objectIds": ["ui-element-1", "ui-element-2"],
-                "values": ["value1", "value2"],
-                "autoRun": True,
-            },
-        )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
-
-    @staticmethod
-    @with_session(SESSION_ID)
-    def test_instantiate_autorun_false(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/instantiate",
-            headers=HEADERS,
-            json={
-                "objectIds": ["ui-element-1", "ui-element-2"],
-                "values": ["value1", "value2"],
-                "autoRun": False,
-            },
-        )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
-
-    @staticmethod
-    @with_session(SESSION_ID)
     def test_function_call(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/function_call",
@@ -186,10 +156,17 @@ class TestExecutionRoutes_EditMode:
     @staticmethod
     @with_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
-        response = client.post("/api/kernel/interrupt", headers=HEADERS)
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+        notebook = bridge.notebook_for_session(session)
+        assert notebook is not None
+        response = client.post(
+            f"/api/marimo/v1/notebooks/{notebook.id}/runtime/interrupt",
+            headers={**HEADERS, "Idempotency-Key": "interrupt"},
+        )
+        assert response.status_code == 202, response.text
+        assert response.json()["status"] == "running"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -241,17 +218,17 @@ class TestExecutionRoutes_EditMode:
     @staticmethod
     @with_session(SESSION_ID)
     def test_run_cell(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/run",
-            headers=HEADERS,
-            json={
-                "cellIds": ["cell-1", "cell-2"],
-                "codes": ["print('Hello, cell-1')", "print('Hello, cell-2')"],
+        response = run_cells(
+            client,
+            get_single_notebook_id(client),
+            {
+                "cell-1": "print('Hello, cell-1')",
+                "cell-2": "print('Hello, cell-2')",
             },
+            headers=HEADERS,
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 202, response.text
+        assert response.json()["cells"] == ["cell-1", "cell-2"]
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -569,26 +546,22 @@ class TestExecutionRoutes_EditMode:
     @pytest.mark.flaky(reruns=5)
     @with_session(SESSION_ID)
     def test_app_meta_request(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/run",
-            headers=HEADERS,
-            json={
-                "cellIds": ["test-1"],
-                "codes": [
-                    (
-                        "import marimo as mo\n"
-                        "import json\n"
-                        "request = dict(mo.app_meta().request)\n"
-                        # user is not serializable
-                        "request['user'] = bool(request['user'])\n"
-                        "print(json.dumps(request))"
-                    )
-                ],
+        response = run_cells(
+            client,
+            get_single_notebook_id(client),
+            {
+                "test-1": (
+                    "import marimo as mo\n"
+                    "import json\n"
+                    "request = dict(mo.app_meta().request)\n"
+                    # user is not serializable
+                    "request['user'] = bool(request['user'])\n"
+                    "print(json.dumps(request))"
+                )
             },
+            headers=HEADERS,
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 202, response.text
 
         # Sleep for 1 second (test)
         time.sleep(1.0)
@@ -631,34 +604,6 @@ class TestExecutionRoutes_RunMode:
 
     @staticmethod
     @with_read_session(SESSION_ID)
-    def test_instantiate(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/instantiate",
-            headers=HEADERS,
-            json={
-                "objectIds": ["ui-element-1", "ui-element-2"],
-                "values": ["value1", "value2"],
-                "autoRun": True,
-            },
-        )
-        assert response.status_code == 401, response.text
-
-    @staticmethod
-    @with_read_session(SESSION_ID)
-    def test_instantiate_autorun_false(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/instantiate",
-            headers=HEADERS,
-            json={
-                "objectIds": ["ui-element-1", "ui-element-2"],
-                "values": ["value1", "value2"],
-                "autoRun": False,
-            },
-        )
-        assert response.status_code == 401, response.text
-
-    @staticmethod
-    @with_read_session(SESSION_ID)
     def test_function_call(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/function_call",
@@ -697,8 +642,16 @@ class TestExecutionRoutes_RunMode:
     @staticmethod
     @with_read_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
-        response = client.post("/api/kernel/interrupt", headers=HEADERS)
-        assert response.status_code == 401, response.text
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+        notebook = bridge.notebook_for_session(session)
+        assert notebook is not None
+        response = client.post(
+            f"/api/marimo/v1/notebooks/{notebook.id}/runtime/interrupt",
+            headers={**HEADERS, "Idempotency-Key": "read-interrupt"},
+        )
+        assert response.status_code == 403, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)
@@ -715,15 +668,17 @@ class TestExecutionRoutes_RunMode:
     @staticmethod
     @with_read_session(SESSION_ID)
     def test_run_cell(client: TestClient) -> None:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session is not None
+        bridge = client.app.state.host_context.bridge  # type: ignore[union-attr]
+        notebook = bridge.notebook_for_session(session)
+        assert notebook is not None
         response = client.post(
-            "/api/kernel/run",
-            headers=HEADERS,
-            json={
-                "cellIds": ["cell-1", "cell-2"],
-                "codes": ["print('Hello, cell-1')", "print('Hello, cell-2')"],
-            },
+            f"/api/marimo/v1/notebooks/{notebook.id}/runtime/runs",
+            headers={**HEADERS, "Idempotency-Key": "read-run"},
+            json={"cells": [{"id": "cell-1"}]},
         )
-        assert response.status_code == 401, response.text
+        assert response.status_code == 403, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)
@@ -745,26 +700,22 @@ class TestExecutionRoutes_RunMode:
     @pytest.mark.flaky(reruns=5)
     @with_session(SESSION_ID)
     def test_app_meta_request(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/run",
-            headers=HEADERS,
-            json={
-                "cellIds": ["test-1"],
-                "codes": [
-                    (
-                        "import marimo as mo\n"
-                        "import json\n"
-                        "request = dict(mo.app_meta().request)\n"
-                        # user is not serializable
-                        "request['user'] = bool(request['user'])\n"
-                        "print(json.dumps(request))"
-                    )
-                ],
+        response = run_cells(
+            client,
+            get_single_notebook_id(client),
+            {
+                "test-1": (
+                    "import marimo as mo\n"
+                    "import json\n"
+                    "request = dict(mo.app_meta().request)\n"
+                    # user is not serializable
+                    "request['user'] = bool(request['user'])\n"
+                    "print(json.dumps(request))"
+                )
             },
+            headers=HEADERS,
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 202, response.text
 
         # Sleep for .5 seconds
         time.sleep(0.5)

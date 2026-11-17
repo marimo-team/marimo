@@ -126,6 +126,12 @@ def test_snapshot_is_private_and_precedes_updates_during_accept(
                     {
                         "event": "marimo",
                         "data": {
+                            "marimo": {"op": "breakpoints", "breakpoints": {}}
+                        },
+                    },
+                    {
+                        "event": "marimo",
+                        "data": {
                             "marimo": {
                                 "op": "cell-op",
                                 "cell_id": session.document.cell_ids[0],
@@ -142,7 +148,7 @@ def test_snapshot_is_private_and_precedes_updates_during_accept(
                                 "timestamp": 1.0,
                             }
                         },
-                    }
+                    },
                 ]
                 with client.websocket_connect(
                     url, headers=dict(AUTH)

@@ -94,7 +94,7 @@ class AppHostQueueManager(QueueManagerProto):
         self.completion_queue: QueueType[commands.OutOfBandCommand] = (
             _AppHostPushQueue(app_host, session_id, Channel.COMPLETION)
         )
-        self.input_queue: QueueType[str | InputReply] = _AppHostPushQueue(
+        self.input_queue: QueueType[InputReply] = _AppHostPushQueue(
             app_host, session_id, Channel.INPUT
         )
         self.win32_interrupt_queue: None = None
@@ -109,9 +109,6 @@ class AppHostQueueManager(QueueManagerProto):
             self.completion_queue,
             self.set_ui_element_queue,
         )
-
-    def put_input(self, text: str) -> None:
-        self.input_queue.put(text)
 
     def close_queues(self) -> None:
         self._app_host.unregister_stream(self._session_id)

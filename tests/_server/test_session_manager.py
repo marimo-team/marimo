@@ -627,7 +627,14 @@ async def test_connections_share_starting_notebook(
                 kiosk=False,
                 auto_instantiate=False,
             ),
-            connection=HTTPConnection({"type": "http", "query_string": b""}),
+            connection=HTTPConnection(
+                {
+                    "type": "http",
+                    "path": "/ws",
+                    "query_string": b"",
+                    "headers": [],
+                }
+            ),
         )
 
     first_connector = connector("first")
@@ -722,7 +729,14 @@ async def test_refresh_reuses_pending_startup(
                 kiosk=False,
                 auto_instantiate=False,
             ),
-            connection=HTTPConnection({"type": "http", "query_string": b""}),
+            connection=HTTPConnection(
+                {
+                    "type": "http",
+                    "path": "/ws",
+                    "query_string": b"",
+                    "headers": [],
+                }
+            ),
         )
 
     first = connector("first")

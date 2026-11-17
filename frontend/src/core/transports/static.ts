@@ -2,6 +2,7 @@
 
 /** A backend that serves a document snapshot without a host. */
 
+import type { Result } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { NotebookBackend } from "../notebook/replica";
 
@@ -150,13 +151,17 @@ export function createStaticNotebookBackend(
         }
       }),
     notebook: () => {
-      const unsupported = async (options?: { signal?: AbortSignal }) => {
+      const unsupported = async (options?: {
+        signal?: AbortSignal;
+      }): Promise<
+        Result<never, Protocol.UnsupportedOperationProblemOutput>
+      > => {
         options?.signal?.throwIfAborted();
         return {
           ok: false as const,
           status: 501,
           problem: {
-            type: "tag:marimo.io,2026:host/unsupported-operation",
+            type: "urn:marimo:problem:unsupported-operation",
             title: "Unsupported operation",
             status: 501,
             detail: "Static notebooks do not support mutations",
@@ -168,6 +173,7 @@ export function createStaticNotebookBackend(
         save: unsupported,
         run: unsupported,
         input: (_inputId, _reply, options) => unsupported(options),
+        interrupt: unsupported,
       };
     },
   };

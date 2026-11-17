@@ -96,6 +96,14 @@ widget.value
 # You can also access the widget's specific properties
 widget.count
 ```
+
+!!! note "Instances of a widget share one JavaScript module"
+    marimo loads each distinct `_esm` string once, so module-level variables
+    are shared across widget instances. To maintain JavaScript state separately
+    for each instance, use the
+    [factory function pattern](https://anywidget.dev/en/afm/#module-shape)
+    to keep that state in a closure.
+
 ### More examples
 
 If you're eager to build your own widgets and want to dive deeper you may enjoy these resources:

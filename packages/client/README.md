@@ -92,23 +92,70 @@ if (result.ok) {
 ```
 
 `ifMatch` makes the document's etag a precondition. If the document changes
-before the save, the host returns a conflict problem. Other actions, such
+before the save, the host returns a `precondition-failed` problem. Other actions, such
 as `edit` and `run`, use the same result shape. The notebook's advertised
 operations describe which actions it permits. Invalid request data,
 invalid responses, and connection failures throw.
+
+Problems form a discriminated union. Checking `type` makes the fields for that
+problem available without presence checks:
+
+```ts
+if (!result.ok && result.problem.type === "urn:marimo:problem:precondition-failed") {
+  console.log("Current document", result.problem.document.etag);
+  console.log("Stale entry", result.problem.index);
+}
+```
+
+The client represents unrecognized problem types as `type: "unknown"`, retaining
+the original type in `uri` and the common `status`, `title`, and optional `detail`
+fields. Handle these by status. Known types with missing required fields or an
+incorrect status are invalid responses and throw.
 
 You can also construct a `NotebookClient` directly when you already know
 the notebook's URL.
 
 ## Run cells or execute code
 
+Run cells by id. The notebook's execution settings determine which dependent
+cells run too.
+
 ```ts
 await notebook.run({ cells: [{ id: "c1" }] });
-await notebook.execute({ code: "print('hi')" });
 ```
 
-On success, both return a `Run` in `result.data`. Follow the notebook stream
-for its progress and results.
+Use `execute` to work with values already defined in the notebook. For example,
+inspect a dataframe named `df`.
+
+```ts
+await notebook.execute({ code: "df.head()" });
+```
+
+Assignments in `execute` stay local to the call. Objects are shared with the
+notebook, so changing a list or dataframe can affect it.
+
+On marimo hosts, the internal `marimo._code_mode.get_context()` API provides
+access to notebook cells and captured outputs, along with methods for editing
+and running cells. The outputs are captured when execution begins.
+
+Both methods return a `Run` in `result.data` on success, without waiting for
+execution to finish. Runs wait their turn in a shared queue. Open the notebook
+stream before submitting work to receive its progress and results.
+
+## Interrupt or cancel work
+
+`notebook.interrupt()` stops active runtime work, including work without a run
+record, and ends queued runs as interrupted. It takes no runtime or run id.
+An idle `running` runtime accepts the request without affecting future work.
+An absent runtime returns `no-runtime`; a runtime that is not `running` returns
+`conflict`.
+
+`notebook.cancel({ runId })` cancels one queued or running run and leaves other
+runs untouched. Cancelling a completed run returns a conflict problem.
+
+Both keep the runtime alive. Their successful results contain a `Runtime` and
+`Run`, respectively. These acknowledge the request; follow the notebook stream
+to observe completion.
 
 ## Follow changes
 
@@ -125,54 +172,28 @@ To follow events over a WebSocket or another connection, see the
 
 ## Contributing
 
-The [host protocol](../../protocols/host/spec.md) explains the model and
-behavior. [OpenAPI](../../protocols/host/openapi.yaml) defines the routes and
-payloads. `@marimo-team/client/protocol` exports the TypeScript types and Zod
-schemas generated from it.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md#setup) for repository setup.
+Run package commands from the repository root:
 
-To install from a GitHub revision with pnpm, select this package's subdirectory:
+```sh
+pnpm --dir packages/client build
+pnpm --dir packages/client typecheck
+pnpm --dir packages/client test --run
+```
+
+Package imports resolve to `dist`; use `build --watch` while developing.
+Omit `--run` to watch tests.
+
+Protocol definitions live in [`packages/host-protocol`](../host-protocol/README.md).
+Follow the [contract workflow](../../protocols/host/README.md#change-a-contract)
+to regenerate OpenAPI and both language bindings. This client consumes
+generated TypeScript and Zod schemas without an Effect runtime dependency.
+
+To install this package from a pinned GitHub revision:
 
 ```sh
 pnpm add 'github:marimo-team/marimo#<commit>&path:/packages/client'
 ```
 
-The `prepare` script compiles the checked-in sources into `dist`. pnpm may
-require allowing the build for that Git revision in `allowBuilds`.
-
-Run these commands from the repository root. See
-[CONTRIBUTING.md](../../CONTRIBUTING.md) for setup.
-
-The package is consumed from `dist`. Build it once, or watch for changes
-while developing.
-
-```sh
-pnpm --dir packages/client build
-pnpm --dir packages/client build --watch
-```
-
-After changing OpenAPI, regenerate the protocol types, schemas, and
-operation definitions. `codegen:check` checks that generated files match
-the specification. Generation requires `uv` as well as the Node toolchain:
-both language generators use the same Python overlay composer. The checked-in
-client includes experimental features, including Analysis.
-
-```sh
-pnpm --dir packages/client codegen
-pnpm --dir packages/client codegen:check
-```
-
-The package commands opt into all experimental features so Turbo builds retain
-the APIs the handwritten client consumes. Use `codegen:stable` for stable-only
-bindings, using
-`--output-dir` to keep them separate from the client's checked-in bindings. Use
-`--include-experimental=analysis` to select a feature. This selects generated
-contracts; it does not create a separate stable build of the client package.
-See the [host protocol tooling](../../protocols/host/README.md) for details.
-
-Run the package's tests and typecheck. Omit `--run` to watch tests while
-developing.
-
-```sh
-pnpm --dir packages/client test --run
-pnpm --dir packages/client typecheck
-```
+The `prepare` script builds the checked-in sources. pnpm may require allowing
+that revision's build in `allowBuilds`.

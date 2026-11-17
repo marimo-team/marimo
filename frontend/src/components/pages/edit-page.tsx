@@ -21,7 +21,6 @@ const hideChrome = (() => {
 /** Own the notebook session and provide its document model to the editor and its chrome. */
 const EditPage = (props: Props) => {
   const { connection, reconnect, documentModel } = useNotebookSession({
-    autoInstantiate: props.userConfig.runtime.auto_instantiate,
     sessionId: getSessionId(),
   });
   const app = (

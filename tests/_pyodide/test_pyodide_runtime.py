@@ -7,6 +7,7 @@ import asyncio
 import json
 from typing import TYPE_CHECKING, Any
 
+import msgspec
 import pytest
 
 import marimo._pyodide.notebook as worker
@@ -273,12 +274,40 @@ def finished(cell_id: str, run_id: str, execution_id: str = "e1"):
     ]
 
 
+@pytest.mark.parametrize("allowed", ["runtime.run", "runtime.execute"])
+async def test_worker_authorizes_cell_runs_and_scratch_execution_separately(
+    bridge, allowed
+):
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    host = bridge.notebook.host
+    host.update_notebook(
+        msgspec.structs.replace(
+            host.notebooks[bridge.notebook.id], operations=(allowed,)
+        )
+    )
+    for operation, body in [
+        ("runtime.run", {"cells": [{"id": cell["id"]}]}),
+        ("runtime.execute", {"code": "1"}),
+        ("notebook.edit", {"changes": []}),
+    ]:
+        response = await call(bridge, operation, body, key=operation)
+        assert response["status"] == (202 if operation == allowed else 403), (
+            response
+        )
+
+
 async def test_the_runtime_runs_once_the_page_starts_the_kernel(bridge):
     events = await follow(bridge)
     notebook = latest(events, "notebook")
-    assert {"runtime.run", "runtime.interrupt"} <= set(notebook["operations"])
+    assert {
+        "runtime.run",
+        "runtime.execute",
+        "runtime.interrupt",
+        "runtime.cancel",
+    } <= set(notebook["operations"])
     assert latest(events, "runtime")["status"] == "starting"
-    reply = await call(bridge, "runtime.run", {"code": "1"})
+    reply = await call(bridge, "runtime.execute", {"code": "1"})
     assert reply["status"] == 409
 
     bridge.session.started.set()
@@ -386,7 +415,7 @@ async def test_running_a_cell_loads_the_imports_of_the_whole_document(
 async def test_scratch_code_runs_against_the_document(bridge):
     bridge.session.instantiated = True
     await started(bridge)
-    reply = await call(bridge, "runtime.run", {"code": "x + 1"})
+    reply = await call(bridge, "runtime.execute", {"code": "x + 1"})
     await settle()
     [command] = queued(bridge)
     assert isinstance(command, ExecuteScratchpadCommand)
@@ -407,7 +436,7 @@ async def test_runs_reach_the_kernel_in_acceptance_order(bridge):
     bridge.session.instantiated = True
     events = await started(bridge)
     cell = latest(events, "cell")
-    first = await call(bridge, "runtime.run", {"code": "import numpy"})
+    first = await call(bridge, "runtime.execute", {"code": "import numpy"})
     second = await call(
         bridge, "runtime.run", {"cells": [{"id": cell["id"]}]}, key="run-2"
     )
@@ -526,9 +555,7 @@ async def test_interrupting_a_queued_run_cancels_it_in_the_kernel(bridge):
     await settle()
     queued(bridge)
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     assert reply["status"] == 202
     [command] = queued(bridge)
     assert isinstance(command, CancelRunCommand)
@@ -562,7 +589,7 @@ async def test_an_interrupt_right_after_submission_asks_the_kernel(bridge):
 
     backend = bridge.notebook._backend
     assert backend is not None
-    backend.interrupt(run_id)
+    backend.cancel(run_id)
     [command] = queued(bridge)
     assert isinstance(command, CancelRunCommand)
     assert command.run_id == run_id
@@ -590,18 +617,14 @@ async def test_interrupting_a_started_run_halts_the_kernel_queue(
     queued(bridge)
     deliver(bridge, planned(cell["id"], run_id))
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     assert reply["status"] == 202
     assert queued(bridge) == []
     assert scheduler.cancelled == 1
 
     for notification in finished(cell["id"], run_id):
         deliver(bridge, notification)
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-2", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-2", run_id=run_id)
     assert reply["status"] == 409
     assert scheduler.cancelled == 1
 
@@ -615,9 +638,7 @@ async def test_interrupting_a_run_the_kernel_scheduled(
     events = await started(bridge)
     cell = latest(events, "cell")
     deliver(bridge, planned(cell["id"], "legacy", "e9"))
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id="legacy"
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id="legacy")
     assert reply["status"] == 202
     assert scheduler.cancelled == 1
 
@@ -636,13 +657,109 @@ async def test_interrupting_before_submission_ends_the_run(bridge):
     reply = await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
     run_id = reply["body"]["id"]
     await settle()
-    await call(bridge, "runtime.interrupt", key="stop-1", run_id=run_id)
+    await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     await settle()
     gate.set()
     await settle()
     assert queued(bridge) == []
     run = latest(events, "run")
     assert (run["status"], run["outcome"]) == ("completed", "interrupted")
+
+
+async def test_a_runtime_interrupt_call_answers_with_the_runtime(
+    bridge, monkeypatch: pytest.MonkeyPatch
+):
+    scheduler = FakeScheduler()
+    monkeypatch.setattr(worker, "_active_scheduler", lambda: scheduler)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    reply = await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
+    run_id = reply["body"]["id"]
+    await settle()
+    queued(bridge)
+    deliver(bridge, planned(cell["id"], run_id))
+
+    reply = await call(bridge, "runtime.interrupt", key="stop-1")
+    assert reply["status"] == 202
+    assert reply["body"] == latest(events, "runtime")
+    assert scheduler.cancelled == 1
+
+    # A retry is answered from the receipt and halts nothing more.
+    assert await call(bridge, "runtime.interrupt", key="stop-1") == reply
+    assert scheduler.cancelled == 1
+
+
+async def test_a_runtime_interrupt_ends_started_queued_and_preparing_runs(
+    bridge, monkeypatch: pytest.MonkeyPatch
+):
+    scheduler = FakeScheduler()
+    monkeypatch.setattr(worker, "_active_scheduler", lambda: scheduler)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    cell = latest(events, "cell")
+    body = {"cells": [{"id": cell["id"]}]}
+    first = (await call(bridge, "runtime.run", body))["body"]["id"]
+    second = (await call(bridge, "runtime.run", body, key="run-2"))["body"][
+        "id"
+    ]
+    await settle()
+    assert [command.run_id for command in queued(bridge)] == [first, second]
+    deliver(bridge, planned(cell["id"], first))
+    gate = asyncio.Event()
+
+    async def load(code: str) -> None:
+        del code
+        await gate.wait()
+
+    # The third run stays in preparation, so the kernel never has it.
+    bridge.notebook.set_package_loader(load)
+    third = (await call(bridge, "runtime.run", body, key="run-3"))["body"][
+        "id"
+    ]
+    await settle()
+
+    backend = bridge.notebook._backend
+    assert backend is not None
+    backend.interrupt()
+    await settle()
+
+    [command] = queued(bridge)
+    assert isinstance(command, CancelRunCommand)
+    assert command.run_id == second
+    assert scheduler.cancelled == 1
+    for run_id in (first, second):
+        deliver(
+            bridge,
+            CompletedRunNotification(run_id=run_id, outcome="interrupted"),
+        )
+    gate.set()
+    await settle()
+    assert queued(bridge) == []
+    assert {
+        run_id: run["outcome"]
+        for run_id, run in latest_by_id(events, "run").items()
+    } == dict.fromkeys((first, second, third), "interrupted")
+
+
+async def test_a_runtime_interrupt_halts_a_run_the_kernel_scheduled(
+    bridge, monkeypatch: pytest.MonkeyPatch
+):
+    scheduler = FakeScheduler()
+    monkeypatch.setattr(worker, "_active_scheduler", lambda: scheduler)
+    bridge.session.instantiated = True
+    events = await started(bridge)
+    backend = bridge.notebook._backend
+    assert backend is not None
+
+    # Nothing is in flight, so an idle kernel is left alone.
+    backend.interrupt()
+    assert scheduler.cancelled == 0
+
+    deliver(bridge, planned(latest(events, "cell")["id"], "legacy", "e9"))
+    backend.interrupt()
+    assert scheduler.cancelled == 1
+    assert queued(bridge) == []
 
 
 async def test_runs_the_kernel_schedules_appear_on_the_stream(bridge):
@@ -710,7 +827,7 @@ async def test_a_later_run_proceeds_after_a_failed_load(bridge):
     bridge.session.instantiated = True
     events = await started(bridge)
     cell = latest(events, "cell")
-    first = await call(bridge, "runtime.run", {"code": "import numpy"})
+    first = await call(bridge, "runtime.execute", {"code": "import numpy"})
     second = await call(
         bridge, "runtime.run", {"cells": [{"id": cell["id"]}]}, key="run-2"
     )
@@ -736,13 +853,13 @@ async def test_a_later_run_proceeds_after_its_predecessor_is_interrupted(
     bridge.session.instantiated = True
     events = await started(bridge)
     cell = latest(events, "cell")
-    first = await call(bridge, "runtime.run", {"code": "import numpy"})
+    first = await call(bridge, "runtime.execute", {"code": "import numpy"})
     second = await call(
         bridge, "runtime.run", {"cells": [{"id": cell["id"]}]}, key="run-2"
     )
     await settle()
     reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=first["body"]["id"]
+        bridge, "runtime.cancel", key="stop-1", run_id=first["body"]["id"]
     )
     assert reply["status"] == 202
     await settle()
@@ -795,9 +912,7 @@ async def test_a_late_cancellation_halts_the_run_once_it_starts(
     await settle()
     queued(bridge)
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     assert reply["status"] == 202
     [command] = queued(bridge)
     assert isinstance(command, CancelRunCommand)
@@ -826,9 +941,7 @@ async def test_an_interrupt_waits_for_the_kernel_to_expose_its_scheduler(
     queued(bridge)
     deliver(bridge, planned(cell["id"], run_id))
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=run_id
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=run_id)
     assert reply["status"] == 202
     assert queued(bridge) == []
 
@@ -873,12 +986,12 @@ async def test_cancelling_a_middle_run_keeps_the_order(bridge):
     bridge.session.instantiated = True
     events = await started(bridge)
     cell = latest(events, "cell")
-    first = (await call(bridge, "runtime.run", {"code": "import numpy"}))[
+    first = (await call(bridge, "runtime.execute", {"code": "import numpy"}))[
         "body"
     ]["id"]
-    second = (await call(bridge, "runtime.run", {"code": "2"}, key="run-2"))[
-        "body"
-    ]["id"]
+    second = (
+        await call(bridge, "runtime.execute", {"code": "2"}, key="run-2")
+    )["body"]["id"]
     third = (
         await call(
             bridge, "runtime.run", {"cells": [{"id": cell["id"]}]}, key="run-3"
@@ -887,9 +1000,7 @@ async def test_cancelling_a_middle_run_keeps_the_order(bridge):
     await settle()
     assert queued(bridge) == []
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=second
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=second)
     assert reply["status"] == 202
     await settle()
     # The third still waits for the first, which is loading a package.
@@ -907,13 +1018,15 @@ async def test_a_scratch_run_waits_for_the_scratch_run_ahead_to_complete(
     bridge.session.instantiated = True
     events = await started(bridge)
     cell = latest(events, "cell")
-    first = (await call(bridge, "runtime.run", {"code": "1"}))["body"]["id"]
+    first = (await call(bridge, "runtime.execute", {"code": "1"}))["body"][
+        "id"
+    ]
     await settle()
     assert [command.run_id for command in queued(bridge)] == [first]
 
-    second = (await call(bridge, "runtime.run", {"code": "2"}, key="run-2"))[
-        "body"
-    ]["id"]
+    second = (
+        await call(bridge, "runtime.execute", {"code": "2"}, key="run-2")
+    )["body"]["id"]
     # The cell run accepted behind the waiting scratch run waits its turn.
     third = (
         await call(
@@ -933,19 +1046,19 @@ async def test_a_scratch_run_waits_for_the_scratch_run_ahead_to_complete(
 async def test_interrupting_a_scratch_run_waiting_for_the_scratchpad(bridge):
     bridge.session.instantiated = True
     events = await started(bridge)
-    first = (await call(bridge, "runtime.run", {"code": "1"}))["body"]["id"]
-    second = (await call(bridge, "runtime.run", {"code": "2"}, key="run-2"))[
-        "body"
-    ]["id"]
-    third = (await call(bridge, "runtime.run", {"code": "3"}, key="run-3"))[
-        "body"
-    ]["id"]
+    first = (await call(bridge, "runtime.execute", {"code": "1"}))["body"][
+        "id"
+    ]
+    second = (
+        await call(bridge, "runtime.execute", {"code": "2"}, key="run-2")
+    )["body"]["id"]
+    third = (
+        await call(bridge, "runtime.execute", {"code": "3"}, key="run-3")
+    )["body"]["id"]
     await settle()
     assert [command.run_id for command in queued(bridge)] == [first]
 
-    reply = await call(
-        bridge, "runtime.interrupt", key="stop-1", run_id=second
-    )
+    reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=second)
     assert reply["status"] == 202
     await settle()
     assert latest_by_id(events, "run")[second]["outcome"] == "interrupted"
@@ -978,7 +1091,7 @@ async def test_a_queued_scratch_run_reads_the_document_the_run_ahead_leaves(
     first = (
         await call(
             bridge,
-            "runtime.run",
+            "runtime.execute",
             {
                 "code": (
                     "import marimo._code_mode as cm\n"
@@ -992,7 +1105,7 @@ async def test_a_queued_scratch_run_reads_the_document_the_run_ahead_leaves(
     second = (
         await call(
             bridge,
-            "runtime.run",
+            "runtime.execute",
             {
                 "code": (
                     "import marimo._code_mode as cm\n"

@@ -46,7 +46,7 @@ class QueueManager(Protocol):
     control_queue: QueueType[commands.CommandMessage]
     set_ui_element_queue: QueueType[commands.BatchableCommand]
     completion_queue: QueueType[commands.OutOfBandCommand]
-    input_queue: QueueType[str | InputReply]
+    input_queue: QueueType[InputReply]
     stream_queue: QueueType[KernelMessage | None] | None
     win32_interrupt_queue: QueueType[bool] | None
 
@@ -56,10 +56,6 @@ class QueueManager(Protocol):
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         """Put a control request in the control queue."""
-        ...
-
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
         ...
 
 
@@ -202,10 +198,6 @@ class Session(Protocol):
 
     def reply_input(self, reply: InputReply) -> None:
         """Deliver an answer to a specific prompt, or raise on failure."""
-        ...
-
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
         ...
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:

@@ -338,11 +338,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  public sendInstantiate: RunRequests["sendInstantiate"] =
-    async (): Promise<null> => {
-      return null;
-    };
-
   public sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
     request,
   ): Promise<null> => {
@@ -375,8 +370,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public saveLayout = throwNotImplemented;
   public sendCopy = throwNotImplemented;
   public sendRunScratchpad = throwNotImplemented;
-  public sendStdin = throwNotImplemented;
-  public sendInterrupt = throwNotImplemented;
   public sendShutdown = throwNotImplemented;
   public sendFormat = throwNotImplemented;
   public sendInstallMissingPackages = throwNotImplemented;

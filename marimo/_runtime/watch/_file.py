@@ -26,7 +26,7 @@ def watch_file(
     path: Path, state: FileState, should_exit: threading.Event
 ) -> None:
     """Watch a file for changes and update the state."""
-    last_mtime: float = 0
+    last_mtime = state._initial_mtime
     current_mtime = last_mtime
     sleep_interval = _TEST_SLEEP_INTERVAL or WATCHER_SLEEP_INTERVAL
     while not should_exit.is_set():
@@ -66,15 +66,20 @@ class FileState(PathState):
         watch_file
     )
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, path: Path, *args: Any, **kwargs: Any) -> None:
+        # Initialize time to the current `mtime` for watching.
+        try:
+            self._initial_mtime = path.stat().st_mtime
+        except OSError:
+            self._initial_mtime = 0.0
+        super().__init__(path, *args, **kwargs)
         self._debounced = False
         self._debounce_lock = threading.Lock()
 
     def read_text(self) -> str:
         """Read the file as a string."""
         text = self._value.read_text()
-        write_side_effect(f"read_text:{text}")
+        write_side_effect(f"read_text:{(str(self._value), text)!r}")
         return text
 
     def write_text(self, value: str) -> int:
@@ -90,7 +95,7 @@ class FileState(PathState):
     def read_bytes(self) -> bytes:
         """Read the file as bytes."""
         data = self._value.read_bytes()
-        write_side_effect(f"read_bytes:{data!r}")
+        write_side_effect(f"read_bytes:{(str(self._value), data)!r}")
         return data
 
     def write_bytes(self, value: bytes) -> int:

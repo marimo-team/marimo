@@ -92,11 +92,14 @@ describe("document resource", () => {
     }
     const partial = replay([cell, removed], state);
     expect(current(partial)).toBe(current(state));
-    const completed = replay(
-      [published, { event: "ready", data: {}, id: "113" }],
-      partial,
-    );
+    const resumed = reducer.resume(partial);
+    const completed = reducer.reduce(resumed, published);
     expect(current(completed)?.revision).toEqual(published.data.document);
+    expect(
+      current(
+        reducer.reduce(completed, { event: "ready", data: {}, id: "113" }),
+      ),
+    ).toEqual(current(completed));
   });
 
   it("removes a notebook without waiting for individual cell removals", () => {
@@ -119,8 +122,10 @@ describe("document resource", () => {
       }),
     ).toThrow("Document records do not match");
     const partial = reducer.reduce(state, edits[0]);
-    expect(() =>
-      reducer.reduce(partial, { event: "ready", data: {}, id: "200" }),
-    ).toThrow("incomplete document update");
+    for (const pending of [partial, reducer.resume(partial)]) {
+      expect(() =>
+        reducer.reduce(pending, { event: "ready", data: {}, id: "200" }),
+      ).toThrow("incomplete document update");
+    }
   });
 });

@@ -12,20 +12,26 @@
 export {
   cellExecutionInputsAtom,
   cellFreshnessAtom,
+  cellOutlineAtom,
+  cellOutputAtom,
   cellOutputInputsAtom,
+  cellOutputsAtom,
   clearCellOutputs,
   notebookIsRunningAtom,
   notebookQueuedOrRunningCountAtom,
   observeCellMessage,
+  releaseCellOutputAtoms,
   runtimeStatusAtom,
   waitForRuntimeRunning,
 } from "./atoms";
 export type { CellFreshness, CellFreshnessLookup } from "./freshness";
 export { replyInput } from "./input";
-export { runCells, syncEdits, waitForRuntime } from "./run";
+export { interruptRuntime } from "./interrupt";
+export { runCells, syncEdits } from "./run";
 export {
   useCellExecution,
   useCellFreshness,
+  useCellHasResult,
   useCellOutline,
   useCellOutput,
   useScratchOutput,
@@ -33,6 +39,7 @@ export {
 export {
   type CellError,
   type CellOutput,
+  cellOutputsView,
   cellOutputView,
   type HostDiagnostic,
   scratchOutputView,

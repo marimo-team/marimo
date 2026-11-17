@@ -13,7 +13,7 @@ import {
   cellFreshnessAtom,
   runCells,
   syncEdits,
-  waitForRuntime,
+  waitForRuntimeRunning,
 } from "@/core/executions";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
@@ -36,7 +36,7 @@ export function useRunStaleCells() {
       return;
     }
     try {
-      await waitForRuntime(store);
+      await waitForRuntimeRunning(store);
     } catch (error) {
       if (store.get(activeDocumentModelAtom) !== model) {
         return;

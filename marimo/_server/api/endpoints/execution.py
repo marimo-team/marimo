@@ -20,7 +20,6 @@ from marimo._server.api.utils import (
 from marimo._server.models.models import (
     BaseResponse,
     DebugCellRequest,
-    ExecuteCellsRequest,
     ExecuteScratchpadRequest,
     InvokeFunctionRequest,
     KernelStatusResponse,
@@ -126,43 +125,6 @@ async def set_model_values(
     return await dispatch_control_request(request, ModelRequest)
 
 
-@router.post("/instantiate")
-@requires("edit")
-async def instantiate(
-    *,
-    request: Request,
-) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/InstantiateNotebookRequest"
-    responses:
-        200:
-            description: Instantiate a component. Only allowed in edit mode;
-                in run mode, instantiation happens server-side automatically.
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=InstantiateNotebookRequest)
-    app_state.require_current_session().instantiate(
-        body,
-        http_request=HTTPRequest.from_request(request),
-    )
-
-    return SuccessResponse()
-
-
 @router.post("/function_call")
 @requires("read")
 async def function_call(
@@ -190,72 +152,6 @@ async def function_call(
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, InvokeFunctionRequest)
-
-
-@router.post("/interrupt")
-@requires("edit")
-async def interrupt(
-    *,
-    request: Request,
-) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    responses:
-        200:
-            description: Interrupt the kernel's execution
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    app_state.require_current_session().try_interrupt()
-
-    return SuccessResponse()
-
-
-@router.post("/run")
-@requires("edit")
-async def run_cell(
-    *,
-    request: Request,
-) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/ExecuteCellsRequest"
-    responses:
-        200:
-            description: Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode.
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=ExecuteCellsRequest)
-    body.request = HTTPRequest.from_request(request)
-    command = body.as_command()
-    enforce_consumer_capability(app_state, command)
-    app_state.require_current_session().put_control_request(
-        command,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    return SuccessResponse()
 
 
 @router.get("/status")
