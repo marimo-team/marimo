@@ -63,18 +63,19 @@ export const ChatEmptyState = () => {
       <div className="mx-auto flex w-full max-w-xs flex-col items-center gap-5 px-3 py-6">
         <NotebookIllustration />
         <p className="text-center text-xs leading-5 text-muted-foreground">
-          Ask questions, write code, build charts, and summarize insights.
+          Ask questions, build charts, and summarize insights.
           {!isWasm() && (
             <>
-              {" "}
+              {" Or "}
               <Button
                 type="button"
                 variant="link"
                 className="inline h-auto p-0 text-xs font-normal whitespace-normal"
                 onClick={openPairWithAgentModal}
               >
-                Pair your own coding agent
+                pair your own coding agent
               </Button>
+              .
             </>
           )}
         </p>
