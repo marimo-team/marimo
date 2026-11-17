@@ -11,6 +11,7 @@ import {
 } from "@/core/cells/cells";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import { followDocument } from "@/core/cells/document";
+import type { CellId } from "@/core/cells/ids";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
 import type { NotificationPayload } from "@/core/kernel/messages";
@@ -24,12 +25,14 @@ import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
 import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
 import { cacheInfoAtom } from "../cache/requests";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import {
+  breakpointsAtom,
   resyncBreakpoints,
   setActiveLine,
 } from "../codemirror/cells/debugger-state";
@@ -350,6 +353,16 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
 
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
+        return;
+      case "breakpoints":
+        store.set(
+          breakpointsAtom,
+          new Map(
+            Objects.entries<CellId, number[]>(msg.data.breakpoints).map(
+              ([cellId, lines]) => [cellId, new Set(lines)],
+            ),
+          ),
+        );
         return;
       case "active-line":
         setActiveLine(

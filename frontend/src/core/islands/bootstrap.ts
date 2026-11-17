@@ -186,6 +186,7 @@ function handleNotification(
       case "completion-result":
       case "reload":
       case "focus-cell":
+      case "breakpoints":
       case "active-line":
       case "variables":
       case "variable-values":
