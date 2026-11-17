@@ -1480,10 +1480,12 @@ def test_slash_redirect_scope(
 
 
 @pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("partitioned", [False, True])
 def test_asgi_builder_uses_configured_session_settings(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     legacy: bool,
+    partitioned: bool,
 ) -> None:
     from marimo._config.manager import UserConfigStore
     from marimo._server.api.auth import CustomSessionMiddleware
@@ -1503,6 +1505,9 @@ def test_asgi_builder_uses_configured_session_settings(
     prefix = "MARIMO_" if legacy else "MARIMO_SERVER_"
     monkeypatch.setenv(prefix + "SESSION_SECRET", "configured-asgi-secret")
     monkeypatch.setenv(prefix + "SESSION_COOKIE_SECURE", "true")
+    monkeypatch.setenv(
+        "MARIMO_SERVER_SESSION_COOKIE_PARTITIONED", str(partitioned).lower()
+    )
     notebook = tmp_path / "app.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     app = create_asgi_app(token="auth-token")._create_app_for_file(
@@ -1518,4 +1523,5 @@ def test_asgi_builder_uses_configured_session_settings(
     assert middleware.kwargs == {
         "secret_key": "configured-asgi-secret",
         "https_only": True,
+        "partitioned": partitioned,
     }

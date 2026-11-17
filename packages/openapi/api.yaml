@@ -5647,6 +5647,11 @@ components:
           description: Redirect console output to the browser. This option only applies
             to run mode. Edit mode always redirects output to the browser.
           type: boolean
+        session_cookie_partitioned:
+          default: false
+          description: Use partitioned cookies for cross-site HTTPS embeds. Implies
+            SameSite=None and Secure.
+          type: boolean
         session_cookie_secure:
           default: false
           description: Only send session cookies over HTTPS. Enable when serving behind
@@ -5728,6 +5733,7 @@ components:
       - redirect_console_to_browser
       - skip_update_check
       - session_cookie_secure
+      - session_cookie_partitioned
       - session_secret
       - browser
       - follow_symlink

@@ -198,6 +198,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "redirect_console_to_browser": False,
                 "skip_update_check": False,
                 "session_cookie_secure": False,
+                "session_cookie_partitioned": False,
                 "session_secret": None,
                 "browser": "default",
                 "follow_symlink": False,
@@ -336,6 +337,7 @@ def test_layered_configuration_snapshot(
                     "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "follow_symlink": False,
+                    "session_cookie_partitioned": False,
                     "session_secret": None,
                     "browser": "default",
                     "session_cookie_secure": False,
@@ -461,6 +463,7 @@ def test_layered_configuration_snapshot(
                     "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "follow_symlink": False,
+                    "session_cookie_partitioned": False,
                     "session_secret": None,
                     "browser": "default",
                     "session_cookie_secure": False,
@@ -628,6 +631,7 @@ def test_layered_configuration_snapshot(
                     "redirect_console_to_browser": False,
                     "skip_update_check": False,
                     "session_cookie_secure": False,
+                    "session_cookie_partitioned": False,
                     "session_secret": None,
                     "browser": "default",
                     "follow_symlink": False,
@@ -922,6 +926,7 @@ headless = false
 host = "127.0.0.1"
 include_code = false
 redirect_console_to_browser = false
+session_cookie_partitioned = false
 session_cookie_secure = false
 skew_protection = true
 skip_update_check = false

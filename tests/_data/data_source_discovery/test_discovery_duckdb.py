@@ -239,7 +239,8 @@ def test_local_snippet_opens_file_read_only(
 ) -> None:
     import duckdb
 
-    path = tmp_path / 'database"quoted.duckdb'
+    quote = "'" if sys.platform == "win32" else '"'
+    path = tmp_path / f"database{quote}quoted.duckdb"
     with duckdb.connect(str(path)) as con:
         con.execute(
             "CREATE TABLE calls(n INTEGER); INSERT INTO calls VALUES (42)"
