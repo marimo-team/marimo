@@ -5,9 +5,11 @@ import { atom, useAtomValue } from "jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import {
   type CellExecutionInputs,
+  type CellOutput,
   type CellRunStatus,
   cellExecutionInputsAtom,
   cellExecutionView,
+  cellOutputAtom,
 } from "@/core/executions";
 import type { CellConfig } from "../network/types";
 import { type NotebookState, notebookAtom } from "./cells";
@@ -100,6 +102,7 @@ export const lastFocusedCellAtom = atom<{
     cellId,
     get(notebookAtom),
     get(cellExecutionInputsAtom),
+    get(cellOutputAtom(cellId)),
   );
 });
 
@@ -109,6 +112,7 @@ export function cellFocusDetailsAtom(cellId: CellId) {
       cellId,
       get(notebookAtom),
       get(cellExecutionInputsAtom),
+      get(cellOutputAtom(cellId)),
     );
   });
 }
@@ -117,6 +121,7 @@ function cellFocusDetails(
   cellId: CellId,
   notebookState: NotebookState,
   executions: CellExecutionInputs,
+  output: CellOutput | null,
 ) {
   const { cellData, cellHandles, cellRuntime } = notebookState;
   const data = cellData[cellId];
@@ -135,7 +140,7 @@ function cellFocusDetails(
     status: execution.status,
     blocked: execution.blocked,
     getEditorView: getEditorView,
-    hasOutput: runtime?.output != null,
+    hasOutput: output !== null,
     hasConsoleOutput: runtime?.consoleOutputs != null,
   };
 }

@@ -2,15 +2,16 @@
 
 import type { EditorView } from "@codemirror/view";
 import {
+  type CellError,
   type CellExecutionInputs,
   type CellExecutionView,
   type CellFreshness,
   type CellFreshnessLookup,
+  type CellOutput,
   cellExecutionView,
 } from "@/core/executions";
 import type { Executions } from "@/core/notebook/replica";
 import { Objects } from "@/utils/objects";
-import type { MarimoError, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { NotebookState } from "./cells";
 import type { CellId } from "./ids";
@@ -231,7 +232,7 @@ export function shouldHidePublishedCell({
   errored: boolean;
   interrupted: boolean;
   stopped: boolean;
-  output: OutputMessage | null;
+  output: CellOutput | null;
   showErrorTracebacks: boolean;
 }): boolean {
   const outputIsError = isErrorMime(output?.mimetype);
@@ -240,7 +241,7 @@ export function shouldHidePublishedCell({
     outputIsError &&
     Array.isArray(output?.data) &&
     output.data.some(
-      (e: MarimoError) =>
+      (e: CellError) =>
         e.type === "exception" && "traceback" in e && e.traceback,
     );
   return (errored || interrupted || stopped || outputIsError) && !hasTraceback;

@@ -5,6 +5,7 @@ import type React from "react";
 import { memo, type PropsWithChildren } from "react";
 import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
+import { cellOutputsAtom } from "@/core/executions";
 import { resolveLayoutData } from "@/core/layout/layout";
 import {
   resolveLayoutType,
@@ -70,8 +71,9 @@ export const PluginCellRenderer = (props: PluginCellRendererProps) => {
   const { appConfig, mode, plugin } = props;
   const layoutState = useLayoutState();
   const notebook = useNotebook();
+  const outputs = useAtomValue(cellOutputsAtom);
   const { setCurrentLayoutData } = useLayoutActions();
-  const cells = flattenTopLevelNotebookCells(notebook);
+  const cells = flattenTopLevelNotebookCells(notebook, outputs);
   const layout = resolveLayoutData({ state: layoutState, plugin, cells });
 
   const Renderer = plugin.Component;

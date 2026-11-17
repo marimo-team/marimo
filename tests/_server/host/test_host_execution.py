@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from typing import TYPE_CHECKING
 
 import pytest
+from msgspec.structs import replace
 
 from marimo._core import protocol
 from marimo._core.code import code_fingerprint
@@ -329,6 +331,80 @@ async def test_startup_markdown_has_a_retained_result_and_its_own_completed_run(
     else:
         assert regular_result is None
     assert completed == expected
+
+
+async def test_thread_updates_a_completed_cells_display_and_snapshot(
+    tmp_path: Path,
+) -> None:
+    gate = tmp_path / "release-thread"
+    source = f"""import marimo
+app = marimo.App()
+
+@app.cell
+def _():
+    import marimo as mo
+    def _work():
+        import time
+        from pathlib import Path
+        while not Path({str(gate)!r}).exists():
+            time.sleep(0.01)
+        mo.output.replace(mo.Html("<b>late</b>"))
+    mo.Thread(target=_work, daemon=True).start()
+    mo.Html("<b>initial</b>")
+    return (mo,)
+"""
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        notebook = await app.state.host_context.bridge.host.notebook(
+            notebook_id
+        )
+        [cell] = notebook.document
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/runs",
+            headers=key("thread"),
+            body=json.dumps({"cells": [{"id": cell.id}]}).encode(),
+        )
+        assert accepted.status == 202
+        run_id = accepted.json()["id"]
+        await wait_for(events, lambda s: run_outcome(s, run_id) == "succeeded")
+        before = notebook.executions.current(cell.id)
+        assert before is not None
+        run = notebook.executions.run(protocol.RunId(run_id))
+        gate.touch()
+        await wait_for(
+            events,
+            lambda s: any(
+                r.get("event") == "execution"
+                and r["data"]["execution"]["outcome"]
+                == {
+                    "kind": "value",
+                    "display": {
+                        "mimetype": "text/html",
+                        "data": "<b>late</b>",
+                    },
+                }
+                for r in s.records
+            ),
+        )
+        expected = replace(
+            before.execution,
+            outcome=protocol.ValueOutcome(
+                protocol.DisplayData(mimetype="text/html", data="<b>late</b>")
+            ),
+        )
+        assert notebook.executions.current(cell.id) == dataclasses.replace(
+            before, execution=expected
+        )
+        assert notebook.executions.run(protocol.RunId(run_id)) == run
+        snapshot = app.state.host_context.bridge.host.events(
+            notebook_id=notebook_id
+        )
+        assert [
+            event.event.data.execution
+            for event in snapshot
+            if isinstance(event.event, protocol.ExecutionEvent)
+        ] == [expected]
 
 
 @pytest.fixture

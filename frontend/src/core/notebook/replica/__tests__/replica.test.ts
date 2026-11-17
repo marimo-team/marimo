@@ -188,6 +188,25 @@ describe("NotebookReplica lifetime", () => {
     expect(store.get(client.notebookAtom)?.id).toBe("n2");
   });
 
+  it("preserves output revisions across an unchanged replacement snapshot", async () => {
+    const { connect, opened, client, store } = setup();
+    connect(lifetime().signal);
+    const { receive } = await opened();
+    const snapshot = fixtureMessages("notebook-events.sse");
+    snapshot.forEach(receive);
+    const before = store.get(client.executionsAtom);
+    expect(
+      [...before.executions.values()].some(
+        (execution) => execution.outputVersion > 0,
+      ),
+    ).toBe(true);
+
+    receive({ event: "reset", data: {} });
+    snapshot.filter((event) => event.event !== "ready").forEach(receive);
+    receive({ event: "ready", id: "98", data: {} });
+    expect(store.get(client.executionsAtom)).toEqual(before);
+  });
+
   it("keeps what is on show when the snapshot replacing it is interrupted", async () => {
     vi.useFakeTimers();
     const { connect, opened, client, store } = setup();

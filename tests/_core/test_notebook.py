@@ -569,7 +569,9 @@ class TestRun:
             )
         )
         notebook.observe(be.Started(ExecutionId("e7")))
-        notebook.observe(be.Concluded(ExecutionId("e7"), value("working")))
+        notebook.observe(
+            be.Displayed(ExecutionId("e7"), value("working").display)
+        )
         notebook.observe(be.Produced(console("o3", "e7", "2\n")))
         notebook.observe(
             be.Completed(ExecutionId("e7"), value("working<pre>9</pre>"))
@@ -874,7 +876,9 @@ class TestRunCompletion:
         log.clear()
         # Released scratch records cannot reopen or acquire more output.
         notebook.observe(be.Started(ExecutionId("e1")))
-        notebook.observe(be.Concluded(ExecutionId("e1"), value("changed")))
+        notebook.observe(
+            be.Displayed(ExecutionId("e1"), value("changed").display)
+        )
         notebook.observe(be.Done(run.id, "succeeded"))
         notebook.observe(
             be.Planned(

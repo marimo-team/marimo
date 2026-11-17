@@ -143,7 +143,11 @@ describe("useCellOutput", () => {
     expect(result.current).toBeNull();
 
     act(() => {
-      store.set(replica.notebookAtom, MockExecutions.notebook("n2"));
+      const document = documentOf();
+      store.set(replica.documentAtom, {
+        ...document,
+        revision: { ...document.revision, notebook_id: "n2" },
+      });
     });
     expect(result.current?.data).toBe("c1 value");
   });

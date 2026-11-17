@@ -11,7 +11,7 @@ from inline_snapshot import snapshot
 from marimo._core import backend as be, protocol
 from marimo._core.backend import (
     Completed,
-    Concluded,
+    Displayed,
     Done,
     Planned,
     PlannedExecution,
@@ -168,13 +168,9 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                     text="2\n",
                 )
             ),
-            Concluded(
+            Displayed(
                 execution_id=ExecutionId("scratch"),
-                outcome=ValueOutcome(
-                    display=DisplayData(
-                        data="<pre>9</pre>", mimetype="text/html"
-                    )
-                ),
+                display=DisplayData(data="<pre>9</pre>", mimetype="text/html"),
             ),
             Completed(
                 execution_id=ExecutionId("scratch"),
