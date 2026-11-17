@@ -166,7 +166,6 @@ function renderConnectionHook(
     () =>
       useNotebookSession({
         sessionId: SESSION_ID,
-        autoInstantiate: false,
       }),
     { wrapper, reactStrictMode },
   );
@@ -470,7 +469,6 @@ describe("connection notice", () => {
     const Connection = () => {
       const { reconnect } = useNotebookSession({
         sessionId: SESSION_ID,
-        autoInstantiate: false,
       });
       return (
         <ConnectionNotice

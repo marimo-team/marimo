@@ -3,7 +3,6 @@
 import { invalidatePackageData } from "@/core/packages/package-data";
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useMemo } from "react";
-import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import {
   getNotebook,
@@ -84,12 +83,8 @@ import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
 /** Coordinate session startup and apply notifications to the editor. */
-export function useNotebookSession(opts: {
-  sessionId: SessionId;
-  autoInstantiate: boolean;
-}) {
-  const { autoInstantiate, sessionId } = opts;
-  const { showBoundary } = useErrorBoundary();
+export function useNotebookSession(opts: { sessionId: SessionId }) {
+  const { sessionId } = opts;
   const store = useStore();
 
   const { handleCellMessage, reconcileDocument, resetCellRuntimes } =
@@ -146,12 +141,10 @@ export function useNotebookSession(opts: {
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
         const layout = handleKernelReady(msg.data, {
-          autoInstantiate,
           cells: notebookCells(store.get(notebookAtom)),
           resetCellRuntimes,
           setLayoutData,
           setCapabilities,
-          onError: showBoundary,
         });
         store.set(savedLayoutAtom, layout);
         if (!msg.data.resumed) {
