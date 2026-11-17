@@ -2,9 +2,11 @@
 
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { dequal } from "dequal";
 import { getCellCode } from "./cell-code";
-import { languageAdapterState } from "./extension";
+import { languageAdapterFromCode, languageAdapterState } from "./extension";
 import { languageMetadataField } from "./metadata";
+import type { LanguageAdapterType } from "./types";
 
 /**
  * Get the editor code as Python
@@ -56,3 +58,49 @@ export function splitEditor(editor: EditorView) {
     afterCursorCode,
   };
 }
+
+/** Join two cells' code; null for mixed languages or settings, or SQL. */
+export function mergeCellCode(above: string, below: string): string | null {
+  if (!below.trim()) {
+    return above;
+  }
+  if (!above.trim()) {
+    return below;
+  }
+  const adapter = languageAdapterFromCode(above);
+  if (adapter.type === "sql" || languageAdapterFromCode(below) !== adapter) {
+    return null;
+  }
+  const [aboveText, , metadata] = adapter.transformIn(above);
+  const [belowText, , belowMetadata] = adapter.transformIn(below);
+  if (!dequal(metadata, belowMetadata)) {
+    return null;
+  }
+  return adapter.transformOut(
+    `${aboveText}${separatorFor(adapter.type)}${belowText}`,
+    metadata,
+  )[0];
+}
+
+/** The code above a merge, if `merged` still ends with the code below. */
+export function unmergeCellCode(merged: string, below: string): string | null {
+  if (!below.trim()) {
+    return merged;
+  }
+  const adapter = languageAdapterFromCode(merged);
+  const [mergedText, , metadata] = adapter.transformIn(merged);
+  const text = mergedText.trimEnd();
+  const belowText = adapter.transformIn(below)[0].trimEnd();
+  if (text === belowText) {
+    return "";
+  }
+  const suffix = `${separatorFor(adapter.type)}${belowText}`;
+  if (!text.endsWith(suffix)) {
+    return null;
+  }
+  return adapter.transformOut(text.slice(0, -suffix.length), metadata)[0];
+}
+
+// Markdown needs a blank line, or the two paragraphs run together.
+const separatorFor = (type: LanguageAdapterType) =>
+  type === "markdown" ? "\n\n" : "\n";

@@ -72,7 +72,19 @@ export interface UndoMoveEntry {
   placements: Array<{ columnId: CellColumnId; index: number }>;
 }
 
-export type HistoryEntry = UndoDeleteEntry | UndoMoveEntry;
+/**
+ * History entry for undoing a merge.
+ */
+export interface UndoMergeEntry {
+  type: "merge";
+  cellId: CellId;
+  code: string;
+  name: string;
+  merged: string;
+  cells: [DeletedCell];
+}
+
+export type HistoryEntry = UndoDeleteEntry | UndoMoveEntry | UndoMergeEntry;
 
 /**
  * The state of the notebook.

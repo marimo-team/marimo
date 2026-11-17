@@ -71,7 +71,7 @@ export const Controls = ({
           size="medium"
           color="hint-green"
           shape="circle"
-          onClick={undoDeleteCell}
+          onClick={() => undoDeleteCell()}
         >
           <Undo2Icon size={16} strokeWidth={1.5} />
         </Button>
