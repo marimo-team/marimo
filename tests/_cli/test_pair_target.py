@@ -297,6 +297,49 @@ def test_inbox_keeps_targets_without_a_local_host(
     assert target.resolve_inbox_target(selected) is selected
 
 
+@pytest.mark.parametrize("credential", ["editor-secret", HOST.token])
+def test_inbox_validates_explicit_credentials_before_the_host_credential(
+    monkeypatch: pytest.MonkeyPatch, credential: str
+) -> None:
+    calls: list[dict[str, str | None]] = []
+    monkeypatch.setattr(target, "find_host", lambda _: HOST)
+    monkeypatch.setattr(
+        target, "list_running_notebooks", lambda _: Listing([NOTEBOOK], [])
+    )
+    monkeypatch.setattr(
+        target, "list_sessions", lambda **kwargs: calls.append(kwargs) or {}
+    )
+    selected = ExecutionTarget(
+        NOTEBOOK.url, NOTEBOOK.id, credential, NOTEBOOK.id
+    )
+    assert target.resolve_inbox_target(selected) == ExecutionTarget(
+        NOTEBOOK.url, NOTEBOOK.id, HOST.token, NOTEBOOK.id
+    )
+    assert calls == (
+        []
+        if credential == HOST.token
+        else [{"url": NOTEBOOK.url, "token": credential}]
+    )
+
+
+def test_inbox_rejects_invalid_explicit_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def refused(**_: object) -> dict[str, dict[str, str]]:
+        raise PairError("Authentication failed.")
+
+    monkeypatch.setattr(target, "find_host", lambda _: HOST)
+    monkeypatch.setattr(target, "list_sessions", refused)
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda _: pytest.fail("Must not use the host credential"),
+    )
+    selected = ExecutionTarget(NOTEBOOK.url, NOTEBOOK.id, "wrong", NOTEBOOK.id)
+    with pytest.raises(PairError, match="Authentication failed"):
+        target.resolve_inbox_target(selected)
+
+
 def test_connect_does_not_replace_explicit_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

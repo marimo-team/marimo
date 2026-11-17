@@ -32,7 +32,8 @@ class ExecutionTarget:
 def resolve_inbox_target(selected: ExecutionTarget) -> ExecutionTarget:
     """Use the matching local host credential after session selection."""
     url: str | None = selected.url
-    if find_host(selected.url) is None:
+    host = find_host(selected.url)
+    if host is None:
         if selected.token is not None or not is_loopback(
             urlsplit(selected.url).hostname or ""
         ):
@@ -40,6 +41,9 @@ def resolve_inbox_target(selected: ExecutionTarget) -> ExecutionTarget:
         # A local frontend proxy can expose sessions at a different port.
         # Match its verified notebook ID before using a discovered credential.
         url = None
+    elif selected.token is not None and selected.token != host.token:
+        # The host credential must not hide an invalid explicit credential.
+        list_sessions(url=selected.url, token=selected.token)
     return resolve_target(
         url=url,
         session_id=selected.notebook_id,
