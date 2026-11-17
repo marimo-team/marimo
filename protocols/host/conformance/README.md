@@ -1,45 +1,38 @@
 # Host protocol conformance tests
 
-Python tests for hosts implementing the [host protocol](../spec.md). The suite
-uses HTTP and SSE and does not import marimo.
-
-Start a host in a disposable workspace (for marimo, use
-`marimo edit`), then run this from the repository root:
+From the repository root, check the Python bindings and portable fixtures
+with:
 
 ```sh
-uv run --locked --project protocols/host/conformance \
-  pytest protocols/host/conformance --record /path/to/hosts-v1/host.json
+make host-protocol-check
 ```
 
-The caller starts and stops the host. Operation tests create scratch notebooks
-and clean up their own resources. Without `--record`, only offline schema,
-fixture, and checker tests run; these also run in CI via `make host-protocol-check`.
+The suite validates against the OpenAPI document, which it asks the
+[host protocol package](../README.md#get-the-openapi-document) to print. That
+needs Node and the package's one dependency.
 
-Scratch checks require the created notebook to permit `notebook.delete`.
-That permission is only known after creation. If it is unavailable, the suite
-skips the remaining scratch checks and reports the notebook ID for manual
-cleanup in the disposable workspace.
+```sh
+pnpm install --filter @marimo-team/host-protocol --prod
+```
 
-- `--slow` includes idle ping checks.
-- `--host-timeout 30` allows longer waits for a host's responses and events.
-- `--require-operation runtime.run` fails if that capability is missing. Repeat
-  this option to require more operations; otherwise unavailable operations skip.
+This includes experimental fixtures. Tests that need a running host are
+skipped. The [contributor workflow](../README.md#change-a-contract) also
+covers TypeScript generation and package checks.
 
-The suite covers discovery records, authentication, snapshots, filtering,
-resumption, document hashes, and selected notebook and runtime operations.
-It does not yet cover opening an editor, answering host decisions, or unsupported
-operation responses. Retention expiry, external store changes, shutdown, and
-transport failures also need implementation tests. WebSocket transport is outside
-this contract.
+## Check a running host
 
-Experimental features have separate conformance tests. Check the stable
-contract and all experimental fixtures together with:
+Start a host in a disposable workspace and pass its
+[discovery record](../spec.md#local-discovery). The suite creates and modifies
+notebooks and starts and stops runtimes; you manage the host's lifecycle.
 
 ```sh
 uv run --locked --project protocols/host/conformance \
   pytest -c protocols/host/conformance/pyproject.toml \
-  protocols/host/conformance protocols/host/experimental
+  protocols/host/conformance protocols/host/experimental \
+  --record /path/to/hosts-v1/host.json
 ```
 
-The base probes continue to ignore experimental events. Each feature's suite
-validates its payloads against the composed contract.
+The suite skips tests for capabilities the host does not offer, so review the
+skipped tests. Repeat `--require-operation <operation>` to assert advertised
+operations, and use `--slow` to include idle ping checks. Replace `--record`
+and its path with `--help` for all options.

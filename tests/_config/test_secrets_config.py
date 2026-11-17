@@ -1,11 +1,80 @@
 from __future__ import annotations
 
+import copy
+from typing import TYPE_CHECKING, Annotated
+
+from msgspec import Meta
+
 from marimo._config.config import PartialMarimoConfig
+from marimo._config.config_schema import MarimoConfig
+from marimo._config.schema_utils import Config
 from marimo._config.secrets import (
     SECRET_PLACEHOLDER,
     redact_secrets,
+    redact_secrets_partial,
     remove_secret_placeholders,
 )
+
+if TYPE_CHECKING:
+    import pytest
+
+
+class _CredentialsConfig(Config, kw_only=True):
+    token: Annotated[str | None, Meta(extra={"sensitive": True})] = None
+    label: str = ""
+
+
+class _SettingsConfig(Config, kw_only=True):
+    entries: list[_CredentialsConfig]
+    providers: dict[str, _CredentialsConfig] | None = None
+
+
+class _ElementSettingsConfig(Config, kw_only=True):
+    tokens: dict[str, Annotated[str | None, Meta(extra={"sensitive": True})]]
+    entries: list[Annotated[str | None, Meta(extra={"sensitive": True})]]
+    nested: list[
+        dict[str, Annotated[str | None, Meta(extra={"sensitive": True})]]
+    ]
+
+
+def test_redact_typed_config() -> None:
+    config = MarimoConfig.from_dict(
+        {
+            "ai": {
+                "open_ai": {"api_key": "openai-secret"},
+                "custom_providers": {
+                    "gateway": {
+                        "api_key": "gateway-secret",
+                        "base_url": "https://example.com",
+                    }
+                },
+                "bedrock": {
+                    "aws_access_key_id": "access-key",
+                    "aws_secret_access_key": "secret-key",
+                },
+            },
+            "server": {"session_secret": "session-secret"},
+            "runtime": {"dotenv": [".env"]},
+            "signing": {"private_key_path": "private.pem"},
+        }
+    )
+    original = config.to_dict()
+    expected = config.to_dict()
+    expected["ai"]["open_ai"]["api_key"] = SECRET_PLACEHOLDER
+    expected["ai"]["custom_providers"]["gateway"]["api_key"] = (
+        SECRET_PLACEHOLDER
+    )
+    expected["ai"]["bedrock"]["aws_access_key_id"] = SECRET_PLACEHOLDER
+    expected["ai"]["bedrock"]["aws_secret_access_key"] = SECRET_PLACEHOLDER
+    expected["server"]["session_secret"] = SECRET_PLACEHOLDER
+    expected["signing"]["private_key_path"] = SECRET_PLACEHOLDER
+    del expected["runtime"]["dotenv"]
+
+    redacted = redact_secrets(config)
+
+    assert isinstance(redacted, MarimoConfig)
+    assert redacted.to_dict() == expected
+    assert config.to_dict() == original
 
 
 def test_mask_secrets() -> None:
@@ -38,7 +107,9 @@ def test_mask_secrets() -> None:
         == "bedrock_secret_access_key"
     )
 
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
+    assert "dotenv" not in new_config["runtime"]
+    assert config["runtime"]["dotenv"] == [".env"]
     assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["anthropic"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["google"]["api_key"] == SECRET_PLACEHOLDER
@@ -72,7 +143,7 @@ def test_mask_secrets_list() -> None:
         ai={"open_ai": [{"api_key": "super_secret"}]},
     )
     assert config["ai"]["open_ai"][0]["api_key"] == "super_secret"
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert new_config["ai"]["open_ai"][0]["api_key"] == SECRET_PLACEHOLDER
 
     # Ensure the original config is not modified
@@ -93,7 +164,7 @@ def test_mask_secrets_empty() -> None:
     )
     assert config["ai"]["open_ai"]["model"] == "davinci"
 
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert new_config["ai"]["open_ai"]["model"] == "davinci"
     # Not added until the key is present
     assert "api_key" not in new_config["ai"]["open_ai"]
@@ -108,7 +179,7 @@ def test_mask_secrets_empty() -> None:
     config["ai"]["google"]["api_key"] = ""
     config["ai"]["anthropic"]["api_key"] = ""
     config["ai"]["openrouter"]["api_key"] = ""
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert new_config["ai"]["open_ai"]["api_key"] == ""
     assert new_config["ai"]["google"]["api_key"] == ""
     assert new_config["ai"]["anthropic"]["api_key"] == ""
@@ -135,7 +206,7 @@ def test_mask_secrets_non_dict_values() -> None:
             "custom_providers": "oops",
         },
     )
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
     assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["bedrock"] is None
     assert new_config["ai"]["custom_providers"] == "oops"
@@ -198,7 +269,7 @@ def test_mask_secrets_custom_providers() -> None:
     )
 
     # Mask secrets
-    new_config = redact_secrets(config)
+    new_config = redact_secrets_partial(config)
 
     # Verify api_keys are masked
     assert (
@@ -282,7 +353,7 @@ def test_mask_secrets_signing_private_key_path() -> None:
             "trusted_signers": {"SHA256:abc": "alice"},
         },
     )
-    masked = redact_secrets(config)
+    masked = redact_secrets_partial(config)
     assert masked["signing"]["private_key_path"] == SECRET_PLACEHOLDER
     # trusted_signers are public fingerprints — not masked.
     assert masked["signing"]["trusted_signers"] == {"SHA256:abc": "alice"}
@@ -291,3 +362,130 @@ def test_mask_secrets_signing_private_key_path() -> None:
     assert "private_key_path" not in remove_secret_placeholders(masked).get(
         "signing", {}
     )
+
+
+def test_redact_schema_sensitive_collections() -> None:
+    config = MarimoConfig.from_dict(
+        {
+            "completion": {
+                "api_key": "legacy-secret",
+                "codeium_api_key": "secret",
+            },
+            "ai": {
+                "custom_providers": {
+                    "gateway": {
+                        "api_key": "secret",
+                        "extra_headers": {"Authorization": "Bearer secret"},
+                        "base_url": "https://example.com",
+                    }
+                }
+            },
+            "mcp": {
+                "mcpServers": {
+                    "local": {
+                        "command": "example",
+                        "env": {"TOKEN": "secret"},
+                    },
+                    "remote": {
+                        "url": "https://example.com/mcp",
+                        "headers": {"Authorization": "Bearer secret"},
+                        "env": {"TOKEN": "secret"},
+                    },
+                }
+            },
+        }
+    )
+    original = config.to_dict()
+    expected = config.to_dict()
+    expected["completion"]["api_key"] = SECRET_PLACEHOLDER
+    del expected["completion"]["codeium_api_key"]
+    gateway = expected["ai"]["custom_providers"]["gateway"]
+    gateway["api_key"] = SECRET_PLACEHOLDER
+    del gateway["extra_headers"]
+    del expected["mcp"]["mcpServers"]["local"]["env"]
+    del expected["mcp"]["mcpServers"]["remote"]["headers"]
+    del expected["mcp"]["mcpServers"]["remote"]["env"]
+
+    assert redact_secrets_partial(original) == expected
+    assert redact_secrets(config).to_dict() == expected
+    assert config.to_dict() == original
+
+
+def test_redaction_follows_schema_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("marimo._config.secrets.MarimoConfig", _SettingsConfig)
+    config = {
+        "entries": [
+            {"token": "secret", "label": "first"},
+            {"token": "", "label": "empty"},
+            {"token": None},
+            {"label": "missing"},
+        ],
+        "providers": {"custom": {"token": "secret", "label": "provider"}},
+        "unknown": {"token": "preserved"},
+    }
+    original = copy.deepcopy(config)
+    assert redact_secrets_partial(config) == {
+        "entries": [
+            {"token": SECRET_PLACEHOLDER, "label": "first"},
+            {"token": "", "label": "empty"},
+            {"token": None},
+            {"label": "missing"},
+        ],
+        "providers": {
+            "custom": {"token": SECRET_PLACEHOLDER, "label": "provider"}
+        },
+        "unknown": {"token": "preserved"},
+    }
+    assert config == original
+
+
+def test_redact_sensitive_collection_elements(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "marimo._config.secrets.MarimoConfig", _ElementSettingsConfig
+    )
+    config = {
+        "tokens": {"secret": "token", "empty": "", "null": None},
+        "entries": ["token", "", None],
+        "nested": [{"secret": "nested-token", "empty": ""}, {}],
+    }
+    original = copy.deepcopy(config)
+    expected = {
+        "tokens": {"secret": SECRET_PLACEHOLDER, "empty": "", "null": None},
+        "entries": [SECRET_PLACEHOLDER, "", None],
+        "nested": [{"secret": SECRET_PLACEHOLDER, "empty": ""}, {}],
+    }
+
+    redacted = redact_secrets_partial(config)
+    assert redacted == expected
+    assert _ElementSettingsConfig.from_dict(redacted).to_dict() == expected
+    assert config == original
+
+
+def test_removed_codeium_credentials_are_not_exposed() -> None:
+    config = {
+        "completion": {
+            "codeium_api_key": "legacy-secret",
+            "auto_close_pairs": False,
+        }
+    }
+    assert redact_secrets_partial(config) == {
+        "completion": {"auto_close_pairs": False}
+    }
+    assert redact_secrets(
+        MarimoConfig.from_dict(config)
+    ).completion.to_dict() == {
+        "activate_on_typing": True,
+        "signature_hint_on_typing": False,
+        "copilot": False,
+        "auto_close_pairs": False,
+    }
+    assert config == {
+        "completion": {
+            "codeium_api_key": "legacy-secret",
+            "auto_close_pairs": False,
+        }
+    }

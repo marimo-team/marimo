@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import json
 import re
+import sys
 import threading
 from unittest import mock
 from urllib.parse import urlparse
@@ -17,11 +18,13 @@ from marimo._export.offline import (
     _lock_required,
     _resolve_packages,
     bundle_wasm_runtime,
+    check_offline_export_browser,
 )
 from marimo._pyodide.pyodide_constraints import PYODIDE_VERSION
 from marimo._schemas.export_options import WASMRuntimeConfig
 from marimo._utils import requests
 from marimo._utils.requests import Response
+from tests.mocks import fake_async_playwright
 
 
 @pytest.fixture
@@ -284,6 +287,20 @@ async def test_failed_page_requests_are_aborted():
         await _fetch_in_python(route)
     route.abort.assert_awaited_once_with()
     route.fulfill.assert_not_awaited()
+
+
+def test_browser_check_starts_the_driver_from_a_selector_loop():
+    browser = mock.AsyncMock()
+    playwright = mock.MagicMock()
+    playwright.chromium.launch = mock.AsyncMock(return_value=browser)
+    async_api = mock.MagicMock()
+    async_api.async_playwright = fake_async_playwright(playwright)
+    with (
+        mock.patch.dict(sys.modules, {"playwright.async_api": async_api}),
+        asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner,
+    ):
+        runner.run(check_offline_export_browser())
+    browser.close.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio

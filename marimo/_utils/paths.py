@@ -1,13 +1,35 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ntpath
 import os
+import re
 import sys
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from importlib.abc import Traversable
+
+
+def is_valid_filename(name: str) -> bool:
+    """Whether a name is a portable filename of at most 255 UTF-8 bytes."""
+    if (
+        not name
+        or name.endswith((".", " "))
+        or re.search(r'[<>:"/\\|?*\x00-\x1f\x7f-\x9f]', name)
+    ):
+        return False
+
+    try:
+        if len(name.encode("utf-8")) > 255:
+            return False
+    except UnicodeEncodeError:
+        return False
+
+    if sys.version_info >= (3, 13):
+        return not ntpath.isreserved(name)
+    return not PureWindowsPath(name).is_reserved()
 
 
 def import_files(filename: str) -> Traversable:

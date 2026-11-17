@@ -11,21 +11,19 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def foo():
     import marimo as mo
-    return
 
 
 @app.cell
 def _():
     import python_gcode
     help(python_gcode)
-    return
 
 
 if __name__ == "__main__":

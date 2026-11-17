@@ -5,7 +5,8 @@
 #     "polars[pyarrow]==1.27.1",
 #     "marimo[sql]",
 #     "duckdb==1.2.2",
-#     "sqlglot==26.13.0",
+#     "sqlglot[c]>=30.11.0; python_version < '3.15'",
+#     "sqlglot[c]>=30.23.0; python_version >= '3.15'",
 # ]
 # ///
 

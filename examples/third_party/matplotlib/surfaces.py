@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -18,7 +18,6 @@ def _(mo):
     mo.md("""
     # Surfaces
     """)
-    return
 
 
 @app.cell
@@ -33,7 +32,6 @@ def _(ax, xlim, ylim, zlim):
     ax.set_ylim(ylim.value)
     ax.set_zlim(zlim.value)
     ax
-    return
 
 
 @app.cell(hide_code=True)
@@ -101,11 +99,10 @@ def _(
         surface in $\mathbf{{R}}^3$ {_prose}
         """
     )
-    return
 
 
 @app.cell
-def _(function, function_options):
+def _(function, function_options: dict):
     selected_function = function_options[function.value]
     return (selected_function,)
 
@@ -159,7 +156,6 @@ def _(mo):
     mo.md("""
     ### Controls
     """)
-    return
 
 
 @app.cell

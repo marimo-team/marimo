@@ -85,7 +85,7 @@ def _(plt):
 
 
 @app.cell(hide_code=True)
-def _(mo, plt_show_explainer):
+def _(mo, plt_show_explainer: dict[str, str]):
     mo.accordion(plt_show_explainer)
 
 
@@ -239,7 +239,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(missing_packages, mo):
+def _(missing_packages: bool, mo):
     module_not_found_explainer = mo.md(
         """
         ## Oops!

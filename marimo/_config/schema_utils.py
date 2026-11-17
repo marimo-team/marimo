@@ -4,22 +4,29 @@
 from __future__ import annotations
 
 import copy
+import types
+from functools import cache
 from typing import (
     Annotated,
     Any,
     ClassVar,
     Self,
+    TypeVar,
+    Union,
     get_args,
     get_origin,
     get_type_hints,
 )
 
 import msgspec
-from msgspec import UNSET, Meta
+from msgspec import UNSET, Meta, UnsetType
 from msgspec.structs import fields
 
+T = TypeVar("T")
+D = TypeVar("D")
 
-def default_if_unset(value: Any, default: Any) -> Any:
+
+def default_if_unset(value: T | UnsetType, default: D) -> T | D:
     """Use a fallback only for absent values, preserving explicit None."""
     return default if value is UNSET else value
 
@@ -105,6 +112,18 @@ class Config(msgspec.Struct, dict=True, kw_only=True):
     def __post_init__(self) -> None:
         self._extra_fields: dict[str, object] = {}
 
+    def __deepcopy__(self, memo: dict[int, Any]) -> Self:
+        copied = msgspec.structs.replace(self)
+        memo[id(self)] = copied
+        for item in fields(self):
+            setattr(
+                copied,
+                item.name,
+                copy.deepcopy(getattr(self, item.name), memo),
+            )
+        copied._extra_fields = copy.deepcopy(self._extra_fields, memo)
+        return copied
+
     def __rich_repr__(self) -> list[tuple[str, Any]]:
         metadata = {
             name: metadata
@@ -144,3 +163,50 @@ class Config(msgspec.Struct, dict=True, kw_only=True):
             self, msgspec.to_builtins(self)
         )
         return serialized
+
+
+@cache
+def config_leaf_types(cls: type[Config]) -> dict[tuple[str, ...], Any]:
+    """Discover declared settings, treating collections as whole values."""
+    leaves: dict[tuple[str, ...], Any] = {}
+    for item in fields(cls):
+        annotation = item.type
+        if get_origin(annotation) is Annotated:
+            annotation = get_args(annotation)[0]
+        variants = (
+            get_args(annotation)
+            if get_origin(annotation) in (Union, types.UnionType)
+            else (annotation,)
+        )
+        present = [
+            arg
+            for arg in variants
+            if arg not in (msgspec.UnsetType, type(None))
+        ]
+        nested = present[0] if len(present) == 1 else None
+        if isinstance(nested, type) and issubclass(nested, Config):
+            for path, leaf_type in config_leaf_types(nested).items():
+                leaves[(item.encode_name, *path)] = leaf_type
+        else:
+            leaves[(item.encode_name,)] = annotation
+    return leaves
+
+
+@cache
+def config_cli_flags(
+    cls: type[Config],
+) -> dict[tuple[str, ...], tuple[str, ...]]:
+    """Map declared configuration paths to their CLI shortcuts."""
+    flags: dict[tuple[str, ...], tuple[str, ...]] = {}
+    for item in fields(cls):
+        annotation = item.type
+        if get_origin(annotation) is Annotated:
+            annotation, *extras = get_args(annotation)
+            for extra in extras:
+                if isinstance(extra, Meta) and extra.extra:
+                    if names := extra.extra.get("cli_flag"):
+                        flags[(item.encode_name,)] = tuple(names)
+        if isinstance(annotation, type) and issubclass(annotation, Config):
+            for path, names in config_cli_flags(annotation).items():
+                flags[(item.encode_name, *path)] = names
+    return flags

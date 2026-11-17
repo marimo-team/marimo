@@ -22,7 +22,6 @@ from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
 )
-from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
@@ -330,6 +329,8 @@ def test_get_engines_from_variables_sqlite3_is_not_adbc() -> None:
 
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_get_engines_duckdb_databases() -> None:
+    import duckdb
+
     duckdb_engine = DuckDBEngine(None)
 
     # Test display name when the name is DEFAULT_ENGINE_NAME
@@ -350,11 +351,7 @@ def test_get_engines_duckdb_databases() -> None:
     assert connection.default_database == "memory"
     assert connection.default_schema == "main"
 
-    with patch(
-        "marimo._sql.sql.get_configured_sql_output_format",
-        return_value="native",
-    ):
-        sql("CREATE TABLE test_table (id INTEGER);")
+    duckdb.execute("CREATE TABLE test_table (id INTEGER);").fetchall()
 
     try:
         # Reload the connection to get the new table
@@ -377,11 +374,7 @@ def test_get_engines_duckdb_databases() -> None:
         assert table.columns == []
         assert table.num_columns is None
     finally:
-        with patch(
-            "marimo._sql.sql.get_configured_sql_output_format",
-            return_value="native",
-        ):
-            sql("DROP TABLE test_table;")
+        duckdb.execute("DROP TABLE test_table;").fetchall()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

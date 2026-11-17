@@ -11,6 +11,7 @@ import pytest
 
 from marimo import App, _loggers
 from marimo._config.config import merge_default_config
+from marimo._config.config_schema import MarimoConfig
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.context import get_context
@@ -232,12 +233,18 @@ class TestEntryPointLoaders:
 class TestGetLoaderKey:
     def test_reads_cache_loader(self) -> None:
         assert (
-            get_loader_key(config={"cache": {"loader": "pickle"}}) == "pickle"
+            get_loader_key(
+                config=MarimoConfig.from_dict({"cache": {"loader": "pickle"}})
+            )
+            == "pickle"
         )
 
     def test_missing_section_is_default(self) -> None:
-        assert get_loader_key(config={}) == "lazy"
-        assert get_loader_key(config={"cache": {}}) == "lazy"
+        assert get_loader_key(config=MarimoConfig.from_dict({})) == "lazy"
+        assert (
+            get_loader_key(config=MarimoConfig.from_dict({"cache": {}}))
+            == "lazy"
+        )
 
 
 class TestPersistentCacheDefaultMethod:

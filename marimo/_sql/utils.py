@@ -5,7 +5,8 @@ from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
-from marimo._config.config import SqlOutputType
+from marimo._cli.install_hints import get_install_hint
+from marimo._config.types import SqlOutputType
 from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime._wasm._duckdb import (
@@ -101,10 +102,18 @@ def _try_wasm_duckdb(
     return _NO_WASM_DUCKDB_RESULT if result is None else result.value
 
 
+def _as_duckdb_relation(result: object) -> duckdb.DuckDBPyRelation | None:
+    import duckdb
+
+    if result is None or isinstance(result, duckdb.DuckDBPyRelation):
+        return result
+    raise TypeError("DuckDB SQL did not return a relation or None")
+
+
 def wrapped_sql(
     query: str,
     connection: duckdb.DuckDBPyConnection | None,
-) -> duckdb.DuckDBPyRelation:
+) -> duckdb.DuckDBPyRelation | None:
     DependencyManager.duckdb.require("to execute sql")
     import duckdb
 
@@ -117,6 +126,7 @@ def wrapped_sql(
     if connection is None:
         connection = cast(duckdb.DuckDBPyConnection, duckdb)
 
+    relation: duckdb.DuckDBPyRelation | None
     try:
         ctx = get_context()
     except ContextNotInitializedError:
@@ -125,7 +135,7 @@ def wrapped_sql(
             # No WASM rewrite was needed; use DuckDB's normal SQL path.
             relation = connection.sql(query=query)
         else:
-            relation = cast(duckdb.DuckDBPyRelation, result)
+            relation = _as_duckdb_relation(result)
     else:
         install_connection = (
             ctx.execution_context.with_connection
@@ -147,7 +157,7 @@ def wrapped_sql(
                     {"query": query, "connection": connection},
                 )
             else:
-                relation = cast(duckdb.DuckDBPyRelation, result)
+                relation = _as_duckdb_relation(result)
 
     return relation
 
@@ -304,7 +314,7 @@ def convert_to_output(
 def raise_df_import_error(pkg: str) -> None:
     raise ModuleNotFoundError(
         "pandas or polars is required to execute sql. "
-        + "You can install them with 'pip install pandas polars'",
+        + f"You can install them with '{get_install_hint(['pandas', 'polars'])}'",
         name=pkg,
     )
 

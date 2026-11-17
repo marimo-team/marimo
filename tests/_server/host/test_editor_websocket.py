@@ -4,13 +4,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import TYPE_CHECKING, Any
 
 import msgspec
 import pytest
 from dirty_equals import IsStr
+from inline_snapshot import snapshot
 from starlette.websockets import WebSocketDisconnect
 
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import (
     AlertNotification,
@@ -22,16 +25,27 @@ from marimo._server.host import HOST_API_PATH
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._session.managers.ipc import KernelStartupError
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._session.notebook import AppFileManager
+from marimo._session.state.serialize import get_session_cache_file
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
+from marimo._utils.code import hash_code
+from marimo._version import __version__
 from tests._server.api.endpoints.ws_helpers import headers
 from tests._server.host.drive import socket_snapshot
-from tests._server.mocks import get_session_manager
+from tests._server.mocks import get_session_manager, run_cells
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
 
     from starlette.testclient import TestClient, WebSocketTestSession
+
+
+def first_cell_id(client: TestClient, session_id: str) -> CellId_t:
+    """The first cell of the session's document, as the host stream has it."""
+    session = get_session_manager(client).get_session(SessionId(session_id))
+    assert session is not None
+    return session.document.cell_ids[0]
 
 
 @pytest.fixture
@@ -64,6 +78,96 @@ def receive_notification(
             return event["data"]["marimo"]
 
 
+def assert_reconnect_alert(websocket: WebSocketTestSession) -> None:
+    assert websocket.receive_json() == snapshot(
+        {
+            "event": "marimo",
+            "data": {
+                "marimo": {
+                    "op": "alert",
+                    "title": "Reconnected",
+                    "description": "You have reconnected to an existing session.",
+                    "variant": None,
+                }
+            },
+        }
+    )
+
+
+def completed(event: dict[str, Any], run_id: str) -> bool:
+    """Whether `event` is the kernel's completed-run for the host run."""
+    return (
+        event["event"] == "marimo"
+        and event["data"]["marimo"]["op"] == "completed-run"
+        and event["data"]["marimo"]["run_id"] == run_id
+    )
+
+
+def receive_completed_run(
+    websocket: WebSocketTestSession, run_id: str
+) -> None:
+    """Read until the host run's cycle has ended; an edit's cycle may come first."""
+    while not completed(websocket.receive_json(), run_id):
+        pass
+
+
+def test_editor_opens_with_the_results_an_earlier_session_stored(
+    client: TestClient, editor_host: SessionBridge
+) -> None:
+    # With autorun off the session keeps its own cache of this file, and
+    # starts writing it as soon as it exists.
+    manager = get_session_manager(client)
+    manager._config_manager = manager._config_manager.with_overrides(
+        {
+            "runtime": {
+                **DEFAULT_CONFIG.runtime.to_dict(),
+                "auto_instantiate": False,
+            }
+        }
+    )
+    (notebook_id,) = editor_host.host.notebooks
+    file = editor_host.index.file_of(notebook_id)
+    assert file is not None
+    (code,) = AppFileManager(str(file)).app.cell_manager.codes()
+    cache = get_session_cache_file(file)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": None,
+                },
+                "cells": [
+                    {
+                        "id": "earlier",
+                        "code_hash": hash_code(code),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "stored"}}
+                        ],
+                        "console": [],
+                    }
+                ],
+            }
+        )
+    )
+
+    with client.websocket_connect(socket_url(editor_host)) as websocket:
+        opening = socket_snapshot(websocket)
+
+    assert [
+        event["data"]["execution"]["outcome"]
+        for event in opening
+        if event["event"] == "execution"
+    ] == [
+        {
+            "kind": "value",
+            "display": {"mimetype": "text/plain", "data": "stored"},
+        }
+    ]
+
+
 @pytest.mark.parametrize("types", [None, "marimo", "marimo,run"])
 def test_editor_starts_and_runs_through_the_host_socket(
     client: TestClient, editor_host: SessionBridge, types: str | None
@@ -93,20 +197,19 @@ def test_editor_starts_and_runs_through_the_host_socket(
             names = [event["event"] for event in messages[:boundary]]
             assert names[0] == "notebook"
             assert names.index("cell") < names.index("document")
-        cell_id = ready["cell_ids"][0]
-        response = client.post(
-            "/api/kernel/run",
+        cell_id = first_cell_id(client, "s1")
+        (notebook_id,) = editor_host.host.notebooks
+        response = run_cells(
+            client,
+            notebook_id,
+            {cell_id: "print('host socket')"},
             headers=headers("s1"),
-            json={"cellIds": [cell_id], "codes": ["print('host socket')"]},
         )
-        assert response.status_code == 200, response.text
+        assert response.status_code == 202, response.text
         while True:
             event = websocket.receive_json()
             messages.append(event)
-            if (
-                event["event"] == "marimo"
-                and event["data"]["marimo"]["op"] == "completed-run"
-            ):
+            if completed(event, response.json()["id"]):
                 break
         received_types = {event["event"] for event in messages}
         if types is None:
@@ -171,34 +274,31 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
 ) -> None:
     url = f"{socket_url(editor_host)}&types=marimo"
     with client.websocket_connect(url) as websocket:
-        ready = receive_notification(websocket, "kernel-ready")
-        cell_id = ready["cell_ids"][0]
-        response = client.post(
-            "/api/kernel/run",
+        receive_notification(websocket, "kernel-ready")
+        cell_id = first_cell_id(client, "s1")
+        (notebook_id,) = editor_host.host.notebooks
+        response = run_cells(
+            client,
+            notebook_id,
+            {cell_id: "print('retained output')"},
             headers=headers("s1"),
-            json={"cellIds": [cell_id], "codes": ["print('retained output')"]},
         )
-        assert response.status_code == 200, response.text
-        receive_notification(websocket, "completed-run")
+        assert response.status_code == 202, response.text
+        receive_completed_run(websocket, response.json()["id"])
     with client.websocket_connect(url) as websocket:
         socket_snapshot(websocket)
-        while True:
-            event = websocket.receive_json()
-            assert event["event"] == "marimo"
-            notification = event["data"]["marimo"]
-            assert notification["op"] not in ("kernel-ready", "cell-op")
-            if notification["op"] == "reconnected":
-                break
-        assert (
-            receive_notification(websocket, "alert")["title"] == "Reconnected"
-        )
+        assert_reconnect_alert(websocket)
         cell = receive_notification(websocket, "cell-op")
         assert cell["cell_id"] == cell_id
         assert "retained output" in str(cell["console"])
     with client.websocket_connect(
         f"{socket_url(editor_host, 's2')}&types=marimo"
     ) as websocket:
-        ready = receive_notification(websocket, "kernel-ready")
+        socket_snapshot(websocket)
+        event = websocket.receive_json()
+        assert event["event"] == "marimo"
+        ready = event["data"]["marimo"]
+        assert ready["op"] == "kernel-ready"
         assert ready["resumed"] is True
         assert ready["kiosk"] is False
         cell = receive_notification(websocket, "cell-op")
@@ -213,12 +313,12 @@ def test_reconnect_recovers_offline_notifications(
     url = f"{socket_url(editor_host)}&types=marimo"
     with client.websocket_connect(url) as socket:
         cursor = socket_snapshot(socket)[-1]["id"]
-        ready = receive_notification(socket, "kernel-ready")
+        receive_notification(socket, "kernel-ready")
     session = get_session_manager(client).get_session(SessionId("s1"))
     assert session is not None
     assert client.portal is not None
     update = CellNotification(
-        cell_id=ready["cell_ids"][0],
+        cell_id=session.document.cell_ids[0],
         status="idle",
         output=CellOutput(
             channel=CellChannel.OUTPUT,
@@ -252,7 +352,7 @@ def test_reconnect_recovers_offline_notifications(
         assert [event["event"] for event in opening] == (
             ["reset", "ready"] if replay == "reset" else ["ready"]
         )
-        receive_notification(socket, "reconnected")
+        assert_reconnect_alert(socket)
         client.portal.call(
             session.notify,
             AlertNotification(title="marker", description=""),
@@ -452,8 +552,7 @@ def test_editor_resumes_host_events_without_replaying_private_notifications(
             "type": "test.missed",
             "data": {"text": "replayed"},
         }
-        receive_notification(socket, "reconnected")
-        assert receive_notification(socket, "alert")["title"] == "Reconnected"
+        assert_reconnect_alert(socket)
 
 
 def test_an_empty_cursor_is_rejected_before_starting_a_session(
@@ -484,22 +583,23 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
         try:
             with client.websocket_connect(url) as ws:
                 snapshot = socket_snapshot(ws)
-                ready = receive_notification(ws, "kernel-ready")
+                receive_notification(ws, "kernel-ready")
                 notebook_id = next(
                     e["data"]["notebook"]["id"]
                     for e in snapshot
                     if e["event"] == "notebook"
                 )
-                response = client.post(
-                    "/api/kernel/run",
+                response = run_cells(
+                    client,
+                    notebook_id,
+                    {first_cell_id(client, "new"): "x = 42"},
                     headers=headers("new"),
-                    json={"cellIds": ready["cell_ids"], "codes": ["x = 42"]},
                 )
-                assert response.status_code == 200
-                receive_notification(ws, "completed-run")
+                assert response.status_code == 202, response.text
+                receive_completed_run(ws, response.json()["id"])
             with client.websocket_connect(url) as ws:
                 snapshot = socket_snapshot(ws)
-                receive_notification(ws, "reconnected")
+                assert_reconnect_alert(ws)
                 assert (
                     next(
                         e["data"]["notebook"]["id"]
@@ -508,5 +608,83 @@ def test_untitled_editor_bootstraps_and_reconnects_with_host_events(
                     )
                     == notebook_id
                 )
+        finally:
+            client.portal.call(bridge.close)
+
+
+def test_untitled_editor_restarts_its_runtime_through_the_host(
+    client: TestClient,
+) -> None:
+    from marimo._server.workspace import EmptyWorkspace
+
+    manager = get_session_manager(client)
+    manager.workspace = EmptyWorkspace()
+    bridge = SessionBridge(manager)
+    client.app.state.host_context = HostContext(
+        bridge=bridge, token="host-token", port=1234
+    )
+    url = "/ws?session_id=new&access_token=fake-token"
+    with client:
+        assert client.portal is not None
+        client.portal.call(bridge.open)
+        try:
+            with client.websocket_connect(url) as ws:
+                snapshot = socket_snapshot(ws)
+                receive_notification(ws, "kernel-ready")
+                notebook_id = next(
+                    e["data"]["notebook"]["id"]
+                    for e in snapshot
+                    if e["event"] == "notebook"
+                )
+                cell_id = first_cell_id(client, "new")
+                response = run_cells(
+                    client,
+                    notebook_id,
+                    {cell_id: "x = 42"},
+                    headers=headers("new"),
+                )
+                assert response.status_code == 202, response.text
+                receive_completed_run(ws, response.json()["id"])
+
+                restarted = client.post(
+                    f"{HOST_API_PATH}/notebooks/{notebook_id}/runtime/restart",
+                    headers={**headers("new"), "Idempotency-Key": "restart"},
+                )
+                assert restarted.status_code == 202, restarted.text
+                replacement = restarted.json()["id"]
+                while True:
+                    try:
+                        ws.receive_json()
+                    except WebSocketDisconnect as exc:
+                        disconnect = (exc.code, exc.reason)
+                        break
+                assert disconnect == (1000, "MARIMO_SHUTDOWN")
+            with client.websocket_connect(url) as ws:
+                snapshot = socket_snapshot(ws)
+                assert (
+                    next(
+                        e["data"]["notebook"]["id"]
+                        for e in snapshot
+                        if e["event"] == "notebook"
+                    )
+                    == notebook_id
+                )
+                runtime = next(
+                    e["data"]["runtime"]
+                    for e in reversed(snapshot)
+                    if e["event"] == "runtime"
+                )
+                assert (runtime["id"], runtime["status"]) == (
+                    replacement,
+                    "running",
+                )
+                response = run_cells(
+                    client,
+                    notebook_id,
+                    {cell_id: "x = 43"},
+                    headers=headers("new"),
+                )
+                assert response.status_code == 202, response.text
+                receive_completed_run(ws, response.json()["id"])
         finally:
             client.portal.call(bridge.close)

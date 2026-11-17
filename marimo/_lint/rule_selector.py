@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from marimo._config.config import LintConfig
+    from marimo._config.config_schema import LintConfig
     from marimo._lint.rules.base import LintRule
 
 
@@ -45,8 +45,8 @@ def resolve_rules(
 
         all_rules = RULE_CODES
 
-    select = config.get("select")
-    ignore = config.get("ignore")
+    select = config.select
+    ignore = config.ignore
 
     # Step 1: base set — use only default rules unless explicitly selected
     if select:

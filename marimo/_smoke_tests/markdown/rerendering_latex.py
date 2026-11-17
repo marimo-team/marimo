@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -19,14 +19,14 @@ def _(mo):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(a, mo):
-    md = mo.md(f"$a={a.value["a"][0]}$")
+    md = mo.md(f"$a={a.value['a'][0]}$")
     md
-    return
 
 
 if __name__ == "__main__":

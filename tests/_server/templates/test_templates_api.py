@@ -7,6 +7,7 @@ from dataclasses import asdict
 import pytest
 
 from marimo._cli.pair.prompts import load_prompt_templates
+from marimo._config.config_schema import DisplayConfig
 from marimo._schemas.session import (
     VERSION,
     Cell,
@@ -21,14 +22,26 @@ from marimo._server.templates.api import (
 from tests._server.templates.utils import parse_mount_config
 
 
+def test_render_notebook_tolerates_invalid_config() -> None:
+    config = {"display": {"theme": "invalid", "code_editor_font_size": 18}}
+    html = render_notebook(
+        code="import marimo\napp = marimo.App()", mode="edit", config=config
+    )
+    assert (
+        parse_mount_config(html)["config"]["display"]
+        == DisplayConfig(code_editor_font_size=18).to_dict()
+    )
+    assert config == {
+        "display": {"theme": "invalid", "code_editor_font_size": 18}
+    }
+
+
 @pytest.mark.parametrize(
     ("editable", "command"),
     [(True, "uv run marimo"), (False, "uvx marimo@latest")],
 )
-def test_pair_cli_config_is_unconditional(
-    monkeypatch: pytest.MonkeyPatch,
-    editable: bool,
-    command: str,
+def test_pair_cli_config_uses_installation_command(
+    monkeypatch: pytest.MonkeyPatch, editable: bool, command: str
 ) -> None:
     monkeypatch.setattr(
         "marimo._cli.pair.prompts.is_editable", lambda _: editable
@@ -159,6 +172,19 @@ if __name__ == "__main__":
             "type": "slides",
             "data": {"deck": {}},
         }
+
+    def test_render_static_notebook_tolerates_invalid_config(self) -> None:
+        html = render_static_notebook(
+            code=self.code,
+            session_snapshot=self.session_snapshot,
+            config={
+                "display": {"theme": "invalid", "code_editor_font_size": 18}
+            },
+        )
+        assert (
+            parse_mount_config(html)["config"]["display"]
+            == DisplayConfig(code_editor_font_size=18).to_dict()
+        )
 
     def test_render_static_notebook_validates_layout(self) -> None:
         html = render_static_notebook(

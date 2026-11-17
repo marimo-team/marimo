@@ -1,17 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MockRequestClient } from "@/__mocks__/requests";
+import { Provider } from "jotai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockDocumentModel } from "@/__mocks__/document";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
-import * as requestsModule from "@/core/network/requests";
+import type { runCells } from "@/core/executions";
+import { cell, document } from "@/core/notebook/document/__tests__/fixtures";
+import { store } from "@/core/state/jotai";
 import * as copyModule from "@/utils/copy";
 import { IslandControls } from "../IslandControls";
 
-// Mock the dependencies
-vi.mock("@/core/network/requests", () => ({
-  useRequestClient: vi.fn(),
+const mockRunCells = vi.fn<typeof runCells>();
+
+vi.mock("@/core/executions", () => ({
+  runCells: (...args: Parameters<typeof runCells>) => mockRunCells(...args),
 }));
 
 vi.mock("@/utils/copy", () => ({
@@ -19,28 +23,41 @@ vi.mock("@/utils/copy", () => ({
 }));
 
 describe("IslandControls", () => {
-  const mockSendRun =
-    vi.fn<ReturnType<typeof requestsModule.useRequestClient>["sendRun"]>();
   const mockCopyToClipboard = vi.fn();
   const mockCodeCallback = vi.fn(() => "print('test code')");
   const cellId = "test-cell-id" as CellId;
+  let model: ReturnType<typeof mockDocumentModel>;
+
+  function cellCode() {
+    return store.get(model.model.documentAtom)?.cells.get(cellId)?.code;
+  }
 
   // Helper to render with required providers
   const renderWithProviders = (component: React.ReactElement) => {
-    return render(<TooltipProvider>{component}</TooltipProvider>);
+    return render(
+      <Provider store={store}>
+        <TooltipProvider>{component}</TooltipProvider>
+      </Provider>,
+    );
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSendRun.mockResolvedValue(null);
-
-    vi.spyOn(requestsModule, "useRequestClient").mockReturnValue(
-      MockRequestClient.create({ sendRun: mockSendRun }),
-    );
+    mockRunCells.mockResolvedValue(undefined);
+    const confirmed = document();
+    model = mockDocumentModel(store, {
+      ...confirmed,
+      cells: new Map([[cellId, cell(cellId, "print('old')")]]),
+      revision: { ...confirmed.revision, order: [cellId] },
+    });
 
     vi.spyOn(copyModule, "copyToClipboard").mockImplementation(
       mockCopyToClipboard,
     );
+  });
+
+  afterEach(() => {
+    model.stop();
   });
 
   it("should not display when visible is false", () => {
@@ -102,7 +119,7 @@ describe("IslandControls", () => {
     expect(mockCopyToClipboard).toHaveBeenCalledWith("print('test code')");
   });
 
-  it("should run cell when run button is clicked", async () => {
+  it("writes the editor's code to the cell and runs it through the host", async () => {
     renderWithProviders(
       <IslandControls
         cellId={cellId}
@@ -116,42 +133,10 @@ describe("IslandControls", () => {
 
     fireEvent.click(runButton);
 
-    // Wait for async operation
     await vi.waitFor(() => {
-      expect(mockCodeCallback).toHaveBeenCalled();
-      expect(mockSendRun).toHaveBeenCalledWith({
-        cellIds: [cellId],
-        codes: ["print('test code')"],
-      });
+      expect(mockRunCells).toHaveBeenCalledWith(store, [cellId]);
     });
-  });
-
-  it("should handle run errors gracefully", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    mockSendRun.mockRejectedValueOnce(new Error("Run failed"));
-
-    renderWithProviders(
-      <IslandControls
-        cellId={cellId}
-        codeCallback={mockCodeCallback}
-        visible={true}
-      />,
-    );
-
-    const buttons = screen.getAllByRole("button");
-    const runButton = buttons[1];
-
-    fireEvent.click(runButton);
-
-    // Wait for error to be logged
-    await vi.waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalled();
-    });
-
-    consoleErrorSpy.mockRestore();
+    expect(cellCode()).toBe("print('test code')");
   });
 
   it("should get fresh code on each button click", async () => {
@@ -175,11 +160,9 @@ describe("IslandControls", () => {
 
     fireEvent.click(runButton);
     await vi.waitFor(() => {
-      expect(mockSendRun).toHaveBeenCalledWith({
-        cellIds: [cellId],
-        codes: ["code version 2"],
-      });
+      expect(mockRunCells).toHaveBeenCalledWith(store, [cellId]);
     });
+    expect(cellCode()).toBe("code version 2");
 
     fireEvent.click(copyButton);
     expect(mockCopyToClipboard).toHaveBeenCalledWith("code version 3");

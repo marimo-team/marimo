@@ -15,7 +15,7 @@ app._unparsable_cell(
     ```python {.marimo}
     print(\"Hello, World!\")
     """,
-    name="_"
+    name="_",
 )
 
 
@@ -23,7 +23,7 @@ app._unparsable_cell(
     r"""
     it's an unparsable cell
     """,
-    name="_"
+    name="_",
 )
 
 

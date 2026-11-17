@@ -99,7 +99,7 @@ def test_streams_output_before_execution_finishes(
 
 
 @pytest.mark.parametrize("selector", ["notebook", "session", "auto"])
-def test_host_execution_target_selection(
+def test_execution_target_selection(
     server: PairTestServer,
     selector: Literal["notebook", "session", "auto"],
 ) -> None:
@@ -110,11 +110,15 @@ def test_host_execution_target_selection(
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["stdout"] == "stable\n"
-    assert payload["notebook"]["id"] == server.notebook_id
-    if selector == "notebook":
+    if selector != "session":
+        assert payload["notebook"] == {"id": server.notebook_id}
         assert "session" not in payload
     else:
-        assert payload["session"]["id"] == server.stable_session_id
+        assert payload["session"] == {
+            "id": server.stable_session_id
+            if selector == "session"
+            else server.notebook_id
+        }
 
 
 @pytest.fixture(scope="module")
@@ -152,17 +156,22 @@ def test_authenticated_execution_preserves_session_contract(
         "mimetype": "text/html",
         "data": "<pre class='text-xs'>42</pre>",
     }
-    assert payload["session"] == {"id": editor_server.stable_session_id}
-    assert payload["notebook"]["id"] == editor_server.notebook_id
+    assert payload["notebook"] == {"id": editor_server.notebook_id}
+    assert "session" not in payload
 
 
-def test_editor_execution_requires_editor_token(
+def test_explicit_wrong_token_does_not_fall_back_to_local_credentials(
     editor_server: PairTestServer,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("MARIMO_TOKEN", raising=False)
     result = _run(
-        editor_server, "-c", "print('must not execute')", selector="session"
+        editor_server,
+        "--token",
+        "wrong-token",
+        "-c",
+        "print('must not execute')",
+        selector="session",
     )
     assert result.returncode == 2
     assert "must not execute" not in result.stdout
@@ -196,7 +205,8 @@ def test_editor_execution_failure_preserves_output(
         assert payload["success"] is False
         assert payload["stdout"] == "before error\n"
         assert "ZeroDivisionError" in payload["stderr"]
-        assert payload["session"] == {"id": editor_server.stable_session_id}
+        assert payload["notebook"] == {"id": editor_server.notebook_id}
+        assert "session" not in payload
 
 
 @pytest.mark.skipif(os.name != "posix", reason="SIGINT requires POSIX")
@@ -219,8 +229,8 @@ def test_interrupt_disconnects_and_kernel_recovers(
             process.wait()
 
     assert process.returncode == 1, (stdout, stderr)
-    assert json.loads(stdout)["outcome"] == "interrupted"
-    assert stderr == ""
+    assert stdout == ""
+    assert stderr == "Interrupted.\n"
     server.wait_for_kernel("idle")
 
     recovered = _run(server, "-c", "print('alive')")
@@ -238,16 +248,19 @@ def test_missing_input_does_not_read_stdin_or_execute(
     result = _run(server, code_input="print('must not run')\n")
 
     assert result.returncode == 2
-    assert "error: specify -c or --code-file" in result.stderr
+    assert "error: specify exactly one of --code or --file" in result.stderr
     assert "must not run" not in result.stdout
     server.wait_for_kernel("idle", timeout=1)
 
 
 @pytest.mark.parametrize(
     ("code", "error"),
-    [("1 / 0", "ZeroDivisionError"), ("input()", "EOFError")],
+    [
+        ("1 / 0", "ZeroDivisionError"),
+        ("raise ValueError('bad value')", "ValueError"),
+    ],
 )
-def test_host_run_error_returns_failed_result(
+def test_execution_error_returns_failed_result(
     server: PairTestServer, code: str, error: str
 ) -> None:
     result = _run(server, "-c", code)
@@ -258,31 +271,41 @@ def test_host_run_error_returns_failed_result(
     assert error in payload["stderr"]
 
 
-@pytest.mark.skipif(os.name != "posix", reason="SIGINT requires POSIX")
-def test_concurrent_host_run_reports_conflict(server: PairTestServer) -> None:
-    process = subprocess.Popen(
-        _command(server, "-c", "import time; time.sleep(30)"),
+def test_concurrent_execution_waits_for_the_active_run(
+    server: PairTestServer,
+) -> None:
+    first = subprocess.Popen(
+        _command(
+            server,
+            "-c",
+            "import builtins, time\n"
+            "time.sleep(2)\n"
+            "builtins._pair_first_done = True",
+        ),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
     try:
         server.wait_for_kernel("running")
-        second = _run(server, "-c", "print('must not run')")
-        assert second.returncode == 2
-        payload = json.loads(second.stdout)
-        assert (
-            "active" in payload["error"].lower()
-            or "progress" in payload["error"].lower()
+        # Accepted while the first run executes, and queued behind it.
+        second = _run(
+            server,
+            "-c",
+            "import builtins\n"
+            "print(builtins._pair_first_done)\n"
+            "del builtins._pair_first_done",
         )
-        assert payload["stdout"] is None
     finally:
-        process.send_signal(signal.SIGINT)
-        process.communicate(timeout=10)
+        stdout, stderr = first.communicate(timeout=20)
+
+    assert first.returncode == 0, (stdout, stderr)
+    assert second.returncode == 0, second.stderr
+    assert json.loads(second.stdout)["stdout"] == "True\n"
     server.wait_for_kernel("idle")
 
 
-def test_host_run_without_runtime_reports_error(tmp_path: Path) -> None:
+def test_execution_without_runtime_reports_error(tmp_path: Path) -> None:
     import urllib.request
 
     from marimo._cli.pair.client import resolve_host
@@ -302,5 +325,248 @@ def test_host_run_without_runtime_reports_error(tmp_path: Path) -> None:
         result = _run(server, "-c", "1")
         assert result.returncode == 2
         payload = json.loads(result.stdout)
-        assert "runtime" in payload["error"].lower()
-        assert "kernel" in payload["next"]
+        assert "No running notebook matches" in payload["error"]
+        assert "marimo pair list" in payload["next"]
+
+
+@pytest.mark.parametrize("identifier", ["notebook_id", "stable_session_id"])
+def test_legacy_execute_accepts_the_local_credential(
+    editor_server: PairTestServer, identifier: str
+) -> None:
+    import io
+
+    from marimo._cli.pair.client import execute, resolve_host
+
+    host = resolve_host(editor_server.url)
+    result = execute(
+        url=editor_server.url,
+        session_id=getattr(editor_server, identifier),
+        token=host.token,
+        code="print('local credential')",
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        stream=False,
+    )
+    assert result.success, result.stderr
+    assert result.stdout == "local credential\n"
+
+
+def test_list_discovers_an_authenticated_running_notebook(
+    editor_server: PairTestServer,
+) -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "marimo", "pair", "list"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    listing = json.loads(result.stdout)
+    [notebook] = [
+        n for n in listing["notebooks"] if n["id"] == editor_server.notebook_id
+    ]
+    assert notebook["status"] == "running"
+    assert notebook["path"].endswith(".py")
+    assert "pair-editor-private-token" not in result.stdout
+
+
+@pytest.mark.parametrize("source", ["code", "file", "stdin"])
+def test_execute_discovered_id_without_url_or_credentials(
+    editor_server: PairTestServer,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+) -> None:
+    monkeypatch.delenv("MARIMO_TOKEN", raising=False)
+    code = "print('discovered notebook')"
+    path = tmp_path / "experiment.py"
+    path.write_text(code)
+    arguments = {
+        "code": ["--code", code],
+        "file": ["--file", str(path)],
+        "stdin": ["--file", "-"],
+    }[source]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "marimo",
+            "pair",
+            "execute",
+            "--session",
+            editor_server.notebook_id,
+            *arguments,
+        ],
+        input=code if source == "stdin" else None,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    payload = json.loads(result.stdout)
+    assert payload["success"] is True
+    assert payload["stdout"] == "discovered notebook\n"
+    assert payload["notebook"] == {"id": editor_server.notebook_id}
+    assert "session" not in payload
+
+
+def test_discovered_notebook_supports_code_mode_edits(
+    editor_server: PairTestServer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MARIMO_TOKEN", raising=False)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "marimo",
+            "pair",
+            "execute",
+            "--session",
+            editor_server.notebook_id,
+            "--file",
+            "-",
+        ],
+        input=(
+            "import marimo._code_mode as cm\n"
+            "async with cm.get_context() as ctx:\n"
+            '    cell = ctx.create_cell("pair_discovery_value = 314")\n'
+            "    ctx.run_cell(cell)\n"
+        ),
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    inspected = _run(editor_server, "--code", "print(pair_discovery_value)")
+    assert inspected.returncode == 0, (inspected.stdout, inspected.stderr)
+    assert json.loads(inspected.stdout)["stdout"] == "314\n"
+
+
+def test_notebook_id_targets_the_replacement_kernel(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import time
+    import urllib.request
+
+    from marimo._cli.pair.client import resolve_host
+    from marimo._cli.pair.discovery import list_running_notebooks
+
+    monkeypatch.delenv("MARIMO_TOKEN", raising=False)
+    with pair_test_server(tmp_path, token="restart-editor-secret") as running:
+        host = resolve_host(running.url)
+        request = urllib.request.Request(
+            f"{host.url}/notebooks/{running.notebook_id}/runtime/restart",
+            method="POST",
+            data=b"{}",
+            headers={
+                "Authorization": f"Bearer {host.token}",
+                "Idempotency-Key": "pair-restart-test",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            assert response.status == 202
+        deadline = time.monotonic() + 10
+        while not list_running_notebooks([host]).notebooks:
+            assert time.monotonic() < deadline, (
+                "Replacement kernel did not start"
+            )
+            time.sleep(0.05)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "marimo",
+                "pair",
+                "execute",
+                "--session",
+                running.notebook_id,
+                "--code",
+                "print('replacement')",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        assert result.returncode == 0, (result.stdout, result.stderr)
+        assert json.loads(result.stdout)["stdout"] == "replacement\n"
+
+
+@pytest.mark.parametrize("selector", ["--notebook", "--session"])
+@pytest.mark.parametrize("scoped", [False, True])
+def test_notebook_identity_is_independent_of_selector_and_url(
+    editor_server: PairTestServer,
+    monkeypatch: pytest.MonkeyPatch,
+    selector: str,
+    scoped: bool,
+) -> None:
+    monkeypatch.delenv("MARIMO_TOKEN", raising=False)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "marimo",
+            "pair",
+            "execute",
+            selector,
+            editor_server.notebook_id,
+            *(["--url", editor_server.url] if scoped else []),
+            "--code",
+            "print(2)",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert json.loads(result.stdout) == {
+        "success": True,
+        "outcome": "succeeded",
+        "output": None,
+        "stdout": "2\n",
+        "stderr": "",
+        "notebook": {"id": editor_server.notebook_id},
+    }
+
+
+@pytest.mark.parametrize("selector", ["--notebook", "--session"])
+def test_url_does_not_discover_a_notebook_on_another_server(
+    server: PairTestServer,
+    editor_server: PairTestServer,
+    monkeypatch: pytest.MonkeyPatch,
+    selector: str,
+) -> None:
+    monkeypatch.delenv("MARIMO_TOKEN", raising=False)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "marimo",
+            "pair",
+            "execute",
+            "--url",
+            server.url,
+            selector,
+            editor_server.notebook_id,
+            "--code",
+            "print('must not execute')",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 2, (result.stdout, result.stderr)
+    payload = json.loads(result.stdout)
+    assert payload["error"] == (
+        f"No running notebook matches {editor_server.notebook_id!r} on {server.url}."
+        if selector == "--notebook"
+        else f"No notebook {editor_server.notebook_id} on {server.url}. Run pair list to find the current notebook."
+    )
+    assert "must not execute" not in result.stdout

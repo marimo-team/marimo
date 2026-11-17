@@ -1,12 +1,13 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -29,7 +30,6 @@ def _(mo, table):
 @app.cell
 def _(mo, table, text):
     mo.accordion({"fold down": mo.vstack([table, text])})
-    return
 
 
 if __name__ == "__main__":

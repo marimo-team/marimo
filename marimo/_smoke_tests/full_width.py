@@ -8,13 +8,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -28,43 +29,36 @@ def _(mo):
 @app.cell
 def _(checkbox, mo):
     mo.ui.text(label="Text", full_width=checkbox.value)
-    return
 
 
 @app.cell
 def _(checkbox, mo):
     mo.ui.text_area(label="Text area", full_width=checkbox.value)
-    return
 
 
 @app.cell
 def _(checkbox, mo):
     mo.ui.number(0, 10, label="Number", full_width=checkbox.value)
-    return
 
 
 @app.cell
 def _(checkbox, mo):
     mo.ui.dropdown(label="Dropdown", options=["A", "B", "C"], full_width=checkbox.value)
-    return
 
 
 @app.cell
 def _(checkbox, mo):
     mo.ui.multiselect(label="Multiselect", options=["A", "B", "C"], full_width=checkbox.value)
-    return
 
 
 @app.cell
 def _(checkbox, mo):
     mo.ui.date(label="Date", full_width=checkbox.value)
-    return
 
 
 @app.cell
 def _(checkbox, mo):
     mo.ui.button(label="Button", full_width=checkbox.value)
-    return
 
 
 @app.cell
@@ -74,7 +68,6 @@ def _(checkbox, mo):
         mo.ui.text(label="Input A", full_width=checkbox.value),
         mo.ui.text(label="Input B", full_width=checkbox.value)
     ])
-    return
 
 
 @app.cell
@@ -83,7 +76,6 @@ def _(checkbox, mo):
         mo.ui.text(label="Input A", full_width=checkbox.value),
         mo.ui.text(label="Input B", full_width=checkbox.value)
     ])
-    return
 
 
 if __name__ == "__main__":

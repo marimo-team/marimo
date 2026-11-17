@@ -443,7 +443,9 @@ def _():
     view.dom.onpaste = (evt) => extension[0].domEventHandlers.paste(evt, view);
     view.dom.dispatchEvent(event);
 
-    expect(addOrAppendSetupCell).toHaveBeenCalledWith("import numpy as np");
+    expect(addOrAppendSetupCell).toHaveBeenCalledWith({
+      code: "import numpy as np",
+    });
     expect(createManyBelow).toHaveBeenCalledWith(["x = 1"]);
   });
 });

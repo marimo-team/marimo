@@ -8,7 +8,7 @@ import { useRequestClient } from "@/core/network/requests";
 import { useFilename } from "@/core/saving/filename";
 import { waitFor } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
-import { ConnectionState } from "@/core/websocket/types";
+import { ConnectionState } from "@/core/session/types";
 import { HTTPError, prettyError } from "@/utils/errors";
 import { invalidatePackageData } from "./package-data";
 import {

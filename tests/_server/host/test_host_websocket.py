@@ -137,7 +137,6 @@ def test_snapshot_is_private_and_precedes_updates_during_accept(
                                 },
                                 "console": None,
                                 "status": "idle",
-                                "stale_inputs": None,
                                 "run_id": "r1",
                                 "execution_id": None,
                                 "timestamp": 1.0,

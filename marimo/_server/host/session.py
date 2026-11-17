@@ -18,7 +18,6 @@ from marimo._server.api.endpoints.ws.notification_filter import (
     should_filter_operation,
 )
 from marimo._server.api.endpoints.ws.session_handler import SessionHandler
-from marimo._server.api.endpoints.ws.ws_session_connector import ConnectionType
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.host.events import (
     MarimoEvent,
@@ -45,7 +44,6 @@ if TYPE_CHECKING:
         ConnectionParams,
     )
     from marimo._server.host.bridge import SessionBridge
-    from marimo._server.rtc.doc import LoroDocManager
     from marimo._server.session_manager import SessionManager
     from marimo._session.session import Session
 
@@ -67,7 +65,6 @@ class SessionEventStream(SessionHandler):
         bridge: SessionBridge,
         manager: SessionManager,
         params: ConnectionParams,
-        doc_manager: LoroDocManager,
         types: set[str] | None,
         cursor: str | None,
         heartbeat_seconds: float = 20.0,
@@ -76,7 +73,6 @@ class SessionEventStream(SessionHandler):
             manager=manager,
             params=params,
             mode=manager.mode,
-            doc_manager=doc_manager,
         )
         self.connection = connection
         self.heartbeat_seconds = heartbeat_seconds
@@ -90,11 +86,6 @@ class SessionEventStream(SessionHandler):
         self._ready_id = 0
         self._events: asyncio.Queue[RoutedEvent | _Close | None] = (
             asyncio.Queue()
-        )
-        self._connection_type = (
-            ConnectionType.RTC_EXISTING
-            if params.rtc_enabled and not params.kiosk
-            else ConnectionType.NEW
         )
 
     def notify(self, notification: KernelMessage) -> None:
@@ -158,7 +149,7 @@ class SessionEventStream(SessionHandler):
 
                 async def connect_and_listen() -> None:
                     try:
-                        _, self._connection_type = await startup
+                        await startup
                         self._check_status_update()
                         await self._wait_for_disconnect()
                     except asyncio.CancelledError:
@@ -195,9 +186,7 @@ class SessionEventStream(SessionHandler):
                         if isinstance(event.event, MarimoEvent):
                             viewer = self.params.kiosk
                             if self._session is not None:
-                                viewer = self._is_viewer(
-                                    self._session, self._connection_type
-                                )
+                                viewer = self._is_viewer(self._session)
                             if should_filter_operation(
                                 event.event.data.marimo.name, is_kiosk=viewer
                             ):

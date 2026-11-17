@@ -14,11 +14,11 @@ permissions:
 
 env:
   TURBO_TEAM: marimo
-  MARIMO_SKIP_UPDATE_CHECK: 1
+  MARIMO_SERVER_SKIP_UPDATE_CHECK: 1
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
@@ -37,7 +37,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     name: 🧹 Lint frontend
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 10
     permissions:
       contents: read
@@ -114,8 +114,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     name: 🧪 Test frontend
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -173,7 +173,7 @@ jobs:
         id: test
         env:
           TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
-        run: pnpm turbo test:coverage
+        run: pnpm turbo test:coverage --log-order=stream
 
       - name: 🧪 Test llm-info
         working-directory: ${{ github.workspace }}
@@ -223,7 +223,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     name: 📦 Build frontend
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     timeout-minutes: 15
     permissions:
       contents: read

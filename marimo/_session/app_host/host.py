@@ -32,7 +32,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from marimo._ast.cell import CellConfig
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config import PartialMarimoConfig
+    from marimo._config.provenance import ConfigPath
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
@@ -168,7 +169,12 @@ class AppHost:
             cmd = list(self._plan.argv)
             env = self._plan.env
         else:
-            cmd = [sys.executable, "-m", "marimo._session.app_host.main"]
+            cmd = [
+                sys.executable,
+                "-P",
+                "-m",
+                "marimo._session.app_host.main",
+            ]
             env = None
         LOGGER.debug("Launching app host: %s", " ".join(cmd))
 
@@ -261,10 +267,11 @@ class AppHost:
         session_id: str,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        user_config: MarimoConfig,
+        user_config: PartialMarimoConfig,
         virtual_file_storage: VirtualFileStorageType | None,
         redirect_console_to_browser: bool,
         log_level: int,
+        config_overrides: tuple[ConfigPath, ...] = (),
     ) -> KernelCreatedResponse:
         conn = self._conn
         if conn is None or self._closed.is_set():
@@ -275,6 +282,7 @@ class AppHost:
             configs=configs,
             app_metadata=app_metadata,
             user_config=user_config,
+            config_overrides=config_overrides,
             virtual_file_storage=virtual_file_storage,
             redirect_console_to_browser=redirect_console_to_browser,
             log_level=log_level,

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from marimo import _loggers
 from marimo._messaging.errors import (
+    ANCESTOR_RAISED,
     Error,
     MarimoAncestorPreventedError,
     MarimoAncestorStoppedError,
@@ -75,7 +76,7 @@ def _send_cancellation_errors(ctx: OnFinishHookContext) -> None:
                     msg=(
                         f"An ancestor raised an exception ({exception_type}): "
                     ),
-                    exception_type="Ancestor raised",
+                    exception_type=ANCESTOR_RAISED,
                     raising_cell=raising_cell,
                 )
             CellNotificationUtils.broadcast_error(

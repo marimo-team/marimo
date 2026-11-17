@@ -10,9 +10,10 @@ import signal
 import sys
 import threading
 import time
+from functools import partial
+from multiprocessing import get_context
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from textwrap import dedent
 from typing import Any
 from unittest.mock import MagicMock
@@ -33,6 +34,7 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
+from marimo._runtime import runtime
 from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
@@ -282,13 +284,89 @@ async def test_kernel_manager_interrupt(
         # A later interrupt must still work after the first handler raised.
         queue_manager.put_control_request(
             ExecuteCellsCommand(
-                cell_ids=["1"],
-                codes=["import _thread; _thread.interrupt_main()"],
+                execution_requests=[
+                    ExecuteCellCommand(
+                        cell_id="1",
+                        code="import _thread; _thread.interrupt_main()",
+                    )
+                ]
             )
         )
         assert await asyncio.wait_for(
             asyncio.to_thread(was_interrupted), timeout=5
         )
+    finally:
+        kernel_manager.close_kernel()
+
+
+def _launch_kernel_before_handlers(
+    ready: Any, release: Any, *args: Any
+) -> None:
+    install = runtime._install_subprocess_handlers
+
+    def paused_install(*args: Any) -> None:
+        ready.set()
+        assert release.wait(10)
+        install(*args)
+
+    runtime._install_subprocess_handlers = paused_install
+    runtime.launch_kernel(*args)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows queues interrupts"
+)
+async def test_an_interrupt_during_startup_leaves_the_kernel_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = get_context("spawn")
+    ready, release = context.Event(), context.Event()
+    monkeypatch.setattr(
+        runtime,
+        "launch_kernel",
+        partial(_launch_kernel_before_handlers, ready, release),
+    )
+    queue_manager = QueueManagerImpl(use_multiprocessing=True)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_file_storage="shared_memory",
+        redirect_console_to_browser=False,
+    )
+    await kernel_manager.start_kernel()
+
+    def completed_run() -> CompletedRunNotification:
+        while True:
+            message = deserialize_kernel_message(
+                kernel_manager.kernel_connection.recv()
+            )
+            if isinstance(message, CompletedRunNotification):
+                return message
+
+    try:
+        assert await asyncio.to_thread(ready.wait, 10)
+        kernel_manager.interrupt_kernel()
+        release.set()
+        queue_manager.put_control_request(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="1", code="x = 1"),
+                ),
+                cell_ids=("1",),
+                set_ui_element_value_request=UpdateUIElementCommand(
+                    object_ids=[], values=[]
+                ),
+                auto_run=True,
+            )
+        )
+        completed = await asyncio.wait_for(
+            asyncio.to_thread(completed_run), timeout=10
+        )
+        assert completed.outcome == "succeeded"
+        assert kernel_manager.is_alive()
     finally:
         kernel_manager.close_kernel()
 
@@ -606,6 +684,28 @@ def __():
     )
     file_key = str(tmp_file)
 
+    class WatchingConsumer(MockSessionConsumer):
+        def __init__(self) -> None:
+            super().__init__()
+            self.updated = asyncio.Event()
+
+        def notify(self, notification: KernelMessage) -> None:
+            super().notify(notification)
+            if isinstance(
+                self.notify_calls[-1], NotebookDocumentTransactionNotification
+            ):
+                self.updated.set()
+
+    async def wait_for_updates(*consumers: WatchingConsumer) -> None:
+        await asyncio.wait_for(
+            asyncio.gather(
+                *(consumer.updated.wait() for consumer in consumers)
+            ),
+            timeout=5,
+        )
+        for consumer in consumers:
+            consumer.updated.clear()
+
     try:
         # Create a session manager with file watching enabled
         workspace = SingleFileWorkspace.from_path(MarimoPath(tmp_file))
@@ -632,7 +732,7 @@ def __():
             watch=True,
         )
 
-        session_consumer = MockSessionConsumer()
+        session_consumer = WatchingConsumer()
 
         # Create a session
         await session_manager.create_session(
@@ -657,11 +757,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer)
 
         # Check that a document transaction was sent with the new code
         tx_ops = [
@@ -672,7 +768,7 @@ def __():
         assert len(tx_ops) >= 1
 
         # Create another session for the same file
-        session_consumer2 = MockSessionConsumer()
+        session_consumer2 = WatchingConsumer()
         await session_manager.create_session(
             session_id=SessionId("test2"),
             session_consumer=session_consumer2,
@@ -695,11 +791,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer, session_consumer2)
 
         # Both sessions should receive the update
         update_ops = [
@@ -730,11 +822,7 @@ def __():
 """
         )
 
-        # Wait for the watcher to detect the change
-        for _ in range(16):
-            await asyncio.sleep(0.1)
-            if len(session_consumer2.notify_calls) > 0:
-                break
+        await wait_for_updates(session_consumer2)
 
         # Only one session should receive the update
         update_ops2 = [
@@ -792,8 +880,8 @@ async def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     try:
         # Verify that the config was not overridden for watch mode
         config = session_manager._config_manager.get_config()
-        assert config["save"]["autosave"] == "after_delay"
-        assert config["save"]["format_on_save"] is True
+        assert config.save.autosave == "after_delay"
+        assert config.save.format_on_save is True
 
     finally:
         # Cleanup
@@ -1011,23 +1099,18 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             await session_manager.shutdown()
 
 
-async def test_session_manager_file_rename() -> None:
+async def test_session_manager_file_rename(tmp_path: Path) -> None:
     """Test that file renaming works correctly with file watching."""
-    # Create two temporary files
-    with (
-        NamedTemporaryFile(delete=False, suffix=".py") as tmp_file1,
-    ):
-        tmp_path1 = Path(tmp_file1.name)
-        # Write initial notebook content
-        tmp_file1.write(
-            b"""import marimo
+    tmp_path1 = tmp_path / "notebook.py"
+    tmp_path1.write_text(
+        """import marimo
 app = marimo.App()
 
 @app.cell
 def __():
     1
 """
-        )
+    )
 
     new_path = tmp_path1.with_suffix(".1.py")
 
@@ -1067,9 +1150,10 @@ def __():
             main=True,
         )
 
-        # Try to rename to a non-existent file
+        parent_file = tmp_path / "not_a_directory"
+        parent_file.write_text("")
         success, error = await session_manager.rename_session(
-            session_id, "/nonexistent/file.py"
+            session_id, str(parent_file / "file.py")
         )
         assert not success
         assert error is not None
@@ -1174,13 +1258,9 @@ async def test_session_with_script_config_overrides(
     assert session.session_view is startup.view
 
     # Verify that the session's config is affected by the script config
+    assert session.config_manager.get_config().formatting.line_length == 999
     assert (
-        session.config_manager.get_config()["formatting"]["line_length"] == 999
-    )
-    assert (
-        session._kernel_manager.config_manager.get_config()["formatting"][
-            "line_length"
-        ]
+        session._kernel_manager.config_manager.get_config().formatting.line_length
         == 999
     )
 
@@ -1257,7 +1337,7 @@ async def test_sandbox_ignores_configured_venv(
         adapter.sync_async.assert_awaited_once()
         assert "ignoring [tool.marimo.venv]" in capsys.readouterr().err
         assert (
-            session.config_manager.get_config()["venv"]["path"]
+            session.config_manager.get_config().to_dict()["venv"]["path"]
             == venv_path.as_posix()
         )
     finally:
@@ -1419,10 +1499,8 @@ async def test_sandbox_auto_picks_backend_from_manifest(
 async def test_session_script_dotenv_reaches_the_kernel_config(
     tmp_path: Path,
 ) -> None:
-    # runtime.dotenv is masked to [] when read with secrets hidden. If the
-    # session layered that masked snapshot on as an override, the empty list
-    # would win the unmasked merge the kernel reads, so a script-level dotenv
-    # would load nothing.
+    # The kernel needs the configured dotenv paths even though they are
+    # omitted from the configuration exposed to the frontend.
     session_consumer = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     tmp_file = tmp_path / "nb.py"
@@ -1453,12 +1531,12 @@ async def test_session_script_dotenv_reaches_the_kernel_config(
         kernel_config = session._kernel_manager.config_manager.get_config(
             hide_secrets=False
         )
-        assert kernel_config["runtime"]["dotenv"] == [
+        assert kernel_config.runtime.dotenv == [
             str(tmp_path / ".env"),
             str(tmp_path / ".env.local"),
         ]
         masked = session.config_manager.get_config()
-        assert masked["runtime"]["dotenv"] == []
+        assert "dotenv" not in masked.runtime.to_dict()
     finally:
         session.close()
 
@@ -1554,3 +1632,48 @@ async def test_caching_extension_respects_mode_and_config() -> None:
     session_edit_disabled.close()
     session_run_disabled.close()
     session_run_enabled.close()
+
+
+@pytest.mark.parametrize("override", [None, 60])
+async def test_session_script_stays_below_environment_and_explicit_overrides(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    override: int | None,
+) -> None:
+    from marimo._config.manager import UserConfigStore
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("")
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _: str(config_path)
+    )
+    monkeypatch.setenv("MARIMO_RUNTIME_SQL_DEFAULT_LIMIT", "45")
+    notebook = tmp_path / "app.py"
+    notebook.write_text(
+        "# /// script\n# [tool.marimo.runtime]\n# sql_default_limit = 25\n# ///\nimport marimo\napp = marimo.App()\n"
+    )
+    manager = get_default_config_manager(current_path=str(tmp_path))
+    if override is not None:
+        manager = manager.with_overrides(
+            {"runtime": {"sql_default_limit": override}}
+        )
+    session = await SessionImpl.create(
+        startup=SessionStartup(),
+        initialization_id="test_id",
+        session_consumer=None,
+        mode=SessionMode.RUN,
+        app_metadata=app_metadata,
+        app_file_manager=AppFileManager(filename=str(notebook)),
+        config_manager=manager,
+        virtual_file_storage="in_memory",
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+        auto_instantiate=False,
+    )
+    try:
+        assert (
+            session._kernel_manager.config_manager.get_config().runtime.sql_default_limit
+            == (override if override is not None else 45)
+        )
+    finally:
+        session.close()

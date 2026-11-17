@@ -959,3 +959,15 @@ class TestFormatQueryWithGlobals:
             query, {"col": "id"}, lambda key: key.upper()
         )
         assert result_with_uppercase == "SELECT id FROM TABLE"
+
+
+@pytest.mark.requires("duckdb")
+@pytest.mark.parametrize("query", ["SELECT 1", "SELECT FROM"])
+def test_parse_releases_connection_result(query: str) -> None:
+    import duckdb
+
+    result, error = parse_sql(query, "duckdb")
+    assert error is None
+    assert result is not None
+    assert result.success == (query == "SELECT 1")
+    assert duckdb.sql("SELECT 42").fetchall() == [(42,)]

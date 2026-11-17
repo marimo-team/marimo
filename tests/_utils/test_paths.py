@@ -9,10 +9,36 @@ import pytest
 
 from marimo._utils.paths import (
     is_cloudpath,
+    is_valid_filename,
     normalize_path,
     notebook_output_dir,
     pretty_path,
 )
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("a" * 252 + ".py", True),
+        ("a" * 253 + ".py", False),
+        ("é" * 126 + ".py", True),
+        ("é" * 127 + ".py", False),
+        ("🚀" * 63 + ".py", True),
+        ("🚀" * 64 + ".py", False),
+        ("\ud800.py", False),
+    ],
+    ids=[
+        "ascii-limit",
+        "ascii-over",
+        "unicode-limit",
+        "unicode-over",
+        "emoji-limit",
+        "emoji-over",
+        "invalid-unicode",
+    ],
+)
+def test_filename_length(name: str, expected: bool) -> None:
+    assert is_valid_filename(name) is expected
 
 
 def test_normalize_path_makes_absolute() -> None:

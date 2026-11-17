@@ -62,7 +62,7 @@ def _(mo):
 
 
 @app.cell
-def _(Slider2D, missing_packages, mo):
+def _(Slider2D, missing_packages: bool, mo):
     if missing_packages:
         widget = None
     else:
@@ -88,7 +88,7 @@ def _(mo, widget):
 
 
 @app.cell(hide_code=True)
-def _(missing_packages, mo):
+def _(missing_packages: bool, mo):
     module_not_found_explainer = mo.md(
         """
         ## Oops!

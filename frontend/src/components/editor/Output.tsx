@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import React, { memo, Suspense, useMemo, useRef } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
-import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
+import type { CellOutput } from "@/core/executions";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { logNever } from "../../utils/assertNever";
 import { ErrorBoundary } from "./boundary/ErrorBoundary";
@@ -70,7 +71,7 @@ export type OnRefactorWithAI = (opts: {
  */
 export const OutputRenderer: React.FC<{
   message: Pick<
-    OutputMessage,
+    CellOutput,
     "channel" | "data" | "mimetype" | "code" | "traceback_format"
   >;
   cellId?: CellId;
@@ -282,7 +283,7 @@ const MimeBundleOutputRenderer: React.FC<{
 
   // Filter out metadata from the mime entries and type narrow
   const rawEntries = getMimeBundleEntries(
-    mimebundle as Record<string, CellOutput["data"]>,
+    mimebundle as Record<string, OutputMessage["data"]>,
   );
 
   // Apply precedence ordering and hiding rules
@@ -354,7 +355,7 @@ const MimeBundleOutputRenderer: React.FC<{
 MimeBundleOutputRenderer.displayName = "MimeBundleOutputRenderer";
 
 interface OutputAreaProps {
-  output: OutputMessage | null;
+  output: CellOutput | null;
   cellId: CellId;
   stale: boolean;
   loading: boolean;

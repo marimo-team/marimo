@@ -44,7 +44,6 @@ with app.setup:
         o.MissingPackageAlertNotification,
         o.EnvironmentOperationNotification,
         o.EnvironmentStateNotification,
-        o.ReconnectedNotification,
         o.StartupLogsNotification,
         o.BannerNotification,
         o.ReloadNotification,

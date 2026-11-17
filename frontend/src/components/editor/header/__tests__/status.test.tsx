@@ -11,7 +11,7 @@ import {
   type ConnectionStatus,
   WebSocketClosedReason,
   ConnectionState,
-} from "@/core/websocket/types";
+} from "@/core/session/types";
 import { StatusOverlay } from "../status";
 
 function renderOverlay(
@@ -55,7 +55,7 @@ describe("StatusOverlay disconnect indicator", () => {
     expect(onReconnect).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a disabled button when no onReconnect is provided", () => {
+  it("keeps the unavailable reconnect button focusable for its tooltip", () => {
     const { getByTestId } = renderOverlay({
       state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
@@ -63,7 +63,9 @@ describe("StatusOverlay disconnect indicator", () => {
     });
 
     const button = getByTestId("disconnected-indicator");
-    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    button.focus();
+    expect(button).toHaveFocus();
   });
 
   it("leaves editor startup failures to the inline notice", () => {

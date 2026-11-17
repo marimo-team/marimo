@@ -9,7 +9,6 @@ import {
   type ToolNotebookContext,
 } from "./base";
 import { EditNotebookTool } from "./edit-notebook-tool";
-import { RunStaleCellsTool } from "./run-cells-tool";
 import { formatToolDescription } from "./utils";
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
@@ -148,5 +147,4 @@ export class FrontendToolRegistry {
 
 export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry([
   new EditNotebookTool(),
-  new RunStaleCellsTool(),
 ]);

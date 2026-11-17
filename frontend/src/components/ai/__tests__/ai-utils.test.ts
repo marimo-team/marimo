@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import type { AiModel } from "@marimo-team/llm-info";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserConfig } from "@/core/config/config-schema";
@@ -75,6 +77,7 @@ describe("ai-utils", () => {
     it("returns known providers with credentials, then custom providers with a base URL", () => {
       expect(
         listConfiguredProviders({
+          ...defaultUserConfig().ai,
           wandb: { api_key: "unused" },
           open_ai: { api_key: "sk-test" },
           open_ai_compatible: { api_key: "unused", base_url: "https://x" },
@@ -89,6 +92,7 @@ describe("ai-utils", () => {
     it("treats marimo as configured when open_ai_compatible has a base URL", () => {
       expect(
         listConfiguredProviders({
+          ...defaultUserConfig().ai,
           open_ai_compatible: { api_key: "unused", base_url: "https://x" },
         }),
       ).toEqual(["marimo"]);
@@ -97,6 +101,7 @@ describe("ai-utils", () => {
     it("omits openai-compatible as its own provider id", () => {
       expect(
         listConfiguredProviders({
+          ...defaultUserConfig().ai,
           open_ai: {},
           open_ai_compatible: { api_key: "unused" },
         }),
@@ -115,6 +120,7 @@ describe("ai-utils", () => {
     it("returns all groups when provider config is allowed", () => {
       expect(
         listModelsForAiSettings(entries, {
+          ...defaultUserConfig().ai,
           allow_provider_config: true,
           wandb: { api_key: "unused" },
         }),
@@ -124,6 +130,7 @@ describe("ai-utils", () => {
     it("filters to configured providers when provider config is locked", () => {
       expect(
         listModelsForAiSettings(entries, {
+          ...defaultUserConfig().ai,
           allow_provider_config: false,
           wandb: { api_key: "unused" },
         }),
@@ -133,6 +140,7 @@ describe("ai-utils", () => {
     it("keeps marimo models when locked with an openai-compatible gateway", () => {
       expect(
         listModelsForAiSettings(entries, {
+          ...defaultUserConfig().ai,
           allow_provider_config: false,
           open_ai_compatible: { base_url: "https://ai.marimo.app/molab/v1" },
         }),

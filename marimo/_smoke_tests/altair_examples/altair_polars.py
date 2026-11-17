@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
     import altair as alt
 
     import marimo as mo
+
     return alt, mo
 
 
@@ -49,7 +50,6 @@ def _(alt, df, mo):
 @app.cell
 def _(chart):
     chart.value
-    return
 
 
 if __name__ == "__main__":

@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 from unittest.mock import patch
 
 import pytest
+from msgspec import ValidationError
 
 from marimo._config.config import PartialMarimoConfig, merge_default_config
+from marimo._config.config_schema import MarimoConfig
 from marimo._config.manager import (
-    EnvConfigReader,
+    EnvVarReader,
     MarimoConfigManager,
     OverrideConfigReader,
     PyprojectConfigReader,
@@ -28,30 +30,229 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def restore_config(f: F) -> F:
-    config = MarimoConfigManager(UserConfigStore()).get_user_config()
+    config = (
+        MarimoConfigManager(UserConfigStore()).get_user_config()
+    ).to_dict()
 
     @wraps(f)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return f(*args, **kwargs)
         finally:
-            UserConfigStore().save_config(config)
+            (UserConfigStore().save_config(config)).to_dict()
 
     return wrapper  # type: ignore
 
 
 @restore_config
-@patch("tomlkit.dump")
+@patch("tomlkit.dumps", return_value="")
 def test_save_config(mock_dump: Any) -> None:
-    mock_config = merge_default_config(PartialMarimoConfig())
+    mock_config = (merge_default_config(PartialMarimoConfig())).to_dict()
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
-    result = manager.save_config(mock_config)
+    result = (manager.save_config(mock_config)).to_dict()
 
     assert result == mock_config
 
-    assert mock_dump.mock_calls[0][1][0] == mock_config
+    assert (
+        MarimoConfig.from_dict(mock_dump.mock_calls[0][1][0]).to_dict()
+        == mock_config
+    )
+
+
+@pytest.mark.parametrize(
+    "invalid_toml",
+    ['[keymap]\npreset = "default"\n', "[display\n"],
+)
+def test_save_config_preserves_unparseable_file(
+    tmp_path: Path, invalid_toml: str
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    original = (
+        '[keymap]\npreset = "vim"\n'
+        '[ai]\nrules = "prefer polars"\n' + invalid_toml
+    ).encode()
+    config_path.write_bytes(original)
+    store = UserConfigStore()
+
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        # Reads remain tolerant, but saving must not turn the fallback into a write.
+        assert store.read() == {}
+        with pytest.raises(
+            ValueError, match="Fix the file before saving"
+        ) as exc:
+            store.save_config({"display": {"theme": "dark"}})
+
+    assert str(config_path) in str(exc.value)
+    assert exc.value.__cause__ is not None
+    assert str(exc.value.__cause__) in str(exc.value)
+    assert config_path.read_bytes() == original
+
+
+def test_save_config_preserves_existing_settings(tmp_path: Path) -> None:
+    from marimo._utils.toml import toml_reader
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(
+        '[keymap]\npreset = "vim"\n[ai]\nrules = "prefer polars"\n'
+    )
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        store.save_config({"display": {"theme": "dark"}})
+
+    config = toml_reader.read(config_path)
+    assert (
+        config["keymap"]["preset"],
+        config["ai"]["rules"],
+        config["display"]["theme"],
+    ) == ("vim", "prefer polars", "dark")
+
+
+def test_save_config_merges_the_validated_snapshot(tmp_path: Path) -> None:
+    from marimo._config.reader import read_marimo_config
+    from marimo._utils.toml import toml_reader
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[ai]\nrules = "prefer polars"\n')
+    original = read_marimo_config(str(config_path))
+    store = UserConfigStore()
+    with (
+        patch.object(store, "get_config_path", return_value=str(config_path)),
+        patch(
+            "marimo._config.manager.read_marimo_config",
+            side_effect=[
+                original,
+                ValueError("file changed before rereading"),
+            ],
+        ) as read_config,
+    ):
+        store.save_config({"display": {"theme": "dark"}})
+
+    read_config.assert_called_once_with(str(config_path))
+    config = toml_reader.read(config_path)
+    assert (config["ai"]["rules"], config["display"]["theme"]) == (
+        "prefer polars",
+        "dark",
+    )
+
+
+def test_save_config_creates_missing_file(tmp_path: Path) -> None:
+    config_path = tmp_path / "marimo.toml"
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        assert store.read() == {}
+        saved = store.save_config({"display": {"theme": "dark"}})
+
+    assert config_path.is_file()
+    assert saved.display.theme == "dark"
+
+
+@pytest.mark.parametrize("existing", [True, False])
+def test_serialization_failure_does_not_touch_config(
+    tmp_path: Path, existing: bool
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    original = '[display]\ntheme = "dark"\n'
+    if existing:
+        config_path.write_text(original)
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        with pytest.raises(TypeError, match="NoneType"):
+            store.save_config({"future_setting": [None]})
+
+    if existing:
+        assert config_path.read_text() == original
+    else:
+        assert not config_path.exists()
+
+
+def test_save_config_round_trips_unnamed_folder(tmp_path: Path) -> None:
+    import tomlkit
+
+    config_path = tmp_path / "marimo.toml"
+    original = {"file_browser": {"folders": [{"path": "/data"}]}}
+    config_path.write_text(tomlkit.dumps(original))
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        manager = MarimoConfigManager(store)
+        before = manager.get_config()
+        saved = store.save_config(before)
+        assert (
+            manager.get_config().to_dict()
+            == saved.to_dict()
+            == before.to_dict()
+        )
+        assert store.read()["file_browser"] == original["file_browser"]
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        {"diagnostics": {"sql_linter": False}},
+        {"completion": {"signature_hint_on_typing": True}},
+    ],
+)
+def test_save_config_preserves_unrelated_invalid_values(
+    tmp_path: Path, edit: PartialMarimoConfig
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[completion]\ncopilot = "invalid"\n')
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        saved = store.save_config(edit)
+        written = store.read()
+        assert written["completion"]["copilot"] == "invalid"
+        assert saved.completion.copilot is False
+        for section, fields in edit.items():
+            assert written[section].items() >= fields.items()
+
+        original = config_path.read_bytes()
+        with pytest.raises(ValidationError):
+            store.save_config({"completion": {"copilot": "still invalid"}})
+        assert config_path.read_bytes() == original
+
+        saved = store.save_config({"completion": {"copilot": "github"}})
+        assert store.read()["completion"]["copilot"] == "github"
+        assert saved.completion.copilot == "github"
+
+
+@pytest.mark.parametrize("existing", [True, False])
+def test_invalid_config_is_not_saved(tmp_path: Path, existing: bool) -> None:
+    config_path = tmp_path / "marimo.toml"
+    original = '[display]\ntheme = "dark"\n'
+    if existing:
+        config_path.write_text(original)
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        with pytest.raises(ValidationError):
+            store.save_config(
+                {"completion": {"activate_on_typing": "invalid"}}
+            )
+
+    if existing:
+        assert config_path.read_text() == original
+    else:
+        assert not config_path.exists()
+
+
+def test_save_config_preserves_unreadable_file(tmp_path: Path) -> None:
+    config_path = tmp_path / "marimo.toml"
+    original = '[ai]\nrules = "prefer polars"\n'
+    config_path.write_text(original)
+    store = UserConfigStore()
+    with (
+        patch.object(store, "get_config_path", return_value=str(config_path)),
+        patch(
+            "marimo._config.manager.read_marimo_config",
+            side_effect=PermissionError("Permission denied"),
+        ),
+    ):
+        assert store.read() == {}
+        with pytest.raises(ValueError, match="Permission denied"):
+            store.save_config({"display": {"theme": "dark"}})
+
+    assert config_path.read_text() == original
 
 
 @restore_config
@@ -64,9 +265,6 @@ def test_save_config_is_deterministic(tmp_path: Path) -> None:
     every run. The fixture is intentionally wide (many out-of-order keys across
     several tables) to maximize the per-seed catch rate.
     """
-    from typing import cast
-
-    from marimo._config.config import MarimoConfig
 
     config_path = tmp_path / "marimo.toml"
     manager = UserConfigStore()
@@ -156,11 +354,11 @@ def test_save_config_is_deterministic(tmp_path: Path) -> None:
         },
     )
 
-    manager._load_config = lambda: cast(MarimoConfig, dict(a))
+    manager._load_config = lambda _path: dict(a)
     manager.save_config(a)
     bytes_a = config_path.read_bytes()
 
-    manager._load_config = lambda: cast(MarimoConfig, dict(b))
+    manager._load_config = lambda _path: dict(b)
     manager.save_config(b)
     bytes_b = config_path.read_bytes()
 
@@ -168,21 +366,25 @@ def test_save_config_is_deterministic(tmp_path: Path) -> None:
 
 
 @restore_config
-@patch("tomlkit.dump")
+@patch("tomlkit.dumps", return_value="")
 def test_save_config_none_deletes_key(mock_dump: Any) -> None:
     """None-as-delete: sending {ai: {max_tokens: None}} removes the key."""
-    mock_config = merge_default_config(
-        PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
-    )
-    manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
-
-    manager.save_config(
-        cast(
-            PartialMarimoConfig,
-            {"ai": {"max_tokens": None}},
+    mock_config = (
+        merge_default_config(
+            PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
         )
-    )
+    ).to_dict()
+    manager = UserConfigStore()
+    manager._load_config = lambda _path: mock_config
+
+    (
+        manager.save_config(
+            cast(
+                PartialMarimoConfig,
+                {"ai": {"max_tokens": None}},
+            )
+        )
+    ).to_dict()
 
     written = mock_dump.mock_calls[0][1][0]
     assert "max_tokens" not in written["ai"]
@@ -193,36 +395,69 @@ def test_save_config_none_deletes_key(mock_dump: Any) -> None:
 @restore_config
 def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
     """Regression guard: TOML has no null type, so a None value reaching
-    tomlkit.dump raises ConvertError. _drop_none_values must strip it first,
+    tomlkit.dump raises ConvertError. drop_none_values must strip it first,
     making the real (unmocked) save succeed and omit the key."""
     config_path = tmp_path / "marimo.toml"
-    mock_config = merge_default_config(
-        PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
-    )
+    mock_config = (
+        merge_default_config(
+            PartialMarimoConfig(ai={"max_tokens": 8192, "rules": "be terse"})
+        )
+    ).to_dict()
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
     with patch.object(
         manager, "get_config_path", return_value=str(config_path)
     ):
-        manager.save_config(
-            cast(PartialMarimoConfig, {"ai": {"max_tokens": None}})
-        )
+        (
+            manager.save_config(
+                cast(PartialMarimoConfig, {"ai": {"max_tokens": None}})
+            )
+        ).to_dict()
 
     contents = config_path.read_text()
     assert "max_tokens" not in contents
     assert "be terse" in contents
 
 
-def test_user_config_drops_hollow_dotenv(tmp_path: Path) -> None:
-    """An empty runtime.dotenv on disk is a masked value, so it is ignored."""
+def test_user_config_keeps_empty_dotenv(tmp_path: Path) -> None:
+    """An explicit empty list disables loading in user configuration too."""
     config_path = tmp_path / "marimo.toml"
     config_path.write_text("[runtime]\ndotenv = []\n")
     manager = UserConfigStore()
     manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
 
-    config = MarimoConfigManager(manager).get_user_config(hide_secrets=False)
-    assert "dotenv" not in config["runtime"]
+    config = (
+        MarimoConfigManager(manager).get_user_config(hide_secrets=False)
+    ).to_dict()
+    assert config["runtime"]["dotenv"] == []
+
+
+@pytest.mark.parametrize(
+    ("contents", "expected"),
+    [
+        ("", None),
+        ("[runtime]\ndotenv = []\n", []),
+        ('[runtime]\ndotenv = ["secret.env"]\n', ["secret.env"]),
+    ],
+)
+def test_saving_masked_config_preserves_dotenv_choice(
+    tmp_path: Path,
+    contents: str,
+    expected: list[str] | None,
+) -> None:
+    path = tmp_path / "marimo.toml"
+    path.write_text(contents)
+    store = UserConfigStore()
+    store.get_config_path = lambda: str(path)  # type: ignore[method-assign]
+    manager = MarimoConfigManager(store)
+    masked = (manager.get_user_config()).to_dict()
+    masked["display"]["theme"] = "dark"
+    (manager.save_config(masked)).to_dict()
+    assert (manager.get_user_config(hide_secrets=False)).to_dict()[
+        "runtime"
+    ].get("dotenv") == expected
+    assert (manager.get_user_config()).to_dict()["display"]["theme"] == "dark"
 
 
 def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
@@ -232,35 +467,46 @@ def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
     manager = UserConfigStore()
     manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
 
-    config = MarimoConfigManager(manager).get_user_config(hide_secrets=False)
+    config = (
+        MarimoConfigManager(manager).get_user_config(hide_secrets=False)
+    ).to_dict()
     assert config["runtime"]["dotenv"] == [dotenv.as_posix()]
 
 
 def test_drop_none_values_strips_nested_none() -> None:
-    from marimo._config.manager import _drop_none_values
+    from marimo._config.utils import drop_none_values
 
     d: dict[str, Any] = {
         "keep": 1,
         "drop": None,
         "nested": {"keep": "x", "drop": None},
+        "tables": [{"keep": "x", "drop": None}],
     }
-    _drop_none_values(d)
-    assert d == {"keep": 1, "nested": {"keep": "x"}}
+    drop_none_values(d)
+    assert d == {
+        "keep": 1,
+        "nested": {"keep": "x"},
+        "tables": [{"keep": "x"}],
+    }
 
 
 @restore_config
-@patch("tomlkit.dump")
+@patch("tomlkit.dumps", return_value="")
 def test_can_save_secrets(mock_dump: Any) -> None:
-    mock_config = merge_default_config(PartialMarimoConfig())
+    mock_config = (merge_default_config(PartialMarimoConfig())).to_dict()
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
     new_config = manager.save_config(
-        merge_default_config(
-            PartialMarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
-        )
+        (
+            merge_default_config(
+                PartialMarimoConfig(
+                    ai={"open_ai": {"api_key": "super_secret"}}
+                )
+            )
+        ).to_dict()
     )
-    manager._load_config = lambda: new_config
+    manager._load_config = lambda _path: new_config.to_dict()
 
     assert (
         mock_dump.mock_calls[0][1][0]["ai"]["open_ai"]["api_key"]
@@ -268,11 +514,17 @@ def test_can_save_secrets(mock_dump: Any) -> None:
     )
 
     # Do not overwrite secrets
-    manager.save_config(
-        merge_default_config(
-            PartialMarimoConfig(ai={"open_ai": {"api_key": "********"}})
+    (
+        manager.save_config(
+            (
+                merge_default_config(
+                    PartialMarimoConfig(
+                        ai={"open_ai": {"api_key": "********"}}
+                    )
+                )
+            ).to_dict()
         )
-    )
+    ).to_dict()
     assert (
         mock_dump.mock_calls[1][1][0]["ai"]["open_ai"]["api_key"]
         == "super_secret"
@@ -284,39 +536,75 @@ def test_can_read_secrets() -> None:
     manager = UserConfigStore()
     mock_config = merge_default_config(
         PartialMarimoConfig(ai={"open_ai": {"api_key": "super_secret"}})
-    )
-    manager._load_config = lambda: mock_config
+    ).to_dict()
+    manager._load_config = lambda _path: mock_config
 
+    assert (MarimoConfigManager(manager).get_user_config()).to_dict()["ai"][
+        "open_ai"
+    ]["api_key"] == "********"
     assert (
-        MarimoConfigManager(manager).get_user_config()["ai"]["open_ai"][
-            "api_key"
-        ]
-        == "********"
-    )
-    assert (
-        MarimoConfigManager(manager).get_user_config(hide_secrets=False)["ai"][
-            "open_ai"
-        ]["api_key"]
-        == "super_secret"
-    )
+        MarimoConfigManager(manager).get_user_config(hide_secrets=False)
+    ).to_dict()["ai"]["open_ai"]["api_key"] == "super_secret"
 
 
 @restore_config
 def test_get_config() -> None:
-    mock_config = merge_default_config(PartialMarimoConfig())
+    mock_config = (merge_default_config(PartialMarimoConfig())).to_dict()
     manager = UserConfigStore()
-    manager._load_config = lambda: mock_config
+    manager._load_config = lambda _path: mock_config
 
-    result = MarimoConfigManager(manager).get_user_config()
+    result = (MarimoConfigManager(manager).get_user_config()).to_dict()
 
     assert result == mock_config
 
 
+@pytest.mark.parametrize(
+    ("copilot", "expected", "invalid"),
+    [
+        ("codeium", False, False),
+        (False, False, False),
+        (True, True, False),
+        ("github", "github", False),
+        ("custom", "custom", False),
+        ("invalid", False, True),
+    ],
+)
+@pytest.mark.parametrize("source", ["user", "override"])
+def test_get_config_normalizes_legacy_copilot(
+    tmp_path: Path,
+    copilot: bool | str,
+    expected: bool | str,
+    invalid: bool,
+    source: str,
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("")
+    values = {"completion": {"copilot": copilot}}
+    user = UserConfigStore()
+    with (
+        patch.object(user, "get_config_path", return_value=str(config_path)),
+        patch.object(
+            user,
+            "_load_config",
+            return_value=values if source == "user" else {},
+        ),
+        patch("marimo._config.manager.LOGGER.error") as log_error,
+    ):
+        manager = MarimoConfigManager(
+            user,
+            OverrideConfigReader(values if source == "override" else {}),
+        )
+        for _ in range(3):
+            assert manager.get_config().completion.copilot == expected
+        assert log_error.call_count == (3 if invalid else 0)
+    assert values == {"completion": {"copilot": copilot}}
+
+
 @restore_config
 def test_get_config_with_override() -> None:
-    mock_config = merge_default_config(PartialMarimoConfig())
+    mock_config = (merge_default_config(PartialMarimoConfig())).to_dict()
     user = UserConfigStore()
-    user._load_config = lambda: mock_config
+    user._load_config = lambda _path: mock_config
 
     manager = MarimoConfigManager(
         user,
@@ -331,7 +619,7 @@ def test_get_config_with_override() -> None:
             }
         ),
     )
-    assert manager.get_config()["runtime"]["auto_reload"] == "lazy"
+    assert (manager.get_config()).to_dict()["runtime"]["auto_reload"] == "lazy"
 
     manager = get_default_config_manager(current_path=None).with_overrides(
         {
@@ -343,7 +631,7 @@ def test_get_config_with_override() -> None:
             }
         }
     )
-    assert manager.get_config()["runtime"]["auto_reload"] == "lazy"
+    assert (manager.get_config()).to_dict()["runtime"]["auto_reload"] == "lazy"
 
 
 @restore_config
@@ -355,7 +643,9 @@ def test_with_multiple_overrides() -> None:
             }
         }
     )
-    assert manager.get_config()["package_management"]["manager"] == "pixi"
+    assert (manager.get_config()).to_dict()["package_management"][
+        "manager"
+    ] == "pixi"
 
     next_manager = manager.with_overrides(
         {
@@ -364,9 +654,13 @@ def test_with_multiple_overrides() -> None:
             }
         }
     )
-    assert next_manager.get_config()["package_management"]["manager"] == "uv"
+    assert (next_manager.get_config()).to_dict()["package_management"][
+        "manager"
+    ] == "uv"
 
-    assert manager.get_config()["package_management"]["manager"] == "pixi"
+    assert (manager.get_config()).to_dict()["package_management"][
+        "manager"
+    ] == "pixi"
 
 
 def test_project_config_default_dotenv(tmp_path: Path) -> None:
@@ -380,7 +674,7 @@ def test_project_config_default_dotenv(tmp_path: Path) -> None:
     notebook_content = "import marimo as mo"
     notebook_path.write_text(textwrap.dedent(notebook_content))
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
@@ -391,7 +685,7 @@ def test_project_config_dotenv_without_pyproject(tmp_path: Path) -> None:
     notebook_path.write_text("import marimo as mo")
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
@@ -399,7 +693,7 @@ def test_project_config_dotenv_without_pyproject_directory(
     tmp_path: Path,
 ) -> None:
     manager = get_default_config_manager(current_path=str(tmp_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
@@ -412,20 +706,20 @@ def test_default_dotenv_is_masked_with_the_other_secrets(
     notebook_path.write_text("import marimo as mo")
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    assert manager.get_config()["runtime"]["dotenv"] == []
-    assert manager.get_config(hide_secrets=False)["runtime"]["dotenv"] == [
-        str(tmp_path / ".env")
-    ]
+    assert "dotenv" not in (manager.get_config()).to_dict()["runtime"]
+    assert (manager.get_config(hide_secrets=False)).to_dict()["runtime"][
+        "dotenv"
+    ] == [str(tmp_path / ".env")]
 
 
 def test_project_config_empty_dotenv_opts_out(tmp_path: Path) -> None:
-    # A user-level [] is dropped as a masked leftover, but a pyproject.toml is
-    # never written back masked, so its [] is a deliberate "load nothing".
     notebook_path = _write_dotenv_project(tmp_path, "")
     (notebook_path.parent / ".env").write_text("KEY=value")
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    assert manager.get_config(hide_secrets=False)["runtime"]["dotenv"] == []
+    assert (manager.get_config(hide_secrets=False)).to_dict()["runtime"][
+        "dotenv"
+    ] == []
 
 
 def test_default_dotenv_skips_the_home_directory(
@@ -443,7 +737,7 @@ def test_default_dotenv_skips_the_home_directory(
 
     for start_path in (notebook_path, home):
         manager = get_default_config_manager(current_path=str(start_path))
-        config = manager.get_config(hide_secrets=False)
+        config = (manager.get_config(hide_secrets=False)).to_dict()
         assert "dotenv" not in config["runtime"]
 
 
@@ -461,7 +755,7 @@ def test_default_dotenv_applies_to_a_pyproject_in_the_home_directory(
     notebook_path.write_text("import marimo as mo")
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(home / ".env")]
 
 
@@ -506,7 +800,7 @@ def test_directory_workspace_dotenv_anchors_on_the_notebook(
 
     workspace = get_default_config_manager(current_path=str(repo))
     session = workspace.with_partial(ScriptConfigReader(str(notebook_path)))
-    config = session.get_config(hide_secrets=False)
+    config = (session.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(sub / ".env")]
     assert "runtime" not in session.get_config_overrides(hide_secrets=False)
 
@@ -524,7 +818,7 @@ def test_directory_workspace_dotenv_keeps_the_pyproject_root(
 
     workspace = get_default_config_manager(current_path=str(repo))
     session = workspace.with_partial(ScriptConfigReader(str(notebook_path)))
-    config = session.get_config(hide_secrets=False)
+    config = (session.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(repo / ".env")]
 
 
@@ -538,7 +832,7 @@ def test_directory_workspace_dotenv_falls_back_to_the_workspace_root(
 
     workspace = get_default_config_manager(current_path=str(repo))
     session = workspace.with_partial(ScriptConfigReader(None))
-    config = session.get_config(hide_secrets=False)
+    config = (session.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(repo / ".env")]
 
 
@@ -552,7 +846,7 @@ def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
     notebook_path.write_text("import marimo as mo")
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
@@ -580,7 +874,7 @@ def test_project_config_dotenv_allows_subdirectory(tmp_path: Path) -> None:
     (config_dir / ".env").write_text("KEY=value")
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(config_dir / ".env")]
 
 
@@ -642,7 +936,7 @@ def test_user_config_dotenv_beats_the_default(
     notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [outside.as_posix()]
 
 
@@ -654,14 +948,13 @@ def test_default_dotenv_applies_with_an_empty_user_config(
     notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
 
 
-def test_default_dotenv_applies_over_a_hollow_user_dotenv(
+def test_user_config_empty_dotenv_disables_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # marimo 0.18 and earlier wrote the masked (emptied) dotenv back to disk.
     _isolate_user_config(
         monkeypatch,
         tmp_path,
@@ -673,8 +966,8 @@ def test_default_dotenv_applies_over_a_hollow_user_dotenv(
     notebook_path = _write_notebook(tmp_path, with_pyproject=False)
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
-    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+    config = (manager.get_config(hide_secrets=False)).to_dict()
+    assert config["runtime"]["dotenv"] == []
 
 
 def test_project_dotenv_beats_user_config(
@@ -694,7 +987,7 @@ def test_project_dotenv_beats_user_config(
     notebook_path = _write_dotenv_project(tmp_path, '".env"')
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
 
 
@@ -709,7 +1002,7 @@ def test_project_config_dotenv_keeps_absolute_and_parent_paths(
     )
 
     manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [
         str(notebook_path.parent / ".env"),
         str(notebook_path.parent / "../shared/.env"),
@@ -1040,16 +1333,6 @@ def test_script_config_manager_ai_base_url_does_not_override(
     assert config == {}
 
 
-def test_marimo_config_reader_properties() -> None:
-    """Test the convenience properties on MarimoConfigManager"""
-
-    manager = get_default_config_manager(current_path=None)
-    assert manager.default_width is not None
-    assert manager.default_sql_output is not None
-    assert manager.theme is not None
-    assert manager.package_manager is not None
-
-
 def test_project_config_manager_resolve_paths(tmp_path: Path) -> None:
     # Create a pyproject.toml with pythonpath and dotenv settings
     pyproject_path = tmp_path / "pyproject.toml"
@@ -1069,7 +1352,7 @@ def test_project_config_manager_resolve_paths(tmp_path: Path) -> None:
 
     # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
 
     # Verify pythonpath resolution
     expected_pythonpath = [
@@ -1098,7 +1381,7 @@ def test_project_config_manager_resolve_invalid_paths(tmp_path: Path) -> None:
 
     # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
-    config = manager.get_config(hide_secrets=False)
+    config = manager.get_config_with_sources(hide_secrets=False).config
 
     # Verify invalid paths are not modified
     assert config["runtime"]["pythonpath"] == "not_a_list"
@@ -1116,7 +1399,7 @@ def test_project_config_manager_resolve_missing_paths(tmp_path: Path) -> None:
 
     # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
 
     # Verify missing paths don't cause issues
     assert config["runtime"].get("pythonpath", []) == []
@@ -1135,7 +1418,7 @@ def test_project_config_manager_resolve_custom_css(tmp_path: Path) -> None:
 
     # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
 
     # Verify custom_css paths are resolved correctly
     expected_custom_css = [
@@ -1159,7 +1442,7 @@ def test_project_config_manager_resolve_custom_css_home_path(
     pyproject_path.write_text(textwrap.dedent(pyproject_content))
 
     manager = get_default_config_manager(current_path=str(pyproject_path))
-    config = manager.get_config(hide_secrets=False)
+    config = (manager.get_config(hide_secrets=False)).to_dict()
 
     assert config["display"]["custom_css"] == [
         str((tmp_path / "theme.css").absolute())
@@ -1207,7 +1490,7 @@ def test_project_config_manager_resolve_invalid_custom_css(
     # Initialize PyprojectConfigReader
     # Initialize PyprojectConfigReader
     manager = get_default_config_manager(current_path=str(pyproject_path))
-    config = manager.get_config(hide_secrets=False)
+    config = manager.get_config_with_sources(hide_secrets=False).config
 
     # Verify invalid custom_css is not modified
     assert config["display"]["custom_css"] == "not_a_list"
@@ -1216,11 +1499,9 @@ def test_project_config_manager_resolve_invalid_custom_css(
 def test_env_config_manager_auto_instantiate_true(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test that EnvConfigReader correctly loads auto_instantiate from env"""
-    monkeypatch.setenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "true"
-    )
-    manager = EnvConfigReader()
+    """Test that EnvVarReader correctly loads auto_instantiate from env"""
+    monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", "true")
+    manager = EnvVarReader()
     config = manager.read()
     assert config == {"runtime": {"auto_instantiate": True}}
 
@@ -1236,10 +1517,8 @@ def test_env_config_manager_boolean_case_insensitive(
     monkeypatch: pytest.MonkeyPatch, env_value: str, expected: bool
 ) -> None:
     """Test boolean parsing is case-insensitive"""
-    monkeypatch.setenv(
-        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", env_value
-    )
-    manager = EnvConfigReader()
+    monkeypatch.setenv("MARIMO_RUNTIME_AUTO_INSTANTIATE", env_value)
+    manager = EnvVarReader()
     config = manager.read()
     assert config["runtime"]["auto_instantiate"] is expected
 
@@ -1249,30 +1528,18 @@ def test_env_config_manager_on_cell_change(
     monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
     monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", mode)
-    assert EnvConfigReader().read() == {"runtime": {"on_cell_change": mode}}
+    assert EnvVarReader().read() == {"runtime": {"on_cell_change": mode}}
 
 
-@pytest.mark.parametrize(
-    ("value", "parsed"),
-    [
-        ("invalid", "invalid"),
-        ("", ""),
-        ("true", True),
-        ("[lazy,autorun]", ["lazy", "autorun"]),
-    ],
-)
+@pytest.mark.parametrize("value", ["invalid", "", "true", "[lazy,autorun]"])
 def test_env_config_manager_on_cell_change_invalid(
-    monkeypatch: pytest.MonkeyPatch, value: str, parsed: Any
+    monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
     monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", value)
     with patch("marimo._config.manager.LOGGER.warning") as warning:
-        assert EnvConfigReader().read() == {}
-    warning.assert_called_once_with(
-        "Ignoring invalid value %r for %s; expected one of %s",
-        parsed,
-        "MARIMO_RUNTIME_ON_CELL_CHANGE",
-        "'lazy', 'autorun'",
-    )
+        assert EnvVarReader().read() == {}
+    warning.assert_called_once()
+    assert warning.call_args.args[1] == "MARIMO_RUNTIME_ON_CELL_CHANGE"
 
 
 @pytest.mark.parametrize("mode", ["lazy", "autorun"])
@@ -1295,7 +1562,9 @@ def test_env_on_cell_change_overrides_files(
     )
     monkeypatch.setenv("MARIMO_RUNTIME_ON_CELL_CHANGE", mode)
     manager = get_default_config_manager(current_path=str(notebook))
-    assert manager.get_config()["runtime"]["on_cell_change"] == mode
+    assert (manager.get_config()).to_dict()["runtime"][
+        "on_cell_change"
+    ] == mode
     assert manager.get_config_overrides()["runtime"]["on_cell_change"] == mode
     assert user_path.read_text() == (
         f'[runtime]\non_cell_change = "{file_mode}"\n'
@@ -1304,7 +1573,7 @@ def test_env_on_cell_change_overrides_files(
 
 def test_env_config_manager_no_env_vars() -> None:
     """Test that missing env vars return empty config"""
-    manager = EnvConfigReader()
+    manager = EnvVarReader()
     config = manager.read()
     assert config == {}
 
@@ -1315,7 +1584,7 @@ def test_env_config_manager_server_transport(
 ) -> None:
     """MARIMO_SERVER_TRANSPORT selects the kernel-connection transport"""
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", transport)
-    manager = EnvConfigReader()
+    manager = EnvVarReader()
     config = manager.read()
     assert config == {"server": {"transport": transport}}
 
@@ -1325,7 +1594,7 @@ def test_env_config_manager_server_transport_invalid(
 ) -> None:
     """Invalid MARIMO_SERVER_TRANSPORT values are ignored with a warning"""
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "carrier-pigeon")
-    manager = EnvConfigReader()
+    manager = EnvVarReader()
     config = manager.read()
     assert config == {}
 
@@ -1343,7 +1612,7 @@ def test_restrict_sharing_clamps_config_overrides(
     """
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     manager = MarimoConfigManager(
-        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
+        UserConfigStore(), EnvVarReader(), SecurityConfigReader()
     )
     overrides = manager.get_config_overrides(hide_secrets=False)
     assert overrides["sharing"] == RESTRICTED_SHARING
@@ -1358,14 +1627,12 @@ def test_restrict_sharing_overrides_user_config(
     monkeypatch.setattr(
         user,
         "_load_config",
-        lambda: merge_default_config(
+        lambda _path: merge_default_config(
             {"sharing": {"wasm": True, "html": True, "molab": True}}
-        ),
+        ).to_dict(),
     )
-    manager = MarimoConfigManager(
-        user, EnvConfigReader(), SecurityConfigReader()
-    )
-    assert manager.get_config(hide_secrets=False)["sharing"] == (
+    manager = MarimoConfigManager(user, EnvVarReader(), SecurityConfigReader())
+    assert manager.get_config(hide_secrets=False).to_dict()["sharing"] == (
         RESTRICTED_SHARING
     )
 
@@ -1375,13 +1642,13 @@ def test_restrict_sharing_beats_later_override(
 ) -> None:
     """A later with_overrides() cannot re-enable sharing.
 
-    with_overrides() appends its partial after EnvConfigReader, but
+    with_overrides() appends its partial after EnvVarReader, but
     MarimoConfigManager keeps the SecurityConfigReader last, so the
     enforcement still wins over the later override.
     """
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
     manager = MarimoConfigManager(
-        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
+        UserConfigStore(), EnvVarReader(), SecurityConfigReader()
     ).with_overrides({"sharing": {"wasm": True, "html": True, "molab": True}})
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == (
         RESTRICTED_SHARING
@@ -1394,7 +1661,7 @@ def test_restrict_sharing_disabled_keeps_user_config(
     """With the flag off, an explicit sharing config is left untouched."""
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", False)
     manager = MarimoConfigManager(
-        UserConfigStore(), EnvConfigReader(), SecurityConfigReader()
+        UserConfigStore(), EnvVarReader(), SecurityConfigReader()
     ).with_overrides({"sharing": {"wasm": True}})
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == {
         "wasm": True
@@ -1481,7 +1748,9 @@ def test_effective_config_anchors_trust_in_user_layer_only(
         PyprojectConfigReader(str(pyproject_path)),
     ).with_overrides({"signing": {"trusted_signers": {user_fp: "me"}}})
 
-    signing = manager.get_config(hide_secrets=False).get("signing", {})
+    signing = (
+        (manager.get_config(hide_secrets=False)).to_dict().get("signing", {})
+    )
     trusted = signing.get("trusted_signers", {})
     assert project_fp not in trusted
     assert user_fp in trusted
@@ -1524,13 +1793,23 @@ def test_workspace_marimo_toml_strips_signing_and_verification(
         lambda _path: False,
     )
 
-    config = MarimoConfigManager(UserConfigStore()).get_user_config(
-        hide_secrets=False
-    )
+    config = (
+        MarimoConfigManager(UserConfigStore()).get_user_config(
+            hide_secrets=False
+        )
+    ).to_dict()
 
-    assert "signing" not in config
-    assert config.get("cache", {}).get("verification") is None
-    assert config.get("cache", {}).get("loader") is None
+    assert config["signing"] == {
+        "trusted_signers": {},
+        "private_key_path": None,
+    }
+    assert "signing" not in UserConfigStore().read()
+    assert config.get("cache", {}).get("verification") == "off"
+    assert (
+        UserConfigStore().read().get("cache", {}).get("verification") is None
+    )
+    assert config.get("cache", {}).get("loader") == "lazy"
+    assert UserConfigStore().read().get("cache", {}).get("loader") is None
     # The store goes too, unlike the project and script layers. A store set
     # here would load as the user layer, so `cache_store_is_untrusted` could
     # not tell it apart from one the operator chose, and the unsigned pickle
@@ -1564,9 +1843,11 @@ def test_trusted_user_config_location_anchors_trust(
         lambda _path: True,
     )
 
-    config = MarimoConfigManager(UserConfigStore()).get_user_config(
-        hide_secrets=False
-    )
+    config = (
+        MarimoConfigManager(UserConfigStore()).get_user_config(
+            hide_secrets=False
+        )
+    ).to_dict()
 
     assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
     assert config["cache"]["verification"] == "strict"

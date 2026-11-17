@@ -1,22 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import { KnownQueryParams } from "@/core/constants";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { runtimeAdapterAtom } from "@/core/runtime/adapter";
+import { confirmedDocumentAtom } from "@/core/session/active-notebook";
 import { logNever } from "@/utils/assertNever";
 
+/** Whether any cell's source reached this client. A host withholds source as null. */
+export const codeAvailableAtom = atom((get) => {
+  const document = get(confirmedDocumentAtom);
+  return (
+    document !== null &&
+    [...document.cells.values()].some((cell) => cell.code !== null)
+  );
+});
+
 /**
- * Whether the notebook source code reached the frontend and can be rendered.
+ * Whether the notebook source code can be rendered.
  *
- * In `marimo run` the server omits cell sources unless `--include-code` is
- * set (every `cell.code` arrives as `""`). Use this to gate any "show code"
- * / "copy code" / "download .py" affordance.
+ * In `marimo run` the server withholds cell sources unless `--include-code`
+ * is set. Use this to gate any "show code" / "copy code" / "download .py"
+ * affordance.
  */
-export function useNotebookCodeAvailable(
-  cells: ReadonlyArray<{ code: string }>,
-): boolean {
+export function useNotebookCodeAvailable(): boolean {
+  const available = useAtomValue(codeAvailableAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const { mode } = useAtomValue(viewStateAtom);
   const showInRunMode = useAtomValue(showCodeInRunModeAtom);
@@ -41,7 +50,7 @@ export function useNotebookCodeAvailable(
       if (params.get(KnownQueryParams.includeCode) === "false") {
         return false;
       }
-      return cells.some((cell) => Boolean(cell.code));
+      return available;
     }
     default:
       logNever(mode);

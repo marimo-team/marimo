@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 with app.setup:
@@ -32,7 +32,6 @@ def _():
     sections below render correctly (not broken images / empty iframes),
     virtual file serving across process boundaries is working.
     """)
-    return
 
 
 @app.cell
@@ -68,7 +67,6 @@ def _():
         ),
         mo.image(src=png_bytes, width=64, height=64),
     ])
-    return
 
 
 @app.cell
@@ -91,7 +89,6 @@ def _():
         ),
         table,
     ])
-    return
 
 
 if __name__ == "__main__":

@@ -195,4 +195,41 @@ describe("SlideScrollContainer", () => {
 
     expect(screen.queryByTestId("slide-scroll-hint")).toBeNull();
   });
+
+  it.each([
+    { scale: 0.5, fragmentOffset: 1000, expected: true },
+    { scale: 2, fragmentOffset: 500, expected: false },
+  ])(
+    "measures revealed content in canvas coordinates at scale $scale",
+    ({ scale, fragmentOffset, expected }) => {
+      render(
+        <SlideScrollContainer>
+          <div>revealed content</div>
+          <div className="fragment">unrevealed content</div>
+        </SlideScrollContainer>,
+      );
+
+      const container = screen.getByTestId("slide-scroll-container");
+      const fragment = container.querySelector<HTMLElement>(".fragment");
+      if (!fragment) {
+        throw new Error("Missing fragment");
+      }
+      stubOverflow(container, { scrollHeight: 1200, clientHeight: 720 });
+      Object.defineProperty(container, "offsetHeight", { value: 720 });
+      vi.spyOn(container, "getBoundingClientRect").mockReturnValue(
+        DOMRect.fromRect({ y: 100, height: 720 * scale }),
+      );
+      vi.spyOn(fragment, "getBoundingClientRect").mockReturnValue(
+        DOMRect.fromRect({ y: 100 + fragmentOffset * scale }),
+      );
+
+      act(() => {
+        for (const observer of resizeObservers) {
+          observer.callback([], observer as unknown as ResizeObserver);
+        }
+      });
+
+      expect(screen.queryByTestId("slide-scroll-hint") !== null).toBe(expected);
+    },
+  );
 });

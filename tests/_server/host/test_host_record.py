@@ -162,9 +162,13 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         context = app.state.host_context
         host = context.bridge.host
         now = 0.0
-        host.clock = context.clock = lambda: now
+        host.clock = context.mutations.clock = lambda: now
         host.update_project(project())
-        notebook = await add_notebook(host, record(), ScriptedBackend())
+        notebook = await add_notebook(
+            host,
+            msgspec.structs.replace(record(), operations=("runtime.execute",)),
+            ScriptedBackend(),
+        )
         notebook.adopt(lambda _: None)
         notebook.observe(be.Running(runtime_id_of(notebook)))
         headers = {
@@ -174,7 +178,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         response = await finished(
             app,
             "POST",
-            f"/notebooks/{notebook.id}/runtime/runs",
+            f"/notebooks/{notebook.id}/runtime/execute",
             headers=headers,
             body=b'{"code":"42"}',
         )
@@ -184,8 +188,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         notebook.observe(
             be.Planned(run_id, (be.PlannedExecution(eid, None, "hash", "42"),))
         )
-        notebook.observe(be.Concluded(eid, protocol.ValueOutcome(None)))
-        notebook.observe(be.Status(eid, "completed"))
+        notebook.observe(be.Completed(eid, protocol.ValueOutcome(None)))
         notebook.observe(be.Done(run_id, "succeeded"))
         removed = asyncio.Event()
         host.subscribe(
@@ -203,6 +206,75 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         ]
         now = 300
         await asyncio.wait_for(removed.wait(), timeout=5)
-        assert context.replies == {}
+        assert context.mutations.replies == {}
     assert maintenance.done()
     assert app.state.host_context is None
+
+
+def test_discovery_reads_the_live_record_without_exposing_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    writer = record_module.HostRecordFile(
+        url="http://127.0.0.1:2718/base/api/marimo/v1", token="private-token"
+    )
+    writer.write()
+    try:
+        assert list(record_module.discover_hosts()) == [writer._record]
+        writer.remove()
+        assert list(record_module.discover_hosts()) == []
+    finally:
+        writer.remove()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX discovery validation")
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        "directory",
+        "file",
+        "symlink",
+        "remote",
+        "credentials",
+        "stale",
+        "large",
+        "version",
+    ],
+)
+def test_discovery_skips_untrusted_records(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, invalid: str
+) -> None:
+    import json
+
+    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    writer = record_module.HostRecordFile(
+        url="http://127.0.0.1:2718/api/marimo/v1", token="private-token"
+    )
+    writer.write()
+    path = writer._path
+    data = json.loads(path.read_bytes())
+    if invalid == "directory":
+        path.parent.chmod(0o755)
+    elif invalid == "file":
+        path.chmod(0o644)
+    elif invalid == "symlink":
+        target = path.with_suffix(".private")
+        path.rename(target)
+        path.symlink_to(target)
+    elif invalid == "large":
+        path.write_bytes(b" " * 65537)
+    else:
+        if invalid == "remote":
+            data["url"] = "http://example.com/api/marimo/v1"
+        elif invalid == "credentials":
+            data["url"] = "http://user@127.0.0.1:2718/api/marimo/v1"
+        elif invalid == "stale":
+            data["process"]["started_at"] = "2000-01-01T00:00:00Z"
+        else:
+            data["version"] = 2
+        path.write_text(json.dumps(data))
+    try:
+        assert list(record_module.discover_hosts()) == []
+        assert path.exists()
+    finally:
+        writer.remove()

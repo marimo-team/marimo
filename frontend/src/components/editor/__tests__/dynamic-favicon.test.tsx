@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Provider, createStore } from "jotai";
 import type { ReactNode } from "react";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
@@ -25,16 +26,13 @@ describe("DynamicFavicon", () => {
   }
 
   function setErrors() {
-    store.set(
-      notebookAtom,
-      MockNotebook.notebookStateWithErrors([
-        {
-          cellId: id,
-          cellName: "cell",
-          errorData: [MockNotebook.errors.syntax("Invalid syntax")],
-        },
-      ]),
-    );
+    MockNotebook.withErrors(store, [
+      {
+        cellId: id,
+        cellName: "cell",
+        error: { kind: "invalid-syntax", message: "Invalid syntax" },
+      },
+    ]);
   }
 
   beforeEach(() => {
@@ -211,12 +209,9 @@ describe("DynamicFavicon", () => {
     act(() => setErrors());
     await waitFor(() => expect(favicon.href).toContain("circle-x.ico"));
 
-    act(() =>
-      store.set(
-        notebookAtom,
-        MockNotebook.notebookState({ cellData: { [id]: {} } }),
-      ),
-    );
+    act(() => {
+      MockExecutions.seed(store, []);
+    });
     await waitFor(() => expect(favicon.href).toContain("circle-check.ico"));
   });
 

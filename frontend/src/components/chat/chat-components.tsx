@@ -8,7 +8,7 @@ import {
   ImageIcon,
   PaperclipIcon,
   SendHorizontalIcon,
-  StopCircleIcon,
+  SquareIcon,
   XIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -88,19 +88,20 @@ export const SendButton = ({
 }) => {
   const loadingContent = showStopLabel ? (
     <div className="flex flex-row items-center gap-1 px-1.5">
-      <span className="text-xs text-error">Stop</span>
+      <span className="text-xs">Stop</span>
       <Spinner size="small" />
     </div>
   ) : (
-    <StopCircleIcon className="size-4 text-error" />
+    <SquareIcon className="size-3.5" aria-hidden={true} />
   );
 
   return (
     <Tooltip content={isLoading ? "Stop" : "Submit"}>
       <Button
+        aria-label={isLoading ? "Stop" : "Submit"}
         variant="text"
         size="sm"
-        className="h-6 min-w-6 p-0 hover:bg-muted/30 cursor-pointer"
+        className="chat-control h-6 min-w-6 p-0 hover:bg-muted/30 cursor-pointer"
         onClick={isLoading ? onStop : onSendClick}
         disabled={isLoading ? false : isEmpty}
       >
@@ -124,6 +125,7 @@ export const AddContextButton = ({
   return (
     <Tooltip content="Add context">
       <Button
+        className="chat-control"
         aria-label="Add context"
         variant="text"
         size="icon"
@@ -149,6 +151,7 @@ export const AttachFileButton = ({
     <>
       <Tooltip content="Attach a file">
         <Button
+          className="chat-control"
           aria-label="Attach a file"
           variant="text"
           size="icon"

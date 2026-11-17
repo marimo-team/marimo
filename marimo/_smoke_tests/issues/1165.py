@@ -2,12 +2,12 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
-def _(css):
+def _(css: str):
     import anywidget
     import marimo as mo
 
@@ -36,7 +36,6 @@ def _(css):
 
 
     IGVWidget()
-    return
 
 
 @app.cell

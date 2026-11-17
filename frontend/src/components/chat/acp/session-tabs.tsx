@@ -32,17 +32,22 @@ const SessionTab: React.FC<SessionTabProps> = memo(
           "flex items-center gap-1 px-2 py-1 text-xs border-r border-border bg-muted/30 hover:bg-muted/50 cursor-pointer min-w-0",
           isActive && "bg-background border-b-0 relative z-1",
         )}
-        onClick={() => onSelect(session.tabId)}
       >
-        <div className="flex items-center gap-1 min-w-0 flex-1">
+        <button
+          type="button"
+          aria-pressed={isActive}
+          onClick={() => onSelect(session.tabId)}
+          className="flex items-center gap-1 min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-ring"
+        >
           <span className="text-muted-foreground text-[10px] font-medium">
             <AiProviderIcon provider={session.agentId} className="h-3 w-3" />
           </span>
           <span className="truncate" title={session.title}>
             {session.title}
           </span>
-        </div>
+        </button>
         <Button
+          aria-label={`Close ${session.title}`}
           variant="ghost"
           size="sm"
           className="h-4 w-4 p-0 hover:bg-destructive/20 hover:text-destructive shrink-0"

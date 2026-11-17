@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="full")
 
 
@@ -56,7 +56,6 @@ def _(mo):
 
     **[NEW] Try 2x faster inference in a free Colab for Llama-3.1 8b Instruct [here](https://colab.research.google.com/drive/1T-YBVfnphoVc8E2E854qF3jdia2Ll2W2?usp=sharing)**
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -69,7 +68,6 @@ def _(mo):
     * [**NEW**] To finetune and auto export to Ollama, try our [Ollama notebook](https://colab.research.google.com/drive/1WZDi7APtQ9VsvOrQSSC5DDtxq159j8iZ?usp=sharing)
     * [**NEW**] We make Mistral NeMo 12B 2x faster and fit in under 12GB of VRAM! [Mistral NeMo notebook](https://colab.research.google.com/drive/17d3U-CAIwzmbDRqbZ9NnpHxCkmXB6LZ0?usp=sharing)
     """)
-    return
 
 
 @app.cell
@@ -77,7 +75,6 @@ def _(mo):
     mo.md("""
     ### Load the model
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -85,7 +82,6 @@ def _(mo):
     mo.md("""
     Start by choosing a couple of parameters:
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -111,11 +107,10 @@ def _(mo):
     mo.md(r"""
     We now add LoRA adapters so we only need to update 1 to 10% of all parameters!
     """)
-    return
 
 
 @app.cell
-def _(FastLanguageModel, dtype, load_in_4bit, max_seq_length):
+def _(FastLanguageModel, dtype: None, load_in_4bit, max_seq_length):
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name="unsloth/Meta-Llama-3.1-8B",
         max_seq_length=max_seq_length.value,
@@ -162,7 +157,6 @@ def _(mo):
 
     For text completions like novel writing, try this [notebook](https://colab.research.google.com/drive/1ef-tab5bhkvWmBOObepl1WgJvfvSzn5Q?usp=sharing).
     """)
-    return
 
 
 @app.cell
@@ -213,7 +207,6 @@ def _(mo):
     ### Train the model
     Now let's use Huggingface TRL's `SFTTrainer`! More docs here: [TRL SFT docs](https://huggingface.co/docs/trl/sft_trainer). We do 60 steps to speed things up, but you can set `num_train_epochs=1` for a full run, and turn off `max_steps=None`. We also support TRL's `DPOTrainer`!
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -297,7 +290,6 @@ def _(max_memory, mo, start_gpu_memory, torch, trainer_stats):
     print(
         f"Peak reserved memory for training % of max memory = {lora_percentage} %."
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -309,7 +301,6 @@ def _(mo):
 
     **[NEW] Try 2x faster inference in a free Colab for Llama-3.1 8b Instruct [here](https://colab.research.google.com/drive/1T-YBVfnphoVc8E2E854qF3jdia2Ll2W2?usp=sharing)**
     """)
-    return
 
 
 @app.cell
@@ -331,7 +322,14 @@ def _(mo):
 
 
 @app.cell
-def _(FastLanguageModel, alpaca_prompt, inf_instr_inp, mo, model, tokenizer):
+def _(
+    FastLanguageModel,
+    alpaca_prompt: str,
+    inf_instr_inp,
+    mo,
+    model,
+    tokenizer,
+):
     mo.stop(inf_instr_inp.value is None)
 
     FastLanguageModel.for_inference(model)  # Enable native 2x faster inference
@@ -348,7 +346,6 @@ def _(FastLanguageModel, alpaca_prompt, inf_instr_inp, mo, model, tokenizer):
 
     outputs = model.generate(**_inputs, max_new_tokens=64, use_cache=True)
     tokenizer.batch_decode(outputs)
-    return
 
 
 @app.cell(hide_code=True)
@@ -376,7 +373,6 @@ def _(mo):
       <a href="https://ko-fi.com/unsloth"><img src="https://github.com/unslothai/unsloth/raw/main/images/Kofi button.png" width="145"></a></a> Support our work if you can! Thanks!
     </div>
     """)
-    return
 
 
 if __name__ == "__main__":

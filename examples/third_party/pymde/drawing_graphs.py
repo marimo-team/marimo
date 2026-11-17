@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -16,7 +16,6 @@ def _(mo):
     mo.md("""
     # Drawing Graphs
     """)
-    return
 
 
 @app.cell
@@ -28,13 +27,11 @@ def _(mo):
 @app.cell
 def _(mo, n_items):
     mo.md(f"Embedding graphs on {n_items} **{n_items.value}** items")
-    return
 
 
 @app.cell
 def _(draw_graphs, loss, n_items, penalty):
     draw_graphs(n_items, penalty, loss)
-    return
 
 
 @app.cell
@@ -82,7 +79,7 @@ def _():
 
 
 @app.cell
-def _(functools, penalties, pymde):
+def _(functools, penalties: dict[str, type], pymde):
     @functools.cache
     def complete_graph(n_items, penalty):
         edges = pymde.all_edges(n_items)
@@ -100,7 +97,7 @@ def _(functools, penalties, pymde):
 
 
 @app.cell
-def _(embedding_dim, functools, losses, pymde, torch):
+def _(embedding_dim: int, functools, losses: dict[str, type], pymde, torch):
     @functools.cache
     def tree(n_items, loss):
         edges = []

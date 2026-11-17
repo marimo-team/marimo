@@ -148,13 +148,10 @@ def harness(
 
     monkeypatch.setattr(bridge, "_make_backend", make)
     bridge.index.refresh()
-    app.state.host_context = HostContext(
-        bridge=bridge,
-        token=TOKEN,
-        port=PORT,
-        receipt_seconds=30,
-        clock=lambda: harness.now,
-    )
+    context = HostContext(bridge=bridge, token=TOKEN, port=PORT)
+    context.mutations.receipt_seconds = 30
+    context.mutations.clock = lambda: harness.now
+    app.state.host_context = context
     return harness
 
 
@@ -186,7 +183,7 @@ async def test_the_token_the_address_and_the_name_are_all_checked(
     app.state.host_context = None
     refused = await finished(app, "GET", "/events", headers=AUTH)
     assert refused.status == 404
-    assert refused.json()["type"].endswith("/not-found")
+    assert refused.json()["type"].endswith(":not-found")
 
 
 async def test_unknown_routes_are_problems(harness: Harness) -> None:
@@ -201,7 +198,7 @@ async def test_a_wrong_method_on_a_known_route_is_a_405_problem(
     response = await finished(harness.app, "GET", "/notebooks", headers=AUTH)
     assert response.status == 405
     assert response.headers["content-type"] == "application/problem+json"
-    assert response.json()["type"].endswith("/method-not-allowed")
+    assert response.json()["type"].endswith(":method-not-allowed")
     assert "POST" in response.headers["allow"]
 
 
@@ -278,10 +275,10 @@ async def test_only_loopback_names_are_admitted(
     ["\xb2", "1234\xb2", "\xb9\xb2\xb3"],
 )
 def test_latin1_superscripts_are_not_a_port(port: str) -> None:
-    from marimo._server.host.middleware import _host_header_ok
+    from marimo._server.host.auth import host_header_ok
 
     assert port.isdigit()
-    assert _host_header_ok(f"127.0.0.1:{port}", PORT) is False
+    assert host_header_ok(f"127.0.0.1:{port}", PORT) is False
 
 
 @pytest.mark.parametrize(
@@ -291,22 +288,23 @@ def test_latin1_superscripts_are_not_a_port(port: str) -> None:
         ("Bearer", 401),
         ("Bearer ", 401),
         ("Basic record-token", 401),
-        ("bearer  record-token ", 202),
+        # An empty update reaches the route only with the host's bearer.
+        ("bearer  record-token ", 400),
     ],
 )
 async def test_malformed_bearers_are_401_problems(
     harness: Harness, authorization: str, status: int
 ) -> None:
+    # The notebook record answers only the host's bearer, never the editor.
     response = await finished(
         harness.app,
-        "PUT",
-        f"/notebooks/{harness.notebook_id}/runtime",
-        headers={"Authorization": authorization, "Idempotency-Key": "start"},
+        "PATCH",
+        f"/notebooks/{harness.notebook_id}",
+        headers={"Authorization": authorization, "Idempotency-Key": "update"},
         body=b"{}",
     )
     assert response.status == status
-    if status != 202:
-        assert response.headers["content-type"] == "application/problem+json"
+    assert response.headers["content-type"] == "application/problem+json"
 
 
 # A bare integer is a cursor from a host before this one.
@@ -336,7 +334,22 @@ async def test_an_empty_cursor_is_a_400_problem(harness: Harness) -> None:
         harness.app, "GET", "/events", headers={**AUTH, "Last-Event-ID": ""}
     )
     assert response.status == 400
-    assert response.json()["type"].endswith("/invalid-request")
+    assert response.json()["type"].endswith(":invalid-request")
+
+
+async def test_a_call_reads_only_its_own_parts(harness: Harness) -> None:
+    nid = await harness.running()
+    stopped = await finished(
+        harness.app,
+        "DELETE",
+        f"/notebooks/{nid}/runtime",
+        # A header cannot stand in for a path parameter, and a call without
+        # a body ignores the one it is sent.
+        headers={**key("stop"), "Notebook-Id": "missing", "Params": "{}"},
+        body=b"not json",
+    )
+    assert stopped.status == 202, stopped.body
+    assert stopped.json()["notebook_id"] == nid
 
 
 async def test_a_nul_byte_in_a_path_is_a_400_problem(harness: Harness) -> None:
@@ -353,7 +366,7 @@ async def test_a_nul_byte_in_a_path_is_a_400_problem(harness: Harness) -> None:
         ).encode(),
     )
     assert response.status == 400
-    assert response.json()["type"].endswith("/invalid-request")
+    assert response.json()["type"].endswith(":invalid-request")
 
 
 async def test_a_401_names_the_bearer_scheme(harness: Harness) -> None:
@@ -378,6 +391,20 @@ async def test_an_unknown_type_filter_is_a_400_problem(
     assert "bogus" in response.json()["detail"] or types == "Notebook"
 
 
+async def test_an_unknown_request_member_is_a_400_problem(
+    harness: Harness,
+) -> None:
+    response = await finished(
+        harness.app,
+        "PATCH",
+        f"/notebooks/{harness.notebook_id}",
+        headers=key("future"),
+        body=b'{"name":"Forecasts","future":true}',
+    )
+    assert response.status == 400
+    assert response.json()["type"].endswith(":invalid-request")
+
+
 async def test_an_empty_update_is_a_400_problem(harness: Harness) -> None:
     response = await finished(
         harness.app,
@@ -387,7 +414,7 @@ async def test_an_empty_update_is_a_400_problem(harness: Harness) -> None:
         body=b"{}",
     )
     assert response.status == 400
-    assert response.json()["type"].endswith("/invalid-request")
+    assert response.json()["type"].endswith(":invalid-request")
 
 
 async def test_head_on_a_stream_is_a_405_and_attaches_nothing(
@@ -702,7 +729,7 @@ async def test_invalid_attachment_headers_are_rejected(
     )
     assert response.status == 400
     body = response.json()
-    assert body["type"].endswith("/invalid-request")
+    assert body["type"].endswith(":invalid-request")
     assert body["detail"] == f"{header} is invalid"
 
 
@@ -721,7 +748,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
 
     restart = await finished(app, "POST", path + "/restart", headers=key("k3"))
     assert restart.status == 409
-    assert restart.json()["type"].endswith("/conflict")
+    assert restart.json()["type"].endswith(":conflict")
 
     (await harness.host.notebook(nid)).observe(
         be.Running(runtime_id_of(await harness.host.notebook(nid)), "0.25.0")
@@ -748,7 +775,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     )
     gone = await finished(app, "DELETE", path, headers=key("k6"))
     assert gone.status == 409
-    assert gone.json()["type"].endswith("/no-runtime")
+    assert gone.json()["type"].endswith(":no-runtime")
 
 
 async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
@@ -762,7 +789,7 @@ async def test_slow_restart_keeps_its_receipt(harness: Harness) -> None:
 
     # The receipt's 30-second window must not begin during shutdown/startup.
     harness.now = 100
-    harness.app.state.host_context.expire()
+    harness.app.state.host_context.mutations.expire()
     notebook.observe(be.Exited(runtime_id_of(notebook)))
     notebook.observe(be.Running(runtime_id_of(notebook), "0.25.0"))
     calls = list(harness.backend().calls)
@@ -816,7 +843,7 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
     assert accepted.status == 202
     for now in (100, 200):
         harness.now = now
-        context.expire()
+        context.mutations.expire()
         calls = list(harness.backend().calls)
         replayed = await finished(
             harness.app, method, path, headers=key("lifecycle")
@@ -837,7 +864,7 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
     assert harness.host._stream._listeners == listeners
     calls = list(harness.backend().calls)
     harness.now = 229
-    context.expire()
+    context.mutations.expire()
     replayed = await finished(
         harness.app, method, path, headers=key("lifecycle")
     )
@@ -847,7 +874,7 @@ async def test_lifecycle_receipts_expire_after_terminal_events(
         calls,
     )
     harness.now = 230
-    assert context.remembered("lifecycle") is None
+    assert context.mutations.remembered("lifecycle") is None
 
 
 @pytest.mark.parametrize(
@@ -882,7 +909,7 @@ async def test_stop_settles_superseded_lifecycle_receipts(
     assert harness.host._stream._listeners == listeners
     calls = list(harness.backend().calls)
     harness.now = 229
-    context.expire()
+    context.mutations.expire()
     for request_id, verb, url, response in [
         ("pending", method, pending_path, accepted),
         ("stop-1", "DELETE", path, stops[0]),
@@ -898,7 +925,7 @@ async def test_stop_settles_superseded_lifecycle_receipts(
         )
     harness.now = 230
     assert [
-        context.remembered(request_id)
+        context.mutations.remembered(request_id)
         for request_id in ("pending", "stop-1", "stop-2")
     ] == [None, None, None]
 
@@ -949,7 +976,10 @@ async def test_synchronous_lifecycle_completion(
         calls,
     )
     harness.now = 30
-    assert harness.app.state.host_context.remembered("immediate") is None
+    assert (
+        harness.app.state.host_context.mutations.remembered("immediate")
+        is None
+    )
 
 
 async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
@@ -968,16 +998,16 @@ async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
         harness.app, "PUT", path, headers=key("invalid"), body=b"{"
     )
     assert rejected.status == 400
-    assert context.remembered("invalid") is None
+    assert context.mutations.remembered("invalid") is None
     assert harness.host._stream._listeners == listeners
     harness.now = 30
-    assert context.remembered("existing") is None
+    assert context.mutations.remembered("existing") is None
 
 
 async def test_run_filter_over_http(harness: Harness) -> None:
     nid = await harness.running()
     notebook = await harness.host.notebook(nid)
-    first = notebook.run("1", request_id="first")
+    first = notebook.run("1", request_id="first", request=None)
     notebook.observe(
         be.Planned(
             first.id,
@@ -985,11 +1015,10 @@ async def test_run_filter_over_http(harness: Harness) -> None:
         )
     )
     notebook.observe(
-        be.Concluded(protocol.ExecutionId("e1"), protocol.ValueOutcome(None))
+        be.Completed(protocol.ExecutionId("e1"), protocol.ValueOutcome(None))
     )
-    notebook.observe(be.Status(protocol.ExecutionId("e1"), "completed"))
     notebook.observe(be.Done(first.id, "succeeded"))
-    notebook.run("2", request_id="second")
+    notebook.run("2", request_id="second", request=None)
     response, task, disconnect = request(
         harness.app,
         "GET",
@@ -1019,8 +1048,13 @@ async def test_interrupting_an_unstarted_run_after_shutdown(
 ) -> None:
     nid = await harness.running()
     runs = f"/notebooks/{nid}/runtime/runs"
+    execute = f"/notebooks/{nid}/runtime/execute"
     accepted = await finished(
-        harness.app, "POST", runs, headers=key("queued"), body=b'{"code":"1"}'
+        harness.app,
+        "POST",
+        execute,
+        headers=key("queued"),
+        body=b'{"code":"1"}',
     )
     assert accepted.status == 202
     run_id = accepted.json()["id"]
@@ -1049,23 +1083,106 @@ async def test_interrupting_an_unstarted_run_after_shutdown(
     assert expired.status == 404
 
 
+@pytest.mark.parametrize("allowed", ["runtime.run", "runtime.execute"])
+@pytest.mark.parametrize("scope", ["notebook", "host"])
+async def test_execution_permissions_are_independent(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch, allowed: str, scope: str
+) -> None:
+    nid = await harness.running()
+    notebook = await harness.host.notebook(nid)
+    (cell,) = notebook.document
+    if scope == "notebook":
+        harness.host.update_notebook(
+            msgspec.structs.replace(
+                harness.host.notebooks[nid], operations=(allowed,)
+            )
+        )
+    else:
+        monkeypatch.setattr(
+            harness.host, "_host", protocol.Host(operations=(allowed,))
+        )
+    for operation, path, body in [
+        ("runtime.run", "/runtime/runs", {"cells": [{"id": cell.id}]}),
+        ("runtime.execute", "/runtime/execute", {"code": "1"}),
+        ("notebook.edit", "/edits", {"changes": []}),
+    ]:
+        calls_before = len(harness.backend().calls)
+        response = await finished(
+            harness.app,
+            "POST",
+            f"/notebooks/{nid}{path}",
+            headers=key(operation),
+            body=msgspec.json.encode(body),
+        )
+        if operation == allowed:
+            assert response.status == 202, response.body
+            interrupted = await finished(
+                harness.app,
+                "DELETE",
+                f"/notebooks/{nid}/runtime/runs/{response.json()['id']}",
+                headers=key("cancel"),
+            )
+            assert interrupted.status == 202, interrupted.body
+            interrupted = await finished(
+                harness.app,
+                "POST",
+                f"/notebooks/{nid}/runtime/interrupt",
+                headers=key("interrupt"),
+            )
+            assert interrupted.status == 202, interrupted.body
+        else:
+            assert response.status == (403 if scope == "notebook" else 501), (
+                response.body
+            )
+            assert len(harness.backend().calls) == calls_before
+
+
+async def test_runtime_interrupt_over_http(harness: Harness) -> None:
+    app, nid = harness.app, harness.notebook_id
+    interrupt = f"/notebooks/{nid}/runtime/interrupt"
+
+    refused = await finished(app, "POST", interrupt, headers=key("i0"))
+    assert refused.status == 409
+    assert refused.json()["type"].endswith(":no-runtime")
+
+    await harness.running()
+    notebook = await harness.host.notebook(nid)
+    accepted = await finished(app, "POST", interrupt, headers=key("i1"))
+    assert accepted.status == 202
+    assert accepted.json()["id"] == runtime_id_of(notebook)
+    assert accepted.json()["status"] == "running"
+    assert harness.backend().calls[-1] == ("interrupt",)
+
+    # A retry answers with the first acknowledgement and interrupts nothing.
+    repeated = await finished(app, "POST", interrupt, headers=key("i1"))
+    assert (repeated.status, repeated.body) == (202, accepted.body)
+    assert harness.backend().calls.count(("interrupt",)) == 1
+
+
 async def test_scratch_runs_over_http(harness: Harness) -> None:
     app, nid = harness.app, harness.notebook_id
     runs = f"/notebooks/{nid}/runtime/runs"
+    execute = f"/notebooks/{nid}/runtime/execute"
     body = json.dumps({"code": "3 * 3"}).encode()
 
-    refused = await finished(app, "POST", runs, headers=key("r0"), body=body)
+    refused = await finished(
+        app, "POST", execute, headers=key("r0"), body=body
+    )
     assert refused.status == 409
-    assert refused.json()["type"].endswith("/no-runtime")
+    assert refused.json()["type"].endswith(":no-runtime")
 
     await harness.running()
-    accepted = await finished(app, "POST", runs, headers=key("r1"), body=body)
+    accepted = await finished(
+        app, "POST", execute, headers=key("r1"), body=body
+    )
     assert accepted.status == 202
     run_id = accepted.json()["id"]
     assert accepted.json()["status"] == "queued"
     assert harness.backend().calls[-1] == ("run", run_id, "3 * 3")
 
-    repeated = await finished(app, "POST", runs, headers=key("r1"), body=body)
+    repeated = await finished(
+        app, "POST", execute, headers=key("r1"), body=body
+    )
     assert repeated.status == 202
     assert repeated.body == accepted.body
     assert harness.backend().calls.count(("run", run_id, "3 * 3")) == 1
@@ -1073,32 +1190,37 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     notebook.observe(
         be.Planned(run_id, (be.PlannedExecution("e1", None, "hash", "3 * 3"),))
     )
-    notebook.observe(be.Status("e1", "running"))
-    running = await finished(app, "POST", runs, headers=key("r1"), body=body)
+    notebook.observe(be.Started("e1"))
+    running = await finished(
+        app, "POST", execute, headers=key("r1"), body=body
+    )
     assert running.json()["status"] == "running"
     reused = await finished(
         app,
         "POST",
-        runs,
+        execute,
         headers=key("r1"),
         body=json.dumps({"code": "4"}).encode(),
     )
     assert reused.status == 409
 
-    busy = await finished(app, "POST", runs, headers=key("r2"), body=body)
-    assert busy.status == 409
-    assert run_id in busy.json()["detail"]
+    queued = await finished(app, "POST", execute, headers=key("r2"), body=body)
+    assert queued.status == 202
+    assert queued.json()["status"] == "queued"
+    assert queued.json()["id"] != run_id
+    assert harness.backend().calls[-1] == ("run", queued.json()["id"], "3 * 3")
 
     interrupted = await finished(
         app, "DELETE", f"{runs}/{run_id}", headers=key("i1")
     )
     assert interrupted.status == 202
-    assert harness.backend().calls[-1] == ("interrupt", run_id)
+    assert harness.backend().calls[-1] == ("cancel", run_id)
 
-    notebook.observe(be.Concluded("e1", protocol.InterruptedOutcome()))
-    notebook.observe(be.Status("e1", "completed"))
+    notebook.observe(be.Completed("e1", protocol.InterruptedOutcome()))
     notebook.observe(be.Done(run_id, "interrupted"))
-    completed = await finished(app, "POST", runs, headers=key("r1"), body=body)
+    completed = await finished(
+        app, "POST", execute, headers=key("r1"), body=body
+    )
     assert completed.json()["status"] == "completed"
     assert completed.json()["outcome"] == "interrupted"
     assert completed.json()["completed_at"] is not None
@@ -1107,13 +1229,70 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     missing = await finished(app, "DELETE", runs + "/zz", headers=key("i3"))
     assert missing.status == 404
 
-    invalid = await finished(app, "POST", runs, headers=key("r3"), body=b"{}")
+    invalid = await finished(
+        app, "POST", execute, headers=key("r3"), body=b"{}"
+    )
     assert invalid.status == 400
-    malformed = await finished(app, "POST", runs, headers=key("r4"), body=b"{")
+    malformed = await finished(
+        app, "POST", execute, headers=key("r4"), body=b"{"
+    )
     assert malformed.status == 400
-    assert malformed.json()["type"].endswith("/invalid-request")
-    unkeyed = await finished(app, "POST", runs, headers=AUTH, body=body)
+    assert malformed.json()["type"].endswith(":invalid-request")
+    unkeyed = await finished(app, "POST", execute, headers=AUTH, body=body)
     assert unkeyed.status == 400
+
+
+@pytest.mark.parametrize("editor_auth", [False, True])
+@pytest.mark.parametrize("cell_run", [False, True])
+async def test_a_run_hands_its_request_to_the_backend(
+    harness: Harness,
+    editor_auth: bool,
+    cell_run: bool,
+) -> None:
+    nid = await harness.running()
+    path = f"/notebooks/{nid}/runtime/" + ("runs" if cell_run else "execute")
+    headers = {**key("run"), "X-Trace": "abc", "Cookie": "session=s"}
+    query = "debug=1"
+    if editor_auth:
+        headers.update(
+            {
+                "Authorization": "Bearer application-token",
+                "Marimo-Server-Token": "skew-id-1",
+            }
+        )
+        query += (
+            f"&access_token={harness.app.state.session_manager.auth_token}"
+        )
+    notebook = await harness.host.notebook(nid)
+    body = (
+        msgspec.json.encode(
+            {"cells": [{"id": cell.id} for cell in notebook.document]}
+        )
+        if cell_run
+        else b'{"code":"1"}'
+    )
+    accepted = await finished(
+        harness.app,
+        "POST",
+        path,
+        headers=headers,
+        body=body,
+        query=query,
+    )
+    assert accepted.status == 202
+    [submitted] = harness.backend().requests
+    assert submitted is not None
+    # The editor serves the host routes below its own prefix.
+    assert submitted.url["path"].endswith(path)
+    assert submitted.url["query"] == query
+    assert submitted.headers["x-trace"] == "abc"
+    if editor_auth:
+        assert submitted.headers["authorization"] == "Bearer application-token"
+    else:
+        assert "authorization" not in submitted.headers
+    assert submitted.query_params == parse_qs(query)
+    assert submitted.path_params == {"notebook_id": nid}
+    assert submitted.cookies == {"session": "s"}
 
 
 @pytest.mark.parametrize(
@@ -1127,30 +1306,29 @@ async def test_request_receipts_expire_independently_of_results(
 ) -> None:
     nid = await harness.running()
     notebook = await harness.host.notebook(nid)
-    path = f"/notebooks/{nid}/runtime/runs"
+    execute = f"/notebooks/{nid}/runtime/execute"
     body = b'{"code":"42"}'
     accepted = await finished(
-        harness.app, "POST", path, headers=key("run"), body=body
+        harness.app, "POST", execute, headers=key("run"), body=body
     )
     run_id = protocol.RunId(accepted.json()["id"])
     eid = protocol.ExecutionId("execution")
     notebook.observe(
         be.Planned(run_id, (be.PlannedExecution(eid, cell_id, "hash", "42"),))
     )
-    notebook.observe(be.Status(eid, "running"))
+    notebook.observe(be.Started(eid))
     harness.now = 100
     active = await finished(
-        harness.app, "POST", path, headers=key("run"), body=body
+        harness.app, "POST", execute, headers=key("run"), body=body
     )
     assert active.json()["id"] == run_id
     assert active.json()["status"] == "running"
-    notebook.observe(be.Concluded(eid, protocol.ValueOutcome(None)))
-    notebook.observe(be.Status(eid, "completed"))
+    notebook.observe(be.Completed(eid, protocol.ValueOutcome(None)))
     notebook.observe(be.Done(run_id, "succeeded"))
     harness.now = 129
     harness.host.expire()
     replayed = await finished(
-        harness.app, "POST", path, headers=key("run"), body=body
+        harness.app, "POST", execute, headers=key("run"), body=body
     )
     assert replayed.json()["id"] == run_id
     assert replayed.json()["status"] == "completed"
@@ -1163,13 +1341,13 @@ async def test_request_receipts_expire_independently_of_results(
         for event in harness.host.events(notebook_id=nid)
     ) == (cell_id is not None)
     conflicting = await finished(
-        harness.app, "POST", path, headers=key("run"), body=b'{"code":"43"}'
+        harness.app, "POST", execute, headers=key("run"), body=b'{"code":"43"}'
     )
     assert conflicting.status == 409
 
     harness.now = 130
     fresh = await finished(
-        harness.app, "POST", path, headers=key("run"), body=b'{"code":"43"}'
+        harness.app, "POST", execute, headers=key("run"), body=b'{"code":"43"}'
     )
     assert fresh.status == 202
     assert fresh.json()["id"] != run_id
@@ -1404,6 +1582,9 @@ async def test_operations_the_host_does_not_offer_are_501(
     host.update_project(project)
     host.add_notebook(harness.host.notebooks[notebook.id], make_notebook)
     harness.bridge.host = host
+    harness.app.state.host_context = HostContext(
+        bridge=harness.bridge, token=TOKEN, port=PORT
+    )
     response = await finished(
         harness.app,
         "PUT",
@@ -1411,7 +1592,7 @@ async def test_operations_the_host_does_not_offer_are_501(
         headers=key("x1"),
     )
     assert response.status == 501
-    assert response.json()["type"].endswith("/unsupported-operation")
+    assert response.json()["type"].endswith(":unsupported-operation")
 
 
 async def test_competing_moves_preserve_both_notebooks(
@@ -1686,7 +1867,7 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
     disconnect()
 
 
-async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
+async def test_a_stale_etag_fails_the_precondition_and_changes_nothing(
     harness: Harness,
 ) -> None:
     stream, disconnect = await opened(harness)
@@ -1712,12 +1893,12 @@ async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
             },
         ),
     )
-    assert refused.status == 409
+    assert refused.status == 412
     problem = refused.json()
-    assert problem["type"].endswith("/conflict")
-    assert problem["edit"]["change"] == 1
-    assert problem["edit"]["cell"]["etag"] == cell["etag"]
-    assert problem["edit"]["document"]["etag"] == document["etag"]
+    assert problem["type"].endswith(":precondition-failed")
+    assert problem["index"] == 1
+    assert problem["cell"]["etag"] == cell["etag"]
+    assert problem["document"]["etag"] == document["etag"]
 
     invalid = await finished(
         harness.app,
@@ -1729,7 +1910,7 @@ async def test_a_stale_etag_is_a_conflict_that_changes_nothing(
         ),
     )
     assert invalid.status == 400
-    assert invalid.json()["type"].endswith("/invalid-request")
+    assert invalid.json()["type"].endswith(":invalid-request")
 
     again, disconnect = await opened(harness)
     disconnect()
@@ -1771,9 +1952,10 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
             headers={**key(f"save-{header}"), "If-Match": header},
             body=b"{}",
         )
-        assert stale.status == 409, stale.body
-        assert stale.json()["edit"]["change"] == 0
-        assert stale.json()["edit"]["document"]["etag"] == etag
+        assert stale.status == 412, stale.body
+        assert stale.json()["type"].endswith(":precondition-failed")
+        assert stale.json()["index"] == 0
+        assert stale.json()["document"]["etag"] == etag
 
     saved = await finished(
         harness.app,
@@ -1897,7 +2079,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
     asked = await save("save-1", b"{}")
     assert asked.status == 409, asked.body
     problem = asked.json()
-    assert problem["type"].endswith("/decision-required")
+    assert problem["type"].endswith(":decision-required")
     assert [d["id"] for d in problem["decisions"]] == ["file"]
     assert [o["id"] for o in problem["decisions"][0]["options"]] == [
         "overwrite",
@@ -1907,7 +2089,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
 
     unknown = await save("save-2", b'{"decisions": {"file": "merge"}}')
     assert unknown.status == 400, unknown.body
-    assert unknown.json()["type"].endswith("/invalid-request")
+    assert unknown.json()["type"].endswith(":invalid-request")
 
     reloaded = await save("save-3", b'{"decisions": {"file": "reload"}}')
     assert reloaded.status == 200, reloaded.body
@@ -2160,7 +2342,7 @@ def test_websocket_rejects_invalid_authentication(
         ("notebooks.example:1234", ("192.0.2.1", 50000), 403),
     ],
 )
-def test_editor_authentication_is_limited_to_the_event_socket(
+def test_editor_authentication_is_limited_to_notebook_events_and_operations(
     harness: Harness,
     base_url: str,
     credential: str,
@@ -2216,16 +2398,120 @@ def test_editor_authentication_is_limited_to_the_event_socket(
                 },
             }
         assert harness.backend().calls == []
-        for endpoint in (path, f"{path}/events"):
-            assert (
-                client.get(f"{endpoint}{query}").status_code == rejected_status
+        edited = client.post(
+            f"{path}/edits{query}",
+            headers={
+                "Idempotency-Key": "editor-1",
+                "Marimo-Server-Token": "skew-id-1",
+            },
+            content=edit_body(
+                {
+                    "kind": "put_cell",
+                    "base_etag": None,
+                    "cell": {"id": "fresh", "code": "z = 3"},
+                }
+            ),
+        )
+        assert edited.status_code == 200, edited.text
+        assert set(edited.json()["cells"]) == {"fresh"}
+        for method, endpoint in (
+            ("GET", f"{path}/events"),
+            ("PATCH", path),
+            ("POST", f"{base_url}{HOST_API_PATH}/notebooks"),
+        ):
+            response = client.request(
+                method, f"{endpoint}{query}", json={"path": "other.py"}
             )
+            assert response.status_code == rejected_status
         with pytest.raises(WebSocketDisconnect) as exc:
             with client.websocket_connect(
                 f"ws://{authority}{base_url}{HOST_API_PATH}/events/ws{query}"
             ):
                 pytest.fail("Editor credentials authorized another socket")
         assert exc.value.code == 1008
+
+
+@pytest.mark.parametrize(
+    ("method", "operation"),
+    [("POST", "/edits"), ("PUT", "/runtime"), ("DELETE", "/runtime")],
+)
+@pytest.mark.parametrize(
+    ("query", "headers"),
+    [
+        # A cross-site form cannot send the server token.
+        ("?access_token=fake-token", {}),
+        ("", {"Marimo-Server-Token": "skew-id-1"}),
+    ],
+)
+def test_editor_operations_need_credentials_and_the_server_token(
+    harness: Harness,
+    method: str,
+    operation: str,
+    query: str,
+    headers: dict[str, str],
+) -> None:
+    client = TestClient(
+        with_client_address(harness.app, ("192.0.2.1", 50000)),
+        base_url="http://notebooks.example:1234",
+    )
+    path = f"{HOST_API_PATH}/notebooks/{harness.notebook_id}{operation}"
+    response = client.request(
+        method,
+        f"{path}{query}",
+        headers={**headers, "Idempotency-Key": "editor-1"},
+        content=b"{}",
+    )
+    assert response.status_code == 401
+    assert harness.backends == {}
+
+
+@pytest.mark.parametrize("base_url", ["", "/app"])
+@pytest.mark.parametrize(
+    ("method", "operation", "origin", "status"),
+    [
+        ("POST", "/edits", "http://editor.example", 200),
+        ("PUT", "/runtime", "http://editor.example", 200),
+        ("DELETE", "/runtime", "http://editor.example", 200),
+        ("PUT", "/runtime", "http://other.example", 400),
+        ("GET", "/edits", "http://editor.example", 403),
+        ("PATCH", "", "http://editor.example", 403),
+    ],
+)
+def test_editor_operation_preflights(
+    harness: Harness,
+    base_url: str,
+    method: str,
+    operation: str,
+    origin: str,
+    status: int,
+) -> None:
+    app = create_starlette_app(
+        base_url=base_url, allow_origins=("http://editor.example",)
+    )
+    get_starlette_server_state_init(
+        session_manager=harness.app.state.session_manager, base_url=base_url
+    ).apply(app.state)
+    app.state.host_context = harness.app.state.host_context
+    with TestClient(
+        with_client_address(app, ("192.0.2.1", 50000)),
+        base_url="http://notebooks.example:1234",
+    ) as client:
+        path = f"{base_url}{HOST_API_PATH}/notebooks/{harness.notebook_id}"
+        response = client.options(
+            f"{path}{operation}",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": (
+                    "content-type,idempotency-key,marimo-server-token"
+                ),
+            },
+        )
+    assert (
+        response.status_code,
+        response.headers.get("access-control-allow-origin"),
+    ) == (status, origin if status == 200 else None)
+    assert harness.backends == {}
 
 
 @pytest.mark.parametrize("token", ["wrong", TOKEN])
@@ -2335,9 +2621,7 @@ async def test_cell_runs_over_http(harness: Harness) -> None:
     (cell,) = notebook.document
     runs = f"/notebooks/{nid}/runtime/runs"
 
-    body = json.dumps(
-        {"cells": [{"id": cell.id, "code_hash": cell.code_hash}]}
-    ).encode()
+    body = json.dumps({"cells": [{"id": cell.id, "etag": cell.etag}]}).encode()
     accepted = await finished(
         harness.app, "POST", runs, headers=key("r1"), body=body
     )
@@ -2351,16 +2635,52 @@ async def test_cell_runs_over_http(harness: Harness) -> None:
     )
 
     notebook.observe(be.Done(protocol.RunId(run_id), "succeeded"))
-    stale = json.dumps({"cells": [{"id": cell.id, "code_hash": "0" * 16}]})
+    stale = json.dumps({"cells": [{"id": cell.id, "etag": "0" * 16}]})
     conflict = await finished(
         harness.app, "POST", runs, headers=key("r2"), body=stale.encode()
     )
-    assert conflict.status == 409
-    assert conflict.json()["type"].endswith("/conflict")
+    assert conflict.status == 412
+    assert conflict.json()["type"].endswith(":precondition-failed")
     assert "changed since it was read" in conflict.json()["detail"]
+    assert conflict.json()["index"] == 0
+    assert conflict.json()["cell"]["etag"] == cell.etag
+    assert conflict.json()["document"]["etag"] == notebook.document.etag
+    missing = await finished(
+        harness.app,
+        "POST",
+        runs,
+        headers=key("missing"),
+        body=json.dumps(
+            {"cells": [{"id": cell.id}, {"id": "ghost"}]}
+        ).encode(),
+    )
+    assert missing.status == 412
+    assert missing.json()["type"].endswith(":precondition-failed")
+    assert missing.json()["index"] == 1
+    assert missing.json()["cell"] is None
+    assert missing.json()["document"]["etag"] == notebook.document.etag
 
     both = json.dumps({"code": "1", "cells": [{"id": cell.id}]}).encode()
     invalid = await finished(
         harness.app, "POST", runs, headers=key("r3"), body=both
     )
     assert invalid.status == 400
+
+
+def test_legacy_execution_does_not_start_a_cataloged_notebook(
+    harness: Harness,
+) -> None:
+    with TestClient(
+        with_client_address(harness.app), base_url=f"http://{AUTHORITY}"
+    ) as client:
+        response = client.post(
+            "/api/kernel/execute",
+            headers={**AUTH, "Marimo-Stable-Session-Id": harness.notebook_id},
+            json={"code": "print('do not start')"},
+        )
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "The notebook has no running session."
+    }
+    assert harness.backends == {}
+    assert "set-cookie" not in response.headers

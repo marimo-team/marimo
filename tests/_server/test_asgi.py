@@ -1412,3 +1412,45 @@ def default_app_builder(base_url: str, file_path: str) -> Starlette:
 
     app.add_route("/{path:path}", handle)
     return app
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_asgi_builder_uses_configured_session_settings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    legacy: bool,
+) -> None:
+    from marimo._config.manager import UserConfigStore
+    from marimo._server.api.auth import CustomSessionMiddleware
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("")
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _: str(config_path)
+    )
+    for name in (
+        "MARIMO_SESSION_SECRET",
+        "MARIMO_SERVER_SESSION_SECRET",
+        "MARIMO_SESSION_COOKIE_SECURE",
+        "MARIMO_SERVER_SESSION_COOKIE_SECURE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    prefix = "MARIMO_" if legacy else "MARIMO_SERVER_"
+    monkeypatch.setenv(prefix + "SESSION_SECRET", "configured-asgi-secret")
+    monkeypatch.setenv(prefix + "SESSION_COOKIE_SECURE", "true")
+    notebook = tmp_path / "app.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+    app = create_asgi_app(token="auth-token")._create_app_for_file(
+        "", str(notebook)
+    )
+    assert isinstance(app, Starlette)
+    assert app.state.session_secret == "configured-asgi-secret"
+    middleware = next(
+        item
+        for item in app.user_middleware
+        if item.cls is CustomSessionMiddleware
+    )
+    assert middleware.kwargs == {
+        "secret_key": "configured-asgi-secret",
+        "https_only": True,
+    }

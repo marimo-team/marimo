@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import copy
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -26,6 +27,7 @@ from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import RequestMetadata, SessionBackend
 from marimo._server.host.events import notification_event
 from marimo._server.host.index import WorkspaceIndex
+from marimo._server.host.restore import restored_executions
 from marimo._server.host.sessions import AppSessionNotebooks
 from marimo._session.events import SessionEventListener
 from marimo._session.model import SessionMode
@@ -36,13 +38,13 @@ from marimo._utils.generated_with import (
 from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-    from pathlib import Path
+    from collections.abc import Callable, Mapping, Sequence
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
     from marimo._core.stream import RoutedEvent, Sink
     from marimo._messaging.notebook import NotebookCell
+    from marimo._runtime.commands import CommandMessage
     from marimo._server.session_manager import SessionManager
     from marimo._session.notebook import AppFileManager
     from marimo._session.session import Session
@@ -173,10 +175,19 @@ class SessionBridge(SessionEventListener):
         session = self.app_sessions.session(record.id)
         cells, app_config = documents.from_session(session)
         document = Document(cells, app_config)
+        path = session.app_file_manager.path
+        executions = Executions()
+        if (
+            path is not None
+            and session.config_manager.get_config().runtime.serve_cached_sessions_in_apps
+        ):
+            executions = await self._restore(Path(path), cells)
+            # The session may have closed while its file was read.
+            self.app_sessions.session(record.id)
         return Notebook(
             record.id,
             document,
-            Executions(),
+            executions,
             self._make_backend(record.id, sink),
             sink,
             saved_etag=document.etag,
@@ -218,12 +229,20 @@ class SessionBridge(SessionEventListener):
             return Notebook(
                 record.id,
                 document,
-                Executions(),
+                await self._restore(file, cells),
                 backend,
                 sink,
                 saved_etag=saved_etag,
                 analyzer=HostAnalyzer(),
             )
+
+    async def _restore(
+        self, file: Path | None, cells: Sequence[DocumentCell]
+    ) -> Executions:
+        """The results stored for the notebook's file, if they are its cells'."""
+        if file is None:
+            return Executions()
+        return await asyncio.to_thread(restored_executions, file, cells)
 
     async def _load(self, file: Path) -> _FileContents | None:
         """Read a notebook file, or return `None` if it cannot be loaded."""
@@ -281,7 +300,7 @@ class SessionBridge(SessionEventListener):
 
         Raises:
             Conflict: If the notebook has no file or the write fails.
-            EditConflict: If `if_match` does not name the document's etag,
+            PreconditionFailed: If `if_match` does not name the document's etag,
                 or the document changed while the file was being read
                 for a reload.
             DecisionRequired: If the file changed and `decisions` has no
@@ -299,7 +318,7 @@ class SessionBridge(SessionEventListener):
             if if_match is not None:
                 notebook.require_revision(if_match)
             revision = notebook.document
-            session = self._session_of(notebook.id)
+            session = self.session_for_notebook(notebook.id)
             if session is None and await self._file_changed(notebook.id, file):
                 answer = (decisions or {}).get(_FILE_CHANGED.id)
                 if answer is None:
@@ -412,16 +431,18 @@ class SessionBridge(SessionEventListener):
         stands after that, which is the one the client reads next.
 
         Raises:
-            EditConflict: If a precondition is stale.
+            PreconditionFailed: If a precondition is stale.
             Invalid: If a change could not apply to any state.
         """
         notebook = await self.host.notebook(notebook_id)
         response = notebook.edit(changes, request_id=request_id)
-        session = self._session_of(notebook.id)
+        session = self.session_for_notebook(notebook.id)
         if session is None:
             return response
         self._mirrored.pop(notebook.id, None)
-        documents.apply_to_session(session, notebook.document)
+        documents.apply_to_session(
+            session, notebook.document, self._put_for(notebook.id)
+        )
         mirrored = self._mirrored.pop(notebook.id, None)
         if mirrored is None:
             return response
@@ -433,7 +454,7 @@ class SessionBridge(SessionEventListener):
         self, notebook_id: protocol.NotebookId
     ) -> list[RoutedEvent]:
         """Return retained marimo events for one client without publishing them."""
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         if session is None:
             return []
         return [
@@ -441,7 +462,10 @@ class SessionBridge(SessionEventListener):
             for notification in session.session_view.snapshot_notifications()
         ]
 
-    def _session_of(self, notebook_id: protocol.NotebookId) -> Session | None:
+    def session_for_notebook(
+        self, notebook_id: protocol.NotebookId
+    ) -> Session | None:
+        """Return the existing session without loading or starting a notebook."""
         backend = self._backends.get(notebook_id)
         return None if backend is None else backend.session
 
@@ -453,10 +477,11 @@ class SessionBridge(SessionEventListener):
         session has the file as it is now, so its contents replace the
         host's earlier read and are the saved revision.
         """
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         notebook = self.host.peek_notebook(notebook_id)
         if session is None or notebook is None:
             return
+        self._follow_config(notebook_id, session)
         if self.app_sessions is not None:
             cells, app_config = documents.from_session(session)
             notebook.replace(cells, app_config, saved=True)
@@ -466,10 +491,32 @@ class SessionBridge(SessionEventListener):
         self._rebaselining.pop(notebook_id, None)
         self._follow_saves(notebook_id, session)
         if notebook.saved_etag != notebook.document.etag:
-            documents.apply_to_session(session, notebook.document)
+            documents.apply_to_session(
+                session, notebook.document, self._put_for(notebook_id)
+            )
             return
         cells, app_config = documents.from_session(session)
         notebook.replace(cells, app_config, saved=True)
+
+    # TODO(MO-7927): Following the editor's config ends when the notebook
+    # owns the app config and the editor changes it through the host.
+    def _follow_config(
+        self, notebook_id: protocol.NotebookId, session: Session
+    ) -> None:
+        """Mirror the document when the editor changes the app config.
+
+        The legacy endpoint changes it in the session, which fires no
+        document transaction, so the file manager reports it instead.
+        """
+        loop = asyncio.get_running_loop()
+
+        def config_changed() -> None:
+            if _running_loop() is loop:
+                self._mirror(notebook_id)
+            else:
+                loop.call_soon_threadsafe(self._mirror, notebook_id)
+
+        session.app_file_manager.on_config_changed = config_changed
 
     # TODO(MO-7927): Following the editor's writes ends when the notebook
     # owns persistence and the editor saves through it.
@@ -506,6 +553,7 @@ class SessionBridge(SessionEventListener):
         Its baseline for external changes is the file as the editor
         left it, read off the event loop before the next save compares.
         """
+        session.app_file_manager.on_config_changed = None
         if self.app_sessions is not None:
             return
         session.app_file_manager.on_persisted = None
@@ -553,7 +601,7 @@ class SessionBridge(SessionEventListener):
 
     def _mirror(self, notebook_id: protocol.NotebookId) -> None:
         """Bring the document up to date with the session's after it changed."""
-        session = self._session_of(notebook_id)
+        session = self.session_for_notebook(notebook_id)
         try:
             notebook = self.host.peek_notebook(notebook_id)
         except NotFound:
@@ -681,16 +729,22 @@ class SessionBridge(SessionEventListener):
             raise Conflict(f"The notebook cannot be moved: {e}") from e
         self.index.moved(notebook_id, str(target), request_id=request_id)
 
+    def _put_for(
+        self, notebook_id: protocol.NotebookId
+    ) -> Callable[[CommandMessage], None] | None:
+        """How an edit reaches the kernel: in turn with the backend's runs."""
+        backend = self._backends.get(notebook_id)
+        return None if backend is None else backend.apply
+
     def _make_backend(
         self, notebook_id: protocol.NotebookId, sink: Sink
     ) -> SessionBackend:
-        def file() -> str | None:
+        def file_key() -> str:
             if self.app_sessions is not None:
-                return self.app_sessions.session(
-                    notebook_id
-                ).app_file_manager.path
-            path = self.index.file_of(notebook_id)
-            return None if path is None else str(path)
+                session = self.app_sessions.session(notebook_id)
+                path = session.app_file_manager.path
+                return session.initialization_id if path is None else path
+            return self.index.file_key(notebook_id)
 
         def observe(message: Message) -> None:
             try:
@@ -701,12 +755,22 @@ class SessionBridge(SessionEventListener):
             if notebook is not None:
                 notebook.observe(message)
 
+        def cell_order() -> Sequence[str]:
+            try:
+                notebook = self.host.peek_notebook(notebook_id)
+            except NotFound:
+                return ()
+            if notebook is None:
+                return ()
+            return [cell.id for cell in notebook.document]
+
         backend = SessionBackend(
             notebook_id,
-            file,
+            file_key,
             self._manager,
             observe,
             sink,
+            cell_order=cell_order,
             document_changed=lambda: self._mirror(notebook_id),
             session_attached=lambda: self._attach_document(notebook_id),
             session_detached=lambda session: self._detach_document(
@@ -744,7 +808,7 @@ class SessionBridge(SessionEventListener):
             notebook = self.index.notebook_for(path)
             if notebook is None:
                 notebook = (
-                    self.index.untitled()
+                    self.index.untitled(session.initialization_id)
                     if path is None
                     else self.index.ensure(path)
                 )

@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 from marimo._server.ai.skills.utils import load_skill
 from marimo._server.models.completion import (
     AiCompletionContext,
@@ -9,7 +9,6 @@ from marimo._server.models.completion import (
     SchemaTable,
     VariableContext,
 )
-from marimo._types.ids import SessionId
 
 FIM_PREFIX_TAG = "<|fim_prefix|>"
 FIM_SUFFIX_TAG = "<|fim_suffix|>"
@@ -221,56 +220,40 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
         "You are Marimo Copilot, an AI assistant integrated into the marimo notebook code editor.\n"
         "Your primary function is to help users create, analyze, and improve data science notebooks using marimo's reactive programming model.\n"
     )
-    if mode == "manual":
+    if mode == "manual" or mode == "ask":
         return (
             f"{base_intro}"
             "## Capabilities\n"
-            "- Answer questions and provide guidance using only your internal knowledge and the notebook context provided by the user.\n"
-            "\n"
-            "## Limitations\n"
-            "- You do NOT have access to any external tools, plugins, or APIs.\n"
-            "- You may not perform any actions beyond generating text and code suggestions.\n"
-        )
-    elif mode == "ask":
-        return (
-            f"{base_intro}"
-            "## Capabilities\n"
-            "- You can use a set of read-only tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation).\n"
+            "- You can use marimo's built-in notebook tools to gather additional context (e.g., searching code, summarizing data, or reading documentation).\n"
             "- You may use these tools ONLY to gather information, not to modify code or state.\n"
+            "- Connected MCP tools are configured separately and are not restricted by this notebook access level.\n"
             "\n"
             "## Limitations\n"
-            "- All tool use is strictly read-only. You may not perform write, edit, or execution actions.\n"
+            "- Notebook access is read-only. You may not modify notebook code or state, or execute notebook code.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
     elif mode == "agent":
         return (
             f"{base_intro}"
-            "You are in agent mode - you have autonomy to resolve the user's query by using the tools provided. Please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved. \n"
-            "\n\n## Agent Mode\n"
-            "- You are encouraged to edit existing cells in the notebook or add new cells.\n"
+            "You can inspect the notebook and propose cell changes for the user to review.\n"
+            "\n\n## Suggest edits\n"
+            "- Use the notebook editing tool to propose changes to existing cells or add new cells for review.\n"
             "- You should do the following things after editing the notebook:\n"
             "\t 1. Use the lint notebook tool to check for errors and lint issues\n"
-            "\t 2. Run stale cells tool to run the code\n"
-            "\t 3. If there are errors in cells you have added, edit the existing cell. Don't add new cells to correct errors.\n"
+            "\t 2. If there are errors in cells you have added, edit the existing cell. Don't add new cells to correct errors.\n"
             "- If you say you're about to do something, actually do it in the same turn (run the tool call right after).\n"
             "- Group code into logical cells, eg. functions should be in separate cells and all the calls will be in one cell. When asked for explanations or summaries, use markdown cells with proper formatting.\n\n"
             "## Capabilities\n"
-            "- You can use a set of read and write tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation) and to modify the notebook (e.g., adding cells, editing cells, deleting cells).\n"
+            "- You can use a set of read and write tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation) and to propose notebook changes (e.g., adding cells, editing cells, deleting cells).\n"
             "## Limitations\n"
+            "- Leave execution to the user. Do not run notebook cells or Python code.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
     elif mode == "code_mode":
         return (
             f"{base_intro}"
-            "You are in code mode - you have access to the notebook's kernel and can execute code."
+            "You have full notebook access: you can read, edit, and run cells, and execute Python in the live kernel scratchpad."
         )
-
-
-def _get_session_info(session_id: SessionId) -> str:
-    return (
-        f"Current notebook session ID: {session_id}. "
-        "Use this session_id with tools that require it."
-    )
 
 
 def _single_cell_language_rules() -> str:
@@ -298,14 +281,11 @@ def _multi_cell_language_rules() -> str:
 def _common_chat_sections(
     *,
     custom_rules: str | None,
-    include_other_code: str | None,
 ) -> str:
     """Trailing sections shared by every chat mode."""
     out = ""
     if custom_rules and custom_rules.strip():
         out += f"\n\n## Additional rules:\n{custom_rules}"
-    if include_other_code:
-        out += "\n\n" + _tag("code_from_other_cells", include_other_code)
     return out
 
 
@@ -431,10 +411,18 @@ chart
 def get_chat_system_prompt(
     *,
     custom_rules: str | None,
-    include_other_code: str,
     mode: CopilotMode,
-    session_id: SessionId,
 ) -> str:
+    context_rules = (
+        "\n\nNotebook context is supplied as JSON updates in user messages. "
+        "Use the latest sessionId with tools that require a session_id. "
+        "The cells field is an array of {id, code} objects containing complete replacements for added or changed cells. "
+        "When cellIds is present it gives the complete current cell order; cells absent from it were deleted. "
+        "Notebook updates are relative to the previous user-provided notebook snapshot. "
+        "An empty cells list means no code changed since that snapshot. "
+        "These are snapshots at user submission time; "
+        "use notebook tools to inspect more recent changes when needed."
+    )
     # Code mode runs against the live kernel, so it leans on the marimo-pair
     # skill instead of the static notebook guide.
     if mode == "code_mode":
@@ -447,15 +435,11 @@ def get_chat_system_prompt(
         system_prompt = f"{intro}\n\n{skill_section}"
         system_prompt += _common_chat_sections(
             custom_rules=custom_rules,
-            include_other_code=None,  # code mode can inspect code
         )
         system_prompt += "\nIf you are not aware of the current notebook code, inspect it first before answering any questions."
-        return system_prompt
+        return system_prompt + context_rules
 
-    system_prompt = (
-        f"\n{_get_mode_intro_message(mode)}\n{_get_session_info(session_id)}"
-        f"\n\n{_NOTEBOOK_GUIDE}"
-    )
+    system_prompt = f"\n{_get_mode_intro_message(mode)}\n\n{_NOTEBOOK_GUIDE}"
 
     if mode == "agent":
         # Agent mode can emit multiple cells, so it gets the multi-cell rules
@@ -467,9 +451,12 @@ def get_chat_system_prompt(
     else:
         system_prompt += _single_cell_language_rules()
 
-    return system_prompt + _common_chat_sections(
-        custom_rules=custom_rules,
-        include_other_code=include_other_code,
+    return (
+        system_prompt
+        + context_rules
+        + _common_chat_sections(
+            custom_rules=custom_rules,
+        )
     )
 
 

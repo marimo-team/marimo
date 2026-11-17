@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { getFullScreenElement } from "@/components/ui/fullscreen";
 
 /**
  * Dismiss any open Glide Data Grid overlay by firing Escape on it.
@@ -18,7 +19,7 @@ export function dismissGlideOverlay() {
 }
 
 function getGlidePortalContainer(): Element {
-  return document.fullscreenElement ?? document.body;
+  return getFullScreenElement() ?? document.body;
 }
 
 function useGlidePortalContainer(): Element {
@@ -26,8 +27,9 @@ function useGlidePortalContainer(): Element {
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      if (document.fullscreenElement) {
-        setContainer(document.fullscreenElement);
+      const fullScreenElement = getFullScreenElement();
+      if (fullScreenElement) {
+        setContainer(fullScreenElement);
       } else {
         dismissGlideOverlay();
         setContainer(document.body);

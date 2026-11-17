@@ -54,11 +54,9 @@ class TestDuckDBRuntimeErrors:
     @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
     def test_column_not_found_error(self, duckdb_conn):
         """Test error when referencing a non-existent column."""
-        # Create a test table first
-        sql(
-            "CREATE OR REPLACE TABLE test_error_table (id INTEGER, name TEXT)",
-            engine=duckdb_conn,
-        )
+        duckdb_conn.execute(
+            "CREATE OR REPLACE TABLE test_error_table (id INTEGER, name TEXT)"
+        ).fetchall()
 
         with pytest.raises(MarimoSQLException) as exc_info:
             sql(

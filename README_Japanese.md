@@ -82,8 +82,6 @@ marimo はノートブックのコード、出力、プログラム状態の一�
 
 **Generate cells with data-aware AI.** データに文脈を持った AI アシスタントでコードを生成したり、ノートブック全体をゼロショットで生成できます。システムプロンプトのカスタマイズや独自 API キーの利用、ローカルモデルの使用にも対応します。
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-generate-with-ai.gif" width="700px" />
-
 **Query data with SQL.** Python 値に依存する SQL クエリを組み立て、データフレーム、データベース、CSV、Google Sheets などに対して実行できます。組み込みの SQL エンジンは結果を Python のデータフレームとして返します。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />

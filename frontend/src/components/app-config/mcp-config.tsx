@@ -1,22 +1,22 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { CheckSquareIcon, Loader2, RefreshCwIcon } from "lucide-react";
+import { Loader2, RefreshCwIcon } from "lucide-react";
 import React from "react";
 import type { UseFormReturn } from "react-hook-form";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { FormField, FormItem } from "@/components/ui/form";
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
 import type { UserConfig } from "@/core/config/config-schema";
 import { useMCPRefresh, useMCPStatus } from "../mcp/hooks";
 import { McpStatusText } from "../mcp/mcp-status-indicator";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
-import { SettingSubtitle } from "./common";
+import { formItemClasses, SettingSubtitle } from "./common";
 import { useOpenSettingsToTab } from "./state";
 
 interface MCPConfigProps {
@@ -35,13 +35,14 @@ interface PresetConfig {
 const PRESET_CONFIGS: PresetConfig[] = [
   {
     id: "marimo",
-    title: "marimo (docs)",
-    description: "Access marimo documentation",
+    title: "marimo documentation",
+    description: "Let the AI assistant look up marimo documentation.",
   },
   {
     id: "context7",
     title: "Context7",
-    description: "Connect to Context7 MCP server",
+    description:
+      "Let the AI assistant look up current documentation and code examples for third-party libraries using Context7.",
   },
 ];
 
@@ -58,12 +59,13 @@ export const MCPConfig: React.FC<MCPConfigProps> = ({ form, onSubmit }) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <SettingSubtitle>MCP Servers</SettingSubtitle>
+        <SettingSubtitle>MCP servers</SettingSubtitle>
         <div className="flex items-center gap-2">
           {status && <McpStatusText status={status.status} />}
           <Button
             variant="outline"
             size="xs"
+            aria-label="Refresh MCP servers"
             onClick={handleRefresh}
             disabled={isRefreshing || isFetching}
           >
@@ -101,7 +103,7 @@ export const MCPConfig: React.FC<MCPConfigProps> = ({ form, onSubmit }) => {
           onClick={() => handleClick("optionalDeps")}
           size="xs"
         >
-          Optional Features
+          Optional features
         </Button>{" "}
         for more details.
       </p>
@@ -121,45 +123,20 @@ export const MCPConfig: React.FC<MCPConfigProps> = ({ form, onSubmit }) => {
           };
 
           return (
-            <FormItem>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {PRESET_CONFIGS.map((config) => {
-                  const isChecked = presets.includes(config.id);
-
-                  return (
-                    <Card
-                      key={config.id}
-                      className={`cursor-pointer transition-all ${
-                        isChecked
-                          ? "border-(--blue-9) bg-(--blue-2)"
-                          : "hover:border-(--blue-7)"
-                      }`}
-                      onClick={() => togglePreset(config.id)}
-                    >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <CardTitle className="text-base">
-                            {config.title}
-                          </CardTitle>
-                          <span
-                            className={`h-5 w-5 flex items-center justify-center rounded border ${
-                              isChecked
-                                ? "border-(--blue-7) bg-(--blue-7) text-foreground"
-                                : "border-muted bg-background text-muted-foreground"
-                            }`}
-                          >
-                            {isChecked ? <CheckSquareIcon /> : null}
-                          </span>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <CardDescription>{config.description}</CardDescription>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </FormItem>
+            <div className="flex flex-col gap-6">
+              {PRESET_CONFIGS.map((config) => (
+                <FormItem key={config.id} className={formItemClasses}>
+                  <FormLabel>{config.title}</FormLabel>
+                  <FormControl>
+                    <Checkbox
+                      checked={presets.includes(config.id)}
+                      onCheckedChange={() => togglePreset(config.id)}
+                    />
+                  </FormControl>
+                  <FormDescription>{config.description}</FormDescription>
+                </FormItem>
+              ))}
+            </div>
           );
         }}
       />

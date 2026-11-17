@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { NotebookId } from "@marimo-team/client/protocol";
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
@@ -14,11 +15,9 @@ const knownQueryParams = new Set(Object.values(KnownQueryParams));
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
   private config: RuntimeConfig;
-  private lazy: boolean;
 
-  public constructor(config: RuntimeConfig, lazy = false) {
+  public constructor(config: RuntimeConfig) {
     this.config = config;
-    this.lazy = lazy;
     // Validate the URL on construction
     try {
       new URL(this.config.url);
@@ -28,14 +27,6 @@ export class RuntimeManager {
         { cause: error },
       );
     }
-
-    if (!this.lazy) {
-      this.init();
-    }
-  }
-
-  public get isLazy(): boolean {
-    return this.lazy;
   }
 
   public get httpURL(): URL {
@@ -46,7 +37,7 @@ export class RuntimeManager {
     return this.httpURL.origin === window.location.origin;
   }
 
-  private get isServerless(): boolean {
+  public get isServerless(): boolean {
     return isWasm() || isIslands() || isStaticNotebook();
   }
 
@@ -172,11 +163,15 @@ export class RuntimeManager {
   }
 
   /**
-   * The WebSocket Sync URL of the runtime, for real-time updates.
+   * The host API URL of a notebook, below which its operations are served.
+   * Requests send auth in headers (see `headers()`), never in the URL.
    */
-  public getWsSyncURL(sessionId: SessionId): URL {
-    const url = this.getSessionURL("/ws_sync", sessionId);
-    return asWsUrl(this.appendCrossOriginAuth(url).toString());
+  public getNotebookURL(notebookId: NotebookId): URL {
+    const url = this.formatHttpURL({
+      path: `/api/marimo/v1/notebooks/${encodeURIComponent(notebookId)}`,
+    });
+    url.searchParams.delete(KnownQueryParams.accessToken);
+    return url;
   }
 
   /**

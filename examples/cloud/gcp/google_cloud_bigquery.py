@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -28,7 +28,6 @@ def _(mo):
     mo.md("""
     # Google Cloud BigQuery
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -75,7 +74,7 @@ def _(bigquery, credentials, mo, os, project):
 
 
 @app.cell
-def _(datasets, mo):
+def _(datasets: list, mo):
     # Dataset selection
     selected_dataset = mo.ui.dropdown(
         label="Select dataset", options=[d.dataset_id for d in datasets]
@@ -107,7 +106,6 @@ def _(client, dataset, mo):
 def _(client, dataset, mo, selected_table):
     results = client.list_rows(dataset.table(selected_table.value), max_results=10)
     mo.ui.table(results.to_dataframe(), selection=None)
-    return
 
 
 if __name__ == "__main__":

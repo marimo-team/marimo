@@ -24,19 +24,19 @@ export const maxFractionalDigits = memoizeLastValue((locale: string) => {
 });
 
 const getScientificFormatter = memoizeLastValue(
-  (locale: string) =>
+  (locale: string, maximumFractionDigits = 1) =>
     new Intl.NumberFormat(locale, {
       minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
+      maximumFractionDigits,
       notation: "scientific",
     }),
 );
 
 const getRoundedFormatter = memoizeLastValue(
-  (locale: string) =>
+  (locale: string, maximumFractionDigits = 2) =>
     new Intl.NumberFormat(locale, {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
+      maximumFractionDigits,
     }),
 );
 
@@ -60,7 +60,7 @@ export function countFractionDigits(n: number): number {
 
 /** Max fraction digits to display a set of step values cleanly. */
 export function maxFractionDigitsForSteps(
-  steps: number[],
+  steps: readonly number[],
   minGap: number,
 ): number {
   let max = countFractionDigits(minGap);
@@ -68,6 +68,41 @@ export function maxFractionDigitsForSteps(
     max = Math.max(max, countFractionDigits(step));
   }
   return max;
+}
+
+/** Infer display precision from a slider's regular or custom steps. */
+export function fractionDigitsForSlider(
+  step?: number,
+  steps?: readonly number[] | null,
+  origin?: number,
+  values?: readonly number[],
+): number {
+  const originDigits = origin == null ? 0 : countFractionDigits(origin);
+
+  if (steps && steps.length > 0) {
+    let minGap = Number.POSITIVE_INFINITY;
+    for (let i = 1; i < steps.length; i++) {
+      const gap = Math.abs(steps[i] - steps[i - 1]);
+      if (gap > 0 && gap < minGap) {
+        minGap = gap;
+      }
+    }
+
+    return Math.max(
+      originDigits,
+      maxFractionDigitsForSteps(steps, Number.isFinite(minGap) ? minGap : 0),
+    );
+  }
+
+  if (step == null || !Number.isFinite(step) || step <= 0) {
+    return Math.max(
+      2,
+      originDigits,
+      ...(values ?? []).map(countFractionDigits),
+    );
+  }
+
+  return Math.max(originDigits, countFractionDigits(step));
 }
 
 /** Round away float noise so step-based inputs stay on a clean decimal grid. */
@@ -121,6 +156,7 @@ export function prettyScientificNumber(
   value: number,
   opts: {
     shouldRound?: boolean; // Default to false
+    maximumFractionDigits?: number;
     locale: string;
   },
 ): string {
@@ -133,14 +169,28 @@ export function prettyScientificNumber(
   // Determine if the number should be in scientific notation
   const absValue = Math.abs(value);
   if (absValue < 1e-2 || absValue >= 1e6) {
-    return getScientificFormatter(opts.locale).format(value).toLowerCase();
+    // Scientific notation counts digits after the decimal in the mantissa.
+    const digits =
+      opts.maximumFractionDigits === undefined
+        ? 1
+        : Math.max(
+            1,
+            Math.min(
+              maxFractionalDigits(opts.locale),
+              opts.maximumFractionDigits + Math.floor(Math.log10(absValue)),
+            ),
+          );
+    return getScientificFormatter(opts.locale, digits)
+      .format(value)
+      .toLowerCase();
   }
 
   const { shouldRound, locale } = opts;
 
-  if (shouldRound) {
-    // Number has an integer part, format with 2 decimal places
-    return getRoundedFormatter(locale).format(value);
+  if (shouldRound || opts.maximumFractionDigits !== undefined) {
+    return getRoundedFormatter(locale, opts.maximumFractionDigits ?? 2).format(
+      value,
+    );
   }
 
   // Don't round

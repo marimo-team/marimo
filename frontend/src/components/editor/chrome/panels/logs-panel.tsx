@@ -3,7 +3,8 @@
 import { FileTextIcon } from "lucide-react";
 import React from "react";
 import { ClearButton } from "@/components/buttons/clear-button";
-import { useCellActions, useCellLogs } from "@/core/cells/cells";
+import { useCellLogs } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import {
   type CellLog,
   formatLogTimestamp,

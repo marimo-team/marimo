@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import itertools
 import json
@@ -10,10 +11,17 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from msgspec.structs import replace
 
+from marimo._core import protocol
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._session.state.serialize import get_session_cache_file
+from marimo._utils.code import hash_code
+from marimo._version import __version__
 from tests._server.host.drive import finished, wait_for
 from tests._server.host.live import key, open_host
-from tests._server.host.staleness import snapshot
+from tests._server.host.staleness import Snapshot, read_events, snapshot
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -21,10 +29,11 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
-    from marimo._config.config import OnCellChangeType
+    from marimo._config.types import OnCellChangeType
     from marimo._core.protocol import RunOutcome
+    from marimo._core.stream import RoutedEvent
     from tests._server.host.drive import Response
-    from tests._server.host.staleness import Outdated, Snapshot
+    from tests._server.host.staleness import Outdated
 
 
 def notebook(*cells: str) -> str:
@@ -62,7 +71,8 @@ class Client:
         accepted = await finished(
             self.app,
             "POST",
-            f"/notebooks/{self.notebook_id}/runtime/runs",
+            f"/notebooks/{self.notebook_id}/runtime/"
+            + ("execute" if code is not None else "runs"),
             headers=key(f"run-{next(self._keys)}"),
             body=json.dumps(body).encode(),
         )
@@ -78,7 +88,9 @@ class Client:
                 and run["status"] == "completed"
             ]
 
-        await wait_for(self.events, lambda response: bool(completed(response)))
+        while not completed(self.events):
+            self.events.changed.clear()
+            await self.events.changed.wait()
         assert completed(self.events)[-1]["outcome"] == outcome
 
     async def edit(self, cell: str, code: str) -> None:
@@ -105,8 +117,11 @@ class Client:
         return await snapshot(self.app, self.notebook_id)
 
     async def outdated(self) -> dict[str, Outdated]:
-        """Why each outdated cell is outdated, as a new client sees it."""
-        reasons = (await self.snapshot()).outdated()
+        """Compare a connected client with a fresh snapshot."""
+        fresh = await self.snapshot()
+        live = Snapshot.decode(self.events.records)
+        assert live == fresh
+        reasons = live.outdated()
         return {
             name: reasons[cell_id]
             for name, cell_id in self.cells.items()
@@ -128,28 +143,177 @@ async def client(
         yield Client(app, notebook_id, events, ids)
 
 
-# Passes once the host publishes variables and dependencies.
-unpublished = pytest.mark.xfail(
-    strict=True, reason="the host does not publish variables yet"
-)
+async def test_variables_outlive_the_run_that_bound_them(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        state="get_x, set_x = mo.state(1)\nif False:\n    missing = 1",
+    ) as c:
+        await c.run("mo", "state")
+        before = await c.snapshot()
+        assert {v.name for v in before.variables.values()} == {
+            "mo",
+            "get_x",
+            "set_x",
+        }
+        getter = next(
+            v for v in before.variables.values() if v.name == "get_x"
+        )
+        execution = before.latest(c.cells["state"])
+        assert execution is not None
+        assert getter.execution_id == getter.revision.execution == execution.id
+        records = c.events.records
+        bound = next(
+            i
+            for i, r in enumerate(records)
+            if r.get("event") == "variable"
+            and r["data"]["variable"]["id"] == getter.id
+        )
+        completed = next(
+            i
+            for i, r in enumerate(records)
+            if r.get("event") == "execution"
+            and r["data"]["execution"]["id"] == execution.id
+            and r["data"]["execution"]["status"] == "completed"
+        )
+        assert bound < completed
+
+        await c.run(code="local_only = 10\nget_x = 'scratch-local'\nset_x(2)")
+        after = await c.snapshot()
+        assert {v.name for v in after.variables.values()} == {
+            "mo",
+            "get_x",
+            "set_x",
+        }
+        assert next(
+            v for v in after.variables.values() if v.name == "get_x"
+        ) == replace(
+            getter,
+            revision=replace(getter.revision, update=1),
+        )
 
 
-@unpublished
 async def test_edits_and_reruns_outdate_dependents(tmp_path: Path) -> None:
     async with client(
-        tmp_path, on_cell_change="lazy", x="x = 1", y="y = x + 1"
+        tmp_path,
+        on_cell_change="lazy",
+        x="x = 1",
+        y="y = x + 1",
+        z="z = y + 1",
     ) as c:
-        await c.run("x", "y")
+        await c.run("x", "y", "z")
+        initial = await c.snapshot()
+        x = next(v for v in initial.variables.values() if v.name == "x")
+        y = initial.latest(c.cells["y"])
+        assert y is not None
+        assert y.depends_on == {"x": x.revision}
         assert await c.outdated() == {}
 
         await c.edit("x", "x = 2")
-        assert await c.outdated() == {"x": "edited", "y": "edited"}
+        assert await c.outdated() == {
+            "x": "edited",
+            "y": "edited",
+            "z": "edited",
+        }
 
         await c.run("x")
-        assert await c.outdated() == {"y": "replaced"}
+        assert await c.outdated() == {"y": "replaced", "z": "replaced"}
 
         await c.run("y")
+        assert await c.outdated() == {"z": "replaced"}
+
+        await c.run("z")
         assert await c.outdated() == {}
+
+
+@pytest.mark.skipif(
+    not (
+        DependencyManager.duckdb.has()
+        and DependencyManager.sqlglot.has()
+        and DependencyManager.polars.has()
+    ),
+    reason="SQL dependencies not installed",
+)
+@pytest.mark.parametrize("kind", ["TABLE", "VIEW", "TEMP TABLE"])
+@pytest.mark.parametrize("name", ["revision_source", "main.revision_source"])
+async def test_sql_results_follow_their_binding_revisions(
+    tmp_path: Path, kind: str, name: str
+) -> None:
+    producer = f"mo.sql('CREATE OR REPLACE {kind} {name} AS SELECT 1 AS x')"
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        table=producer,
+        reader=f"df = mo.sql('SELECT * FROM {name}')",
+    ) as c:
+        await c.run("mo", "table", "reader")
+        initial = await c.snapshot()
+        variables = {v.name: v for v in initial.variables.values()}
+        assert set(variables) == {"mo", name, "df"}
+        reader = initial.latest(c.cells["reader"])
+        assert reader is not None
+        assert reader.depends_on == {
+            key: variables[key].revision for key in ("mo", name)
+        }
+        assert await c.outdated() == {}
+
+        await c.edit("table", producer.replace("SELECT 1", "SELECT 2"))
+        assert await c.outdated() == {"table": "edited", "reader": "edited"}
+
+        await c.run("table")
+        assert await c.outdated() == {"reader": "replaced"}
+
+        await c.run("reader")
+        assert await c.outdated() == {}
+
+
+@pytest.mark.parametrize(
+    "deletion", ["del x", "del x\nraise ValueError('failed')"]
+)
+async def test_deleted_bindings_outdate_existing_readers(
+    tmp_path: Path, deletion: str
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        x="x = 1\nkept = 2\nx",
+        y="y = x + 1",
+        delete=deletion,
+    ) as c:
+        await c.run("x", "y")
+        before = await c.snapshot()
+        x = next(v for v in before.variables.values() if v.name == "x")
+        assert await c.outdated() == {}
+
+        await c.run(
+            "delete", outcome="failed" if "raise" in deletion else "succeeded"
+        )
+        after = await c.snapshot()
+        assert after.variables == {
+            key: value
+            for key, value in before.variables.items()
+            if key != x.id
+        }
+        assert after.latest(c.cells["x"]) == before.latest(c.cells["x"])
+        assert after.latest(c.cells["y"]) == before.latest(c.cells["y"])
+        assert (await c.outdated())["y"] == "replaced"
+        removed = next(
+            i
+            for i, r in enumerate(c.events.records)
+            if r.get("event") == "variable.removed" and r["data"]["id"] == x.id
+        )
+        completed = next(
+            i
+            for i, r in enumerate(c.events.records)
+            if r.get("event") == "execution"
+            and r["data"]["execution"]["cell_id"] == c.cells["delete"]
+            and r["data"]["execution"]["status"] == "completed"
+        )
+        assert removed < completed
 
 
 async def test_autorun_leaves_every_result_current(tmp_path: Path) -> None:
@@ -159,10 +323,14 @@ async def test_autorun_leaves_every_result_current(tmp_path: Path) -> None:
         await c.run("x", "y")
         await c.edit("x", "x = 2")
         await c.run("x")
+        current = await c.snapshot()
+        x = next(v for v in current.variables.values() if v.name == "x")
+        y = current.latest(c.cells["y"])
+        assert y is not None
+        assert y.depends_on == {"x": x.revision}
         assert await c.outdated() == {}
 
 
-@unpublished
 async def test_state_updates_outdate_readers(tmp_path: Path) -> None:
     async with client(
         tmp_path,
@@ -191,6 +359,29 @@ async def test_state_updates_rerun_readers_in_autorun(tmp_path: Path) -> None:
     ) as c:
         await c.run("mo", "state", "reader")
         await c.run(code="set_x(2)")
+        current = await c.snapshot()
+        getter = next(
+            v for v in current.variables.values() if v.name == "get_x"
+        )
+        reader = current.latest(c.cells["reader"])
+        assert reader is not None
+        assert getter.revision.update == 1
+        assert reader.depends_on == {"get_x": getter.revision}
+        records = c.events.records
+        updated = next(
+            i
+            for i, r in enumerate(records)
+            if r.get("event") == "variable"
+            and r["data"]["variable"]["id"] == getter.id
+            and r["data"]["variable"]["revision"]["update"] == 1
+        )
+        dependent = next(
+            i
+            for i, r in enumerate(records)
+            if r.get("event") == "execution"
+            and r["data"]["execution"]["id"] == reader.id
+        )
+        assert updated < dependent
         assert await c.outdated() == {}
 
 
@@ -205,6 +396,14 @@ async def test_a_setter_that_reads_its_own_update_is_current(
         setter="for _ in range(3):\n    set_x(get_x() + 1)\nz = get_x()",
     ) as c:
         await c.run("mo", "state", "setter")
+        current = await c.snapshot()
+        getter = next(
+            v for v in current.variables.values() if v.name == "get_x"
+        )
+        setter = current.latest(c.cells["setter"])
+        assert setter is not None
+        assert getter.revision.update == 3
+        assert setter.depends_on["get_x"] == getter.revision
         assert await c.outdated() == {}
 
 
@@ -216,28 +415,390 @@ async def test_reimporting_keeps_dependents_current(tmp_path: Path) -> None:
         value="value = math.pi",
     ) as c:
         await c.run("imports", "value")
-        before = (await c.snapshot()).latest(c.cells["value"])
+        initial = await c.snapshot()
+        before = initial.latest(c.cells["value"])
+        math = next(v for v in initial.variables.values() if v.name == "math")
+        assert before is not None
+        assert before.depends_on == {"math": math.revision}
 
         await c.edit("imports", "import math\nimport os")
         await c.run("imports")
+        current = next(
+            v
+            for v in (await c.snapshot()).variables.values()
+            if v.name == "math"
+        )
+        assert current.revision == math.revision
+        assert current.execution_id != math.execution_id
         assert await c.outdated() == {}
         # The dependent did not run again, so its result predates the edit.
         assert (await c.snapshot()).latest(c.cells["value"]) == before
 
 
-@unpublished
-async def test_binding_a_missing_name_outdates_its_readers(
+@pytest.mark.parametrize(
+    ("name", "expression", "binding", "outcome"),
+    [
+        ("missing", "missing + 1", "missing = 1", "failed"),
+        ("len", "len([1])", "len = lambda _: 2", "succeeded"),
+        ("print", "print('old')", "print = lambda _: None", "succeeded"),
+    ],
+)
+async def test_binding_a_name_outdates_its_unbound_readers(
     tmp_path: Path,
+    name: str,
+    expression: str,
+    binding: str,
+    outcome: RunOutcome,
 ) -> None:
     async with client(
         tmp_path,
         on_cell_change="lazy",
         binder="pass",
-        reader="y = missing + 1",
+        reader=f"y = {expression}",
     ) as c:
-        await c.run("binder", "reader", outcome="failed")
+        if name == "print":
+            # A thread installs print in globals without a notebook binding.
+            await c.run(
+                code="import marimo as mo\nt = mo.Thread(target=lambda: None)\nt.start()\nt.join()"
+            )
+        await c.run("binder", "reader", outcome=outcome)
+        reader = (await c.snapshot()).latest(c.cells["reader"])
+        assert reader is not None
+        assert reader.depends_on == {name: None}
         assert await c.outdated() == {}
 
-        await c.edit("binder", "missing = 1")
+        await c.edit("binder", binding)
         await c.run("binder")
         assert await c.outdated() == {"reader": "replaced"}
+
+
+async def test_replaced_inputs_take_precedence_over_updates_and_edits(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        state="get_x, set_x = mo.state(1)",
+        x="x = 1",
+        reader="y = get_x() + x",
+    ) as c:
+        await c.run("mo", "state", "x", "reader")
+        await c.edit("reader", "y = get_x() + x + 1")
+        assert await c.outdated() == {"reader": "edited"}
+
+        await c.run(code="set_x(2)")
+        assert await c.outdated() == {"reader": "updated"}
+
+        await c.run("x")
+        assert await c.outdated() == {"reader": "replaced"}
+
+
+@pytest.mark.parametrize(
+    ("code", "outcome", "reader"),
+    [
+        ("if False:\n    x = 2", "succeeded", protocol.ErrorOutcome),
+        ("1 / 0\nx = 2", "failed", protocol.SkippedOutcome),
+    ],
+)
+async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
+    tmp_path: Path,
+    code: str,
+    outcome: RunOutcome,
+    reader: type[protocol.Outcome],
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        binder="x = 1",
+        reader="y = x + 1",
+    ) as c:
+        await c.run("binder", "reader")
+        await c.edit("binder", code)
+        await c.run("binder", outcome=outcome)
+        assert "x" not in {
+            v.name for v in (await c.snapshot()).variables.values()
+        }
+        assert await c.outdated() == {"reader": "replaced"}
+
+        await c.run(
+            "reader",
+            outcome="failed"
+            if reader is protocol.ErrorOutcome
+            else "succeeded",
+        )
+        latest = (await c.snapshot()).latest(c.cells["reader"])
+        assert latest is not None
+        assert isinstance(latest.outcome, reader)
+        assert latest.depends_on == {"x": None}
+        assert await c.outdated() == {}
+
+
+async def test_a_ui_update_outdates_lazy_readers(tmp_path: Path) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        slider="slider = mo.ui.slider(0, 10, value=1)",
+        reader="value = slider.value",
+    ) as c:
+        await c.run("mo", "slider", "reader")
+        before = await c.snapshot()
+        slider = next(
+            v for v in before.variables.values() if v.name == "slider"
+        )
+        start = len(c.events.records)
+        await c.run(code="print(slider._id)")
+        [object_id] = [
+            r["data"]["console"]["text"].strip()
+            for r in c.events.records[start:]
+            if r.get("event") == "console"
+            and r["data"]["console"]["text"].strip()
+        ]
+        expected = replace(
+            slider, preview="5", revision=replace(slider.revision, update=1)
+        )
+        updated = asyncio.Event()
+
+        def observe(event: RoutedEvent) -> None:
+            if (
+                isinstance(event.event, protocol.VariableEvent)
+                and event.event.data.variable == expected
+            ):
+                updated.set()
+
+        host = c.app.state.host_context.bridge.host
+        unsubscribe = host.subscribe(observe, notebook_id=c.notebook_id)
+        try:
+            session = next(iter(c.app.state.session_manager.sessions.values()))
+            session.put_control_request(
+                UpdateUIElementCommand.from_ids_and_values([(object_id, 5)]),
+                from_consumer_id=None,
+            )
+            await updated.wait()
+        finally:
+            unsubscribe()
+
+        after = await c.snapshot()
+        assert after.variables[slider.id] == expected
+        assert after.latest(c.cells["reader"]) == before.latest(
+            c.cells["reader"]
+        )
+        assert await c.outdated() == {"reader": "updated"}
+
+
+async def test_state_updates_precede_nested_readers(tmp_path: Path) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        state="get_x, set_x = mo.state(1)",
+        reader="y = get_x()",
+    ) as c:
+        await c.run("mo", "state", "reader")
+        offset = len(c.events.records)
+        await c.run(
+            code=(
+                "set_x(2)\nimport marimo._code_mode as cm\n"
+                "async with cm.get_context() as ctx:\n"
+                f"    ctx.run_cell({c.cells['reader']!r})"
+            )
+        )
+        records = c.events.records[offset:]
+        updated = next(
+            i
+            for i, r in enumerate(records)
+            if r.get("event") == "variable"
+            and r["data"]["variable"]["name"] == "get_x"
+        )
+        started = next(
+            i
+            for i, r in enumerate(records)
+            if r.get("event") == "execution"
+            and r["data"]["execution"]["cell_id"] == c.cells["reader"]
+            and r["data"]["execution"]["status"] == "running"
+        )
+        assert updated < started
+        current = await c.snapshot()
+        getter = next(
+            v for v in current.variables.values() if v.name == "get_x"
+        )
+        reader = current.latest(c.cells["reader"])
+        assert reader is not None
+        assert reader.depends_on == {"get_x": getter.revision}
+        assert getter.revision.update == 1
+        assert await c.outdated() == {}
+
+
+async def test_reconnecting_recovers_updates_and_replaced_bindings(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        state="get_x, set_x = mo.state(1)",
+        x="x = 1",
+        reader="y = get_x() + x",
+    ) as c:
+        await c.run("mo", "state", "x", "reader")
+        initial = await read_events(c.app, c.notebook_id)
+        cursor = initial[-1]["id"]
+        assert Snapshot.decode(initial).outdated() == {}
+
+        await c.run(code="set_x(2)")
+        await c.edit("x", "x = 2")
+        await c.run("x")
+
+        replay = await read_events(c.app, c.notebook_id, cursor=cursor)
+        assert "reset" not in {r["event"] for r in replay}
+        recovered = Snapshot.decode([*initial, *replay])
+        assert (
+            recovered
+            == Snapshot.decode(c.events.records)
+            == await c.snapshot()
+        )
+        assert recovered.outdated() == {c.cells["reader"]: "replaced"}
+
+
+async def test_restart_retains_results_without_restoring_python_values(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        binder="x = 1",
+        reader="y = x + 1",
+    ) as c:
+        await c.run("binder", "reader")
+        retained = await c.snapshot()
+        binder = retained.latest(c.cells["binder"])
+        assert binder is not None
+        restarted = await finished(
+            c.app,
+            "POST",
+            f"/notebooks/{c.notebook_id}/runtime/restart",
+            headers=key("restart"),
+        )
+        assert restarted.status == 202
+        runtime_id = restarted.json()["id"]
+        assert runtime_id != binder.runtime_id
+        await wait_for(
+            c.events,
+            lambda response: any(
+                r.get("event") == "runtime"
+                and r["data"]["runtime"]["id"] == runtime_id
+                and r["data"]["runtime"]["status"] == "running"
+                for r in response.records
+            ),
+            timeout=15,
+        )
+        assert await c.snapshot() == retained
+        assert await c.outdated() == {}
+        await c.run(code="assert 'x' not in globals()")
+
+        # Keep the old result, but give the new runtime no definition of x.
+        await c.edit("binder", "pass")
+        await c.run("reader", outcome="failed")
+        current = await c.snapshot()
+        reader = current.latest(c.cells["reader"])
+        assert reader is not None
+        assert reader.runtime_id == runtime_id
+        assert reader.depends_on == {"x": None}
+        assert current.latest(c.cells["binder"]) == binder
+        assert next(
+            v for v in current.variables.values() if v.name == "x"
+        ) == next(v for v in retained.variables.values() if v.name == "x")
+
+
+async def test_formatting_preserves_freshness_but_output_suppression_does_not(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path, on_cell_change="lazy", x="x = 1", y="x + 1"
+    ) as c:
+        await c.run("x", "y")
+        before = await c.snapshot()
+        await c.edit("x", "# comment\nx=1")
+        await c.edit("y", "(x + 1) # formatted")
+        assert await c.outdated() == {}
+        after = await c.snapshot()
+        assert before.executions == after.executions
+        assert (
+            before.cells[c.cells["x"]].etag != after.cells[c.cells["x"]].etag
+        )
+        await c.edit("y", "(x + 1); # suppress output")
+        assert await c.outdated() == {"y": "edited"}
+        await c.run("y")
+        assert await c.outdated() == {}
+        await c.edit("y", "x + 2;")
+        assert await c.outdated() == {"y": "edited"}
+
+
+async def test_outputs_restored_from_the_session_cache_are_current_results(
+    tmp_path: Path,
+) -> None:
+    shown, silent = "x = 41 + 1\nprint('hello')\nx", "y = 2"
+    # An earlier session of this notebook left its outputs on disk.
+    cache = get_session_cache_file(tmp_path / "notebook.py")
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": None,
+                },
+                "cells": [
+                    {
+                        "id": "earlier-shown",
+                        "code_hash": hash_code(shown),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "42"}}
+                        ],
+                        "console": [
+                            {
+                                "type": "stream",
+                                "name": "stdout",
+                                "text": "hello\n",
+                                "mimetype": "text/plain",
+                            }
+                        ],
+                    },
+                    {
+                        "id": "earlier-silent",
+                        "code_hash": hash_code(silent),
+                        "outputs": [],
+                        "console": [],
+                    },
+                ],
+            }
+        )
+    )
+
+    async with client(
+        tmp_path, on_cell_change="lazy", shown=shown, silent=silent
+    ) as c:
+        restored = (await c.snapshot()).latest(c.cells["shown"])
+        assert restored is not None
+        assert restored.outcome == protocol.ValueOutcome(
+            protocol.DisplayData(mimetype="text/plain", data="42")
+        )
+        # No run of this notebook's runtime produced it.
+        assert (restored.run_id, restored.runtime_id) == (None, None)
+        assert [
+            r["data"]["console"]["text"]
+            for r in c.events.records
+            if r.get("event") == "console"
+        ] == ["hello\n"]
+        # The cache cannot tell a cell that printed nothing from one that
+        # never ran, so that cell has no result.
+        assert (await c.snapshot()).latest(c.cells["silent"]) is None
+        assert await c.outdated() == {}
+
+        await c.run("shown")
+        rerun = (await c.snapshot()).latest(c.cells["shown"])
+        assert rerun is not None
+        assert rerun.id != restored.id
+        assert rerun.runtime_id is not None

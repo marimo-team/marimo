@@ -7,7 +7,7 @@ app._unparsable_cell(
     r"""
     x ( b 2 d & !
     """,
-    name="_"
+    name="_",
 )
 
 

@@ -1,5 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import {
+  type CellExecutionView,
+  type CellOutput,
+  cellExecutionInputsAtom,
+  cellExecutionView,
+  cellOutputInputsAtom,
+  cellOutputView,
+} from "@/core/executions";
 import { isConnectedAtom } from "@/core/network/connection";
 import type { JotaiStore } from "@/core/state/jotai";
 import { getMimeBundleEntries, processMimeBundle } from "@/utils/mime-types";
@@ -7,7 +15,6 @@ import { outputIsLoading } from "./cell";
 import { notebookAtom } from "./cells";
 import type { CellId } from "./ids";
 import { isOutputEmpty } from "./outputs";
-import type { CellRuntimeState } from "./types";
 
 type OutputState = "unknown" | "pending" | "empty" | "available";
 
@@ -22,21 +29,15 @@ declare global {
 }
 
 export function getCellOutputState(
-  runtime: CellRuntimeState | undefined,
+  output: CellOutput | null,
+  execution: Pick<CellExecutionView, "status" | "rendered" | "outcome">,
 ): OutputState {
-  if (!runtime) {
-    return "unknown";
-  }
-  const loading = outputIsLoading(runtime.status);
-  const freshProgress =
-    runtime.status === "running" &&
-    runtime.runStartTimestamp !== null &&
-    (runtime.output?.timestamp ?? 0) > runtime.runStartTimestamp;
-  if (loading && !freshProgress) {
+  const loading = outputIsLoading(execution.status);
+  if (loading && !execution.rendered) {
     return "pending";
   }
-  if (runtime.output?.mimetype === "application/vnd.marimo+mimebundle") {
-    let data: unknown = runtime.output.data;
+  if (output?.mimetype === "application/vnd.marimo+mimebundle") {
+    let data: unknown = output.data;
     if (typeof data === "string") {
       try {
         data = JSON.parse(data);
@@ -55,13 +56,13 @@ export function getCellOutputState(
       return loading ? "pending" : "empty";
     }
   }
-  if (!isOutputEmpty(runtime.output)) {
+  if (!isOutputEmpty(output)) {
     return "available";
   }
   if (loading) {
     return "pending";
   }
-  return runtime.output === null ? "unknown" : "empty";
+  return output === null && execution.outcome === null ? "unknown" : "empty";
 }
 
 /** Installed once; queries read live state only for the requested cell. */
@@ -73,14 +74,13 @@ export function installCaptureInterface(store: JotaiStore): void {
       if (!notebook.cellData[id]) {
         return "missing";
       }
-      const runtime = notebook.cellRuntime[id];
-      if (!runtime) {
-        return "unknown";
-      }
       if (!store.get(isConnectedAtom)) {
         return "unknown";
       }
-      return getCellOutputState(runtime);
+      return getCellOutputState(
+        cellOutputView(store.get(cellOutputInputsAtom), id),
+        cellExecutionView(store.get(cellExecutionInputsAtom), id),
+      );
     },
   };
 }

@@ -3,6 +3,7 @@ from marimo._data.data_source_discovery.plugins.aws import AWS_PLUGIN
 from marimo._data.data_source_discovery.plugins.databricks import (
     DATABRICKS_PLUGIN,
 )
+from marimo._data.data_source_discovery.plugins.duckdb import DUCKDB_PLUGIN
 from marimo._data.data_source_discovery.plugins.huggingface import (
     HUGGINGFACE_PLUGIN,
 )
@@ -24,6 +25,7 @@ DEFAULT_DISCOVERY_PLUGINS: tuple[DiscoveryPlugin, ...] = (
     PYSPARK_PLUGIN,
     PYICEBERG_PLUGIN,
     HUGGINGFACE_PLUGIN,
+    DUCKDB_PLUGIN,
 )
 
 __all__ = ["DEFAULT_DISCOVERY_PLUGINS"]

@@ -1,6 +1,18 @@
 # Marimo Islands
 
-marimo islands are a way to render HTML "islands" each with static outputs and code. This differs from the normal "app mode" in the sense that there is no top-level app. In "island mode", we do not have access to the HTML of the parent page.
+marimo Islands embed notebook cell outputs and code in an existing page. The host controls the page layout and theme.
+
+## Theme
+
+Islands use one theme per page. Theme resolution checks these sources in order:
+
+1. The VS Code theme, when present.
+2. Theme markers on `body`, then `html`: `dark`, `dark-mode`, or `dark-theme` classes, their light equivalents, and `data-theme` or `data-mode` attributes.
+3. The computed `color-scheme`, then nontransparent background colors.
+4. Light mode.
+
+Changes to host theme attributes, inline styles, and system color preferences update outputs and widgets automatically.
+The system preference selects the theme only when the host supports both color schemes.
 
 ## Development
 

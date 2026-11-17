@@ -21,6 +21,8 @@ from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.requests import PDFExportRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.notebook import Transaction
+from marimo._messaging.notebook.changes import SetCode
 from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._runtime.layout.layout import LayoutConfig
@@ -40,6 +42,8 @@ from marimo._utils.http import HTTPException
 from marimo._utils.platform import is_windows
 from tests._server.mocks import (
     get_session_manager,
+    get_single_notebook_id,
+    run_cells,
     token_header,
     with_read_session,
     with_session,
@@ -994,20 +998,17 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
         )
     )
     cell_id = session.document.cell_ids[0]
-    response = client.post(
-        "/api/document/transaction",
-        headers=HEADERS,
-        json={
-            "changes": [
-                {
-                    "type": "set-code",
-                    "cellId": cell_id,
-                    "code": 'live_value = "export-current-session"',
-                }
-            ]
-        },
+    session.document.apply(
+        Transaction(
+            changes=(
+                SetCode(
+                    cell_id=cell_id,
+                    code='live_value = "export-current-session"',
+                ),
+            ),
+            source="frontend",
+        )
     )
-    assert response.status_code == 200
 
     def auto_export(**overrides: object) -> Response:
         return client.post(
@@ -1275,37 +1276,16 @@ def test_auto_export_ipynb_with_new_cell(
     assert session
     session.app_file_manager.filename = temp_marimo_file
 
-    # First, create and run a cell with constant value 1
-    create_cell_response = client.post(
-        "/api/kernel/run",
+    # The editor creates the cell in the document, then runs it.
+    create_cell_response = run_cells(
+        client,
+        get_single_notebook_id(client),
+        {"new_cell": "3.14"},
         headers=HEADERS,
-        json={
-            "cellIds": ["new_cell"],
-            "codes": ["3.14"],
-        },
     )
-    assert create_cell_response.status_code == 200
+    assert create_cell_response.status_code == 202
 
     time.sleep(0.5)
-
-    # Save the session
-    save_response = client.post(
-        "/api/kernel/save",
-        headers=HEADERS,
-        json={
-            "cellIds": ["new_cell"],
-            "filename": temp_marimo_file,
-            "codes": ["3.14"],
-            "names": ["_"],
-            "configs": [
-                {
-                    "hideCode": True,
-                    "disabled": False,
-                }
-            ],
-        },
-    )
-    assert save_response.status_code == 200, save_response.text
 
     # Clean up the marimo directory
     marimo_dir = Path(temp_marimo_file).parent / "__marimo__"

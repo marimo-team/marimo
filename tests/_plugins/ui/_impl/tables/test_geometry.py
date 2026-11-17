@@ -1052,7 +1052,15 @@ def test_duckdb_geometry_selection_rejects_out_of_bounds(
 
 @pytest.mark.requires("duckdb", "pyarrow")
 @pytest.mark.parametrize(
-    "name", ["__MARIMO_EXPORT_ROW", "__Marimo_Export_Row"]
+    "name",
+    [
+        "__MARIMO_EXPORT_ROW",
+        "__Marimo_Export_Row",
+        "__MARIMO_EXPORT_ROW_REQUESTED",
+        "__Marimo_Export_Row_Order",
+        "row_index",
+        "ordinal",
+    ],
 )
 def test_duckdb_selection_avoids_case_insensitive_index_collision(
     name: str,

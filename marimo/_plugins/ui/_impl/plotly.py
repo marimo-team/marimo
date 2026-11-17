@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 PlotlySelection = dict[str, JSONType]
 
 
-def _is_orderable_value(value: Any) -> bool:
+def _is_orderable_value(value: object) -> bool:
     """Check if a value is orderable (numeric or datetime-like).
 
     Used by fallback functions to determine if direct comparison is possible.
@@ -85,7 +85,7 @@ def _parse_datetime_bound(value: Any) -> Any:
     return value
 
 
-def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
+def _is_orderable_axis(arr: Any, bound_value: object) -> bool:
     """Check if an axis contains orderable (numeric/datetime) values.
 
     This checks both numpy dtype and the actual element types to handle:
@@ -129,7 +129,7 @@ def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
     return False
 
 
-def _to_numeric_coord(value: Any) -> float | None:
+def _to_numeric_coord(value: object) -> float | None:
     """Convert a numeric/datetime-like value to a float for geometry tests."""
     import datetime
 

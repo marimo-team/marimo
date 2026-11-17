@@ -1,17 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/** Read the notebook a page was served with: its cells as a host snapshot, and their outputs. */
+
+import type * as Protocol from "@marimo-team/client/protocol";
 import type * as api from "@marimo-team/marimo-api";
 import { mergeArray } from "@/utils/edit-distance";
-import { MultiColumn } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
-import { parseOutline } from "../dom/outline";
-import type { NotebookState } from "./cells";
+import type { StaticNotebookSnapshot } from "../transports/static";
 import { CellId, SETUP_CELL_ID } from "./ids";
-import {
-  type CellData,
-  type CellRuntimeState,
-  createCellRuntimeState,
-} from "./types";
+import { DEFAULT_CELL_NAME } from "./names";
+import { type CellRuntimeState, createCellRuntimeState } from "./types";
+
+/** The identity of a snapshot the page carries. A host's own stream replaces it. */
+const EMBEDDED = "embedded";
 
 // Constants
 const DEFAULT_TIMESTAMP = 0;
@@ -143,7 +144,7 @@ function createEmptyNotebookCell(): NotebookCell {
   return {
     id: CellId.create(),
     name: EMPTY_STRING,
-    code: EMPTY_STRING,
+    code: null,
     code_hash: null,
     config: {
       column: null,
@@ -163,24 +164,106 @@ function createEmptySessionCell(): SessionCell {
   };
 }
 
-function createCellDataFromNotebook(
-  cellId: CellId,
-  notebookCell: NotebookCell,
-): CellData {
+/** The cell as a host would describe it. A snapshot never changes, so its etags only need to be distinct. */
+function cellRecord(cellId: CellId, cell: NotebookCell): Protocol.Cell {
   return {
     id: cellId,
-    name: notebookCell.name ?? EMPTY_STRING,
-    code: notebookCell.code ?? EMPTY_STRING,
-    edited: false,
-    lastCodeRun: null,
-    lastExecutionTime: null,
+    notebook_id: EMBEDDED,
+    code: cell.code,
+    name: cell.name || DEFAULT_CELL_NAME,
     config: {
-      column: notebookCell.config?.column ?? null,
-      disabled: notebookCell.config?.disabled ?? false,
-      hide_code: notebookCell.config?.hide_code ?? false,
-      expand_output: notebookCell.config?.expand_output ?? false,
+      column: cell.config?.column ?? null,
+      disabled: cell.config?.disabled ?? false,
+      hide_code: cell.config?.hide_code ?? false,
+      expand_output: cell.config?.expand_output ?? false,
     },
-    serializedEditorState: null,
+    etag: `${EMBEDDED}:${cellId}`,
+    code_fingerprint: cell.code_hash ?? `${EMBEDDED}:${cellId}:code`,
+    version: 1,
+  };
+}
+
+/** The output a cell shows, preferring data to an error. */
+function primaryOutputOf(sessionCell: SessionCell | null | undefined) {
+  const outputs = sessionCell?.outputs ?? [];
+  return (
+    outputs.find((output) => output.type === "data") ??
+    outputs.find((output) => output.type === "error") ??
+    outputs[0]
+  );
+}
+
+function normalizeTraceback(lines: readonly string[]): string | null {
+  if (lines.length === 0) {
+    return null;
+  }
+  return lines
+    .map((line, index) =>
+      index < lines.length - 1 && !line.endsWith("\n") ? `${line}\n` : line,
+    )
+    .join("");
+}
+
+/**
+ * The cell's last result as a host would report it.
+ *
+ * A completed execution of the snapshot's own source, so it reads as
+ * current, with no runtime behind it.
+ */
+function resultRecord(
+  cell: Protocol.Cell,
+  sessionCell: SessionCell | null | undefined,
+): Protocol.Execution | null {
+  const primary = primaryOutputOf(sessionCell);
+  let outcome: Protocol.Outcome;
+  if (primary === undefined) {
+    return null;
+  } else if (primary.type === "error") {
+    const traceback = normalizeTraceback(primary.traceback);
+    outcome = {
+      kind: "error",
+      error: {
+        kind: "exception",
+        name: primary.ename,
+        message: primary.evalue,
+        source: "marimo",
+        severity: "error",
+        range: null,
+        traceback:
+          traceback === null
+            ? null
+            : { mimetype: "text/plain", data: traceback },
+        related: [],
+      },
+    };
+  } else if (primary.type === "data") {
+    const [mimetype, data] = Object.entries(primary.data)[0] ?? [];
+    outcome = {
+      kind: "value",
+      display:
+        mimetype === undefined
+          ? null
+          : {
+              mimetype,
+              data: typeof data === "string" ? data : JSON.stringify(data),
+            },
+    };
+  } else {
+    return null;
+  }
+  return {
+    id: `${EMBEDDED}:${cell.id}:result`,
+    run_id: `${EMBEDDED}:run`,
+    runtime_id: EMBEDDED,
+    caused_by: null,
+    cell_id: cell.id,
+    code: null,
+    code_fingerprint: cell.code_fingerprint,
+    depends_on: {},
+    status: "completed",
+    outcome,
+    started_at: null,
+    completed_at: null,
   };
 }
 
@@ -193,58 +276,10 @@ function createCellRuntimeFromSession(
     return runtimeState;
   }
 
-  // Handle outputs - prioritize by type and use first available
-  const outputs = sessionCell.outputs || [];
-  const primaryOutput =
-    outputs.find((output) => output.type === "data") ||
-    outputs.find((output) => output.type === "error") ||
-    outputs[0];
-
-  if (primaryOutput) {
-    if (primaryOutput.type === "error") {
-      runtimeState.output = {
-        channel: "marimo-error",
-        data: [
-          {
-            type: "exception",
-            exception_type: primaryOutput.ename,
-            msg: primaryOutput.evalue,
-            raising_cell: null,
-            traceback:
-              primaryOutput.traceback.length === 0
-                ? null
-                : primaryOutput.traceback
-                    .map((line, index, lines) =>
-                      index < lines.length - 1 && !line.endsWith("\n")
-                        ? `${line}\n`
-                        : line,
-                    )
-                    .join(""),
-          },
-        ],
-        mimetype: "application/vnd.marimo+error",
-        timestamp: DEFAULT_TIMESTAMP,
-      };
-    } else if (primaryOutput.type === "data") {
-      const mimeType = Object.keys(primaryOutput.data)[0];
-      const data = Object.values(primaryOutput.data)[0];
-      runtimeState.output = {
-        channel: "output",
-        data: data as {},
-        mimetype: mimeType as "application/json",
-        timestamp: DEFAULT_TIMESTAMP,
-      };
-    }
-    if (runtimeState.output && primaryOutput.code !== undefined) {
-      runtimeState.output.code = primaryOutput.code;
-    }
-  }
-
   const consoleOutputs = sessionCell.console || [];
 
   return {
     ...runtimeState,
-    outline: runtimeState.output ? parseOutline(runtimeState.output) : null,
     consoleOutputs: consoleOutputs.map((consoleOutput) => {
       // Handle StreamMediaOutput (type: "streamMedia")
       if (consoleOutput.type === "streamMedia") {
@@ -278,45 +313,73 @@ function createCellRuntimeFromSession(
   };
 }
 
-export function notebookStateFromSession(
-  session: api.Session["NotebookSessionV1"] | null | undefined,
-  notebook: api.Notebook["NotebookV1"] | null | undefined,
-): NotebookState | null {
-  // Merge session and notebook cells using edit distance
+/**
+ * Read the session and notebook a page embeds.
+ *
+ * The cells become a host snapshot the replica starts from, with the
+ * session's outputs as its results. Its console output seeds each cell's
+ * runtime until the kernel speaks. Null when the page carries no cells.
+ */
+export function readExport({
+  session,
+  notebook,
+  filename,
+  appConfig,
+}: {
+  session: api.Session["NotebookSessionV1"] | null | undefined;
+  notebook: api.Notebook["NotebookV1"] | null | undefined;
+  filename: string | null;
+  appConfig: Record<string, unknown>;
+}): {
+  snapshot: StaticNotebookSnapshot | null;
+  cellRuntime: Record<CellId, CellRuntimeState>;
+} {
   const { cellIds, sessionCellData, notebookCellData } =
     mergeSessionAndNotebookCells(session, notebook);
-
   if (cellIds.length === 0) {
-    return null;
+    return { snapshot: null, cellRuntime: {} };
   }
 
-  const cellData: Record<CellId, CellData> = {};
+  const cells: Protocol.Cell[] = [];
+  const results: Protocol.Execution[] = [];
   const cellRuntime: Record<CellId, CellRuntimeState> = {};
-
-  // Process each cell
   for (const cellId of cellIds) {
-    const sessionCell = sessionCellData.get(cellId);
-    const notebookCell = notebookCellData.get(cellId);
-
-    // Create cell data from notebook if available
-    if (notebookCell) {
-      cellData[cellId] = createCellDataFromNotebook(cellId, notebookCell);
+    const cell = cellRecord(
+      cellId,
+      notebookCellData.get(cellId) ?? createEmptyNotebookCell(),
+    );
+    cells.push(cell);
+    const result = resultRecord(cell, sessionCellData.get(cellId));
+    if (result !== null) {
+      results.push(result);
     }
-
-    // Create cell runtime
-    // This needs always be created even if there is no session cell
-    // in order to display the cell in the correct state
-    cellRuntime[cellId] = createCellRuntimeFromSession(sessionCell);
+    cellRuntime[cellId] = createCellRuntimeFromSession(
+      sessionCellData.get(cellId),
+    );
   }
 
   return {
-    cellIds: MultiColumn.from([cellIds]),
-    cellData: cellData,
-    cellRuntime: cellRuntime,
-    cellHandles: {},
-    history: [],
-    scrollKey: null,
-    cellLogs: [],
-    untouchedNewCells: new Set(),
+    snapshot: {
+      notebook: {
+        id: EMBEDDED,
+        project_id: EMBEDDED,
+        path: filename,
+        name: filename ?? EMPTY_STRING,
+        updated_at: null,
+      },
+      document: {
+        notebook_id: EMBEDDED,
+        order: cellIds,
+        app_config: appConfig,
+        etag: `${EMBEDDED}:document`,
+        saved_etag: `${EMBEDDED}:document`,
+        order_etag: `${EMBEDDED}:order`,
+        app_config_etag: `${EMBEDDED}:app_config`,
+        version: 1,
+      },
+      cells,
+      results,
+    },
+    cellRuntime,
   };
 }

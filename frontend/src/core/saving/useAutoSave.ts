@@ -1,68 +1,32 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import type { UserConfig } from "../config/config-schema";
-import type { CellConfig } from "../network/types";
-import { type ConnectionStatus, ConnectionState } from "../websocket/types";
+import { type ConnectionStatus, ConnectionState } from "../session/types";
 
+/** Save after a delay while the notebook needs it, restarting on every confirmed change. */
 export function useAutoSave(opts: {
-  codes: string[];
-  cellConfigs: CellConfig[];
-  cellNames: string[];
+  /** The document version, which counts confirmed changes. */
+  version: number | null;
   config: UserConfig["save"];
   connStatus: ConnectionStatus;
   needsSave: boolean;
-  kioskMode: boolean;
+  canEdit: boolean;
   onSave: () => void;
 }) {
-  const {
-    codes,
-    cellConfigs,
-    config,
-    connStatus,
-    cellNames,
-    needsSave,
-    kioskMode,
-    onSave,
-  } = opts;
-  const autosaveTimeoutId = useRef<NodeJS.Timeout | null>(null);
-
-  const codesString = codes.join(":");
-  const cellConfigsString = cellConfigs
-    .map((config) => JSON.stringify(config))
-    .join(":");
-  const cellNamesString = cellNames.join(":");
+  const { version, config, connStatus, needsSave, canEdit, onSave } = opts;
 
   useEffect(() => {
-    // If kiosk mode is enabled, do not autosave
-    if (kioskMode) {
+    if (
+      !canEdit ||
+      config.autosave !== "after_delay" ||
+      !needsSave ||
+      connStatus.state !== ConnectionState.OPEN
+    ) {
       return;
     }
 
-    if (config.autosave === "after_delay") {
-      if (autosaveTimeoutId.current !== null) {
-        clearTimeout(autosaveTimeoutId.current);
-      }
-
-      if (needsSave && connStatus.state === ConnectionState.OPEN) {
-        autosaveTimeoutId.current = setTimeout(onSave, config.autosave_delay);
-      }
-    }
-
-    return () => {
-      if (autosaveTimeoutId.current !== null) {
-        clearTimeout(autosaveTimeoutId.current);
-      }
-    };
-    // codes, cellConfigs, cellNames needed in deps array to prevent race condition
-    // with needsSave when user changes state rapidly
-  }, [
-    codesString,
-    cellConfigsString,
-    cellNamesString,
-    config,
-    connStatus.state,
-    onSave,
-    kioskMode,
-    needsSave,
-  ]);
+    const timeout = setTimeout(onSave, config.autosave_delay);
+    return () => clearTimeout(timeout);
+    // `version` restarts the delay on every confirmed change.
+  }, [version, config, connStatus.state, onSave, canEdit, needsSave]);
 }

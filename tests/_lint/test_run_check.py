@@ -4,8 +4,55 @@
 import asyncio
 from pathlib import Path
 
+import pytest
+
+from marimo._ast.cell import CellConfig
+from marimo._ast.codegen import generate_filecontents
+from marimo._ast.type_inference import TypeInferenceMode
+from marimo._config.manager import UserConfigStore
 from marimo._lint import FileStatus, Linter, run_check
 from marimo._lint.diagnostic import Diagnostic, Severity
+from marimo._utils.files import expand_file_patterns
+
+
+@pytest.mark.parametrize(
+    ("configured", "override", "line_length", "expected"),
+    [
+        ("jedi", "off", None, "def _(value):"),
+        ("off", "jedi", 79, "def _(value: dict[str, list[int]]):"),
+        ("off", "jedi", None, "def _(value):"),
+        ("jedi", None, 79, "def _(value: dict[str, list[int]]):"),
+    ],
+)
+def test_formatting_overrides(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    configured: TypeInferenceMode,
+    override: TypeInferenceMode | None,
+    line_length: int | None,
+    expected: str,
+) -> None:
+    monkeypatch.setattr(UserConfigStore, "read", lambda _self: {})
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.marimo.formatting]\n"
+        f'infer_types = "{configured}"\nline_length = 20\n'
+    )
+    path = tmp_path / "notebook.py"
+    path.write_text(
+        generate_filecontents(
+            ["value = {'a': [1]}", "print(value)"],
+            ["_", "_"],
+            [CellConfig(), CellConfig()],
+        )
+    )
+    result = run_check(
+        (str(path),), fix=True, infer_types=override, line_length=line_length
+    )
+    assert not result.errored
+    assert expected in path.read_text()
+    result = run_check((str(path),), fix=True)
+    assert not result.errored
+    assert "def _(value):" in path.read_text()
 
 
 class TestRunCheck:
@@ -112,6 +159,42 @@ def __():
         assert not md_result.failed
         assert md_result.skipped is True
         assert txt_result.skipped is True  # Not a notebook
+
+    @pytest.mark.parametrize(
+        ("pattern", "expected"),
+        [
+            ("*.py", ["top.py"]),
+            ("sub/*.py", ["sub/nested.py"]),
+            ("**/*.py", ["sub/deep/deeper.py", "sub/nested.py", "top.py"]),
+            ("sub/**/*.py", ["sub/deep/deeper.py", "sub/nested.py"]),
+            ("**/deep/*.py", ["sub/deep/deeper.py"]),
+            ("t?p.py", ["top.py"]),
+            ("*.py/", []),
+        ],
+    )
+    def test_run_check_glob_respects_directory_boundaries(
+        self, tmp_path: Path, pattern: str, expected: list[str]
+    ) -> None:
+        """`*` matches within one directory, and `**` matches zero or more."""
+        for name in ["top.py", "sub/nested.py", "sub/deep/deeper.py"]:
+            path = tmp_path / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# empty notebook")
+
+        glob_pattern = f"{tmp_path}/{pattern}"
+        result = run_check((glob_pattern,))
+
+        assert (
+            sorted(
+                Path(f.file).relative_to(tmp_path).as_posix()
+                for f in result.files
+            )
+            == expected
+        )
+        assert [
+            p.relative_to(tmp_path).as_posix()
+            for p in expand_file_patterns((glob_pattern,))
+        ] == expected
 
 
 class TestMarkdownRecognition:

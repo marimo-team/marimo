@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -11,6 +11,7 @@ def _():
     import marimo as mo
     import altair as alt
     from vega_datasets import data
+
     return alt, data, mo
 
 
@@ -61,25 +62,21 @@ def _(alt, data, mo):
 @app.cell
 def _(chart):
     chart
-    return
 
 
 @app.cell
 def _(chart):
     chart.selections
-    return
 
 
 @app.cell
 def _(chart):
     chart.value
-    return
 
 
 @app.cell
 def _(chart):
     chart.dataframe
-    return
 
 
 if __name__ == "__main__":

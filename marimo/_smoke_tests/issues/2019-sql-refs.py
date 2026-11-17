@@ -1,29 +1,27 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def _(mo):
+def _(mo, my_table):
     _df = mo.sql(
         f"""
         SELECT * FROM my_table
         """
     )
     [mo.refs(), mo.defs()]
-    return
 
 
 @app.cell
-def _(mo):
+def _(mo, my_view):
     _df = mo.sql(
         f"""
         SELECT * FROM my_view
         """
     )
     [mo.refs(), mo.defs()]
-    return
 
 
 @app.cell
@@ -35,24 +33,23 @@ def _(mo):
         """
     )
     [mo.refs(), mo.defs()]
-    return
 
 
 @app.cell
-def _(mo):
+def _(mo, my_table):
     _df = mo.sql(
         f"""
         CREATE OR REPLACE VIEW my_view AS (SELECT * FROM my_table WHERE a LIKE 'f%o')
         """
     )
     [mo.refs(), mo.defs()]
-    return
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
     import pandas as pd
+
     return (mo,)
 
 

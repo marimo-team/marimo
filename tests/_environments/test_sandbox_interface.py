@@ -507,11 +507,6 @@ def test_close_cleans_unnamed_manifest() -> None:
     assert not temporary_source.exists()
 
 
-@pytest.mark.skipif(
-    "sys.version_info >= (3, 15)",
-    reason="the published marimo pulls loro, which has no cp315 wheel; "
-    "drop once a release carries the loro marker",
-)
 @pytest.mark.network
 def test_add_after_rename_updates_the_running_environment(
     tmp_path: Path,
@@ -661,7 +656,8 @@ def test_pixi_launch_layers_the_runtime_overlay_through_uv(
     assert ("--with-editable", str(checkout)) in pairs
     assert ("--with", "nbformat") in pairs
     assert plan.argv[-2:] == ("-m", "marimo")
-    assert ("python", "-c") in pairs
+    assert ("python", "-P") in pairs
+    assert ("-P", "-c") in pairs
     assert plan.env["CONDA_PREFIX"] == str(root)
     assert plan.start_new_session
 

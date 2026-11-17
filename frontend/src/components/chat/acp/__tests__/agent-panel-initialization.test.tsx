@@ -52,7 +52,7 @@ vi.mock("use-acp", async (importOriginal) => ({
     clearNotifications: vi.fn(),
   }),
 }));
-vi.mock("@/components/editor/ai/add-cell-with-ai", () => ({
+vi.mock("@/components/editor/ai/prompt-input", () => ({
   PromptInput: () => null,
 }));
 vi.mock("../session-tabs", () => ({ SessionTabs: () => null }));

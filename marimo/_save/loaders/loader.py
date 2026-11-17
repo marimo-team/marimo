@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -13,6 +12,15 @@ from marimo._runtime.state import State
 from marimo._save.cache import (
     CACHE_PREFIX,
     Cache,
+)
+from marimo._save.cache_dirs import (
+    LAZY_ENTRY_SUFFIX,
+    PARTIAL_WRITE_INFIX,
+    block_dir_name,
+    entry_hash,
+    has_marker,
+    is_entry_key,
+    is_partial_write,
 )
 from marimo._save.stores import DEFAULT_STORE, Store
 
@@ -243,8 +251,7 @@ class BasePersistenceLoader(Loader):
             except ContextNotInitializedError:
                 self.store = DEFAULT_STORE()
 
-        # Limited character set for path for windows compatibility
-        self.name = re.sub(r"[^a-zA-Z0-9 _-]", "_", self.name)
+        self.name = block_dir_name(self.name)
         self.suffix = suffix
 
     def build_path(self, key: HashKey) -> Path:
@@ -284,47 +291,68 @@ class BasePersistenceLoader(Loader):
     def storage_dirs(self) -> list[Path]:
         return self.store.local_dirs()
 
-    def _clearable_root(self) -> Path | None:
-        """Root directory `clear()` removes this loader's entry files under.
-
-        `None` unless the store itself maps every key to a path below a root
-        it owns; anything else, a wrapper or a remote store included, holds
-        entries that cannot be enumerated as paths.
-        """
-        from marimo._save.stores.file import FileStore
-
-        if isinstance(self.store, FileStore):
-            # A file store keeps its entries in exactly one directory.
-            return self.store.local_dirs()[0]
-        return None
-
     def _clearable_paths(self, root: Path) -> list[Path]:
         """Paths under `root` that `clear()` removes."""
-        import glob
-
-        from marimo._save.cache_dirs import PARTIAL_WRITE_INFIX
-
         block = root / self.name
+        if block.is_symlink():
+            return []
+        try:
+            children = list(block.iterdir())
+        except OSError:
+            return []
+        paths = [
+            child
+            for child in children
+            if not child.is_dir() and self._is_own_entry(child.name)
+        ]
+        # Only a lazy marker names a directory of blobs, and blobs are
+        # shared by hash, so a surviving marker keeps them alive.
+        hashes = {
+            entry_hash(path.name)
+            for path in paths
+            if path.name.endswith(LAZY_ENTRY_SUFFIX)
+        }
+        hashes -= {
+            entry_hash(marker.name)
+            for marker in children
+            if marker.name.endswith(LAZY_ENTRY_SUFFIX)
+            and is_entry_key(marker.name.partition(".")[0])
+            and marker not in paths
+        }
+        paths.extend(
+            child
+            for child in children
+            if child.name in hashes
+            and child.is_dir()
+            and not child.is_symlink()
+        )
+        return paths
+
+    def _is_own_entry(self, name: str) -> bool:
+        """Whether `name` is an entry this loader wrote, or a killed write's."""
         # The leftovers of an interrupted write hold no value anyone can read,
         # so clearing the block is the last chance to reclaim their bytes.
-        patterns = (
-            str(block / f"*.{self.suffix}"),
-            str(block / f"*.{self.suffix}{PARTIAL_WRITE_INFIX}*"),
-        )
-        return [
-            Path(match) for pattern in patterns for match in glob.glob(pattern)
-        ]
+        if is_partial_write(name):
+            name = name.rpartition(PARTIAL_WRITE_INFIX)[0]
+        key, dot, suffix = name.partition(".")
+        return bool(dot) and suffix == self.suffix and is_entry_key(key)
 
     def clear(self) -> None:
         """Clear all cached items for this loader."""
-        root = self._clearable_root()
+        root = self.store.clearable_root()
         if root is None:
             return
         for cache_file in self._clearable_paths(root):
+            # A writer can write a new marker for these blobs after the
+            # listing, so the marker is checked again here.
+            if cache_file.is_dir() and has_marker(
+                cache_file.parent, cache_file.name
+            ):
+                continue
             self.store.clear(str(cache_file.relative_to(root)))
 
     def clearable_paths(self) -> list[Path]:
-        root = self._clearable_root()
+        root = self.store.clearable_root()
         return [] if root is None else self._clearable_paths(root)
 
     def clearable_bytes(self) -> int:

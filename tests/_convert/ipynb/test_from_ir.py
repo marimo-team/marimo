@@ -14,6 +14,7 @@ from marimo._convert.ipynb.from_ir import (
     _convert_latex_delimiters_for_jupyter,
     _convert_marimo_output_to_ipynb,
     _convert_marimo_tex_to_latex,
+    _convert_output_to_ipynb,
     _is_marimo_component,
     _maybe_extract_dataurl,
 )
@@ -25,6 +26,90 @@ SELF_DIR = pathlib.Path(__file__).parent
 snapshot_test = snapshotter(__file__)
 
 pytest.importorskip("nbformat")
+
+
+@pytest.mark.parametrize("as_list", [False, True])
+@pytest.mark.parametrize("bundle", ["none", "dict", "json"])
+def test_html_math_output_preserves_surrounding_content(
+    as_list: bool, bundle: str
+) -> None:
+    parts = [
+        "<div><p>Text</p><span><marimo-",
+        'tex class="arithmatex">||[a = b||]</marimo-tex></span>',
+        '<img src="data:image/png;base64,ZmFrZQ=="></div>',
+    ]
+    content = parts if as_list else "".join(parts)
+    data: Any = content
+    expected_data = {
+        "text/html": "<div><p>Text</p><span>$$a = b$$</span>" + parts[-1]
+    }
+    if bundle != "none":
+        data = {
+            "text/html": content,
+            "text/plain": "fallback",
+            "__metadata__": {"custom": True},
+        }
+        expected_data["text/plain"] = "fallback"
+        if bundle == "json":
+            data = json.dumps(data)
+
+    output = _convert_output_to_ipynb(
+        CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype=(
+                "application/vnd.marimo+mimebundle"
+                if bundle != "none"
+                else "text/html"
+            ),
+            data=data,
+        )
+    )
+    assert output == {
+        "output_type": "display_data",
+        "data": expected_data,
+        "metadata": {"custom": True} if bundle != "none" else {},
+    }
+
+
+@pytest.mark.parametrize("as_list", [False, True])
+@pytest.mark.parametrize("as_json", [False, True])
+def test_markdown_mimebundle_preserves_literal_tex_markup(
+    as_list: bool, as_json: bool
+) -> None:
+    text = "Literal code: `<marimo-tex>||(x||)</marimo-tex>`"
+    content = [text] if as_list else text
+    bundle = {"text/markdown": content}
+    output = _convert_output_to_ipynb(
+        CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="application/vnd.marimo+mimebundle",
+            data=json.dumps(bundle) if as_json else bundle,
+        )
+    )
+    assert output == {
+        "output_type": "display_data",
+        "data": bundle,
+        "metadata": {},
+    }
+
+
+@pytest.mark.parametrize("as_list", [False, True])
+def test_standalone_markdown_math_conversion_is_unchanged(
+    as_list: bool,
+) -> None:
+    text = "<marimo-tex>||(x||)</marimo-tex>"
+    output = _convert_output_to_ipynb(
+        CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/markdown",
+            data=[text] if as_list else text,
+        )
+    )
+    assert output == {
+        "output_type": "display_data",
+        "data": {"text/markdown": [text] if as_list else "$x$"},
+        "metadata": {},
+    }
 
 
 @pytest.mark.parametrize(

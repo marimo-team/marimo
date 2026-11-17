@@ -23,9 +23,6 @@ from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
 )
-from marimo._server.api.endpoints.ws.ws_session_connector import (
-    ConnectionType,
-)
 from marimo._server.host.session import SessionEventStream
 from marimo._server.sse import format_close_event, format_sse_event
 from marimo._session.managers.ipc import KernelStartupError
@@ -304,21 +301,6 @@ async def test_sse_kiosk_not_allowed_in_run_mode(client: TestClient) -> None:
     assert get_session_manager(client).sessions == {}
 
 
-async def test_sse_hides_code_when_include_code_false(
-    client: TestClient,
-) -> None:
-    session_manager = get_session_manager(client)
-    session_manager.mode = SessionMode.RUN
-    session_manager.include_code = False
-    async with _connect(client) as connection:
-        event = await connection.next_notification()
-        message = json.loads(event["data"])
-        assert message["op"] == "kernel-ready"
-        assert message["data"]["codes"] == [""]  # hidden
-        assert message["data"]["last_executed_code"] == {}  # hidden
-        assert message["data"]["cell_ids"] == ["Hbol"]  # preserved
-
-
 async def test_sse_kernel_startup_error(client: TestClient) -> None:
     with patch.object(
         SessionEventStream,
@@ -443,8 +425,6 @@ async def test_sse_disconnect_and_reconnect(client: TestClient) -> None:
     # Reconnect with the same session id
     async with _connect(client) as connection:
         event = await connection.next_notification()
-        assert json.loads(event["data"])["op"] == "reconnected"
-        event = await connection.next_notification()
         assert json.loads(event["data"])["op"] == "alert"
 
 
@@ -494,7 +474,6 @@ def _make_handler(
         file_key="test.py",
         kiosk=False,
         auto_instantiate=False,
-        rtc_enabled=False,
     )
     handler = SessionEventStream(
         connection=request,
@@ -504,7 +483,6 @@ def _make_handler(
         cursor=None,
         manager=MagicMock(mode=mode),
         params=params,
-        doc_manager=MagicMock(),
         heartbeat_seconds=60,
     )
     handler.status = ConnectionState.OPEN
@@ -517,9 +495,8 @@ def _make_handler(
     )
     handler.manager.get_session.return_value = session
 
-    async def connect(_request: Any) -> tuple[Any, ConnectionType]:
+    async def connect(_request: Any) -> None:
         handler.on_attach(session, MagicMock())
-        return session, ConnectionType.NEW
 
     handler._connect_session = AsyncMock(  # type: ignore[method-assign]
         side_effect=connect

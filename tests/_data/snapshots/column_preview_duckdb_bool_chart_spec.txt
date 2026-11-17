@@ -7,13 +7,10 @@
   "background": "white",
   "data": [
     {
-      "name": "data-834341051d0a090d8e3ab71fa64b81b9"
+      "name": "source_0"
     },
     {
-      "name": "data_0"
-    },
-    {
-      "name": "data_1",
+      "name": "data_0",
       "values": [
         {
           "bool_col": true,
@@ -32,7 +29,7 @@
       ]
     },
     {
-      "name": "data_2",
+      "name": "data_1",
       "values": [
         {
           "bool_col": true,
@@ -49,7 +46,7 @@
       ]
     },
     {
-      "name": "data_2_color_domain_bool_col_0",
+      "name": "data_1_color_domain_bool_col_0",
       "values": [
         {
           "bool_col": true
@@ -60,7 +57,7 @@
       ]
     },
     {
-      "name": "data_1_color_domain_bool_col_1",
+      "name": "data_0_color_domain_bool_col_1",
       "values": [
         {
           "bool_col": true
@@ -115,7 +112,7 @@
         }
       },
       "from": {
-        "data": "data_2"
+        "data": "data_1"
       },
       "name": "layer_0_marks",
       "style": [
@@ -162,7 +159,7 @@
         }
       },
       "from": {
-        "data": "data_1"
+        "data": "data_0"
       },
       "name": "layer_1_marks",
       "style": [
@@ -177,19 +174,19 @@
       "domain": {
         "fields": [
           {
-            "data": "data_2",
+            "data": "data_1",
             "field": "count_start"
           },
           {
-            "data": "data_2",
+            "data": "data_1",
             "field": "count_end"
           },
           {
-            "data": "data_1",
+            "data": "data_0",
             "field": "count_start"
           },
           {
-            "data": "data_1",
+            "data": "data_0",
             "field": "count_end"
           }
         ]
@@ -206,11 +203,11 @@
       "domain": {
         "fields": [
           {
-            "data": "data_2_color_domain_bool_col_0",
+            "data": "data_1_color_domain_bool_col_0",
             "field": "bool_col"
           },
           {
-            "data": "data_1_color_domain_bool_col_1",
+            "data": "data_0_color_domain_bool_col_1",
             "field": "bool_col"
           }
         ],

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import React, { useMemo, useState } from "react";
 import { useAtomValue } from "jotai";
-import { numColumnsAtom } from "@/core/cells/cells";
+import { numColumnsAtom } from "@/core/cells/layout";
 import type { CellId } from "@/core/cells/ids";
 import { kioskModeAtom } from "@/core/mode";
 import type { ICellRendererProps } from "../types";

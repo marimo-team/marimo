@@ -1,8 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type * as z from "zod";
+import * as z from "zod";
 import { type OperationId, operations } from "./operations.ts";
-import * as Protocol from "./protocol.ts";
+import { parseProblem, type Problem, type UnknownProblem } from "./problem.ts";
 
 /** How a client reaches and authenticates with a host. */
 export interface ClientOptions {
@@ -23,13 +23,33 @@ export interface ClientOptions {
  * A request throws when the host cannot be reached or when its answer is not
  * one the protocol describes.
  */
-export type Result<T> =
+export type Result<T, P = Problem> =
   | { readonly ok: true; readonly status: number; readonly data: T }
-  | {
-      readonly ok: false;
-      readonly status: number;
-      readonly problem: Protocol.ProblemOutput;
-    };
+  | { readonly ok: false; readonly status: number; readonly problem: P };
+
+/**
+ * The problems an operation declares.
+ *
+ * A host on a later version can answer with a type this client does not
+ * define, which arrives as an `UnknownProblem`.
+ */
+export type ProblemOf<Id extends OperationId> =
+  | z.output<Declared<Id>[keyof Declared<Id>][number]>
+  | UnknownProblem;
+
+type Declared<Id extends OperationId> = {
+  readonly [
+    Status in keyof (typeof operations)[Id]["problems"]
+  ]: (typeof operations)[Id]["problems"][Status] extends readonly z.ZodType[]
+    ? (typeof operations)[Id]["problems"][Status]
+    : never;
+};
+
+/** What a request for one operation resolves to. */
+export type ResultOf<Id extends RequestOperationId> = Result<
+  Data<Id>,
+  ProblemOf<Id>
+>;
 
 /** Options for a request that changes state. */
 export interface MutationOptions {
@@ -72,6 +92,26 @@ export interface Target<Prefix extends string> {
   readonly client: ClientOptions;
 }
 
+/**
+ * Where a client's requests go as calls rather than HTTP requests.
+ *
+ * `params` holds the values a URL would carry for `prefix`, such as the
+ * notebook's id, so each call names every path parameter.
+ */
+export interface CallTarget<Prefix extends string> {
+  readonly send: (call: CallMessage) => Promise<unknown>;
+  readonly prefix: Prefix;
+  readonly params: Readonly<Record<string, string>>;
+}
+
+/** A call as `request` builds it, before its type is narrowed to its operation. */
+export interface CallMessage {
+  readonly operation: RequestOperationId;
+  readonly params: Readonly<Record<string, string>>;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: unknown;
+}
+
 /** What a request reads from each entry of the operations table. */
 interface Operation {
   readonly method: string;
@@ -81,6 +121,7 @@ interface Operation {
   readonly responses: Readonly<
     Record<number, z.ZodType | null | "text/event-stream">
   >;
+  readonly problems: Readonly<Record<number, readonly z.ZodType[]>>;
 }
 
 const table: Readonly<Record<OperationId, Operation>> = operations;
@@ -95,6 +136,41 @@ type Data<Id extends RequestOperationId> = {
     ? z.output<Entry<Id>["responses"][Status]>
     : undefined;
 }[keyof Entry<Id>["responses"]];
+
+/** The placeholder names in a path, such as `notebook_id`. */
+type PathParams<Path extends string> =
+  Path extends `${string}{${infer Name}}${infer Rest}`
+    ? Name | PathParams<Rest>
+    : never;
+
+/** An operation's headers by lowercase name, with the required ones required. */
+type CallHeaders<Headers> = {
+  readonly [
+    Name in keyof Headers as Headers[Name] extends true
+      ? Lowercase<Name & string>
+      : never
+  ]: string;
+} & {
+  readonly [
+    Name in keyof Headers as Headers[Name] extends true
+      ? never
+      : Lowercase<Name & string>
+  ]?: string;
+};
+
+/** An operation as one message, the parts of its request without a URL. */
+export type OperationCall<Id extends RequestOperationId> = {
+  [K in Id]: {
+    readonly operation: K;
+    readonly params: {
+      readonly [Name in PathParams<Entry<K>["path"]>]: string;
+    };
+    readonly headers: CallHeaders<Entry<K>["headers"]>;
+    readonly body: Entry<K>["body"] extends z.ZodType
+      ? z.output<Entry<K>["body"]>
+      : undefined;
+  };
+}[Id];
 
 /** What a request sends besides its operation. */
 interface Call<Id extends RequestOperationId> {
@@ -175,6 +251,16 @@ export function resolve<Prefix extends string>(
   return below(target.url, suffix);
 }
 
+/** A host's answer, read the same way whichever way the request went. */
+interface Answer {
+  readonly status: number;
+  /** Whether the answer describes itself as a problem. */
+  readonly problem: boolean;
+  json(): Promise<unknown>;
+}
+
+const Reply = z.object({ status: z.number().int(), body: z.unknown() });
+
 /**
  * Send one request and decode the host's answer.
  *
@@ -186,50 +272,137 @@ export async function request<
   Prefix extends string,
   Id extends OperationsBelow<Prefix>,
 >(
-  target: Target<Prefix>,
+  target: Target<Prefix> | CallTarget<Prefix>,
   id: Id,
   { params = {}, body, headers = {}, options = {} }: Call<Id>,
-): Promise<Result<Data<Id>>> {
+): Promise<ResultOf<Id>> {
   const operation = table[id];
-  const { client } = target;
-  const sent = new Headers();
-  sent.set("Accept", "application/json, application/problem+json");
-  if (client.token !== undefined) {
-    sent.set("Authorization", `Bearer ${client.token}`);
-  }
-  if ("Idempotency-Key" in operation.headers) {
-    sent.set("Idempotency-Key", options.idempotencyKey ?? idempotencyKey());
+  const sent: Record<string, string> = {};
+  if ("idempotency-key" in operation.headers) {
+    sent["idempotency-key"] = options.idempotencyKey ?? idempotencyKey();
   }
   for (const [name, value] of Object.entries(headers)) {
     if (value !== undefined) {
-      sent.set(name, value);
+      sent[name] = value;
     }
   }
-  let payload: string | undefined;
-  if (operation.body !== null) {
-    sent.set("Content-Type", "application/json");
-    payload = JSON.stringify(operation.body.parse(body));
-  }
-  const fetch = client.fetch ?? globalThis.fetch;
-  const response = await fetch(resolve(target, operation.path, params), {
-    method: operation.method,
-    headers: sent,
-    body: payload,
-    signal: options.signal,
-  });
-  const status = response.status;
+  const payload =
+    operation.body === null ? undefined : operation.body.parse(body);
+  const answer =
+    "send" in target
+      ? await call(
+          target,
+          {
+            operation: id,
+            params: { ...target.params, ...params },
+            headers: Object.fromEntries(
+              Object.entries(sent).map(([name, value]) => [
+                name.toLowerCase(),
+                value,
+              ]),
+            ),
+            body: payload,
+          },
+          options.signal,
+        )
+      : await fetchAnswer(
+          target,
+          operation,
+          params,
+          sent,
+          payload,
+          options.signal,
+        );
+  const status = answer.status;
   const schema = operation.responses[status];
   if (schema === null) {
+    // SAFETY: a `null` schema is how the table marks a status with no
+    // content, and `Data<Id>` maps that status to `undefined`.
     return { ok: true, status, data: undefined as Data<Id> };
   }
   if (schema !== undefined && schema !== "text/event-stream") {
-    const data = schema.parse(await response.json()) as Data<Id>;
+    // SAFETY: `schema` is the table's schema for this status of `id`, and
+    // `Data<Id>` is the union of those schemas' outputs.
+    const data = schema.parse(await answer.json()) as Data<Id>;
     return { ok: true, status, data };
   }
-  const type = response.headers.get("Content-Type");
-  if (!response.ok && isType(type, "application/problem+json")) {
-    const problem = Protocol.Problem.parse(await response.json());
-    return { ok: false, status, problem };
+  if ((status < 200 || status >= 300) && answer.problem) {
+    const problem = parseProblem(await answer.json());
+    if (problem.status !== status) {
+      throw new Error(
+        `Problem status ${problem.status} does not match HTTP status ${status}`,
+      );
+    }
+    if (problem.type === "unknown") {
+      return { ok: false, status, problem };
+    }
+    for (const schema of operation.problems[status] ?? []) {
+      const parsed = schema.safeParse(problem);
+      if (parsed.success) {
+        // SAFETY: `schema` is one the table lists for this status of `id`.
+        return { ok: false, status, problem: parsed.data as ProblemOf<Id> };
+      }
+    }
+    throw new Error(`Unexpected problem ${problem.type} response to ${id}`);
   }
   throw new Error(`Unexpected ${status} response to ${id}`);
+}
+
+async function fetchAnswer<Prefix extends string>(
+  target: Target<Prefix>,
+  operation: Operation,
+  params: Readonly<Record<string, string>>,
+  headers: Readonly<Record<string, string>>,
+  payload: unknown,
+  signal: AbortSignal | undefined,
+): Promise<Answer> {
+  const sent = new Headers(headers);
+  sent.set("Accept", "application/json, application/problem+json");
+  if (target.client.token !== undefined) {
+    sent.set("Authorization", `Bearer ${target.client.token}`);
+  }
+  if (payload !== undefined) {
+    sent.set("Content-Type", "application/json");
+  }
+  const fetch = target.client.fetch ?? globalThis.fetch;
+  const response = await fetch(resolve(target, operation.path, params), {
+    method: operation.method,
+    headers: sent,
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+    signal,
+  });
+  return {
+    status: response.status,
+    problem: isType(
+      response.headers.get("Content-Type"),
+      "application/problem+json",
+    ),
+    json: () => response.json(),
+  };
+}
+
+/** Deliver a call, and stop waiting on abort. A call already sent may still apply. */
+async function call<Prefix extends string>(
+  target: CallTarget<Prefix>,
+  message: CallMessage,
+  signal: AbortSignal | undefined,
+): Promise<Answer> {
+  signal?.throwIfAborted();
+  const sending = target.send(message);
+  const reply = Reply.parse(
+    signal === undefined
+      ? await sending
+      : await new Promise((resolve, reject) => {
+          const abort = () => reject(signal.reason);
+          signal.addEventListener("abort", abort, { once: true });
+          sending
+            .then(resolve, reject)
+            .finally(() => signal.removeEventListener("abort", abort));
+        }),
+  );
+  return {
+    status: reply.status,
+    problem: true,
+    json: async () => reply.body,
+  };
 }

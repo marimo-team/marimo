@@ -57,30 +57,6 @@ export async function convertToFileUIPart(
   return fileUIParts;
 }
 
-export function isLastMessageReasoning(messages: UIMessage[]): boolean {
-  if (messages.length === 0) {
-    return false;
-  }
-
-  const lastMessage = messages.at(-1);
-  if (!lastMessage) {
-    return false;
-  }
-
-  if (lastMessage.role !== "assistant" || !lastMessage.parts) {
-    return false;
-  }
-
-  const parts = lastMessage.parts;
-  if (parts.length === 0) {
-    return false;
-  }
-
-  // Check if the last part is reasoning
-  const lastPart = parts[parts.length - 1];
-  return lastPart.type === "reasoning";
-}
-
 function stringifyTextParts(parts: UIMessage["parts"]): string {
   return parts
     .map((part) => (part.type === "text" ? part.text : ""))
@@ -146,7 +122,9 @@ export async function handleToolCall({
       addToolOutput({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
-        output: response.result || response.error,
+        ...(response.error
+          ? { state: "output-error", errorText: response.error }
+          : { output: response.result }),
       });
     } else {
       // Invoke the backend/mcp tool
@@ -157,7 +135,9 @@ export async function handleToolCall({
       addToolOutput({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
-        output: response.result || response.error,
+        ...(response.error
+          ? { state: "output-error", errorText: response.error }
+          : { output: response.result }),
       });
     }
   } catch (error) {
@@ -165,7 +145,8 @@ export async function handleToolCall({
     addToolOutput({
       tool: toolCall.toolName,
       toolCallId: toolCall.toolCallId,
-      output: `Error: ${error instanceof Error ? error.message : String(error)}`,
+      state: "output-error",
+      errorText: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -190,6 +171,18 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
     lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
     lastAssistantMessageIsCompleteWithApprovalResponses({ messages }) ||
     (lastPart.state === "output-denied" && !lastPart.providerExecuted)
+  );
+}
+
+export function willAutoContinue(messages: UIMessage[]): boolean {
+  const lastMessage = messages.at(-1);
+  const lastPart =
+    lastMessage?.role === "assistant" ? lastMessage.parts.at(-1) : undefined;
+  return (
+    hasPendingToolCalls(messages) ||
+    (lastPart != null &&
+      isToolUIPart(lastPart) &&
+      lastPart.state === "input-available")
   );
 }
 

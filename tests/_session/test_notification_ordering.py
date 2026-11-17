@@ -167,7 +167,6 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
         connection=MagicMock(),
         notebook=None,
         bridge=MagicMock(),
-        doc_manager=MagicMock(),
         types=None,
         cursor=None,
         manager=MagicMock(mode=SessionMode.EDIT),
@@ -176,7 +175,6 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
             file_key="notebook.py",
             kiosk=False,
             auto_instantiate=False,
-            rtc_enabled=False,
         ),
     )
     asyncio.get_running_loop().call_soon(

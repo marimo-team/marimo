@@ -2,149 +2,111 @@
 
 import { createStore } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
+import type { CellExecutionView, CellOutput } from "@/core/executions";
 import { connectionAtom } from "@/core/network/connection";
-import { ConnectionState } from "@/core/websocket/types";
-import type { Seconds } from "@/utils/time";
+import { ConnectionState } from "@/core/session/types";
 import { getCellOutputState, installCaptureInterface } from "../capture";
 import { notebookAtom } from "../cells";
-import type { CellRuntimeState } from "../types";
 
 const id = cellId("capture-a");
+const settled = { status: "idle", rendered: false, outcome: "value" } as const;
+const output: CellOutput = {
+  channel: "output",
+  mimetype: "text/html",
+  data: "<div>rich</div>",
+  timestamp: 2,
+};
 
 afterEach(() => {
   delete window.__marimoCapture;
 });
 
 describe("live output availability", () => {
-  it("reads current state without requiring DOM or subscribing to cells", () => {
+  it("reads current host state without requiring DOM or subscribing to cells", () => {
     const store = createStore();
     store.set(connectionAtom, { state: ConnectionState.OPEN });
     const subscribe = vi.spyOn(store, "sub");
     installCaptureInterface(store);
     const query = () => window.__marimoCapture!.getCellState(id);
     expect(query()).toBe("missing");
-    const update = (runtime: Partial<CellRuntimeState>) =>
-      store.set(
-        notebookAtom,
-        MockNotebook.notebookState({
-          cellData: { [id]: {} },
-          cellRuntime: { [id]: runtime },
-        }),
-      );
-    update({});
+    store.set(
+      notebookAtom,
+      MockNotebook.notebookState({ cellData: { [id]: {} } }),
+    );
+    MockExecutions.seed(store, []);
     expect(query()).toBe("unknown");
-    update({ output: { channel: "output", mimetype: "text/plain", data: "" } });
+    MockExecutions.seed(store, [MockExecutions.completed(id)]);
     expect(query()).toBe("empty");
-    update({ output: stateTestOutput });
+    MockExecutions.seed(store, [
+      MockExecutions.shown(id, {
+        mimetype: "text/html",
+        data: "<div>rich</div>",
+      }),
+    ]);
     expect(query()).toBe("available");
-    update({ output: stateTestOutput, status: "queued" });
+    MockExecutions.seed(store, [MockExecutions.queued(id)]);
     expect(query()).toBe("pending");
     store.set(connectionAtom, { state: ConnectionState.CONNECTING });
     expect(query()).toBe("unknown");
     expect(subscribe).not.toHaveBeenCalled();
     subscribe.mockRestore();
   });
-
-  it.each(["{}", "[{}, {}]", '{"__metadata__":{}}'])(
-    "recognizes JSON-encoded empty MIME bundles: %s",
-    (data) => {
-      const notebook = MockNotebook.notebookState({
-        cellData: { [id]: {} },
-        cellRuntime: {
-          [id]: {
-            output: {
-              channel: "output",
-              mimetype: "application/vnd.marimo+mimebundle",
-              data,
-            },
-          },
-        },
-      });
-      expect(getCellOutputState(notebook.cellRuntime[id])).toBe("empty");
-    },
-  );
 });
 
-const stateTestOutput = {
-  channel: "output" as const,
-  mimetype: "text/html" as const,
-  data: "<div>rich</div>",
-  timestamp: 2,
-};
-
 describe("cell output state", () => {
-  it.each<[Partial<CellRuntimeState>, string]>([
-    [{}, "unknown"],
+  it.each<
     [
-      { output: { channel: "output", mimetype: "text/plain", data: "" } },
-      "empty",
+      CellOutput | null,
+      Pick<CellExecutionView, "status" | "rendered" | "outcome">,
+      string,
+    ]
+  >([
+    [null, { ...settled, outcome: null }, "unknown"],
+    [null, settled, "empty"],
+    [{ ...output, data: "" }, settled, "empty"],
+    [output, settled, "available"],
+    [output, { ...settled, status: "queued" }, "pending"],
+    [output, { ...settled, status: "running" }, "pending"],
+    [output, { ...settled, status: "running", rendered: true }, "available"],
+    [
+      { ...output, data: "" },
+      { ...settled, status: "running", rendered: true },
+      "pending",
     ],
-    [{ output: stateTestOutput }, "available"],
-    [
-      {
-        output: {
-          channel: "output",
-          mimetype: "application/vnd.marimo+mimebundle",
-          data: {},
-        },
-      },
-      "empty",
-    ],
-    [{ output: { ...stateTestOutput, data: "" } }, "empty"],
-    ...[
-      { __metadata__: { "image/png": { width: 10 } } },
-      [{}, {}],
-      [{ __metadata__: {} }, {}],
-    ].map<[Partial<CellRuntimeState>, string]>((data) => [
-      {
-        output: {
-          channel: "output",
-          mimetype: "application/vnd.marimo+mimebundle",
-          data,
-        },
-      },
-      "empty",
-    ]),
-    [
-      {
-        output: {
-          channel: "output",
+  ])("reports availability for %j with %j", (output, execution, expected) => {
+    expect(getCellOutputState(output, execution)).toBe(expected);
+  });
+
+  it.each([
+    {},
+    [{}, {}],
+    { __metadata__: {} },
+    [{ __metadata__: {} }, {}],
+    "{}",
+    "[{}, {}]",
+    '{"__metadata__":{}}',
+  ])("recognizes empty MIME bundles: %j", (data) => {
+    expect(
+      getCellOutputState(
+        { ...output, mimetype: "application/vnd.marimo+mimebundle", data },
+        settled,
+      ),
+    ).toBe("empty");
+  });
+
+  it("recognizes display entries in MIME bundles", () => {
+    expect(
+      getCellOutputState(
+        {
+          ...output,
           mimetype: "application/vnd.marimo+mimebundle",
           data: { "text/html": "<div>rich</div>", "image/png": "fallback" },
         },
-      },
-      "available",
-    ],
-    [{ output: stateTestOutput, status: "running" }, "pending"],
-    [{ output: stateTestOutput, status: "queued" }, "pending"],
-    ...[1, 2, 3].map<[Partial<CellRuntimeState>, string]>((started) => [
-      {
-        output: stateTestOutput,
-        status: "running",
-        runStartTimestamp: started as Seconds,
-      },
-      started < stateTestOutput.timestamp ? "available" : "pending",
-    ]),
-    [{ output: stateTestOutput, status: "disabled-transitively" }, "available"],
-    [
-      { output: { ...stateTestOutput, data: "" }, status: "running" },
-      "pending",
-    ],
-    [{ output: { ...stateTestOutput, data: "" }, status: "queued" }, "pending"],
-    [
-      {
-        output: { ...stateTestOutput, data: "" },
-        status: "disabled-transitively",
-      },
-      "empty",
-    ],
-  ])("reports availability for %j", (runtime, expected) => {
-    const state = MockNotebook.notebookState({
-      cellData: { [id]: {} },
-      cellRuntime: { [id]: runtime },
-    });
-    expect(getCellOutputState(state.cellRuntime[id])).toBe(expected);
+        settled,
+      ),
+    ).toBe("available");
   });
 });

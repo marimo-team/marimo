@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 from msgspec import UNSET
 
 from marimo._core import protocol
+from marimo._core.code import code_fingerprint
 from marimo._core.errors import Invalid
 
 if TYPE_CHECKING:
@@ -26,10 +27,6 @@ if TYPE_CHECKING:
 def etag(text: str) -> protocol.Etag:
     """The first 16 hex characters of SHA-256 over the UTF-8 text."""
     return protocol.Etag(hashlib.sha256(text.encode()).hexdigest()[:16])
-
-
-def code_hash(code: str) -> protocol.Etag:
-    return etag(code)
 
 
 def cell_etag(
@@ -94,16 +91,16 @@ class DocumentCell:
     config: protocol.CellConfig = field(default_factory=default_config)
     etag: protocol.Etag = field(init=False)
     """Identifies code, name, and config together."""
-    code_hash: protocol.Etag = field(init=False)
-    """Identifies the code alone."""
+    code_fingerprint: str = field(init=False)
+    """Identifies the code for result freshness."""
 
     def __post_init__(self) -> None:
         code = normalize_code(self.code)
-        hashed = code_hash(code)
+        hashed = code_fingerprint(code)
         object.__setattr__(self, "code", code)
-        object.__setattr__(self, "code_hash", hashed)
+        object.__setattr__(self, "code_fingerprint", hashed)
         object.__setattr__(
-            self, "etag", cell_etag(hashed, self.name, self.config)
+            self, "etag", cell_etag(etag(code), self.name, self.config)
         )
 
 
@@ -183,6 +180,7 @@ class Document:
         """Rebuild a document from the records the notebook published.
 
         Source must be available; cell identities, order, and revisions must agree.
+        Fingerprints are recomputed under the current host scheme.
         """
         by_id = {cell.id: cell for cell in cells}
         if len(by_id) != len(cells) or (
@@ -209,10 +207,7 @@ class Document:
         restored = cls(restored_cells, document.app_config)
         for cell in restored:
             original = by_id[cell.id]
-            if (
-                cell.etag != original.etag
-                or cell.code_hash != original.code_hash
-            ):
+            if cell.etag != original.etag:
                 raise ValueError("cell revisions must match their content")
         if (
             restored.etag != document.etag

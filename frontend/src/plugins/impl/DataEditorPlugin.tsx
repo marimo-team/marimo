@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
-import React, { useEffect, useState } from "react";
+import glideCellsCss from "@glideapps/glide-data-grid-cells/dist/index.css?inline";
+import React, { useMemo } from "react";
 import { z } from "zod";
 import { inferFieldTypes } from "@/components/data-table/columns";
 import { LoadingTable } from "@/components/data-table/loading-table";
@@ -15,9 +16,15 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
 import { columnToFieldTypesSchema } from "./data-frames/schema";
+import { normalizeConfiguredColumns } from "./data-editor/column-types";
 import { orderColumnFields } from "./data-editor/data-utils";
 import { applyEditorEdits } from "./data-editor/editor-state";
-import type { EditorRow, EditorState, Edits } from "./data-editor/types";
+import type {
+  ColumnType,
+  EditorRow,
+  EditorState,
+  Edits,
+} from "./data-editor/types";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
@@ -30,7 +37,7 @@ const LazyDataEditor = React.lazy(
 );
 
 export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
-  cssStyles: [glideCss],
+  cssStyles: [glideCss, glideCellsCss],
 })
   .withData(
     z.object({
@@ -48,6 +55,12 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       fieldTypes: columnToFieldTypesSchema.nullish(),
       columnNames: z.array(z.string()).default([]),
       editableColumns: z.union([z.array(z.string()), z.literal("all")]),
+      columnTypes: z
+        .record(
+          z.string(),
+          z.union([z.literal("boolean"), z.array(z.string())]),
+        )
+        .default({}),
       columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
   )
@@ -61,6 +74,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
         edits={props.value}
         onEdits={props.setValue}
         editableColumns={props.data.editableColumns}
+        columnTypes={props.data.columnTypes}
       />
     );
   });
@@ -72,22 +86,27 @@ interface Props {
   onEdits: Setter<Edits>;
   editableColumns: string[] | "all";
   columnNames: string[];
+  columnTypes: Record<string, ColumnType>;
 }
 
 const LoadingDataEditor = (props: Props) => {
-  const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const source = useMemo(
+    () => ({
+      data: props.data,
+      fieldTypes: props.fieldTypes,
+      columnNames: props.columnNames,
+      columnTypes: props.columnTypes,
+    }),
+    [props.data, props.fieldTypes, props.columnNames, props.columnTypes],
+  );
 
-  // Load the data
   const { data: loadedState, error } = useAsyncData(async () => {
-    const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
+    const withoutExternalTypes = toFieldTypes(source.fieldTypes ?? []);
 
-    // If we already have the data, return it
-    // Otherwise, load the data from the URL. Vega's CSV parser takes a
-    // plain `Record`; column order doesn't matter for parsing.
-    const localData = Array.isArray(props.data)
-      ? props.data
+    const localData = Array.isArray(source.data)
+      ? source.data
       : await vegaLoadData<EditorRow>(
-          props.data,
+          source.data,
           {
             type: "csv",
             parse: getVegaFieldTypes(Object.fromEntries(withoutExternalTypes)),
@@ -95,20 +114,35 @@ const LoadingDataEditor = (props: Props) => {
           { handleBigIntAndNumberLike: true },
         );
 
-    return {
-      data: localData,
-      columnFields: orderColumnFields(
-        toFieldTypes(props.fieldTypes ?? inferFieldTypes(localData)),
-        props.columnNames,
-      ),
-    } satisfies EditorState;
-  }, [props.fieldTypes, props.columnNames, props.data]);
-
-  useEffect(() => {
-    if (loadedState !== undefined) {
-      setEditorState(applyEditorEdits(loadedState, props.edits.edits));
+    const columnTypes = new Map(Object.entries(source.columnTypes));
+    const inferredFields = toFieldTypes(
+      source.fieldTypes ?? inferFieldTypes(localData),
+    );
+    for (const [columnName, columnType] of columnTypes) {
+      inferredFields.set(
+        columnName,
+        columnType === "boolean" ? "boolean" : "string",
+      );
     }
-  }, [loadedState, props.edits.edits]);
+
+    return {
+      source,
+      state: {
+        data: normalizeConfiguredColumns(localData, columnTypes),
+        columnFields: orderColumnFields(inferredFields, source.columnNames),
+        columnTypes,
+      } satisfies EditorState,
+    };
+  }, [source]);
+
+  // useAsyncData retains previous data while a replacement source loads.
+  const editorState = useMemo(
+    () =>
+      loadedState?.source === source
+        ? applyEditorEdits(loadedState.state, props.edits.edits)
+        : null,
+    [loadedState, source, props.edits.edits],
+  );
 
   if (error) {
     return (
@@ -133,11 +167,9 @@ const LoadingDataEditor = (props: Props) => {
     <LazyDataEditor
       data={editorState.data}
       columnFields={editorState.columnFields}
+      columnTypes={editorState.columnTypes}
       editableColumns={props.editableColumns}
       onAddEdits={(edits) => {
-        setEditorState((state) =>
-          state === null ? null : applyEditorEdits(state, edits),
-        );
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
       }}
     />

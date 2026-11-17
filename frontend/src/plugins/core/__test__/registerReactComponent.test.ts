@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { act } from "@testing-library/react";
 import ReactDOM from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { z } from "zod";
+import { MarimoValueInputEvent } from "@/core/dom/events";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import type { FunctionCallResultMessage } from "@/core/kernel/messages";
 import { FunctionNotFoundError } from "@/utils/errors";
@@ -351,5 +353,48 @@ describe("plugin function: not-found recovery", () => {
     const promise = run({});
     await expect(promise).rejects.toThrow("boom");
     expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("mounted element: value dispatch", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("a functional update from a plugin reaches document once with the host element", async () => {
+    const tag = uniqueTag("value");
+    let setValue: ((v: (prev: number) => number) => void) | undefined;
+    registerReactComponent<number>({
+      tagName: tag,
+      validator: z.any(),
+      render: (props) => {
+        setValue = props.setValue;
+        return null as never;
+      },
+    });
+
+    const wrapper = document.createElement("marimo-ui-element");
+    wrapper.setAttribute("object-id", "value-object-id");
+    const el = document.createElement(tag);
+    el.dataset.initialValue = "0";
+    wrapper.append(el);
+    document.body.append(wrapper);
+    await vi.waitFor(() => expect(setValue).toBeDefined());
+
+    const seen: Array<{ value: unknown; element: HTMLElement }> = [];
+    const listener = (e: Event) => {
+      seen.push(
+        (e as CustomEvent<{ value: unknown; element: HTMLElement }>).detail,
+      );
+    };
+    document.addEventListener(MarimoValueInputEvent.TYPE, listener);
+    await act(async () => {
+      setValue?.((prev) => prev + 1);
+      setValue?.((prev) => prev + 1);
+    });
+    document.removeEventListener(MarimoValueInputEvent.TYPE, listener);
+
+    expect(seen.map((s) => s.value)).toEqual([1, 2]);
+    expect(seen.every((s) => s.element === el)).toBe(true);
   });
 });

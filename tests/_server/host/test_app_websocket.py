@@ -17,6 +17,7 @@ from marimo._server.host.context import HostContext
 from marimo._server.host.events import serialize_event
 from marimo._session.model import SessionMode
 from marimo._types.ids import SessionId
+from tests._server.conftest import get_kernel_tasks
 from tests._server.host.drive import socket_snapshot
 from tests._server.host.test_editor_websocket import receive_notification
 from tests._server.mocks import get_session_manager
@@ -60,9 +61,6 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
         snapshot = socket_snapshot(ws)
         ready = receive_notification(ws, "kernel-ready")
         assert ready["auto_instantiated"] is True
-        assert ready["codes"] == (
-            ["import marimo as mo"] if include_code else [""]
-        )
         cell = next(
             e["data"]["cell"] for e in snapshot if e["event"] == "cell"
         )
@@ -79,8 +77,8 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
         assert notebook is not None
         source = next(iter(notebook.document))
         assert source.code == "import marimo as mo"
-        assert (cell["code_hash"], cell["etag"]) == (
-            source.code_hash,
+        assert (cell["code_fingerprint"], cell["etag"]) == (
+            source.code_fingerprint,
             source.etag,
         )
         # Delivery never mutates the host event, even when readers differ.
@@ -111,7 +109,7 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
             ):
                 break
         assert executions
-        assert executions[-1]["code_hash"] == cell["code_hash"]
+        assert executions[-1]["code_fingerprint"] == cell["code_fingerprint"]
         assert executions[-1]["status"] == "completed"
 
 
@@ -142,7 +140,10 @@ def test_app_visitors_are_isolated_and_reconnect_retains_identity(
             )
     with client.websocket_connect(url("alice")) as reconnected:
         snapshot = socket_snapshot(reconnected)
-        receive_notification(reconnected, "reconnected")
+        assert (
+            receive_notification(reconnected, "alert")["title"]
+            == "Reconnected"
+        )
         assert manager.get_session(SessionId("alice")) is original
         assert (
             next(
@@ -166,7 +167,9 @@ def test_app_host_keeps_authentication(
 
 
 def test_app_host_is_removed_when_session_expires(
-    client: TestClient, app_host: SessionBridge
+    client: TestClient,
+    app_host: SessionBridge,
+    request: pytest.FixtureRequest,
 ) -> None:
     manager = get_session_manager(client)
     with client.websocket_connect(url("alice")) as ws:
@@ -174,6 +177,15 @@ def test_app_host_is_removed_when_session_expires(
         receive_notification(ws, "kernel-ready")
         session = manager.get_session(SessionId("alice"))
         assert session is not None
+        kernel_tasks = get_kernel_tasks(manager)
+
+        def join_expired_kernel() -> None:
+            # Expiry removes the session before the client fixture can join it.
+            for task in kernel_tasks:
+                task.join(timeout=5)
+                assert not task.is_alive()
+
+        request.addfinalizer(join_expired_kernel)
         session.ttl_seconds = 0.01
         notebook = app_host.notebook_for_session(session)
         assert notebook is not None
@@ -233,4 +245,4 @@ def test_app_session_replays_host_events_or_resets_stale_cursor(
         else:
             assert [e["event"] for e in opening] == ["custom", "ready"]
             assert opening[0]["data"]["custom"]["data"] == {"value": 1}
-        receive_notification(ws, "reconnected")
+        assert receive_notification(ws, "alert")["title"] == "Reconnected"

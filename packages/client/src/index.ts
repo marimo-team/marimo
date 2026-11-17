@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+export type { Problem, UnknownProblem } from "./problem.ts";
 export { Client } from "./client.ts";
 export type { ClientOptions } from "./request.ts";
 export {
@@ -11,13 +12,19 @@ export type { CatalogKind, NotebookKind } from "./kinds.ts";
 export {
   NotebookClient,
   type NotebookClientOptions,
+  type unstable_NotebookCall,
 } from "./notebook/client.ts";
 export {
   NotebookEvents,
   type NotebookEventsOptions,
   type NotebookEvent,
 } from "./notebook/events.ts";
-export { idempotencyKey, type Result } from "./request.ts";
+export {
+  type ResultOf,
+  type ProblemOf,
+  idempotencyKey,
+  type Result,
+} from "./request.ts";
 export {
   type Frame,
   type Transport,

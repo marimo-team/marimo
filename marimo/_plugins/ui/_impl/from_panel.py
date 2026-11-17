@@ -12,6 +12,7 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._runtime.functions import Function
@@ -117,7 +118,7 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
     if loaded and not new_exts:
         return ""
 
-    from bokeh.io.notebook import curstate  # type: ignore
+    from bokeh.io.state import curstate  # type: ignore
     from bokeh.resources import CDN, INLINE
     from panel.config import config
     from panel.io.notebook import (  # type: ignore
@@ -142,7 +143,17 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
             reloading=loaded,
             enable_mathjax="auto",
         )
-        configs, requirements, exports, skip_imports = require_components()  # type: ignore[no-untyped-call]
+        autoload_kwargs: dict[str, object] = {}
+        if DependencyManager.panel.has_at_version(
+            min_version="1.10.0", quiet=True
+        ):
+            resource_kwargs: dict[str, object] = {"resources": resources}
+            configs, requirements, exports, skip_imports, require_skip = (
+                require_components(**resource_kwargs)  # type: ignore[no-untyped-call]
+            )
+            autoload_kwargs = {"require_skip": require_skip, "error_id": None}
+        else:
+            configs, requirements, exports, skip_imports = require_components()  # type: ignore[no-untyped-call]
         ipywidget = "ipywidgets_bokeh" in sys.modules
         bokeh_js = _autoload_js(  # type: ignore[no-untyped-call]
             bundle=bundle,
@@ -153,6 +164,7 @@ def render_extension(load_timeout: int = 500, loaded: bool = False) -> str:
             ipywidget=ipywidget,
             reloading=loaded,
             load_timeout=load_timeout,
+            **autoload_kwargs,
         )
     loaded_extensions.extend(new_exts)
     return bokeh_js  # type: ignore[no-any-return]

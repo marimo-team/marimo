@@ -9,8 +9,10 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import { cellId } from "@/__tests__/branded";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { notebookAtom } from "@/core/cells/cells";
@@ -22,6 +24,7 @@ import {
 import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
 import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
+import { buildIslandHTML } from "../../__tests__/test-utils";
 import { parseMarimoIslandApps } from "../../parse";
 import { MarimoIslandElement } from "../web-components";
 
@@ -45,9 +48,55 @@ beforeEach(() => {
 afterEach(async () => {
   await actAndFlush(() => document.body.replaceChildren());
   store.set(requestClientAtom, null);
+  document.body.removeAttribute("style");
+  vi.unstubAllEnvs();
 });
 
 describe("MarimoIslandElement lifecycle", () => {
+  it.each([true, false])(
+    "synchronizes the theme of a reactive=%s island across reconnects",
+    async (reactive) => {
+      vi.stubEnv("VITE_MARIMO_ISLANDS", "true");
+      if (reactive) {
+        setNotebook("runtime-cell", "runtime output");
+      }
+      const { container, island } = createThemeIsland(reactive);
+      document.body.style.colorScheme = "dark";
+      await actAndFlush(() => document.body.append(container));
+      expect(island).toHaveClass("marimo", "dark");
+      await actAndFlush(() => {
+        document.body.style.colorScheme = "light";
+      });
+      expect(island).toHaveClass("marimo", "light");
+      expect(island).not.toHaveClass("dark");
+      await actAndFlush(() => island.remove());
+      await actAndFlush(() => {
+        document.body.style.colorScheme = "dark";
+      });
+      expect(island).toHaveClass("light");
+      await actAndFlush(() => container.append(island));
+      expect(island).toHaveClass("dark");
+    },
+  );
+
+  it("can disconnect before its scheduled render and reconnect with the current theme", async () => {
+    vi.stubEnv("VITE_MARIMO_ISLANDS", "true");
+    const { container, island } = createThemeIsland(false);
+    document.body.style.colorScheme = "dark";
+    await actAndFlush(() => {
+      document.body.append(container);
+      island.remove();
+    });
+    expect(island.querySelector("marimo-cell-output")).not.toBeNull();
+    await actAndFlush(() => {
+      document.body.style.colorScheme = "light";
+    });
+    expect(island).toHaveClass("dark");
+    await actAndFlush(() => container.append(island));
+    expect(island).toHaveClass("light");
+    expect(island.textContent).toContain("static output");
+  });
+
   it("keeps static output until the initial run completes", async () => {
     store.set(islandsPendingInitialRunsAtom, new Set([1]));
     setNotebook("runtime-cell", "runtime output");
@@ -182,25 +231,37 @@ describe("MarimoIslandElement lifecycle", () => {
   });
 });
 
+function createThemeIsland(reactive: boolean) {
+  const container = document.createElement("div");
+  container.innerHTML = buildIslandHTML([
+    {
+      appId: "app-1",
+      cellId: "runtime-cell",
+      reactive,
+      code: "x = 1",
+      output: "<pre>static output</pre>",
+    },
+  ]);
+  const island = container.querySelector<HTMLElement>(ISLAND_TAG_NAMES.ISLAND)!;
+  return { container, island };
+}
+
 function setNotebook(id: string, output?: string): void {
   const runtimeCellId = cellId(id);
   store.set(
     notebookAtom,
-    MockNotebook.notebookState({
-      cellData: { [runtimeCellId]: {} },
-      cellRuntime: output
-        ? {
-            [runtimeCellId]: {
-              output: {
-                channel: "output",
-                data: `<div>${output}</div>`,
-                mimetype: "text/html",
-                timestamp: 0,
-              },
-            },
-          }
-        : undefined,
-    }),
+    MockNotebook.notebookState({ cellData: { [runtimeCellId]: {} } }),
+  );
+  MockExecutions.seed(
+    store,
+    output === undefined
+      ? []
+      : [
+          MockExecutions.shown(runtimeCellId, {
+            mimetype: "text/html",
+            data: `<div>${output}</div>`,
+          }),
+        ],
   );
 }
 

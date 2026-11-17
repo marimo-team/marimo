@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import uuid
 from contextvars import ContextVar
-from dataclasses import dataclass
-from typing import cast
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, cast
 
 from marimo._runtime.commands import HTTPRequest
+
+if TYPE_CHECKING:
+    from marimo._runtime.execution import ExecutionAttempt
 
 RunId_t = str
 RUN_ID_CTX = ContextVar[RunId_t | None]("run_id")
@@ -19,6 +22,9 @@ class ExecutionTag:
     id: str
     cell_id: str
     run_id: str | None = None
+    attempt: ExecutionAttempt | None = field(
+        default=None, compare=False, repr=False
+    )
 
 
 EXECUTION_CTX = ContextVar[ExecutionTag | None]("execution", default=None)
@@ -54,6 +60,7 @@ class execution_id_context:
 
     cell_id: str
     id: str | None = None
+    attempt: ExecutionAttempt | None = None
 
     def __enter__(self) -> None:
         self.token = EXECUTION_CTX.set(
@@ -61,6 +68,7 @@ class execution_id_context:
                 self.id or str(uuid.uuid4()),
                 self.cell_id,
                 RUN_ID_CTX.get(None),
+                self.attempt,
             )
         )
 

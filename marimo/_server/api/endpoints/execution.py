@@ -11,10 +11,6 @@ from starlette.responses import JSONResponse, StreamingResponse
 from marimo import _loggers
 from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
-from marimo._server.api.endpoints.ws.ws_connection_validator import (
-    FILE_QUERY_PARAM_KEY,
-)
-from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import (
     dispatch_control_request,
     enforce_consumer_capability,
@@ -24,7 +20,6 @@ from marimo._server.api.utils import (
 from marimo._server.models.models import (
     BaseResponse,
     DebugCellRequest,
-    ExecuteCellsRequest,
     ExecuteScratchpadRequest,
     InvokeFunctionRequest,
     KernelStatusResponse,
@@ -35,7 +30,6 @@ from marimo._server.models.models import (
 from marimo._server.router import APIRouter
 from marimo._server.sse import wait_for_http_disconnect
 from marimo._server.uvicorn_utils import close_uvicorn
-from marimo._server.workspace import MarimoFileKey
 from marimo._session.consumer_policy import (
     TakeoverDecision,
     can_take_over_editing,
@@ -197,72 +191,6 @@ async def function_call(
     return await dispatch_control_request(request, InvokeFunctionRequest)
 
 
-@router.post("/interrupt")
-@requires("edit")
-async def interrupt(
-    *,
-    request: Request,
-) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    responses:
-        200:
-            description: Interrupt the kernel's execution
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    app_state.require_current_session().try_interrupt()
-
-    return SuccessResponse()
-
-
-@router.post("/run")
-@requires("edit")
-async def run_cell(
-    *,
-    request: Request,
-) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/ExecuteCellsRequest"
-    responses:
-        200:
-            description: Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode.
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=ExecuteCellsRequest)
-    body.request = HTTPRequest.from_request(request)
-    command = body.as_command()
-    enforce_consumer_capability(app_state, command)
-    app_state.require_current_session().put_control_request(
-        command,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    return SuccessResponse()
-
-
 @router.get("/status")
 @requires("edit")
 async def kernel_status(
@@ -333,7 +261,9 @@ async def execute_code(
 
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteScratchpadRequest)
-    session = app_state.require_current_session_with_stable_id()
+    session = app_state.require_current_session_with_stable_id(
+        allow_notebook_id=True
+    )
 
     # Register cells into the graph without executing them so that
     # code_mode's run_cell can resolve dependencies. The kernel
@@ -527,20 +457,8 @@ async def restart_session(
     # This just closes the session, and the frontend will
     # do a full reload, which will restart the session.
     session_id = app_state.require_current_session_id()
-    session = app_state.require_current_session()
+    app_state.require_current_session()
     session_manager.close_session(session_id)
-
-    # Close RTC doc if it exists
-    file_key: MarimoFileKey | None = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
-        or session_manager.workspace.get_unique_file_key()
-        or session.app_file_manager.path
-    )
-    if file_key is not None:
-        await DOC_MANAGER.remove_doc(file_key)
-    else:
-        LOGGER.warning("Unable to close RTC doc as no file key was provided")
-
     return SuccessResponse()
 
 

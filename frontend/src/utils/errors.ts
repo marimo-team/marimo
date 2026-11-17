@@ -94,10 +94,3 @@ export class FunctionNotFoundError extends Error {
     this.name = "FunctionNotFoundError";
   }
 }
-
-export class NoKernelConnectedError extends Error {
-  public constructor(message = "Not yet connected to a kernel.") {
-    super(message);
-    this.name = "NoKernelConnectedError";
-  }
-}
