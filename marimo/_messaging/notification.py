@@ -448,7 +448,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
         app_config: Application configuration.
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
-        auto_instantiated: Whether cells already executed (run mode).
         stable_session_id: Server-owned Session identity that survives
             browser reconnects. None where no server Session exists.
     """
@@ -461,7 +460,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
     consumer_capabilities: ConsumerCapabilities
-    auto_instantiated: bool = False
     stable_session_id: StableSessionId | None = None
 
 

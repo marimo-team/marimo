@@ -125,43 +125,6 @@ async def set_model_values(
     return await dispatch_control_request(request, ModelRequest)
 
 
-@router.post("/instantiate")
-@requires("edit")
-async def instantiate(
-    *,
-    request: Request,
-) -> BaseResponse:
-    """
-    parameters:
-        - in: header
-          name: Marimo-Session-Id
-          schema:
-            type: string
-          required: true
-    requestBody:
-        content:
-            application/json:
-                schema:
-                    $ref: "#/components/schemas/InstantiateNotebookRequest"
-    responses:
-        200:
-            description: Instantiate a component. Only allowed in edit mode;
-                in run mode, instantiation happens server-side automatically.
-            content:
-                application/json:
-                    schema:
-                        $ref: "#/components/schemas/SuccessResponse"
-    """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=InstantiateNotebookRequest)
-    app_state.require_current_session().instantiate(
-        body,
-        http_request=HTTPRequest.from_request(request),
-    )
-
-    return SuccessResponse()
-
-
 @router.post("/function_call")
 @requires("read")
 async def function_call(

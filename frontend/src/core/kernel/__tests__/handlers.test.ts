@@ -81,7 +81,6 @@ describe("buildLayoutState", () => {
       capabilities: {
         terminal: false,
       },
-      auto_instantiated: false,
       consumer_capabilities: { edit: true, interact: true },
     };
 
@@ -121,7 +120,6 @@ describe("buildLayoutState", () => {
       capabilities: {
         terminal: false,
       },
-      auto_instantiated: false,
       consumer_capabilities: { edit: true, interact: true },
     };
 
