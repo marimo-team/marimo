@@ -32,3 +32,4 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | [cell](cell.md)          | Run cells defined in another notebook                     |
 | [watch](watch.md)         | Reactively respond to file changes on disk          |
 | [miscellaneous](miscellaneous.md) | Miscellaneous utilities                                   |
+| [configuration](configuration.md) | Configure the marimo editor, runtime, and server          |
