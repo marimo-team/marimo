@@ -114,9 +114,7 @@ def test_completion_freezes_the_outcome_and_input_revisions(
     eid = queued.id
     if started:
         executions.observe(be.Started(eid), RUNTIME)
-        executions.observe(
-            be.Concluded(eid, protocol.ValueOutcome(None)), RUNTIME
-        )
+        executions.observe(be.Displayed(eid, None), RUNTIME)
     inputs = {
         "x": protocol.Revision(protocol.ExecutionId("producer"), 2),
         "print": None,
@@ -136,7 +134,7 @@ def test_completion_freezes_the_outcome_and_input_revisions(
     inputs.clear()
     for message in (
         be.Started(eid),
-        be.Concluded(eid, protocol.ValueOutcome(None)),
+        be.Displayed(eid, None),
         be.Completed(eid, protocol.ValueOutcome(None)),
     ):
         assert executions.observe(message, RUNTIME) == []
@@ -186,6 +184,40 @@ def test_a_cell_result_outlives_its_run_until_the_next_replaces_it() -> None:
     assert executions.run(protocol.RunId("r1")) is None
     assert describe(executions._records()) == ["run r2", "execution e2"]
     assert executions.observe(be.Produced(updated), RUNTIME) == []
+
+
+def test_late_display_updates_preserve_completion_and_stop_after_replacement() -> (
+    None
+):
+    executions = Executions()
+    executions.begin(run("r1"), "first")
+    executions.observe(planned("r1", ("e1", "a")), RUNTIME)
+    complete(executions, "e1")
+    executions.observe(be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME)
+    before = executions.current(protocol.CellId("a"))
+    assert before is not None
+    completed_run = executions.run(protocol.RunId("r1"))
+    for display in (
+        protocol.DisplayData(mimetype="text/plain", data="late"),
+        None,
+    ):
+        outcome = protocol.ValueOutcome(display)
+        expected = replace(before.execution, outcome=outcome)
+        assert executions.observe(
+            be.Displayed(protocol.ExecutionId("e1"), display), RUNTIME
+        ) == [expected]
+        assert executions.current(protocol.CellId("a")) == dataclasses.replace(
+            before, execution=expected
+        )
+        assert executions.run(protocol.RunId("r1")) == completed_run
+    executions.begin(run("r2"), "second")
+    executions.observe(planned("r2", ("e2", "a")), RUNTIME)
+    assert (
+        executions.observe(
+            be.Displayed(protocol.ExecutionId("e1"), None), RUNTIME
+        )
+        == []
+    )
 
 
 def test_scratch_work_leaves_with_its_run() -> None:

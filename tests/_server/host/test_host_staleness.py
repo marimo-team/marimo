@@ -16,6 +16,9 @@ from msgspec.structs import replace
 from marimo._core import protocol
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._session.state.serialize import get_session_cache_file
+from marimo._utils.code import hash_code
+from marimo._version import __version__
 from tests._server.host.drive import finished, wait_for
 from tests._server.host.live import key, open_host
 from tests._server.host.staleness import Snapshot, read_events, snapshot
@@ -730,3 +733,72 @@ async def test_formatting_preserves_freshness_but_output_suppression_does_not(
         assert await c.outdated() == {}
         await c.edit("y", "x + 2;")
         assert await c.outdated() == {"y": "edited"}
+
+
+async def test_outputs_restored_from_the_session_cache_are_current_results(
+    tmp_path: Path,
+) -> None:
+    shown, silent = "x = 41 + 1\nprint('hello')\nx", "y = 2"
+    # An earlier session of this notebook left its outputs on disk.
+    cache = get_session_cache_file(tmp_path / "notebook.py")
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": None,
+                },
+                "cells": [
+                    {
+                        "id": "earlier-shown",
+                        "code_hash": hash_code(shown),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "42"}}
+                        ],
+                        "console": [
+                            {
+                                "type": "stream",
+                                "name": "stdout",
+                                "text": "hello\n",
+                                "mimetype": "text/plain",
+                            }
+                        ],
+                    },
+                    {
+                        "id": "earlier-silent",
+                        "code_hash": hash_code(silent),
+                        "outputs": [],
+                        "console": [],
+                    },
+                ],
+            }
+        )
+    )
+
+    async with client(
+        tmp_path, on_cell_change="lazy", shown=shown, silent=silent
+    ) as c:
+        restored = (await c.snapshot()).latest(c.cells["shown"])
+        assert restored is not None
+        assert restored.outcome == protocol.ValueOutcome(
+            protocol.DisplayData(mimetype="text/plain", data="42")
+        )
+        # No run of this notebook's runtime produced it.
+        assert (restored.run_id, restored.runtime_id) == (None, None)
+        assert [
+            r["data"]["console"]["text"]
+            for r in c.events.records
+            if r.get("event") == "console"
+        ] == ["hello\n"]
+        # The cache cannot tell a cell that printed nothing from one that
+        # never ran, so that cell has no result.
+        assert (await c.snapshot()).latest(c.cells["silent"]) is None
+        assert await c.outdated() == {}
+
+        await c.run("shown")
+        rerun = (await c.snapshot()).latest(c.cells["shown"])
+        assert rerun is not None
+        assert rerun.id != restored.id
+        assert rerun.runtime_id is not None

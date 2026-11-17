@@ -163,7 +163,7 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
   }
 
   return (id) => {
-    const result = inputs.results.get(id);
+    const result = inputs.results.get(id)?.record;
     return result === null || result === undefined
       ? CURRENT
       : ofRecord(result, new Set());

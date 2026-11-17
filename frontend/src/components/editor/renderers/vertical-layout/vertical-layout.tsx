@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { CellRuntimeState, RuntimeCell } from "@/core/cells/types";
 import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
@@ -36,6 +36,7 @@ import {
   runtimeStatusAtom,
   useCellExecution,
   useCellFreshness,
+  useCellOutput,
 } from "@/core/executions";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
@@ -95,12 +96,11 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     });
   };
 
-  const renderCell = (cell: CellRuntimeState & CellData) => {
+  const renderCell = (cell: RuntimeCell) => {
     return (
       <VerticalCell
         key={cell.id}
         cellId={cell.id}
-        output={cell.output}
         consoleOutputs={cell.consoleOutputs}
         code={cell.code}
         config={cell.config}
@@ -301,10 +301,7 @@ const ActionButtons: React.FC<{
   );
 };
 
-interface VerticalCellProps extends Pick<
-  CellRuntimeState,
-  "output" | "consoleOutputs"
-> {
+interface VerticalCellProps extends Pick<CellRuntimeState, "consoleOutputs"> {
   cellOutputArea: "above" | "below";
   cellId: CellId;
   config: CellConfig;
@@ -318,7 +315,6 @@ interface VerticalCellProps extends Pick<
 
 const VerticalCell = memo(
   ({
-    output,
     consoleOutputs,
     cellOutputArea,
     cellId,
@@ -331,6 +327,7 @@ const VerticalCell = memo(
     showErrorTracebacks,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
+    const output = useCellOutput(cellId);
     const execution = useCellExecution(cellId);
     const freshness = useCellFreshness(cellId);
     const errored = execution.outcome === "error";

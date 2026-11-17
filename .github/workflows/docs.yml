@@ -21,7 +21,7 @@ env:
 jobs:
   deploy:
     if: github.repository == 'marimo-team/marimo' && github.ref == 'refs/heads/main'
-    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     timeout-minutes: 12
     env:
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}

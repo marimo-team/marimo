@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, describe, expect, it } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
 import type { CellColumnId } from "@/core/cells/layout";
 import type { CellId } from "../ids";
@@ -131,45 +133,37 @@ describe("layoutAtom", () => {
   const [c1, c2] = ["c1", "c2"].map(cellId);
 
   /** Deliver `html` as a cell's output, as the kernel's message does. */
-  function output(
-    dispatch: ReturnType<typeof setupNotebook>["dispatch"],
-    id: CellId,
-    html: string,
-  ) {
-    dispatch({
-      type: "handleCellMessage",
-      payload: {
-        cell_id: id,
-        output: {
-          channel: "output",
-          mimetype: "text/html",
-          data: html,
-          timestamp: 1,
-        },
-        console: null,
-        status: "idle",
-        timestamp: 1,
-      },
-    });
+  /** Report what the host shows for a cell, keeping the other cells' outputs. */
+  function reporter(store: ReturnType<typeof setupNotebook>["store"]) {
+    const results = new Map<CellId, Protocol.Execution>();
+    return (id: CellId, html: string) => {
+      results.set(
+        id,
+        MockExecutions.shown(id, { mimetype: "text/html", data: html }),
+      );
+      MockExecutions.seed(store, [...results.values()]);
+    };
   }
 
   it("is the same layout after output that changes no heading", () => {
-    const { store, dispatch } = setupNotebook(stops);
-    output(dispatch, c1, "<h1>Title</h1>");
+    const { store } = setupNotebook(stops);
+    const output = reporter(store);
+    output(c1, "<h1>Title</h1>");
     const layout = store.get(layoutAtom);
 
-    output(dispatch, c2, "<p>1</p>");
-    output(dispatch, c1, "<h1>Title</h1>");
+    output(c2, "<p>1</p>");
+    output(c1, "<h1>Title</h1>");
 
     expect(store.get(layoutAtom)).toBe(layout);
   });
 
   it("follows a heading arriving in a cell's output", () => {
-    const { store, dispatch } = setupNotebook(stops);
+    const { store } = setupNotebook(stops);
+    const output = reporter(store);
     store.set(collapsedAtom, new Set([c1]));
     expect(store.get(layoutAtom).columns[0].folds.size).toBe(0);
 
-    output(dispatch, c1, "<h1>Title</h1>");
+    output(c1, "<h1>Title</h1>");
 
     expect(store.get(layoutAtom).columns[0].folds.get(c1)).toEqual([c2]);
   });

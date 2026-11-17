@@ -35,6 +35,7 @@ from marimo._plugins.ui._impl.chat.chat import (
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.constants import ANTHROPIC_DEFAULT_MAX_TOKENS
 from marimo._server.ai.ids import AiModelId, AiProviderId
+from marimo._server.ai.openai_client import create_openai_client
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.ai.tracing import (
@@ -595,78 +596,7 @@ class OpenAIClientMixin:
     """Mixin providing OpenAI client creation logic for OpenAI-based providers."""
 
     def get_openai_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
-        import ssl
-        from pathlib import Path
-
-        from openai import AsyncOpenAI, DefaultAsyncHttpxClient
-
-        base_url = config.base_url or None
-        key = config.api_key
-
-        # Add SSL parameters/values
-        ssl_verify: bool = (
-            config.ssl_verify if config.ssl_verify is not None else True
-        )
-        extra_headers: dict[str, str] | None = config.extra_headers
-        ca_bundle_path: str | None = config.ca_bundle_path
-        client_pem: str | None = config.client_pem
-
-        # Check if ca_bundle_path and client_pem are valid files
-        if ca_bundle_path:
-            ca_path = Path(ca_bundle_path)
-            if not ca_path.exists():
-                raise HTTPException(
-                    status_code=HTTPStatus.BAD_REQUEST,
-                    detail="CA Bundle is not a valid path or does not exist",
-                )
-
-        if client_pem:
-            client_pem_path = Path(client_pem)
-            if not client_pem_path.exists():
-                raise HTTPException(
-                    status_code=HTTPStatus.BAD_REQUEST,
-                    detail="Client PEM is not a valid path or does not exist",
-                )
-
-        # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
-        client: DefaultAsyncHttpxClient | None = None
-        if ssl_verify:
-            ctx = None  # Initialize ctx to avoid UnboundLocalError
-            if ca_bundle_path:
-                ctx = ssl.create_default_context(cafile=ca_bundle_path)
-            if client_pem:
-                # if ctx already exists from caBundlePath argument
-                if ctx:
-                    ctx.load_cert_chain(certfile=client_pem)
-                else:
-                    ctx = ssl.create_default_context()
-                    ctx.load_cert_chain(certfile=client_pem)
-
-            # if ssl context was created by the above statements
-            if ctx:
-                client = DefaultAsyncHttpxClient(verify=ctx)
-        else:
-            client = DefaultAsyncHttpxClient(verify=False)
-
-        # if client is created, either with a custom context or with verify=False, use it as the http_client object in `AsyncOpenAI`
-        extra_headers = extra_headers or {}
-        project = config.project or None
-        if client:
-            return AsyncOpenAI(
-                default_headers={"api-key": key, **extra_headers},
-                api_key=key,
-                base_url=base_url,
-                project=project,
-                http_client=client,
-            )
-
-        # if not, return bog standard AsyncOpenAI object
-        return AsyncOpenAI(
-            default_headers={"api-key": key, **extra_headers},
-            api_key=key,
-            base_url=base_url,
-            project=project,
-        )
+        return create_openai_client(config)
 
 
 class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
