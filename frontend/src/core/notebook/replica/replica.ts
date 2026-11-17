@@ -24,8 +24,12 @@ import {
 } from "./connection";
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
-import { type Executions, executions } from "./resources/executions";
-import { type Results, results } from "./resources/results";
+import {
+  type Executions,
+  executions,
+  resumeResults,
+} from "./resources/executions";
+import type { Results } from "./resources/results";
 import { runtime } from "./resources/runtime";
 
 /**
@@ -162,7 +166,6 @@ export function createNotebookReplica(
     attachments,
     runtime,
     executions,
-    results,
   });
   type Stream = typeof reducer.initial;
   /**
@@ -205,7 +208,7 @@ export function createNotebookReplica(
     get(presentAtom) ? get(streamAtom).resources.runtime : null,
   );
   const executionsAtom = atom((get) => get(shownAtom).resources.executions);
-  const resultsAtom = atom((get) => get(shownAtom).resources.results);
+  const resultsAtom = atom((get) => get(executionsAtom).results);
   const backendAtom = atom<NotebookBackend | null>(null);
   /** The connection this replica follows. Connecting again ends it. */
   let current: { end(): void; reconnect(): Promise<void> } | undefined;
@@ -218,6 +221,18 @@ export function createNotebookReplica(
         return followed;
       }
       if (next.phase !== "snapshot") {
+        if (retained !== null && retained.notebook?.id === next.notebook?.id) {
+          next = {
+            ...next,
+            resources: {
+              ...next.resources,
+              executions: resumeResults(
+                next.resources.executions,
+                retained.resources.executions,
+              ),
+            },
+          };
+        }
         return { stream: next, retained: null };
       }
       return {

@@ -205,7 +205,7 @@ class Started:
 
 @dataclass(frozen=True)
 class Completed:
-    """An execution finished with its final outcome and input revisions."""
+    """An execution finished with its outcome and input revisions."""
 
     execution_id: protocol.ExecutionId
     outcome: protocol.Outcome
@@ -239,11 +239,11 @@ class Unbound:
 
 
 @dataclass(frozen=True)
-class Concluded:
-    """An execution outcome, final when the execution completes."""
+class Displayed:
+    """Replace a value display while its execution's result is retained."""
 
     execution_id: protocol.ExecutionId
-    outcome: protocol.Outcome
+    display: protocol.DisplayData | None
 
 
 @dataclass(frozen=True)
@@ -269,6 +269,6 @@ Message = (
     | Completed
     | Produced
     | Unbound
-    | Concluded
+    | Displayed
     | Done
 )

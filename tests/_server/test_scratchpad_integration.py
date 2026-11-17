@@ -152,6 +152,8 @@ class _Session:
         self.ws = websockets.sync.client.connect(
             f"{base.replace('http', 'ws')}/ws?session_id={self.session_id}",
             open_timeout=5,
+            # HTTP execution emits notifications while this client isn't reading.
+            max_queue=None,
         )
         # Drain kernel-ready handshake.
         self._recv_until(lambda m: m.get("op") == "kernel-ready")

@@ -132,12 +132,13 @@ class RunTranslator:
         if execution is None:
             return []
         out = self._console(execution, notification)
-        if execution.ended or self._finished:
-            return out
         if notification.output is not None:
             output = notification.output
-            if output.channel == CellChannel.MARIMO_ERROR and isinstance(
-                output.data, list
+            if (
+                not execution.ended
+                and not self._finished
+                and output.channel == CellChannel.MARIMO_ERROR
+                and isinstance(output.data, list)
             ):
                 execution.errors.extend(output.data)
             elif output.channel == CellChannel.OUTPUT:
@@ -146,12 +147,14 @@ class RunTranslator:
                     if isinstance(output.data, str)
                     else json.dumps(output.data)
                 )
-                execution.outcome = protocol.ValueOutcome(
+                display = (
                     None
                     if output.mimetype == "text/plain" and text == ""
                     else displayed(output.mimetype, text)
                 )
-                out.append(be.Concluded(execution.id, execution.outcome))
+                if not execution.ended:
+                    execution.outcome = protocol.ValueOutcome(display)
+                out.append(be.Displayed(execution.id, display))
         return out
 
     def _plan(self, notification: ExecutionNotification) -> be.Planned:
@@ -331,7 +334,7 @@ class RunTranslator:
                         name="stdout"
                         if entry.channel == CellChannel.STDOUT
                         else "stderr",
-                        text=_plain(str(entry.data)),
+                        text=plain(str(entry.data)),
                     )
                 )
             )
@@ -457,7 +460,7 @@ def rendered_traceback(mimetype: str | None, data: object) -> bool:
     )
 
 
-def _plain(text: str) -> str:
+def plain(text: str) -> str:
     """Remove marimo's HTML syntax highlighting from console text."""
     if not is_code_highlighting(text):
         return text

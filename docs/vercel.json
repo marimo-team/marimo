@@ -1,4 +1,5 @@
 {
+  "git": { "deploymentEnabled": false },
   "headers": [
     {
       "source": "/(.*)\\.md",

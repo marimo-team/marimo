@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
+import { parsePythonAST } from "../utils/python-ast.js";
 import { SQLParser } from "../parsers/sql-parser.js";
 
 const parser = new SQLParser();
@@ -10,7 +11,7 @@ describe("SQLParser", () => {
     it("should extract SQL from triple double-quoted strings", () => {
       const pythonCode = '_df = mo.sql("""SELECT * FROM {df}""")';
       const { code, offset, metadata } = parser.transformIn(pythonCode);
-      expect(code).toBe("SELECT * FROM {df}");
+      expect(code).toBe("SELECT * FROM {{df}}");
       expect(metadata.dataframeName).toBe("_df");
       expect(offset).toBe(16);
     });
@@ -18,7 +19,7 @@ describe("SQLParser", () => {
     it("should handle single double-quoted strings", () => {
       const pythonCode = 'next_df = mo.sql("SELECT * FROM {df}")';
       const { code, metadata } = parser.transformIn(pythonCode);
-      expect(code).toBe("SELECT * FROM {df}");
+      expect(code).toBe("SELECT * FROM {{df}}");
       expect(metadata.dataframeName).toBe("next_df");
     });
 
@@ -131,7 +132,7 @@ WHERE id IN ({str(data["items"][0]["id"])})`.trim(),
     it("should preserve Python comments", () => {
       const pythonCode = '# hello\nmy_df = mo.sql("""SELECT * FROM {df}""")';
       const { code, metadata } = parser.transformIn(pythonCode);
-      expect(code).toBe("SELECT * FROM {df}");
+      expect(code).toBe("SELECT * FROM {{df}}");
       expect(metadata.commentLines).toEqual(["# hello"]);
     });
   });
@@ -304,5 +305,123 @@ WHERE id IN ({str(data["items"][0]["id"])})`.trim(),
       const { code: roundtripped } = parser.transformIn(backToPython);
       expect(roundtripped).toBe(originalSQL);
     });
+  });
+});
+
+describe("SQL string boundaries", () => {
+  it("normalizes plain strings to f-strings without activating existing braces", () => {
+    const parsed = parser.transformIn('df = mo.sql("SELECT * FROM t{1+1}")');
+    expect(parsed.metadata.quotePrefix).toBe("f");
+    expect(parser.transformOut(parsed.code, parsed.metadata).code).toContain(
+      '\n    f"""\n',
+    );
+  });
+
+  it.each(["r", "rf", "fr"])(
+    "normalizes %s literals without changing Python fields",
+    (prefix) => {
+      const fields = prefix.includes("f") ? '{str("a\\n")}' : "{literal}";
+      const parsed = parser.transformIn(
+        `df = mo.sql(${prefix}"""SELECT 'a\\b' ${fields}""")`,
+      );
+      expect(parsed.code).toBe(
+        `SELECT 'a\\\\b' ${prefix.includes("f") ? fields : "{{literal}}"}`,
+      );
+      expect(parsed.metadata.quotePrefix).toBe("f");
+      const output = parser.transformOut(parsed.code, parsed.metadata).code;
+      expect(parser.transformIn(output).code).toBe(parsed.code);
+    },
+  );
+
+  it("contains quote runs for every preceding backslash parity", () => {
+    for (let slashes = 0; slashes < 6; slashes++) {
+      for (let quotes = 3; quotes < 13; quotes++) {
+        const query = `SELECT "t${"\\".repeat(slashes)}${'"'.repeat(quotes)} + str(1+1) + "a${'"'.repeat(quotes)}`;
+        const output = parser.transformOut(query, parser.defaultMetadata).code;
+        const syntax = parsePythonAST(output).toString();
+        expect(syntax).not.toContain("⚠");
+        expect(syntax).not.toContain("BinaryExpression");
+        const parsed = parser.transformIn(output);
+        expect(parser.transformOut(parsed.code, parsed.metadata).code).toBe(
+          output,
+        );
+      }
+    }
+  });
+
+  it("preserves long backslash runs separated from quote runs", () => {
+    const slashes = "\\".repeat(32_768);
+    const query = `SELECT '${slashes}x"""'`;
+    const output = parser.transformOut(query, parser.defaultMetadata).code;
+    expect(output).toContain(`${slashes}x${'\\"'.repeat(3)}`);
+    const parsed = parser.transformIn(output);
+    expect(parser.transformOut(parsed.code, parsed.metadata).code).toBe(output);
+  });
+  it("preserves triple-quoted Python expressions inside intentional interpolation", () => {
+    const query = `SELECT {"""hello""".upper()}, {value!r:>{width}}`;
+    const output = parser.transformOut(query, parser.defaultMetadata).code;
+    expect(output).toContain(query);
+    expect(parsePythonAST(output).toString()).not.toContain("⚠");
+  });
+
+  it("does not reinterpret a protected quote run when literal braces are present", () => {
+    const query = String.raw`SELECT "t{{1+1}}\""" + str(1+1) + "a"""""`;
+    const output = parser.transformOut(query, parser.defaultMetadata).code;
+    expect(parsePythonAST(output).toString()).not.toContain("BinaryExpression");
+  });
+
+  it.each(['SELECT "table"', 'SELECT """""""', "SELECT {value}"])(
+    "contains the string boundary when constructing a cell from %s",
+    (query) => {
+      const code = SQLParser.fromQuery(query);
+      expect(parsePythonAST(code).toString()).not.toContain("⚠");
+      expect(parser.transformIn(code).code).toBe(
+        parser.transformIn(
+          parser.transformOut(query, parser.defaultMetadata).code,
+        ).code,
+      );
+    },
+  );
+
+  it("preserves fields with triple quotes when SQL also contains triple single quotes", () => {
+    const query = `SELECT '''sql', {"""expr""".upper()}`;
+    const output = parser.transformOut(query, parser.defaultMetadata).code;
+    expect(output).toContain(query);
+    expect(parsePythonAST(output).toString()).not.toContain("⚠");
+  });
+
+  it.each([
+    String.raw`"a\N{BULLET}{literal}"`,
+    String.raw`r"a\N{BULLET}{literal}"`,
+    String.raw`"a\{str(1+1)}{literal}"`,
+    String.raw`"a\}{literal}"`,
+  ])(
+    "normalizes %s while keeping literal values and allowing new fields",
+    (literal) => {
+      const parsed = parser.transformIn(`df = mo.sql(${literal})`);
+      expect(parsed.metadata.quotePrefix).toBe("f");
+      expect(parsed.code).toContain("{{literal}}");
+      const original = parser.transformOut(parsed.code, parsed.metadata).code;
+      expect(parsePythonAST(original).toString()).not.toContain(
+        "FormatReplacement",
+      );
+      const edited = parser.transformOut(
+        `${parsed.code} {variable}`,
+        parsed.metadata,
+      ).code;
+      expect(
+        parsePythonAST(edited)
+          .toString()
+          .match(/FormatReplacement/g),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("preserves raw format-spec literals without changing Python expressions", () => {
+    const parsed = parser.transformIn(
+      String.raw`df = mo.sql(rf"{str('x\n'):>{width}\n}")`,
+    );
+    expect(parsed.code).toBe(String.raw`{str('x\n'):>{width}\\n}`);
+    expect(parsed.metadata.quotePrefix).toBe("f");
   });
 });

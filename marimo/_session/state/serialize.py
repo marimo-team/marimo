@@ -120,7 +120,7 @@ def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
         )
 
 
-def _restore_traceback(traceback: str | list[str] | None) -> str | None:
+def restore_traceback(traceback: str | list[str] | None) -> str | None:
     entries = as_list(traceback)
     if not entries:
         return None
@@ -277,7 +277,7 @@ def deserialize_session(
                                 exception_type=output["ename"],
                                 msg=output["evalue"],
                                 raising_cell=None,
-                                traceback=_restore_traceback(
+                                traceback=restore_traceback(
                                     output.get("traceback")
                                 ),
                             )
@@ -589,8 +589,9 @@ class SessionCacheManager:
         self.path = new_path
         self.start()
 
+    @staticmethod
     def is_cache_hit(
-        self, notebook_session: NotebookSessionV1, key: SessionCacheKey
+        notebook_session: NotebookSessionV1, key: SessionCacheKey
     ) -> bool:
         metadata = notebook_session.get("metadata")
         if not isinstance(metadata, dict):
