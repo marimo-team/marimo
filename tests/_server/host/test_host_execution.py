@@ -251,6 +251,69 @@ async def test_cell_runs_preserve_order_with_later_deletions(
     assert notebook.document.cell(cell.id) is None
 
 
+async def test_first_startup_preserves_host_order(tmp_path: Path) -> None:
+    source = (
+        "import marimo\napp = marimo.App()\n"
+        "@app.cell\ndef _():\n    x = 1\n    return (x,)\n"
+        "@app.cell\ndef _():\n    y = 2\n    return (y,)\n"
+    )
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        notebook = await app.state.host_context.bridge.host.notebook(
+            notebook_id
+        )
+        session = next(iter(app.state.session_manager.sessions.values()))
+        startup = CreateNotebookCommand(
+            execution_requests=tuple(
+                ExecuteCellCommand(cell_id=cell.id, code=cell.code)
+                for cell in notebook.document
+            ),
+            cell_ids=tuple(cell.id for cell in notebook.document),
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+            auto_run=False,
+        )
+        order = list(reversed(startup.cell_ids))
+        edited = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/edits",
+            headers=key("reorder-before-startup"),
+            body=json.dumps(
+                {
+                    "changes": [
+                        {"kind": "set_order", "base_etag": "*", "order": order}
+                    ]
+                }
+            ).encode(),
+        )
+        assert edited.status == 200, edited.body
+        revision = notebook.document.etag
+
+        session.put_control_request(startup, from_consumer_id=None)
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/execute",
+            headers=key("after-startup"),
+            body=b'{"code":"6 * 7"}',
+        )
+        assert accepted.status == 202, accepted.body
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("run", {}).get("id")
+                == accepted.json()["id"]
+                and r["data"]["run"]["status"] == "completed"
+                for r in response.records
+            ),
+        )
+        assert (notebook.document.etag, [c.id for c in notebook.document]) == (
+            revision,
+            order,
+        )
+
+
 @pytest.mark.parametrize("scratch", [False, True])
 async def test_repeated_startup_preserves_host_edits(
     tmp_path: Path, scratch: bool
