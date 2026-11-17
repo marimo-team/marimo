@@ -23,10 +23,11 @@ import {
 } from "@/core/session/connection-utils";
 import { ConnectionState } from "@/core/session/types";
 import { cn } from "@/utils/cn";
+import { useShowChangedInputs } from "@/core/executions";
 import { Functions } from "@/utils/functions";
 import {
   canUndoDeletesAtom,
-  needsRunAtom,
+  runReasonAtom,
   undoLabelAtom,
 } from "../../../core/cells/cells";
 import { useCellActions } from "../../../core/cells/actions";
@@ -58,7 +59,9 @@ export const Controls = ({
 }: ControlsProps): JSX.Element => {
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
   const undoLabel = useAtomValue(undoLabelAtom);
-  const needsRun = useAtomValue(needsRunAtom);
+  const reason = useAtomValue(runReasonAtom);
+  const showInputs = useShowChangedInputs(reason === "inputs");
+  const needsRun = reason === "inputs" ? showInputs : reason !== null;
   const { undoDeleteCell } = useCellActions();
   const closed = connectionState === ConnectionState.CLOSED;
 

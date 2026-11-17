@@ -3,8 +3,9 @@
 import { act, renderHook } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
+import { configOverridesAtom } from "@/core/config/config";
 import { cellId } from "@/__tests__/branded";
 import {
   cell,
@@ -12,7 +13,11 @@ import {
   withCells,
 } from "@/core/notebook/document/__tests__/fixtures";
 import { clearCellOutputs } from "../atoms";
-import { useCellFreshness, useCellOutput } from "../hooks";
+import {
+  useCellFreshness,
+  useCellOutput,
+  useShowChangedInputs,
+} from "../hooks";
 
 const C1 = cellId("c1");
 const C2 = cellId("c2");
@@ -103,6 +108,40 @@ describe("useCellFreshness", () => {
 
     expect(result.current).toBe(before.value);
     expect(renders).toBe(before.renders);
+  });
+});
+
+describe("input-change warnings", () => {
+  it("gives autorun time to queue a reader, but exposes an unhandled change", () => {
+    vi.useFakeTimers();
+    try {
+      const { wrapper, store } = setup([]);
+      const { result, rerender } = renderHook(
+        (changed: boolean) => useShowChangedInputs(changed),
+        {
+          wrapper,
+          initialProps: false,
+        },
+      );
+      rerender(true);
+      expect(result.current).toBe(false);
+      // Queued before the warning appeared.
+      rerender(false);
+      act(() => vi.runAllTimers());
+      expect(result.current).toBe(false);
+      rerender(true);
+      act(() => vi.runAllTimers());
+      expect(result.current).toBe(true);
+      rerender(false);
+      act(() => vi.runAllTimers());
+      act(() =>
+        store.set(configOverridesAtom, { runtime: { on_cell_change: "lazy" } }),
+      );
+      rerender(true);
+      expect(result.current).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

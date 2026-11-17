@@ -110,7 +110,6 @@ describe("cellExecutionView", () => {
       outcome: null,
       startedAt: null,
       duration: null,
-      rendered: false,
       live: true,
     });
   });
@@ -146,23 +145,8 @@ describe("cellExecutionView", () => {
       outcome: null,
       startedAt: Date.parse(T2),
       duration: null,
-      rendered: false,
       live: true,
     });
-  });
-
-  it("notes when a running execution has shown a value so far", () => {
-    const showing = inputs({
-      executions: [
-        execution({
-          id: "e1",
-          status: "running",
-          outcome: { kind: "value", display: null },
-          completed_at: null,
-        }),
-      ],
-    });
-    expect(cellExecutionView(showing, "c1").rendered).toBe(true);
   });
 
   it("says whether the notebook's runtime produced the cell's result", () => {
@@ -205,7 +189,6 @@ describe("cellExecutionView", () => {
       outcome: "value",
       startedAt: Date.parse(T0),
       duration: 1500,
-      rendered: false,
       live: true,
     });
     const error = (kind: string): Protocol.Outcome => ({

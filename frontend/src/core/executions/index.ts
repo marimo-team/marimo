@@ -34,6 +34,8 @@ export {
   useCellHasResult,
   useCellOutline,
   useCellOutput,
+  useCellPresentation,
+  useShowChangedInputs,
   useScratchOutput,
 } from "./hooks";
 export {

@@ -31,8 +31,6 @@ export interface CellExecutionView {
   readonly startedAt: Milliseconds | null;
   /** How long the last completed execution took, null while the cell runs again. */
   readonly duration: Milliseconds | null;
-  /** Whether the running execution has shown a value so far. TODO(MO-8404) */
-  readonly rendered: boolean;
 }
 
 /** What a cell's view is derived from. */
@@ -128,11 +126,9 @@ export function cellExecutionView(
   const result = inputs.results.get(id)?.record ?? null;
   let status: CellRunStatus = "idle";
   let startedAt = result === null ? null : millis(result.started_at);
-  let rendered = false;
   if (latest !== null && latest.record.status !== "completed") {
     status = latest.record.status;
     startedAt = millis(latest.record.started_at) ?? startedAt;
-    rendered = latest.record.outcome !== null;
   } else if (awaited(inputs, id)) {
     status = "queued";
   }
@@ -154,7 +150,6 @@ export function cellExecutionView(
       result.runtime_id === inputs.runtimeId,
     startedAt,
     duration,
-    rendered,
   };
 }
 

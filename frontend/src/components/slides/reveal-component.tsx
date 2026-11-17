@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
 import { outputIsStale } from "@/core/cells/cell";
-import { useCellExecution, useCellFreshness } from "@/core/executions";
+import { useCellPresentation } from "@/core/executions";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
@@ -353,8 +353,7 @@ function resolveSlideContentStyle(
  * `display: contents`, which can't be targeted for background/border styling.
  */
 export const CellOutputBlock = ({ cell }: { cell: RuntimeCell }) => {
-  const execution = useCellExecution(cell.id);
-  const freshness = useCellFreshness(cell.id);
+  const { execution, freshness } = useCellPresentation(cell.id);
   return (
     <div className="flex flex-col" {...cellDomProps(cell.id, cell.name)}>
       <CellOutputSlide
