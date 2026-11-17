@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._core import protocol
 from marimo._core.code import code_fingerprint
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
@@ -241,6 +242,93 @@ async def test_cell_runs_preserve_order_with_later_deletions(
         == "succeeded"
     )
     assert notebook.document.cell(cell.id) is None
+
+
+@pytest.mark.parametrize(
+    "notebook_source",
+    [
+        (
+            "import marimo\napp = marimo.App()\n"
+            "@app.cell\ndef _():\n    import marimo as mo\n    return (mo,)\n"
+            '@app.cell\ndef _(mo):\n    mo.md("# Startup markdown")\n    return\n'
+            "@app.cell\ndef _():\n    answer = 42\n    return (answer,)\n"
+        )
+    ],
+    indirect=True,
+    ids=["markdown"],
+)
+@pytest.mark.parametrize("run_cell", [False, True])
+async def test_startup_markdown_has_a_retained_result_and_its_own_completed_run(
+    live_host: tuple[Starlette, str, Response], run_cell: bool
+) -> None:
+    app, notebook_id, events = live_host
+    notebook = await app.state.host_context.bridge.host.notebook(notebook_id)
+    _, markdown, regular = notebook.document
+    requested_run = None
+    if run_cell:
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/runs",
+            headers=key("after-markdown"),
+            body=json.dumps(
+                {"cells": [{"id": regular.id, "etag": regular.etag}]}
+            ).encode(),
+        )
+        assert accepted.status == 202
+        requested_run = accepted.json()["id"]
+    else:
+        session = next(iter(app.state.session_manager.sessions.values()))
+        session.instantiate(
+            InstantiateNotebookRequest(
+                object_ids=[], values=[], auto_run=False
+            ),
+            http_request=None,
+        )
+    await wait_for(
+        events,
+        lambda response: (
+            len(
+                {
+                    r["data"]["run"]["id"]
+                    for r in response.records
+                    if r.get("data", {}).get("run", {}).get("status")
+                    == "completed"
+                }
+            )
+            == (2 if run_cell else 1)
+        ),
+    )
+    completed = {
+        r["data"]["run"]["id"]: r["data"]["run"]["outcome"]
+        for r in events.records
+        if r.get("data", {}).get("run", {}).get("status") == "completed"
+    }
+    result = notebook.executions.current(markdown.id)
+    assert result is not None
+    execution = result.execution
+    assert execution.run_id is not None
+    assert (execution.status, execution.code_fingerprint) == (
+        "completed",
+        markdown.code_fingerprint,
+    )
+    assert isinstance(execution.outcome, protocol.ValueOutcome)
+    assert execution.outcome.display is not None
+    assert execution.outcome.display.mimetype == "text/markdown"
+    assert "Startup markdown" in execution.outcome.display.data
+    expected = {execution.run_id: "succeeded"}
+    regular_result = notebook.executions.current(regular.id)
+    if requested_run is not None:
+        assert requested_run != execution.run_id
+        expected[requested_run] = "succeeded"
+        assert regular_result is not None
+        assert (
+            regular_result.execution.run_id,
+            regular_result.execution.status,
+        ) == (requested_run, "completed")
+    else:
+        assert regular_result is None
+    assert completed == expected
 
 
 @pytest.fixture
