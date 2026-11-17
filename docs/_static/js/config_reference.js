@@ -1,71 +1,33 @@
 (function () {
-  let cleanup = () => {};
+  function select(toc, hash) {
+    toc.closest(".md-nav--secondary").classList.add("configuration-toc");
+    for (const group of toc.children) {
+      group.classList.toggle(
+        "configuration-active",
+        group.querySelector("a").hash === hash,
+      );
+    }
+  }
 
-  function init() {
-    cleanup();
-    const categories = [...document.querySelectorAll(".configuration-category")];
-    if (!categories.length) return;
+  // Material supplies the active heading's path and handles scroll/resize tracking.
+  component$.subscribe(({ ref, prev }) => {
+    if (!ref.matches('[data-md-component="toc"]')) return;
+    if (!document.querySelector(".configuration-category")) return;
+    select(ref, prev.at(-1)?.at(-1)?.hash);
+  });
 
-    const controller = new AbortController();
-    const options = { signal: controller.signal };
-    const menus = [...document.querySelectorAll(".md-nav--secondary")];
-    const groups = menus.flatMap((menu) => {
-      menu.classList.add("configuration-toc");
-      return [...menu.querySelectorAll(":scope > ul > li")];
-    });
-
-    function select(id) {
-      for (const group of groups) {
-        const link = group.querySelector("a");
-        group.classList.toggle(
-          "configuration-active",
-          link && new URL(link.href).hash === `#${id}`,
-        );
+  target$.subscribe((target) => {
+    if (!target.matches(".configuration-category, .configuration-option")) return;
+    let category = target;
+    while (category && !category.matches(".configuration-category")) {
+      category = category.previousElementSibling;
+    }
+    if (!category) return;
+    requestAnimationFrame(() => {
+      if (!category.isConnected) return;
+      for (const toc of document.querySelectorAll('[data-md-component="toc"]')) {
+        select(toc, `#${category.id}`);
       }
-    }
-
-    function update() {
-      const header = document.querySelector(".md-header");
-      const readingLine = Math.max(
-        header?.getBoundingClientRect().bottom ?? 0,
-        window.innerHeight * 0.4,
-      );
-      const current = categories.findLast(
-        (heading) => heading.getBoundingClientRect().top <= readingLine,
-      );
-      select(current?.id);
-    }
-
-    let frame;
-    window.addEventListener("scroll", () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = undefined;
-        update();
-      });
-    }, { ...options, passive: true });
-    window.addEventListener("resize", update, options);
-    for (const menu of menus) {
-      menu.addEventListener("click", (event) => {
-        const link = event.target.closest("a");
-        const category = link && categories.find(
-          (heading) => new URL(link.href).hash === `#${heading.id}`,
-        );
-        if (category) select(category.id);
-      }, options);
-    }
-    update();
-    cleanup = () => {
-      controller.abort();
-      cancelAnimationFrame(frame);
-    };
-  }
-
-  if (typeof document$ !== "undefined") {
-    document$.subscribe(init);
-  } else if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+    });
+  });
 })();
