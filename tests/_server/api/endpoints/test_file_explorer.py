@@ -446,7 +446,9 @@ def test_copy_directory(client: TestClient) -> None:
     assert copy_sub_dir.joinpath("inner.txt").read_text() == "inner content"
 
 
-def test_open_file(client: TestClient) -> None:
+def test_open_file(client: TestClient, tmp_path: Path) -> None:
+    path = tmp_path / "test_file.txt"
+    path.write_text(test_content, encoding="utf-8")
     with patch(
         "marimo._server.api.endpoints.file_explorer.file_system.open_in_editor",
         return_value=True,
@@ -454,12 +456,12 @@ def test_open_file(client: TestClient) -> None:
         response = client.post(
             "/api/files/open",
             headers=HEADERS,
-            json={"path": test_file_path},
+            json={"path": str(path)},
         )
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
     assert response.json()["success"] is True
-    open_in_editor.assert_called_once_with(test_file_path, None)
+    open_in_editor.assert_called_once_with(str(path), None)
 
 
 def test_search_files_basic(client: TestClient, tmp_path: Path) -> None:
