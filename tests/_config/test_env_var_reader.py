@@ -35,6 +35,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         (("package_management", "manager"), "pixi", "pixi"),
         (("server", "skip_update_check"), "true", True),
         (("server", "session_cookie_secure"), "1", True),
+        (("server", "session_cookie_partitioned"), "true", True),
         (("server", "session_secret"), "session-secret", "session-secret"),
         (("runtime", "sql_default_limit"), "300", 300),
         (("runtime", "sql_default_limit"), "null", None),
@@ -182,14 +183,16 @@ def test_migrated_settings_from_user_file(
     manager = MarimoConfigManager(user)
     config = manager.get_config(hide_secrets=False).to_dict()
     assert config["runtime"]["sql_default_limit"] == 200
-    assert config["server"] == {
-        "disable_file_downloads": False,
-        "browser": "default",
-        "follow_symlink": False,
-        "skip_update_check": True,
-        "session_cookie_secure": True,
-        "session_secret": "private-secret",
-    }
+    from marimo._config.config_schema import ServerConfig
+
+    assert (
+        config["server"]
+        == ServerConfig(
+            skip_update_check=True,
+            session_cookie_secure=True,
+            session_secret="private-secret",
+        ).to_dict()
+    )
     assert manager.get_config().server.session_secret == "********"
     assert (
         create_starlette_app(
@@ -200,8 +203,11 @@ def test_migrated_settings_from_user_file(
     )
 
 
-def test_session_secret_from_project_is_ignored(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    "key", ["session_secret", "token_password", "token_password_file"]
+)
+def test_server_credentials_from_project_are_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str
 ) -> None:
     from marimo._config.manager import (
         MarimoConfigManager,
@@ -210,21 +216,44 @@ def test_session_secret_from_project_is_ignored(
     )
 
     user_path = tmp_path / "marimo.toml"
-    user_path.write_text('[server]\nsession_secret = "user-secret"\n')
+    user_path.write_text(f'[server]\n{key} = "user-secret"\n')
     user = UserConfigStore()
     monkeypatch.setattr(user, "get_config_path", lambda: str(user_path))
     monkeypatch.setattr(
         "marimo._config.manager.is_trusted_user_config_path", lambda _: True
     )
     (tmp_path / "pyproject.toml").write_text(
-        '[tool.marimo.server]\nsession_secret = "project-secret"\n'
+        f'[tool.marimo.server]\n{key} = "project-secret"\n'
     )
     manager = MarimoConfigManager(user, PyprojectConfigReader(str(tmp_path)))
     assert (
-        manager.get_config(hide_secrets=False).to_dict()["server"][
-            "session_secret"
-        ]
+        manager.get_config(hide_secrets=False).to_dict()["server"][key]
         == "user-secret"
+    )
+
+
+@pytest.mark.parametrize(
+    "key", ["session_secret", "token_password", "token_password_file"]
+)
+def test_server_credentials_from_workspace_are_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str
+) -> None:
+    from marimo._config.manager import MarimoConfigManager, UserConfigStore
+
+    path = tmp_path / ".marimo.toml"
+    path.write_text(f'[server]\n{key} = "workspace-secret"\n')
+    user = UserConfigStore()
+    monkeypatch.setattr(user, "get_config_path", lambda: str(path))
+    monkeypatch.setattr(
+        "marimo._config.manager.is_trusted_user_config_path", lambda _: False
+    )
+
+    assert user.read() == {"server": {}}
+    assert (
+        MarimoConfigManager(user)
+        .get_config(hide_secrets=False)
+        .to_dict()["server"][key]
+        is None
     )
 
 

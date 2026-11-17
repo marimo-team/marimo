@@ -81,3 +81,24 @@ def test_embedded_python_bootstrap(tmp_path: Path, flag: str) -> None:
 def test_repository_python_commands_use_safe_paths() -> None:
     result = run_check()
     assert result.returncode == 0, result.stderr
+
+
+def test_default_scan_excludes_only_smoke_notebooks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import check_python_safe_path
+
+    package = tmp_path / "marimo"
+    smoke_tests = package / "_smoke_tests"
+    smoke_tests.mkdir(parents=True)
+    notebook = smoke_tests / "notebook.py"
+    notebook.write_text("this is not valid Python!")
+    helper = package / "helper.py"
+    helper.write_text('command = ["python", "-m", "marimo"]')
+    monkeypatch.setattr(check_python_safe_path, "REPO_ROOT", tmp_path)
+
+    assert check_python_safe_path.main([]) == 1
+    helper.write_text('command = ["python", "-P", "-m", "marimo"]')
+    assert check_python_safe_path.main([]) == 0
+    with pytest.raises(SyntaxError):
+        check_python_safe_path.main([str(smoke_tests)])

@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { RuntimeCell } from "@/core/cells/types";
 import type { CellColumnId } from "@/core/cells/layout";
 import { SlidesMinimap } from "../minimap";
 
@@ -77,13 +77,13 @@ beforeAll(() => {
 
 // The minimap only reads `id`/`code`/`status`/`output`, so a minimal stub is
 // enough; the cast is confined to this helper.
-function makeCell(id: CellId): CellRuntimeState & CellData {
+function makeCell(id: CellId): RuntimeCell {
   return {
     id,
     code: `print("${id}")`,
     output: null,
     status: "idle",
-  } as unknown as CellRuntimeState & CellData;
+  } as unknown as RuntimeCell;
 }
 
 function renderMinimap() {

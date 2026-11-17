@@ -16,7 +16,10 @@ import { Logger } from "@/utils/Logger";
 import { initializeIslands } from "./bootstrap";
 import { getGlobalBridge } from "./bridge";
 import { ISLAND_CSS_CLASSES, ISLAND_TAG_NAMES } from "./constants";
+import { registerIframeResizer } from "./iframe-resizer";
 import { parseMarimoIslandApps } from "./parse";
+
+registerIframeResizer();
 
 const bridge = getGlobalBridge();
 let bootstrapPromise: Promise<void> | undefined;

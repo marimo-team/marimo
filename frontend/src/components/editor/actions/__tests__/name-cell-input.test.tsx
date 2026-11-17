@@ -37,6 +37,7 @@ describe("NameCellContentEditable", () => {
     const model = createDocumentModel({
       store,
       documentAtom: source,
+      shownDocumentAtom: source,
       backendAtom: atom(fakeBackend()),
     });
     const controller = new AbortController();

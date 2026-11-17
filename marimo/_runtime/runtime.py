@@ -2775,7 +2775,7 @@ class Kernel:
         For cells that contain only markdown (mo.md calls), this method:
         1. Compiles the cells to extract markdown content
         2. Renders the markdown to HTML
-        3. Broadcasts the rendered output immediately
+        3. Broadcasts the rendered output immediately, as an execution
         4. Marks the cells as completed (not stale)
         5. Removes them from uninstantiated requests
 
@@ -2821,15 +2821,22 @@ class Kernel:
             html_obj = md(content)
             mimetype, html_content = html_obj._mime_()
 
-            # Broadcast the markdown output
-            CellNotificationUtils.broadcast_output(
-                channel=CellChannel.OUTPUT,
-                mimetype=mimetype,
-                data=html_content,
-                cell_id=cell_id,
-                status="idle",
+            # The rendered markdown is the cell's result, so it is reported
+            # as an execution like any other.
+            request = execution_requests.pop(cell_id)
+            execution = ExecutionAttempt.plan(
+                cell_id, request.code, request.code_fingerprint
             )
-            del execution_requests[cell_id]
+            execution.start()
+            with execution.activate():
+                CellNotificationUtils.broadcast_output(
+                    channel=CellChannel.OUTPUT,
+                    mimetype=mimetype,
+                    data=html_content,
+                    cell_id=cell_id,
+                    status="idle",
+                )
+            execution.finish()
 
     def load_dotenv(self) -> None:
         dotenvs = default_if_unset(self.user_config.runtime.dotenv, [])

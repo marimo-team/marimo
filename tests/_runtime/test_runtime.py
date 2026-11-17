@@ -29,6 +29,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.notification import (
     CellNotification,
+    ExecutionNotification,
     VariablesNotification,
     VariableValuesNotification,
 )
@@ -4906,11 +4907,11 @@ class TestMarkdownHandling:
         assert "regular_cell" in k._uninstantiated_execution_requests
 
         # Check that the markdown cell output was broadcast
-        cell_notifications = [
+        notifications = [
             deserialize_kernel_message(msg) for msg in stream.messages
         ]
         cell_notifications = [
-            op for op in cell_notifications if isinstance(op, CellNotification)
+            op for op in notifications if isinstance(op, CellNotification)
         ]
 
         # Find operations for the markdown cell
@@ -4930,6 +4931,23 @@ class TestMarkdownHandling:
         assert "Hello World" in output_op.output.data
         assert "<h1" in output_op.output.data  # Should be rendered as HTML
         assert output_op.status == "idle"
+
+        # The rendered markdown is the result of an execution of its cell,
+        # and no other cell has one.
+        executions = [
+            op for op in notifications if isinstance(op, ExecutionNotification)
+        ]
+        assert [(op.cell_id, op.phase) for op in executions] == [
+            ("md_cell", "planned"),
+            ("md_cell", "running"),
+            ("md_cell", "completed"),
+        ]
+        assert {op.execution_id for op in executions} == {
+            output_op.execution_id
+        }
+        assert executions[0].code_fingerprint == (
+            execution_requests[0].code_fingerprint
+        )
 
     @pytest.mark.skipif(
         sys.version_info < (3, 14), reason="Template strings only on 3.14"

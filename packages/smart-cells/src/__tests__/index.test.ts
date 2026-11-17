@@ -8,6 +8,8 @@ it("index.ts should export the correct modules", () => {
       "MarkdownParser",
       "PythonParser",
       "SQLParser",
+      "escapeSQLString",
+      "getSQLInterpolationRanges",
     ]
   `);
 });

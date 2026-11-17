@@ -13,7 +13,6 @@ exports[`cell reducer > can initialize stdin > initial state 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -31,7 +30,6 @@ exports[`cell reducer > can initialize stdin > prepared for run 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -49,7 +47,6 @@ exports[`cell reducer > can initialize stdin > queued message received 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -67,7 +64,6 @@ exports[`cell reducer > can initialize stdin > running message received 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -108,7 +104,6 @@ exports[`cell reducer > can initialize stdin > second stdin requested 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -142,7 +137,6 @@ exports[`cell reducer > can initialize stdin > stdin answered 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -174,7 +168,6 @@ exports[`cell reducer > can initialize stdin > stdin requested 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -199,7 +192,6 @@ exports[`cell reducer > can initialize stdin > stdout received 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -224,7 +216,6 @@ exports[`cell reducer > can initialize stdin > stdout verified 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -242,7 +233,6 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -267,7 +257,6 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -285,7 +274,6 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -310,7 +298,6 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -335,7 +322,6 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -353,7 +339,6 @@ exports[`cell reducer > can run a stale cell > queued message received 1`] = `
   "debuggerActive": false,
   "id": "1",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -371,7 +356,6 @@ exports[`cell reducer > can run a stale cell > stale inputs received 1`] = `
   "debuggerActive": false,
   "id": "1",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -389,19 +373,7 @@ exports[`cell reducer > can run a stopped cell > ancestor stopped 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
-  "output": {
-    "channel": "marimo-error",
-    "data": [
-      {
-        "msg": "This cell wasn't run because an ancestor was stopped with \`mo.stop\`: ",
-        "raising_cell": "2",
-        "type": "ancestor-stopped",
-      },
-    ],
-    "mimetype": "application/vnd.marimo+error",
-    "timestamp": 20,
-  },
+  "output": null,
 }
 `;
 
@@ -418,7 +390,6 @@ exports[`cell reducer > can run a stopped cell > idle message received 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -436,19 +407,7 @@ exports[`cell reducer > can run a stopped cell > queued after stop 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
-  "output": {
-    "channel": "marimo-error",
-    "data": [
-      {
-        "msg": "This cell wasn't run because an ancestor was stopped with \`mo.stop\`: ",
-        "raising_cell": "2",
-        "type": "ancestor-stopped",
-      },
-    ],
-    "mimetype": "application/vnd.marimo+error",
-    "timestamp": 20,
-  },
+  "output": null,
 }
 `;
 
@@ -465,7 +424,6 @@ exports[`cell reducer > can run a stopped cell > queued message received 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -483,7 +441,6 @@ exports[`cell reducer > can run a stopped cell > running after stop 1`] = `
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -509,13 +466,7 @@ import numpy",
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
-  "output": {
-    "channel": "output",
-    "data": "ok",
-    "mimetype": "text/plain",
-    "timestamp": 0,
-  },
+  "output": null,
 }
 `;
 
@@ -532,7 +483,6 @@ exports[`cell reducer > can run cell and receive cell messages > code edited 1`]
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -558,13 +508,7 @@ import numpy",
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
-  "output": {
-    "channel": "output",
-    "data": "ok",
-    "mimetype": "text/plain",
-    "timestamp": 0,
-  },
+  "output": null,
 }
 `;
 
@@ -588,13 +532,7 @@ exports[`cell reducer > can run cell and receive cell messages > code reverted 1
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
-  "output": {
-    "channel": "output",
-    "data": "ok",
-    "mimetype": "text/plain",
-    "timestamp": 0,
-  },
+  "output": null,
 }
 `;
 
@@ -618,7 +556,6 @@ exports[`cell reducer > can run cell and receive cell messages > console message
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -644,19 +581,7 @@ import numpy",
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
-  "output": {
-    "channel": "marimo-error",
-    "data": [
-      {
-        "exception_type": "ValueError",
-        "msg": "Oh no!",
-        "type": "exception",
-      },
-    ],
-    "mimetype": "application/vnd.marimo+error",
-    "timestamp": 0,
-  },
+  "output": null,
 }
 `;
 
@@ -673,7 +598,6 @@ exports[`cell reducer > can run cell and receive cell messages > initial state 1
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -699,17 +623,7 @@ import numpy",
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
-  "output": {
-    "channel": "marimo-error",
-    "data": [
-      {
-        "type": "interruption",
-      },
-    ],
-    "mimetype": "application/vnd.marimo+error",
-    "timestamp": 0,
-  },
+  "output": null,
 }
 `;
 
@@ -733,13 +647,7 @@ exports[`cell reducer > can run cell and receive cell messages > output received
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
-  "output": {
-    "channel": "output",
-    "data": "ok",
-    "mimetype": "text/plain",
-    "timestamp": 0,
-  },
+  "output": null,
 }
 `;
 
@@ -756,7 +664,6 @@ exports[`cell reducer > can run cell and receive cell messages > prepared for ru
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -774,7 +681,6 @@ exports[`cell reducer > can run cell and receive cell messages > queued message 
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;
@@ -792,7 +698,6 @@ exports[`cell reducer > can run cell and receive cell messages > running message
   "debuggerActive": false,
   "id": "0",
   "name": "_",
-  "outline": null,
   "output": null,
 }
 `;

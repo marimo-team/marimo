@@ -82,6 +82,8 @@ function languages(id: CellId) {
       expandCell: vi.fn(),
       collapseAllCells: vi.fn(),
       expandAllCells: vi.fn(),
+      clearCellOutput: vi.fn(),
+      clearAllCellOutputs: vi.fn(),
       showCellIfHidden: vi.fn(),
       moveCell: vi.fn(),
       moveCellToIndex: vi.fn(),
@@ -128,6 +130,7 @@ function setup({
   const model = createDocumentModel({
     store,
     documentAtom: source,
+    shownDocumentAtom: source,
     backendAtom: atom(fakeBackend({ edit: () => new Promise(() => {}) })),
   });
   const controller = new AbortController();

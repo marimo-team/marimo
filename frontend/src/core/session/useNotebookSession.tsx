@@ -418,6 +418,7 @@ export function useNotebookSession(opts: {
       createDocumentModel({
         store,
         documentAtom: replica.documentAtom,
+        shownDocumentAtom: replica.shownDocumentAtom,
         backendAtom: replica.backendAtom,
       }),
     [store, replica],

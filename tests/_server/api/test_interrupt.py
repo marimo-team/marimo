@@ -8,8 +8,10 @@ import textwrap
 from unittest.mock import Mock, patch
 
 import pytest
+import uvicorn
 
 from marimo._server.api.interrupt import InterruptHandler
+from marimo._server.uvicorn_utils import close_uvicorn
 
 
 @pytest.mark.parametrize("quiet", [False, True])
@@ -90,6 +92,19 @@ async def test_shutdown_filters_duplicates_but_allows_force_quit(
         clock.monotonic.return_value = 11.1
         with pytest.raises(KeyboardInterrupt):
             interrupt_shutdown(signal.SIGINT, None)
+
+
+def test_programmatic_shutdown_is_graceful() -> None:
+    server = uvicorn.Server(uvicorn.Config(Mock()))
+    with patch.object(
+        server, "handle_exit", wraps=server.handle_exit
+    ) as handle_exit:
+        close_uvicorn(server)
+        close_uvicorn(server)
+
+    assert server.should_exit
+    assert not server.force_exit
+    handle_exit.assert_not_called()
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Uses POSIX signals")

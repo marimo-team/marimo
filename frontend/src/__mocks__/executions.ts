@@ -14,6 +14,7 @@ import {
   type NotebookBackend,
   type NotebookReplica,
   type Results,
+  type Result,
 } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 
@@ -52,7 +53,7 @@ function completed(
   };
 }
 
-function mirror(records: Protocol.Execution[]): Executions {
+function mirror(records: readonly Protocol.Execution[]): Executions {
   const executions = new Map<Protocol.ExecutionId, Execution>();
   const latest = new Map<Protocol.CellId, Protocol.ExecutionId>();
   for (const record of records) {
@@ -66,18 +67,34 @@ function mirror(records: Protocol.Execution[]): Executions {
     }
     executions.set(record.id, {
       record,
+      outputVersion: 0,
       items: new Map(),
       variables: new Map(),
     });
   }
-  return { runs: new Map(), executions, latest };
+  const scratch = records.findLast(
+    (record) => record.cell_id === null && record.outcome !== null,
+  );
+  return {
+    runs: new Map(),
+    executions,
+    latest,
+    results: results(records),
+    scratch:
+      scratch === undefined ? null : { record: scratch, outputVersion: 0 },
+  };
 }
 
-function results(records: Protocol.Execution[]): Results {
-  const results = new Map<Protocol.CellId, Protocol.Execution>();
+function results(records: readonly Protocol.Execution[]): Results {
+  const results = new Map<Protocol.CellId, Result | null>();
   for (const record of records) {
-    if (record.cell_id !== null && record.status === "completed") {
-      results.set(record.cell_id, record);
+    if (record.cell_id !== null) {
+      if (!results.has(record.cell_id)) {
+        results.set(record.cell_id, null);
+      }
+      if (record.status === "completed") {
+        results.set(record.cell_id, { record, outputVersion: 0 });
+      }
     }
   }
   return results;
@@ -95,7 +112,24 @@ export const MockExecutions = {
     });
   },
 
-  errored(cellId: string): Protocol.Execution {
+  /** A completed execution that showed `display`. */
+  shown(
+    cellId: string,
+    display: Protocol.DisplayData,
+    overrides: Partial<Protocol.Execution> = {},
+  ): Protocol.Execution {
+    return completed(cellId, {
+      outcome: { kind: "value", display },
+      ...overrides,
+    });
+  },
+
+  /** A completed execution that ended in `error`, a ValueError by default. */
+  failed(
+    cellId: string,
+    error: Partial<Protocol.Error> = {},
+    overrides: Partial<Protocol.Execution> = {},
+  ): Protocol.Execution {
     return completed(cellId, {
       outcome: {
         kind: "error",
@@ -108,9 +142,15 @@ export const MockExecutions = {
           severity: "error",
           range: null,
           related: [],
+          ...error,
         },
       },
+      ...overrides,
     });
+  },
+
+  errored(cellId: string): Protocol.Execution {
+    return MockExecutions.failed(cellId);
   },
 
   interrupted(cellId: string): Protocol.Execution {
@@ -173,7 +213,7 @@ export const MockExecutions = {
    * with nothing keeping it from running.
    */
   inputs(
-    records: Protocol.Execution[],
+    records: readonly Protocol.Execution[],
     extra: Partial<Pick<CellExecutionInputs, "requested" | "blocked">> = {},
   ): CellExecutionInputs {
     return {
@@ -186,6 +226,7 @@ export const MockExecutions = {
       ),
       requested: new Set(),
       blocked: new Set(),
+      runtimeId: null,
       ...extra,
     };
   },
@@ -198,6 +239,7 @@ export const MockExecutions = {
     document: Document | null = null,
   ) {
     const current = store.get(activeNotebookReplicaAtom);
+    const documentAtom = atom<Document | null>(document);
     const replica = {
       attachmentsAtom: atom([]),
       connect: () => () => undefined,
@@ -208,7 +250,8 @@ export const MockExecutions = {
       connectionAtom: atom<ConnectionStatus>({ state: ConnectionState.OPEN }),
       backendAtom: atom<NotebookBackend | null>(null),
       notebookAtom: atom<Protocol.Notebook | null>(MockExecutions.notebook()),
-      documentAtom: atom<Document | null>(document),
+      documentAtom,
+      shownDocumentAtom: documentAtom,
       runtimeAtom: atom(runtime),
       executionsAtom: atom(mirror(records)),
       resultsAtom: atom(results(records)),

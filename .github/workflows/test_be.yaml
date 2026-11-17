@@ -152,7 +152,7 @@ jobs:
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
     name: macos-latest / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
     runs-on: macos-latest
-    timeout-minutes: 25
+    timeout-minutes: 35 # 2026-11-16 core,optional takes 22-25m on broad backend changes
     strategy:
       # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
