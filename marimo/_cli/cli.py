@@ -381,7 +381,14 @@ class _OptionalValueOption(click.Option):
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a container.",
+)
+@click.option(
+    "--container-engine",
+    default="docker",
+    callback=validators.container_engine,
+    type=str,
+    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman.",
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
@@ -467,6 +474,7 @@ def edit(
     sandbox: str | None,
     no_sandbox: bool,
     trusted: bool | None,
+    container_engine: str,
     profile_dir: str | None,
     remote_url: str | None,
     convert: bool,
@@ -505,12 +513,15 @@ def edit(
         name = path.absolute_name
         stdin_notebook = name
 
-    if prompt_run_in_docker_container(name, trusted=trusted):
+    if prompt_run_in_docker_container(
+        name, engine=container_engine, trusted=trusted
+    ):
         from marimo._cli.run_docker import run_in_docker
 
         run_in_docker(
             name,
             "edit",
+            engine=container_engine,
             port=server_config.port,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         )
@@ -994,7 +1005,14 @@ Example:
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a container.",
+)
+@click.option(
+    "--container-engine",
+    default="docker",
+    callback=validators.container_engine,
+    type=str,
+    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman.",
 )
 @click.option(
     "--server-startup-command",
@@ -1036,6 +1054,7 @@ def run(
     no_sandbox: bool,
     check: bool,
     trusted: bool | None,
+    container_engine: str,
     server_startup_command: str | None,
     asset_url: str | None,
     execute_opengraph_generators: bool,
@@ -1063,7 +1082,7 @@ def run(
     )
 
     if len(paths) == 1 and prompt_run_in_docker_container(
-        paths[0], trusted=trusted
+        paths[0], engine=container_engine, trusted=trusted
     ):
         from marimo._cli.run_docker import run_in_docker
 
@@ -1073,6 +1092,7 @@ def run(
         run_in_docker(
             paths[0],
             "run",
+            engine=container_engine,
             port=config_manager.get_config().server.port,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
             execute_opengraph_generators=execute_opengraph_generators,

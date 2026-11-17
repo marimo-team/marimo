@@ -18,7 +18,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def prompt_run_in_docker_container(
-    name: str | None, trusted: bool | None = None
+    name: str | None, *, engine: str, trusted: bool | None = None
 ) -> bool:
     if GLOBAL_SETTINGS.IN_SECURE_ENVIRONMENT:
         return False
@@ -41,33 +41,41 @@ def prompt_run_in_docker_container(
 
     return click.confirm(
         "This notebook is hosted on a remote server.\n"
+        + muted(
+            f"Container engine: {engine} (change with --container-engine)\n"
+        )
         + green(
-            "Would you like to run it in a secure docker container?",
+            "Would you like to run it in a secure container?",
             bold=True,
         ),
         default=True,
     )
 
 
-def _check_docker_installed() -> bool:
+def _check_container_installed(engine: str) -> bool:
     try:
         subprocess.run(
-            ["docker", "--version"], check=True, capture_output=True, text=True
+            [engine, "--version"], check=True, capture_output=True, text=True
         )
         return True
     except subprocess.CalledProcessError:
         return False
-    except FileNotFoundError:
+    except OSError:
         return False
 
 
-def _check_docker_running() -> bool:
+def _check_container_running(engine: str) -> bool:
     try:
         subprocess.run(
-            ["docker", "info"], check=True, capture_output=True, text=True
+            [engine, "info"],
+            check=True,
+            capture_output=True,
+            text=True,
+            # An unreachable engine can hang instead of failing.
+            timeout=10,
         )
         return True
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return False
 
 
@@ -75,12 +83,10 @@ def echo_red(text: str) -> None:
     echo(red(text))
 
 
-# Run a marimo file in a docker container
-# marimo edit https://github.com/some/file.py --docker
-def _check_port_in_use(port: int) -> str | None:
+def _check_port_in_use(engine: str, port: int) -> str | None:
     try:
         result = subprocess.run(
-            ["docker", "ps", "--format", "{{.ID}}\t{{.Ports}}", "--no-trunc"],
+            [engine, "ps", "--format", "{{.ID}}\t{{.Ports}}", "--no-trunc"],
             check=True,
             capture_output=True,
             text=True,
@@ -98,6 +104,7 @@ def run_in_docker(
     file_path: str | None,
     mode: Literal["edit", "run"],
     *,
+    engine: str,
     port: int | None,
     debug: bool = False,
     execute_opengraph_generators: bool = False,
@@ -108,20 +115,23 @@ def run_in_docker(
     if port is None:
         port = 8080
 
-    if not _check_docker_installed():
+    if not _check_container_installed(engine):
         raise MarimoCLIRuntimeError(
-            "Docker is not installed. Please install Docker and try again."
+            f"{engine} is not installed. Please install {engine} and try "
+            "again, or choose another engine with --container-engine."
         )
 
-    if not _check_docker_running():
+    if not _check_container_running(engine):
         raise MarimoCLIRuntimeError(
-            "Docker daemon is not running. Please start Docker and try again."
+            f"{engine} is not running or not responding. Please start "
+            f"{engine} and try again, or choose another engine with "
+            "--container-engine."
         )
 
     # Check if the port is already in use
-    existing_container = _check_port_in_use(port)
+    existing_container = _check_port_in_use(engine, port)
     if existing_container:
-        stop_command = muted(f"docker stop {existing_container}")
+        stop_command = muted(f"{engine} stop {existing_container}")
         raise MarimoCLIRuntimeError(
             f"Port {port} is already in use by container {existing_container}.\n"
             "To remove the existing container, run:\n"
@@ -150,9 +160,9 @@ def run_in_docker(
     if file_path is not None:
         container_command.append(file_path)
 
-    # Construct the docker run command
-    docker_command = [
-        "docker",
+    # Construct the container run command
+    run_command = [
+        engine,
         "run",
         "--rm",
         "-d",
@@ -168,18 +178,18 @@ def run_in_docker(
     ] + container_command
 
     # Run the container
-    echo(f"Running command: {muted(' '.join(docker_command))}")
+    echo(f"Running command: {muted(' '.join(run_command))}")
     container_id = None
     try:
         result = subprocess.run(
-            docker_command, check=True, capture_output=True, text=True
+            run_command, check=True, capture_output=True, text=True
         )
         container_id = result.stdout.strip()
         echo(f"Container ID: {muted(container_id)}")
         echo(f"URL: {green(f'http://{host}:{port}')}")
 
         # Stream logs
-        log_command = ["docker", "logs", "-f", container_id]
+        log_command = [engine, "logs", "-f", container_id]
         with subprocess.Popen(
             log_command,
             stdout=subprocess.PIPE,
@@ -193,14 +203,14 @@ def run_in_docker(
                 echo("Received keyboard interrupt.")
     except subprocess.CalledProcessError as e:
         raise MarimoCLIRuntimeError(
-            f"Failed to start Docker container: {e}"
+            f"Failed to start {engine} container: {e}"
         ) from e
     finally:
         echo("Stopping and removing container...")
         try:
             if container_id is not None:
                 subprocess.run(
-                    ["docker", "stop", container_id],
+                    [engine, "stop", container_id],
                     check=True,
                     capture_output=True,
                 )

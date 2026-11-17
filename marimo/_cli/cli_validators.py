@@ -60,3 +60,12 @@ def is_file_path(ctx: Any, param: Any, value: str | None) -> str:
     if not Path(value).is_file():
         raise click.BadParameter(f"Not a file: {value}")
     return value
+
+
+def container_engine(ctx: Any, param: Any, value: str) -> str:
+    del ctx
+    del param
+    value = value.strip()
+    if not value:
+        raise click.BadParameter("Must not be empty")
+    return value
