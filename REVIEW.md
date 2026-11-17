@@ -1,3 +1,5 @@
+# Review instructions
+
 Areas where marimo bugs tend to hide:
 
 - **Reactivity.** Changes to `marimo/_ast` or `marimo/_runtime/dataflow` can alter which cells run, in what order, or which definitions a cell is considered to own. Check the effect on stale-cell handling and on deleting or renaming variables.
