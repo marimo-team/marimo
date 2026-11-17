@@ -388,7 +388,7 @@ class _OptionalValueOption(click.Option):
     default="docker",
     callback=validators.container_engine,
     type=str,
-    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman, nerdctl.",
+    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman.",
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
@@ -1012,7 +1012,7 @@ Example:
     default="docker",
     callback=validators.container_engine,
     type=str,
-    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman, nerdctl.",
+    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman.",
 )
 @click.option(
     "--server-startup-command",

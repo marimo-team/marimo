@@ -101,7 +101,7 @@ def test_run_in_docker_uses_given_engine(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     # Any engine with docker-style commands works, not just a fixed list.
-    engine = "nerdctl"
+    engine = "podman"
 
     def fake_run(cmd: list[str], **_: object) -> MagicMock:
         stdout = "abc123\n" if cmd[1] == "run" else ""
