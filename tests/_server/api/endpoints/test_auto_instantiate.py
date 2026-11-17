@@ -3,17 +3,27 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from marimo._messaging.notification import KernelReadyNotification
 from marimo._session.model import SessionMode
+from marimo._session.session import SessionImpl
+from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw
-from tests._server.api.endpoints.ws_helpers import receive_notification
-from tests._server.mocks import token_header
+from tests._server.api.endpoints.ws_helpers import (
+    receive_notification,
+    receive_until,
+)
+from tests._server.mocks import get_session_manager, token_header
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
+
+    from marimo._config.manager import UserConfigStore
 
 
 def _create_headers(session_id: str) -> dict[str, str]:
@@ -45,6 +55,49 @@ class TestAutoInstantiateEditMode:
             kernel_ready = parse_raw(data["data"], KernelReadyNotification)
             # In edit mode, auto_instantiated should be False
             assert kernel_ready.auto_instantiated is False
+
+    @pytest.mark.parametrize("auto_instantiate", [True, False])
+    def test_a_new_session_runs_the_notebook_when_autorun_is_on(
+        self,
+        client: TestClient,
+        user_config_manager: UserConfigStore,
+        auto_instantiate: bool,
+    ) -> None:
+        Path(user_config_manager.get_config_path()).write_text(
+            f"[runtime]\nauto_instantiate = {str(auto_instantiate).lower()}\n"
+        )
+        session_id = "test-edit-startup"
+
+        with client.websocket_connect(_create_ws_url(session_id)) as websocket:
+            assert receive_notification(websocket)["op"] == "kernel-ready"
+            receive_until("completed-run", websocket)
+
+            session = get_session_manager(client).get_session(
+                SessionId(session_id)
+            )
+            assert session is not None
+            (cell_id,) = session.app_file_manager.app.cell_manager.cell_ids()
+            ran = cell_id in session.session_view.last_execution_time
+            assert ran is auto_instantiate
+
+    def test_reconnecting_does_not_instantiate_again(
+        self, client: TestClient
+    ) -> None:
+        ws_url = _create_ws_url("test-edit-reconnect")
+
+        with patch.object(
+            SessionImpl,
+            "instantiate",
+            autospec=True,
+            side_effect=SessionImpl.instantiate,
+        ) as instantiate:
+            with client.websocket_connect(ws_url) as websocket:
+                assert receive_notification(websocket)["op"] == "kernel-ready"
+                receive_until("completed-run", websocket)
+            with client.websocket_connect(ws_url) as websocket:
+                assert receive_notification(websocket)["op"] == "alert"
+
+        assert instantiate.call_count == 1
 
     def test_instantiate_endpoint_allowed_in_edit_mode(
         self, client: TestClient
@@ -128,10 +181,10 @@ class TestAutoInstantiateHTTPRequest:
     """Tests for HTTP request propagation during auto-instantiate."""
 
     def test_auto_instantiate_passes_http_request(self) -> None:
-        """Verify _auto_instantiate passes HTTPRequest from the connection.
+        """Verify _instantiate passes HTTPRequest from the connection.
 
         This verifies the fix for the issue where mo.app_meta().request
-        returned None in run mode because _auto_instantiate was passing
+        returned None in run mode because the server's instantiate was passing
         http_request=None instead of extracting it from the connection.
         """
         from marimo._server.api.endpoints.ws.ws_session_connector import (
@@ -152,7 +205,7 @@ class TestAutoInstantiateHTTPRequest:
             "marimo._runtime.commands.HTTPRequest.from_request",
             return_value=mock_http_request,
         ) as mock_from_request:
-            connector._auto_instantiate(mock_session)
+            connector._instantiate(mock_session)
 
         mock_from_request.assert_called_once_with(connector.connection)
         assert (

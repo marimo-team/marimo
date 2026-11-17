@@ -32,7 +32,11 @@ from tests._server.api.endpoints.ws_helpers import (
     receive_notification,
 )
 from tests._server.host.drive import socket_snapshot
-from tests._server.mocks import get_session_manager, workspace_scope
+from tests._server.mocks import (
+    await_host_startup,
+    get_session_manager,
+    workspace_scope,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -294,6 +298,9 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
         assert_kernel_ready_response(data, create_response({}))
         for op in ("environment-state", "environment-state"):
             assert receive_notification(websocket)["op"] == op
+        # The kernel reorders the document when it instantiates, so the
+        # file change below is the next transaction on the socket.
+        await_host_startup(client, websocket)
 
         session = get_session(client, SessionId("123"))
         assert session

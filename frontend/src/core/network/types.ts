@@ -72,7 +72,6 @@ export type SandboxResponse = schemas["SandboxResponse"];
 export type UpdateManifestRequest = schemas["UpdateManifestRequest"];
 export type SyncSandboxResponse = schemas["SyncSandboxResponse"];
 export type PackageOperationResponse = schemas["PackageOperationResponse"];
-export type InstantiateNotebookRequest = schemas["InstantiateNotebookRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
 export type ListSecretKeysRequest = schemas["ListSecretKeysRequest"];
@@ -147,7 +146,6 @@ export type StorageDownloadRequest = schemas["StorageDownloadRequest"];
 export interface RunRequests {
   sendComponentValues: (request: UpdateUIElementValuesRequest) => Promise<null>;
   sendModelValue: (request: ModelRequest) => Promise<null>;
-  sendInstantiate: (request: InstantiateNotebookRequest) => Promise<null>;
   sendFunctionRequest: (request: InvokeFunctionRequest) => Promise<null>;
 }
 
