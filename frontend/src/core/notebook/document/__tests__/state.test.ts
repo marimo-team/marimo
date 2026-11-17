@@ -24,6 +24,7 @@ function setup(initial: Document | null = document()) {
   const model = createDocumentState({
     store,
     source,
+    shown: source,
     signal: controller.signal,
   });
   return {

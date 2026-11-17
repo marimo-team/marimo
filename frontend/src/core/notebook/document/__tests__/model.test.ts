@@ -55,6 +55,7 @@ function setup({ connected = true } = {}) {
   const model = createDocumentModel({
     store,
     documentAtom: source,
+    shownDocumentAtom: source,
     backendAtom,
   });
   const controller = new AbortController();
@@ -94,6 +95,7 @@ describe("document synchronization", () => {
     const model = createDocumentModel({
       store,
       documentAtom: source,
+      shownDocumentAtom: source,
       backendAtom: atom(fakeBackend({ edit })),
     });
     store.set(model.editAtom, (tx) => tx.setCode("c1", "local"));
@@ -113,6 +115,7 @@ describe("document synchronization", () => {
     const model = createDocumentModel({
       store,
       documentAtom: source,
+      shownDocumentAtom: source,
       backendAtom: atom(fakeBackend({ edit: vi.fn<FakeEdit>() })),
     });
     const reason = new Error("Session ended");
@@ -124,9 +127,11 @@ describe("document synchronization", () => {
 
   it("starts again after a subscriber aborts during startup", async () => {
     const store = createStore();
+    const source = atom(document());
     const model = createDocumentModel({
       store,
-      documentAtom: atom(document()),
+      documentAtom: source,
+      shownDocumentAtom: source,
       backendAtom: atom(null),
     });
     const controller = new AbortController();

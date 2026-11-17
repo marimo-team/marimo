@@ -149,9 +149,7 @@ class RunTranslator:
                 execution.outcome = protocol.ValueOutcome(
                     None
                     if output.mimetype == "text/plain" and text == ""
-                    else protocol.DisplayData(
-                        mimetype=str(output.mimetype), data=text
-                    )
+                    else displayed(output.mimetype, text)
                 )
                 out.append(be.Concluded(execution.id, execution.outcome))
         return out
@@ -301,6 +299,24 @@ class RunTranslator:
                     )
                     execution.seq += 1
                 continue
+            if entry is not None and (
+                entry.channel == CellChannel.MEDIA
+                or rendered_traceback(entry.mimetype, entry.data)
+            ):
+                out.append(
+                    be.Produced(
+                        protocol.Display(
+                            id=protocol.ItemId(
+                                f"{execution.id}-{execution.seq}"
+                            ),
+                            execution_id=execution.id,
+                            seq=execution.seq,
+                            content=displayed(entry.mimetype, entry.data),
+                        )
+                    )
+                )
+                execution.seq += 1
+                continue
             if entry is None or entry.channel not in (
                 CellChannel.STDOUT,
                 CellChannel.STDERR,
@@ -417,6 +433,28 @@ def variable_messages(notification: NotificationMessage) -> list[be.Message]:
             )
         )
     return out
+
+
+def displayed(mimetype: str, data: object) -> protocol.DisplayData:
+    """A rendered value as the stream carries it, with structured data as JSON."""
+    return protocol.DisplayData(
+        mimetype=str(mimetype),
+        data=data if isinstance(data, str) else json.dumps(data),
+    )
+
+
+def rendered_traceback(mimetype: str | None, data: object) -> bool:
+    """Whether a console entry is a traceback the kernel rendered as HTML.
+
+    A console item is the text as it was written, so a rendered traceback
+    is a display. One written as plain text, as for a scratch run, stays
+    console text.
+    """
+    return (
+        mimetype == "application/vnd.marimo+traceback"
+        and isinstance(data, str)
+        and is_code_highlighting(data)
+    )
 
 
 def _plain(text: str) -> str:

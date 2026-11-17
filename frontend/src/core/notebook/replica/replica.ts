@@ -59,13 +59,21 @@ export interface NotebookReplica {
   /** Identity and capabilities, available while the stream is connected and ready. */
   readonly notebookAtom: Atom<NotebookOutput | null>;
   /**
-   * The most recently confirmed document.
+   * The document the current stream has confirmed.
    *
    * Null until a snapshot is complete, after reset or removal, and on
    * connections without host document events. A temporary disconnection
-   * retains the last document. Partial updates are not exposed.
+   * retains the last document. Partial updates are not exposed. Edits
+   * submit against this one.
    */
   readonly documentAtom: Atom<Document | null>;
+  /**
+   * The document on show: `documentAtom`, or through a reset, the one it
+   * replaced until the snapshot that follows is complete.
+   *
+   * For display only. Nothing confirms it still describes the host.
+   */
+  readonly shownDocumentAtom: Atom<Document | null>;
   /**
    * The backend this replica follows, or null while not connected.
    *
@@ -81,12 +89,15 @@ export interface NotebookReplica {
    * Runs and executions as the stream reports them.
    *
    * Visible as events arrive, including during a snapshot, so a consumer
-   * joins with `documentAtom`, which is null until the snapshot is ready.
-   * Kept across a temporary disconnection, like the document, and cleared
-   * on reset or removal.
+   * joins with `shownDocumentAtom`, which is null until the snapshot is
+   * ready. Kept across a temporary disconnection and shown through a
+   * reset, like the document, and cleared on removal.
    */
   readonly executionsAtom: Atom<Executions>;
-  /** Each document cell's last completed execution record, kept while it runs again. */
+  /**
+   * Each document cell's last completed execution record, kept while it
+   * runs again and shown through a reset.
+   */
   readonly resultsAtom: Atom<Results>;
   /**
    * Follow a backend, replacing any current connection.
@@ -153,18 +164,37 @@ export function createNotebookReplica(
     executions,
     results,
   });
-  const streamAtom = atom(reducer.initial);
-  // A resumed stream is live, but presence waits for this connection's ready.
-  const readyAtom = atom(false);
+  type Stream = typeof reducer.initial;
+  /**
+   * The stream as the host reports it, and what it showed before it
+   * restarted, until the snapshot that replaces it is complete.
+   *
+   * A host resets a stream it cannot resume, and a transport restarts one
+   * whose session changed. Showing the new snapshot as it arrives would
+   * empty every view for as long as that takes.
+   */
+  const followedAtom = atom<{ stream: Stream; retained: Stream | null }>({
+    stream: reducer.initial,
+    retained: null,
+  });
+  const streamAtom = atom((get) => get(followedAtom).stream);
+  const shownAtom = atom((get) => {
+    const { stream, retained } = get(followedAtom);
+    return retained ?? stream;
+  });
   const presentAtom = atom(
     (get) =>
-      get(readyAtom) && get(connectionAtom).state === ConnectionState.OPEN,
+      get(streamAtom).phase === "live" &&
+      get(connectionAtom).state === ConnectionState.OPEN,
   );
   const notebookAtom = atom((get) =>
     get(presentAtom) ? get(streamAtom).notebook : null,
   );
   const documentAtom = atom(
     (get) => get(streamAtom).resources.document.current,
+  );
+  const shownDocumentAtom = atom(
+    (get) => get(shownAtom).resources.document.current,
   );
   const attachmentsAtom = atom((get) =>
     get(presentAtom)
@@ -174,20 +204,39 @@ export function createNotebookReplica(
   const runtimeAtom = atom((get) =>
     get(presentAtom) ? get(streamAtom).resources.runtime : null,
   );
-  const executionsAtom = atom((get) => get(streamAtom).resources.executions);
-  const resultsAtom = atom((get) => get(streamAtom).resources.results);
+  const executionsAtom = atom((get) => get(shownAtom).resources.executions);
+  const resultsAtom = atom((get) => get(shownAtom).resources.results);
   const backendAtom = atom<NotebookBackend | null>(null);
   /** The connection this replica follows. Connecting again ends it. */
   let current: { end(): void; reconnect(): Promise<void> } | undefined;
 
+  /** Retain what a restart replaces until its snapshot is complete. */
+  function setStream(next: Stream) {
+    store.set(followedAtom, (followed) => {
+      const { stream, retained } = followed;
+      if (next === stream) {
+        return followed;
+      }
+      if (next.phase !== "snapshot") {
+        return { stream: next, retained: null };
+      }
+      return {
+        stream: next,
+        retained: stream.phase === "snapshot" ? retained : stream,
+      };
+    });
+  }
+
   function setStatus(status: ConnectionStatus) {
-    store.set(readyAtom, false);
+    if (status.state === ConnectionState.CONNECTING) {
+      setStream(reducer.resume(store.get(streamAtom)));
+    }
     store.set(connectionAtom, status);
   }
 
   /** Drop what the stream reported and show `status`. */
   function clear(status: ConnectionStatus) {
-    store.set(streamAtom, reducer.initial);
+    store.set(followedAtom, { stream: reducer.initial, retained: null });
     setStatus(status);
   }
 
@@ -195,6 +244,7 @@ export function createNotebookReplica(
     connectionAtom,
     notebookAtom,
     documentAtom,
+    shownDocumentAtom,
     backendAtom,
     attachmentsAtom,
     runtimeAtom,
@@ -216,15 +266,12 @@ export function createNotebookReplica(
     const { transport } = connected;
     let events: NotebookEvents<(typeof TYPES)[number]> | undefined;
     let checkingHealth = false;
-    // Whether the replica still holds the state the last cursor describes.
-    let resumable = true;
 
     /** Mirror one stream into the atoms until it closes. */
     function follow(cursor?: string) {
       if (cursor === undefined) {
-        store.set(streamAtom, reducer.initial);
+        setStream(reducer.initial);
       }
-      resumable = true;
       const current = new NotebookEvents(transport, {
         types: TYPES,
         cursor,
@@ -260,7 +307,6 @@ export function createNotebookReplica(
     function stopMalformed(source: NotebookEvents<string>) {
       source.close();
       // The cursor can already include an event the replica rejected.
-      resumable = false;
       clear(malformed);
     }
 
@@ -276,15 +322,12 @@ export function createNotebookReplica(
         return;
       }
       try {
-        store.set(streamAtom, reducer.reduce(store.get(streamAtom), event));
+        setStream(reducer.reduce(store.get(streamAtom), event));
       } catch (error) {
         // An event the replica cannot apply, such as another notebook's.
         Logger.error("Failed to apply notebook event", error);
         stopMalformed(source);
         return;
-      }
-      if (event.event === "ready" || event.event === "reset") {
-        store.set(readyAtom, event.event === "ready");
       }
     }
 
@@ -303,7 +346,11 @@ export function createNotebookReplica(
           setStatus(disconnected);
           return;
         }
-        follow(resumable ? (events.cursor ?? undefined) : undefined);
+        follow(
+          store.get(streamAtom).phase === "snapshot"
+            ? undefined
+            : (events.cursor ?? undefined),
+        );
       } catch (error) {
         if (!signal.aborted) {
           Logger.error("Notebook health check failed", error);

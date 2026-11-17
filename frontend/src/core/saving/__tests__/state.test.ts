@@ -39,7 +39,7 @@ function connect(
 ) {
   store.set(
     activeNotebookReplicaAtom,
-    partial<NotebookReplica>({ documentAtom: atom(document) }, "replica"),
+    partial<NotebookReplica>({ shownDocumentAtom: atom(document) }, "replica"),
   );
   store.set(
     activeDocumentModelAtom,

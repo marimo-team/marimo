@@ -143,7 +143,7 @@ export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
   const replica = get(activeNotebookReplicaAtom);
   const notebookId =
     replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
-  const document = replica === null ? null : get(replica.documentAtom);
+  const document = replica === null ? null : get(replica.shownDocumentAtom);
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
@@ -155,7 +155,7 @@ export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
 
 const cellFreshnessInputsAtom = atom((get): CellFreshnessInputs => {
   const replica = get(activeNotebookReplicaAtom);
-  const document = replica === null ? null : get(replica.documentAtom);
+  const document = replica === null ? null : get(replica.shownDocumentAtom);
   // Results can arrive before the confirmed document on a snapshot. Until
   // the document is ready there is nothing to compare them against.
   if (replica === null || document === null) {
