@@ -775,19 +775,19 @@ export const MarimoErrorOutput = ({
     >
       {title}
       <div className="flex flex-col gap-4">{renderMessages()}</div>
-      {cellId && (
-        <ReportMarimoBugButton
-          cellId={cellId}
-          errors={kernelErrors}
-          code={code}
-        />
-      )}
       {cellId && kernelErrors.length > 0 && (
-        <SendErrorReportButton
-          getContent={() =>
-            buildErrorReport(cellId, { code, errors: kernelErrors })
-          }
-        />
+        <div className="flex flex-wrap gap-2 empty:hidden">
+          <ReportMarimoBugButton
+            cellId={cellId}
+            errors={kernelErrors}
+            code={code}
+          />
+          <SendErrorReportButton
+            getContent={() =>
+              buildErrorReport(cellId, { code, errors: kernelErrors })
+            }
+          />
+        </div>
       )}
     </Alert>
   );
