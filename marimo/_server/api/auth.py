@@ -114,11 +114,8 @@ def validate_auth(
     context = state.host_context
     client = conn.scope.get("client")
     if (
-        (conn.scope.get("method"), conn.scope["path"])
-        in (
-            ("POST", state.base_url + "/api/kernel/execute"),
-            ("GET", state.base_url + "/api/sessions"),
-        )
+        conn.scope.get("method") == "POST"
+        and conn.scope["path"] == state.base_url + "/api/kernel/execute"
         and context is not None
         and context.bridge.app_sessions is None
         and context.token

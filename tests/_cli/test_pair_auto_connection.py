@@ -445,6 +445,41 @@ def test_connection_target_is_resolved_once(
     assert resolve.call_count == (0 if known_notebook else 1)
 
 
+def test_automatic_connection_reaches_the_backend_behind_a_proxy(
+    setup: AutoConnectionSetup,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._cli.pair import target
+    from marimo._cli.pair.client import HostEndpoint
+    from marimo._cli.pair.discovery import Listing, RunningNotebook
+
+    backend = "http://127.0.0.1:2718"
+    monkeypatch.setattr(target, "find_host", lambda _: None)
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda _hosts=None: Listing(
+            [RunningNotebook("nb-one", "nb", "/nb.py", backend, "running")],
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        target,
+        "resolve_host",
+        lambda _: HostEndpoint(f"{backend}/api/marimo/v1", "host-token"),
+    )
+    monkeypatch.setattr(
+        forwarder, "resolve_inbox_target", target.resolve_inbox_target
+    )
+    proxied = ExecutionTarget(
+        "http://localhost:3000", "sess-one", None, "nb-one"
+    )
+    assert ensure_connection(proxied, setup.store, automatic=True) is not None
+    config = setup.start.call_args.args[0]
+    assert config.url == f"{backend}/api/marimo/v1"
+    assert config.token == "host-token"
+
+
 def test_connection_resolution_cannot_change_notebooks(
     setup: AutoConnectionSetup,
     monkeypatch: pytest.MonkeyPatch,

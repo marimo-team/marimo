@@ -75,9 +75,9 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     Start a notebook if needed:
       marimo edit <notebook.py>
     Execute in the selected notebook:
-      marimo pair execute --session <ID> --code 'print("hello")'
+      marimo pair execute --notebook <ID> --code 'print("hello")'
     For multiline Python, use --file <PATH>, or --file - for stdin:
-      marimo pair execute --session <ID> --file - <<'PY'
+      marimo pair execute --notebook <ID> --file - <<'PY'
       import marimo._code_mode as cm
       async with cm.get_context() as ctx:
           for cell in ctx.cells.values():
@@ -86,9 +86,11 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
 
   Target selection:
     Use `marimo pair list` if you need to find the notebook ID.
-    --session accepts a notebook ID or an existing stable session ID.
-    Local notebook IDs resolve their URL automatically. Existing session IDs
-    require --url. --notebook remains an alias for notebook IDs.
+    Pass the notebook ID with --notebook.
+    Local notebook IDs resolve their URL automatically.
+    --session is a legacy selector, kept for compatibility. It accepts a
+    notebook ID or an existing stable session ID. Stable session IDs
+    require --url, and pair connect does not accept them.
     With either selector, --url restricts discovery to that server.
     With --url alone, the server must have exactly one running notebook.
     If several notebooks are open, ask the user which one.
@@ -99,7 +101,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     Execute automatically attempts an inbox connection in supported harnesses.
     After identifying the notebook and conversation, setup is attempted once per owner process.
     In a supported harness, retry once. If it fails, continue without messaging:
-      marimo pair connect --session <ID>
+      marimo pair connect --notebook <ID>
     Codex must use its shared daemon and support codex queue.
     Claude Code requires its native inbox on macOS or Linux.
     OpenCode 2.0 requires its registered local service.
@@ -128,7 +130,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     ctx.delete_cell(cid)
     ctx.packages.add("pandas>=2")  # queued, installs on exit
     If a cm call fails, run help(cm):
-      marimo pair execute --session <ID> --code 'import marimo._code_mode as cm; help(cm)'
+      marimo pair execute --notebook <ID> --code 'import marimo._code_mode as cm; help(cm)'
 
 Options:
   -h, --help  Show this message and exit.
@@ -175,9 +177,9 @@ Usage: main pair execute [OPTIONS]
 
 Options:
   --url URL                     Restrict notebook selection to this server.
-  --notebook ID                 Alias for --session when selecting a notebook
-                                ID.
-  --session ID                  Notebook ID or existing stable session ID.
+  --notebook ID                 Notebook ID from `marimo pair list`.
+  --session ID                  Legacy selector, kept for compatibility. Accepts
+                                a notebook ID or an existing stable session ID.
   --token TEXT                  Server token. Overrides MARIMO_TOKEN and local
                                 discovery.
   --token-file PATH             Read the server token from a local file.

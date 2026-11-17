@@ -241,7 +241,7 @@ def test_local_session_resolution_does_not_ignore_discovery_errors(
         )
 
 
-def test_connect_resolves_local_stable_session_to_notebook(
+def test_connect_rejects_a_local_stable_session(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(target, "find_host", lambda _: HOST)
@@ -251,43 +251,50 @@ def test_connect_resolves_local_stable_session_to_notebook(
     monkeypatch.setattr(
         target,
         "list_sessions",
-        lambda **_: {
-            "browser": {"session_id": "sess-one", "notebook_id": NOTEBOOK.id}
-        },
+        lambda **_: pytest.fail("Must not use the host credential"),
     )
-    resolved = target.resolve_target(
-        url=NOTEBOOK.url,
-        session_id="sess-one",
-        token=None,
-        require_notebook=True,
-    )
-    assert resolved.notebook_id == NOTEBOOK.id
-    assert resolved.token == HOST.token
+    with pytest.raises(PairError, match="No running notebook matches"):
+        target.resolve_target(
+            url=NOTEBOOK.url,
+            session_id="sess-one",
+            token=None,
+            require_notebook=True,
+        )
 
 
-def test_connect_resolves_frontend_proxy_to_discovered_backend(
+def test_inbox_resolves_frontend_proxy_to_discovered_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(target, "find_host", lambda _: None)
-    monkeypatch.setattr(
-        target,
-        "list_sessions",
-        lambda **_: {
-            "browser": {"session_id": "sess-one", "notebook_id": NOTEBOOK.id}
-        },
-    )
     monkeypatch.setattr(
         target,
         "list_running_notebooks",
         lambda _hosts=None: Listing([NOTEBOOK], []),
     )
     monkeypatch.setattr(target, "resolve_host", lambda _: HOST)
-    assert target.resolve_target(
-        url="http://localhost:3000",
-        session_id=NOTEBOOK.id,
-        token=None,
-        require_notebook=True,
-    ) == ExecutionTarget(NOTEBOOK.url, NOTEBOOK.id, HOST.token, NOTEBOOK.id)
+    proxied = ExecutionTarget(
+        "http://localhost:3000", "sess-one", None, NOTEBOOK.id
+    )
+    assert target.resolve_inbox_target(proxied) == ExecutionTarget(
+        NOTEBOOK.url, NOTEBOOK.id, HOST.token, NOTEBOOK.id
+    )
+
+
+@pytest.mark.parametrize(
+    ("url", "credential"),
+    [("http://localhost:3000", "explicit"), ("https://remote", None)],
+)
+def test_inbox_keeps_targets_without_a_local_host(
+    monkeypatch: pytest.MonkeyPatch, url: str, credential: str | None
+) -> None:
+    monkeypatch.setattr(target, "find_host", lambda _: None)
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda _hosts=None: pytest.fail("Must not use local discovery"),
+    )
+    selected = ExecutionTarget(url, "sess-one", credential, NOTEBOOK.id)
+    assert target.resolve_inbox_target(selected) is selected
 
 
 def test_connect_does_not_replace_explicit_credentials(

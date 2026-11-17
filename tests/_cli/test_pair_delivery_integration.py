@@ -123,8 +123,8 @@ def test_detached_delivery_replacement_and_files(
                     [
                         "--url",
                         server.url,
-                        "--session",
-                        server.stable_session_id,
+                        "--notebook",
+                        server.notebook_id,
                     ],
                 ),
             ):

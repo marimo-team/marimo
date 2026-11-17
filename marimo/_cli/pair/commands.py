@@ -68,7 +68,7 @@ def url_option(
 def notebook_option(
     *,
     required: bool = False,
-    help_text: str = "Alias for --session when selecting a notebook ID.",
+    help_text: str = "Notebook ID from `marimo pair list`.",
 ) -> Callable[[F], F]:
     return click.option(
         "--notebook",
@@ -81,7 +81,10 @@ def notebook_option(
 
 def session_option(
     *,
-    help_text: str = "Notebook ID or existing stable session ID.",
+    help_text: str = (
+        "Legacy selector, kept for compatibility. Accepts a notebook ID "
+        "or an existing stable session ID."
+    ),
 ) -> Callable[[F], F]:
     return click.option(
         "--session", "session_id", metavar="ID", help=help_text
@@ -143,9 +146,9 @@ class _DocsCommand(ColoredCommand):
       Start a notebook if needed:
         marimo edit <notebook.py>
       Execute in the selected notebook:
-        marimo pair execute --session <ID> --code 'print("hello")'
+        marimo pair execute --notebook <ID> --code 'print("hello")'
       For multiline Python, use --file <PATH>, or --file - for stdin:
-        marimo pair execute --session <ID> --file - <<'PY'
+        marimo pair execute --notebook <ID> --file - <<'PY'
         import marimo._code_mode as cm
         async with cm.get_context() as ctx:
             for cell in ctx.cells.values():
@@ -155,9 +158,11 @@ class _DocsCommand(ColoredCommand):
     \b
     Target selection:
       Use `marimo pair list` if you need to find the notebook ID.
-      --session accepts a notebook ID or an existing stable session ID.
-      Local notebook IDs resolve their URL automatically. Existing session IDs
-      require --url. --notebook remains an alias for notebook IDs.
+      Pass the notebook ID with --notebook.
+      Local notebook IDs resolve their URL automatically.
+      --session is a legacy selector, kept for compatibility. It accepts a
+      notebook ID or an existing stable session ID. Stable session IDs
+      require --url, and pair connect does not accept them.
       With either selector, --url restricts discovery to that server.
       With --url alone, the server must have exactly one running notebook.
       If several notebooks are open, ask the user which one.
@@ -169,7 +174,7 @@ class _DocsCommand(ColoredCommand):
       Execute automatically attempts an inbox connection in supported harnesses.
       After identifying the notebook and conversation, setup is attempted once per owner process.
       In a supported harness, retry once. If it fails, continue without messaging:
-        marimo pair connect --session <ID>
+        marimo pair connect --notebook <ID>
       Codex must use its shared daemon and support codex queue.
       Claude Code requires its native inbox on macOS or Linux.
       OpenCode 2.0 requires its registered local service.
@@ -200,7 +205,7 @@ class _DocsCommand(ColoredCommand):
       ctx.delete_cell(cid)
       ctx.packages.add("pandas>=2")  # queued, installs on exit
       If a cm call fails, run help(cm):
-        marimo pair execute --session <ID> --code 'import marimo._code_mode as cm; help(cm)'
+        marimo pair execute --notebook <ID> --code 'import marimo._code_mode as cm; help(cm)'
     """,
 )
 def pair() -> None:
@@ -224,7 +229,7 @@ def _validate_target_options(
         raise click.UsageError("The token must not be empty.")
     if url is None and session_id is None and notebook_id is None:
         raise click.UsageError(
-            "Pass --session <ID> from `marimo pair list`, or --url <URL>."
+            "Pass --notebook <ID> from `marimo pair list`, or --url <URL>."
         )
 
 

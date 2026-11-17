@@ -31,10 +31,17 @@ class ExecutionTarget:
 
 def resolve_inbox_target(selected: ExecutionTarget) -> ExecutionTarget:
     """Use the matching local host credential after session selection."""
+    url: str | None = selected.url
     if find_host(selected.url) is None:
-        return selected
+        if selected.token is not None or not is_loopback(
+            urlsplit(selected.url).hostname or ""
+        ):
+            return selected
+        # A local frontend proxy can expose sessions at a different port.
+        # Match its verified notebook ID before using a discovered credential.
+        url = None
     return resolve_target(
-        url=selected.url,
+        url=url,
         session_id=selected.notebook_id,
         token=None,
         require_notebook=True,
@@ -65,15 +72,16 @@ def resolve_target(
         ]
         if not found and listing.warnings:
             raise PairError(" ".join(listing.warnings))
-        # The catalog has no legacy session IDs. Only an explicit --session
-        # and URL can defer that lookup to the selected server.
-        if not found and host is not None and session_id is not None:
+        # The catalog has no legacy session IDs. Execution with an explicit
+        # --session and URL defers that lookup to the selected server.
+        if (
+            not found
+            and host is not None
+            and session_id is not None
+            and not require_notebook
+        ):
             assert url is not None
-            if not require_notebook:
-                return ExecutionTarget(url, session_id, host.token)
-            return _session_target(
-                url, session_id, None, host.token, require_notebook=True
-            )
+            return ExecutionTarget(url, session_id, host.token)
         _require_one([n.id for n in found], url, selected_id)
         notebook = found[0]
         selected_host = (
@@ -86,23 +94,9 @@ def resolve_target(
             notebook.id,
         )
 
-    selected = _session_target(
+    return _session_target(
         url, session_id, notebook_id, token, require_notebook=require_notebook
     )
-    if (
-        require_notebook
-        and token is None
-        and is_loopback(urlsplit(url).hostname or "")
-    ):
-        # A local frontend proxy can expose sessions at a different port.
-        # Match its verified notebook ID before using a discovered credential.
-        return resolve_target(
-            url=None,
-            session_id=selected.notebook_id,
-            token=None,
-            require_notebook=True,
-        )
-    return selected
 
 
 def _session_target(

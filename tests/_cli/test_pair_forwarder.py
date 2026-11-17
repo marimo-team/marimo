@@ -629,7 +629,7 @@ def test_connect_target_options(
 @pytest.mark.parametrize(
     ("options", "error"),
     [
-        ([], "Pass --session"),
+        ([], "Pass --notebook"),
         (["--session", ""], "must not be empty"),
         (["--session", "one", "--notebook", "two"], "not both"),
         (["--session", "one", "--token", ""], "token must not be empty"),
