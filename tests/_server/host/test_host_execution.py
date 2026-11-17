@@ -12,6 +12,11 @@ from msgspec.structs import replace
 
 from marimo._core import protocol
 from marimo._core.code import code_fingerprint
+from marimo._runtime.commands import (
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    UpdateUIElementCommand,
+)
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
 from tests._server.host.drive import finished, wait_for
@@ -244,6 +249,119 @@ async def test_cell_runs_preserve_order_with_later_deletions(
         == "succeeded"
     )
     assert notebook.document.cell(cell.id) is None
+
+
+@pytest.mark.parametrize("scratch", [False, True])
+async def test_repeated_startup_preserves_host_edits(
+    tmp_path: Path, scratch: bool
+) -> None:
+    source = (
+        "import marimo\napp = marimo.App()\n"
+        "@app.cell\ndef _():\n    import marimo as mo\n    return (mo,)\n"
+        '@app.cell\ndef _(mo):\n    mo.md("Ready")\n    return\n'
+    )
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        notebook = await app.state.host_context.bridge.host.notebook(
+            notebook_id
+        )
+        session = next(iter(app.state.session_manager.sessions.values()))
+        imports, markdown = notebook.document
+        startup = CreateNotebookCommand(
+            execution_requests=tuple(
+                ExecuteCellCommand(cell_id=cell.id, code=cell.code)
+                for cell in notebook.document
+            ),
+            cell_ids=tuple(cell.id for cell in notebook.document),
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+            auto_run=False,
+        )
+        session.put_control_request(startup, from_consumer_id=None)
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("execution", {}).get("cell_id")
+                == markdown.id
+                and r["data"]["execution"]["status"] == "completed"
+                for r in response.records
+            ),
+        )
+        original_result = notebook.executions.current(markdown.id)
+        assert original_result is not None
+        order = ["answer", "definition", markdown.id, imports.id]
+        edited = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/edits",
+            headers=key("edit-before-startup-retry"),
+            body=json.dumps(
+                {
+                    "changes": [
+                        {
+                            "kind": "put_cell",
+                            "base_etag": None,
+                            "cell": {"id": "definition", "code": "x = 40"},
+                        },
+                        {
+                            "kind": "put_cell",
+                            "base_etag": None,
+                            "cell": {"id": "answer", "code": "x + 2"},
+                        },
+                        {
+                            "kind": "put_cell",
+                            "base_etag": markdown.etag,
+                            "cell": {
+                                "id": markdown.id,
+                                "code": 'mo.md("Edited")',
+                            },
+                        },
+                        {
+                            "kind": "set_order",
+                            "base_etag": "*",
+                            "order": order,
+                        },
+                    ]
+                }
+            ).encode(),
+        )
+        assert edited.status == 200, edited.body
+        revision = notebook.document.etag
+
+        # A startup request captured before the edit reaches the kernel late.
+        session.put_control_request(startup, from_consumer_id=None)
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/"
+            + ("execute" if scratch else "runs"),
+            headers=key("run-after-edit"),
+            body=json.dumps(
+                {"code": "6 * 7"} if scratch else {"cells": [{"id": "answer"}]}
+            ).encode(),
+        )
+        assert accepted.status == 202, accepted.body
+        run_id = accepted.json()["id"]
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("run", {}).get("id") == run_id
+                and r["data"]["run"]["status"] == "completed"
+                for r in response.records
+            ),
+        )
+        [completed] = [
+            r["data"]["run"]
+            for r in events.records
+            if r.get("data", {}).get("run", {}).get("id") == run_id
+            and r["data"]["run"]["status"] == "completed"
+        ]
+        assert completed["outcome"] == "succeeded"
+        assert (notebook.document.etag, [c.id for c in notebook.document]) == (
+            revision,
+            order,
+        )
+        assert notebook.executions.current(markdown.id) == original_result
 
 
 @pytest.mark.parametrize(
