@@ -15,7 +15,6 @@ from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
     NotificationMessage,
-    ReconnectedNotification,
 )
 from marimo._messaging.serde import (
     serialize_kernel_message,
@@ -212,9 +211,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
 
         self.status = ConnectionState.OPEN
         session.connect_consumer(self, main=True)
-
-        # Write reconnected message
-        self._serialize_and_notify(ReconnectedNotification())
 
         # If not replaying, just send a toast
         if not replay:

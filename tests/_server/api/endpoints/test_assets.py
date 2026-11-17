@@ -260,8 +260,8 @@ def test_index_etag_changes_with_config(client: TestClient) -> None:
 
     config_manager = get_user_config_manager(client)
     config = config_manager.get_config()
-    config["display"]["theme"] = (
-        "dark" if config["display"]["theme"] != "dark" else "light"
+    config.display.theme = (
+        "dark" if config.display.theme != "dark" else "light"
     )
     config_manager.save_config(config)
 
@@ -383,13 +383,13 @@ def test_config_manager_at_file_directory_keys(
     ):
         # Relative key resolves against the workspace and applies inline config.
         resolved = app_state.config_manager_at_file("notebook.py").get_config()
-        assert resolved["display"]["theme"] == "dark"
+        assert resolved.display.theme == "dark"
 
         # A missing/unsaved file (404) yields base config, no inline overrides.
         missing = app_state.config_manager_at_file(
             "does_not_exist.py"
         ).get_config()
-        assert missing["display"]["theme"] != "dark"
+        assert missing.display.theme != "dark"
 
         # A rejected path (non-404, e.g. traversal) propagates rather than
         # falling back to reading an unvalidated path.

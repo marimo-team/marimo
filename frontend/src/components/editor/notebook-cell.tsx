@@ -2,7 +2,7 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   HelpCircleIcon,
   MoreHorizontalIcon,
@@ -40,14 +40,18 @@ import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
 import type { AppMode } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
-import { useRequestClient } from "@/core/network/requests";
 import {
   type CellExecutionView,
   type CellFreshness,
   type CellRunStatus,
+  replyInput,
   useCellExecution,
   useCellFreshness,
+  useCellOutline,
+  useCellOutput,
 } from "@/core/executions";
+import type { WithResponse } from "@/core/cells/types";
+import type { OutputMessage } from "@/core/kernel/messages";
 import type { CellConfig } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
@@ -241,6 +245,30 @@ export interface CellHandle {
   editorViewOrNull: EditorView | null;
 }
 
+/**
+ * Answer the prompt at `index` of the cell's console through the host.
+ *
+ * The console entry is marked answered right away, as before. The reply
+ * itself names the prompt, so the host can mark it answered and turn away
+ * a late reply meant for an earlier prompt.
+ */
+function useAnswerPrompt(
+  cellId: CellId,
+  consoleOutputs: readonly WithResponse<OutputMessage>[],
+) {
+  const store = useStore();
+  const actions = useCellActions();
+  return useEvent((text: string, index: number) => {
+    actions.setStdinResponse({ cellId, response: text, outputIndex: index });
+    const prompt = consoleOutputs[index];
+    if (prompt?.input_id === undefined) {
+      Logger.error("The prompt has no id to answer it by", prompt);
+      return;
+    }
+    void replyInput(store, prompt.input_id, text);
+  });
+}
+
 export interface CellProps {
   cellId: CellId;
   theme: Theme;
@@ -324,7 +352,7 @@ const ReadonlyCellComponent = forwardRef(
   (props: { cellId: CellId }, ref: React.ForwardedRef<HTMLDivElement>) => {
     const { cellId } = props;
     const cellData = useCellData(cellId);
-    const cellRuntime = useCellRuntime(cellId);
+    const output = useCellOutput(cellId);
     const execution = useCellExecution(cellId);
     const freshness = useCellFreshness(cellId);
     const errored = execution.outcome === "error";
@@ -340,7 +368,7 @@ const ReadonlyCellComponent = forwardRef(
       errored,
       interrupted,
       stopped,
-      output: cellRuntime.output,
+      output,
       showErrorTracebacks: false,
     });
 
@@ -360,7 +388,7 @@ const ReadonlyCellComponent = forwardRef(
           forceExpand={true}
           className={CSSClasses.outputArea}
           cellId={cellId}
-          output={cellRuntime.output}
+          output={output}
           stale={outputIsStale(execution, freshness, true)}
           loading={outputIsLoading(execution.status)}
         />
@@ -389,6 +417,8 @@ const EditableCellComponent = ({
   const cellRef = useRef<HTMLDivElement>(null);
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
+  const output = useCellOutput(cellId);
+  const outline = useCellOutline(cellId);
   const execution = useCellExecution(cellId);
   const freshness = useCellFreshness(cellId);
   const errored = execution.outcome === "error";
@@ -404,7 +434,7 @@ const EditableCellComponent = ({
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
   const runCell = useRunCell(cellId);
-  const { sendStdin } = useRequestClient();
+  const answerPrompt = useAnswerPrompt(cellId, cellRuntime.consoleOutputs);
   const isPendingCut = useIsPendingCut(cellId);
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
@@ -430,7 +460,7 @@ const EditableCellComponent = ({
       errored,
       interrupted,
       stopped,
-      output: cellRuntime.output,
+      output,
       showErrorTracebacks: userConfig.runtime.show_tracebacks ?? false,
     });
 
@@ -476,8 +506,8 @@ const EditableCellComponent = ({
     editorView,
     cellActionDropdownRef,
   });
-  const canCollapse = canCollapseOutline(cellRuntime.outline);
-  const hasOutput = !isOutputEmpty(cellRuntime.output);
+  const canCollapse = canCollapseOutline(outline);
+  const hasOutput = !isOutputEmpty(output);
   // While presenting, pending edits do not dim the output as stale,
   // matching the read view.
   const isStaleCell = outputIsStale(execution, freshness, !isPresenting);
@@ -572,7 +602,7 @@ const EditableCellComponent = ({
         forceExpand={isMarkdownCodeHidden || isPresenting}
         className={CSSClasses.outputArea}
         cellId={cellId}
-        output={cellRuntime.output}
+        output={output}
         stale={isStaleCell}
         loading={outputIsLoading(execution.status)}
       />
@@ -823,14 +853,7 @@ const EditableCellComponent = ({
                   // breakpoints; no-op when none are set.
                   clearCellBreakpoints(cellId);
                 }}
-                onSubmitDebugger={(text, index) => {
-                  actions.setStdinResponse({
-                    cellId,
-                    response: text,
-                    outputIndex: index,
-                  });
-                  sendStdin({ text });
-                }}
+                onSubmitDebugger={answerPrompt}
                 cellId={cellId}
                 debuggerActive={cellRuntime.debuggerActive}
               />
@@ -1049,6 +1072,7 @@ const SetupCellComponent = ({
   const cellRef = useRef<HTMLDivElement>(null);
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
+  const output = useCellOutput(cellId);
   const execution = useCellExecution(cellId);
   const freshness = useCellFreshness(cellId);
   const errored = execution.outcome === "error";
@@ -1060,10 +1084,10 @@ const SetupCellComponent = ({
   const connection = useAtomValue(connectionAtom);
 
   const actions = useCellActions();
-  const requestClient = useRequestClient();
   const deleteCell = useDeleteCellCallback();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const runCell = useRunCell(cellId);
+  const answerPrompt = useAnswerPrompt(cellId, cellRuntime.consoleOutputs);
 
   const uninstantiated = isUninstantiated(execution);
 
@@ -1104,9 +1128,9 @@ const SetupCellComponent = ({
     editorView,
     cellActionDropdownRef,
   });
-  const hasOutput = !isOutputEmpty(cellRuntime.output);
+  const hasOutput = !isOutputEmpty(output);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
-  const isErrorOutput = isErrorMime(cellRuntime.output?.mimetype);
+  const isErrorOutput = isErrorMime(output?.mimetype);
 
   const className = clsx("marimo-cell", "hover-actions-parent z-10", {
     interactive: true,
@@ -1275,7 +1299,7 @@ const SetupCellComponent = ({
                 forceExpand={true}
                 className={CSSClasses.outputArea}
                 cellId={cellId}
-                output={cellRuntime.output}
+                output={output}
                 stale={false}
                 loading={loading}
               />
@@ -1293,14 +1317,7 @@ const SetupCellComponent = ({
                 // breakpoints; no-op when none are set.
                 clearCellBreakpoints(cellId);
               }}
-              onSubmitDebugger={(text, index) => {
-                actions.setStdinResponse({
-                  cellId,
-                  response: text,
-                  outputIndex: index,
-                });
-                requestClient.sendStdin({ text });
-              }}
+              onSubmitDebugger={answerPrompt}
               cellId={cellId}
               debuggerActive={cellRuntime.debuggerActive}
             />

@@ -74,7 +74,7 @@ class FileState(PathState):
     def read_text(self) -> str:
         """Read the file as a string."""
         text = self._value.read_text()
-        write_side_effect(f"read_text:{text}")
+        write_side_effect(f"read_text:{(str(self._value), text)!r}")
         return text
 
     def write_text(self, value: str) -> int:
@@ -90,7 +90,7 @@ class FileState(PathState):
     def read_bytes(self) -> bytes:
         """Read the file as bytes."""
         data = self._value.read_bytes()
-        write_side_effect(f"read_bytes:{data!r}")
+        write_side_effect(f"read_bytes:{(str(self._value), data)!r}")
         return data
 
     def write_bytes(self, value: bytes) -> int:

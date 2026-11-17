@@ -102,7 +102,7 @@ describe("useNotebookDocumentSave", () => {
         ok: false,
         status: 409,
         problem: {
-          type: "about:blank",
+          type: "urn:marimo:problem:conflict",
           title: "Conflict",
           status: 409,
           detail: "storage full",

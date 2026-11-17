@@ -13,14 +13,13 @@ describe("CellOutputBlock", () => {
     const id = cellId("test");
     const cell = {
       ...createCell({ id, name: "title" }),
-      ...createCellRuntimeState({
-        output: {
-          channel: "output",
-          mimetype: "text/plain",
-          data: "hello",
-          timestamp: 0,
-        },
-      }),
+      ...createCellRuntimeState(),
+      output: {
+        channel: "output" as const,
+        mimetype: "text/plain" as const,
+        data: "hello",
+        timestamp: 0,
+      },
     };
 
     const { container } = render(

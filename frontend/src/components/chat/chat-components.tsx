@@ -18,7 +18,6 @@ import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Tooltip } from "../ui/tooltip";
-import { SUPPORTED_ATTACHMENT_TYPES } from "./chat-utils";
 
 export const AttachmentRenderer = ({
   attachment,
@@ -142,10 +141,12 @@ export const AttachFileButton = ({
   fileInputRef,
   isLoading,
   onAddFiles,
+  accept = "image/*,text/*",
 }: {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   isLoading: boolean;
   onAddFiles: (files: File[]) => void;
+  accept?: string;
 }) => {
   return (
     <>
@@ -171,7 +172,7 @@ export const AttachFileButton = ({
             onAddFiles([...event.target.files]);
           }
         }}
-        accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+        accept={accept}
       />
     </>
   );

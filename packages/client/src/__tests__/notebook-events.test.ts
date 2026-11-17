@@ -392,7 +392,7 @@ describe("NotebookEvents", () => {
 
   it("stops with the problem when the host refuses the stream", async () => {
     const problem = {
-      type: "tag:marimo.io,2026:host/not-found",
+      type: "urn:marimo:problem:not-found",
       title: "Not found",
       status: 404,
     };

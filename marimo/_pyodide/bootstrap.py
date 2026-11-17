@@ -16,7 +16,7 @@ from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
 
 if TYPE_CHECKING:
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
 
@@ -64,8 +64,8 @@ def create_session(
     app_file_manager = AppFileManager(
         filename=filename,
         defaults=AppDefaults(
-            width=user_config["display"]["default_width"],
-            sql_output=user_config["runtime"]["default_sql_output"],
+            width=user_config.display.default_width,
+            sql_output=user_config.runtime.default_sql_output,
         ),
     )
     app = app_file_manager.app

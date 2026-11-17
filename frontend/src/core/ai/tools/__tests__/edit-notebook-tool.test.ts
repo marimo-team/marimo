@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { getDefaultStore } from "jotai";
@@ -35,27 +37,27 @@ function createMockEditorView(code: string): EditorView {
         adaptiveLanguageConfiguration({
           cellId: cellId("cell1"),
           completionConfig: {
+            ...defaultUserConfig().completion,
             copilot: false,
             activate_on_typing: true,
             signature_hint_on_typing: false,
-            codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
           placeholderType: "marimo-import",
-          lspConfig: {},
+          lspConfig: { ...defaultUserConfig().language_servers },
         }),
         cellConfigExtension({
           cellId: cellId("cell1"),
           completionConfig: {
+            ...defaultUserConfig().completion,
             copilot: false,
             activate_on_typing: true,
             signature_hint_on_typing: false,
-            codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
           placeholderType: "marimo-import",
-          lspConfig: {},
-          diagnosticsConfig: {},
+          lspConfig: { ...defaultUserConfig().language_servers },
+          diagnosticsConfig: { ...defaultUserConfig().diagnostics },
         }),
       ],
     }),

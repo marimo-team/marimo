@@ -1,16 +1,38 @@
 # Host protocol conformance tests
 
-This suite validates the [host protocol](../spec.md) schema and fixtures and
-checks host behavior through HTTP and SSE. Run `make host-protocol-check` from
-the repository root for the offline checks, including experimental features.
+From the repository root, check the Python bindings and portable fixtures
+with:
 
-To check a running host, start it in a disposable workspace and pass its
-discovery record. The suite creates and modifies notebooks during these tests.
+```sh
+make host-protocol-check
+```
+
+The suite validates against the OpenAPI document, which it asks the
+[host protocol package](../README.md#get-the-openapi-document) to print. That
+needs Node and the package's one dependency.
+
+```sh
+pnpm install --filter @marimo-team/host-protocol --prod
+```
+
+This includes experimental fixtures. Tests that need a running host are
+skipped. The [contributor workflow](../README.md#change-a-contract) also
+covers TypeScript generation and package checks.
+
+## Check a running host
+
+Start a host in a disposable workspace and pass its
+[discovery record](../spec.md#local-discovery). The suite creates and modifies
+notebooks and starts and stops runtimes; you manage the host's lifecycle.
 
 ```sh
 uv run --locked --project protocols/host/conformance \
-  pytest protocols/host/conformance --record /path/to/hosts-v1/host.json
+  pytest -c protocols/host/conformance/pyproject.toml \
+  protocols/host/conformance protocols/host/experimental \
+  --record /path/to/hosts-v1/host.json
 ```
 
-The caller manages the host's lifecycle. Replace `--record` and its path with
-`--help` to see the runner's options.
+The suite skips tests for capabilities the host does not offer, so review the
+skipped tests. Repeat `--require-operation <operation>` to assert advertised
+operations, and use `--slow` to include idle ping checks. Replace `--record`
+and its path with `--help` for all options.

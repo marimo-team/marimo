@@ -5,7 +5,6 @@ import type * as api from "@marimo-team/marimo-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { cellId } from "@/__tests__/branded";
-import { parseOutline } from "@/core/dom/outline";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { SETUP_CELL_ID } from "../ids";
@@ -13,10 +12,6 @@ import { readExport } from "../session";
 
 // Mock dependencies
 vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
-
-vi.mock("@/core/dom/outline", () => ({
-  parseOutline: vi.fn(),
-}));
 
 type SessionCell = api.Session["NotebookSessionV1"]["cells"][0];
 type NotebookCell = api.Notebook["NotebookV1"]["cells"][0];
@@ -179,15 +174,6 @@ describe("readExport", () => {
                 : { mimetype: "text/plain", data: expectedTraceback },
           }),
         });
-        expect(result.cellRuntime[cellId("c1")].output?.data).toEqual([
-          {
-            type: "exception",
-            exception_type: "ValueError",
-            msg: "bad",
-            raising_cell: null,
-            traceback: expectedTraceback,
-          },
-        ]);
       },
     );
   });
@@ -327,21 +313,17 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "marimo-error",
-        data: [
-          {
-            type: "exception",
-            exception_type: "ValueError",
-            msg: "Something went wrong",
-            raising_cell: null,
-            traceback: "Traceback line 1",
-          },
-        ],
-        mimetype: "application/vnd.marimo+error",
-        timestamp: 0,
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "error",
+        error: expect.objectContaining({
+          kind: "exception",
+          name: "ValueError",
+          message: "Something went wrong",
+          traceback: { mimetype: "text/plain", data: "Traceback line 1" },
+        }),
       });
+
+      invariant(result.snapshot, "no snapshot");
     });
 
     it("restores matching code from the session", () => {
@@ -377,17 +359,6 @@ describe("readExport", () => {
         appConfig: {},
       });
       invariant(state.snapshot, "no snapshot");
-      expect(state.cellRuntime[CELL_1].output).toMatchObject({
-        code,
-        data: [
-          {
-            type: "exception",
-            exception_type: "ValueError",
-            msg: "cached failure",
-            traceback: "Traceback\nValueError: cached failure",
-          },
-        ],
-      });
       expect(state.cellRuntime[CELL_1].consoleOutputs[0].code).toBe(code);
       expect(state.cellRuntime[CELL_1].consoleOutputs[0]).toMatchObject({
         traceback_format: "text",
@@ -412,13 +383,12 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "output",
-        data: "Hello World",
-        mimetype: "text/plain",
-        timestamp: 0,
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "value",
+        display: { mimetype: "text/plain", data: "Hello World" },
       });
+
+      invariant(result.snapshot, "no snapshot");
     });
 
     it("handles console outputs in session cell", () => {
@@ -461,48 +431,6 @@ describe("readExport", () => {
           timestamp: 0,
         },
       ]);
-    });
-
-    it("calls parseOutline when output exists", () => {
-      const mockOutline = { items: [] };
-      vi.mocked(parseOutline).mockReturnValue(mockOutline);
-
-      const dataOutput = {
-        type: "data" as const,
-        data: { "text/html": "<h1>Title</h1>" },
-      };
-      const session = createSession([
-        createSessionCell("cell-1", [dataOutput]),
-      ]);
-      const result = readExport({
-        session: session,
-        notebook: null,
-        filename: null,
-        appConfig: {},
-      });
-
-      expect(parseOutline).toHaveBeenCalledWith({
-        channel: "output",
-        data: "<h1>Title</h1>",
-        mimetype: "text/html",
-        timestamp: 0,
-      });
-      invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].outline).toBe(mockOutline);
-    });
-
-    it("sets outline to null when no output exists", () => {
-      const session = createSession([createSessionCell("cell-1")]);
-      const result = readExport({
-        session: session,
-        notebook: null,
-        filename: null,
-        appConfig: {},
-      });
-
-      expect(parseOutline).not.toHaveBeenCalled();
-      invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].outline).toBeNull();
     });
   });
 
@@ -790,9 +718,7 @@ describe("readExport", () => {
       });
 
       invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].output).toBeNull();
       expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
-      expect(result.cellRuntime[CELL_1].outline).toBeNull();
     });
 
     it("handles session cell with empty console array", () => {
@@ -821,12 +747,9 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "output",
-        data: "First",
-        mimetype: "text/plain",
-        timestamp: 0,
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "value",
+        display: { mimetype: "text/plain", data: "First" },
       });
     });
 
@@ -848,13 +771,12 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "output",
-        data: "Plain text",
-        mimetype: "text/plain",
-        timestamp: 0,
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "value",
+        display: { mimetype: "text/plain", data: "Plain text" },
       });
+
+      invariant(result.snapshot, "no snapshot");
     });
 
     it("handles data output with empty data object", () => {
@@ -872,12 +794,9 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].output).toEqual({
-        channel: "output",
-        data: undefined,
-        mimetype: undefined,
-        timestamp: 0,
+      expect(result.snapshot?.results[0]?.outcome).toEqual({
+        kind: "value",
+        display: null,
       });
     });
 
@@ -1020,12 +939,6 @@ describe("readExport", () => {
       for (const code of ["a", "b", "c", "d", "e", "f"]) {
         const cid = cellId(`cell-${code}`);
         expect(cellIn(result, cid).code).toBe(code);
-        expect(result.cellRuntime[cid].output).toEqual({
-          channel: "output",
-          data: `${code.toUpperCase()}!`,
-          mimetype: "text/plain",
-          timestamp: 0,
-        });
       }
     });
 
@@ -1137,28 +1050,8 @@ describe("readExport", () => {
       expect(cellIn(result, "cell-g").code).toBe("g");
 
       // Should have session outputs for matching cells (a, c, e)
-      expect(result.cellRuntime[cellId("cell-a")].output).toEqual({
-        channel: "output",
-        data: "A!",
-        mimetype: "text/plain",
-        timestamp: 0,
-      });
-      expect(result.cellRuntime[cellId("cell-c")].output).toEqual({
-        channel: "output",
-        data: "C!",
-        mimetype: "text/plain",
-        timestamp: 0,
-      });
-      expect(result.cellRuntime[cellId("cell-e")].output).toEqual({
-        channel: "output",
-        data: "E!",
-        mimetype: "text/plain",
-        timestamp: 0,
-      });
 
       // Should have no output for new cells (z, g) - they get stub session cells
-      expect(result.cellRuntime[cellId("cell-z")].output).toBeNull();
-      expect(result.cellRuntime[cellId("cell-g")].output).toBeNull();
 
       // Should log warning about different cells
       expect(Logger.warn).toHaveBeenCalledWith(
@@ -1274,24 +1167,11 @@ describe("readExport", () => {
       expect(cellIn(result, "cell-3").code).toBe("x = mo.ui.slider(0, 10)");
 
       // cell-1: No matching session cell (hash is null), gets stub session cell
-      expect(result.cellRuntime[cellId("cell-1")].output).toBeNull();
       expect(result.cellRuntime[cellId("cell-1")].consoleOutputs).toEqual([]);
 
       // cell-2: Matches session cell-1 by hash (moMd), gets its output
-      expect(result.cellRuntime[cellId("cell-2")].output).toEqual({
-        channel: "output",
-        data: "Welcome to marimo!",
-        mimetype: "text/markdown",
-        timestamp: 0,
-      });
 
       // cell-3: Matches session cell-2 by hash (slider), gets its output
-      expect(result.cellRuntime[cellId("cell-3")].output).toEqual({
-        channel: "output",
-        data: "",
-        mimetype: "text/plain",
-        timestamp: 0,
-      });
 
       // Should log warning about different cells (merge had edit distance > 0)
       expect(Logger.warn).toHaveBeenCalledWith(

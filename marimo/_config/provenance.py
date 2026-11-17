@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypeAlias
 
 if TYPE_CHECKING:
-    from marimo._config.config import MarimoConfig, PartialMarimoConfig
+    from marimo._config.config import PartialMarimoConfig
 
 ConfigPath = tuple[str, ...]
 
@@ -71,7 +71,7 @@ class ConfigLayer:
 class ResolvedConfig:
     """Effective settings with provenance kept separate from their values."""
 
-    config: MarimoConfig
+    config: PartialMarimoConfig
     origins: dict[ConfigPath, ConfigSource]
 
     @property

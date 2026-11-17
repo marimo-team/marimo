@@ -1253,6 +1253,7 @@ describe("useCellNavigationProps", () => {
         ai: {
           ...config.ai,
           models: {
+            ...config.ai.models,
             displayed_models: [],
             custom_models: [],
             edit_model: "openai/gpt-4o",

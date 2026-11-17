@@ -6,6 +6,8 @@ import os
 import re
 from typing import TYPE_CHECKING, Any, cast
 
+from msgspec import UNSET
+
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import generate_id, sanitize_part
 from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION, DONE_CHUNK
@@ -29,6 +31,7 @@ from marimo._ai._types import (
     ChatModel,
     ChatModelConfig,
 )
+from marimo._cli.install_hints import get_install_hint
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
@@ -141,8 +144,9 @@ class openai(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["open_ai"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.open_ai
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass
@@ -168,7 +172,7 @@ class openai(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
-            "chat model requires openai. `pip install openai`"
+            f"chat model requires openai. `{get_install_hint('openai')}`"
         )
         from urllib.parse import parse_qs, urlparse
 
@@ -277,8 +281,9 @@ class anthropic(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["anthropic"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.anthropic
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass
@@ -308,7 +313,7 @@ class anthropic(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.anthropic.require(
-            "chat model requires anthropic. `pip install anthropic`"
+            f"chat model requires anthropic. `{get_install_hint('anthropic')}`"
         )
         from anthropic import Anthropic
 
@@ -387,8 +392,9 @@ class google(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["google"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.google
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass
@@ -424,7 +430,7 @@ class google(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
-            "chat model requires google. `pip install google-genai`"
+            f"chat model requires google. `{get_install_hint('google-genai')}`"
         )
         from google import genai  # type: ignore[import-not-found]
 
@@ -541,7 +547,7 @@ class groq(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.groq.require(
-            "chat model requires groq. `pip install groq`"
+            f"chat model requires groq. `{get_install_hint('groq')}`"
         )
         from groq import Groq  # type: ignore[import-not-found]
 
@@ -616,7 +622,7 @@ class bedrock(ChatModel):
 
     def _create_client(self) -> Any:
         DependencyManager.boto3.require(
-            "bedrock chat model requires boto3. `pip install boto3`"
+            f"bedrock chat model requires boto3. `{get_install_hint('boto3')}`"
         )
         import boto3
 
@@ -741,7 +747,7 @@ class pydantic_ai(ChatModel):
 
     def __init__(self, agent: Agent[Any, Any]):
         DependencyManager.pydantic_ai.require(
-            "pydantic-ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+            f"pydantic-ai chat model requires pydantic-ai. `{get_install_hint('pydantic-ai')}`"
         )
         self.agent = agent
 

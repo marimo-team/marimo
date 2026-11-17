@@ -1404,6 +1404,37 @@ def test_stdin(session_view: SessionView) -> None:
 
 
 @pytest.mark.usefixtures("fixed_time")
+def test_stdin_merging_preserves_prompt_identity(
+    session_view: SessionView,
+) -> None:
+    for prompt, input_id in (
+        ("First", "first"),
+        (": ", "first"),
+        ("Second", "second"),
+    ):
+        session_view.add_notification(
+            CellNotification(
+                cell_id=cell_id,
+                console=CellOutput.stdin(prompt, input_id=input_id),
+            )
+        )
+    assert session_view.cell_notifications[cell_id].console == [
+        CellOutput.stdin("First: ", input_id="first"),
+        CellOutput.stdin("Second", input_id="second"),
+    ]
+    session_view.add_stdin("reply", input_id="second")
+    assert session_view.cell_notifications[cell_id].console == [
+        CellOutput.stdin("First: ", input_id="first"),
+        CellOutput(
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data="Second reply\n",
+            input_id="second",
+        ),
+    ]
+
+
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_consecutive_text_plain_outputs(
     session_view: SessionView,
 ) -> None:

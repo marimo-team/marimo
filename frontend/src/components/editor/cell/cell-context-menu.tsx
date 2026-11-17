@@ -20,10 +20,11 @@ import {
 import { menuItemVariants } from "@/components/ui/menu-items";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import { useRestoreFocus } from "@/components/ui/use-restore-focus";
 import { useCellData, useCellRuntime } from "@/core/cells/cells";
 import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import { useCellExecution } from "@/core/executions";
+import { useCellExecution, useCellOutput } from "@/core/executions";
 import { goToDefinitionWithLspFallback } from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
 import { copyImageToClipboard, copyToClipboard } from "@/utils/copy";
@@ -56,6 +57,7 @@ export const CellActionsContextMenu = ({
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
   const execution = useCellExecution(cellId);
+  const output = useCellOutput(cellId);
   const actions = useCellActionButtons({
     cell: {
       cellId: cellId,
@@ -63,7 +65,7 @@ export const CellActionsContextMenu = ({
       config: cellData.config,
       status: execution.status,
       blocked: execution.blocked,
-      hasOutput: !isOutputEmpty(cellRuntime.output),
+      hasOutput: !isOutputEmpty(output),
       hasConsoleOutput: cellRuntime.consoleOutputs.length > 0,
       getEditorView,
     },
@@ -71,6 +73,8 @@ export const CellActionsContextMenu = ({
   const [imageRightClicked, setImageRightClicked] =
     React.useState<HTMLImageElement>();
   const suppressCloseAutoFocus = React.useRef(false);
+  const pendingAction = React.useRef<(() => void) | null>(null);
+  const restoreFocus = useRestoreFocus();
 
   const DEFAULT_CONTEXT_MENU_ITEMS: ActionButton[] = [
     {
@@ -194,7 +198,13 @@ export const CellActionsContextMenu = ({
     .filter((group) => group.length > 0);
 
   return (
-    <ContextMenu>
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) {
+          restoreFocus.onOpenAutoFocus();
+        }
+      }}
+    >
       <ContextMenuTrigger
         disabled={disabled}
         onContextMenu={(evt) => {
@@ -212,6 +222,13 @@ export const CellActionsContextMenu = ({
         className="w-[300px]"
         scrollable={true}
         onCloseAutoFocus={(evt) => {
+          const action = pendingAction.current;
+          pendingAction.current = null;
+          if (action) {
+            restoreFocus.onCloseAutoFocus(evt);
+            evt.preventDefault();
+            action();
+          }
           if (suppressCloseAutoFocus.current) {
             evt.preventDefault();
             suppressCloseAutoFocus.current = false;
@@ -270,7 +287,7 @@ export const CellActionsContextMenu = ({
                           if (action.disableClick || action.disabled) {
                             return;
                           }
-                          action.handle(evt);
+                          pendingAction.current = () => action.handle(evt);
                         }}
                         variant={action.variant}
                       >

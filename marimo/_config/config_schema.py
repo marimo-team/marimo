@@ -1,8 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Struct schema for configuration defaults and field metadata.
-
-The dictionary interfaces in `config.py` remain in use during migration.
-"""
+"""Typed configuration settings, defaults, and field metadata."""
 
 from __future__ import annotations
 
@@ -44,8 +41,8 @@ class CompletionConfig(Config, kw_only=True):
         ),
     ] = False
     copilot: Annotated[
-        bool | Literal["github", "codeium", "custom"],
-        Meta(description='one of `"github"`, `"codeium"`, or `"custom"`'),
+        bool | Literal["github", "custom"],
+        Meta(description='one of `"github"` or `"custom"`'),
     ] = False
     auto_close_pairs: Annotated[
         bool,
@@ -53,10 +50,6 @@ class CompletionConfig(Config, kw_only=True):
             description="if `False`, typing an opening bracket, parenthesis, or quote will not automatically insert the closing character"
         ),
     ] = True
-    codeium_api_key: Annotated[
-        str | UnsetType | None,
-        Meta(description="the Codeium API key", extra={"sensitive": True}),
-    ] = UNSET
     api_key: Annotated[
         str | UnsetType | None,
         Meta(
@@ -127,17 +120,17 @@ class VenvConfig(Config, kw_only=True):
     single notebooks and directories when editing without `--sandbox`."""
 
     path: Annotated[
-        str | UnsetType,
+        str | None,
         Meta(
             description="path to a virtualenv directory (absolute or relative to pyproject.toml)"
         ),
-    ] = UNSET
+    ] = None
     writable: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(
             description="if true, marimo will manage script metadata (inline dependencies). Defaults to false."
         ),
-    ] = UNSET
+    ] = False
 
 
 class RuntimeConfig(Config, kw_only=True):
@@ -180,11 +173,11 @@ class RuntimeConfig(Config, kw_only=True):
         ),
     ] = 8_000_000
     serve_cached_sessions_in_apps: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(
             description="if `True`, initialize applications with session cache."
         ),
-    ] = UNSET
+    ] = False
     std_stream_max_bytes: Annotated[
         int,
         Meta(
@@ -192,11 +185,11 @@ class RuntimeConfig(Config, kw_only=True):
         ),
     ] = 1_000_000
     pythonpath: Annotated[
-        list[str] | UnsetType,
+        list[str],
         Meta(
             description="a list of directories to add to the Python search path. Directories will be added to the head of sys.path. Similar to the `PYTHONPATH` environment variable, the directories will be included in where Python will look for imported modules."
         ),
-    ] = UNSET
+    ] = field(default_factory=list)
     dotenv: Annotated[
         list[str] | UnsetType,
         Meta(
@@ -219,18 +212,19 @@ class RuntimeConfig(Config, kw_only=True):
         ),
     ] = "auto"
     default_auto_download: Annotated[
-        list[ExportType] | UnsetType,
+        list[ExportType],
         Meta(
             description="an Optional list of export types to automatically snapshot your notebook as: `html`, `markdown`, `ipynb`."
         ),
-    ] = UNSET
+    ] = field(default_factory=list)
     default_csv_encoding: Annotated[
         str, Meta(description="the default encoding for CSV exports.")
     ] = "utf-8"
     show_tracebacks: Annotated[
         bool,
         Meta(
-            description="if `True`, show detailed error tracebacks in run mode. When enabled, exceptions will display a clickable toast that opens a modal with the full traceback."
+            description="if `True`, show detailed error tracebacks in run mode. When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.",
+            extra={"cli_flag": ["--show-tracebacks", "--no-show-tracebacks"]},
         ),
     ] = False
     execution_type: Annotated[
@@ -238,13 +232,13 @@ class RuntimeConfig(Config, kw_only=True):
         Meta(description="Cell declaration handling: relaxed or strict."),
     ] = UNSET
     cache_cells: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(description="Enable experimental automatic cell caching."),
-    ] = UNSET
+    ] = False
     pin_modules: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(description="Pin imported modules when caching cells."),
-    ] = UNSET
+    ] = True
 
 
 class DisplayConfig(Config, kw_only=True):
@@ -309,10 +303,114 @@ class FormattingConfig(Config, kw_only=True):
 class ServerConfig(Config, kw_only=True):
     """Configuration for the server."""
 
+    host: Annotated[
+        str,
+        Meta(description="Host to bind to.", extra={"cli_flag": ["--host"]}),
+    ] = "127.0.0.1"
+    port: Annotated[
+        Annotated[int, Meta(ge=0, le=65535)] | None,
+        Meta(
+            description="Port to bind to (0-65535). If unset or 0, find an available port.",
+            extra={"cli_flag": ["--port", "-p"]},
+        ),
+    ] = None
+    proxy: Annotated[
+        str | None,
+        Meta(
+            description="Address of the reverse proxy.",
+            extra={"cli_flag": ["--proxy"]},
+        ),
+    ] = None
+    base_url: Annotated[
+        str,
+        Meta(
+            description="Base URL for the server, starting with / and without a trailing slash.",
+            extra={"cli_flag": ["--base-url"]},
+        ),
+    ] = ""
+    allow_origins: Annotated[
+        list[str],
+        Meta(
+            description="Allowed origins for HTTP and WebSocket connections.",
+            extra={"cli_flag": ["--allow-origins"]},
+        ),
+    ] = field(default_factory=list)
+    headless: Annotated[
+        bool,
+        Meta(
+            description="Do not launch a browser.",
+            extra={"cli_flag": ["--headless"]},
+        ),
+    ] = False
+    watch: Annotated[
+        bool,
+        Meta(
+            description="Watch notebook files for changes; reload code in edit mode or the application in run mode.",
+            extra={"cli_flag": ["--watch"]},
+        ),
+    ] = False
+    skew_protection: Annotated[
+        bool,
+        Meta(
+            description="Enable protection against frontend and server version mismatches.",
+            extra={"cli_flag": ["--skew-protection", "--no-skew-protection"]},
+        ),
+    ] = True
+    timeout: Annotated[
+        float | None,
+        Meta(
+            description="Shut down after this many minutes without a connection.",
+            extra={"cli_flag": ["--timeout"]},
+        ),
+    ] = None
+    session_ttl: Annotated[
+        int | UnsetType | None,
+        Meta(
+            description="Seconds before closing a disconnected session. Defaults to unlimited in edit mode and 120 in run mode; null means unlimited.",
+            extra={"cli_flag": ["--session-ttl"]},
+        ),
+    ] = UNSET
+    token: Annotated[
+        bool | UnsetType,
+        Meta(
+            description="Enable token authentication. Defaults to true in edit mode and false in run mode.",
+            extra={"cli_flag": ["--token", "--no-token"]},
+        ),
+    ] = UNSET
+    token_password: Annotated[
+        str | None,
+        Meta(
+            description="Password used for token authentication. Mutually exclusive with token_password_file.",
+            extra={"cli_flag": ["--token-password"], "sensitive": True},
+        ),
+    ] = None
+    token_password_file: Annotated[
+        str | None,
+        Meta(
+            description="File containing the token password, or - to read from stdin. Mutually exclusive with token_password.",
+            extra={"cli_flag": ["--token-password-file"], "sensitive": True},
+        ),
+    ] = None
+    include_code: Annotated[
+        bool,
+        Meta(
+            description="Send notebook source code to clients in run mode. Edit mode always includes code.",
+            extra={"cli_flag": ["--include-code"]},
+        ),
+    ] = False
+    redirect_console_to_browser: Annotated[
+        bool,
+        Meta(
+            description="Redirect console output to the browser. This option only applies to run mode. Edit mode always redirects output to the browser.",
+            extra={"cli_flag": ["--redirect-console-to-browser"]},
+        ),
+    ] = False
+
     skip_update_check: Annotated[
         bool,
         Meta(
-            description="Skip checking for marimo updates when starting the editor."
+            description="Skip checking for marimo updates when starting the editor.",
+            extra={"cli_flag": ["--skip-update-check"]},
         ),
     ] = False
     session_cookie_secure: Annotated[
@@ -322,12 +420,12 @@ class ServerConfig(Config, kw_only=True):
         ),
     ] = False
     session_secret: Annotated[
-        str | UnsetType,
+        str | None,
         Meta(
             description="Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process.",
             extra={"sensitive": True},
         ),
-    ] = UNSET
+    ] = None
     browser: Annotated[
         Literal["default"] | str,
         Meta(
@@ -341,11 +439,11 @@ class ServerConfig(Config, kw_only=True):
         ),
     ] = False
     disable_file_downloads: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(
             description="if true, the file download button will be hidden in the file explorer."
         ),
-    ] = UNSET
+    ] = False
     transport: Annotated[
         Literal["websocket", "sse"] | UnsetType,
         Meta(
@@ -367,17 +465,17 @@ class AiModelConfig(Config, kw_only=True):
     """Configuration options for an AI model."""
 
     chat_model: Annotated[
-        str | UnsetType | None,
+        str | None,
         Meta(description="the model to use for chat completions"),
-    ] = UNSET
+    ] = None
     edit_model: Annotated[
-        str | UnsetType | None,
+        str | None,
         Meta(description="the model to use for edit completions"),
-    ] = UNSET
+    ] = None
     autocomplete_model: Annotated[
-        str | UnsetType | None,
+        str | None,
         Meta(description="the model to use for code completion/autocomplete"),
-    ] = UNSET
+    ] = None
     displayed_models: Annotated[
         list[str], Meta(description="a list of models to display in the UI")
     ] = field(default_factory=list)
@@ -399,23 +497,23 @@ class AiConfig(Config, kw_only=True):
         ),
     ] = True
     rules: Annotated[
-        str | UnsetType,
+        str,
         Meta(
             description="custom rules to include in all AI completion prompts"
         ),
-    ] = UNSET
+    ] = ""
     max_tokens: Annotated[
-        int | UnsetType | None,
+        int | None,
         Meta(
             description="the maximum number of tokens to use in AI completions"
         ),
-    ] = UNSET
+    ] = None
     mode: Annotated[
-        CopilotMode | UnsetType,
+        CopilotMode,
         Meta(
             description='notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`.'
         ),
-    ] = UNSET
+    ] = "ask"
     inline_tooltip: Annotated[
         bool | UnsetType,
         Meta(description="if `True`, enable inline AI tooltip suggestions"),
@@ -691,17 +789,17 @@ class LintConfig(Config, kw_only=True):
     during `marimo check`."""
 
     select: Annotated[
-        list[str] | UnsetType,
+        list[str],
         Meta(
             description='list of rule code prefixes that replaces the default enabled set. Use `"ALL"` to select all rules. Example: `["MB", "MR001"]`'
         ),
-    ] = UNSET
+    ] = field(default_factory=list)
     ignore: Annotated[
-        list[str] | UnsetType,
+        list[str],
         Meta(
             description="list of rule code prefixes to remove from the enabled set."
         ),
-    ] = UNSET
+    ] = field(default_factory=list)
 
 
 class SnippetsConfig(Config, kw_only=True):
@@ -740,20 +838,20 @@ class FolderConfig(Config, kw_only=True):
 
     path: Annotated[str, Meta(description="the absolute path to the folder")]
     name: Annotated[
-        str | UnsetType,
+        str | None,
         Meta(description="an optional display name for the folder"),
-    ] = UNSET
+    ] = None
 
 
 class FileBrowserConfig(Config, kw_only=True):
     """Configuration for the file browser panel."""
 
     folders: Annotated[
-        list[FolderConfig] | UnsetType,
+        list[FolderConfig],
         Meta(
             description="additional absolute folders to show in the file browser"
         ),
-    ] = UNSET
+    ] = field(default_factory=list)
 
 
 class SharingConfig(Config, kw_only=True):
@@ -783,14 +881,15 @@ class StoreConfig(Config, kw_only=True):
     """Configuration for a single cache store."""
 
     type: Annotated[
-        StoreKey | UnsetType, Meta(description="Cache store backend.")
-    ] = UNSET
+        StoreKey | str,
+        Meta(description="Cache store backend or installed entry-point name."),
+    ] = "file"
     args: Annotated[
-        dict[str, Any] | UnsetType,
+        dict[str, Any],
         Meta(
             description="Keyword arguments passed to the cache store constructor."
         ),
-    ] = UNSET
+    ] = field(default_factory=dict)
 
 
 CacheStoreConfig = list[StoreConfig] | StoreConfig
@@ -800,39 +899,39 @@ class CacheConfig(Config, kw_only=True):
     """Configuration for caching."""
 
     verification: Annotated[
-        CacheVerification | UnsetType,
+        CacheVerification,
         Meta(
             description="Cache signature verification posture: off, on, or strict."
         ),
-    ] = UNSET
+    ] = "off"
     store: Annotated[
-        CacheStoreConfig | UnsetType,
+        CacheStoreConfig | None,
         Meta(
             description="Backing cache store, or a list of stores composed into a tiered store."
         ),
-    ] = UNSET
+    ] = None
     loader: Annotated[
-        CacheLoader | UnsetType,
+        CacheLoader,
         Meta(description="Default loader for mo.persistent_cache."),
-    ] = UNSET
+    ] = "lazy"
 
 
 class SigningConfig(Config, kw_only=True):
     """Cache-signing trust and identity."""
 
     trusted_signers: Annotated[
-        dict[str, str] | UnsetType,
+        dict[str, str],
         Meta(
             description="Trusted key fingerprints (SHA256:<base64>) mapped to advisory labels. Trust permits code execution when restoring cached Python objects."
         ),
-    ] = UNSET
+    ] = field(default_factory=dict)
     private_key_path: Annotated[
-        str | UnsetType,
+        str | None,
         Meta(
             description="Absolute path to this machine's private signing key. Not exposed to the frontend.",
             extra={"sensitive": True},
         ),
-    ] = UNSET
+    ] = None
 
 
 class ExperimentalConfig(Config, kw_only=True):
@@ -859,27 +958,27 @@ class ExperimentalConfig(Config, kw_only=True):
         ),
     ] = UNSET
     isolate_apps: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(description="Run applications in separate processes."),
-    ] = UNSET
+    ] = False
     debugger: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(
             description="Enable live debugging with gutter breakpoints and pdb."
         ),
-    ] = UNSET
+    ] = False
     line_timing: Annotated[
-        bool | UnsetType,
+        bool,
         Meta(
             description="Highlight the active line and show per-line execution timing."
         ),
-    ] = UNSET
+    ] = False
     execution_type: Annotated[
-        ExecutionType | UnsetType,
+        ExecutionType,
         Meta(
             description="Experimental cell declaration handling: relaxed or strict."
         ),
-    ] = UNSET
+    ] = "relaxed"
 
 
 class MCPServerStdioConfig(
@@ -999,42 +1098,42 @@ class MarimoConfig(Config, kw_only=True):
         Meta(description="Configuration options for diagnostics."),
     ] = field(default_factory=DiagnosticsConfig)
     lint: Annotated[
-        LintConfig | UnsetType,
+        LintConfig,
         Meta(description="Configuration for lint rule selection."),
-    ] = UNSET
+    ] = field(default_factory=LintConfig)
     experimental: Annotated[
-        ExperimentalConfig | UnsetType,
+        ExperimentalConfig,
         Meta(description="Configuration for experimental features."),
-    ] = UNSET
+    ] = field(default_factory=ExperimentalConfig)
     snippets: Annotated[
         SnippetsConfig, Meta(description="Configuration for snippets.")
     ] = field(default_factory=SnippetsConfig)
     datasources: Annotated[
-        DatasourcesConfig | UnsetType,
+        DatasourcesConfig,
         Meta(description="Configuration for datasources panel."),
-    ] = UNSET
+    ] = field(default_factory=DatasourcesConfig)
     file_browser: Annotated[
-        FileBrowserConfig | UnsetType,
+        FileBrowserConfig | None,
         Meta(description="Configuration for the file browser panel."),
-    ] = UNSET
+    ] = None
     sharing: Annotated[
-        SharingConfig | UnsetType,
+        SharingConfig | None,
         Meta(description="Configuration for sharing features."),
-    ] = UNSET
+    ] = None
     mcp: Annotated[
         MCPConfig, Meta(description="Configuration for MCP servers")
     ] = field(default_factory=MCPConfig)
     venv: Annotated[
-        VenvConfig | UnsetType,
+        VenvConfig,
         Meta(
             description="Configuration for an external Python environment in edit mode."
         ),
-    ] = UNSET
+    ] = field(default_factory=VenvConfig)
     cache: Annotated[
-        CacheConfig | UnsetType, Meta(description="Configuration for caching.")
-    ] = UNSET
+        CacheConfig, Meta(description="Configuration for caching.")
+    ] = field(default_factory=CacheConfig)
     signing: Annotated[
-        SigningConfig | UnsetType,
+        SigningConfig,
         Meta(description="Cache-signing trust and identity."),
-    ] = UNSET
+    ] = field(default_factory=SigningConfig)
     _mcp_path = ("mcp",)

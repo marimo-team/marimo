@@ -20,7 +20,7 @@ env:
 jobs:
   publish_release:
     name: 📤 Publish release
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     environment: pypi
     permissions:
       contents: read

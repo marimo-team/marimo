@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { history, undo } from "@codemirror/commands";
 import { MySQL, PostgreSQL } from "@codemirror/lang-sql";
 import { language as activeLanguage } from "@codemirror/language";
@@ -44,10 +46,10 @@ afterEach(() => {
 });
 
 const completionConfig = {
+  ...defaultUserConfig().completion,
   activate_on_typing: true,
   signature_hint_on_typing: false,
   copilot: false,
-  codeium_api_key: null,
 } as const;
 
 /** The language configuration a marimo cell editor installs. */
@@ -57,7 +59,7 @@ function languages(id: CellId) {
     completionConfig,
     hotkeys: new OverridingHotkeyProvider({}),
     placeholderType: "marimo-import",
-    lspConfig: {},
+    lspConfig: { ...defaultUserConfig().language_servers },
   } as const;
   return [
     cellActionsState.of({
@@ -80,6 +82,8 @@ function languages(id: CellId) {
       expandCell: vi.fn(),
       collapseAllCells: vi.fn(),
       expandAllCells: vi.fn(),
+      clearCellOutput: vi.fn(),
+      clearAllCellOutputs: vi.fn(),
       showCellIfHidden: vi.fn(),
       moveCell: vi.fn(),
       moveCellToIndex: vi.fn(),
@@ -103,7 +107,10 @@ function languages(id: CellId) {
       saveNotebook: vi.fn(),
     }),
     adaptiveLanguageConfiguration(options),
-    cellConfigExtension({ ...options, diagnosticsConfig: {} }),
+    cellConfigExtension({
+      ...options,
+      diagnosticsConfig: { ...defaultUserConfig().diagnostics },
+    }),
   ];
 }
 
@@ -123,6 +130,7 @@ function setup({
   const model = createDocumentModel({
     store,
     documentAtom: source,
+    shownDocumentAtom: source,
     backendAtom: atom(fakeBackend({ edit: () => new Promise(() => {}) })),
   });
   const controller = new AbortController();

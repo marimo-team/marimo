@@ -17,7 +17,7 @@ env:
 jobs:
   publish_release:
     name: 📤 Build release
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -63,7 +63,7 @@ jobs:
       - name: 🔨 Get version
         id: get_version
         run: |
-          echo "marimo_version=$(uv version --short)" >> $GITHUB_OUTPUT
+          echo "marimo_version=$(uv version --short)" >> "$GITHUB_OUTPUT"
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend

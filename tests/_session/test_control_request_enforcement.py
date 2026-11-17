@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from marimo._messaging.notification import ConsumerCapabilities
 from marimo._runtime import commands
 from marimo._session.session import SessionImpl
-from marimo._types.ids import ConsumerId
+from marimo._types.ids import ConsumerId, RequestId
 
 
 def _session_with_capabilities(
@@ -66,5 +68,25 @@ def test_missing_consumer_read_request_is_dropped() -> None:
     session.put_control_request(
         commands.CodeCompletionCommand(id="c", document="", cell_id="cell-0"),
         from_consumer_id=ConsumerId("ghost"),
+    )
+    event_bus.emit_received_command.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "caps",
+    [ConsumerCapabilities.VIEWER, ConsumerCapabilities.INTERACTOR],
+)
+def test_non_editor_sql_validation_is_dropped(
+    caps: ConsumerCapabilities,
+) -> None:
+    session, event_bus = _session_with_capabilities(caps)
+    session.put_control_request(
+        commands.ValidateSQLCommand(
+            request_id=RequestId("r"),
+            query="SELECT 1",
+            only_parse=False,
+            engine="__marimo_duckdb",
+        ),
+        from_consumer_id=ConsumerId("consumer"),
     )
     event_bus.emit_received_command.assert_not_called()

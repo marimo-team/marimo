@@ -7,17 +7,18 @@ from contextlib import asynccontextmanager
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from marimo._config.config_schema import (
+    MCPServerStdioConfig,
+    MCPServerStreamableHttpConfig,
+)
+from marimo._config.schema_utils import default_if_unset
 from marimo._utils.typing import override
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
     from typing import TypeGuard
 
-    from marimo._config.config import (
-        MCPServerConfig,
-        MCPServerStdioConfig,
-        MCPServerStreamableHttpConfig,
-    )
+    from marimo._config.config_schema import MCPServerConfig
     from marimo._server.ai.mcp.config import MCPServerDefinition
     from mcp.client import Transport
     from mcp.shared._stream_protocols import ReadStream, WriteStream
@@ -27,13 +28,13 @@ if TYPE_CHECKING:
 def _is_stdio_config(
     config: MCPServerConfig,
 ) -> TypeGuard[MCPServerStdioConfig]:
-    return "command" in config
+    return isinstance(config, MCPServerStdioConfig)
 
 
 def _is_streamable_http_config(
     config: MCPServerConfig,
 ) -> TypeGuard[MCPServerStreamableHttpConfig]:
-    return "url" in config
+    return isinstance(config, MCPServerStreamableHttpConfig)
 
 
 class MCPTransportType(str, Enum):
@@ -73,12 +74,14 @@ class StdioTransportConnector(MCPTransportConnector):
 
         # Set up environment variables for the server process
         env = os.environ.copy()
-        env.update(config.get("env") or {})
+        env_vars = default_if_unset(config.env, None)
+        env.update(env_vars or {})
 
         # Configure server parameters
+        args = default_if_unset(config.args, None)
         server_params = StdioServerParameters(
-            command=config["command"],
-            args=config.get("args") or [],
+            command=config.command,
+            args=args or [],
             env=env,
         )
 
@@ -107,12 +110,12 @@ class StreamableHTTPTransportConnector(MCPTransportConnector):
         ]:
             timeout = httpx2.Timeout(server_def.timeout, read=300.0)
             async with httpx2.AsyncClient(
-                headers=config.get("headers", {}),
+                headers=default_if_unset(config.headers, {}),
                 follow_redirects=True,
                 timeout=timeout,
             ) as http_client:
                 async with streamable_http_client(
-                    config["url"], http_client=http_client
+                    config.url, http_client=http_client
                 ) as streams:
                     yield streams
 

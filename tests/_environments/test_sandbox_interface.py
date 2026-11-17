@@ -656,7 +656,8 @@ def test_pixi_launch_layers_the_runtime_overlay_through_uv(
     assert ("--with-editable", str(checkout)) in pairs
     assert ("--with", "nbformat") in pairs
     assert plan.argv[-2:] == ("-m", "marimo")
-    assert ("python", "-c") in pairs
+    assert ("python", "-P") in pairs
+    assert ("-P", "-c") in pairs
     assert plan.env["CONDA_PREFIX"] == str(root)
     assert plan.start_new_session
 

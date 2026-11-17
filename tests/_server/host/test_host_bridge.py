@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -11,9 +12,15 @@ from typing import TYPE_CHECKING
 import pytest
 from starlette.datastructures import State
 
+from marimo._config.manager import (
+    MarimoConfigManager,
+    PyprojectConfigReader,
+    ScriptConfigReader,
+    UserConfigStore,
+)
 from marimo._core import protocol
 from marimo._core.code import code_fingerprint
-from marimo._core.errors import Conflict, DecisionRequired, EditConflict
+from marimo._core.errors import Conflict, DecisionRequired, PreconditionFailed
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
     CompletedRunNotification,
@@ -28,6 +35,12 @@ from marimo._server.host.events import MarimoEvent, MarimoMessage
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
 from marimo._session.model import SessionMode
+from marimo._session.state.serialize import get_session_cache_file
+from marimo._utils.code import hash_code
+from marimo._utils.inline_script_metadata import (
+    script_metadata_hash_from_filename,
+)
+from marimo._version import __version__
 from tests._core.conftest import names
 from tests._server.host.conftest import FakeManager, FakeSession
 
@@ -126,6 +139,80 @@ async def test_sessions_present_and_created_are_adopted(
     unknown = FakeSession(str(tmp_path.parent / "elsewhere.py"))
     await manager.event_bus.emit_session_created(unknown)  # type: ignore[arg-type]
     assert unknown.consumers == []
+    bridge.close()
+
+
+async def untitled(
+    manager: FakeManager, bridge: SessionBridge
+) -> tuple[protocol.NotebookId, FakeSession]:
+    """Adopt an editor's session for a notebook that has no file yet."""
+    session = FakeSession(path=None)
+    manager.sessions["browser"] = session
+    await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
+    (notebook_id,) = bridge.host.notebooks
+    return protocol.NotebookId(notebook_id), session
+
+
+async def running(bridge: SessionBridge, runtime: protocol.Runtime) -> None:
+    """Wait for a runtime that was just started to report it is running."""
+    reached = asyncio.Event()
+
+    def watch(event: RoutedEvent) -> None:
+        if (
+            isinstance(event.event, protocol.RuntimeEvent)
+            and event.event.data.runtime.id == runtime.id
+            and event.event.data.runtime.status == "running"
+        ):
+            reached.set()
+
+    unsubscribe = bridge.host.subscribe(watch, types={"runtime"})
+    try:
+        await asyncio.wait_for(reached.wait(), 5)
+    finally:
+        unsubscribe()
+
+
+async def test_restarting_an_untitled_notebook_keeps_one_notebook(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    notebook_id, session = await untitled(manager, bridge)
+    notebook = await bridge.host.notebook(notebook_id)
+
+    replacement = manager.next_session = FakeSession(path=None)
+    await running(bridge, notebook.restart())
+
+    assert list(bridge.host.notebooks) == [notebook_id]
+    assert bridge._backends[notebook_id].session is replacement
+    assert len(replacement.consumers) == 1
+    # The editor's tab rejoins the replacement by the key it already has.
+    assert manager.starts[-1]["file_key"] == session.initialization_id
+    bridge.close()
+
+
+async def test_an_editor_rejoins_its_untitled_notebook_by_session_key(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path)
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    notebook_id, session = await untitled(manager, bridge)
+    notebook = await bridge.host.notebook(notebook_id)
+    notebook.stop()
+    assert (session.closed, notebook.runtime) == (True, None)
+
+    rejoined = FakeSession(path=None)
+    await manager.event_bus.emit_session_created(rejoined)  # type: ignore[arg-type]
+    assert list(bridge.host.notebooks) == [notebook_id]
+    assert bridge._backends[notebook_id].session is rejoined
+
+    # Another tab's untitled notebook has a key of its own.
+    other = FakeSession(path=None)
+    other.initialization_id = "__new__other"
+    await manager.event_bus.emit_session_created(other)  # type: ignore[arg-type]
+    assert len(bridge.host.notebooks) == 2
     bridge.close()
 
 
@@ -608,6 +695,130 @@ async def test_a_new_session_adopts_unsaved_host_edits(
     bridge.close()
 
 
+async def test_stored_results_are_on_the_stream_without_a_runtime(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    # An earlier session of this notebook left its outputs on disk.
+    cache = get_session_cache_file(path)
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": None,
+                },
+                "cells": [
+                    {
+                        "id": "earlier",
+                        "code_hash": hash_code("x = 1"),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "1"}}
+                        ],
+                        "console": [],
+                    }
+                ],
+            }
+        )
+    )
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    record = bridge.index.notebook_for(str(path))
+    assert record is not None
+
+    notebook = await bridge.host.notebook(record.id)
+
+    assert notebook.runtime is None
+    (cell,) = notebook.document
+    result = notebook.executions.current(cell.id)
+    assert result is not None
+    assert result.execution.outcome == protocol.ValueOutcome(
+        protocol.DisplayData(mimetype="text/plain", data="1")
+    )
+    assert names(bridge.host.events(notebook_id=record.id)) == [
+        "notebook",
+        "cell",
+        "document",
+        "execution",
+        "ready",
+    ]
+    bridge.close()
+
+
+@pytest.mark.parametrize("serve_stored", [True, False])
+@pytest.mark.parametrize("notebook_override", [None, True, False])
+async def test_an_app_starts_from_stored_results_only_when_configured(
+    manager: FakeManager,
+    tmp_path: Path,
+    serve_stored: bool,
+    notebook_override: bool | None,
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    path = tmp_path / "app.py"
+    metadata = ""
+    if notebook_override is not None:
+        metadata = (
+            "# /// script\n"
+            "# [tool.marimo.runtime]\n"
+            f"# serve_cached_sessions_in_apps = {str(notebook_override).lower()}\n"
+            "# ///\n"
+        )
+    path.write_text(metadata + NOTEBOOK)
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.marimo.runtime]\n"
+        f"serve_cached_sessions_in_apps = {str(serve_stored).lower()}\n"
+    )
+    cache = get_session_cache_file(path)
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": script_metadata_hash_from_filename(
+                        str(path)
+                    ),
+                },
+                "cells": [
+                    {
+                        "id": "earlier",
+                        "code_hash": hash_code("x = 1"),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "1"}}
+                        ],
+                        "console": [],
+                    }
+                ],
+            }
+        )
+    )
+    manager.mode = SessionMode.RUN
+    config = MarimoConfigManager(
+        UserConfigStore(), PyprojectConfigReader(str(tmp_path))
+    )
+    bridge = SessionBridge(manager, config)  # type: ignore[arg-type]
+    await bridge.open()
+    session = FakeSession(str(path))
+    session.document = AppFileManager(str(path)).app.cell_manager.document
+    session.config_manager.get_config.return_value = config.with_partial(
+        ScriptConfigReader(str(path))
+    ).get_config()
+
+    notebook = await bridge.adopt(session)  # type: ignore[arg-type]
+
+    assert notebook is not None
+    (cell,) = notebook.document
+    expected = serve_stored if notebook_override is None else notebook_override
+    assert (notebook.executions.current(cell.id) is not None) is expected
+    bridge.close()
+
+
 async def test_an_edit_reaches_the_kernel_as_one_command(
     manager: FakeManager, tmp_path: Path
 ) -> None:
@@ -719,9 +930,9 @@ async def test_save_writes_the_cells_and_keeps_the_app_config(
     )
     assert edited.document.saved_etag != edited.document.etag
 
-    with pytest.raises(EditConflict) as stale:
+    with pytest.raises(PreconditionFailed) as stale:
         await bridge.save(record.id, if_match=["stale"], request_id="save-0")
-    assert stale.value.change == 0
+    assert stale.value.index == 0
     assert "x = 2" not in path.read_text()
 
     saved = await bridge.save(
@@ -1047,7 +1258,7 @@ async def test_reloading_refuses_to_drop_an_edit_made_while_reading(
     finally:
         release.set()
 
-    with pytest.raises(EditConflict) as conflict:
+    with pytest.raises(PreconditionFailed) as conflict:
         await asyncio.wait_for(reloading, 5)
     assert conflict.value.document == edited.document
     assert notebook.document.cell(cell.id).code == "x = 3"  # type: ignore[union-attr]

@@ -103,16 +103,16 @@ class AppFileManager:
         """Read the configured inference backend."""
         if self.config_reader is None:
             return "off"
-        formatting = self.config_reader.get_config().get("formatting", {})
-        return formatting.get("infer_types", "off")
+        formatting = self.config_reader.get_config().formatting
+        return formatting.infer_types
 
     @property
     def line_length(self) -> int:
         """Read the configured annotation line length."""
         if self.config_reader is None:
             return 79
-        formatting = self.config_reader.get_config().get("formatting", {})
-        return int(formatting.get("line_length", 79))
+        formatting = self.config_reader.get_config().formatting
+        return int(formatting.line_length)
 
     @property
     def filename(self) -> str | None:

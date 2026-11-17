@@ -73,7 +73,7 @@ async def test_create_session_with_script_config(
     )
 
     # Script config should override default theme
-    assert session._initial_user_config["display"]["theme"] == "dark"
+    assert session._initial_user_config.display.theme == "dark"
 
 
 async def test_create_session_with_invalid_script_config(
@@ -98,8 +98,8 @@ async def test_create_session_with_invalid_script_config(
 
     # Invalid config should be ignored and default config should be used
     assert (
-        session._initial_user_config["display"]["theme"]
-        == DEFAULT_CONFIG["display"]["theme"]
+        session._initial_user_config.display.theme
+        == DEFAULT_CONFIG.display.theme
     )
 
 

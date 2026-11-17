@@ -2,15 +2,16 @@
 
 import type { EditorView } from "@codemirror/view";
 import {
+  type CellError,
   type CellExecutionInputs,
   type CellExecutionView,
   type CellFreshness,
   type CellFreshnessLookup,
+  type CellOutput,
   cellExecutionView,
 } from "@/core/executions";
 import type { Executions } from "@/core/notebook/replica";
 import { Objects } from "@/utils/objects";
-import type { MarimoError, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { NotebookState } from "./cells";
 import type { CellId } from "./ids";
@@ -143,12 +144,18 @@ function inFlight(executions: Executions, cellId: CellId): boolean {
   return record !== undefined && record.status !== "completed";
 }
 
-/** Whether a cell has never run: no result to show and nothing in flight. */
+/**
+ * Whether a cell has not run in the notebook's runtime: it has no result,
+ * or only one that another runtime produced, and nothing is in flight.
+ */
 export function isUninstantiated({
   status,
   outcome,
-}: Pick<CellExecutionView, "status" | "outcome">) {
-  return outcome === null && status !== "queued" && status !== "running";
+  live,
+}: Pick<CellExecutionView, "status" | "outcome" | "live">) {
+  return (
+    (outcome === null || !live) && status !== "queued" && status !== "running"
+  );
 }
 
 /**
@@ -231,7 +238,7 @@ export function shouldHidePublishedCell({
   errored: boolean;
   interrupted: boolean;
   stopped: boolean;
-  output: OutputMessage | null;
+  output: CellOutput | null;
   showErrorTracebacks: boolean;
 }): boolean {
   const outputIsError = isErrorMime(output?.mimetype);
@@ -240,7 +247,7 @@ export function shouldHidePublishedCell({
     outputIsError &&
     Array.isArray(output?.data) &&
     output.data.some(
-      (e: MarimoError) =>
+      (e: CellError) =>
         e.type === "exception" && "traceback" in e && e.traceback,
     );
   return (errored || interrupted || stopped || outputIsError) && !hasTraceback;

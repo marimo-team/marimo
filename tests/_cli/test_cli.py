@@ -2064,9 +2064,9 @@ def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
     # Verify that the custom config from pyproject.toml is loaded
     config_manager = get_default_config_manager(current_path=str(marimo_file))
     config = config_manager.get_config()
-    assert config["formatting"]["line_length"] == 111
-    assert config["runtime"]["auto_instantiate"] is False
-    assert config["package_management"]["manager"] == "pip"
+    assert config.formatting.line_length == 111
+    assert config.runtime.auto_instantiate is False
+    assert config.package_management.manager == "pip"
 
 
 # Test sandbox with config for vscode compatibility

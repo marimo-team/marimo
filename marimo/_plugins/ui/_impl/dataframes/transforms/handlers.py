@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import decimal
 from functools import reduce
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, assert_never, overload
 
 import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
@@ -43,7 +43,6 @@ from marimo._plugins.ui._impl.tables.narwhals_table import (
     NEGATIVE_INF,
     POSITIVE_INF,
 )
-from marimo._utils.assert_never import assert_never
 from marimo._utils.narwhals_utils import collect_and_preserve_type
 
 if TYPE_CHECKING:

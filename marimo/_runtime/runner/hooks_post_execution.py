@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import sys
-import traceback as tb
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -34,6 +33,7 @@ from marimo._messaging.notification_utils import (
 )
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
+    format_exception,
     format_exception_message,
     write_traceback,
 )
@@ -405,15 +405,16 @@ def _broadcast_outputs(
         show_tracebacks = get_mode() == "edit"
         if ctx.user_config is not None:
             show_tracebacks = show_tracebacks or bool(
-                ctx.user_config["runtime"].get("show_tracebacks", False)
+                ctx.user_config.runtime.show_tracebacks
             )
 
         if show_tracebacks and (
             isinstance(run_result.exception, BaseException)
             and run_result.exception.__traceback__
         ):
-            tb_lines = tb.format_exception(run_result.exception)
-            formatted_traceback = _highlight_traceback("".join(tb_lines))
+            formatted_traceback = _highlight_traceback(
+                format_exception(run_result.exception)
+            )
 
         CellNotificationUtils.broadcast_error(
             data=[

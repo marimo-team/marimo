@@ -23,13 +23,6 @@ export function isAppConnected(state: ConnectionState): boolean {
 }
 
 /**
- * Check if the app is in a closing state
- */
-export function isAppClosing(state: ConnectionState): boolean {
-  return state === ConnectionState.CLOSING;
-}
-
-/**
  * Check if the app is in a not started state
  */
 export function isAppNotStarted(state: ConnectionState): boolean {
@@ -41,9 +34,7 @@ export function isAppNotStarted(state: ConnectionState): boolean {
  */
 export function isAppInteractionDisabled(state: ConnectionState): boolean {
   return (
-    state === ConnectionState.CLOSED ||
-    state === ConnectionState.CLOSING ||
-    state === ConnectionState.CONNECTING
+    state === ConnectionState.CLOSED || state === ConnectionState.CONNECTING
   );
 }
 
@@ -56,12 +47,9 @@ export function getConnectionTooltip(state: ConnectionState): string {
       return "App disconnected";
     case ConnectionState.CONNECTING:
       return "Connecting to a runtime ...";
-    case ConnectionState.CLOSING:
-      return "App disconnecting...";
     case ConnectionState.OPEN:
-      return "";
     case ConnectionState.NOT_STARTED:
-      return "Click to connect to a runtime";
+      return "";
     default:
       return "";
   }

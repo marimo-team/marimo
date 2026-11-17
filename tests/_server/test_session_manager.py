@@ -272,15 +272,11 @@ async def test_create_session_with_script_config_overrides(
     assert session_manager.get_session(session_id) is session
 
     # Verify that the session's config is affected by the script config
-    assert (
-        session.config_manager.get_config()["formatting"]["line_length"] == 999
-    )
+    assert session.config_manager.get_config().formatting.line_length == 999
 
     # Verify that the session manager's config is not affected by the script config
     assert (
-        session_manager._config_manager.get_config()["formatting"][
-            "line_length"
-        ]
+        session_manager._config_manager.get_config().formatting.line_length
         != 999
     )
 

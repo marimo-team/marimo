@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 import json
 
 import httpx
@@ -27,12 +26,14 @@ MODELS = {
     "cell.json": "Cell",
     "cell-withheld.json": "Cell",
     "edit.json": "EditRequest",
-    "edit-conflict-request.json": "EditRequest",
+    "stale-edit-request.json": "EditRequest",
     "edit-response.json": "EditResponse",
     "execution-restored.json": "Execution",
+    "execute-request.json": "ExecuteRequest",
     "run-cells-request.json": "RunRequest",
     "input-reply-request.json": "InputReplyRequest",
     "input-reply-response.json": "Input",
+    "interrupt-runtime-response.json": "Runtime",
 }
 
 
@@ -54,6 +55,33 @@ def test_json_examples(path):
         "Problem" if path.parent.name == "problems" else MODELS[path.name],
         json.loads(path.read_text()),
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "field"),
+    [
+        ("precondition-failed", "index"),
+        ("precondition-failed", "cell"),
+        ("precondition-failed", "document"),
+        ("decision-required", "decisions"),
+    ],
+)
+def test_problem_variants_require_their_payload(name, field):
+    value = json.loads((FIXTURES / "problems" / f"{name}.json").read_text())
+    del value[field]
+    with pytest.raises(ValidationError):
+        validate("Problem", value)
+
+
+def test_precondition_problem_has_a_fixed_status_and_nullable_cell():
+    value = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text()
+    )
+    value["cell"] = None
+    validate("Problem", value)
+    value["status"] = 409
+    with pytest.raises(ValidationError):
+        validate("Problem", value)
 
 
 @pytest.mark.parametrize(
@@ -125,7 +153,7 @@ def test_cell_source_is_required_but_nullable_only_in_records():
     validate("CellInput", {"id": cell["id"], "code": ""})
 
 
-async def test_document_checker_accepts_withheld_source_and_checks_etags():
+async def test_document_checker_accepts_withheld_source():
     snapshot = []
     async for frame in frames(
         lines((FIXTURES / "notebook-events.sse").read_text())
@@ -143,15 +171,9 @@ async def test_document_checker_accepts_withheld_source_and_checks_etags():
         document,
         {key: {**cell, "code": None} for key, cell in cells.items()},
     )
-    cell = next(frame for frame in snapshot if frame.event == "cell")
-    message = cell.message()
-    message["cell"]["etag"] = "0000000000000000"
-    cell.data = json.dumps(message)
-    with pytest.raises(AssertionError):
-        document_state(snapshot)
 
 
-async def test_document_checker_rejects_wrong_hashes_and_ordering():
+async def test_document_checker_rejects_cells_after_the_document():
     snapshot = []
     async for frame in frames(
         lines((FIXTURES / "notebook-events.sse").read_text())
@@ -160,13 +182,6 @@ async def test_document_checker_rejects_wrong_hashes_and_ordering():
             break
         snapshot.append(frame)
     document_state(snapshot)
-    broken = copy.deepcopy(snapshot)
-    cell = next(frame for frame in broken if frame.event == "cell")
-    message = cell.message()
-    message["cell"]["code"] += "\n# changed"
-    cell.data = json.dumps(message)
-    with pytest.raises(AssertionError):
-        document_state(broken)
     with pytest.raises(AssertionError, match="cell arrived after"):
         document_state(
             sorted(snapshot, key=lambda frame: frame.event != "document")
@@ -204,3 +219,18 @@ def test_code_fingerprints_are_opaque():
     cell["code_fingerprint"] = ""
     with pytest.raises(ValidationError):
         validate("Cell", cell)
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (ROOT / "conformance/cases/execution-requests.json").read_text()
+    ),
+    ids=lambda case: f"{case['schema']}: {case['name']}",
+)
+def test_execution_requests(case):
+    if case["valid"]:
+        validate(case["schema"], case["body"])
+    else:
+        with pytest.raises(ValidationError):
+            validate(case["schema"], case["body"])

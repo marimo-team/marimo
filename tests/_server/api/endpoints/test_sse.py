@@ -425,8 +425,6 @@ async def test_sse_disconnect_and_reconnect(client: TestClient) -> None:
     # Reconnect with the same session id
     async with _connect(client) as connection:
         event = await connection.next_notification()
-        assert json.loads(event["data"])["op"] == "reconnected"
-        event = await connection.next_notification()
         assert json.loads(event["data"])["op"] == "alert"
 
 

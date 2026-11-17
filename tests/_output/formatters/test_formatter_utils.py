@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import html
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -11,10 +10,8 @@ from tests.conftest import ExecReqProvider
 
 def test_srcdoc_in_notebook() -> None:
     html_content = "<html><body>Hello, World!</body></html>"
-    escaped_html_content = html.escape(html_content)
-
     result = src_or_src_doc(html_content)
-    assert result == {"srcdoc": escaped_html_content}
+    assert result == {"srcdoc": html_content}
 
 
 @patch(

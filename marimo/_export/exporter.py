@@ -3,20 +3,20 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._config.config import (
-    DEFAULT_CONFIG,
+from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config_schema import (
     DisplayConfig,
     MarimoConfig,
     SharingConfig,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._config.utils import deep_copy
 from marimo._convert.common.dom_traversal import (
     replace_public_files_with_data_uris,
     replace_virtual_files_with_data_uris,
@@ -132,8 +132,8 @@ class Exporter:
         )
 
         # Serialize notebook state
-        session_snapshot = deep_copy(request.snapshot.session)
-        notebook_snapshot = deep_copy(request.snapshot.notebook)
+        session_snapshot = copy.deepcopy(request.snapshot.session)
+        notebook_snapshot = copy.deepcopy(request.snapshot.notebook)
 
         # Replace virtual files in HTML outputs with data URIs
         session_snapshot, replaced_files = self._inline_virtual_files(
@@ -202,10 +202,10 @@ class Exporter:
         sharing_config: SharingConfig | None = None,
     ) -> MarimoConfig:
         """Prepare config with display and sharing settings for static notebook."""
-        config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
-        config["display"] = display_config
+        config: MarimoConfig = copy.deepcopy(DEFAULT_CONFIG)
+        config.display = display_config
         if sharing_config:
-            config["sharing"] = sharing_config
+            config.sharing = sharing_config
         return config
 
     @staticmethod
@@ -444,7 +444,7 @@ class Exporter:
             request.display_config, request.sharing_config
         )
         # Remove autosave
-        config["save"]["autosave"] = "off"
+        config.save.autosave = "off"
 
         html = wasm_notebook_template(
             html=index_html,
@@ -789,11 +789,42 @@ class Exporter:
                 # Skip if source and target are the same
                 return True
 
+            # Copy only between real directories. If either public/ folder is
+            # a symlink, files are copied from, or into, a different location.
+            if public_dir.is_symlink() or target_dir.is_symlink():
+                LOGGER.warning(
+                    f"Skipping public folder: {public_dir} or {target_dir}"
+                    " is a symlink"
+                )
+                return False
+
             LOGGER.debug(f"Copying public folder to {dirpath}")
+            resolved_public = public_dir.resolve()
+
+            # Skip entries that resolve outside public/ or whose destination
+            # is a symlink.
+            def ignore_links(src: str, names: list[str]) -> set[str]:
+                dst = target_dir / Path(src).relative_to(public_dir)
+                skipped = {
+                    name
+                    for name in names
+                    if not (Path(src) / name)
+                    .resolve()
+                    .is_relative_to(resolved_public)
+                    or (dst / name).is_symlink()
+                }
+                for name in skipped:
+                    LOGGER.warning(
+                        f"Skipping {Path(src) / name}: it resolves outside"
+                        f" {public_dir} or its destination is a symlink"
+                    )
+                return skipped
+
             shutil.copytree(
                 public_dir,
                 target_dir,
                 dirs_exist_ok=True,
+                ignore=ignore_links,
             )
             return True
 
@@ -852,10 +883,10 @@ class AutoExporter:
 
             await self._ensure_export_dir_async(filepath.parent)
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
+            written = await loop.run_in_executor(
                 self._executor, self._write_file_sync, filepath, content
             )
-            return revision == self._latest_revisions.get(filepath)
+            return written and revision == self._latest_revisions.get(filepath)
 
     async def save_html(
         self, filename: str | None, html: str, *, revision: int
@@ -872,11 +903,17 @@ class AutoExporter:
     ) -> bool:
         return await self._save_file(filename, ipynb, "ipynb", revision)
 
-    def _write_file_sync(self, filepath: Path, content: str) -> None:
+    def _write_file_sync(self, filepath: Path, content: str) -> bool:
         """Synchronous file write (runs in thread pool)"""
         if content == "":
-            return
+            return True
+        # Do not follow an export file or export directory that is a
+        # symlink, so that exports stay in __marimo__.
+        if filepath.is_symlink() or filepath.parent.is_symlink():
+            LOGGER.warning(f"Skipping auto-export: {filepath} is a symlink")
+            return False
         filepath.write_text(content, encoding="utf-8")
+        return True
 
     async def _ensure_export_dir_async(self, export_dir: Path) -> None:
         """Async directory creation with caching to avoid redundant checks"""

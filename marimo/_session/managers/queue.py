@@ -8,6 +8,7 @@ import sys
 from multiprocessing import get_context
 from multiprocessing.queues import Queue as MPQueue
 
+from marimo._messaging.input import InputReply
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._session.queue import route_control_request
@@ -52,7 +53,7 @@ class QueueManagerImpl(QueueManager):
 
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue: MPQueue[str] | queue.Queue[str] = (
+        self.input_queue: MPQueue[InputReply] | queue.Queue[InputReply] = (
             context.Queue(maxsize=1)
             if context is not None
             else queue.Queue(maxsize=1)
@@ -98,7 +99,3 @@ class QueueManagerImpl(QueueManager):
             self.completion_queue,
             self.set_ui_element_queue,
         )
-
-    def put_input(self, text: str) -> None:
-        """Put an input request in the input queue."""
-        self.input_queue.put(text)

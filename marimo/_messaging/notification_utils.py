@@ -236,7 +236,7 @@ class CellNotificationUtils:
             try:
                 ctx = get_context()
                 show_tracebacks = bool(
-                    ctx.marimo_config["runtime"].get("show_tracebacks", False)
+                    ctx.marimo_config.runtime.show_tracebacks
                 )
             except ContextNotInitializedError:
                 pass
