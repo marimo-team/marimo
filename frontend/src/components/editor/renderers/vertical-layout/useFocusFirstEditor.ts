@@ -25,6 +25,14 @@ export function useFocusFirstEditor() {
           return;
         }
 
+        // A user may have focused an input while initial rendering was pending.
+        if (
+          document.activeElement &&
+          document.activeElement !== document.body
+        ) {
+          return;
+        }
+
         // Check if the URL contains a scrollTo parameter
         const hash = window.location.hash;
         const cellName = extractCellNameFromHash(hash);
