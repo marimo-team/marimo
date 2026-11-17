@@ -450,7 +450,6 @@ it("does not mark the session connected on kernel-ready alone", async () => {
       app_config: { width: "normal" },
       kiosk: false,
       capabilities: { terminal: false },
-      auto_instantiated: false,
       consumer_capabilities: { edit: true, interact: true },
     }),
   );

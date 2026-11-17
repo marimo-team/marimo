@@ -60,7 +60,6 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
     ) as ws:
         snapshot = socket_snapshot(ws)
         ready = receive_notification(ws, "kernel-ready")
-        assert ready["auto_instantiated"] is True
         cell = next(
             e["data"]["cell"] for e in snapshot if e["event"] == "cell"
         )

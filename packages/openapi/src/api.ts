@@ -2135,47 +2135,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/instantiate": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["InstantiateNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Instantiate a component. Only allowed in edit mode; in run mode, instantiation happens server-side automatically. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/pdb/breakpoints": {
     parameters: {
       query?: never;
@@ -5457,17 +5416,6 @@ export interface components {
         [key: string]: string;
       };
     };
-    /** InstantiateNotebookRequest */
-    InstantiateNotebookRequest: {
-      /** @default true */
-      autoRun?: boolean;
-      /** @default null */
-      codes?: {
-        [key: string]: string;
-      } | null;
-      objectIds: components["schemas"]["UIElementId"][];
-      values: unknown[];
-    };
     /**
      * InterruptedNotification
      * @description Kernel was interrupted by user (SIGINT/Ctrl+C).
@@ -5552,14 +5500,11 @@ export interface components {
      *         app_config: Application configuration.
      *         kiosk: Whether running in kiosk mode.
      *         capabilities: Available kernel capabilities.
-     *         auto_instantiated: Whether cells already executed (run mode).
      *         stable_session_id: Server-owned Session identity that survives
      *             browser reconnects. None where no server Session exists.
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
-      /** @default false */
-      auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;

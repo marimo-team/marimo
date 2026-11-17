@@ -9,29 +9,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from marimo._messaging.notification import KernelReadyNotification
-from marimo._session.model import SessionMode
 from marimo._session.session import SessionImpl
 from marimo._types.ids import SessionId
-from marimo._utils.parse_dataclass import parse_raw
 from tests._server.api.endpoints.ws_helpers import (
     receive_notification,
     receive_until,
 )
-from tests._server.mocks import get_session_manager, token_header
+from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
     from marimo._config.manager import UserConfigStore
-
-
-def _create_headers(session_id: str) -> dict[str, str]:
-    """Create headers with both token and session ID."""
-    return {
-        **token_header("fake-token"),
-        "Marimo-Session-Id": session_id,
-    }
 
 
 def _create_ws_url(session_id: str) -> str:
@@ -40,21 +29,6 @@ def _create_ws_url(session_id: str) -> str:
 
 class TestAutoInstantiateEditMode:
     """Tests for auto-instantiate in edit mode."""
-
-    def test_kernel_ready_auto_instantiated_false_in_edit_mode(
-        self, client: TestClient
-    ) -> None:
-        """In edit mode, auto_instantiated should be False."""
-        session_id = "test-edit-mode"
-        ws_url = _create_ws_url(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            kernel_ready = parse_raw(data["data"], KernelReadyNotification)
-            # In edit mode, auto_instantiated should be False
-            assert kernel_ready.auto_instantiated is False
 
     @pytest.mark.parametrize("auto_instantiate", [True, False])
     def test_a_new_session_runs_the_notebook_when_autorun_is_on(
@@ -98,83 +72,6 @@ class TestAutoInstantiateEditMode:
                 assert receive_notification(websocket)["op"] == "alert"
 
         assert instantiate.call_count == 1
-
-    def test_instantiate_endpoint_allowed_in_edit_mode(
-        self, client: TestClient
-    ) -> None:
-        """In edit mode, /instantiate endpoint should be allowed."""
-        session_id = "test-instantiate-edit"
-        ws_url = _create_ws_url(session_id)
-        headers = _create_headers(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            # Wait for the session to be fully established
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            # The /instantiate endpoint should work in edit mode
-            response = client.post(
-                "/api/kernel/instantiate",
-                headers=headers,
-                json={"objectIds": [], "values": [], "autoRun": False},
-            )
-            assert response.status_code == 200
-
-
-class TestAutoInstantiateRunMode:
-    """Tests for auto-instantiate in run mode."""
-
-    def test_kernel_ready_auto_instantiated_true_in_run_mode(
-        self, client: TestClient
-    ) -> None:
-        """In run mode, auto_instantiated should be True."""
-        from tests._server.mocks import get_session_manager
-
-        session_manager = get_session_manager(client)
-        session_id = "test-run-mode"
-
-        # Switch to run mode
-        session_manager.mode = SessionMode.RUN
-        ws_url = _create_ws_url(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            kernel_ready = parse_raw(data["data"], KernelReadyNotification)
-            # In run mode, auto_instantiated should be True
-            assert kernel_ready.auto_instantiated is True
-
-    def test_instantiate_endpoint_blocked_in_run_mode(
-        self, client: TestClient
-    ) -> None:
-        """In run mode, /instantiate endpoint should return 401 (Unauthorized).
-
-        The @requires("edit") decorator checks for edit permissions, and in run mode
-        users only have "read" permissions, so they get 401 Unauthorized.
-        """
-        from tests._server.mocks import get_session_manager
-
-        session_manager = get_session_manager(client)
-        session_id = "test-instantiate-run"
-        headers = _create_headers(session_id)
-
-        session_manager.mode = SessionMode.RUN
-        ws_url = _create_ws_url(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            # Wait for the session to be fully established
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            # The /instantiate endpoint should be blocked in run mode
-            # Returns 401 because @requires("edit") checks permissions
-            response = client.post(
-                "/api/kernel/instantiate",
-                headers=headers,
-                json={"objectIds": [], "values": [], "autoRun": False},
-            )
-            assert response.status_code == 401
 
 
 class TestAutoInstantiateHTTPRequest:
@@ -260,29 +157,3 @@ class TestInstantiateNotebookRequest:
             "cell2": "x = 1",
         }
         assert request_with_codes.auto_run is True
-
-    def test_instantiate_endpoint_without_codes_uses_file_codes(
-        self, client: TestClient
-    ) -> None:
-        """Test that instantiate without codes uses file codes."""
-        session_id = "test-file-codes"
-        ws_url = _create_ws_url(session_id)
-        headers = _create_headers(session_id)
-
-        with client.websocket_connect(ws_url) as websocket:
-            # Get the kernel-ready message
-            data = receive_notification(websocket)
-            assert data["op"] == "kernel-ready"
-
-            # Send instantiate without codes (should use file codes)
-            response = client.post(
-                "/api/kernel/instantiate",
-                headers=headers,
-                json={
-                    "objectIds": [],
-                    "values": [],
-                    "autoRun": True,
-                    # No codes field
-                },
-            )
-            assert response.status_code == 200

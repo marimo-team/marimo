@@ -405,7 +405,6 @@ def generate_server_api_schema() -> dict[str, Any]:
         models.FormatResponse,
         models.GetCacheInfoRequest,
         models.InstallPackagesRequest,
-        session_requests.InstantiateNotebookRequest,
         models.InvokeAiToolRequest,
         models.InvokeAiToolResponse,
         models.ProviderModel,

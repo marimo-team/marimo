@@ -3053,29 +3053,6 @@ components:
       - versions
       title: InstallPackagesRequest
       type: object
-    InstantiateNotebookRequest:
-      properties:
-        autoRun:
-          default: true
-          type: boolean
-        codes:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-          default: null
-        objectIds:
-          items:
-            $ref: '#/components/schemas/UIElementId'
-          type: array
-        values:
-          type: array
-      required:
-      - objectIds
-      - values
-      title: InstantiateNotebookRequest
-      type: object
     InterruptedNotification:
       description: Kernel was interrupted by user (SIGINT/Ctrl+C).
       properties:
@@ -3192,16 +3169,12 @@ components:
         \nAttributes:\n    layout: Notebook layout config.\n    resumed: Whether resumed\
         \ from previous session.\n    ui_values: Previous UI element values if resumed.\n\
         \    app_config: Application configuration.\n    kiosk: Whether running in\
-        \ kiosk mode.\n    capabilities: Available kernel capabilities.\n    auto_instantiated:\
-        \ Whether cells already executed (run mode).\n    stable_session_id: Server-owned\
-        \ Session identity that survives\n        browser reconnects. None where no\
-        \ server Session exists."
+        \ kiosk mode.\n    capabilities: Available kernel capabilities.\n    stable_session_id:\
+        \ Server-owned Session identity that survives\n        browser reconnects.\
+        \ None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
-        auto_instantiated:
-          default: false
-          type: boolean
         capabilities:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
         consumer_capabilities:
@@ -7862,27 +7835,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Install missing packages
-  /api/kernel/instantiate:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InstantiateNotebookRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Instantiate a component. Only allowed in edit mode; in run
-            mode, instantiation happens server-side automatically.
   /api/kernel/pdb/breakpoints:
     post:
       parameters:

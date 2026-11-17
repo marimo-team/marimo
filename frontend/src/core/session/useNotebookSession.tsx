@@ -137,9 +137,7 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
         return;
       }
       case "kernel-ready": {
-        setInitialRunCompleted(
-          Boolean(msg.data.resumed || msg.data.auto_instantiated),
-        );
+        setInitialRunCompleted(msg.data.resumed);
         const layout = handleKernelReady(msg.data, {
           cells: notebookCells(store.get(notebookAtom)),
           resetCellRuntimes,

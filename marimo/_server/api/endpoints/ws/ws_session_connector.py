@@ -203,7 +203,6 @@ class SessionConnector:
             resumed=False,
             ui_values={},
             kiosk=False,
-            auto_instantiated=self._is_run_mode,
         )
         self.handler.status = ConnectionState.OPEN
         self.handler._replay_previous_session(session)
