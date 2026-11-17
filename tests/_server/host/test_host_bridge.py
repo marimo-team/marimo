@@ -8,11 +8,16 @@ import json
 import threading
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 from starlette.datastructures import State
 
+from marimo._config.manager import (
+    MarimoConfigManager,
+    PyprojectConfigReader,
+    ScriptConfigReader,
+    UserConfigStore,
+)
 from marimo._core import protocol
 from marimo._core.code import code_fingerprint
 from marimo._core.errors import Conflict, DecisionRequired, PreconditionFailed
@@ -32,6 +37,9 @@ from marimo._server.workspace import FixedFilesWorkspace
 from marimo._session.model import SessionMode
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils.code import hash_code
+from marimo._utils.inline_script_metadata import (
+    script_metadata_hash_from_filename,
+)
 from marimo._version import __version__
 from tests._core.conftest import names
 from tests._server.host.conftest import FakeManager, FakeSession
@@ -742,13 +750,29 @@ async def test_stored_results_are_on_the_stream_without_a_runtime(
 
 
 @pytest.mark.parametrize("serve_stored", [True, False])
+@pytest.mark.parametrize("notebook_override", [None, True, False])
 async def test_an_app_starts_from_stored_results_only_when_configured(
-    manager: FakeManager, tmp_path: Path, serve_stored: bool
+    manager: FakeManager,
+    tmp_path: Path,
+    serve_stored: bool,
+    notebook_override: bool | None,
 ) -> None:
     from marimo._session.notebook import AppFileManager
 
     path = tmp_path / "app.py"
-    path.write_text(NOTEBOOK)
+    metadata = ""
+    if notebook_override is not None:
+        metadata = (
+            "# /// script\n"
+            "# [tool.marimo.runtime]\n"
+            f"# serve_cached_sessions_in_apps = {str(notebook_override).lower()}\n"
+            "# ///\n"
+        )
+    path.write_text(metadata + NOTEBOOK)
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.marimo.runtime]\n"
+        f"serve_cached_sessions_in_apps = {str(serve_stored).lower()}\n"
+    )
     cache = get_session_cache_file(path)
     cache.parent.mkdir(parents=True)
     cache.write_text(
@@ -757,7 +781,9 @@ async def test_an_app_starts_from_stored_results_only_when_configured(
                 "version": "1",
                 "metadata": {
                     "marimo_version": __version__,
-                    "script_metadata_hash": None,
+                    "script_metadata_hash": script_metadata_hash_from_filename(
+                        str(path)
+                    ),
                 },
                 "cells": [
                     {
@@ -773,20 +799,23 @@ async def test_an_app_starts_from_stored_results_only_when_configured(
         )
     )
     manager.mode = SessionMode.RUN
-    config = MagicMock()
-    config.get_config.return_value.runtime.serve_cached_sessions_in_apps = (
-        serve_stored
+    config = MarimoConfigManager(
+        UserConfigStore(), PyprojectConfigReader(str(tmp_path))
     )
     bridge = SessionBridge(manager, config)  # type: ignore[arg-type]
     await bridge.open()
     session = FakeSession(str(path))
     session.document = AppFileManager(str(path)).app.cell_manager.document
+    session.config_manager.get_config.return_value = config.with_partial(
+        ScriptConfigReader(str(path))
+    ).get_config()
 
     notebook = await bridge.adopt(session)  # type: ignore[arg-type]
 
     assert notebook is not None
     (cell,) = notebook.document
-    assert (notebook.executions.current(cell.id) is not None) is serve_stored
+    expected = serve_stored if notebook_override is None else notebook_override
+    assert (notebook.executions.current(cell.id) is not None) is expected
     bridge.close()
 
 

@@ -177,7 +177,10 @@ class SessionBridge(SessionEventListener):
         document = Document(cells, app_config)
         path = session.app_file_manager.path
         executions = Executions()
-        if path is not None and self._serves_stored_results():
+        if (
+            path is not None
+            and session.config_manager.get_config().runtime.serve_cached_sessions_in_apps
+        ):
             executions = await self._restore(Path(path), cells)
             # The session may have closed while its file was read.
             self.app_sessions.session(record.id)
@@ -240,13 +243,6 @@ class SessionBridge(SessionEventListener):
         if file is None:
             return Executions()
         return await asyncio.to_thread(restored_executions, file, cells)
-
-    def _serves_stored_results(self) -> bool:
-        """Whether apps start from the results a session stored."""
-        return (
-            self._config_manager is not None
-            and self._config_manager.get_config().runtime.serve_cached_sessions_in_apps
-        )
 
     async def _load(self, file: Path) -> _FileContents | None:
         """Read a notebook file, or return `None` if it cannot be loaded."""
