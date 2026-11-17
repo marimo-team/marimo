@@ -230,7 +230,7 @@ describe("cellOutputView", () => {
       outcome: { kind: "value", display: HTML },
     });
     const cleared = new Map([
-      [C1, { execution: first.id, outcome: first.outcome! }],
+      [C1, { execution: first.id, outcome: first.outcome!, version: 0 }],
     ]);
     expect(cellOutputView(inputs([first], cleared), C1)).toBeNull();
 
@@ -247,7 +247,7 @@ describe("cellOutputView", () => {
       outcome: { kind: "value", display: HTML },
     });
     const cleared = new Map([
-      [C1, { execution: running.id, outcome: running.outcome! }],
+      [C1, { execution: running.id, outcome: running.outcome!, version: 0 }],
     ]);
     expect(cellOutputView(inputs([running], cleared), C1)).toBeNull();
 

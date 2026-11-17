@@ -241,7 +241,11 @@ export function clearCellOutputs(
   for (const cellId of cellIds) {
     const shown = shownExecution(inputs, cellId);
     if (shown?.outcome != null) {
-      next.set(cellId, { execution: shown.id, outcome: shown.outcome });
+      next.set(cellId, {
+        execution: shown.id,
+        outcome: shown.outcome,
+        version: inputs.executions.executions.get(shown.id)?.outputVersion ?? 0,
+      });
     }
   }
   store.set(clearedOutputsAtom, mark(store, next));

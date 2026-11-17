@@ -66,6 +66,7 @@ function mirror(records: readonly Protocol.Execution[]): Executions {
     }
     executions.set(record.id, {
       record,
+      outputVersion: 0,
       items: new Map(),
       variables: new Map(),
     });

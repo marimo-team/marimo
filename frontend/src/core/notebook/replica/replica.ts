@@ -24,7 +24,11 @@ import {
 } from "./connection";
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
-import { type Executions, executions } from "./resources/executions";
+import {
+  type Executions,
+  executions,
+  resumeOutputVersions,
+} from "./resources/executions";
 import { type Results, results } from "./resources/results";
 import { runtime } from "./resources/runtime";
 
@@ -218,6 +222,18 @@ export function createNotebookReplica(
         return followed;
       }
       if (next.phase !== "snapshot") {
+        if (retained !== null && retained.notebook?.id === next.notebook?.id) {
+          next = {
+            ...next,
+            resources: {
+              ...next.resources,
+              executions: resumeOutputVersions(
+                next.resources.executions,
+                retained.resources.executions,
+              ),
+            },
+          };
+        }
         return { stream: next, retained: null };
       }
       return {

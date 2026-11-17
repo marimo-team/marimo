@@ -77,6 +77,7 @@ function execution(
 ): Execution {
   return {
     record: rec,
+    outputVersion: 0,
     items: new Map(),
     variables: new Map(variables.map((v) => [v.id, v])),
   };

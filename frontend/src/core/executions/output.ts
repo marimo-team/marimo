@@ -38,6 +38,7 @@ export type CellOutput = Omit<OutputMessage, "data"> & {
 export interface ClearedOutput {
   readonly execution: Protocol.ExecutionId;
   readonly outcome: Protocol.Outcome;
+  readonly version: number;
 }
 
 export interface CellOutputInputs {
@@ -272,8 +273,12 @@ export function shownExecution(
 function stillCleared(
   cleared: ClearedOutput | undefined,
   record: Protocol.Execution,
+  version: number | undefined,
 ): boolean {
   if (cleared === undefined || cleared.execution !== record.id) {
+    return false;
+  }
+  if (version !== undefined && cleared.version !== version) {
     return false;
   }
   const before = cleared.outcome;
@@ -296,7 +301,14 @@ export function cellOutputView(
   id: Protocol.CellId,
 ): CellOutput | null {
   const shown = shownExecution(inputs, id);
-  if (shown === null || stillCleared(inputs.cleared.get(id), shown)) {
+  if (
+    shown === null ||
+    stillCleared(
+      inputs.cleared.get(id),
+      shown,
+      inputs.executions.executions.get(shown.id)?.outputVersion,
+    )
+  ) {
     return null;
   }
   return outcomeOutput(shown, inputs.cells);

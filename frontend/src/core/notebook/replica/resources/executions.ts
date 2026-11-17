@@ -12,6 +12,8 @@ export type Item =
 /** An execution on the stream, with the items and variables it has produced. */
 export interface Execution {
   readonly record: Protocol.Execution;
+  /** Local revision of the outcome, unchanged by lifecycle-only events. */
+  readonly outputVersion: number;
   /** Items by id. `itemsInOrder` sorts them by `seq`. */
   readonly items: ReadonlyMap<Protocol.ItemId, Item>;
   /** The variables the execution bound, by item id. */
@@ -124,6 +126,33 @@ function unbind(state: Executions, itemId: Protocol.ItemId): Executions {
   return state;
 }
 
+function sameOutcome(a: Protocol.Execution, b: Protocol.Execution): boolean {
+  return (
+    a.outcome === b.outcome ||
+    JSON.stringify(a.outcome) === JSON.stringify(b.outcome)
+  );
+}
+
+/** Carry local output revisions through a replacement snapshot. */
+export function resumeOutputVersions(
+  next: Executions,
+  previous: Executions,
+): Executions {
+  const resumed = new Map(next.executions);
+  for (const [id, execution] of resumed) {
+    const before = previous.executions.get(id);
+    if (before !== undefined) {
+      resumed.set(id, {
+        ...execution,
+        outputVersion:
+          before.outputVersion +
+          (sameOutcome(before.record, execution.record) ? 0 : 1),
+      });
+    }
+  }
+  return { ...next, executions: resumed };
+}
+
 export const executions: NotebookResource<Executions, Kind> = {
   initial: { runs: new Map(), executions: new Map(), latest: new Map() },
   on: {
@@ -139,6 +168,11 @@ export const executions: NotebookResource<Executions, Kind> = {
       const previous = state.executions.get(record.id);
       return set(state, {
         record,
+        outputVersion:
+          previous === undefined
+            ? 0
+            : previous.outputVersion +
+              (sameOutcome(previous.record, record) ? 0 : 1),
         items: previous?.items ?? new Map(),
         variables: previous?.variables ?? new Map(),
       });

@@ -6,6 +6,7 @@ import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { cellOutputAtom } from "@/core/executions";
+import { executions } from "@/core/notebook/replica/resources/executions";
 import { clearAllCellOutputsAtom, clearCellOutputAtom } from "../actions";
 import { notebookAtom } from "../cells";
 import type { ConsoleOutputMessage } from "../types";
@@ -79,19 +80,39 @@ describe("clearing a running cell", () => {
     store.set(clearCellOutputAtom, { cellId: A });
     expect(store.get(cellOutputAtom(A))).toBeNull();
 
-    store.set(
-      replica.executionsAtom,
-      MockExecutions.inputs([
+    store.set(replica.executionsAtom, (state) =>
+      executions.on.execution!(
+        state,
         {
-          ...running,
-          outcome: {
-            kind: "value",
-            display: { mimetype: "text/plain", data: "more" },
+          event: "execution",
+          id: "more",
+          data: {
+            execution: {
+              ...running,
+              outcome: {
+                kind: "value",
+                display: { mimetype: "text/plain", data: "more" },
+              },
+            },
           },
         },
-      ]).executions,
+        { phase: "live" },
+      ),
     );
     expect(store.get(cellOutputAtom(A))?.data).toBe("more");
+
+    store.set(replica.executionsAtom, (state) =>
+      executions.on.execution!(
+        state,
+        {
+          event: "execution",
+          id: "again",
+          data: { execution: { ...running, outcome: running.outcome } },
+        },
+        { phase: "live" },
+      ),
+    );
+    expect(store.get(cellOutputAtom(A))?.data).toBe("so far");
   });
 });
 

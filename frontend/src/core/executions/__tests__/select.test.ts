@@ -37,7 +37,12 @@ function record(
 }
 
 function execution(overrides: Partial<Protocol.Execution> & { id: string }) {
-  return { record: record(overrides), items: new Map(), variables: new Map() };
+  return {
+    record: record(overrides),
+    outputVersion: 0,
+    items: new Map(),
+    variables: new Map(),
+  };
 }
 
 function run(
