@@ -50,7 +50,11 @@ def watch_file(
 
 
 class FileState(PathState):
-    """Wrapper for file state."""
+    """Wrapper for file state.
+
+    Args:
+        path: The file path to watch for changes.
+    """
 
     _forbidden_attributes = {
         "open",
