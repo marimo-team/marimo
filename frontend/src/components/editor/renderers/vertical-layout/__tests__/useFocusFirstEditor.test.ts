@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { EditorView } from "@codemirror/view";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as cellsModule from "@/core/cells/cells";
+import { CellId } from "@/core/cells/ids";
 import { useFocusFirstEditor } from "../useFocusFirstEditor";
 
 describe("useFocusFirstEditor", () => {
@@ -18,6 +20,7 @@ describe("useFocusFirstEditor", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("should focus the first non-hidden cell after delay", () => {
@@ -46,6 +49,46 @@ describe("useFocusFirstEditor", () => {
     expect(getNotebookSpy).toHaveBeenCalled();
     expect(mockEditor.focus).toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    "preserves form input focus acquired during startup (shadow DOM: %s)",
+    (useShadowRoot) => {
+      const host = document.createElement("div");
+      const input = document.createElement("input");
+      const root = useShadowRoot ? host.attachShadow({ mode: "open" }) : host;
+      root.append(input);
+      document.body.append(host);
+      const editor = new EditorView({ parent: document.body });
+      const cellId = CellId.create();
+      vi.spyOn(cellsModule, "getNotebook").mockReturnValue({
+        ...cellsModule.getNotebook(),
+        cellIds: [cellId],
+        cellHandles: {
+          [cellId]: {
+            current: { editorView: editor, editorViewOrNull: editor },
+          },
+        },
+      });
+
+      try {
+        renderHook(() => useFocusFirstEditor());
+        input.focus();
+
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+
+        expect(
+          useShadowRoot
+            ? host.shadowRoot?.activeElement
+            : document.activeElement,
+        ).toBe(input);
+      } finally {
+        editor.destroy();
+        host.remove();
+      }
+    },
+  );
 
   it("should skip hidden cells when focusing", () => {
     const mockEditor = { focus: vi.fn() };

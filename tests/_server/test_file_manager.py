@@ -84,8 +84,12 @@ def test_successful_rename(app_file_manager: AppFileManager) -> None:
         os.remove(new_filename)
 
 
-def test_rename_exception(app_file_manager: AppFileManager) -> None:
-    new_filename = "/invalid/path/new_filename.py"
+def test_rename_exception(
+    app_file_manager: AppFileManager, tmp_path: Path
+) -> None:
+    parent_file = tmp_path / "not_a_directory"
+    parent_file.write_text("")
+    new_filename = parent_file / "new_filename.py"
     with pytest.raises(HTTPException) as e:
         app_file_manager.rename(new_filename)
     assert e.value.status_code == HTTPStatus.SERVER_ERROR

@@ -25,7 +25,7 @@ env:
 jobs:
   publish_docker:
     name: 🐋 Publish Docker images
-    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     # Don't error while this is in BETA
     continue-on-error: true
 

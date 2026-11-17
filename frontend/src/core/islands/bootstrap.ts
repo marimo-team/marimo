@@ -140,6 +140,7 @@ export async function initializeIslands(
   const documentModel = createDocumentModel({
     store,
     documentAtom: replica.documentAtom,
+    shownDocumentAtom: replica.shownDocumentAtom,
     backendAtom: replica.backendAtom,
   });
   const lifetime = new AbortController();

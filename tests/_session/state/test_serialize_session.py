@@ -1243,6 +1243,55 @@ class TestSessionCacheManager:
             )
             assert loaded_view.cell_notifications is not None
 
+    @pytest.mark.parametrize(
+        ("code", "rewrites"), [("a", False), ("edited", True)]
+    )
+    async def test_a_cache_that_was_read_is_not_written_back_unchanged(
+        self, session_view: SessionView, code: str, rewrites: bool
+    ):
+        # The writer takes each cell's code hash from the code the session
+        # ran, and a session that has just read its cache has run nothing.
+        view = session_view
+        doc = _make_document(CELL1)
+        view.cell_notifications[CELL1] = _make_cell_notification(
+            CELL1,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="test data",
+            ),
+        )
+        view.add_control_request(
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=CELL1, code="a")
+                ]
+            )
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "notebook.py"
+            cache_file = get_session_cache_file(path)
+            cache_file.parent.mkdir(parents=True)
+            cache_file.write_text(
+                json.dumps(
+                    serialize_session_view(
+                        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+                    )
+                )
+            )
+
+            manager = SessionCacheManager(SessionView(), doc, path, 0.1)
+            loaded_view = manager.read_session_view(
+                SessionCacheKey(
+                    codes=(code,),
+                    marimo_version=__version__,
+                    cell_ids=(CELL1,),
+                )
+            )
+
+            assert loaded_view.needs_export("session") is rewrites
+
     async def test_read_session_view_cache_miss_code(
         self, session_view: SessionView
     ):

@@ -14,7 +14,7 @@ import { AttachmentRenderer } from "./chat-components";
 interface UserMessageProps {
   message: UIMessage;
   canEdit: boolean;
-  onEdit: (newValue: string) => void;
+  onEdit: (newValue: string) => Promise<boolean>;
 }
 
 export const UserMessage: React.FC<UserMessageProps> = ({
@@ -35,6 +35,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     ));
 
   const [draft, setDraft] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
   const editButtonRef = React.useRef<HTMLButtonElement>(null);
   const editing = draft != null;
@@ -49,12 +50,20 @@ export const UserMessage: React.FC<UserMessageProps> = ({
     requestAnimationFrame(() => editButtonRef.current?.focus());
   };
 
-  const submit = (value: string) => {
-    if (!canEdit || !value.trim()) {
+  const submit = async (value: string) => {
+    if (!canEdit || isSubmitting || !value.trim()) {
       return;
     }
-    onEdit(value);
-    setDraft(null);
+    setIsSubmitting(true);
+    try {
+      if (await onEdit(value)) {
+        setDraft((current) => (current === value ? null : current));
+      }
+    } catch (error) {
+      setIsSubmitting(false);
+      throw error;
+    }
+    setIsSubmitting(false);
   };
 
   if (editing) {
@@ -81,7 +90,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({
           </Button>
           <Button
             size="xs"
-            disabled={!canEdit || !draft.trim()}
+            disabled={!canEdit || isSubmitting || !draft.trim()}
             onClick={() => submit(draft)}
           >
             Send

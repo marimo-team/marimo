@@ -45,7 +45,6 @@ function createState(content: string, selection?: { anchor: number }) {
           copilot: false,
           activate_on_typing: true,
           signature_hint_on_typing: false,
-          codeium_api_key: null,
         },
         lspConfig: { ...defaultUserConfig().language_servers },
         hotkeys: new OverridingHotkeyProvider({}),
@@ -58,7 +57,6 @@ function createState(content: string, selection?: { anchor: number }) {
           copilot: false,
           activate_on_typing: true,
           signature_hint_on_typing: false,
-          codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
@@ -190,10 +188,10 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "_df = mo.sql(
           f"""
-          mo.md(r\\"""
+          mo.md(r\\"\\"\\"
           print('Hello')
           print('Goodbye')
-          \\""")
+          \\"\\"\\")
           """
       )"
     `);

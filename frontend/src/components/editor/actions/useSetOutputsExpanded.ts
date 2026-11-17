@@ -1,9 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useStore } from "jotai";
 import { useCallback } from "react";
 import { getNotebook, type NotebookState } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
+import { type CellOutput, cellOutputAtom } from "@/core/executions";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellConfig } from "@/core/network/types";
 import { Objects } from "@/utils/objects";
@@ -12,7 +14,8 @@ import { Objects } from "@/utils/objects";
  * The `expand_output` config changes needed to expand or clamp every output.
  */
 export function outputExpansionConfigs(
-  notebook: NotebookState,
+  notebook: Pick<NotebookState, "cellIds" | "cellData">,
+  outputOf: (cellId: CellId) => CellOutput | null,
   expanded: boolean,
 ): Record<CellId, Partial<CellConfig>> {
   const configs: Record<CellId, Partial<CellConfig>> = {};
@@ -24,7 +27,7 @@ export function outputExpansionConfigs(
     ) {
       continue;
     }
-    if (expanded && isOutputEmpty(notebook.cellRuntime[cellId]?.output)) {
+    if (expanded && isOutputEmpty(outputOf(cellId))) {
       continue;
     }
     configs[cellId] = { expand_output: expanded };
@@ -38,11 +41,16 @@ export function outputExpansionConfigs(
  */
 export const useSetOutputsExpanded = () => {
   const edit = useNotebookDocumentEdit();
+  const store = useStore();
 
   return useCallback(
     (expanded: boolean) => {
       const entries = Objects.entries(
-        outputExpansionConfigs(getNotebook(), expanded),
+        outputExpansionConfigs(
+          getNotebook(),
+          (cellId) => store.get(cellOutputAtom(cellId)),
+          expanded,
+        ),
       );
       if (entries.length === 0) {
         return;
@@ -54,6 +62,6 @@ export const useSetOutputsExpanded = () => {
         }
       });
     },
-    [edit],
+    [edit, store],
   );
 };

@@ -6,7 +6,7 @@ import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
 import type { NotebookBackend } from "../../notebook/replica";
 import { document as documentResource } from "../../notebook/replica/resources/document";
-import { results as resultsResource } from "../../notebook/replica/resources/results";
+import { executions } from "../../notebook/replica/resources/executions";
 import {
   createStaticNotebookBackend,
   emptySnapshot,
@@ -124,7 +124,7 @@ describe("static notebook backend", () => {
     );
     const reducer = createNotebookReducer({
       document: documentResource,
-      results: resultsResource,
+      executions,
     });
     const state = events.reduce(reducer.reduce, reducer.initial);
     expect(events.map((event) => event.event).slice(-3)).toEqual([
@@ -132,7 +132,9 @@ describe("static notebook backend", () => {
       "execution",
       "ready",
     ]);
-    expect(state.resources.results.get(cell.id)).toEqual(result);
+    expect(state.resources.executions.results.get(cell.id)?.record).toEqual(
+      result,
+    );
   });
 
   it("preserves withheld source and its revision metadata", async () => {

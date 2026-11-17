@@ -7,7 +7,7 @@ import json
 from asyncio import CancelledError
 from datetime import date, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from unittest.mock import patch
 
 import pytest
@@ -3837,37 +3837,55 @@ def test_chart_csv_preserves_control_flow(error: BaseException) -> None:
 
 @pytest.mark.requires("polars")
 @pytest.mark.parametrize("lazy", [False, True])
-@pytest.mark.parametrize("container", ["map", "struct"])
-def test_binary_export_failure_is_contained(
-    lazy: bool, container: str
+@pytest.mark.parametrize("export_format", ["csv", "tsv"])
+def test_polars_map_download(
+    lazy: bool, export_format: Literal["csv", "tsv"]
 ) -> None:
+    import polars as pl
+
+    map_dtype = getattr(pl, "Map", None)
+    if map_dtype is None:
+        pytest.skip("Map dtype requires Polars 2")
+    source = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "value": pl.Series(
+                [{1: b"abc"}, {}, None], dtype=map_dtype(pl.Int64, pl.Binary)
+            ),
+        }
+    )
+    table = ui.table(source.lazy() if lazy else source)
+    response = table._download_as(DownloadAsArgs(format=export_format))
+    assert response.error is None
+    separator = "\t" if export_format == "tsv" else ","
+    rows = csv.DictReader(
+        io.StringIO(from_data_uri(response.url)[1].decode()),
+        delimiter=separator,
+    )
+    assert list(rows) == [
+        {"id": "0", "value": '[{"key":1,"value":"abc"}]'},
+        {"id": "1", "value": "[]"},
+        {"id": "2", "value": ""},
+    ]
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("lazy", [False, True])
+def test_binary_export_failure_is_contained(lazy: bool) -> None:
     import polars as pl
 
     from marimo._plugins.ui._impl.tables.polars_table import (
         PolarsTableManagerFactory,
     )
 
-    map_dtype = getattr(pl, "Map", None)
-    if container == "map":
-        if map_dtype is None:
-            pytest.skip("Map dtype requires Polars 2")
-        values = [{1: b"abc"}, {}, None]
-        dtype = map_dtype(pl.Int64, pl.Binary)
-        expected_error = pl.exceptions.ComputeError
-        expected_json = [
-            {"value": {"1": "abc"}},
-            {"value": {}},
-            {"value": None},
-        ]
-    else:
-        values = [{"binary": b"abc"}, {"binary": None}, None]
-        dtype = pl.Struct({"binary": pl.Binary})
-        expected_error = pl.exceptions.PanicException
-        expected_json = [
-            {"value": {"binary": "abc"}},
-            {"value": {"binary": None}},
-            {"value": None},
-        ]
+    values = [{"binary": b"abc"}, {"binary": None}, None]
+    dtype = pl.Struct({"binary": pl.Binary})
+    expected_error = pl.exceptions.PanicException
+    expected_json = [
+        {"value": {"binary": "abc"}},
+        {"value": {"binary": None}},
+        {"value": None},
+    ]
     source = pl.DataFrame({"value": pl.Series(values, dtype=dtype)})
     data = source.lazy() if lazy else source
     manager = PolarsTableManagerFactory.create()(data)

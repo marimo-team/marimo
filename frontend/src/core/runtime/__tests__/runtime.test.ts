@@ -592,7 +592,7 @@ describe("RuntimeManager", () => {
       Object.defineProperty(window, "location", {
         value: {
           ...originalLocation,
-          search: "?custom_param=value123&user_token=abc&theme=dark",
+          search: "?custom_param=value123&user_token=abc",
         },
         writable: true,
       });
@@ -621,11 +621,9 @@ describe("RuntimeManager", () => {
         base_param: "existing",
         custom_param: "value123",
         user_token: "abc",
-        theme: "dark",
       });
       expect(httpUrl.searchParams.get("custom_param")).toBe("value123");
       expect(httpUrl.searchParams.get("user_token")).toBe("abc");
-      expect(httpUrl.searchParams.get("theme")).toBe("dark");
 
       // Should also include session_id for WebSocket URLs
       expect(wsUrl.searchParams.get("session_id")).toBe("test");

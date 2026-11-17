@@ -3,7 +3,12 @@
 /** The active notebook's executions and runtime as the editor reads them. */
 
 import type * as Protocol from "@marimo-team/client/protocol";
+import { dequal } from "dequal";
 import { atom, type createStore } from "jotai";
+import { atomFamily, selectAtom } from "jotai/utils";
+import type { CellId } from "@/core/cells/ids";
+import type { Outline } from "@/core/cells/outline";
+import { parseOutline } from "@/core/dom/outline";
 import type { CellMessage } from "@/core/kernel/messages";
 import {
   ConnectionState,
@@ -13,7 +18,13 @@ import {
 } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { type CellFreshnessInputs, freshnessOf } from "./freshness";
-import type { CellOutputInputs } from "./output";
+import {
+  type CellOutput,
+  type CellOutputInputs,
+  type ClearedOutput,
+  cellOutputsView,
+  shownExecution,
+} from "./output";
 import {
   anyRunning,
   type CellExecutionInputs,
@@ -26,14 +37,15 @@ const NO_EXECUTIONS: Executions = {
   runs: new Map(),
   executions: new Map(),
   latest: new Map(),
+  results: new Map(),
+  scratch: null,
 };
 const NO_RESULTS: Results = new Map();
 const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();
 const NO_REQUESTS: ReadonlySet<RunRequest> = new Set();
 const NO_REQUESTED: ReadonlySet<Protocol.CellId> = new Set();
 const NO_BLOCKED: ReadonlySet<Protocol.CellId> = new Set();
-const NO_CLEARED: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId> =
-  new Map();
+const NO_CLEARED: ReadonlyMap<Protocol.CellId, ClearedOutput> = new Map();
 
 /** The notebook a replica is showing, which the editor's marks belong to. */
 interface ShownNotebook {
@@ -97,7 +109,7 @@ function current<T>(
     : empty;
 }
 
-function shownNotebook(store: Store): ShownNotebook | null {
+function shownNotebook(store: Pick<Store, "get">): ShownNotebook | null {
   const replica = store.get(activeNotebookReplicaAtom);
   const notebook = replica === null ? null : store.get(replica.notebookAtom);
   return replica === null || notebook === null
@@ -105,7 +117,7 @@ function shownNotebook(store: Store): ShownNotebook | null {
     : { replica, id: notebook.id };
 }
 
-function mark<T>(store: Store, value: T): Marks<T> {
+function mark<T>(store: Pick<Store, "get">, value: T): Marks<T> {
   const notebook = shownNotebook(store);
   return notebook === null ? null : { notebook, value };
 }
@@ -143,19 +155,20 @@ export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
   const replica = get(activeNotebookReplicaAtom);
   const notebookId =
     replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
-  const document = replica === null ? null : get(replica.documentAtom);
+  const document = replica === null ? null : get(replica.shownDocumentAtom);
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
     cells: document?.cells ?? NO_CELLS,
     requested: get(requestedCellsAtom),
     blocked: current(get(blockedCellsAtom), replica, notebookId, NO_BLOCKED),
+    runtimeId: replica === null ? null : (get(replica.runtimeAtom)?.id ?? null),
   };
 });
 
 const cellFreshnessInputsAtom = atom((get): CellFreshnessInputs => {
   const replica = get(activeNotebookReplicaAtom);
-  const document = replica === null ? null : get(replica.documentAtom);
+  const document = replica === null ? null : get(replica.shownDocumentAtom);
   // Results can arrive before the confirmed document on a snapshot. Until
   // the document is ready there is nothing to compare them against.
   if (replica === null || document === null) {
@@ -173,36 +186,82 @@ export const cellFreshnessAtom = atom((get) =>
   freshnessOf(get(cellFreshnessInputsAtom)),
 );
 
-/** Results this browser cleared, by execution id, until a newer one lands. */
+/** What each cell showed when this browser cleared it. */
 const clearedOutputsAtom =
-  atom<Marks<ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>>>(null);
+  atom<Marks<ReadonlyMap<Protocol.CellId, ClearedOutput>>>(null);
+
+const displayedNotebookAtom = atom((get): ShownNotebook | null => {
+  const replica = get(activeNotebookReplicaAtom);
+  const document = replica === null ? null : get(replica.shownDocumentAtom);
+  return replica === null || document === null
+    ? null
+    : { replica, id: document.revision.notebook_id };
+});
 
 /** What every cell's output derives from. Pair with `cellOutputView`. */
 export const cellOutputInputsAtom = atom((get): CellOutputInputs => {
   const replica = get(activeNotebookReplicaAtom);
-  const notebookId =
-    replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
+  const notebookId = get(displayedNotebookAtom)?.id ?? null;
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
     cleared: current(get(clearedOutputsAtom), replica, notebookId, NO_CLEARED),
+    cells:
+      replica === null
+        ? NO_CELLS
+        : (get(replica.documentAtom)?.cells ?? NO_CELLS),
   };
 });
 
-/** Hide what `cellIds` show now, until each has a newer result. */
+/** What every cell shows, by cell id. Pair with `cellOutputAtom` for one cell. */
+export const cellOutputsAtom = atom((get) =>
+  cellOutputsView(get(cellOutputInputsAtom)),
+);
+
+/**
+ * One cell's output, compared by value so its readers are left alone by
+ * other cells' runs. Released with the cell by `releaseCellOutputAtoms`.
+ */
+export const cellOutputAtom = atomFamily((cellId: CellId) =>
+  selectAtom(
+    cellOutputsAtom,
+    (outputs): CellOutput | null => outputs.get(cellId) ?? null,
+    dequal,
+  ),
+);
+
+/** The headings in a cell's output, for the table of contents and folding. */
+export const cellOutlineAtom = atomFamily((cellId: CellId) =>
+  atom((get): Outline | null => parseOutline(get(cellOutputAtom(cellId)))),
+);
+
+/** Drop the cached atoms of a cell that left the document. */
+export function releaseCellOutputAtoms(cellId: CellId): void {
+  cellOutputAtom.remove(cellId);
+  cellOutlineAtom.remove(cellId);
+}
+
+/** Hide what `cellIds` show now, until each shows something new. */
 export function clearCellOutputs(
-  store: Store,
+  store: Pick<Store, "get" | "set">,
   cellIds: readonly Protocol.CellId[],
 ): void {
   const inputs = store.get(cellOutputInputsAtom);
   const next = new Map(inputs.cleared);
   for (const cellId of cellIds) {
-    const result = inputs.results.get(cellId);
-    if (result !== null && result !== undefined) {
-      next.set(cellId, result.id);
+    const shown = shownExecution(inputs, cellId);
+    if (shown?.record.outcome != null) {
+      next.set(cellId, {
+        execution: shown.record.id,
+        version: shown.outputVersion,
+      });
     }
   }
-  store.set(clearedOutputsAtom, mark(store, next));
+  const notebook = store.get(displayedNotebookAtom);
+  store.set(
+    clearedOutputsAtom,
+    notebook === null ? null : { notebook, value: next },
+  );
 }
 
 /** The runtime's status, null while the notebook has none or the stream is not ready. */

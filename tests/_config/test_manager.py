@@ -558,6 +558,48 @@ def test_get_config() -> None:
     assert result == mock_config
 
 
+@pytest.mark.parametrize(
+    ("copilot", "expected", "invalid"),
+    [
+        ("codeium", False, False),
+        (False, False, False),
+        (True, True, False),
+        ("github", "github", False),
+        ("custom", "custom", False),
+        ("invalid", False, True),
+    ],
+)
+@pytest.mark.parametrize("source", ["user", "override"])
+def test_get_config_normalizes_legacy_copilot(
+    tmp_path: Path,
+    copilot: bool | str,
+    expected: bool | str,
+    invalid: bool,
+    source: str,
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("")
+    values = {"completion": {"copilot": copilot}}
+    user = UserConfigStore()
+    with (
+        patch.object(user, "get_config_path", return_value=str(config_path)),
+        patch.object(
+            user,
+            "_load_config",
+            return_value=values if source == "user" else {},
+        ),
+        patch("marimo._config.manager.LOGGER.error") as log_error,
+    ):
+        manager = MarimoConfigManager(
+            user,
+            OverrideConfigReader(values if source == "override" else {}),
+        )
+        for _ in range(3):
+            assert manager.get_config().completion.copilot == expected
+        assert log_error.call_count == (3 if invalid else 0)
+    assert values == {"completion": {"copilot": copilot}}
+
+
 @restore_config
 def test_get_config_with_override() -> None:
     mock_config = (merge_default_config(PartialMarimoConfig())).to_dict()

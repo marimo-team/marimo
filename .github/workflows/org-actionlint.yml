@@ -1,0 +1,16 @@
+# Managed by github-maintenance: actionlint-rollout
+name: Org Actionlint
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  actionlint:
+    permissions:
+      contents: read
+    uses: marimo-team/.github/.github/workflows/actionlint.yml@de2b01564f3e384e92eae7f2b1585105ef36d716
+    with:
+      policy-ref: "de2b01564f3e384e92eae7f2b1585105ef36d716"

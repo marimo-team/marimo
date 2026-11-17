@@ -113,7 +113,7 @@ async def _cleanup_mcp_task(
 async def mcp(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     session_mgr = state.session_manager
-    user_config = state.config_manager.get_config()
+    user_config = state.config_manager.get_config(hide_secrets=False)
     mcp_config = user_config.mcp
 
     # Only start MCP servers in Edit mode
