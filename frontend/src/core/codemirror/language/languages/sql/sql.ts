@@ -59,6 +59,7 @@ import {
 } from "./banner-validation-errors";
 import {
   customKeywordCompletionSource,
+  literalSQLCompletions,
   tablesCompletionSource,
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
@@ -185,15 +186,15 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
         activateOnTyping: true,
         override: [
           // Completions for schema
-          tablesCompletionSource(),
+          literalSQLCompletions(tablesCompletionSource()),
           // Complete for variables in SQL {} blocks
           variableCompletionSource,
           // Completions for dialect keywords
           customKeywordCompletionSource(),
           // Completions based on the current query
-          analysis.cteCompletionSource,
-          analysis.aliasCompletionSource,
-          analysis.columnCompletionSource,
+          literalSQLCompletions(analysis.cteCompletionSource, "query"),
+          literalSQLCompletions(analysis.aliasCompletionSource, "query"),
+          literalSQLCompletions(analysis.columnCompletionSource, "query"),
         ],
       }),
     ];
