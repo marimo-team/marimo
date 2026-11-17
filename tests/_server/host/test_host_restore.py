@@ -10,11 +10,20 @@ import pytest
 
 from marimo._core import protocol
 from marimo._core.document import DocumentCell
+from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.errors import MarimoExceptionRaisedError
+from marimo._messaging.notification import CellNotification
+from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand
 from marimo._server.host.restore import (
     executions_from_session,
     restored_executions,
 )
-from marimo._session.state.serialize import get_session_cache_file
+from marimo._session.state.serialize import (
+    get_session_cache_file,
+    serialize_session_view,
+)
+from marimo._session.state.session_view import SessionView
+from marimo._types.ids import CellId_t
 from marimo._utils.code import hash_code
 from marimo._version import __version__
 
@@ -173,6 +182,64 @@ def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
             related=(),
         )
     )
+
+
+@pytest.mark.parametrize("edited", [False, True])
+@pytest.mark.parametrize("evidence_in", ["output", "console"])
+def test_restoring_a_cache_checks_the_source_of_retained_errors(
+    tmp_path: Path, edited: bool, evidence_in: str
+) -> None:
+    cell_id = CellId_t("a")
+    code = "raise ValueError('failed code')"
+    traceback = "ValueError: failed code"
+    view = SessionView()
+    view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            status="idle",
+            output=CellOutput.errors(
+                [
+                    MarimoExceptionRaisedError(
+                        msg="failed code",
+                        exception_type="ValueError",
+                        raising_cell=None,
+                        traceback=traceback,
+                    )
+                ],
+                code=code,
+            )
+            if evidence_in == "output"
+            else None,
+            console=[
+                CellOutput(
+                    channel=CellChannel.STDERR,
+                    mimetype="application/vnd.marimo+traceback",
+                    data=traceback,
+                    code=code,
+                )
+            ]
+            if evidence_in == "console"
+            else [],
+        )
+    )
+    current_code = "x = 1" if edited else code
+    view.add_control_request(
+        ExecuteCellsCommand(
+            execution_requests=[
+                ExecuteCellCommand(cell_id=cell_id, code=current_code)
+            ]
+        )
+    )
+    saved = serialize_session_view(
+        view, [cell_id], drop_virtual_file_outputs=True
+    )
+    assert saved["cells"][0]["code_hash"] == hash_code(current_code)
+    file = tmp_path / "notebook.py"
+    write(file, json.dumps(saved))
+
+    executions = restored_executions(file, [cell("a", current_code)])
+
+    assert (executions.current(protocol.CellId("a")) is None) is edited
 
 
 def failed(ename: str, evalue: str) -> list[OutputType]:

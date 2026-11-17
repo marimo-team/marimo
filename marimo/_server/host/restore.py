@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+from itertools import chain
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -88,13 +89,19 @@ def executions_from_session(
     """Restore what a stored session holds for `cells`, as far as it tells.
 
     Stored cells are taken in the document's order. One whose code hash
-    is not its cell's is left out, and so is one with nothing to show.
+    or retained output source differs from its cell's is left out, and
+    so is one with nothing to show.
     A restored execution names no run or runtime, and it has no
     dependencies, variables, or times, because a session stores none.
     """
     results: dict[protocol.CellId, CellExecution] = {}
     for cell, stored in zip(cells, session["cells"], strict=False):
         if stored["code_hash"] != hash_code(cell.code):
+            continue
+        if any(
+            output.get("code", cell.code) != cell.code
+            for output in chain(stored["outputs"], stored["console"])
+        ):
             continue
         result = _result(cell, stored)
         if result is not None:
