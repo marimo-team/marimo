@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import sys
 from functools import partial
+from textwrap import indent
 from typing import Any
 from unittest.mock import patch
 
@@ -77,6 +78,122 @@ class TestParseCell:
         assert cell.defs == {"f"}
         assert cell.refs == set()
         assert not cell.imported_namespaces
+
+
+class TestClassScope:
+    @staticmethod
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "x = 0\ndef value(self):\n    return x",
+            "def value(self):\n    return x\nx = 0",
+            "x = 0\nvalue = lambda self: x",
+            "x = 0\nvalues = [x for _ in (0,)]",
+            "x = 0\nvalues = {x for _ in (0,)}",
+            "x = 0\nvalues = {x: x for _ in (0,)}",
+            "x = 0\nvalues = (x for _ in (0,))",
+            "x = 0\nvalues = [item for item in (0,) if x]",
+            "x = (0,)\nvalues = [item for _ in (0,) for item in x]",
+            "x = 0\nclass Inner:\n    value = x",
+            "x = (0,)\ndef value(self):\n    return [item for item in x]",
+            (
+                "x = (0,)\nvalues = [item for _ in (0,) "
+                "for item in [item for item in x]]"
+            ),
+        ],
+    )
+    def test_class_attributes_do_not_bind_nested_scopes(body: str) -> None:
+        cell = compile_cell("class C:\n" + indent(body, "    "))
+        assert cell.defs == {"C"}
+        assert cell.refs == {"x"}
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "expression",
+        [
+            "[item for item in x]",
+            "{item for item in x}",
+            "{item: item for item in x}",
+            "(item for item in x)",
+            "[item for item in [item for item in x]]",
+        ],
+    )
+    def test_comprehension_first_iterable_uses_class_scope(
+        expression: str,
+    ) -> None:
+        cell = compile_cell(
+            f"class C:\n    x = (1,)\n    value = {expression}"
+        )
+        assert cell.refs == set()
+
+    @staticmethod
+    def test_nested_class_header_uses_enclosing_class_scope() -> None:
+        cell = compile_cell(
+            "class Outer:\n"
+            "    base = object\n"
+            "    class Inner(base):\n"
+            "        pass"
+        )
+        assert cell.refs == {"object"}
+
+    @staticmethod
+    def test_method_captures_cell_variable_despite_class_attribute() -> None:
+        cell = compile_cell(
+            "x = 10\nclass C:\n    x = 0\n"
+            "    def value(self):\n        return x"
+        )
+        assert cell.refs == set()
+        assert cell.variable_data["C"][0].required_refs == {"x"}
+
+    @staticmethod
+    def test_method_captures_enclosing_function_variable() -> None:
+        cell = compile_cell(
+            "def outer(x):\n    class C:\n        x = 0\n"
+            "        def value(self):\n            return x\n"
+            "    return C"
+        )
+        assert cell.refs == set()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12), reason="Requires type parameters"
+    )
+    @pytest.mark.parametrize(
+        ("code", "expected_refs"),
+        [
+            ("class C:\n    x = int\n    type Alias = x", {"int"}),
+            pytest.param(
+                "class C:\n    x = (int,)\n"
+                "    type Alias = [item for item in x]",
+                {"int"},
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 13),
+                    reason="Class annotation comprehensions require Python 3.13",
+                ),
+            ),
+            pytest.param(
+                "class C:\n    x = 0\n    type Alias = [x for _ in (0,)]",
+                {"x"},
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 13),
+                    reason="Class annotation comprehensions require Python 3.13",
+                ),
+            ),
+            (
+                (
+                    "class Outer:\n    base = object\n"
+                    "    class Inner[T](base):\n        value: T"
+                ),
+                {"object"},
+            ),
+            ("@T\nclass C[T]:\n    value: T", {"T"}),
+        ],
+    )
+    def test_class_annotation_scope(
+        code: str, expected_refs: set[str]
+    ) -> None:
+        cell = compile_cell(code)
+        assert cell.refs == expected_refs
 
 
 class TestCompilerFlags:
