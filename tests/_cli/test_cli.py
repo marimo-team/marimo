@@ -2353,6 +2353,29 @@ def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
     assert "docker is not installed" in output
 
 
+@pytest.mark.parametrize("command", ["edit", "run"])
+def test_cli_untrusted_passes_container_engine(
+    command: str, temp_marimo_file: str
+) -> None:
+    runner = CliRunner()
+
+    with patch("marimo._cli.run_docker.run_in_docker") as mock_run_in_docker:
+        result = runner.invoke(
+            cli_main,
+            [
+                command,
+                temp_marimo_file,
+                "--untrusted",
+                "--container-engine",
+                "podman",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    mock_run_in_docker.assert_called_once()
+    assert mock_run_in_docker.call_args.kwargs["engine"] == "podman"
+
+
 def test_cli_edit_with_convert(
     temp_possible_file: str,
 ) -> None:
