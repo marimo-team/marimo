@@ -41,6 +41,7 @@ import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
 import { notebookAtom } from "@/core/cells/cells";
+import { breakpointsAtom } from "@/core/codemirror/cells/debugger-state";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
@@ -166,7 +167,6 @@ function renderConnectionHook(
     () =>
       useNotebookSession({
         sessionId: SESSION_ID,
-        autoInstantiate: false,
       }),
     { wrapper, reactStrictMode },
   );
@@ -451,11 +451,33 @@ it("does not mark the session connected on kernel-ready alone", async () => {
       app_config: { width: "normal" },
       kiosk: false,
       capabilities: { terminal: false },
-      auto_instantiated: false,
       consumer_capabilities: { edit: true, interact: true },
     }),
   );
   expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
+});
+
+it("replaces gutter breakpoints with the session's replayed state", async () => {
+  const store = createStore();
+  const staleCell = cellId("stale");
+  const currentCell = cellId("current");
+  store.set(breakpointsAtom, new Map([[staleCell, new Set([1])]]));
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  await act(async () => conn.open());
+
+  act(() =>
+    conn.send({ op: "breakpoints", breakpoints: { [currentCell]: [2, 4] } }),
+  );
+  expect(store.get(breakpointsAtom)).toEqual(
+    new Map([[currentCell, new Set([2, 4])]]),
+  );
+
+  act(() => conn.send({ op: "breakpoints", breakpoints: {} }));
+  expect(store.get(breakpointsAtom)).toEqual(new Map());
 });
 
 describe("connection notice", () => {
@@ -470,7 +492,6 @@ describe("connection notice", () => {
     const Connection = () => {
       const { reconnect } = useNotebookSession({
         sessionId: SESSION_ID,
-        autoInstantiate: false,
       });
       return (
         <ConnectionNotice

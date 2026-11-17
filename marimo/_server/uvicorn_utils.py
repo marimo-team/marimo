@@ -35,8 +35,8 @@ def initialize_signals() -> None:
 def close_uvicorn(server: uvicorn.Server) -> None:
     LOGGER.debug("Shutting down uvicorn")
 
-    # Tried using sys.exit(0) to quit instead, but that ends up not being
-    # graceful due to the event loop still running
-    server.handle_exit(signal.SIGINT, None)
+    # handle_exit records a signal for uvicorn to replay after shutdown.
+    # A programmatic shutdown must not synthesize a SIGINT.
+    server.should_exit = True
 
     LOGGER.debug("Shut down uvicorn")

@@ -38,6 +38,7 @@ async function importMain(): Promise<typeof MainModule> {
 }
 
 beforeEach(() => {
+  delete window.__resizeIframe;
   document.body.replaceChildren();
   mockInitializeApps.mockClear();
   mockStopSession.mockClear();
@@ -47,6 +48,22 @@ beforeEach(() => {
 });
 
 describe("islands public API surface", () => {
+  it("registers the iframe load handler even without interactive islands", async () => {
+    await importMain();
+
+    expect(window.__resizeIframe).toBeTypeOf("function");
+    expect(mockInitializeIslands).not.toHaveBeenCalled();
+  });
+
+  it("preserves a host-provided iframe load handler", async () => {
+    const hostResizeIframe = vi.fn();
+    window.__resizeIframe = hostResizeIframe;
+
+    await importMain();
+
+    expect(window.__resizeIframe).toBe(hostResizeIframe);
+  });
+
   it("exposes a stable set of exports and signatures", async () => {
     const mod = await importMain();
     const surface = Object.fromEntries(

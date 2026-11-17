@@ -30,10 +30,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
       Logger.log("Updating model values is not supported in static mode");
       return null;
     },
-    sendInstantiate: async () => {
-      Logger.log("Viewing as static notebook");
-      return null;
-    },
     sendFunctionRequest: async () => {
       showStaticNotebookToast();
       Logger.log("Function requests are not supported in static mode");

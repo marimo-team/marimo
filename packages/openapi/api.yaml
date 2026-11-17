@@ -393,6 +393,23 @@ components:
       required: []
       title: BedrockConfig
       type: object
+    BreakpointsNotification:
+      description: The session's complete breakpoint set, restored on connection.
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        op:
+          enum:
+          - breakpoints
+      required:
+      - op
+      - breakpoints
+      title: BreakpointsNotification
+      type: object
     CacheClearedNotification:
       description: "Execution cache cleared result.\n\nAttributes:\n    bytes_freed:\
         \ Bytes freed by clearing cache."
@@ -3053,29 +3070,6 @@ components:
       - versions
       title: InstallPackagesRequest
       type: object
-    InstantiateNotebookRequest:
-      properties:
-        autoRun:
-          default: true
-          type: boolean
-        codes:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-          default: null
-        objectIds:
-          items:
-            $ref: '#/components/schemas/UIElementId'
-          type: array
-        values:
-          type: array
-      required:
-      - objectIds
-      - values
-      title: InstantiateNotebookRequest
-      type: object
     InterruptedNotification:
       description: Kernel was interrupted by user (SIGINT/Ctrl+C).
       properties:
@@ -3192,16 +3186,12 @@ components:
         \nAttributes:\n    layout: Notebook layout config.\n    resumed: Whether resumed\
         \ from previous session.\n    ui_values: Previous UI element values if resumed.\n\
         \    app_config: Application configuration.\n    kiosk: Whether running in\
-        \ kiosk mode.\n    capabilities: Available kernel capabilities.\n    auto_instantiated:\
-        \ Whether cells already executed (run mode).\n    stable_session_id: Server-owned\
-        \ Session identity that survives\n        browser reconnects. None where no\
-        \ server Session exists."
+        \ kiosk mode.\n    capabilities: Available kernel capabilities.\n    stable_session_id:\
+        \ Server-owned Session identity that survives\n        browser reconnects.\
+        \ None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
-        auto_instantiated:
-          default: false
-          type: boolean
         capabilities:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
         consumer_capabilities:
@@ -4485,6 +4475,7 @@ components:
       - $ref: '#/components/schemas/CacheClearedNotification'
       - $ref: '#/components/schemas/CacheInfoNotification'
       - $ref: '#/components/schemas/FocusCellNotification'
+      - $ref: '#/components/schemas/BreakpointsNotification'
       - $ref: '#/components/schemas/ActiveLineNotification'
       - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
       - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
@@ -4493,6 +4484,7 @@ components:
           active-line: '#/components/schemas/ActiveLineNotification'
           alert: '#/components/schemas/AlertNotification'
           banner: '#/components/schemas/BannerNotification'
+          breakpoints: '#/components/schemas/BreakpointsNotification'
           cache-cleared: '#/components/schemas/CacheClearedNotification'
           cache-info: '#/components/schemas/CacheInfoNotification'
           cell-op: '#/components/schemas/CellNotification'
@@ -5585,6 +5577,17 @@ components:
     ServerConfig:
       description: Configuration for the server.
       properties:
+        allow_origins:
+          default: []
+          description: Allowed origins for HTTP and WebSocket connections.
+          items:
+            type: string
+          type: array
+        base_url:
+          default: ''
+          description: Base URL for the server, starting with / and without a trailing
+            slash.
+          type: string
         browser:
           anyOf:
           - enum:
@@ -5603,6 +5606,44 @@ components:
           description: if true, the server will follow symlinks it finds inside its
             static assets directory.
           type: boolean
+        headless:
+          default: false
+          description: Do not launch a browser.
+          type: boolean
+        host:
+          default: 127.0.0.1
+          description: Host to bind to.
+          type: string
+        include_code:
+          default: false
+          description: Send notebook source code to clients in run mode. Edit mode
+            always includes code.
+          type: boolean
+        port:
+          anyOf:
+          - maximum: 65535
+            minimum: 0
+            type: integer
+          - type: 'null'
+          default: null
+          description: Port to bind to (0-65535). If unset or 0, find an available
+            port.
+        proxy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: Address of the reverse proxy.
+        redirect_console_to_browser:
+          default: false
+          description: Redirect console output to the browser. This option only applies
+            to run mode. Edit mode always redirects output to the browser.
+          type: boolean
+        session_cookie_partitioned:
+          default: false
+          description: Use partitioned cookies for cross-site HTTPS embeds. Implies
+            SameSite=None and Secure.
+          type: boolean
         session_cookie_secure:
           default: false
           description: Only send session cookies over HTTPS. Enable when serving behind
@@ -5616,10 +5657,44 @@ components:
           description: Secret used to sign session cookies. Set a stable value to
             preserve sessions across restarts or replicas; otherwise a random secret
             is generated per process.
+        session_ttl:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Seconds before closing a disconnected session. Defaults to
+            unlimited in edit mode and 120 in run mode; null means unlimited.
+        skew_protection:
+          default: true
+          description: Enable protection against frontend and server version mismatches.
+          type: boolean
         skip_update_check:
           default: false
           description: Skip checking for marimo updates when starting the editor.
           type: boolean
+        timeout:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+          description: Shut down after this many minutes without a connection.
+        token:
+          description: Enable token authentication. Defaults to true in edit mode
+            and false in run mode.
+          type: boolean
+        token_password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: Password used for token authentication. Mutually exclusive
+            with token_password_file.
+        token_password_file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: File containing the token password, or - to read from stdin.
+            Mutually exclusive with token_password.
         transport:
           description: experimental. The transport used to stream kernel messages
             to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment
@@ -5629,9 +5704,28 @@ components:
           enum:
           - sse
           - websocket
+        watch:
+          default: false
+          description: Watch notebook files for changes; reload code in edit mode
+            or the application in run mode.
+          type: boolean
       required:
+      - host
+      - port
+      - proxy
+      - base_url
+      - allow_origins
+      - headless
+      - watch
+      - skew_protection
+      - timeout
+      - token_password
+      - token_password_file
+      - include_code
+      - redirect_console_to_browser
       - skip_update_check
       - session_cookie_secure
+      - session_cookie_partitioned
       - session_secret
       - browser
       - follow_symlink
@@ -7760,27 +7854,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Install missing packages
-  /api/kernel/instantiate:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InstantiateNotebookRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Instantiate a component. Only allowed in edit mode; in run
-            mode, instantiation happens server-side automatically.
   /api/kernel/pdb/breakpoints:
     post:
       parameters:

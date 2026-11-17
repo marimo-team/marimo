@@ -227,6 +227,9 @@ Click a suggestion to insert a ready-to-run cell.
 | MySQL | `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_DATABASE`, and `MYSQL_PASSWORD`/`MYSQL_PWD` (plus `MYSQL_TCP_PORT`) |
 | Trino | `TRINO_HOST`, `TRINO_USER`, `TRINO_CATALOG` (plus `TRINO_PORT`, `TRINO_PASSWORD`, `TRINO_SCHEMA`) |
 | Databricks SQL warehouse | `DATABRICKS_SQL_WAREHOUSE_ID` (plus `DATABRICKS_CONFIG_PROFILE`) |
+| DuckDB | `DUCKDB_PATH` or a local `DUCKDB_DATABASE` (plus `DUCKDB_READ_ONLY`) |
+| MotherDuck | `MOTHERDUCK_DATABASE`, an `md:` URL in `DUCKDB_DATABASE`, or `MOTHERDUCK_TOKEN` / `DUCKDB_MOTHERDUCK_TOKEN` / `motherduck_token` |
+| Quack | A `quack:` URI in `QUACK_DATABASE` or `DUCKDB_DATABASE` (plus `QUACK_TOKEN` / `QUACK_API_KEY`) |
 | PySpark (Spark Connect) | `SPARK_REMOTE` |
 | PyIceberg catalogs | `PYICEBERG_CATALOG__<name>__*` environment variables, or catalogs resolved from a `.pyiceberg.yaml` file |
 

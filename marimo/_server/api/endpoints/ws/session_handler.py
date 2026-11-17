@@ -166,7 +166,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
             resumed=True,
             ui_values=session.session_view.ui_values,
             kiosk=kiosk,
-            auto_instantiated=False,
         )
 
     def _write_kernel_ready(
@@ -175,7 +174,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         resumed: bool,
         ui_values: dict[str, JSONType],
         kiosk: bool,
-        auto_instantiated: bool,
     ) -> None:
         """Communicates to the client that the kernel is ready.
 
@@ -186,16 +184,12 @@ class SessionHandler(SessionConsumer, abc.ABC):
             resumed: Whether this is a resumed session
             ui_values: UI element values
             kiosk: Whether this is kiosk mode
-            auto_instantiated: Whether the kernel has already been instantiated
-                server-side (run mode). If True, the frontend does not need
-                to instantiate the app.
         """
         kernel_ready_msg = build_kernel_ready(
             session=session,
             resumed=resumed,
             ui_values=ui_values,
             kiosk=kiosk,
-            auto_instantiated=auto_instantiated,
         )
         self._serialize_and_notify(kernel_ready_msg)
 

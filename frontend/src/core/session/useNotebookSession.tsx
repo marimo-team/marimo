@@ -3,7 +3,6 @@
 import { invalidatePackageData } from "@/core/packages/package-data";
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useMemo } from "react";
-import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import {
   getNotebook,
@@ -12,6 +11,7 @@ import {
 } from "@/core/cells/cells";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import { followDocument } from "@/core/cells/document";
+import type { CellId } from "@/core/cells/ids";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
 import type { NotificationPayload } from "@/core/kernel/messages";
@@ -25,13 +25,14 @@ import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
 import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
 import { cacheInfoAtom } from "../cache/requests";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import {
-  resyncBreakpoints,
+  breakpointsAtom,
   setActiveLine,
 } from "../codemirror/cells/debugger-state";
 import { notebookCells } from "../cells/utils";
@@ -84,12 +85,8 @@ import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
 /** Coordinate session startup and apply notifications to the editor. */
-export function useNotebookSession(opts: {
-  sessionId: SessionId;
-  autoInstantiate: boolean;
-}) {
-  const { autoInstantiate, sessionId } = opts;
-  const { showBoundary } = useErrorBoundary();
+export function useNotebookSession(opts: { sessionId: SessionId }) {
+  const { sessionId } = opts;
   const store = useStore();
 
   const { handleCellMessage, reconcileDocument, resetCellRuntimes } =
@@ -142,16 +139,12 @@ export function useNotebookSession(opts: {
         return;
       }
       case "kernel-ready": {
-        setInitialRunCompleted(
-          Boolean(msg.data.resumed || msg.data.auto_instantiated),
-        );
+        setInitialRunCompleted(msg.data.resumed);
         const layout = handleKernelReady(msg.data, {
-          autoInstantiate,
           cells: notebookCells(store.get(notebookAtom)),
           resetCellRuntimes,
           setLayoutData,
           setCapabilities,
-          onError: showBoundary,
         });
         store.set(savedLayoutAtom, layout);
         if (!msg.data.resumed) {
@@ -165,11 +158,7 @@ export function useNotebookSession(opts: {
           (msg.data.stable_session_id as StableSessionId | null | undefined) ??
             null,
         );
-        // A freshly started kernel has no breakpoints of its own; re-push
-        // the client's set so they still apply, and clear the stale
-        // highlighted line from the previous kernel instance.
         setActiveLine(null);
-        resyncBreakpoints();
         return;
       }
 
@@ -360,6 +349,16 @@ export function useNotebookSession(opts: {
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
         return;
+      case "breakpoints":
+        store.set(
+          breakpointsAtom,
+          new Map(
+            Objects.entries<CellId, number[]>(msg.data.breakpoints).map(
+              ([cellId, lines]) => [cellId, new Set(lines)],
+            ),
+          ),
+        );
+        return;
       case "active-line":
         setActiveLine(
           msg.data.line == null
@@ -418,6 +417,7 @@ export function useNotebookSession(opts: {
       createDocumentModel({
         store,
         documentAtom: replica.documentAtom,
+        shownDocumentAtom: replica.shownDocumentAtom,
         backendAtom: replica.backendAtom,
       }),
     [store, replica],

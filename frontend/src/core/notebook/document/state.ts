@@ -56,7 +56,10 @@ interface PendingSubmission {
 }
 
 interface ModelState {
+  /** The host's document on the current stream, null through a reset. */
   readonly confirmed: Document | null;
+  /** What drafts show over while `confirmed` is null, such as through a reset. */
+  readonly shown: Document | null;
   readonly drafts: ReadonlyMap<Protocol.NotebookId, Draft>;
   readonly pending: PendingSubmission | null;
 }
@@ -65,10 +68,12 @@ interface ModelState {
  * Local edits over confirmed host state, with one submission in flight.
  *
  * A reset retains the submission so its receipt can reconcile a new snapshot.
- * Switching notebook identity invalidates it, retaining each notebook's draft.
+ * Until then drafts show and edit over the document the reset replaced, but
+ * nothing submits or settles against it. Switching notebook identity
+ * invalidates the submission, retaining each notebook's draft.
  */
 export interface DocumentState {
-  /** Confirmed host state with local drafts applied, null while unavailable. */
+  /** Shown host state with local drafts applied, null while unavailable. */
   readonly documentAtom: Atom<EditableDocument | null>;
   /** Null when the document or source needed by a put is unavailable. */
   readonly changesAtom: Atom<readonly Protocol.Change[] | null>;
@@ -92,18 +97,25 @@ export interface DocumentState {
   >;
 }
 
+/** The document drafts apply over. */
+function baseOf(state: ModelState): Document | null {
+  return state.confirmed ?? state.shown;
+}
+
 function draftOf(state: ModelState): Draft {
-  return state.confirmed === null
+  const base = baseOf(state);
+  return base === null
     ? EMPTY_DRAFT
-    : (state.drafts.get(state.confirmed.revision.notebook_id) ?? EMPTY_DRAFT);
+    : (state.drafts.get(base.revision.notebook_id) ?? EMPTY_DRAFT);
 }
 
 function withDraft(state: ModelState, draft: Draft): ModelState {
-  if (state.confirmed === null || draft === draftOf(state)) {
+  const base = baseOf(state);
+  if (base === null || draft === draftOf(state)) {
     return state;
   }
   const drafts = new Map(state.drafts);
-  const notebookId = state.confirmed.revision.notebook_id;
+  const notebookId = base.revision.notebook_id;
   if (isEmptyDraft(draft)) {
     drafts.delete(notebookId);
   } else {
@@ -134,23 +146,30 @@ function reconcile(state: ModelState): ModelState {
 export function createDocumentState({
   store,
   source,
+  shown: shownSource,
   signal,
 }: {
   store: ReturnType<typeof createStore>;
+  /** The document edits submit against. */
   source: Atom<Document | null>;
+  /** The document on show, which outlasts `source` through a reset. */
+  shown: Atom<Document | null>;
   signal: AbortSignal;
 }): DocumentState {
   signal.throwIfAborted();
+  const sourcesAtom = atom((get) => ({
+    confirmed: get(source),
+    shown: get(shownSource),
+  }));
   const stateAtom = atom<ModelState>({
-    confirmed: store.get(source),
+    ...store.get(sourcesAtom),
     drafts: new Map(),
     pending: null,
   });
   const documentAtom = atom((get): EditableDocument | null => {
     const state = get(stateAtom);
-    return state.confirmed === null
-      ? null
-      : viewDocument(state.confirmed, draftOf(state));
+    const base = baseOf(state);
+    return base === null ? null : viewDocument(base, draftOf(state));
   });
   const changesAtom = atom((get): readonly Protocol.Change[] | null => {
     const state = get(stateAtom);
@@ -160,12 +179,13 @@ export function createDocumentState({
   });
   const pendingAtom = atom((get) => get(stateAtom).pending?.submission ?? null);
 
-  const unsubscribe = store.sub(source, () => {
-    const confirmed = store.get(source);
+  const unsubscribe = store.sub(sourcesAtom, () => {
+    const { confirmed, shown } = store.get(sourcesAtom);
     store.set(stateAtom, (state) =>
       reconcile({
         ...state,
         confirmed,
+        shown,
         pending:
           confirmed !== null &&
           state.pending !== null &&
@@ -182,13 +202,14 @@ export function createDocumentState({
       throw new Error("Document transactions cannot be nested");
     }
     const state = get(stateAtom);
-    if (signal.aborted || state.confirmed === null) {
+    const base = baseOf(state);
+    if (signal.aborted || base === null) {
       return;
     }
     editing = true;
     try {
       const draft = editDocument(
-        state.confirmed,
+        base,
         draftOf(state),
         edit,
         state.pending?.draft,
@@ -196,7 +217,8 @@ export function createDocumentState({
       if (
         signal.aborted ||
         get(stateAtom) !== state ||
-        get(source) !== state.confirmed
+        get(source) !== state.confirmed ||
+        get(shownSource) !== state.shown
       ) {
         throw new Error("The document changed during the transaction");
       }
@@ -271,6 +293,7 @@ export function createDocumentState({
     signal.removeEventListener("abort", stop);
     store.set(stateAtom, {
       confirmed: null,
+      shown: null,
       drafts: new Map(),
       pending: null,
     });

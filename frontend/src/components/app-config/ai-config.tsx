@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { dequal } from "dequal";
 import { useAtom, useAtomValue } from "jotai";
 import {
   BotIcon,
@@ -85,6 +86,7 @@ import { Tooltip } from "../ui/tooltip";
 import { formItemClasses, SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
 import { ModelDiscovery } from "./model-discovery";
+import { getModelProviderConfig } from "./model-provider-config";
 import { IncorrectModelId } from "./incorrect-model-id";
 import {
   IsOverridden,
@@ -1689,14 +1691,13 @@ export const AddModelForm: React.FC<{
     !!providerName &&
     (providerName === "openrouter" ||
       customProviderNames.includes(providerName));
-  const configurationPending = useAtomValue(pendingConfigSavesAtom) > 0;
-  const savedProviderConfig =
-    providerName === "openrouter"
-      ? config.ai?.openrouter
-      : providerName
-        ? config.ai?.custom_providers?.[providerName]
-        : undefined;
-  const configurationKey = JSON.stringify(savedProviderConfig ?? null);
+  const draftAi = useWatch({ control: form.control, name: "ai" });
+  const effectiveAi = useAtomValue(resolvedMarimoConfigAtom).ai;
+  const savedProvider = getModelProviderConfig(config.ai, providerName);
+  const draftProvider = getModelProviderConfig(draftAi, providerName);
+  const effectiveProvider = getModelProviderConfig(effectiveAi, providerName);
+  const isSaving = useAtomValue(pendingConfigSavesAtom) > 0;
+  const hasUnsavedChanges = !dequal(savedProvider, draftProvider);
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
@@ -1833,10 +1834,7 @@ export const AddModelForm: React.FC<{
 
   const modelInput = (
     <div
-      className={cn(
-        "flex items-center gap-2",
-        isCustomProvider && "self-start",
-      )}
+      className={cn("flex items-start gap-2", isCustomProvider && "self-start")}
     >
       <Label
         htmlFor={modelNameInputId}
@@ -1846,11 +1844,10 @@ export const AddModelForm: React.FC<{
       </Label>
       {canDiscoverModels && providerName ? (
         <ModelDiscovery
-          key={providerName}
           provider={providerName}
+          configuration={effectiveProvider}
           label="Model"
-          configurationKey={configurationKey}
-          configurationPending={configurationPending}
+          disabled={isSaving || hasUnsavedChanges}
           inputId={modelNameInputId}
           inputClassName="text-xs mb-0"
           value={modelName}
@@ -1869,22 +1866,21 @@ export const AddModelForm: React.FC<{
   );
 
   const inputForm = (
-    <div
-      className={cn(
-        "flex items-center gap-3 p-3 border border-border rounded-md",
-        canDiscoverModels &&
-          "relative pb-12 [&_[data-testid^='model-discovery-']>button]:absolute [&_[data-testid^='model-discovery-']>button]:right-3 [&_[data-testid^='model-discovery-']>button]:bottom-3",
-      )}
-    >
+    <div className="flex flex-wrap items-start gap-3 p-3 border border-border rounded-md">
       {providerSelect}
       {modelInput}
       <div
         className={cn("flex gap-1.5 ml-auto", isCustomProvider && "self-end")}
       >
-        <Button onClick={handleAddModel} disabled={!hasValidValues} size="xs">
+        <Button
+          type="button"
+          onClick={handleAddModel}
+          disabled={!hasValidValues}
+          size="xs"
+        >
           Add
         </Button>
-        <Button variant="outline" onClick={resetForm} size="xs">
+        <Button type="button" variant="outline" onClick={resetForm} size="xs">
           Cancel
         </Button>
       </div>

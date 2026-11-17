@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._core import backend as be
 from marimo._messaging.notebook import NotebookDocument
 from marimo._messaging.notification import NotificationMessage
@@ -42,9 +43,7 @@ class FakeSession:
         self.document = NotebookDocument([])
         self.session_view = MagicMock()
         self.config_manager = MagicMock()
-        self.config_manager.get_config.return_value = {
-            "runtime": {"on_cell_change": "autorun"}
-        }
+        self.config_manager.get_config.return_value = DEFAULT_CONFIG
 
     def connect_consumer(
         self, consumer: SessionConsumer, *, main: bool

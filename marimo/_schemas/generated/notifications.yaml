@@ -56,6 +56,23 @@ components:
       - description
       title: BannerNotification
       type: object
+    BreakpointsNotification:
+      description: The session's complete breakpoint set, restored on connection.
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        op:
+          enum:
+          - breakpoints
+      required:
+      - op
+      - breakpoints
+      title: BreakpointsNotification
+      type: object
     CacheClearedNotification:
       description: "Execution cache cleared result.\n\n    Attributes:\n        bytes_freed:\
         \ Bytes freed by clearing cache."
@@ -1107,15 +1124,12 @@ components:
         \ Whether resumed from previous session.\n        ui_values: Previous UI element\
         \ values if resumed.\n        app_config: Application configuration.\n   \
         \     kiosk: Whether running in kiosk mode.\n        capabilities: Available\
-        \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode).\n        stable_session_id: Server-owned Session identity that\
-        \ survives\n            browser reconnects. None where no server Session exists."
+        \ kernel capabilities.\n        stable_session_id: Server-owned Session identity\
+        \ that survives\n            browser reconnects. None where no server Session\
+        \ exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
-        auto_instantiated:
-          default: false
-          type: boolean
         capabilities:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
         consumer_capabilities:

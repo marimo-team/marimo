@@ -26,7 +26,7 @@ function document(app_config: Record<string, unknown>, version = 1): Document {
 function connect(store: ReturnType<typeof createStore>, current: Document) {
   store.set(
     activeNotebookReplicaAtom,
-    partial<NotebookReplica>({ documentAtom: atom(current) }, "replica"),
+    partial<NotebookReplica>({ shownDocumentAtom: atom(current) }, "replica"),
   );
 }
 

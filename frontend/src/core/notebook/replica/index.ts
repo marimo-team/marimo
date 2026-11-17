@@ -17,4 +17,4 @@ export {
   type Item,
   itemsInOrder,
 } from "./resources/executions";
-export type { Results } from "./resources/results";
+export type { Result, Results } from "./resources/results";

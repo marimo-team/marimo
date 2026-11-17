@@ -2135,47 +2135,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/instantiate": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["InstantiateNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Instantiate a component. Only allowed in edit mode; in run mode, instantiation happens server-side automatically. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/pdb/breakpoints": {
     parameters: {
       query?: never;
@@ -3868,6 +3827,17 @@ export interface components {
       region_name?: string;
     };
     /**
+     * BreakpointsNotification
+     * @description The session's complete breakpoint set, restored on connection.
+     */
+    BreakpointsNotification: {
+      breakpoints: {
+        [key: string]: number[];
+      };
+      /** @enum {unknown} */
+      op: "breakpoints";
+    };
+    /**
      * CacheClearedNotification
      * @description Execution cache cleared result.
      *
@@ -5457,17 +5427,6 @@ export interface components {
         [key: string]: string;
       };
     };
-    /** InstantiateNotebookRequest */
-    InstantiateNotebookRequest: {
-      /** @default true */
-      autoRun?: boolean;
-      /** @default null */
-      codes?: {
-        [key: string]: string;
-      } | null;
-      objectIds: components["schemas"]["UIElementId"][];
-      values: unknown[];
-    };
     /**
      * InterruptedNotification
      * @description Kernel was interrupted by user (SIGINT/Ctrl+C).
@@ -5552,14 +5511,11 @@ export interface components {
      *         app_config: Application configuration.
      *         kiosk: Whether running in kiosk mode.
      *         capabilities: Available kernel capabilities.
-     *         auto_instantiated: Whether cells already executed (run mode).
      *         stable_session_id: Server-owned Session identity that survives
      *             browser reconnects. None where no server Session exists.
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
-      /** @default false */
-      auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;
@@ -6322,6 +6278,7 @@ export interface components {
       | components["schemas"]["CacheClearedNotification"]
       | components["schemas"]["CacheInfoNotification"]
       | components["schemas"]["FocusCellNotification"]
+      | components["schemas"]["BreakpointsNotification"]
       | components["schemas"]["ActiveLineNotification"]
       | components["schemas"]["NotebookDocumentTransactionNotification"]
       | components["schemas"]["ConsumerCapabilitiesNotification"];
@@ -7014,6 +6971,16 @@ export interface components {
      */
     ServerConfig: {
       /**
+       * @description Allowed origins for HTTP and WebSocket connections.
+       * @default []
+       */
+      allow_origins: string[];
+      /**
+       * @description Base URL for the server, starting with / and without a trailing slash.
+       * @default
+       */
+      base_url: string;
+      /**
        * @description the web browser to use. `"default"` or a browser registered with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
        * @default default
        */
@@ -7029,6 +6996,41 @@ export interface components {
        */
       follow_symlink: boolean;
       /**
+       * @description Do not launch a browser.
+       * @default false
+       */
+      headless: boolean;
+      /**
+       * @description Host to bind to.
+       * @default 127.0.0.1
+       */
+      host: string;
+      /**
+       * @description Send notebook source code to clients in run mode. Edit mode always includes code.
+       * @default false
+       */
+      include_code: boolean;
+      /**
+       * @description Port to bind to (0-65535). If unset or 0, find an available port.
+       * @default null
+       */
+      port: number | null;
+      /**
+       * @description Address of the reverse proxy.
+       * @default null
+       */
+      proxy: string | null;
+      /**
+       * @description Redirect console output to the browser. This option only applies to run mode. Edit mode always redirects output to the browser.
+       * @default false
+       */
+      redirect_console_to_browser: boolean;
+      /**
+       * @description Use partitioned cookies for cross-site HTTPS embeds. Implies SameSite=None and Secure.
+       * @default false
+       */
+      session_cookie_partitioned: boolean;
+      /**
        * @description Only send session cookies over HTTPS. Enable when serving behind TLS.
        * @default false
        */
@@ -7038,16 +7040,45 @@ export interface components {
        * @default null
        */
       session_secret: string | null;
+      /** @description Seconds before closing a disconnected session. Defaults to unlimited in edit mode and 120 in run mode; null means unlimited. */
+      session_ttl?: number | null;
+      /**
+       * @description Enable protection against frontend and server version mismatches.
+       * @default true
+       */
+      skew_protection: boolean;
       /**
        * @description Skip checking for marimo updates when starting the editor.
        * @default false
        */
       skip_update_check: boolean;
       /**
+       * @description Shut down after this many minutes without a connection.
+       * @default null
+       */
+      timeout: number | null;
+      /** @description Enable token authentication. Defaults to true in edit mode and false in run mode. */
+      token?: boolean;
+      /**
+       * @description Password used for token authentication. Mutually exclusive with token_password_file.
+       * @default null
+       */
+      token_password: string | null;
+      /**
+       * @description File containing the token password, or - to read from stdin. Mutually exclusive with token_password.
+       * @default null
+       */
+      token_password_file: string | null;
+      /**
        * @description experimental. The transport used to stream kernel messages to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"` (default) uses the `/ws` WebSocket endpoint; `"sse"` uses server-sent events over HTTP, for deployments behind proxies or services that do not support WebSockets. The terminal and LSP still require WebSockets.
        * @enum {unknown}
        */
       transport?: "sse" | "websocket";
+      /**
+       * @description Watch notebook files for changes; reload code in edit mode or the application in run mode.
+       * @default false
+       */
+      watch: boolean;
     };
     /** Format: session-id */
     SessionId: TypedString<"SessionId">;

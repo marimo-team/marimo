@@ -47,15 +47,16 @@ def test_reload_function(tmp_path: pathlib.Path, py_modname: str):
     mod = importlib.import_module(py_modname)
     reloader.check(sys.modules, reload=False)
     assert mod.foo() == 1
-    update_file(
-        py_file,
-        """
-        def foo():
-            return 2
-        """,
-    )
-    reloader.check(sys.modules, reload=True)
-    assert mod.foo() == 2
+    for value in (2, 3, 4):
+        update_file(
+            py_file,
+            f"""
+            def foo():
+                return {value}
+            """,
+        )
+        reloader.check(sys.modules, reload=True)
+        assert mod.foo() == value
 
 
 def test_reload_module_with_error(tmp_path: pathlib.Path, py_modname: str):

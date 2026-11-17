@@ -118,38 +118,6 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
-    def test_instantiate(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/instantiate",
-            headers=HEADERS,
-            json={
-                "objectIds": ["ui-element-1", "ui-element-2"],
-                "values": ["value1", "value2"],
-                "autoRun": True,
-            },
-        )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
-
-    @staticmethod
-    @with_session(SESSION_ID)
-    def test_instantiate_autorun_false(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/instantiate",
-            headers=HEADERS,
-            json={
-                "objectIds": ["ui-element-1", "ui-element-2"],
-                "values": ["value1", "value2"],
-                "autoRun": False,
-            },
-        )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
-
-    @staticmethod
-    @with_session(SESSION_ID)
     def test_function_call(client: TestClient) -> None:
         response = client.post(
             "/api/kernel/function_call",
@@ -633,34 +601,6 @@ class TestExecutionRoutes_RunMode:
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
-
-    @staticmethod
-    @with_read_session(SESSION_ID)
-    def test_instantiate(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/instantiate",
-            headers=HEADERS,
-            json={
-                "objectIds": ["ui-element-1", "ui-element-2"],
-                "values": ["value1", "value2"],
-                "autoRun": True,
-            },
-        )
-        assert response.status_code == 401, response.text
-
-    @staticmethod
-    @with_read_session(SESSION_ID)
-    def test_instantiate_autorun_false(client: TestClient) -> None:
-        response = client.post(
-            "/api/kernel/instantiate",
-            headers=HEADERS,
-            json={
-                "objectIds": ["ui-element-1", "ui-element-2"],
-                "values": ["value1", "value2"],
-                "autoRun": False,
-            },
-        )
-        assert response.status_code == 401, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)

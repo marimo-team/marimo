@@ -126,6 +126,33 @@ describe("sanitizeHtml", () => {
     );
   });
 
+  describe.each(["marimo-slider", "marimo-custom-element", "iconify-icon"])(
+    "%s attributes",
+    (tag) => {
+      test.each([
+        "onclick",
+        "onerror",
+        "onload",
+        "onfocus",
+        "onanimationstart",
+        "ontransitionend",
+        "onpointerover",
+        "ONCLICK",
+        "onAnimationStart",
+        "onfutureevent",
+      ])("removes %s", (attribute) => {
+        expect(
+          sanitizeHtml(`<${tag} ${attribute}="alert(1)">Text</${tag}>`),
+        ).toBe(`<${tag}>Text</${tag}>`);
+      });
+
+      test("preserves widget and presentation attributes", () => {
+        const html = `<${tag} value="50" data-value="50" aria-label="Example" class="widget" style="color: blue;" icon="lucide:leaf" flip="horizontal"></${tag}>`;
+        expect(sanitizeHtml(html)).toBe(html);
+      });
+    },
+  );
+
   test("preserves marimo elements with valid naming", () => {
     const html = "<marimo-custom-element></marimo-custom-element>";
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(

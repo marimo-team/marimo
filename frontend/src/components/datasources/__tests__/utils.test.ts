@@ -66,10 +66,15 @@ describe("sqlCode", () => {
   });
 
   describe("basic SQL generation", () => {
+    it("selects all columns without a table context", () => {
+      expect(sqlCode({ table: mockTable, columnName: "*" })).toBe(
+        `_df = mo.sql(f'SELECT * FROM "users" LIMIT 100')`,
+      );
+    });
     it("should generate basic SQL without sqlTableContext", () => {
       const result = sqlCode({ table: mockTable, columnName: mockColumn.name });
       expect(result).toBe(
-        "_df = mo.sql(f'SELECT \"email\" FROM users LIMIT 100')",
+        '_df = mo.sql(f\'SELECT "email" FROM "users" LIMIT 100\')',
       );
     });
 
@@ -453,6 +458,60 @@ describe("sqlCode", () => {
       });
       expect(result).toBe(
         '_df = mo.sql(f"""\nSELECT * FROM "Samples"."samples.dremio.com"."airlines" LIMIT 100\n""", engine=dremio_conn)',
+      );
+    });
+  });
+
+  describe("names with braces and quotes", () => {
+    const named = (name: string): DataTable => ({ ...mockTable, name });
+
+    it("keeps quoted table, schema and column names as text", () => {
+      const result = sqlCode({
+        table: named('t{"a"}'),
+        columnName: "c}{",
+        sqlTableContext: {
+          engine: DUCKDB_ENGINE,
+          schema: "s{1}",
+          defaultSchema: "main",
+          defaultDatabase: "memory",
+          database: "memory",
+          dialect: "duckdb",
+        },
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f"""
+SELECT "c}}{{" FROM "s{{1}}"."t{{""a""}}" LIMIT 100
+""")`,
+      );
+    });
+
+    it("quotes SQLite identifiers before escaping the Python boundary", () => {
+      const result = sqlCode({
+        table: named(String.raw`x\"""y"""`),
+        columnName: "*",
+        sqlTableContext: {
+          engine: "conn",
+          schema: "{s}",
+          defaultSchema: "main",
+          defaultDatabase: "db",
+          database: "db",
+          dialect: "sqlite",
+        },
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f"""
+SELECT * FROM "{{s}}"."x\\\"\"\"\"\"\"y\"\"\"\"\"\"\" LIMIT 100
+""", engine=conn)`,
+      );
+    });
+
+    it("escapes names without a table context", () => {
+      const result = sqlCode({
+        table: named("t{1+1}\n"),
+        columnName: `it's"`,
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f'SELECT "it\'s\"\"\" FROM "t{{1+1}}\n" LIMIT 100')`,
       );
     });
   });

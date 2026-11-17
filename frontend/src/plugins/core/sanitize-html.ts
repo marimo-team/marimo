@@ -53,7 +53,8 @@ export function sanitizeHtml(html: string) {
     FORCE_BODY: true,
     CUSTOM_ELEMENT_HANDLING: {
       tagNameCheck: /^(marimo-[A-Za-z][\w-]*|iconify-icon)$/,
-      attributeNameCheck: /^[A-Za-z][\w-]*$/,
+      attributeNameCheck: (name) =>
+        !/^on/i.test(name) && /^[A-Za-z][\w-]*$/.test(name),
     },
     // This flag means we should sanitize such that is it safe for XML,
     // but this is only used for HTML content.
