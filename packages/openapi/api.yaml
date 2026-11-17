@@ -612,6 +612,8 @@ components:
                 propertyName: type
             type: array
           - type: object
+        input_id:
+          type: string
         mimetype:
           enum:
           - application/json
@@ -748,8 +750,6 @@ components:
           - type: string
           - type: 'null'
           default: null
-        includeOtherCode:
-          type: string
         model:
           anyOf:
           - type: string
@@ -778,7 +778,6 @@ components:
           - type: 'null'
           default: null
       required:
-      - includeOtherCode
       - uiMessages
       title: ChatRequest
       type: object
@@ -970,20 +969,14 @@ components:
           deprecated: true
           description: Deprecated completion API endpoint. Use an AI provider configuration
             instead.
-        codeium_api_key:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: the Codeium API key
         copilot:
           anyOf:
           - type: boolean
           - enum:
-            - codeium
             - custom
             - github
           default: false
-          description: one of `"github"`, `"codeium"`, or `"custom"`
+          description: one of `"github"` or `"custom"`
         model:
           anyOf:
           - type: string
@@ -2036,26 +2029,6 @@ components:
       - type
       - executionRequests
       title: ExecuteCellsCommand
-      type: object
-    ExecuteCellsRequest:
-      properties:
-        cellIds:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-      required:
-      - cellIds
-      - codes
-      title: ExecuteCellsRequest
       type: object
     ExecuteScratchpadCommand:
       description: "Execute code in the scratchpad.\n\nThe scratchpad is a temporary\
@@ -4479,7 +4452,6 @@ components:
       - $ref: '#/components/schemas/ModelLifecycleNotification'
       - $ref: '#/components/schemas/RemoveUIElementsNotification'
       - $ref: '#/components/schemas/ReloadNotification'
-      - $ref: '#/components/schemas/ReconnectedNotification'
       - $ref: '#/components/schemas/InterruptedNotification'
       - $ref: '#/components/schemas/CompletedRunNotification'
       - $ref: '#/components/schemas/KernelReadyNotification'
@@ -4546,7 +4518,6 @@ components:
           query-params-clear: '#/components/schemas/QueryParamsClearNotification'
           query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
           query-params-set: '#/components/schemas/QueryParamsSetNotification'
-          reconnected: '#/components/schemas/ReconnectedNotification'
           reload: '#/components/schemas/ReloadNotification'
           remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
           secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
@@ -4880,6 +4851,27 @@ components:
       - tableName
       title: PreviewSQLTableRequest
       type: object
+    ProviderModel:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      required:
+      - id
+      - name
+      title: ProviderModel
+      type: object
+    ProviderModelsResponse:
+      properties:
+        models:
+          items:
+            $ref: '#/components/schemas/ProviderModel'
+          type: array
+      required:
+      - models
+      title: ProviderModelsResponse
+      type: object
     PyreflyLanguageServerConfig:
       description: 'Configuration options for Pyrefly Language Server.
 
@@ -5021,16 +5013,6 @@ components:
       required:
       - files
       title: RecentFilesResponse
-      type: object
-    ReconnectedNotification:
-      description: WebSocket reconnection confirmed.
-      properties:
-        op:
-          enum:
-          - reconnected
-      required:
-      - op
-      title: ReconnectedNotification
       type: object
     ReloadNotification:
       description: Instructs frontend to reload the page.
@@ -5603,6 +5585,17 @@ components:
     ServerConfig:
       description: Configuration for the server.
       properties:
+        allow_origins:
+          default: []
+          description: Allowed origins for HTTP and WebSocket connections.
+          items:
+            type: string
+          type: array
+        base_url:
+          default: ''
+          description: Base URL for the server, starting with / and without a trailing
+            slash.
+          type: string
         browser:
           anyOf:
           - enum:
@@ -5620,6 +5613,39 @@ components:
           default: false
           description: if true, the server will follow symlinks it finds inside its
             static assets directory.
+          type: boolean
+        headless:
+          default: false
+          description: Do not launch a browser.
+          type: boolean
+        host:
+          default: 127.0.0.1
+          description: Host to bind to.
+          type: string
+        include_code:
+          default: false
+          description: Send notebook source code to clients in run mode. Edit mode
+            always includes code.
+          type: boolean
+        port:
+          anyOf:
+          - maximum: 65535
+            minimum: 0
+            type: integer
+          - type: 'null'
+          default: null
+          description: Port to bind to (0-65535). If unset or 0, find an available
+            port.
+        proxy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: Address of the reverse proxy.
+        redirect_console_to_browser:
+          default: false
+          description: Redirect console output to the browser. This option only applies
+            to run mode. Edit mode always redirects output to the browser.
           type: boolean
         session_cookie_partitioned:
           default: false
@@ -5639,10 +5665,44 @@ components:
           description: Secret used to sign session cookies. Set a stable value to
             preserve sessions across restarts or replicas; otherwise a random secret
             is generated per process.
+        session_ttl:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Seconds before closing a disconnected session. Defaults to
+            unlimited in edit mode and 120 in run mode; null means unlimited.
+        skew_protection:
+          default: true
+          description: Enable protection against frontend and server version mismatches.
+          type: boolean
         skip_update_check:
           default: false
           description: Skip checking for marimo updates when starting the editor.
           type: boolean
+        timeout:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+          description: Shut down after this many minutes without a connection.
+        token:
+          description: Enable token authentication. Defaults to true in edit mode
+            and false in run mode.
+          type: boolean
+        token_password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: Password used for token authentication. Mutually exclusive
+            with token_password_file.
+        token_password_file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          description: File containing the token password, or - to read from stdin.
+            Mutually exclusive with token_password.
         transport:
           description: experimental. The transport used to stream kernel messages
             to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment
@@ -5652,7 +5712,25 @@ components:
           enum:
           - sse
           - websocket
+        watch:
+          default: false
+          description: Watch notebook files for changes; reload code in edit mode
+            or the application in run mode.
+          type: boolean
       required:
+      - host
+      - port
+      - proxy
+      - base_url
+      - allow_origins
+      - headless
+      - watch
+      - skew_protection
+      - timeout
+      - token_password
+      - token_password_file
+      - include_code
+      - redirect_console_to_browser
       - skip_update_check
       - session_cookie_secure
       - session_cookie_partitioned
@@ -5970,14 +6048,6 @@ components:
       - logs
       - log_mode
       title: StartupProgressNotification
-      type: object
-    StdinRequest:
-      properties:
-        text:
-          type: string
-      required:
-      - text
-      title: StdinRequest
       type: object
     StorageDownloadReadyNotification:
       description: "Signals that a storage file download is ready.\n\nThe url may\
@@ -6982,6 +7052,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/MCPStatusResponse'
           description: Get MCP server status
+  /api/ai/models/{provider_name}:
+    get:
+      description: List models for a supported provider without modifying configuration.
+      parameters:
+      - description: Provider identifier, such as `openrouter` or a custom-provider
+          name.
+        in: path
+        name: provider_name
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderModelsResponse'
+          description: Available models for the provider.
   /api/cache/clear:
     post:
       parameters:
@@ -7795,21 +7883,6 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Instantiate a component. Only allowed in edit mode; in run
             mode, instantiation happens server-side automatically.
-  /api/kernel/interrupt:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Interrupt the kernel's execution
   /api/kernel/pdb/breakpoints:
     post:
       parameters:
@@ -7904,27 +7977,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Restart the current session without affecting other sessions.
-  /api/kernel/run:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExecuteCellsRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Run a cell. Updates cell code in the kernel if needed; registers
-            new cells for unseen cell IDs. Only allowed in edit mode.
   /api/kernel/save_app_config:
     post:
       parameters:
@@ -8080,26 +8132,6 @@ paths:
             means at least one cell is queued or running; `idle` means the kernel
             is alive but not executing; `stopped` means the kernel process is not
             running.
-  /api/kernel/stdin:
-    post:
-      parameters:
-      - in: header
-        name: Marimo-Session-Id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StdinRequest'
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-          description: Send input to the stdin stream
   /api/kernel/takeover:
     post:
       parameters:

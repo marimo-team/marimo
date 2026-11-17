@@ -1,6 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
@@ -158,7 +159,7 @@ def _prepare_parts(raw_parts: list[Any]) -> list[Any]:
 
 
 def _expand_marimo_context_part(part: Any) -> Any:
-    """Resolve a `data-marimo-context` part into a text part.
+    """Resolve notebook and @-context data parts into text parts.
 
     The @-context is shipped inside the user message as a data part because
     pydantic-ai's VercelAIAdapter drops DataUIPart entirely.
@@ -166,6 +167,15 @@ def _expand_marimo_context_part(part: Any) -> Any:
     Returns the part unchanged when it isn't a context part, a text part when
     it carries non-empty context, or `None` to drop empty context parts.
     """
+    if isinstance(part, dict) and part.get("type") == "data-marimo-notebook":
+        data = part.get("data")
+        if not isinstance(data, dict):
+            return None
+        return {
+            "type": "text",
+            "text": "Notebook context update:\n"
+            + json.dumps(data, ensure_ascii=False, sort_keys=True),
+        }
     if (
         not isinstance(part, dict)
         or part.get("type") != MARIMO_CONTEXT_PART_TYPE

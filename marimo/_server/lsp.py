@@ -17,6 +17,7 @@ from typing import Literal
 from msgspec import UNSET
 
 from marimo import _loggers
+from marimo._cli.install_hints import get_install_hint
 from marimo._config.config_schema import LanguageServersConfig, MarimoConfig
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -596,21 +597,25 @@ class PyLspServer(BaseLspServer):
         # pylsp is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pylsp.has():
             LOGGER.info(
-                "pylsp is not installed. Skipping LSP server. Install with: pip install python-lsp-server"
+                "pylsp is not installed. Skipping LSP server. "
+                f"Install with: {get_install_hint('python-lsp-server')}"
             )
             return None
         return await super().start()
 
     def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.pylsp.has():
-            return "pylsp is missing. Install it with `pip install python-lsp-server`."
+            return (
+                "pylsp is missing. Install it with "
+                f"`{get_install_hint('python-lsp-server')}`."
+            )
 
         # Try actually running pylsp to validate it works
         import sys
 
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "pylsp", "--version"],
+                [sys.executable, "-P", "-m", "pylsp", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -629,6 +634,7 @@ class PyLspServer(BaseLspServer):
 
         return [
             sys.executable,
+            "-P",
             "-m",
             "marimo._server._pylsp",
             "--port",
@@ -661,7 +667,10 @@ class BasedpyrightServer(BaseLspServer):
 
     def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.basedpyright.has():
-            return "basedpyright is missing. Install it with `pip install basedpyright`."
+            return (
+                "basedpyright is missing. Install it with "
+                f"`{get_install_hint('basedpyright')}`."
+            )
 
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
@@ -706,7 +715,9 @@ class TyServer(BaseLspServer):
 
     def validate_requirements(self) -> str | Literal[True]:
         if not (DependencyManager.ty.has() or DependencyManager.which("ty")):
-            return "ty is missing. Install it with `pip install ty`."
+            return (
+                f"ty is missing. Install it with `{get_install_hint('ty')}`."
+            )
 
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
@@ -765,7 +776,10 @@ class PyreflyServer(BaseLspServer):
 
     def validate_requirements(self) -> str | Literal[True]:
         if not DependencyManager.pyrefly.has():
-            return "Pyrefly is missing. Install it with `pip install pyrefly`."
+            return (
+                "Pyrefly is missing. Install it with "
+                f"`{get_install_hint('pyrefly')}`."
+            )
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
         return True

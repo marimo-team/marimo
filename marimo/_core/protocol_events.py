@@ -1,8 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
-# Generated from protocols/host/openapi.yaml.
-# Experimental features: analysis
-# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis`.
+# Generated from packages/host-protocol.
+# Regenerate with `make host-protocol-codegen`.
 """Typed envelope adapters. Payload ownership stays with the caller."""
 
 from __future__ import annotations

@@ -29,7 +29,6 @@ import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { type Theme, useTheme } from "../../../theme/useTheme";
-import { NotStartedConnectionAlert } from "../alerts/connecting-alert";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import { useChromeActions } from "../chrome/state";
 import { Column } from "../columns/cell-column";
@@ -124,8 +123,6 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       <StartupLogsAlert />
       <StdinBlockingAlert />
       <NotebookBanner width={appConfig.width} />
-      {/* Only show if not cells, otherwise running a single cell will start the connection */}
-      {cellIds.length === 0 && <NotStartedConnectionAlert />}
       <div
         className={cn(
           appConfig.width === "columns" &&

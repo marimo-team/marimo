@@ -67,11 +67,6 @@ class SessionEventListener:
         del request
         del from_consumer_id
 
-    def on_received_stdin(self, session: Session, stdin: str) -> None:
-        """Called when stdin is received."""
-        del session
-        del stdin
-
 
 class SessionEventBus:
     """Event bus for coordinating session lifecycle events.
@@ -182,11 +177,4 @@ class SessionEventBus:
             lambda listener: listener.on_received_command(
                 session, request, from_consumer_id
             ),
-        )
-
-    def emit_received_stdin(self, session: Session, stdin: str) -> None:
-        """Emit a received stdin event."""
-        self._emit(
-            "received_stdin",
-            lambda listener: listener.on_received_stdin(session, stdin),
         )

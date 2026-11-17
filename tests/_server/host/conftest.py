@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._core import backend as be
 from marimo._messaging.notebook import NotebookDocument
 from marimo._messaging.notification import NotificationMessage
@@ -35,15 +36,14 @@ class FakeSession:
         self.closed = False
         self.state = KernelState.RUNNING
         self.exit_info: Any = None
+        self.initialization_id = path or "__new__editor"
         self.app_file_manager = MagicMock()
         self.app_file_manager.path = path
         self.app_file_manager.app.config.asdict_difference.return_value = {}
         self.document = NotebookDocument([])
         self.session_view = MagicMock()
         self.config_manager = MagicMock()
-        self.config_manager.get_config.return_value = {
-            "runtime": {"on_cell_change": "autorun"}
-        }
+        self.config_manager.get_config.return_value = DEFAULT_CONFIG
 
     def connect_consumer(
         self, consumer: SessionConsumer, *, main: bool
@@ -148,7 +148,10 @@ class FakeManager:
         if isinstance(self.next_session, Exception):
             raise self.next_session
         session: FakeSession = self.next_session
+        session.initialization_id = file_key
         self.sessions[session_id] = session
+        # The session manager announces a session before its starter attaches.
+        await self.event_bus.emit_session_created(session)  # type: ignore[arg-type]
         session.connect_consumer(session_consumer, main=main)
         return session
 

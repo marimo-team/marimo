@@ -137,6 +137,7 @@ async def has_marimo_installed(venv_python: str) -> bool:
     result = await run_command(
         [
             venv_python,
+            "-P",
             "-c",
             "import marimo, msgspec, zmq; print(marimo.__version__)",
         ],
@@ -172,6 +173,7 @@ async def check_python_version_compatibility(venv_python: str) -> bool:
     result = await run_command(
         [
             venv_python,
+            "-P",
             "-c",
             "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
         ],

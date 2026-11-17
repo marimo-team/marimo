@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Result } from "@marimo-team/client";
+import type { ResultOf } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, createStore } from "jotai/vanilla";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,7 +11,7 @@ import { createDocumentModel } from "../model";
 import { type FakeEdit, fakeBackend } from "../../replica/__tests__/fixtures";
 import { cell, document, withCells } from "./fixtures";
 
-function response(confirmed: Document): Result<Protocol.EditResponseOutput> {
+function response(confirmed: Document): ResultOf<"notebook.edit"> {
   return {
     ok: true,
     status: 200,
@@ -41,9 +41,9 @@ function setup({ connected = true } = {}) {
   const source = atom<Document | null>(document());
   const unmounted = vi.fn();
   source.onMount = () => unmounted;
-  const replies: Deferred<Result<Protocol.EditResponseOutput>>[] = [];
+  const replies: Deferred<ResultOf<"notebook.edit">>[] = [];
   const sent = vi.fn((_edit: SentEdit) => {
-    const reply = new Deferred<Result<Protocol.EditResponseOutput>>();
+    const reply = new Deferred<ResultOf<"notebook.edit">>();
     replies.push(reply);
     return reply.promise;
   });
@@ -55,6 +55,7 @@ function setup({ connected = true } = {}) {
   const model = createDocumentModel({
     store,
     documentAtom: source,
+    shownDocumentAtom: source,
     backendAtom,
   });
   const controller = new AbortController();
@@ -94,6 +95,7 @@ describe("document synchronization", () => {
     const model = createDocumentModel({
       store,
       documentAtom: source,
+      shownDocumentAtom: source,
       backendAtom: atom(fakeBackend({ edit })),
     });
     store.set(model.editAtom, (tx) => tx.setCode("c1", "local"));
@@ -113,6 +115,7 @@ describe("document synchronization", () => {
     const model = createDocumentModel({
       store,
       documentAtom: source,
+      shownDocumentAtom: source,
       backendAtom: atom(fakeBackend({ edit: vi.fn<FakeEdit>() })),
     });
     const reason = new Error("Session ended");
@@ -124,9 +127,11 @@ describe("document synchronization", () => {
 
   it("starts again after a subscriber aborts during startup", async () => {
     const store = createStore();
+    const source = atom(document());
     const model = createDocumentModel({
       store,
-      documentAtom: atom(document()),
+      documentAtom: source,
+      shownDocumentAtom: source,
       backendAtom: atom(null),
     });
     const controller = new AbortController();

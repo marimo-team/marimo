@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { dequal } from "dequal";
 import { useAtom, useAtomValue } from "jotai";
 import {
   BotIcon,
@@ -84,6 +85,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { formItemClasses, SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
+import { ModelDiscovery } from "./model-discovery";
+import { getModelProviderConfig } from "./model-provider-config";
 import { IncorrectModelId } from "./incorrect-model-id";
 import {
   IsOverridden,
@@ -91,7 +94,7 @@ import {
   useConfigOverride,
 } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
-import { aiSettingsSubTabAtom } from "./state";
+import { aiSettingsSubTabAtom, pendingConfigSavesAtom } from "./state";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -415,27 +418,6 @@ const renderCopilotProvider = ({
     return null;
   }
 
-  if (copilot === "codeium") {
-    return (
-      <>
-        <p className="text-sm text-muted-secondary">
-          To get a Windsurf API key, follow{" "}
-          <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#windsurf-copilot">
-            these instructions
-          </ExternalLink>
-          .
-        </p>
-        <ApiKey
-          form={form}
-          config={config}
-          name="completion.codeium_api_key"
-          placeholder="key"
-          testId="codeium-api-key-input"
-        />
-      </>
-    );
-  }
-
   if (copilot === "github") {
     return <CopilotConfig />;
   }
@@ -573,9 +555,9 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
         form={form}
         config={config}
         name="completion.copilot"
-        options={["none", "github", "codeium", "custom"]}
+        options={["none", "github", "custom"]}
         testId="copilot-select"
-        description="Choose GitHub Copilot, Codeium, or a custom provider (such as Ollama) to enable AI-powered code completion."
+        description="Choose GitHub Copilot or a custom provider (such as Ollama) to enable AI-powered code completion."
       />
 
       {renderCopilotProvider({ form, config, onSubmit, copilot })}
@@ -1555,6 +1537,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
 
 export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   form,
+  config,
   onSubmit,
 }) => {
   const resolvedAi = useAtomValue(resolvedMarimoConfigAtom).ai;
@@ -1676,6 +1659,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
       </div>
       <AddModelForm
         form={form}
+        config={config}
         customModels={customModels}
         customProviderNames={customProviderNames}
         onSubmit={onSubmit}
@@ -1686,10 +1670,11 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
 export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
+  config: UserConfig;
   customModels: QualifiedModelId[];
   customProviderNames: string[];
   onSubmit: (values: UserConfig) => void;
-}> = ({ form, customModels, customProviderNames, onSubmit }) => {
+}> = ({ form, config, customModels, customProviderNames, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1702,6 +1687,17 @@ export const AddModelForm: React.FC<{
 
   const isCustomProvider = provider === "custom";
   const providerName = isCustomProvider ? customProviderName : provider;
+  const canDiscoverModels =
+    !!providerName &&
+    (providerName === "openrouter" ||
+      customProviderNames.includes(providerName));
+  const draftAi = useWatch({ control: form.control, name: "ai" });
+  const effectiveAi = useAtomValue(resolvedMarimoConfigAtom).ai;
+  const savedProvider = getModelProviderConfig(config.ai, providerName);
+  const draftProvider = getModelProviderConfig(draftAi, providerName);
+  const effectiveProvider = getModelProviderConfig(effectiveAi, providerName);
+  const isSaving = useAtomValue(pendingConfigSavesAtom) > 0;
+  const hasUnsavedChanges = !dequal(savedProvider, draftProvider);
   const hasValidValues = providerName?.trim() && modelName?.trim();
 
   const resetForm = () => {
@@ -1749,7 +1745,10 @@ export const AddModelForm: React.FC<{
         </Label>
         <Select
           value={provider || ""}
-          onValueChange={(v) => setProvider(v as ProviderId | "custom")}
+          onValueChange={(v) => {
+            setProvider(v as ProviderId | "custom");
+            setModelName("");
+          }}
         >
           <SelectTrigger id={providerSelectId} className={providerClassName}>
             {provider ? (
@@ -1835,10 +1834,7 @@ export const AddModelForm: React.FC<{
 
   const modelInput = (
     <div
-      className={cn(
-        "flex items-center gap-2",
-        isCustomProvider && "self-start",
-      )}
+      className={cn("flex items-start gap-2", isCustomProvider && "self-start")}
     >
       <Label
         htmlFor={modelNameInputId}
@@ -1846,27 +1842,45 @@ export const AddModelForm: React.FC<{
       >
         Model
       </Label>
-      <Input
-        id={modelNameInputId}
-        value={modelName}
-        onChange={(e) => setModelName(e.target.value)}
-        placeholder="gpt-5.6-sol"
-        className="text-xs mb-0"
-      />
+      {canDiscoverModels && providerName ? (
+        <ModelDiscovery
+          provider={providerName}
+          configuration={effectiveProvider}
+          label="Model"
+          disabled={isSaving || hasUnsavedChanges}
+          inputId={modelNameInputId}
+          inputClassName="text-xs mb-0"
+          value={modelName}
+          onValueChange={setModelName}
+        />
+      ) : (
+        <Input
+          id={modelNameInputId}
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          placeholder="gpt-5.6-sol"
+          className="text-xs mb-0"
+        />
+      )}
     </div>
   );
 
   const inputForm = (
-    <div className="flex items-center gap-3 p-3 border border-border rounded-md">
+    <div className="flex flex-wrap items-start gap-3 p-3 border border-border rounded-md">
       {providerSelect}
       {modelInput}
       <div
         className={cn("flex gap-1.5 ml-auto", isCustomProvider && "self-end")}
       >
-        <Button onClick={handleAddModel} disabled={!hasValidValues} size="xs">
+        <Button
+          type="button"
+          onClick={handleAddModel}
+          disabled={!hasValidValues}
+          size="xs"
+        >
           Add
         </Button>
-        <Button variant="outline" onClick={resetForm} size="xs">
+        <Button type="button" variant="outline" onClick={resetForm} size="xs">
           Cancel
         </Button>
       </div>

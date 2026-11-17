@@ -80,6 +80,8 @@ async def open_host(
             "PUT",
             f"/notebooks/{notebook.id}/runtime",
             headers=key("start"),
+            # The first request also loads the notebook from disk.
+            timeout=15,
         )
         assert started.status == 202
         await wait_for(

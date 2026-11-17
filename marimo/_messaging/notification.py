@@ -616,12 +616,6 @@ class EnvironmentOperationNotification(
     log_mode: Literal["append", "replace"]
 
 
-class ReconnectedNotification(Notification, tag="reconnected"):
-    """WebSocket reconnection confirmed."""
-
-    name: ClassVar[str] = "reconnected"
-
-
 class StartupLogsNotification(Notification, tag="startup-logs"):
     """Streaming kernel startup logs.
 
@@ -1118,7 +1112,6 @@ NotificationMessage = (
     | RemoveUIElementsNotification
     # Notebook lifecycle
     | ReloadNotification
-    | ReconnectedNotification
     | InterruptedNotification
     | CompletedRunNotification
     | KernelReadyNotification

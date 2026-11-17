@@ -108,6 +108,28 @@ def build_stub_fn(
     return response
 
 
+def is_fixture(obj: Any) -> bool:
+    """Whether `obj` is a pytest fixture.
+
+    pytest <9 tags the function with `_pytestfixturefunction`; pytest >=9 wraps
+    it in a `FixtureFunctionDefinition`. Duck-typed on the class name to avoid a
+    private import that doesn't exist across both.
+    """
+    return hasattr(obj, "_pytestfixturefunction") or (
+        type(obj).__name__ == "FixtureFunctionDefinition"
+    )
+
+
+def _setup_fixture_names(cell: Cell) -> set[str]:
+    if cell._app is None or cell._app._app._setup is None:
+        return set()
+    return {
+        name
+        for name, value in cell._app._app._setup._glbls.items()
+        if is_fixture(value)
+    }
+
+
 def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
     func_ast = ast_parse(inspect.getsource(func))
     func_body = func_ast.body[0]
@@ -117,7 +139,14 @@ def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
         )
 
     args = {arg.arg: arg for arg in func_body.args.args}
-    fixtures = [arg for arg in args if arg.endswith("_fixture")]
+    # Setup cell fixtures must be resolved by pytest, otherwise the cell
+    # receives the fixture definition instead of its value.
+    setup_fixtures = _setup_fixture_names(cell)
+    fixtures = [
+        arg
+        for arg in args
+        if arg.endswith("_fixture") or arg in setup_fixtures
+    ]
     reserved = set(args.keys()) - set(fixtures)
     # The remaining expected attributes are needed to ensure attribute count
     # matches.

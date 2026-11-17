@@ -5,7 +5,6 @@ import type { FileUIPart } from "ai";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
-import { notebookAtom } from "@/core/cells/cells";
 import { CellId as CellIdClass } from "@/core/cells/ids";
 import {
   type ErrorContextItem,
@@ -725,23 +724,21 @@ describe("AIContextRegistry", () => {
       const cellId1 = CellIdClass.create();
       const cellId2 = CellIdClass.create();
 
-      const notebookState = MockNotebook.notebookStateWithErrors([
+      MockNotebook.withErrors(store, [
         {
           cellId: cellId1,
           cellName: "Cell 1",
-          errorData: [
-            MockNotebook.errors.syntax("Invalid syntax"),
-            MockNotebook.errors.exception("Runtime error"),
-          ],
+          error: { kind: "invalid-syntax", message: "Invalid syntax" },
         },
         {
           cellId: cellId2,
           cellName: "Cell 2",
-          errorData: [MockNotebook.errors.cycle()],
+          error: {
+            kind: "cycle-dependencies",
+            message: "This cell is in a cycle",
+          },
         },
       ]);
-
-      store.set(notebookAtom, notebookState);
       errorProvider = new ErrorContextProvider(store);
       registry = new AIContextRegistry<ErrorContextItem>().register(
         errorProvider,
@@ -797,8 +794,7 @@ describe("AIContextRegistry", () => {
     it("should handle empty errors gracefully", () => {
       // Create store with no errors using MockNotebook
       const emptyStore = createStore();
-      const emptyNotebookState = MockNotebook.notebookStateWithErrors([]);
-      emptyStore.set(notebookAtom, emptyNotebookState);
+      MockNotebook.withErrors(emptyStore, []);
 
       const emptyErrorProvider = new ErrorContextProvider(emptyStore);
       const emptyRegistry = new AIContextRegistry().register(

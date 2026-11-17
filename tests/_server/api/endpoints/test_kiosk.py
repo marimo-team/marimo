@@ -11,6 +11,7 @@ from tests._server.api.endpoints.ws_helpers import (
     receive_until,
 )
 from tests._server.host.drive import socket_snapshot
+from tests._server.mocks import run_cells
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -86,20 +87,55 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             data = receive_notification(other_websocket)
             assert data["op"] == "notebook-document-transaction"
 
-            # Send run single cell
-            response = client.post(
-                "/api/kernel/run",
+            # Run a single cell through the host
+            response = run_cells(
+                client,
+                notebook_id,
+                {"cell-3": "print('Hello, cell-3')"},
                 headers=HEADERS,
-                json={
-                    "cellIds": ["cell-3"],
-                    "codes": ["print('Hello, cell-3')"],
-                },
             )
+            assert response.status_code == 202, response.text
 
             # Assert kiosk session received a focused cell notification
             data = receive_until("focus-cell", other_websocket)
             assert data["op"] == "focus-cell"
             assert data["data"]["cell_id"] == "cell-3"
+
+
+def test_kiosk_connection_cannot_edit_or_run_through_the_host(
+    client: TestClient,
+) -> None:
+    with client.websocket_connect(
+        "/ws?session_id=123", headers=_HEADERS
+    ) as editor:
+        notebook_id = notebook_id_of(socket_snapshot(editor))
+        assert_kernel_ready_response(receive_notification(editor))
+        with client.websocket_connect(
+            "/ws?session_id=456&kiosk=true", headers=_HEADERS
+        ) as kiosk:
+            receive_until("kernel-ready", kiosk)
+            base = f"/api/marimo/v1/notebooks/{notebook_id}"
+            for connection in ("456", "never-connected"):
+                headers = {**HEADERS, "Marimo-Session-Id": connection}
+                edited = client.post(
+                    f"{base}/edits",
+                    headers={
+                        **headers,
+                        "Idempotency-Key": f"edit-{connection}",
+                    },
+                    json={"changes": [new_cell("fresh")]},
+                )
+                assert edited.status_code == 403, edited.text
+                assert edited.json()["type"] == "urn:marimo:problem:forbidden"
+                ran = client.post(
+                    f"{base}/runtime/runs",
+                    headers={
+                        **headers,
+                        "Idempotency-Key": f"run-{connection}",
+                    },
+                    json={"cells": [{"id": "cell-1"}]},
+                )
+                assert ran.status_code == 403, ran.text
 
 
 def test_second_edit_connection_joins_as_viewer(client: TestClient) -> None:
@@ -220,10 +256,6 @@ def test_refresh_resumes_as_editor(client: TestClient) -> None:
     with client.websocket_connect(
         "/ws?session_id=ed2", headers=_HEADERS
     ) as refreshed:
-        assert receive_notification(refreshed) == {
-            "op": "reconnected",
-            "data": {"op": "reconnected"},
-        }
         assert_kernel_ready_response(
             receive_until("kernel-ready", refreshed),
             create_response(

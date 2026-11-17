@@ -12,12 +12,15 @@ from starlette.responses import Response
 from starlette.routing import Route
 
 from marimo import _loggers
-from marimo._core import operations, protocol
-from marimo._core.calls import CALLS, dispatch
+from marimo._core import operations
+from marimo._core.calls import CALLS, InputCall, dispatch
 from marimo._core.errors import HostError
 from marimo._core.operations import Reply
+from marimo._messaging.notification import ConsumerCapabilities
 from marimo._runtime.commands import HTTPRequest
+from marimo._server.api.deps import AppState
 from marimo._server.host.auth import bearer_matches
+from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -39,11 +42,11 @@ def _context(request: HTTPConnection) -> HostContext:
 
 def _response(status: int, body: msgspec.Struct | None) -> Response:
     media_type = (
-        "application/problem+json"
-        if isinstance(body, protocol.Problem)
+        None
+        if body is None
+        else "application/problem+json"
+        if status >= 400
         else "application/json"
-        if body is not None
-        else None
     )
     return Response(
         b"" if body is None else msgspec.json.encode(body),
@@ -52,20 +55,26 @@ def _response(status: int, body: msgspec.Struct | None) -> Response:
     )
 
 
-def problem(
-    status: int, kind: str | None = None, detail: str | None = None
-) -> Response:
-    if kind is None:
-        kind = {
-            400: "invalid-request",
-            404: "not-found",
-            405: "method-not-allowed",
-            409: "conflict",
-        }.get(status)
+def problem(kind: operations.PlainKind, detail: str | None = None) -> Response:
+    body = operations.problem(kind, detail)
+    return _response(body.status, body)
+
+
+_ROUTER_KINDS: dict[int, operations.PlainKind] = {
+    400: "invalid-request",
+    404: "not-found",
+    405: "method-not-allowed",
+    409: "conflict",
+}
+
+
+def status_problem(status: int, detail: str | None = None) -> Response:
+    """Describe a status that the router or a route raised."""
+    kind = _ROUTER_KINDS.get(status)
     if kind is None:
         LOGGER.error("The host API raised an unmapped status %s", status)
-        status, kind, detail = 500, "internal", "The host failed"
-    return _response(status, operations.problem(status, kind, detail))
+        return problem("internal", "The host failed")
+    return problem(kind, detail)
 
 
 async def _decode(request: Request, kind: type[_Body]) -> _Body:
@@ -99,9 +108,9 @@ def _mutation(
                     call=lambda: endpoint(request),
                 )
             except msgspec.DecodeError as e:
-                return problem(400, "invalid-request", str(e))
+                return problem("invalid-request", str(e))
             except HTTPException as e:
-                return problem(e.status_code, detail=e.detail)
+                return status_problem(e.status_code, e.detail)
             except HostError as e:
                 failure = operations.problem_for(e)
                 return _response(failure.status, failure)
@@ -128,13 +137,21 @@ def _endpoint(
         try:
             call = msgspec.json.decode(msgspec.json.encode(parts), type=kind)
         except msgspec.DecodeError as e:
-            return problem(400, "invalid-request", str(e))
+            return problem("invalid-request", str(e))
         context = _context(request)
+        session = AppState(request).get_current_session()
         status, body = await dispatch(
             context.mutations,
             context.bridge,
             call,
             request=_submitting_request(request),
+            allow_input=(
+                session is not None
+                and context.bridge.session_for_notebook(
+                    call.params.notebook_id
+                )
+                is session
+            ),
         )
         return _response(status, body)
 
@@ -164,7 +181,7 @@ def editor_notebook_routes(prefix: str) -> list[Route]:
     return [
         Route(
             prefix + kind.PATH,
-            _editor_endpoint(_endpoint(kind)),
+            _editor_endpoint(kind),
             methods=[kind.METHOD],
         )
         for kind in CALLS
@@ -172,17 +189,44 @@ def editor_notebook_routes(prefix: str) -> list[Route]:
 
 
 def _editor_endpoint(
-    serve: Callable[[Request], Awaitable[Response]],
+    kind: type[OperationCall],
 ) -> Callable[[Request], Awaitable[Response]]:
+    serve = _endpoint(kind)
+
     async def handle(request: Request) -> Response:
         # The editor's middleware has already authenticated the request.
         scopes = request.auth.scopes
-        if "edit" in scopes:
-            return await serve(request)
-        if scopes:
+        if not scopes:
+            return problem("unauthorized", "Sign in to the editor")
+        if "edit" not in scopes:
+            return problem("forbidden", "This editor cannot edit notebooks")
+        if not _connection_may_call(request, kind):
             return problem(
-                403, "forbidden", "This editor cannot edit notebooks"
+                "forbidden",
+                "This connection is read-only for this action.",
             )
-        return problem(401, "unauthorized", "Sign in to the editor")
+        return await serve(request)
 
     return handle
+
+
+def _connection_may_call(request: Request, kind: type[OperationCall]) -> bool:
+    """Whether the connection may issue this notebook operation.
+
+    Host commands are system-originated, so enforce connection capabilities
+    here. Headerless requests rely on the editor's scope alone.
+    """
+    app_state = AppState(request)
+    session_id = app_state.get_current_session_id()
+    if session_id is None:
+        return True
+    session = app_state.get_current_session()
+    if session is None:
+        return False
+    consumer = session.room.get_consumer(ConsumerId(session_id))
+    capabilities = (
+        session.room.get_capabilities(consumer)
+        if consumer is not None
+        else ConsumerCapabilities.VIEWER
+    )
+    return capabilities.interact if kind is InputCall else capabilities.edit

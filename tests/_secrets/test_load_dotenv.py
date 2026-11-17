@@ -76,13 +76,50 @@ def test_parse_dotenv_nonexistent():
     assert env_dict == {}
 
 
-def test_read_dotenv_nonexistent_warns(tmp_path: Path) -> None:
+def test_read_dotenv_nonexistent_warns_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
     path = tmp_path / "missing.env"
+    other_path = tmp_path / "other.env"
     with _loggers.capture_output() as (_, _, records):
-        values = read_dotenv_with_fallback(str(path))
-    assert values == {}
+        for _ in range(3):
+            assert read_dotenv_with_fallback(str(path)) == {}
+            assert read_dotenv_with_fallback("./missing.env") == {}
+            assert read_dotenv_with_fallback(str(other_path)) == {}
     assert [(record.levelname, record.getMessage()) for record in records] == [
-        ("WARNING", f"Dotenv file not found: {path}")
+        ("WARNING", f"Dotenv file not found: {path}"),
+        ("WARNING", f"Dotenv file not found: {other_path}"),
+    ]
+
+
+def test_read_dotenv_nonexistent_in_different_directories_warns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with _loggers.capture_output() as (_, _, records):
+        for name in ("first", "second"):
+            directory = tmp_path / name
+            directory.mkdir()
+            monkeypatch.chdir(directory)
+            assert read_dotenv_with_fallback(".env") == {}
+    assert [record.getMessage() for record in records] == [
+        f"Dotenv file not found: {tmp_path / 'first' / '.env'}",
+        f"Dotenv file not found: {tmp_path / 'second' / '.env'}",
+    ]
+
+
+def test_read_dotenv_after_missing_file_created(tmp_path: Path) -> None:
+    path = tmp_path / ".env"
+    with _loggers.capture_output() as (_, _, records):
+        assert read_dotenv_with_fallback(str(path)) == {}
+        path.write_text("KEY=first\n", encoding="utf-8")
+        assert read_dotenv_with_fallback(str(path)) == {"KEY": "first"}
+        path.write_text("KEY=second\n", encoding="utf-8")
+        assert read_dotenv_with_fallback(str(path)) == {"KEY": "second"}
+        path.unlink()
+        assert read_dotenv_with_fallback(str(path)) == {}
+    assert [record.getMessage() for record in records] == [
+        f"Dotenv file not found: {path}"
     ]
 
 

@@ -20,7 +20,7 @@ from marimo._core.document import (
     etag,
     order_etag,
 )
-from marimo._core.errors import EditConflict, Invalid
+from marimo._core.errors import Invalid, PreconditionFailed
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
@@ -506,12 +506,12 @@ class TestNotebookRecords:
         before, cells = records(notebook)
         (_, c3, _) = cells
 
-        with pytest.raises(EditConflict) as raised:
+        with pytest.raises(PreconditionFailed) as raised:
             notebook.edit(
                 [put("c3", "x = 22", "0000000000000000")], request_id="e"
             )
 
-        assert raised.value.change == 0
+        assert raised.value.index == 0
         assert raised.value.cell == c3
         assert raised.value.document == before
         assert notebook.document is document

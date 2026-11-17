@@ -10,7 +10,7 @@ import {
   type MutationOptions,
   request,
   resolve,
-  type Result,
+  type ResultOf,
   type Target,
 } from "./request.ts";
 
@@ -56,7 +56,7 @@ export class Client {
   public createNotebook(
     notebook: Protocol.CreateNotebookRequest,
     options?: MutationOptions,
-  ): Promise<Result<Protocol.NotebookOutput>> {
+  ): Promise<ResultOf<"notebook.create">> {
     return request(this.#target, "notebook.create", {
       body: notebook,
       options,

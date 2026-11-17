@@ -321,7 +321,7 @@ def test_removed_notebook_handles_cannot_be_reused(
         notebook.stop,
         notebook.restart,
         lambda: notebook.run("1", request_id=run.id, request=None),
-        lambda: notebook.interrupt(run.id),
+        lambda: notebook.cancel(run.id),
         notebook.attach,
     ]
     for command in commands:
@@ -758,7 +758,7 @@ async def test_completed_scratch_runs_belong_to_the_host() -> None:
     }
     assert notebook.backend.calls.count(("forget", run.id)) == 1
     with pytest.raises(NotFound):
-        notebook.interrupt(run.id)
+        notebook.cancel(run.id)
     clock.now = 10
     host.expire()
     assert fold(host.events(notebook_id=notebook.id)) == {}

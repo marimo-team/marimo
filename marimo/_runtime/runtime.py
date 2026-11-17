@@ -18,6 +18,7 @@ from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
     Any,
+    assert_never,
     cast,
 )
 from uuid import uuid4
@@ -59,6 +60,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.input import InputReply
 from marimo._messaging.notebook.changes import ReorderCells, Transaction
 from marimo._messaging.notification import (
     HumanReadableStatus,
@@ -824,8 +826,6 @@ class Kernel:
         The one place that maps an `OutOfBandCommand` to its handler; extend
         with a new branch when adding a member to the union.
         """
-        from marimo._utils.assert_never import assert_never
-
         if isinstance(command, SetBreakpointsCommand):
             self.set_breakpoints(command)
         elif isinstance(command, CodeCompletionCommand):
@@ -2775,7 +2775,7 @@ class Kernel:
         For cells that contain only markdown (mo.md calls), this method:
         1. Compiles the cells to extract markdown content
         2. Renders the markdown to HTML
-        3. Broadcasts the rendered output immediately
+        3. Broadcasts the rendered output immediately, as an execution
         4. Marks the cells as completed (not stale)
         5. Removes them from uninstantiated requests
 
@@ -2821,15 +2821,22 @@ class Kernel:
             html_obj = md(content)
             mimetype, html_content = html_obj._mime_()
 
-            # Broadcast the markdown output
-            CellNotificationUtils.broadcast_output(
-                channel=CellChannel.OUTPUT,
-                mimetype=mimetype,
-                data=html_content,
-                cell_id=cell_id,
-                status="idle",
+            # The rendered markdown is the cell's result, so it is reported
+            # as an execution like any other.
+            request = execution_requests.pop(cell_id)
+            execution = ExecutionAttempt.plan(
+                cell_id, request.code, request.code_fingerprint
             )
-            del execution_requests[cell_id]
+            execution.start()
+            with execution.activate():
+                CellNotificationUtils.broadcast_output(
+                    channel=CellChannel.OUTPUT,
+                    mimetype=mimetype,
+                    data=html_content,
+                    cell_id=cell_id,
+                    status="idle",
+                )
+            execution.finish()
 
     def load_dotenv(self) -> None:
         dotenvs = default_if_unset(self.user_config.runtime.dotenv, [])
@@ -2934,7 +2941,11 @@ def _bootstrap_subprocess(
     if not is_subprocess:
         return None
 
-    restore_signals()
+    # The server can interrupt the kernel as soon as it connects, and the
+    # default action for SIGINT would end the process. No user code runs
+    # until the interrupt handler is installed, so an early interrupt has
+    # nothing to stop and is ignored.
+    restore_signals(sigint=signal.SIG_IGN)
 
     # Become the leader of a new session/process group before connecting
     # back to the parent, to avoid race conditions with the parent
@@ -2979,7 +2990,7 @@ def _maybe_profile(profile_path: str | None) -> Iterator[None]:
 def _create_streams(
     socket_addr: tuple[str, int] | None,
     stream_queue: QueueType[KernelMessage] | None,
-    input_queue: QueueType[str],
+    input_queue: QueueType[InputReply],
     is_edit_mode: bool,
     should_redirect_stdio: bool,
     use_fd_redirect: bool,
@@ -3087,7 +3098,7 @@ def launch_kernel(
     control_queue: QueueType[CommandMessage],
     set_ui_element_queue: QueueType[BatchableCommand],
     completion_queue: QueueType[OutOfBandCommand],
-    input_queue: QueueType[str],
+    input_queue: QueueType[InputReply],
     stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
     is_edit_mode: bool,

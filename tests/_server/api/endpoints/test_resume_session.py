@@ -62,9 +62,6 @@ def test_refresh_session(client: TestClient) -> None:
     # New session with new ID (simulates refresh)
     # We should resume the current session
     with client.websocket_connect(_create_ws_url("456")) as websocket:
-        # First message is the kernel reconnected
-        data = receive_notification(websocket)
-        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
         data = receive_notification(websocket)
         assert_kernel_ready_response(
@@ -93,9 +90,6 @@ def test_refresh_session(client: TestClient) -> None:
     # New session again
     # We should not resume the current session with the new values
     with client.websocket_connect(_create_ws_url("789")) as websocket:
-        # First message is the kernel reconnected
-        data = receive_notification(websocket)
-        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
         data = receive_notification(websocket)
         assert_kernel_ready_response(
@@ -149,8 +143,6 @@ def test_refresh_resumes_directory_workspace_session(
         with client.websocket_connect(
             "/ws?session_id=dir2&file=example.py&access_token=fake-token"
         ) as websocket:
-            data = receive_notification(websocket)
-            assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
             data = receive_notification(websocket)
             assert data["op"] == "kernel-ready"
             assert data["data"]["resumed"] is True
@@ -215,9 +207,6 @@ def test_edited_document_survives_resume(client: TestClient) -> None:
     # New session with new ID (simulates refresh)
     # We should resume the current session
     with client.websocket_connect(_create_ws_url("456")) as websocket:
-        # First message is the kernel reconnected
-        data = receive_notification(websocket)
-        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         # Resume the session
         data = receive_notification(websocket)
         assert_kernel_ready_response(
@@ -343,10 +332,6 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
 
     # Resume session with new ID (simulates refresh)
     with client.websocket_connect(_create_ws_url("456")) as websocket:
-        # First message is the kernel reconnected
-        data = receive_notification(websocket)
-        assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
-
         # Check for KernelReady message
         data = receive_notification(websocket)
         assert parse_raw(data["data"], KernelReadyNotification)
@@ -449,7 +434,6 @@ def test_environment_restored_after_disconnect(
         with client.websocket_connect(
             _create_ws_url(connection_id)
         ) as websocket:
-            assert receive_notification(websocket)["op"] == "reconnected"
             if connection_id != "123":
                 assert receive_notification(websocket)["op"] == "kernel-ready"
                 assert receive_notification(websocket)["op"] == "banner"

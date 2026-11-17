@@ -140,7 +140,10 @@ def test_app_visitors_are_isolated_and_reconnect_retains_identity(
             )
     with client.websocket_connect(url("alice")) as reconnected:
         snapshot = socket_snapshot(reconnected)
-        receive_notification(reconnected, "reconnected")
+        assert (
+            receive_notification(reconnected, "alert")["title"]
+            == "Reconnected"
+        )
         assert manager.get_session(SessionId("alice")) is original
         assert (
             next(
@@ -242,4 +245,4 @@ def test_app_session_replays_host_events_or_resets_stale_cursor(
         else:
             assert [e["event"] for e in opening] == ["custom", "ready"]
             assert opening[0]["data"]["custom"]["data"] == {"value": 1}
-        receive_notification(ws, "reconnected")
+        assert receive_notification(ws, "alert")["title"] == "Reconnected"

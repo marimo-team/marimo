@@ -29,6 +29,7 @@ export function mockDocumentModel(
   const model = createDocumentModel({
     store,
     documentAtom,
+    shownDocumentAtom: documentAtom,
     backendAtom: atom(fakeBackend()),
   });
   model.start({ signal: controller.signal });
