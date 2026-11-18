@@ -82,13 +82,6 @@ def _parse_datetime_bound(value: Any) -> Any:
     if isinstance(value, (datetime.datetime, datetime.date)):
         return value
 
-    dtype = getattr(value, "dtype", None)
-    if dtype is not None and str(dtype).startswith("datetime64"):
-        try:
-            return datetime.datetime.fromisoformat(str(value))
-        except (ValueError, AttributeError):
-            pass
-
     if isinstance(value, str):
         try:
             return datetime.datetime.fromisoformat(value)
@@ -96,6 +89,24 @@ def _parse_datetime_bound(value: Any) -> Any:
             pass
 
     return value
+
+
+def _is_datetime_like(value: object) -> bool:
+    """Check if a value is a date, datetime, datetime64, or ISO datetime string."""
+    import datetime
+
+    if isinstance(value, (datetime.datetime, datetime.date)):
+        return True
+    dtype = getattr(value, "dtype", None)
+    if dtype is not None and str(dtype).startswith("datetime64"):
+        return True
+    if isinstance(value, str):
+        try:
+            datetime.datetime.fromisoformat(value)
+            return True
+        except (ValueError, AttributeError):
+            pass
+    return False
 
 
 def _is_orderable_axis(arr: Any, bound_value: object) -> bool:
@@ -113,8 +124,6 @@ def _is_orderable_axis(arr: Any, bound_value: object) -> bool:
     Returns:
         True if the axis values can be compared with the bound values
     """
-    import datetime
-
     import numpy as np
 
     # Check numpy dtype first (handles native numpy types)
@@ -128,31 +137,8 @@ def _is_orderable_axis(arr: Any, bound_value: object) -> bool:
         arr
     ) > 0:
         first_elem = arr[0]
-        # Check if elements are datetime-like
-        if isinstance(first_elem, (datetime.datetime, datetime.date)):
-            # Bound can be datetime object or ISO string from frontend
-            if isinstance(bound_value, (datetime.datetime, datetime.date)):
-                return True
-            # Check for ISO format datetime strings (sent from frontend via JSON)
-            if isinstance(bound_value, str):
-                try:
-                    datetime.datetime.fromisoformat(bound_value)
-                    return True
-                except (ValueError, AttributeError):
-                    pass
-        elif isinstance(first_elem, str):
-            try:
-                datetime.datetime.fromisoformat(first_elem)
-                if isinstance(bound_value, (datetime.datetime, datetime.date)):
-                    return True
-                if isinstance(bound_value, str):
-                    try:
-                        datetime.datetime.fromisoformat(bound_value)
-                        return True
-                    except (ValueError, AttributeError):
-                        pass
-            except (ValueError, AttributeError):
-                pass
+        if _is_datetime_like(first_elem) and _is_datetime_like(bound_value):
+            return True
 
     return False
 
@@ -170,28 +156,82 @@ def _normalize_naive_datetime(value: Any) -> Any:
     return value
 
 
+def _to_datetime64(value: Any) -> Any:
+    """Convert a datetime-like value to np.datetime64 while preserving precision."""
+    import datetime
+
+    import numpy as np
+
+    if isinstance(value, np.datetime64):
+        return value
+    dtype = getattr(value, "dtype", None)
+    if dtype is not None and np.issubdtype(dtype, np.datetime64):
+        return value
+    if isinstance(value, str):
+        parsed = _parse_datetime_bound(value)
+        if isinstance(parsed, datetime.datetime) and parsed.tzinfo is not None:
+            return np.datetime64(_normalize_naive_datetime(parsed))
+        try:
+            return np.datetime64(value)
+        except (ValueError, TypeError):
+            return np.datetime64(_normalize_naive_datetime(parsed))
+    return np.datetime64(
+        _normalize_naive_datetime(_parse_datetime_bound(value))
+    )
+
+
+def _is_value_in_orderable_range(
+    val: Any, min_bound: Any, max_bound: Any
+) -> bool:
+    """Compare a scalar orderable value against min and max bounds."""
+    import datetime
+
+    val_p = _parse_datetime_bound(val)
+    min_p = _parse_datetime_bound(min_bound)
+    max_p = _parse_datetime_bound(max_bound)
+
+    if any(
+        str(getattr(v, "dtype", "")).startswith("datetime64")
+        for v in (val_p, min_p, max_p)
+    ):
+        return bool(
+            _to_datetime64(min_p)
+            <= _to_datetime64(val_p)
+            <= _to_datetime64(max_p)
+        )
+
+    if all(
+        isinstance(v, (datetime.datetime, datetime.date))
+        for v in (val_p, min_p, max_p)
+    ):
+        return bool(
+            _normalize_naive_datetime(min_p)
+            <= _normalize_naive_datetime(val_p)
+            <= _normalize_naive_datetime(max_p)
+        )
+
+    return bool(min_p <= val_p <= max_p)
+
+
 def _compute_orderable_mask(arr: Any, min_parsed: Any, max_parsed: Any) -> Any:
     """Compute boolean mask for orderable axis bounds, handling datetime/date/numeric."""
     import datetime
 
     import numpy as np
 
-    if isinstance(
-        min_parsed, (datetime.datetime, datetime.date)
-    ) or np.issubdtype(arr.dtype, np.datetime64):
+    is_dt_bound = isinstance(
+        min_parsed, (datetime.datetime, datetime.date, np.datetime64)
+    ) or isinstance(
+        max_parsed, (datetime.datetime, datetime.date, np.datetime64)
+    )
+    if is_dt_bound or np.issubdtype(arr.dtype, np.datetime64):
         try:
-            if arr.dtype == np.object_ or np.issubdtype(arr.dtype, np.str_):
-                arr_dt = np.array(
-                    [
-                        _normalize_naive_datetime(_parse_datetime_bound(v))
-                        for v in arr
-                    ],
-                    dtype="datetime64[us]",
-                )
+            if np.issubdtype(arr.dtype, np.datetime64):
+                arr_dt = arr
             else:
-                arr_dt = np.array(arr, dtype="datetime64[us]")
-            dt_min = np.datetime64(_normalize_naive_datetime(min_parsed), "us")
-            dt_max = np.datetime64(_normalize_naive_datetime(max_parsed), "us")
+                arr_dt = np.asarray([_to_datetime64(v) for v in arr])
+            dt_min = _to_datetime64(min_parsed)
+            dt_max = _to_datetime64(max_parsed)
             return (arr_dt >= dt_min) & (arr_dt <= dt_max)
         except Exception:
             return (arr >= min_parsed) & (arr <= max_parsed)
@@ -1021,7 +1061,7 @@ def _extract_scatter_points_numpy(
 
         # Filter by x-range
         if x_is_orderable:
-            x_mask = (x_arr >= x_min_parsed) & (x_arr <= x_max_parsed)
+            x_mask = _compute_orderable_mask(x_arr, x_min_parsed, x_max_parsed)
         else:
             # Categorical: compare against axis category positions, not point
             # indices, so repeated categories map to the same coordinate.
@@ -1038,7 +1078,9 @@ def _extract_scatter_points_numpy(
         # Filter by y-range when present
         if has_y_range:
             if y_is_orderable:
-                y_mask = (y_arr >= y_min_parsed) & (y_arr <= y_max_parsed)
+                y_mask = _compute_orderable_mask(
+                    y_arr, y_min_parsed, y_max_parsed
+                )
             else:
                 y_category_positions = _category_position_map(y_data)
                 y_positions = np.asarray(
@@ -1125,10 +1167,6 @@ def _extract_scatter_points_fallback(
 
         has_y_range = y_min is not None and y_max is not None
         selected_indices: set[int] = set()
-        x_min_p = _parse_datetime_bound(x_min)
-        x_max_p = _parse_datetime_bound(x_max)
-        y_min_p = _parse_datetime_bound(y_min) if has_y_range else None
-        y_max_p = _parse_datetime_bound(y_max) if has_y_range else None
 
         x_category_positions = _category_position_map(x_data)
         y_category_positions = _category_position_map(y_data)
@@ -1140,7 +1178,7 @@ def _extract_scatter_points_fallback(
             x_in_range = False
 
             if _is_orderable_value(x_val) and _is_orderable_value(x_min):
-                x_in_range = x_min_p <= x_val <= x_max_p
+                x_in_range = _is_value_in_orderable_range(x_val, x_min, x_max)
             else:
                 # TypeError can occur when x_val is unhashable (e.g. a list or
                 # dict), which dict.get() cannot accept as a key.
@@ -1157,8 +1195,8 @@ def _extract_scatter_points_fallback(
             y_in_range = True
             if has_y_range:
                 if _is_orderable_value(y_val) and _is_orderable_value(y_min):
-                    y_in_range = (
-                        cast(Any, y_min_p) <= y_val <= cast(Any, y_max_p)
+                    y_in_range = _is_value_in_orderable_range(
+                        y_val, y_min, y_max
                     )
                 else:
                     # TypeError can occur when y_val is unhashable (e.g. a list or
@@ -1385,10 +1423,9 @@ def _extract_heatmap_cells_fallback(
                 y_in_range = False
 
                 if _is_orderable_value(x_val) and _is_orderable_value(x_min):
-                    # Parse datetime bounds (frontend sends ISO strings)
-                    x_min_p = _parse_datetime_bound(x_min)
-                    x_max_p = _parse_datetime_bound(x_max)
-                    x_in_range = x_min_p <= x_val <= x_max_p
+                    x_in_range = _is_value_in_orderable_range(
+                        x_val, x_min, x_max
+                    )
                 else:
                     # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
                     # Include cell if selection range strictly overlaps with cell bounds
@@ -1399,10 +1436,9 @@ def _extract_heatmap_cells_fallback(
                     )
 
                 if _is_orderable_value(y_val) and _is_orderable_value(y_min):
-                    # Parse datetime bounds (frontend sends ISO strings)
-                    y_min_p = _parse_datetime_bound(y_min)
-                    y_max_p = _parse_datetime_bound(y_max)
-                    y_in_range = y_min_p <= y_val <= y_max_p
+                    y_in_range = _is_value_in_orderable_range(
+                        y_val, y_min, y_max
+                    )
                 else:
                     # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
                     # Include cell if selection range strictly overlaps with cell bounds
@@ -1923,8 +1959,6 @@ def _extract_bars_fallback(
     y_max: float,
 ) -> list[dict[str, Any]]:
     """Extract bars using pure Python (fallback when numpy unavailable)."""
-    import datetime
-
     selected_bars: list[dict[str, Any]] = []
 
     for trace_idx, trace in enumerate(figure.data):
@@ -1962,21 +1996,11 @@ def _extract_bars_fallback(
 
             if _is_orderable_value(pos_val) and _is_orderable_value(pos_min):
                 # Orderable axis (numeric or datetime): direct comparison
-                # Parse datetime bounds (frontend sends ISO strings)
-                pos_min_p = _parse_datetime_bound(pos_min)
-                pos_max_p = _parse_datetime_bound(pos_max)
-                pos_val_p = _parse_datetime_bound(pos_val)
-                if isinstance(
-                    pos_min_p, (datetime.datetime, datetime.date)
-                ) and isinstance(
-                    pos_val_p, (datetime.datetime, datetime.date)
-                ):
-                    pos_min_p = _normalize_naive_datetime(pos_min_p)
-                    pos_max_p = _normalize_naive_datetime(pos_max_p)
-                    pos_val_p = _normalize_naive_datetime(pos_val_p)
                 # TODO: Consider bar width in future implementations
                 # Currently treating bars as points at their position value
-                pos_in_range = pos_min_p <= pos_val_p <= pos_max_p
+                pos_in_range = _is_value_in_orderable_range(
+                    pos_val, pos_min, pos_max
+                )
             else:
                 # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
                 # Include bar if selection range strictly overlaps with bar bounds

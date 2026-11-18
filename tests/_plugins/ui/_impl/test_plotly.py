@@ -4397,3 +4397,47 @@ def test_bar_chart_date_x_axis_selection() -> None:
             }
         )
         assert len(utc_result) == 2, f"UTC bounds failed for {name}"
+
+
+def test_bar_chart_datetime64_nanosecond_precision() -> None:
+    """Sub-microsecond datetime64[ns] bar positions are not truncated to us."""
+    import numpy as np
+
+    t = np.datetime64("2026-01-05", "us")
+    x = t + np.array([0, 1000, 1500], dtype="timedelta64[ns]")
+    fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
+    x0 = t
+    x1 = t + np.timedelta64(1, "us")
+    fig.add_selection(x0=x0, x1=x1, y0=0, y1=3)
+
+    plot = plotly(fig)
+    assert len(plot.value) == 2
+    assert [p["pointIndex"] for p in plot.value] == [0, 1]
+
+    fallback_bars = _extract_bars_fallback(fig, x0, x1, 0, 3)
+    assert len(fallback_bars) == 2
+    assert [p["pointIndex"] for p in fallback_bars] == [0, 1]
+
+
+def test_scatter_datetime64_bounds_selection() -> None:
+    """Scatter line trace with datetime64[ns] x-axis and datetime64[D] bounds."""
+    import numpy as np
+
+    x = np.array(
+        ["2026-01-05", "2026-01-06", "2026-01-07"],
+        dtype="datetime64[ns]",
+    )
+    fig = go.Figure(go.Scatter(x=x, y=[1, 2, 3], mode="lines"))
+    x0 = x[0].astype("datetime64[D]")
+    x1 = x[1].astype("datetime64[D]")
+    fig.add_selection(x0=x0, x1=x1, y0=0, y1=3)
+
+    plot = plotly(fig)
+    assert len(plot.value) == 2
+    assert [p["pointIndex"] for p in plot.value] == [0, 1]
+
+    fallback_pts = _extract_scatter_points_fallback(
+        fig, x0, x1, y_min=0, y_max=3
+    )
+    assert len(fallback_pts) == 2
+    assert [p["pointIndex"] for p in fallback_pts] == [0, 1]
