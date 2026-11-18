@@ -22,6 +22,7 @@ from marimo._cli.config.overrides import (
     config_override_option,
     resolve_cli_config,
 )
+from marimo._cli.containers.launcher import prompt_run_in_container
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
@@ -35,9 +36,6 @@ from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
 from marimo._cli.print import bright_green, light_blue, red
-from marimo._cli.run_docker import (
-    prompt_run_in_docker_container,
-)
 from marimo._cli.tips import choose_startup_tip
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._cli.utils import (
@@ -381,7 +379,10 @@ class _OptionalValueOption(click.Option):
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+    help=(
+        "Use --trusted to run remote notebooks on the host. "
+        "Use --untrusted to run them in a container with Docker."
+    ),
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
@@ -505,10 +506,10 @@ def edit(
         name = path.absolute_name
         stdin_notebook = name
 
-    if prompt_run_in_docker_container(name, trusted=trusted):
-        from marimo._cli.run_docker import run_in_docker
+    if prompt_run_in_container(name, trusted=trusted):
+        from marimo._cli.containers.launcher import run_in_container
 
-        run_in_docker(
+        run_in_container(
             name,
             "edit",
             port=server_config.port,
@@ -994,7 +995,10 @@ Example:
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+    help=(
+        "Use --trusted to run remote notebooks on the host. "
+        "Use --untrusted to run them in a container with Docker."
+    ),
 )
 @click.option(
     "--server-startup-command",
@@ -1062,15 +1066,13 @@ def run(
         else None,
     )
 
-    if len(paths) == 1 and prompt_run_in_docker_container(
-        paths[0], trusted=trusted
-    ):
-        from marimo._cli.run_docker import run_in_docker
+    if len(paths) == 1 and prompt_run_in_container(paths[0], trusted=trusted):
+        from marimo._cli.containers.launcher import run_in_container
 
         config_manager = resolve_cli_config(
             current_path=paths[0], overrides=config_overrides
         )
-        run_in_docker(
+        run_in_container(
             paths[0],
             "run",
             port=config_manager.get_config().server.port,

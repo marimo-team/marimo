@@ -45,6 +45,15 @@ marimo behaves differently depending on how you run it:
 
 This distinction reflects the different threat models: editing is exploratory and may involve untrusted notebooks; deployed apps are intentional publications.
 
+### Remote notebooks in a container
+
+Use `--untrusted` with `marimo edit` or `marimo run` to open a remote notebook in a container. This option requires Docker.
+marimo streams the notebook logs and removes the container when the notebook exits or you press Ctrl+C.
+If the notebook exits with an error, marimo reports its exit status.
+
+Docker uses its own certificate trust settings to pull the image.
+Package and notebook downloads use the certificates inside the container. marimo does not copy host CA certificates into the container.
+
 ### Project files
 
 marimo reads configuration settings from three sources: your user config, the nearest `pyproject.toml`, and the notebook's inline script metadata (PEP 723).
