@@ -18,6 +18,9 @@ env:
   UV_EXCLUDE_NEWER: "7 days"
 jobs:
   changes:
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       cli: ${{ steps.filter.outputs.cli }}

@@ -18,6 +18,9 @@ env:
 
 jobs:
   changes:
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
