@@ -6,6 +6,8 @@ import {
   ErrorBoundary as ReactErrorBoundary,
 } from "react-error-boundary";
 import { store } from "@/core/state/jotai";
+import { WasmInitializationError } from "@/core/wasm/errors";
+import { reloadSafe } from "@/utils/reload-safe";
 import { Button } from "../../ui/button";
 import { Dialog, DialogTrigger } from "../../ui/dialog";
 import { Toaster } from "../../ui/toaster";
@@ -27,6 +29,7 @@ export const ErrorBoundary: React.FC<PropsWithChildren> = (props) => {
 
 const FallbackComponent: React.FC<FallbackProps> = (props) => {
   const [open, setOpen] = useState(false);
+  const requiresReload = props.error instanceof WasmInitializationError;
 
   return (
     <div className="flex-1 flex items-center justify-center flex-col space-y-4 max-w-2xl mx-auto px-6 pb-6">
@@ -52,10 +55,11 @@ const FallbackComponent: React.FC<FallbackProps> = (props) => {
         </Dialog>
         <Button
           data-testid="reset-error-boundary-button"
-          onClick={props.resetErrorBoundary}
+          // WASM initialization promises survive React resets, so reload to retry.
+          onClick={requiresReload ? reloadSafe : props.resetErrorBoundary}
           variant="outline"
         >
-          Try again
+          {requiresReload ? "Reload page" : "Try again"}
         </Button>
       </div>
     </div>

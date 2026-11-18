@@ -15,11 +15,14 @@ import type { EnvironmentInfo } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { ConnectionState } from "@/core/session/types";
+import { reloadSafe } from "@/utils/reload-safe";
 import { ErrorBoundary } from "../ErrorBoundary";
 
 vi.mock("@/utils/copy", () => ({
   copyToClipboard: vi.fn().mockResolvedValue(undefined),
 }));
+
+vi.mock("@/utils/reload-safe", () => ({ reloadSafe: vi.fn() }));
 
 const environment: EnvironmentInfo = {
   marimo: "1.2.3",
@@ -281,6 +284,7 @@ describe("ErrorBoundary report dialog", () => {
 
     expect(screen.getByText("recovered child")).toBeVisible();
     expect(screen.queryByText("Something went wrong")).not.toBeInTheDocument();
+    expect(reloadSafe).not.toHaveBeenCalled();
   });
 
   it("does not read notebook source when opened with fresh inclusion preferences", async () => {
