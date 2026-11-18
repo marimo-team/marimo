@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -10,6 +11,7 @@ from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.executor.evaluator import running_cell_body
 from marimo._utils.signals import SigintHandler
 
 LOGGER = _loggers.marimo_logger()
@@ -63,9 +65,17 @@ def construct_interrupt_handler() -> SigintHandler:
                 )
 
         if sched is not None and sched.has_active_tasks():
-            # Async cell in flight: cancel via the loop. Raising from a
-            # signal handler escapes into asyncio internals and surfaces
-            # as an internal-error empty RunResult.
+            if running_cell_body.get() and sched.owns_task(
+                asyncio.current_task()
+            ):
+                # The cell's body is running, so a cancel would wait for
+                # its next `await`. Raise into it like a sync cell. Do not
+                # also cancel the task: the cancel would interrupt the
+                # cell's cleanup at its first `await`.
+                sched.interrupted = True
+                raise MarimoInterrupt
+            # Raising anywhere else in an async run escapes into asyncio
+            # internals or skips lifecycle teardown: cancel via the loop.
             sched.cancel_all()
             return
 

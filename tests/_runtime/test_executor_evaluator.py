@@ -13,6 +13,8 @@ double raise, and KeyboardInterrupt propagation through teardown.
 from __future__ import annotations
 
 import asyncio
+import gc
+import warnings
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
@@ -700,8 +702,15 @@ async def test_runner_evaluate_interruptible_surfaces_cancelled_as_run_result() 
         )
 
     runner = _RunnerStub()
-    result = await runner.evaluate_interruptible(_AsyncCell())  # type: ignore[arg-type]
-    assert isinstance(result.exception, asyncio.CancelledError)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = await runner.evaluate_interruptible(_AsyncCell())  # type: ignore[arg-type]
+        assert isinstance(result.exception, asyncio.CancelledError)
+        # The traceback keeps the refused coroutine alive; an unclosed one
+        # warns once collected.
+        del result
+        gc.collect()
+    assert [str(w.message) for w in caught] == []
 
 
 async def test_scheduler_async_context_publishes_on_kernel_context() -> None:
