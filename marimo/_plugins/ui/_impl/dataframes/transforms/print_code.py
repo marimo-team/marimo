@@ -9,6 +9,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Transform,
     TransformType,
 )
+from marimo._plugins.ui._impl.tables.table_manager import regex_literal
 
 POLARS_EXPLICIT_EXPLODE_MIN_VERSION = "1.36.0"
 
@@ -370,13 +371,14 @@ def python_print_polars(
         )
         if temporal_parser is not None:
             dtype, parser = temporal_parser
-            column = _as_literal(column_id)
+            column = repr(column_id)
+            selector = repr(f"^{regex_literal(column_id)}$")
             strict = transform.errors == "raise"
             return "\n".join(
                 [
                     df_name,
                     f"if {df_name}.collect_schema()[{column}] == pl.String:",
-                    f"    {df_name} = {df_name}.with_columns(pl.col({column}).str.{parser}(strict={strict}))",
+                    f"    {df_name} = {df_name}.with_columns(pl.col({selector}).str.{parser}(strict={strict}))",
                     "else:",
                     f"    {df_name} = {df_name}.cast({{{column}: pl.{dtype}}}, strict={strict})",
                 ]

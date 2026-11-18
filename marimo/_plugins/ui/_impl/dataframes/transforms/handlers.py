@@ -43,6 +43,7 @@ from marimo._plugins.ui._impl.tables.narwhals_table import (
     NEGATIVE_INF,
     POSITIVE_INF,
 )
+from marimo._plugins.ui._impl.tables.table_manager import regex_literal
 from marimo._utils.narwhals_utils import collect_and_preserve_type
 
 if TYPE_CHECKING:
@@ -121,7 +122,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         ):
             import polars as pl
 
-            column = pl.col(transform.column_id)
+            column = pl.col(f"^{regex_literal(transform.column_id)}$")
             strict = transform.errors == "raise"
             if data_type_str == "date":
                 parsed = column.str.to_date(strict=strict)

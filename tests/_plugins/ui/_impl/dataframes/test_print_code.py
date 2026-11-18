@@ -1304,6 +1304,17 @@ def test_polars_temporal_conversion_without_non_null_values(
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("errors", ["raise", "ignore"])
 @pytest.mark.parametrize(
+    ("column", "other_column"),
+    [
+        ('event "time"', "other"),
+        ("^other$", "other"),
+        ("*", "other"),
+        ("event\ntime", "event time"),
+        ("event\rtime", "event time"),
+        ("event\x00time", "eventtime"),
+    ],
+)
+@pytest.mark.parametrize(
     ("data_type", "valid", "expected_value"),
     [
         ("date", "2026-10-07", datetime.date(2026, 10, 7)),
@@ -1317,6 +1328,8 @@ def test_polars_temporal_conversion_without_non_null_values(
 def test_polars_temporal_conversion_invalid_strings(
     lazy: bool,
     errors: Literal["raise", "ignore"],
+    column: str,
+    other_column: str,
     data_type: str,
     valid: str,
     expected_value: datetime.date,
@@ -1324,8 +1337,12 @@ def test_polars_temporal_conversion_invalid_strings(
     import polars as pl
     import polars.testing as pl_testing
 
-    column = 'event "time"'
-    original = pl.DataFrame({column: ["invalid", valid, None, ""]})
+    original = pl.DataFrame(
+        {
+            column: ["invalid", valid, None, ""],
+            other_column: [valid, "untouched", None, ""],
+        }
+    )
     source = original.lazy() if lazy else original
     transform = ColumnConversionTransform(
         type=TransformType.COLUMN_CONVERSION,
@@ -1354,21 +1371,27 @@ def test_polars_temporal_conversion_invalid_strings(
         result = namespace["df_next"]
         return result.collect() if lazy else result
 
-    for convert in (runtime, generated):
+    for convert, error_types in (
+        (
+            runtime,
+            (nw.exceptions.ComputeError, nw.exceptions.InvalidOperationError),
+        ),
+        (
+            generated,
+            (pl.exceptions.ComputeError, pl.exceptions.InvalidOperationError),
+        ),
+    ):
         if errors == "raise":
-            with pytest.raises(
-                (
-                    nw.exceptions.ComputeError,
-                    nw.exceptions.InvalidOperationError,
-                    pl.exceptions.ComputeError,
-                    pl.exceptions.InvalidOperationError,
-                )
-            ):
+            with pytest.raises(error_types):
                 convert()
         else:
             pl_testing.assert_frame_equal(
                 convert(),
-                pl.DataFrame({column: [None, expected_value, None, None]}),
+                original.with_columns(
+                    pl.Series(
+                        "parsed", [None, expected_value, None, None]
+                    ).alias(column)
+                ),
             )
 
 
