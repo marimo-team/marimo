@@ -846,11 +846,13 @@ def connect(
             token_file=token_file,
             require_notebook=True,
         )
-        assert selected.notebook_id is not None
+        if selected.notebook_id is None:
+            raise RuntimeError("Execution target has no notebook ID")
         connection = ensure_connection(
             selected, ConnectionStore(), harness=harness, pid=pid
         )
-        assert connection is not None
+        if connection is None:
+            raise RuntimeError("Inbox connection was not created")
         click.echo(
             f"Connected as {connection.harness_kind}. Agent messages from this notebook arrive here as messages from marimo."
         )

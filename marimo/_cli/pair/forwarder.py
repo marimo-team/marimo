@@ -100,7 +100,8 @@ def ensure_connection(
             token=selected.token,
             require_notebook=True,
         )
-    assert selected.notebook_id is not None
+    if selected.notebook_id is None:
+        raise RuntimeError("Execution target has no notebook ID")
     notebook = selected.notebook_id
     identity = connection_identity(notebook, target.kind, target.address)
     with store.locked(identity):
