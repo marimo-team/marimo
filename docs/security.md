@@ -45,30 +45,11 @@ marimo behaves differently depending on how you run it:
 
 This distinction reflects the different threat models: editing is exploratory and may involve untrusted notebooks; deployed apps are intentional publications.
 
-### Notebooks in a container
+Use `--untrusted` with either command to open one local or remote notebook in a container. Docker is the default. Use `--container-engine` to select `podman`, `nerdctl`, `finch`, Apple `container`, or another Docker-compatible executable.
 
-Use `--untrusted` with `marimo edit` or `marimo run` to open one remote or local notebook in a container. Docker is the default engine.
-Use `--container-engine` to select `podman`, `nerdctl`, `finch`, Apple `container`, or another Docker-compatible executable.
-The option takes one executable name or path. Quote paths with spaces.
+For a local notebook, marimo mounts a temporary copy. To keep edits, save and download the notebook source before closing the session.
 
-```bash
-marimo edit https://example.com/notebook.py --untrusted --container-engine podman
-```
-
-For Apple container, install the CLI, start its service, and configure a kernel before you launch marimo. See the [Apple container setup guide](https://apple.github.io/container/documentation/container/).
-
-marimo streams the notebook logs and removes the container when the notebook exits or you press Ctrl+C.
-If the notebook exits with an error, marimo reports its exit status.
-
-For a local notebook, pass the path to one existing file.
-marimo copies that file to a temporary directory and shares the copy with the container.
-The original file and its neighbors stay outside the mount.
-In edit mode, save and download the notebook source before closing the container.
-marimo deletes the temporary copy when the session ends.
-Container execution accepts one notebook and rejects directory workspaces.
-
-The selected engine uses its own certificate trust settings to pull the image.
-Package and notebook downloads use the certificates inside the container. marimo does not copy host CA certificates into the container.
+The engine uses its own certificates to pull images. Notebook and package downloads use the certificates inside the container.
 
 ### Project files
 
