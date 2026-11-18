@@ -412,7 +412,10 @@ def test_subprocess_reconnect_replays_messages_and_server_detach(
             process.communicate(timeout=5)
 
 
-def test_pointer_delivery_is_private_and_targeted(tmp_path: Path) -> None:
+@pytest.mark.parametrize("sender", [None, "Lens", "😀" * 64, ""])
+def test_pointer_delivery_is_private_and_targeted(
+    tmp_path: Path, sender: str | None
+) -> None:
     from marimo._cli.pair.forwarder import run_forwarder
 
     class ControlledInbox:
@@ -466,11 +469,26 @@ def test_pointer_delivery_is_private_and_targeted(tmp_path: Path) -> None:
                 thread.start()
                 assert ready.wait(10)
 
+            from urllib.error import HTTPError
+
+            for invalid_sender in (
+                "x" * 65,
+                "Lens\nAdmin",
+                "Lens\r",
+                "Lens\u2028Admin",
+            ):
+                with pytest.raises(HTTPError) as error:
+                    send_message(
+                        server, "invalid sender", sender=invalid_sender
+                    )
+                assert error.value.code == 400
+                assert "sender" in error.value.read().decode()
+
             result = send_message(
                 server,
                 {"secret": "private error"},
                 to="agent-0",
-                sender="error button",
+                sender=sender,
             )
             assert msgspec.to_builtins(list(result.recipients)) == [
                 {
@@ -481,10 +499,18 @@ def test_pointer_delivery_is_private_and_targeted(tmp_path: Path) -> None:
                     "detail": None,
                 }
             ]
-            assert len(inboxes[0].messages) == 1
+            expected_prefix = (
+                "Agent message from marimo (notebook pair-integration.py). "
+                "No reply is expected.\n"
+            )
+            if sender is not None:
+                expected_prefix += f"Sender (not verified): {sender}\n"
+            assert inboxes[0].messages == [
+                expected_prefix + '{"secret": "private error"}'
+            ]
             assert inboxes[1].messages == []
             result = send_message(
-                server, {"secret": "private error"}, sender="error button"
+                server, {"secret": "private error"}, sender=sender
             )
             assert [r.status for r in result.recipients] == [
                 "submitted",
@@ -505,6 +531,7 @@ def test_pointer_delivery_is_private_and_targeted(tmp_path: Path) -> None:
                         "agent_id",
                         "sender",
                     }
+                    assert pointer["data"]["sender"] == sender
                     pointers.append(pointer)
                     if len(pointers) == 3:
                         break
@@ -669,7 +696,7 @@ def test_native_submission_outcomes(
             record = start_forwarder(config, store)
         try:
             result = send_message(
-                server, "native delivery", to=identity
+                server, "native delivery", to=identity, sender="Lens"
             ).recipients[0]
             assert result.status == (
                 "unknown" if target.kind == "claude" else "submitted"
@@ -678,6 +705,22 @@ def test_native_submission_outcomes(
                 "unconfirmed" if target.kind == "claude" else None
             )
             text = received.get(timeout=5)
+            if target.kind == "claude":
+                auth, frame = [json.loads(line) for line in text.splitlines()]
+                assert auth == {"type": "auth", "token": "private-token"}
+                assert frame == {
+                    "type": "user",
+                    "message": {
+                        "role": "user",
+                        "content": (
+                            "Agent message from marimo (notebook pair-integration.py). "
+                            "No reply is expected.\n"
+                            "Sender (not verified): Lens\nnative delivery"
+                        ),
+                    },
+                }
+            else:
+                assert "Sender (not verified): Lens" in text
             assert "native delivery" in text
             assert "No reply is expected" in text
             assert "pair-integration.py" in text

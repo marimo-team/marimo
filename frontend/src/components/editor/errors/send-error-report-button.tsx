@@ -47,7 +47,11 @@ export function SendErrorReportButton({
     }
     setSending(true);
     try {
-      const result = await sendAgentMessage(stableSessionId, getContent());
+      const result = await sendAgentMessage(
+        stableSessionId,
+        getContent(),
+        "marimo error report",
+      );
       const outcomes = result.recipients.map(formatOutcome);
       if (outcomes.length === 1) {
         const outcome = outcomes[0];

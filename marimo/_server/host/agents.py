@@ -102,6 +102,13 @@ class AgentMessaging:
             raise ValueError("Select one agent or an explicit broadcast")
         if not math.isfinite(body.timeout) or body.timeout <= 0:
             raise ValueError("timeout must be positive and finite")
+        if body.sender is not None and (
+            len(body.sender) > 64
+            or (body.sender and body.sender.splitlines() != [body.sender])
+        ):
+            raise ValueError(
+                "sender must be one line of at most 64 characters"
+            )
         deadline = self._clock() + body.timeout
         recipients = self._recipients(notebook, body)
         recent = self._recent.setdefault(notebook.id, deque(maxlen=1024))

@@ -186,6 +186,7 @@ describe("SendErrorReportButton", () => {
       expect.objectContaining({
         message_id: expect.any(String),
         message: REPORT,
+        sender: "marimo error report",
         broadcast: true,
       }),
     );

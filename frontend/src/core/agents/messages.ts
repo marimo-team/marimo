@@ -7,6 +7,7 @@ interface MessageRequest {
   message_id: string;
   message: unknown;
   broadcast: true;
+  sender?: string;
 }
 
 export interface RecipientResult {
@@ -25,9 +26,10 @@ export interface SendResult {
 export function sendAgentMessage(
   sessionId: StableSessionId,
   message: unknown,
+  sender?: string,
 ): Promise<SendResult> {
   return API.post<MessageRequest, SendResult>(
     `/pair/notebooks/${encodeURIComponent(sessionId)}/messages`,
-    { message_id: crypto.randomUUID(), message, broadcast: true },
+    { message_id: crypto.randomUUID(), message, broadcast: true, sender },
   );
 }
