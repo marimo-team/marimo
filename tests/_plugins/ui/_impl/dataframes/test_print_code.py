@@ -1301,35 +1301,75 @@ def test_polars_temporal_conversion_without_non_null_values(
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars not installed"
 )
-@pytest.mark.parametrize("data_type", ["date", "datetime64"])
+@pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("errors", ["raise", "ignore"])
+@pytest.mark.parametrize(
+    ("data_type", "valid", "expected_value"),
+    [
+        ("date", "2026-10-07", datetime.date(2026, 10, 7)),
+        (
+            "datetime64",
+            "2026-10-07 12:34:56.123456",
+            datetime.datetime(2026, 10, 7, 12, 34, 56, 123456),
+        ),
+    ],
+)
 def test_polars_temporal_conversion_invalid_strings(
-    data_type: str, errors: Literal["raise", "ignore"]
+    lazy: bool,
+    errors: Literal["raise", "ignore"],
+    data_type: str,
+    valid: str,
+    expected_value: datetime.date,
 ) -> None:
     import polars as pl
+    import polars.testing as pl_testing
 
-    source = pl.LazyFrame({"event_time": ["2026-10-07", "invalid", None]})
+    column = 'event "time"'
+    original = pl.DataFrame({column: ["invalid", valid, None, ""]})
+    source = original.lazy() if lazy else original
     transform = ColumnConversionTransform(
         type=TransformType.COLUMN_CONVERSION,
-        column_id="event_time",
+        column_id=column,
         data_type=data_type,
         errors=errors,
     )
-    runtime = NarwhalsTransformHandler.handle_column_conversion(
-        nw.from_native(source), transform
-    )
-    namespace = {"pl": pl, "df": source}
-    exec(
-        python_print_transforms(
-            "df", ["event_time"], [transform], python_print_polars
-        ),
-        namespace,
-    )
-    generated = namespace["df_next"]
-    with pytest.raises(nw.exceptions.InvalidOperationError):
-        runtime.collect()
-    with pytest.raises(pl.exceptions.InvalidOperationError):
-        generated.collect()
+
+    def runtime() -> pl.DataFrame:
+        return (
+            NarwhalsTransformHandler.handle_column_conversion(
+                nw.from_native(source).lazy(), transform
+            )
+            .collect()
+            .to_native()
+        )
+
+    def generated() -> pl.DataFrame:
+        namespace = {"pl": pl, "df": source}
+        exec(
+            python_print_transforms(
+                "df", original.columns, [transform], python_print_polars
+            ),
+            namespace,
+        )
+        result = namespace["df_next"]
+        return result.collect() if lazy else result
+
+    for convert in (runtime, generated):
+        if errors == "raise":
+            with pytest.raises(
+                (
+                    nw.exceptions.ComputeError,
+                    nw.exceptions.InvalidOperationError,
+                    pl.exceptions.ComputeError,
+                    pl.exceptions.InvalidOperationError,
+                )
+            ):
+                convert()
+        else:
+            pl_testing.assert_frame_equal(
+                convert(),
+                pl.DataFrame({column: [None, expected_value, None, None]}),
+            )
 
 
 @pytest.mark.skipif(
