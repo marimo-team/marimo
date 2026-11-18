@@ -6,7 +6,7 @@ import json
 import queue
 import socket
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit
 
 from marimo._server.host import (
@@ -46,6 +46,15 @@ class InboxConnectionError(PairError):
 
 class SubmissionRejectedError(PairError):
     """Native evidence establishes that the message was not admitted."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: Literal["refused", "invalid"] = "refused",
+    ) -> None:
+        super().__init__(message)
+        self.reason: Literal["refused", "invalid"] = reason
 
 
 class PairConnectionError(PairError):

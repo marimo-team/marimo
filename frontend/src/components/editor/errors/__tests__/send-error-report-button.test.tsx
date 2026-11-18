@@ -191,6 +191,33 @@ describe("SendErrorReportButton", () => {
     );
   });
 
+  it.each([
+    ["rejected", "not-connected"],
+    ["rejected", "disconnected"],
+    ["rejected", "timeout"],
+    ["rejected", "refused"],
+    ["rejected", "invalid"],
+    ["unknown", "timeout"],
+    ["unknown", "disconnected"],
+    ["unknown", "failed"],
+  ])("shows %s with reason %s", async (status, reason) => {
+    vi.mocked(API.post).mockResolvedValue({
+      message_id: "m",
+      recipients: [
+        { agent_id: "a", name: null, status, reason, detail: "More detail" },
+      ],
+    });
+    renderButton();
+    send();
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith({
+        title: `a: ${status} (${reason})`,
+        description: "More detail",
+        duration: 3000,
+      }),
+    );
+  });
+
   it("hides when host is disabled without building content", () => {
     const getContent = vi.fn(() => REPORT);
     expect(

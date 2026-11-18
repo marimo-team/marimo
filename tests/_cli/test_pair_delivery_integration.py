@@ -587,7 +587,10 @@ def claude_inbox() -> Iterator[tuple[DeliveryTarget, queue.Queue[str]]]:
 
 
 @pytest.fixture
-def opencode_inbox() -> Iterator[tuple[DeliveryTarget, queue.Queue[str]]]:
+def opencode_inbox(
+    request: pytest.FixtureRequest,
+) -> Iterator[tuple[DeliveryTarget, queue.Queue[str]]]:
+    response_status = getattr(request, "param", 200)
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     received: queue.Queue[str] = queue.Queue()
@@ -601,7 +604,7 @@ def opencode_inbox() -> Iterator[tuple[DeliveryTarget, queue.Queue[str]]]:
                 self.rfile.read(int(self.headers["Content-Length"]))
             )
             received.put(body["text"])
-            self.send_response(200)
+            self.send_response(response_status)
             self.end_headers()
             self.wfile.write(
                 msgspec.json.encode(
@@ -678,5 +681,247 @@ def test_native_submission_outcomes(
             assert "native delivery" in text
             assert "No reply is expected" in text
             assert "pair-integration.py" in text
+        finally:
+            record.forwarder.stop()
+
+
+@pytest.mark.parametrize(
+    ("outcome", "status", "reason", "detail"),
+    [
+        (
+            Submission("rejected", "refused", "refused"),
+            "rejected",
+            "refused",
+            "refused",
+        ),
+        (
+            Submission("rejected", "invalid", "invalid"),
+            "rejected",
+            "invalid",
+            "invalid",
+        ),
+        (OSError("inbox failed"), "unknown", "failed", None),
+        (RuntimeError("unexpected inbox failure"), "unknown", "failed", None),
+        (
+            Submission("rejected", "😀" * 501, "refused"),
+            "rejected",
+            "refused",
+            "😀" * 500,
+        ),
+    ],
+)
+def test_forwarder_failure_results(
+    tmp_path: Path,
+    outcome: Submission | Exception,
+    status: str,
+    reason: str,
+    detail: str | None,
+) -> None:
+    from marimo._cli.pair.forwarder import run_forwarder
+
+    class ControlledInbox:
+        inbox_bytes = 8192
+        running = True
+
+        def alive(self) -> bool:
+            return self.running
+
+        def send(self, _text: str) -> Submission:
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+    inbox = ControlledInbox()
+    with pair_test_server(tmp_path) as server:
+        host = resolve_host(server.url)
+        ready = threading.Event()
+        thread = threading.Thread(
+            target=run_forwarder,
+            args=(
+                ForwarderConfig(
+                    host.url,
+                    server.notebook_id,
+                    "agent",
+                    host.token,
+                    DeliveryTarget("test", "test", "Test"),
+                ),
+                inbox,
+            ),
+            kwargs={"ready": ready.set},
+            daemon=True,
+        )
+        thread.start()
+        try:
+            assert ready.wait(10)
+            result = send_message(server, "message", to="agent").recipients[0]
+            assert (result.status, result.reason) == (status, reason)
+            if detail is not None:
+                assert result.detail == detail
+        finally:
+            inbox.running = False
+            thread.join(timeout=3)
+
+
+def test_absent_recipients_are_results(tmp_path: Path) -> None:
+    with pair_test_server(tmp_path) as server:
+        result = send_message(server, "message", to="absent")
+        assert [(r.status, r.reason) for r in result.recipients] == [
+            ("rejected", "not-connected")
+        ]
+        assert send_message(server, "message").recipients == ()
+
+
+def test_attempts_stay_on_the_original_attachment(tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    from marimo._cli.pair.forwarder import run_forwarder
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    class ControlledInbox:
+        inbox_bytes = 8192
+        running = True
+
+        def __init__(self, block: bool) -> None:
+            self.block = block
+            self.messages: list[str] = []
+
+        def alive(self) -> bool:
+            return self.running
+
+        def send(self, text: str) -> Submission:
+            self.messages.append(text)
+            if self.block:
+                entered.set()
+                assert release.wait(10)
+            return Submission("submitted")
+
+    with pair_test_server(tmp_path) as server:
+        host = resolve_host(server.url)
+        observer = open_events(
+            url=host.url,
+            notebook=server.notebook_id,
+            token=host.token,
+            identity="observer",
+            kind="tool",
+            name="Observer",
+            read_timeout=10,
+        )
+        events = iter_sse(observer)
+        for event in events:
+            if event.name == "ready":
+                break
+        inboxes = [ControlledInbox(True), ControlledInbox(False)]
+        threads = []
+        try:
+
+            def start(inbox: ControlledInbox) -> None:
+                ready = threading.Event()
+                thread = threading.Thread(
+                    target=run_forwarder,
+                    args=(
+                        ForwarderConfig(
+                            host.url,
+                            server.notebook_id,
+                            "agent",
+                            host.token,
+                            DeliveryTarget("test", "test", "Test"),
+                        ),
+                        inbox,
+                    ),
+                    kwargs={"ready": ready.set},
+                    daemon=True,
+                )
+                threads.append(thread)
+                thread.start()
+                assert ready.wait(10)
+
+            start(inboxes[0])
+            with ThreadPoolExecutor(2) as executor:
+                fetched = executor.submit(
+                    send_message, server, "fetched", to="agent"
+                )
+                assert entered.wait(10)
+                unfetched = executor.submit(
+                    send_message, server, "unfetched", to="agent"
+                )
+                pointers = []
+                for event in events:
+                    if event.name == "custom":
+                        pointers.append(
+                            json.loads(event.data)["custom"]["data"]
+                        )
+                        if len(pointers) == 2:
+                            break
+                attachment_id = pointers[0]["attachment_id"]
+                request = urllib.request.Request(
+                    f"{server.url}/api/pair/notebooks/{server.stable_session_id}/attachments/detach",
+                    method="POST",
+                    data=json.dumps({"attachment_id": attachment_id}).encode(),
+                    headers={"Content-Type": "application/json"},
+                )
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    assert response.status == 204
+                start(inboxes[1])
+                assert (
+                    fetched.result(5).recipients[0].status,
+                    fetched.result().recipients[0].reason,
+                ) == ("unknown", "disconnected")
+                assert (
+                    unfetched.result(5).recipients[0].status,
+                    unfetched.result().recipients[0].reason,
+                ) == ("rejected", "disconnected")
+                release.set()
+            assert inboxes[1].messages == []
+            assert (
+                send_message(server, "new attempt", to="agent")
+                .recipients[0]
+                .status
+                == "submitted"
+            )
+            assert len(inboxes[1].messages) == 1
+            assert inboxes[1].messages[0].endswith("new attempt")
+        finally:
+            release.set()
+            observer.close()
+            for inbox in inboxes:
+                inbox.running = False
+            for thread in threads:
+                thread.join(timeout=3)
+
+
+@pytest.mark.parametrize(
+    ("opencode_inbox", "status", "reason"),
+    [
+        (400, "rejected", "invalid"),
+        (403, "rejected", "refused"),
+        (500, "unknown", "failed"),
+    ],
+    indirect=["opencode_inbox"],
+)
+def test_native_harness_failure_results(
+    tmp_path: Path,
+    opencode_inbox: tuple[DeliveryTarget, queue.Queue[str]],
+    status: str,
+    reason: str,
+) -> None:
+    from marimo._cli.pair.forwarder import start_forwarder
+
+    target, _ = opencode_inbox
+    store = ConnectionStore(tmp_path / "connections")
+    with pair_test_server(tmp_path) as server:
+        host = resolve_host(server.url)
+        identity = connection_identity(
+            server.notebook_id, target.kind, target.address
+        )
+        config = ForwarderConfig(
+            host.url, server.notebook_id, identity, host.token, target
+        )
+        with store.locked(config.identity):
+            record = start_forwarder(config, store)
+        try:
+            result = send_message(server, "message", to=identity).recipients[0]
+            assert (result.status, result.reason) == (status, reason)
         finally:
             record.forwarder.stop()

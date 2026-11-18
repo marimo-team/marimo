@@ -145,7 +145,7 @@ class CodexInbox:
             )
         except (FileNotFoundError, PermissionError, ValueError) as error:
             raise SubmissionRejectedError(
-                "The Codex queue command could not start."
+                "The Codex queue command could not start.", reason="invalid"
             ) from error
         except (OSError, subprocess.TimeoutExpired) as error:
             raise PairError(

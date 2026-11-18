@@ -15,6 +15,7 @@ import msgspec
 from marimo._cli.pair.client import (
     PairError,
     PairInputError,
+    SubmissionRejectedError,
     UnsupportedInboxError,
 )
 from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle, Submission
@@ -68,6 +69,20 @@ def _request(
             "GET" if text is None else "POST", path, body, headers
         )
         response = connection.getresponse()
+        if text is not None and response.status in {
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+        }:
+            raise SubmissionRejectedError(
+                "OpenCode rejected the inbox request.",
+                reason="invalid"
+                if response.status in {400, 422}
+                else "refused",
+            )
         if response.status != 200:
             raise PairError(
                 "OpenCode rejected the inbox request. Check the session and credentials."

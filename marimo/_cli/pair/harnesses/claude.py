@@ -128,7 +128,9 @@ class ClaudeInbox:
     def send(self, text: str) -> Submission:
         if not self.target.auth_token:
             return Submission(
-                "rejected", "The Claude Code inbox token is unavailable."
+                "rejected",
+                "The Claude Code inbox token is unavailable.",
+                reason="invalid",
             )
         # The socket and auth line are documented; the user frame is private.
         # Keep this encoding covered by a native Claude acceptance test.

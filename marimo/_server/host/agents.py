@@ -28,7 +28,7 @@ from marimo._messaging.agents import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
 
     from marimo._core.host import Host
     from marimo._core.notebook import Notebook
@@ -43,14 +43,21 @@ class _Attempt:
     name: str | None
     content: MessageContent | None
     result: asyncio.Future[RecipientResult]
+    fetch_deadline: float
+    deadline: float
 
 
 class AgentMessaging:
     """Keep content off the shared stream and bind each fetch to one attachment."""
 
     def __init__(
-        self, host: Host, *, clock: Callable[[], float] = time.monotonic
+        self,
+        host: Host,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
+        self._sleep: Callable[[float], Awaitable[None]] = sleep
         self._clock = clock
         self._host = host
         self._keys: dict[str, tuple[str, str]] = {}
@@ -66,6 +73,7 @@ class AgentMessaging:
         self._keys.pop(attachment_id, None)
         for attempt in self._pending.values():
             if attempt.attachment_id == attachment_id:
+                self._expire(attempt)
                 self._finish(attempt, "disconnected")
 
     def _recipients(
@@ -107,6 +115,8 @@ class AgentMessaging:
                     attachment.name if attachment else None,
                     content,
                     loop.create_future(),
+                    min(deadline, self._clock() + 5.0),
+                    deadline,
                 )
                 attempt_id = secrets.token_urlsafe(24)
                 attempts[attempt_id] = attempt
@@ -126,20 +136,36 @@ class AgentMessaging:
                             )
                         ),
                     )
-            if attempts:
-                await asyncio.wait(
-                    [a.result for a in attempts.values()],
-                    timeout=max(0, deadline - self._clock()),
+            del content
+            while pending := [
+                a for a in attempts.values() if not a.result.done()
+            ]:
+                next_deadline = min(
+                    a.fetch_deadline if a.content is not None else a.deadline
+                    for a in pending
                 )
-            for attempt in attempts.values():
-                self._finish(attempt, "timeout")
+                timer = asyncio.ensure_future(
+                    self._sleep(max(0, next_deadline - self._clock()))
+                )
+                try:
+                    await asyncio.wait(
+                        [*(a.result for a in pending), timer],
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                finally:
+                    timer.cancel()
+                    await asyncio.gather(timer, return_exceptions=True)
+                for attempt in pending:
+                    self._expire(attempt)
             return SendResult(
                 body.message_id,
                 tuple(a.result.result() for a in attempts.values()),
             )
         finally:
             for attempt_id in attempts:
-                self._pending.pop(attempt_id, None)
+                attempt = self._pending.pop(attempt_id, None)
+                if attempt is not None:
+                    attempt.content = None
 
     def _authorize(
         self, notebook_id: str, attachment_id: str, key: str
@@ -157,6 +183,8 @@ class AgentMessaging:
     ) -> _Attempt:
         self._authorize(notebook_id, attachment_id, key)
         attempt = self._pending.get(attempt_id)
+        if attempt is not None:
+            self._expire(attempt)
         if (
             attempt is None
             or attempt.notebook_id != notebook_id
@@ -206,6 +234,15 @@ class AgentMessaging:
     def _observe(self, event: RoutedEvent) -> None:
         if isinstance(event.event, protocol.AttachmentRemovedEvent):
             self.unregister(event.event.data.id)
+
+    def _expire(self, attempt: _Attempt) -> None:
+        deadline = (
+            attempt.fetch_deadline
+            if attempt.content is not None
+            else attempt.deadline
+        )
+        if self._clock() >= deadline:
+            self._finish(attempt, "timeout")
 
     @staticmethod
     def _finish(attempt: _Attempt, reason: SubmissionReason) -> None:

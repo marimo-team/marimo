@@ -26,6 +26,7 @@ from marimo._cli.pair.client import (
     PairInputError,
     SSEEvent,
     StaleNotebookError,
+    SubmissionRejectedError,
     host_api_url,
     iter_sse,
     open_events,
@@ -304,29 +305,31 @@ def _deliver(
     }
     if config.token:
         headers["Authorization"] = f"Bearer {config.token}"
-    response = open_response(
-        method="POST",
-        url=f"{base}/{quote(pointer.attempt_id, safe='')}/content",
-        headers=headers,
-        body=None,
-        read_timeout=5,
-    )
     try:
-        content = msgspec.json.decode(
-            response.response.read(), type=MessageContent
+        response = open_response(
+            method="POST",
+            url=f"{base}/{quote(pointer.attempt_id, safe='')}/content",
+            headers=headers,
+            body=None,
+            read_timeout=5,
         )
-    finally:
-        response.close()
-    message = inbox_message(
-        content.message,
-        notebook=content.notebook,
-        sender=content.sender,
-        budget=inbox.inbox_bytes,
-        files=files,
-    )
-    try:
+        try:
+            content = msgspec.json.decode(
+                response.response.read(), type=MessageContent
+            )
+        finally:
+            response.close()
+        message = inbox_message(
+            content.message,
+            notebook=content.notebook,
+            sender=content.sender,
+            budget=inbox.inbox_bytes,
+            files=files,
+        )
         submission = inbox.send(message)
-    except (PairError, OSError):
+    except SubmissionRejectedError as error:
+        submission = Submission("rejected", str(error), reason=error.reason)
+    except Exception:
         submission = Submission(
             "unknown",
             "The harness did not confirm submission.",
@@ -443,7 +446,12 @@ def run_forwarder(
                         )
                         key = response.response.getheader(REPORT_KEY_HEADER)
                         if pointer.attachment_id == own_attachment and key:
-                            _deliver(config, inbox, pointer, key, files)
+                            try:
+                                _deliver(config, inbox, pointer, key, files)
+                            except PairError:
+                                _LOGGER.warning(
+                                    "Could not complete an agent message attempt."
+                                )
                 if event.id is not None:
                     cursor = event.id
         finally:
