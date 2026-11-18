@@ -33,9 +33,12 @@ if TYPE_CHECKING:
 
 
 class _DockerCompatibleEngine:
-    def __init__(self, name: str, executable: str) -> None:
+    def __init__(
+        self, name: str, executable: str, *, relabel_mounts: bool = False
+    ) -> None:
         self.name = name
         self.executable = executable
+        self.relabel_mounts = relabel_mounts
 
     def run(self, *args: str, timeout: float | None = COMMAND_TIMEOUT) -> str:
         result = subprocess.run(
@@ -109,7 +112,10 @@ class _DockerCompatibleSession:
 
     def create(self, request: LaunchRequest) -> None:
         self._id = self._engine.run(
-            *create_args(request, self._name), timeout=None
+            *create_args(
+                request, self._name, relabel_mounts=self._engine.relabel_mounts
+            ),
+            timeout=None,
         )
         if not self._id:
             raise OSError("The engine did not return a container ID.")

@@ -6,6 +6,7 @@ import socket
 import subprocess
 import time
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 import pytest
@@ -28,6 +29,8 @@ from marimo._cli.containers.selection import resolve_engine
 from marimo._cli.containers.source import prepare_notebook
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._cli.containers.engine import SessionResult
 
 pytestmark = pytest.mark.timeout(90)
@@ -196,6 +199,20 @@ def test_container_removes_resource_after_engine_start_fails(
     assert not _exists(executable, failure.container)
 
 
+@pytest.fixture(
+    params=["", ", with spaces"], ids=["normal-home", "comma-home"]
+)
+def staging_home(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[None]:
+    with TemporaryDirectory(
+        prefix=f".marimo-test{request.param}-", dir=Path.home()
+    ) as home:
+        monkeypatch.setattr(Path, "home", lambda: Path(home))
+        yield
+
+
+@pytest.mark.usefixtures("staging_home")
 def test_container_can_replace_only_the_staged_notebook(
     executable: str, tmp_path: Path
 ) -> None:
