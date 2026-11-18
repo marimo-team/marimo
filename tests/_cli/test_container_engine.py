@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import os
+import socket
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -14,6 +16,7 @@ from marimo._cli.containers.engine import (
     CleanupComplete,
     EngineFailure,
     LaunchRequest,
+    PortMapping,
     StartFailure,
     WorkloadExit,
 )
@@ -209,3 +212,45 @@ def test_container_can_replace_only_the_staged_notebook(
         ) == "updated\n"
     assert not staged.exists()
     assert original.read_text(encoding="utf-8") == "original source"
+
+
+def test_container_publishes_workload_port(executable: str) -> None:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        host_port = listener.getsockname()[1]
+
+    request = LaunchRequest(
+        _IMAGE,
+        (
+            "sh",
+            "-ec",
+            'printf "%s\\n" "$MESSAGE" > reply; exec nc -lk -p 8080 -e cat reply',
+        ),
+        environment=(("MESSAGE", "container response"),),
+        working_directory="/tmp",
+        ports=(PortMapping(host=host_port, container=8080),),
+    )
+    session = resolve_engine(executable).start(request)
+    assert not isinstance(session, StartFailure), session
+    try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            try:
+                with (
+                    socket.create_connection(
+                        ("127.0.0.1", host_port), timeout=1
+                    ) as connection,
+                    connection.makefile("rb") as response,
+                ):
+                    message = response.readline()
+            except OSError:
+                pass
+            else:
+                if message:
+                    assert message == b"container response\n"
+                    break
+            time.sleep(0.1)
+        else:
+            pytest.fail(f"The workload did not listen on port {host_port}.")
+    finally:
+        assert session.close() == CleanupComplete("removed")
