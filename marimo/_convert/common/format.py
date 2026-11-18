@@ -37,10 +37,19 @@ def markdown_to_marimo(
     # Prefer a delimiter the body does not contain: escapes survive in raw
     # strings and render as backslashes in code blocks.
     quotes = "'" if '"""' in source and "'''" not in source else "\"'"
-    for quote in quotes:
+    # Non-raw strings evaluate an authored `\"""` under either delimiter;
+    # only the `"""` escape rejects it.
+    raw = "r" in prefix.lower()
+    for quote in quotes if raw else '"':
         escaped = _escape_triple_quotes(source, quote)
         if escaped is not None:
             return codegen.construct_markdown_call(escaped, quote * 3, prefix)
+
+    if not raw:
+        # Evaluates back to the body, keeping a backslash before `"""`.
+        return codegen.construct_markdown_call(
+            source.replace('"""', '\\"\\"\\"'), '"""', prefix
+        )
 
     # Neither delimiter can hold this body losslessly.
     return codegen.construct_markdown_call(
@@ -77,4 +86,17 @@ def get_markdown_from_cell(cell: CellImpl | Cell, code: str) -> str | None:
 
     if not (cell.refs == {"mo"} and not cell.defs):
         return None
-    return extract_markdown(code)
+    markdown = extract_markdown(code)
+    literal = re.match(r'\s*mo\.md\(\s*([fFrR]*)("""|\'\'\')', code)
+    if markdown is None or literal is None:
+        return markdown
+    prefix, quote = literal.groups()
+    if "r" not in prefix.lower() or "\\" + quote not in markdown:
+        return markdown
+    # Raw strings keep the escape `markdown_to_marimo` adds when the body
+    # holds both triple quotes. Drop it only where conversion would add it
+    # back, so an authored backslash stays.
+    unescaped = markdown.replace("\\" + quote, quote)
+    if extract_markdown(markdown_to_marimo(unescaped, prefix)) == markdown:
+        return unescaped
+    return markdown
