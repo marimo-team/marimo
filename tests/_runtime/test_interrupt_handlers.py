@@ -302,7 +302,27 @@ async def test_sigint_interrupts_async_cell_running_blocking_code(
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
-@pytest.mark.parametrize("spawn", ["gather", "create_task"])
+@pytest.mark.parametrize(
+    "spawn",
+    [
+        "await asyncio.gather(work())",
+        "await asyncio.create_task(work())",
+        # The child's cancellation comes back as a value, so only the
+        # cell's own cancellation can stop it.
+        "await asyncio.gather(work(), return_exceptions=True)",
+        # A task group ignores a cancelled child.
+        "async with asyncio.TaskGroup() as tg:\n    tg.create_task(work())",
+        # The cell is suspended on something unrelated to the child.
+        "asyncio.create_task(work())\nawait asyncio.sleep(10)",
+    ],
+    ids=[
+        "gather",
+        "create_task",
+        "gather-return-exceptions",
+        "task-group",
+        "background-child",
+    ],
+)
 async def test_sigint_interrupts_blocking_child_coroutine(
     k: Kernel, exec_req: ExecReqProvider, spawn: str
 ) -> None:
@@ -322,7 +342,7 @@ async def test_sigint_interrupts_blocking_child_coroutine(
                     "    finally:\n"
                     "        await asyncio.sleep(0)\n"
                     "        log.append('cleanup finished')\n"
-                    f"await asyncio.{spawn}(work())\n"
+                    f"{spawn}\n"
                     "z = 1"
                 ),
                 dependent := exec_req.get("w = z + 1"),
@@ -332,6 +352,7 @@ async def test_sigint_interrupts_blocking_child_coroutine(
         signal.signal(signal.SIGINT, previous)
 
     assert k.globals["log"] == ["child started", "cleanup finished"]
+    assert "z" not in k.globals
     assert k.graph.cells[cell.cell_id].run_result_status == "interrupted"
     assert k.graph.cells[dependent.cell_id].run_result_status == "cancelled"
 

@@ -602,9 +602,7 @@ def kernel_context_stub() -> Iterator[MagicMock]:
 
     ctx = MagicMock(spec=KernelRuntimeContext)
     ctx._active_scheduler = None
-    ctx._running_cell_scheduler = ContextVar(
-        "running_cell_scheduler", default=None
-    )
+    ctx._running_cell_body = ContextVar("running_cell_body", default=None)
     prior = _THREAD_LOCAL_CONTEXT.runtime_context
     _THREAD_LOCAL_CONTEXT.runtime_context = ctx
     try:

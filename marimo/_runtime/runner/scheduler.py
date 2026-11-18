@@ -71,6 +71,7 @@ class Scheduler(Protocol):
     def owns_task(self, task: asyncio.Task[Any] | None) -> bool: ...
     def cell_body(self) -> AbstractContextManager[None]: ...
     def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool: ...
+    def interrupt_cell_body(self, task: asyncio.Task[Any]) -> None: ...
     def cancel_all(self) -> None: ...
 
     async def __aenter__(self) -> Self: ...
@@ -228,11 +229,13 @@ class SequentialScheduler:
         if not isinstance(ctx, KernelRuntimeContext):
             yield
             return
-        token = ctx._running_cell_scheduler.set(self)
+        owner = asyncio.current_task()
+        assert owner is not None
+        token = ctx._running_cell_body.set((self, owner))
         try:
             yield
         finally:
-            ctx._running_cell_scheduler.reset(token)
+            ctx._running_cell_body.reset(token)
 
     def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool:
         """Whether this task is in a cell body rather than a lifecycle hook."""
@@ -241,12 +244,39 @@ class SequentialScheduler:
         )
 
         ctx = safe_get_context()
-        return (
-            task is not None
-            and task is asyncio.current_task()
-            and isinstance(ctx, KernelRuntimeContext)
-            and ctx._running_cell_scheduler.get() is self
+        if task is None or task is not asyncio.current_task():
+            return False
+        if not isinstance(ctx, KernelRuntimeContext):
+            return False
+        body = ctx._running_cell_body.get()
+        return body is not None and body[0] is self
+
+    def interrupt_cell_body(self, task: asyncio.Task[Any]) -> None:
+        """Stop the cell whose body started `task`, once `task` ends.
+
+        The cell's own task is suspended while the child runs, so it cannot
+        take an exception, and a cancellation that only the child sees can
+        come back as a value from `gather` or be ignored by a task group.
+        Cancelling the cell's task after the child ends stops the cell at
+        its next `await` and lets the child's awaited cleanup finish first.
+        """
+        from marimo._runtime.context.kernel_context import (
+            KernelRuntimeContext,
         )
+
+        ctx = safe_get_context()
+        if not isinstance(ctx, KernelRuntimeContext):
+            return
+        body = ctx._running_cell_body.get()
+        if body is None or body[0] is not self or body[1] is task:
+            return
+        owner = body[1]
+
+        def cancel_owner(_: asyncio.Future[Any]) -> None:
+            if not owner.done():
+                owner.cancel()
+
+        task.add_done_callback(cancel_owner)
 
     def cancel_all(self) -> None:
         # Set `_interrupted` first so a SIGINT arriving between cells
