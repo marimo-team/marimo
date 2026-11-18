@@ -6,6 +6,7 @@ from collections import Counter, deque
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from marimo._cli.containers._create import create_args
 from marimo._cli.containers._process import (
     COMMAND_TIMEOUT,
     error_detail,
@@ -95,28 +96,7 @@ class _AppleSession:
         return result.stdout
 
     def create(self, request: LaunchRequest) -> None:
-        args = [
-            "create",
-            "--name",
-            self._container,
-            "--label",
-            f"io.marimo.session={self._container}",
-        ]
-        for mapping in request.ports:
-            args.extend(("--publish", f"{mapping.host}:{mapping.container}"))
-        for key, value in request.environment:
-            args.extend(("--env", f"{key}={value}"))
-        if request.working_directory is not None:
-            args.extend(("--workdir", request.working_directory))
-        for mount in request.mounts:
-            mode = ",readonly" if mount.read_only else ""
-            args.extend(
-                (
-                    "--mount",
-                    f"type=bind,source={mount.source},target={mount.target}{mode}",
-                )
-            )
-        self.run(*args, request.image, *request.argv, timeout=None)
+        self.run(*create_args(request, self._container), timeout=None)
         self._created = True
 
     def attach(self) -> None:

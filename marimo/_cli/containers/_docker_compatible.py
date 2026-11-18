@@ -6,6 +6,7 @@ from collections import deque
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from marimo._cli.containers._create import OWNERSHIP_LABEL, create_args
 from marimo._cli.containers._process import (
     COMMAND_TIMEOUT,
     error_detail,
@@ -29,8 +30,6 @@ if TYPE_CHECKING:
         LaunchRequest,
         SessionResult,
     )
-
-_OWNERSHIP_LABEL = "io.marimo.session"
 
 
 class _DockerCompatibleEngine:
@@ -109,29 +108,8 @@ class _DockerCompatibleSession:
         )
 
     def create(self, request: LaunchRequest) -> None:
-        args = [
-            "create",
-            "--name",
-            self._name,
-            "--label",
-            f"{_OWNERSHIP_LABEL}={self._name}",
-        ]
-        for mapping in request.ports:
-            args.extend(("--publish", f"{mapping.host}:{mapping.container}"))
-        for key, value in request.environment:
-            args.extend(("--env", f"{key}={value}"))
-        if request.working_directory is not None:
-            args.extend(("--workdir", request.working_directory))
-        for mount in request.mounts:
-            mode = ",readonly" if mount.read_only else ""
-            args.extend(
-                (
-                    "--mount",
-                    f"type=bind,source={mount.source},target={mount.target}{mode}",
-                )
-            )
         self._id = self._engine.run(
-            *args, request.image, *request.argv, timeout=None
+            *create_args(request, self._name), timeout=None
         )
         if not self._id:
             raise OSError("The engine did not return a container ID.")
@@ -200,7 +178,7 @@ class _DockerCompatibleSession:
             "--quiet",
             "--no-trunc",
             "--filter",
-            f"label={_OWNERSHIP_LABEL}={self._name}",
+            f"label={OWNERSHIP_LABEL}={self._name}",
         )
 
     def _remove(self) -> CleanupResult:
