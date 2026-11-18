@@ -4345,63 +4345,66 @@ def test_violin_click_with_empty_point_numbers_produces_no_rows() -> None:
     assert result == []
 
 
-def test_bar_chart_date_x_axis_selection() -> None:
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "date_objects",
+        "datetime_objects",
+        "datetime64_D",
+        "datetime64_us",
+        "iso_strings",
+    ],
+)
+@pytest.mark.parametrize(
+    ("x0", "x1"),
+    [
+        ("2026-01-05", "2026-01-06 12:00"),
+        ("2026-01-05 00:00:00.0000", "2026-01-06 12:00:00.0000"),
+    ],
+)
+def test_bar_chart_date_x_axis_selection(
+    variant: str, x0: str, x1: str
+) -> None:
     """Range selection on bar charts with date or datetime64 x-axis (#11653)."""
-    import datetime
+    import datetime as dt
 
     import numpy as np
 
     days = [
-        datetime.date(2026, 1, 5),
-        datetime.date(2026, 1, 6),
-        datetime.date(2026, 1, 7),
+        dt.date(2026, 1, 5),
+        dt.date(2026, 1, 6),
+        dt.date(2026, 1, 7),
     ]
-    variants = {
+    variants: dict[str, Any] = {
         "date_objects": days,
+        "datetime_objects": [dt.datetime.combine(d, dt.time()) for d in days],
         "datetime64_D": np.array(days, dtype="datetime64[D]"),
         "datetime64_us": np.array(days, dtype="datetime64[us]"),
         "iso_strings": [d.isoformat() for d in days],
     }
+    x = variants[variant]
 
-    for name, x in variants.items():
-        selection: dict[str, Any] = {
-            "range": {
-                "x": ["2026-01-05", "2026-01-06 12:00"],
-                "y": [0, 3],
-            },
-            "points": [],
-            "indices": [],
-        }
-        fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
-        plot = plotly(fig)
-        result = plot._convert_value(selection)
-        assert len(result) == 2, (
-            f"Failed for {name}: expected 2 bars, got {len(result)}"
-        )
-        assert result[0]["pointIndex"] == 0
-        assert result[1]["pointIndex"] == 1
+    selection: dict[str, Any] = {
+        "range": {
+            "x": [x0, x1],
+            "y": [0, 3],
+        },
+        "points": [],
+        "indices": [],
+    }
+    fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
+    plot = plotly(fig)
+    result = plot._convert_value(selection)
+    assert [p["pointIndex"] for p in result] == [0, 1]
 
-        fallback_bars = _extract_bars_fallback(
-            fig, "2026-01-05T00:00:00Z", "2026-01-06T12:00:00Z", 0, 3
-        )
-        assert len(fallback_bars) == 2, f"Fallback failed for {name}"
-
-        utc_result = plot._convert_value(
-            {
-                "range": {
-                    "x": ["2026-01-05T00:00:00Z", "2026-01-06T12:00:00Z"],
-                    "y": [0, 3],
-                },
-                "points": [],
-                "indices": [],
-            }
-        )
-        assert len(utc_result) == 2, f"UTC bounds failed for {name}"
+    fallback_bars = _extract_bars_fallback(fig, x0, x1, 0, 3)
+    assert [p["pointIndex"] for p in fallback_bars] == [0, 1]
 
 
 def test_bar_chart_datetime64_nanosecond_precision() -> None:
-    """Sub-microsecond datetime64[ns] bar positions are not truncated to us."""
+    """Sub-microsecond datetime64[ns] and pd.Timestamp bar positions keep ns."""
     import numpy as np
+    import pandas as pd
 
     t = np.datetime64("2026-01-05", "us")
     x = t + np.array([0, 1000, 1500], dtype="timedelta64[ns]")
@@ -4411,12 +4414,76 @@ def test_bar_chart_datetime64_nanosecond_precision() -> None:
     fig.add_selection(x0=x0, x1=x1, y0=0, y1=3)
 
     plot = plotly(fig)
-    assert len(plot.value) == 2
     assert [p["pointIndex"] for p in plot.value] == [0, 1]
 
     fallback_bars = _extract_bars_fallback(fig, x0, x1, 0, 3)
-    assert len(fallback_bars) == 2
     assert [p["pointIndex"] for p in fallback_bars] == [0, 1]
+
+    ts = pd.Timestamp("2026-01-05")
+    x_ts = [ts, ts + pd.Timedelta(1000, "ns"), ts + pd.Timedelta(1500, "ns")]
+    fig_ts = go.Figure(go.Bar(x=x_ts, y=[1, 2, 3]))
+    fig_ts.add_selection(
+        x0="2026-01-05 00:00:00",
+        x1="2026-01-05 00:00:00.000001",
+        y0=0,
+        y1=3,
+    )
+    plot_ts = plotly(fig_ts)
+    assert [p["pointIndex"] for p in plot_ts.value] == [0, 1]
+
+    fallback_ts = _extract_bars_fallback(
+        fig_ts, "2026-01-05 00:00:00", "2026-01-05 00:00:00.000001", 0, 3
+    )
+    assert [p["pointIndex"] for p in fallback_ts] == [0, 1]
+
+
+def test_bar_chart_tz_aware_datetime_wall_time_selection() -> None:
+    """Timezone-aware datetimes compare by wall time matching plotly.js."""
+    import datetime as dt
+
+    est = dt.timezone(dt.timedelta(hours=-5))
+    x = [dt.datetime(2026, 1, 6, h, 0, tzinfo=est) for h in (8, 14, 20)]
+    fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
+    fig.add_selection(x0="2026-01-06 12:00", x1="2026-01-06 23:00", y0=0, y1=3)
+
+    plot = plotly(fig)
+    assert [p["pointIndex"] for p in plot.value] == [1, 2]
+
+    fallback_bars = _extract_bars_fallback(
+        fig, "2026-01-06 12:00", "2026-01-06 23:00", 0, 3
+    )
+    assert [p["pointIndex"] for p in fallback_bars] == [1, 2]
+
+
+def test_bar_chart_mixed_invalid_and_compact_iso_dates() -> None:
+    """Mixed invalid entries and compact ISO strings are handled consistently."""
+    fig_mixed = go.Figure(
+        go.Bar(x=["2026-01-05", "2026-01-06", "N/A"], y=[1, 2, 3])
+    )
+    fig_mixed.add_selection(x0="2026-01-05", x1="2026-01-06 12:00", y0=0, y1=3)
+    plot_mixed = plotly(fig_mixed)
+    assert [p["pointIndex"] for p in plot_mixed.value] == [0, 1]
+    assert [
+        p["pointIndex"]
+        for p in _extract_bars_fallback(
+            fig_mixed, "2026-01-05", "2026-01-06 12:00", 0, 3
+        )
+    ] == [0, 1]
+
+    fig_compact = go.Figure(
+        go.Bar(x=["20260105", "20260106", "20260107"], y=[1, 2, 3])
+    )
+    fig_compact.add_selection(
+        x0="2026-01-05", x1="2026-01-06 12:00", y0=0, y1=3
+    )
+    plot_compact = plotly(fig_compact)
+    assert [p["pointIndex"] for p in plot_compact.value] == [0, 1]
+    assert [
+        p["pointIndex"]
+        for p in _extract_bars_fallback(
+            fig_compact, "2026-01-05", "2026-01-06 12:00", 0, 3
+        )
+    ] == [0, 1]
 
 
 def test_scatter_datetime64_bounds_selection() -> None:

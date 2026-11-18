@@ -95,18 +95,12 @@ def _is_datetime_like(value: object) -> bool:
     """Check if a value is a date, datetime, datetime64, or ISO datetime string."""
     import datetime
 
-    if isinstance(value, (datetime.datetime, datetime.date)):
-        return True
     dtype = getattr(value, "dtype", None)
     if dtype is not None and str(dtype).startswith("datetime64"):
         return True
-    if isinstance(value, str):
-        try:
-            datetime.datetime.fromisoformat(value)
-            return True
-        except (ValueError, AttributeError):
-            pass
-    return False
+    return isinstance(
+        _parse_datetime_bound(value), (datetime.datetime, datetime.date)
+    )
 
 
 def _is_orderable_axis(arr: Any, bound_value: object) -> bool:
@@ -144,12 +138,14 @@ def _is_orderable_axis(arr: Any, bound_value: object) -> bool:
 
 
 def _normalize_naive_datetime(value: Any) -> Any:
-    """Normalize a date or datetime value to a naive datetime (UTC if tz-aware)."""
+    """Normalize a date or datetime value to a naive wall-time datetime."""
     import datetime
 
     if isinstance(value, datetime.datetime):
         if value.tzinfo is not None:
-            return value.astimezone(datetime.UTC).replace(tzinfo=None)
+            if hasattr(value, "tz_localize"):
+                return value.tz_localize(None)
+            return value.replace(tzinfo=None)
         return value
     if isinstance(value, datetime.date):
         return datetime.datetime.combine(value, datetime.time())
@@ -167,17 +163,22 @@ def _to_datetime64(value: Any) -> Any:
     dtype = getattr(value, "dtype", None)
     if dtype is not None and np.issubdtype(dtype, np.datetime64):
         return value
-    if isinstance(value, str):
-        parsed = _parse_datetime_bound(value)
-        if isinstance(parsed, datetime.datetime) and parsed.tzinfo is not None:
-            return np.datetime64(_normalize_naive_datetime(parsed))
-        try:
-            return np.datetime64(value)
-        except (ValueError, TypeError):
-            return np.datetime64(_normalize_naive_datetime(parsed))
-    return np.datetime64(
-        _normalize_naive_datetime(_parse_datetime_bound(value))
-    )
+    parsed = _normalize_naive_datetime(_parse_datetime_bound(value))
+    if hasattr(parsed, "to_datetime64"):
+        return parsed.to_datetime64()
+    if isinstance(parsed, (datetime.datetime, datetime.date)):
+        return np.datetime64(parsed)
+    raise ValueError(f"Cannot convert {value!r} to datetime64")
+
+
+def _to_datetime64_or_nat(value: Any) -> Any:
+    """Convert a value to np.datetime64, returning NaT for non-datetime values."""
+    import numpy as np
+
+    try:
+        return _to_datetime64(value)
+    except (ValueError, TypeError):
+        return np.datetime64("NaT", "us")
 
 
 def _is_value_in_orderable_range(
@@ -190,27 +191,30 @@ def _is_value_in_orderable_range(
     min_p = _parse_datetime_bound(min_bound)
     max_p = _parse_datetime_bound(max_bound)
 
-    if any(
-        str(getattr(v, "dtype", "")).startswith("datetime64")
-        for v in (val_p, min_p, max_p)
-    ):
-        return bool(
-            _to_datetime64(min_p)
-            <= _to_datetime64(val_p)
-            <= _to_datetime64(max_p)
-        )
+    try:
+        if any(
+            str(getattr(v, "dtype", "")).startswith("datetime64")
+            for v in (val_p, min_p, max_p)
+        ):
+            return bool(
+                _to_datetime64(min_p)
+                <= _to_datetime64(val_p)
+                <= _to_datetime64(max_p)
+            )
 
-    if all(
-        isinstance(v, (datetime.datetime, datetime.date))
-        for v in (val_p, min_p, max_p)
-    ):
-        return bool(
-            _normalize_naive_datetime(min_p)
-            <= _normalize_naive_datetime(val_p)
-            <= _normalize_naive_datetime(max_p)
-        )
+        if all(
+            isinstance(v, (datetime.datetime, datetime.date))
+            for v in (val_p, min_p, max_p)
+        ):
+            return bool(
+                _normalize_naive_datetime(min_p)
+                <= _normalize_naive_datetime(val_p)
+                <= _normalize_naive_datetime(max_p)
+            )
 
-    return bool(min_p <= val_p <= max_p)
+        return bool(min_p <= val_p <= max_p)
+    except (ValueError, TypeError):
+        return False
 
 
 def _compute_orderable_mask(arr: Any, min_parsed: Any, max_parsed: Any) -> Any:
@@ -226,15 +230,15 @@ def _compute_orderable_mask(arr: Any, min_parsed: Any, max_parsed: Any) -> Any:
     )
     if is_dt_bound or np.issubdtype(arr.dtype, np.datetime64):
         try:
+            dt_min = _to_datetime64(min_parsed)
+            dt_max = _to_datetime64(max_parsed)
             if np.issubdtype(arr.dtype, np.datetime64):
                 arr_dt = arr
             else:
-                arr_dt = np.asarray([_to_datetime64(v) for v in arr])
-            dt_min = _to_datetime64(min_parsed)
-            dt_max = _to_datetime64(max_parsed)
+                arr_dt = np.asarray([_to_datetime64_or_nat(v) for v in arr])
             return (arr_dt >= dt_min) & (arr_dt <= dt_max)
-        except Exception:
-            return (arr >= min_parsed) & (arr <= max_parsed)
+        except (ValueError, TypeError):
+            return np.zeros(len(arr), dtype=bool)
     return (arr >= min_parsed) & (arr <= max_parsed)
 
 
@@ -2001,7 +2005,9 @@ def _extract_bars_fallback(
                 pos_in_range = _is_value_in_orderable_range(
                     pos_val, pos_min, pos_max
                 )
-            else:
+            elif isinstance(pos_min, (int, float)) and isinstance(
+                pos_max, (int, float)
+            ):
                 # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
                 # Include bar if selection range strictly overlaps with bar bounds
                 bar_min = i - 0.5
