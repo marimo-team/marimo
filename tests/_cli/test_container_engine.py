@@ -21,6 +21,7 @@ from marimo._cli.containers.finch import FinchEngine
 from marimo._cli.containers.nerdctl import NerdctlEngine
 from marimo._cli.containers.podman import PodmanEngine
 from marimo._cli.containers.selection import resolve_engine
+from marimo._cli.containers.source import prepare_notebook
 
 pytestmark = pytest.mark.timeout(90)
 _IMAGE = "docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
@@ -172,3 +173,39 @@ def test_container_removes_resource_after_engine_start_fails(
     assert cleanup == CleanupComplete("removed")
     assert failure.container is not None
     assert not _exists(executable, failure.container)
+
+
+def test_container_can_replace_only_the_staged_notebook(
+    executable: str, tmp_path: Path
+) -> None:
+    original = tmp_path / "local notebook.py"
+    original.write_text("original source", encoding="utf-8")
+    (tmp_path / "adjacent.txt").touch()
+    with prepare_notebook(str(original)) as notebook:
+        (mount,) = notebook.mounts
+        staged = Path(mount.source)
+        assert notebook.path is not None
+        request = LaunchRequest(
+            _IMAGE,
+            (
+                "sh",
+                "-ec",
+                'test ! -e adjacent.txt; echo updated > temporary; mv temporary "$1"; cat "$1"',
+                "sh",
+                notebook.path,
+            ),
+            working_directory=notebook.working_directory,
+            mounts=notebook.mounts,
+        )
+        session = resolve_engine(executable).start(request)
+        assert not isinstance(session, StartFailure), session
+        try:
+            assert list(session.logs()) == ["updated\n"]
+            assert session.exit_result() == WorkloadExit(0)
+        finally:
+            assert session.close() == CleanupComplete("removed")
+        assert (staged / original.name).read_text(
+            encoding="utf-8"
+        ) == "updated\n"
+    assert not staged.exists()
+    assert original.read_text(encoding="utf-8") == "original source"

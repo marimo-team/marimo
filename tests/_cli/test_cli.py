@@ -40,6 +40,8 @@ from marimo._cli.containers.engine import (
     CleanupComplete,
     ContainerIdentity,
     EngineFailure,
+    LaunchRequest,
+    StartFailure,
     WorkloadExit,
 )
 from marimo._config.manager import get_default_config_manager
@@ -2186,6 +2188,85 @@ def test_shell_completion(
 
 
 HAS_DOCKER = DependencyManager.which("docker")
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
+@pytest.mark.parametrize("startup_fails", [False, True])
+def test_cli_stages_only_the_local_notebook(
+    mode: str,
+    startup_fails: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.chdir(tmp_path)
+    project = Path("project with spaces")
+    project.mkdir()
+    source = project / "local notebook.py"
+    source.write_text("original source", encoding="utf-8")
+    (project / "adjacent.txt").write_text("adjacent file", encoding="utf-8")
+    staged: list[Path] = []
+
+    def start(request: LaunchRequest) -> StartFailure | Mock:
+        (mount,) = request.mounts
+        staging = Path(mount.source)
+        staged.append(staging)
+        assert staging.parent == home
+        assert {path.name for path in staging.iterdir()} == {source.name}
+        assert not mount.read_only
+        assert request.argv[-1] == f"{mount.target}/{source.name}"
+        assert request.working_directory == mount.target
+        copy = staging / source.name
+        assert copy.read_text(encoding="utf-8") == "original source"
+        copy.write_text("changed copy", encoding="utf-8")
+        if startup_fails:
+            return StartFailure(
+                EngineFailure("Docker", "start", "test failure")
+            )
+        session = Mock()
+        session.identity = ContainerIdentity("Docker", "owned")
+        session.logs.return_value = iter(())
+        session.exit_result.return_value = WorkloadExit(0)
+        session.close.return_value = CleanupComplete("removed")
+        return session
+
+    with patch("marimo._cli.containers.launcher.resolve_engine") as resolve:
+        resolve.return_value.start.side_effect = start
+        result = CliRunner().invoke(
+            cli_main, [mode, str(source), "--untrusted"]
+        )
+
+    assert result.exit_code == int(startup_fails), result.exception
+    (staging,) = staged
+    assert not staging.exists()
+    assert source.read_text(encoding="utf-8") == "original source"
+    assert ("save and download" in result.output.lower()) == (mode == "edit")
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
+@pytest.mark.parametrize("form", ["directory", "missing", "multiple"])
+def test_cli_rejects_unsupported_container_inputs_before_host_execution(
+    mode: str, form: str, tmp_path: Path
+) -> None:
+    source = tmp_path / "notebook.py"
+    source.touch()
+    paths = {
+        "directory": [str(tmp_path)],
+        "missing": [str(tmp_path / "missing.py")],
+        "multiple": [str(source), str(source)],
+    }[form]
+    with (
+        patch("marimo._cli.cli.validate_name") as validate_host,
+        patch("marimo._cli.containers.launcher.resolve_engine") as resolve,
+    ):
+        result = CliRunner().invoke(cli_main, [mode, "--untrusted", *paths])
+    assert result.exit_code == 2, result.output
+    assert "notebook" in result.output
+    validate_host.assert_not_called()
+    resolve.assert_not_called()
 
 
 @pytest.mark.parametrize("mode", ["edit", "run"])

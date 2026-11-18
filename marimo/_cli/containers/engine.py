@@ -15,7 +15,7 @@ class PortMapping:
 
 
 @dataclass(frozen=True)
-class FileMount:
+class BindMount:
     source: str
     target: str
     read_only: bool = False
@@ -28,7 +28,7 @@ class LaunchRequest:
     environment: tuple[tuple[str, str], ...] = ()
     working_directory: str | None = None
     ports: tuple[PortMapping, ...] = ()
-    mounts: tuple[FileMount, ...] = ()
+    mounts: tuple[BindMount, ...] = ()
 
 
 @dataclass(frozen=True)

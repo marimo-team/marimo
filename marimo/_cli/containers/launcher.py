@@ -16,6 +16,7 @@ from marimo._cli.containers.engine import (
     WorkloadExit,
 )
 from marimo._cli.containers.selection import resolve_engine
+from marimo._cli.containers.source import prepare_notebook
 from marimo._cli.errors import MarimoCLIRuntimeError
 from marimo._cli.print import green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -111,7 +112,6 @@ def run_in_container(
     debug: bool = False,
     execute_opengraph_generators: bool = False,
 ) -> None:
-    echo(f"Starting {green('containerized')} marimo notebook")
     host = "0.0.0.0"
     if port is None:
         port = 8080
@@ -124,19 +124,32 @@ def run_in_container(
     )
     if execute_opengraph_generators:
         command.append("--execute-opengraph-generators")
-    if file_path is not None:
-        command.append(file_path)
+    with prepare_notebook(file_path) as source:
+        echo(f"Starting {green('containerized')} marimo notebook")
+        if source.mounts and mode == "edit":
+            echo(
+                "Edits apply to an isolated copy. Save and download the notebook "
+                "source before closing the container to keep your changes."
+            )
+        if source.path is not None:
+            command.append(source.path)
+        request = LaunchRequest(
+            image="ghcr.io/astral-sh/uv:0.9.25-python3.14-bookworm",
+            argv=tuple(command),
+            environment=(
+                ("MARIMO_MANAGE_SCRIPT_METADATA", "true"),
+                ("MARIMO_IN_SECURE_ENVIRONMENT", "true"),
+            ),
+            working_directory=source.working_directory,
+            ports=(PortMapping(host=port, container=port),),
+            mounts=source.mounts,
+        )
+        _run_request(request, container_engine, host, port)
 
-    request = LaunchRequest(
-        image="ghcr.io/astral-sh/uv:0.9.25-python3.14-bookworm",
-        argv=tuple(command),
-        environment=(
-            ("MARIMO_MANAGE_SCRIPT_METADATA", "true"),
-            ("MARIMO_IN_SECURE_ENVIRONMENT", "true"),
-        ),
-        working_directory="/home",
-        ports=(PortMapping(host=port, container=port),),
-    )
+
+def _run_request(
+    request: LaunchRequest, container_engine: str, host: str, port: int
+) -> None:
     session = resolve_engine(container_engine).start(request)
     if isinstance(session, StartFailure):
         _report_result(session.result, session.cleanup)

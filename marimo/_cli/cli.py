@@ -70,6 +70,7 @@ from marimo._tutorials import (
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 from marimo._utils.platform import is_windows
+from marimo._utils.url import is_url
 from marimo._version import __version__
 
 
@@ -384,7 +385,7 @@ class _OptionalValueOption(click.Option):
     type=bool,
     help=(
         "Use --trusted to run remote notebooks on the host. "
-        "Use --untrusted to run them in a container."
+        "Use --untrusted to run one remote or local notebook in a container."
     ),
 )
 @container_engine_option
@@ -514,6 +515,10 @@ def edit(
     if prompt_run_in_container(name, trusted=trusted):
         from marimo._cli.containers.launcher import run_in_container
 
+        if args and not args[0].startswith("-"):
+            raise click.UsageError(
+                "Container execution supports one notebook."
+            )
         run_in_container(
             name,
             "edit",
@@ -1003,7 +1008,7 @@ Example:
     type=bool,
     help=(
         "Use --trusted to run remote notebooks on the host. "
-        "Use --untrusted to run them in a container."
+        "Use --untrusted to run one remote or local notebook in a container."
     ),
 )
 @container_engine_option
@@ -1074,9 +1079,14 @@ def run(
         else None,
     )
 
-    if len(paths) == 1 and prompt_run_in_container(paths[0], trusted=trusted):
+    trust_input = next((path for path in paths if is_url(path)), paths[0])
+    if prompt_run_in_container(trust_input, trusted=trusted):
         from marimo._cli.containers.launcher import run_in_container
 
+        if len(paths) != 1:
+            raise click.UsageError(
+                "Container execution supports one notebook."
+            )
         config_manager = resolve_cli_config(
             current_path=paths[0], overrides=config_overrides
         )

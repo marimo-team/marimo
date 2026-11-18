@@ -109,8 +109,13 @@ class _AppleSession:
         if request.working_directory is not None:
             args.extend(("--workdir", request.working_directory))
         for mount in request.mounts:
-            mode = ":ro" if mount.read_only else ""
-            args.extend(("--volume", f"{mount.source}:{mount.target}{mode}"))
+            mode = ",readonly" if mount.read_only else ""
+            args.extend(
+                (
+                    "--mount",
+                    f"type=bind,source={mount.source},target={mount.target}{mode}",
+                )
+            )
         self.run(*args, request.image, *request.argv, timeout=None)
         self._created = True
 

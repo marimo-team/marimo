@@ -45,9 +45,9 @@ marimo behaves differently depending on how you run it:
 
 This distinction reflects the different threat models: editing is exploratory and may involve untrusted notebooks; deployed apps are intentional publications.
 
-### Remote notebooks in a container
+### Notebooks in a container
 
-Use `--untrusted` with `marimo edit` or `marimo run` to open a remote notebook in a container. Docker is the default engine.
+Use `--untrusted` with `marimo edit` or `marimo run` to open one remote or local notebook in a container. Docker is the default engine.
 Use `--container-engine` to select `podman`, `nerdctl`, `finch`, Apple `container`, or another Docker-compatible executable.
 The option takes one executable name or path. Quote paths with spaces.
 
@@ -59,6 +59,13 @@ For Apple container, install the CLI, start its service, and configure a kernel 
 
 marimo streams the notebook logs and removes the container when the notebook exits or you press Ctrl+C.
 If the notebook exits with an error, marimo reports its exit status.
+
+For a local notebook, pass the path to one existing file.
+marimo copies that file to a temporary directory and shares the copy with the container.
+The original file and its neighbors stay outside the mount.
+In edit mode, save and download the notebook source before closing the container.
+marimo deletes the temporary copy when the session ends.
+Container execution accepts one notebook and rejects directory workspaces.
 
 The selected engine uses its own certificate trust settings to pull the image.
 Package and notebook downloads use the certificates inside the container. marimo does not copy host CA certificates into the container.
