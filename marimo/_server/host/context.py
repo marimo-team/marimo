@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from marimo._core.operations import Mutations
+from marimo._server.host.agents import AgentMessaging
 
 if TYPE_CHECKING:
     from marimo._server.host.bridge import SessionBridge
@@ -21,5 +22,8 @@ class HostContext:
     port: int
     mutations: Mutations = field(init=False)
 
+    agents: AgentMessaging = field(init=False)
+
     def __post_init__(self) -> None:
         self.mutations = Mutations(self.bridge.host)
+        self.agents = AgentMessaging(self.bridge.host)

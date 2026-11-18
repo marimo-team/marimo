@@ -44,6 +44,10 @@ class InboxConnectionError(PairError):
     """Forwarder startup failed after harness readiness was confirmed."""
 
 
+class SubmissionRejectedError(PairError):
+    """Native evidence establishes that the message was not admitted."""
+
+
 class PairConnectionError(PairError):
     """A transport failure while connecting to the notebook server."""
 
@@ -435,12 +439,17 @@ def open_events(
     kind: str = "agent",
     types: str = "custom,attachment",
     read_timeout: float | None = 45,
+    messaging: bool = False,
 ) -> EventStream:
     headers = {
         ATTACHMENT_IDENTITY: identity,
         ATTACHMENT_KIND: kind,
         ATTACHMENT_NAME: name,
     }
+    if messaging:
+        from marimo._messaging.agents import MESSAGING_HEADER
+
+        headers[MESSAGING_HEADER] = "1"
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
     if cursor is not None:

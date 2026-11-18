@@ -4,13 +4,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
-import msgspec
 import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import get_default_config_manager
-from marimo._core import protocol
-from marimo._messaging.messages import AGENT_MESSAGE_TYPE
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._server.workspace import SingleFileWorkspace
@@ -74,51 +71,6 @@ async def target(
 
 def path(session: SessionImpl, operation: str) -> str:
     return f"/api/pair/notebooks/{session.stable_id}/{operation}"
-
-
-@pytest.mark.parametrize(
-    "payload", [{"cell": "x", "text": "λ"}, [1, "a"], "hello", 42, True, None]
-)
-def test_message_is_an_opaque_custom_event(
-    client: TestClient, target: tuple[SessionImpl, Notebook], payload: object
-) -> None:
-    session, notebook = target
-    notebook.attach(kind="agent", identity="codex", name="Codex")
-    notebook.attach(kind="agent", identity="claude", name="Claude")
-    events = []
-    client.app.state.host_context.bridge.host.subscribe(
-        events.append, notebook_id=notebook.id, types={"custom"}
-    )
-    response = client.post(
-        path(session, "messages"),
-        content=msgspec.json.encode(payload),
-        headers=token_header("fake-token"),
-    )
-    assert (response.status_code, response.content) == (202, b"")
-    assert len(events) == 1
-    event = events[0].event
-    assert isinstance(event, protocol.CustomEvent)
-    assert event.data.custom == protocol.Custom(
-        type=AGENT_MESSAGE_TYPE, data=payload
-    )
-
-
-@pytest.mark.parametrize("client_attached", [False, True])
-def test_message_requires_an_agent(
-    client: TestClient,
-    target: tuple[SessionImpl, Notebook],
-    client_attached: bool,
-) -> None:
-    session, notebook = target
-    if client_attached:
-        notebook.attach(kind="client")
-    response = client.post(
-        path(session, "messages"), json={}, headers=token_header("fake-token")
-    )
-    assert (response.status_code, response.json()) == (
-        409,
-        {"detail": "No agent attached"},
-    )
 
 
 def test_no_host_notebook(
@@ -189,10 +141,7 @@ def test_invalid_message_json(
         content=b"{",
         headers=token_header("fake-token"),
     )
-    assert (response.status_code, response.json()) == (
-        400,
-        {"detail": "Invalid JSON agent message payload."},
-    )
+    assert response.status_code == 400
 
 
 @pytest.mark.parametrize("operation", ["messages", "attachments/detach"])

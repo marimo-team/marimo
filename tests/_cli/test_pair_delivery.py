@@ -709,7 +709,8 @@ def test_delivery_does_not_add_error_instructions(
     files.directory = tmp_path
     text = inbox_message(payload, notebook="s_one", budget=512, files=files)
     assert (
-        text.split("\n", 1)[0] == "Agent message from marimo (notebook s_one)."
+        text.split("\n", 1)[0]
+        == "Agent message from marimo (notebook s_one). No reply is expected."
     )
     assert "Fix reported notebook errors" not in text
     assert len(text.encode("utf-8")) <= 512

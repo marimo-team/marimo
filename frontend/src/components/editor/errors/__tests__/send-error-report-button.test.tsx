@@ -38,6 +38,7 @@ import {
   stableSessionIdAtom,
 } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
+import { viewStateAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
 import { ConnectionState } from "@/core/session/types";
 import { Deferred } from "@/utils/Deferred";
@@ -128,13 +129,66 @@ function send() {
 describe("SendErrorReportButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(API.post).mockResolvedValue("");
+    vi.mocked(API.post).mockResolvedValue({
+      message_id: "m",
+      recipients: [
+        {
+          agent_id: "a",
+          name: "Pi",
+          status: "submitted",
+          reason: null,
+          detail: null,
+        },
+      ],
+    });
     vi.mocked(toast).mockReturnValue({
       id: "notice",
       dismiss: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn(),
     });
+  });
+
+  it("shows each recipient outcome from the producer", async () => {
+    vi.mocked(API.post).mockResolvedValue({
+      message_id: "m",
+      recipients: [
+        {
+          agent_id: "one",
+          name: "Codex",
+          status: "submitted",
+          reason: null,
+          detail: null,
+        },
+        {
+          agent_id: "two",
+          name: "Claude Code",
+          status: "unknown",
+          reason: "unconfirmed",
+          detail: null,
+        },
+      ],
+    });
+    renderButton();
+    send();
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Agent message outcomes",
+          description:
+            "Submitted to Codex\nSent to Claude Code; acceptance unconfirmed",
+        }),
+      ),
+    );
+    expect(toast).toHaveBeenCalledOnce();
+    expect(API.post).toHaveBeenCalledWith(
+      ROUTE,
+      expect.objectContaining({
+        message_id: expect.any(String),
+        message: REPORT,
+        broadcast: true,
+      }),
+    );
   });
 
   it("hides when host is disabled without building content", () => {
@@ -151,9 +205,21 @@ describe("SendErrorReportButton", () => {
   it.each([
     { attachments: [] },
     { attachments: [{ ...AGENT, kind: "client" as const }] },
-    { stableId: null },
-  ])("disables sending without an agent or stable ID: %j", (options) => {
-    renderButton(options);
+  ])("hides without a connected agent: %j", (options) => {
+    const getContent = vi.fn(() => REPORT);
+    renderButton({
+      ...options,
+      content: <SendErrorReportButton getContent={getContent} />,
+    });
+    expect(
+      screen.queryByRole("button", { name: "Send error to agent" }),
+    ).not.toBeInTheDocument();
+    expect(getContent).not.toHaveBeenCalled();
+    expect(API.post).not.toHaveBeenCalled();
+  });
+
+  it("disables sending without a stable session ID", () => {
+    renderButton({ stableId: null });
     expect(screen.getByRole("button")).toBeDisabled();
     send();
     expect(API.post).not.toHaveBeenCalled();
@@ -169,11 +235,18 @@ describe("SendErrorReportButton", () => {
     send();
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith({
-        title: "Sent to Pi, Claude Code",
+        title: "Submitted to Pi",
         duration: 3000,
       }),
     );
-    expect(API.post).toHaveBeenCalledWith(ROUTE, REPORT);
+    expect(API.post).toHaveBeenCalledWith(
+      ROUTE,
+      expect.objectContaining({
+        message_id: expect.any(String),
+        broadcast: true,
+        message: REPORT,
+      }),
+    );
     expect(getContent).toHaveBeenCalledOnce();
   });
 
@@ -189,14 +262,23 @@ describe("SendErrorReportButton", () => {
     expect(screen.getByRole("button")).toBeEnabled();
   });
 
-  it("disables the button after the last agent disconnects", () => {
-    const { store } = renderButton();
+  it("appears on connection and hides after the last agent disconnects", () => {
+    const { store } = renderButton({ attachments: [] });
+    expect(
+      screen.queryByRole("button", { name: "Send error to agent" }),
+    ).not.toBeInTheDocument();
+    act(() => store.set(attachmentsAtom, [AGENT]));
+    expect(
+      screen.getByRole("button", { name: "Send error to agent" }),
+    ).toBeEnabled();
     act(() => store.set(attachmentsAtom, []));
-    expect(screen.getByRole("button")).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Send error to agent" }),
+    ).not.toBeInTheDocument();
   });
 
   it.each([
-    [new HTTPError(409, "Conflict"), "No agent attached"],
+    [new HTTPError(409, "Conflict"), "Could not send error"],
     [new HTTPError(500, "Server error"), "Could not send error"],
   ])("reports request failures and permits retry", async (error, title) => {
     vi.mocked(API.post).mockRejectedValueOnce(error);
@@ -214,12 +296,67 @@ describe("SendErrorReportButton", () => {
     send();
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith({
-        title: "Sent to Pi",
+        title: "Submitted to Pi",
         duration: 3000,
       }),
     );
     expect(API.post).toHaveBeenCalledTimes(2);
-    expect(API.post).toHaveBeenLastCalledWith(ROUTE, REPORT);
+    expect(API.post).toHaveBeenLastCalledWith(
+      ROUTE,
+      expect.objectContaining({ message: REPORT }),
+    );
+  });
+
+  it("shows one action for an error with a console traceback", () => {
+    const traceback = "<pre>Traceback\nNameError: df is not defined</pre>";
+    const { store, rerender } = renderButton({
+      content: (
+        <>
+          <MarimoErrorOutput cellId={CELL_ID} code={CODE} errors={ERRORS} />
+          <MarimoTracebackOutput
+            cellId={CELL_ID}
+            code={CODE}
+            traceback={traceback}
+          />
+        </>
+      ),
+    });
+    act(() => {
+      store.set(viewStateAtom, { ...store.get(viewStateAtom), mode: "edit" });
+      store.set(
+        notebookAtom,
+        MockNotebook.notebookState({
+          cellData: { [CELL_ID]: { code: CODE } },
+          cellRuntime: {
+            [CELL_ID]: {
+              consoleOutputs: [
+                {
+                  channel: "stderr",
+                  mimetype: "application/vnd.marimo+traceback",
+                  data: traceback,
+                  code: CODE,
+                },
+              ],
+            },
+          },
+        }),
+      );
+    });
+    expect(
+      screen.getAllByRole("button", { name: "Send error to agent" }),
+    ).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Collapse traceback" }));
+    expect(
+      screen.getByRole("button", { name: "Send error to agent" }),
+    ).toBeEnabled();
+
+    act(() => store.set(notebookAtom, MockNotebook.notebookState()));
+    rerender(
+      <MarimoErrorOutput cellId={CELL_ID} code={CODE} errors={ERRORS} />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Send error to agent" }),
+    ).toBeEnabled();
   });
 
   it("sends captured code and full traceback from the error output", async () => {
@@ -239,15 +376,22 @@ describe("SendErrorReportButton", () => {
     });
     send();
     await waitFor(() =>
-      expect(API.post).toHaveBeenCalledWith(ROUTE, {
-        ...REPORT,
-        output: {
-          type: "error",
-          instructions: ERROR_MESSAGE_INSTRUCTIONS,
-          message: MESSAGE,
-          traceback: "Traceback\nNameError: df is not defined",
-        },
-      }),
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: {
+            ...REPORT,
+            output: {
+              type: "error",
+              instructions: ERROR_MESSAGE_INSTRUCTIONS,
+              message: MESSAGE,
+              traceback: "Traceback\nNameError: df is not defined",
+            },
+          },
+        }),
+      ),
     );
   });
 
@@ -279,15 +423,22 @@ describe("SendErrorReportButton", () => {
     ]);
     send();
     await waitFor(() =>
-      expect(API.post).toHaveBeenCalledWith(ROUTE, {
-        ...REPORT,
-        output: {
-          type: "error",
-          instructions: ERROR_MESSAGE_INSTRUCTIONS,
-          message: "ValueError: bad <value>",
-          traceback: "Traceback\nValueError: bad <value>",
-        },
-      }),
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: {
+            ...REPORT,
+            output: {
+              type: "error",
+              instructions: ERROR_MESSAGE_INSTRUCTIONS,
+              message: "ValueError: bad <value>",
+              traceback: "Traceback\nValueError: bad <value>",
+            },
+          },
+        }),
+      ),
     );
   });
 
@@ -313,15 +464,22 @@ describe("SendErrorReportButton", () => {
     );
     send();
     await waitFor(() =>
-      expect(API.post).toHaveBeenCalledWith(ROUTE, {
-        ...REPORT,
-        output: {
-          type: "error",
-          instructions: ERROR_MESSAGE_INSTRUCTIONS,
-          message: "ValueError: bad <value> & <other>",
-          traceback,
-        },
-      }),
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: {
+            ...REPORT,
+            output: {
+              type: "error",
+              instructions: ERROR_MESSAGE_INSTRUCTIONS,
+              message: "ValueError: bad <value> & <other>",
+              traceback,
+            },
+          },
+        }),
+      ),
     );
   });
 
@@ -375,15 +533,22 @@ describe("SendErrorReportButton", () => {
     });
     send();
     await waitFor(() =>
-      expect(API.post).toHaveBeenCalledWith(ROUTE, {
-        ...REPORT,
-        output: {
-          type: "error",
-          instructions: ERROR_MESSAGE_INSTRUCTIONS,
-          message: "cached failure",
-          traceback: "Traceback\n  failed()\nValueError: cached failure",
-        },
-      }),
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: {
+            ...REPORT,
+            output: {
+              type: "error",
+              instructions: ERROR_MESSAGE_INSTRUCTIONS,
+              message: "cached failure",
+              traceback: "Traceback\n  failed()\nValueError: cached failure",
+            },
+          },
+        }),
+      ),
     );
     expect(message?.data).toEqual([
       expect.objectContaining({ exception_type: "ValueError" }),
@@ -398,7 +563,16 @@ describe("SendErrorReportButton", () => {
     };
     rerender(<SendErrorReportButton getContent={() => updated} />);
     send();
-    await waitFor(() => expect(API.post).toHaveBeenCalledWith(ROUTE, updated));
+    await waitFor(() =>
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: updated,
+        }),
+      ),
+    );
   });
 
   it.each([
@@ -411,7 +585,16 @@ describe("SendErrorReportButton", () => {
       content: <SendErrorReportButton getContent={() => content} />,
     });
     send();
-    await waitFor(() => expect(API.post).toHaveBeenCalledWith(ROUTE, content));
+    await waitFor(() =>
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: content,
+        }),
+      ),
+    );
   });
 
   it("sends the source that raised while the host still has it", async () => {
@@ -447,7 +630,16 @@ describe("SendErrorReportButton", () => {
     );
     rerender(<StoreOutput />);
     send();
-    await waitFor(() => expect(API.post).toHaveBeenCalledWith(ROUTE, REPORT));
+    await waitFor(() =>
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: REPORT,
+        }),
+      ),
+    );
 
     // Once an edit is confirmed, the source that raised is gone.
     vi.mocked(API.post).mockClear();
@@ -456,10 +648,17 @@ describe("SendErrorReportButton", () => {
     });
     send();
     await waitFor(() =>
-      expect(API.post).toHaveBeenCalledWith(ROUTE, {
-        ...REPORT,
-        code: undefined,
-      }),
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: {
+            ...REPORT,
+            code: undefined,
+          },
+        }),
+      ),
     );
   });
 
@@ -500,16 +699,23 @@ describe("SendErrorReportButton", () => {
     );
     send();
     await waitFor(() =>
-      expect(API.post).toHaveBeenCalledWith(ROUTE, {
-        type: "cell-output",
-        cell_id: CELL_ID,
-        code: "x + 1",
-        output: {
-          type: "error",
-          instructions: ERROR_MESSAGE_INSTRUCTIONS,
-          message: "Ancestor failed",
-        },
-      }),
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: {
+            type: "cell-output",
+            cell_id: CELL_ID,
+            code: "x + 1",
+            output: {
+              type: "error",
+              instructions: ERROR_MESSAGE_INSTRUCTIONS,
+              message: "Ancestor failed",
+            },
+          },
+        }),
+      ),
     );
   });
 
@@ -525,16 +731,23 @@ describe("SendErrorReportButton", () => {
     });
     send();
     await waitFor(() =>
-      expect(API.post).toHaveBeenCalledWith(ROUTE, {
-        type: "cell-output",
-        cell_id: CELL_ID,
-        code: "slow()",
-        output: {
-          type: "error",
-          instructions: ERROR_MESSAGE_INSTRUCTIONS,
-          message: "This cell was interrupted and needs to be re-run",
-        },
-      }),
+      expect(API.post).toHaveBeenCalledWith(
+        ROUTE,
+        expect.objectContaining({
+          message_id: expect.any(String),
+          broadcast: true,
+          message: {
+            type: "cell-output",
+            cell_id: CELL_ID,
+            code: "slow()",
+            output: {
+              type: "error",
+              instructions: ERROR_MESSAGE_INSTRUCTIONS,
+              message: "This cell was interrupted and needs to be re-run",
+            },
+          },
+        }),
+      ),
     );
   });
 

@@ -7,7 +7,7 @@ import msgspec
 from starlette.authentication import requires
 from starlette.responses import Response
 
-from marimo._messaging.messages import AGENT_MESSAGE_TYPE
+from marimo._messaging.agents import MessageRequest
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._utils.http import HTTPException, HTTPStatus
@@ -24,21 +24,15 @@ async def messages(request: Request) -> Response:
     """Send any JSON content to all agents attached to the notebook."""
     state = AppState(request)
     session = state.session_by_stable_id(request.path_params["id"])
-    try:
-        payload = msgspec.json.decode(await request.body())
-    except msgspec.DecodeError as error:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="Invalid JSON agent message payload.",
-        ) from error
-
     notebook = state.notebook_for_session(session)
-    if notebook is None or not any(
-        a.kind == "agent" for a in notebook.attachments
-    ):
-        raise HTTPException(status_code=409, detail="No agent attached")
-    notebook.emit(AGENT_MESSAGE_TYPE, payload)
-    return Response(status_code=202)
+    if notebook is None or state.host_context is None:
+        raise HTTPException(status_code=409, detail="Notebook unavailable")
+    try:
+        body = msgspec.json.decode(await request.body(), type=MessageRequest)
+        result = await state.host_context.agents.send(notebook, body)
+    except (msgspec.DecodeError, ValueError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return Response(msgspec.json.encode(result), media_type="application/json")
 
 
 class DetachRequest(msgspec.Struct):

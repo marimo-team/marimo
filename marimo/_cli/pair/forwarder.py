@@ -29,6 +29,7 @@ from marimo._cli.pair.client import (
     host_api_url,
     iter_sse,
     open_events,
+    open_response,
     pump_events,
 )
 from marimo._cli.pair.connection import (
@@ -47,7 +48,14 @@ from marimo._cli.pair.target import (
     resolve_inbox_target,
     resolve_target,
 )
-from marimo._messaging.messages import AGENT_MESSAGE_TYPE
+from marimo._messaging.agents import (
+    ATTACHMENT_HEADER,
+    MESSAGE_TYPE,
+    REPORT_KEY_HEADER,
+    MessageContent,
+    PointerEvent,
+    SubmissionReport,
+)
 from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
@@ -57,7 +65,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 _LIVENESS_SECONDS = 15.0
-_BURST_SECONDS = 1.0
 _RECONNECT_MAX_SECONDS = 5.0
 
 
@@ -256,6 +263,7 @@ def _read_stream(
             identity=config.identity,
             cursor=cursor,
             name=config.target.label,
+            messaging=True,
         )
         responses.append(response)
         try:
@@ -277,6 +285,70 @@ def _wait_reconnect(inbox: Inbox, delay: float) -> bool:
     return False
 
 
+def _deliver(
+    config: ForwarderConfig,
+    inbox: Inbox,
+    pointer: PointerEvent,
+    key: str,
+    files: AgentMessageFiles,
+) -> None:
+    from urllib.parse import quote
+
+    from marimo._cli.pair.delivery import Submission
+
+    base = f"{host_api_url(config.url)}/notebooks/{quote(config.notebook, safe='')}/messages"
+    headers = {
+        ATTACHMENT_HEADER: pointer.attachment_id,
+        REPORT_KEY_HEADER: key,
+        "Content-Type": "application/json",
+    }
+    if config.token:
+        headers["Authorization"] = f"Bearer {config.token}"
+    response = open_response(
+        method="POST",
+        url=f"{base}/{quote(pointer.attempt_id, safe='')}/content",
+        headers=headers,
+        body=None,
+        read_timeout=5,
+    )
+    try:
+        content = msgspec.json.decode(
+            response.response.read(), type=MessageContent
+        )
+    finally:
+        response.close()
+    message = inbox_message(
+        content.message,
+        notebook=content.notebook,
+        sender=content.sender,
+        budget=inbox.inbox_bytes,
+        files=files,
+    )
+    try:
+        submission = inbox.send(message)
+    except (PairError, OSError):
+        submission = Submission(
+            "unknown",
+            "The harness did not confirm submission.",
+            reason="failed",
+        )
+    report = SubmissionReport(
+        pointer.attachment_id,
+        pointer.attempt_id,
+        submission.status,
+        submission.reason,
+        submission.detail,
+    )
+    response = open_response(
+        method="POST",
+        url=f"{base}/report",
+        headers=headers,
+        body=msgspec.json.encode(report),
+        read_timeout=5,
+    )
+    response.close()
+
+
 def run_forwarder(
     config: ForwarderConfig,
     inbox: Inbox,
@@ -285,19 +357,11 @@ def run_forwarder(
 ) -> None:
     files = AgentMessageFiles()
     files.cleanup()
-    pending = ""
-    flush_at = 0.0
     check_at = time.monotonic()
     attached = False
     attachment: str | None = None
     cursor: str | None = None
     reconnect_delay = 0.1
-
-    def flush() -> None:
-        nonlocal pending
-        if pending:
-            inbox.send(pending)
-            pending = ""
 
     while inbox.alive():
         attachment = None
@@ -320,8 +384,6 @@ def run_forwarder(
                     if not inbox.alive():
                         return
                     check_at = now + _LIVENESS_SECONDS
-                if pending and now >= flush_at:
-                    flush()
                 try:
                     event = incoming.get(
                         timeout=min(0.1, max(0.0, check_at - now))
@@ -329,7 +391,6 @@ def run_forwarder(
                 except queue.Empty:
                     continue
                 if event is None:
-                    flush()
                     if not attached:
                         raise PairError(
                             "The notebook stream ended before attachment was confirmed."
@@ -337,7 +398,6 @@ def run_forwarder(
                     reconnect = True
                     break
                 if isinstance(event, Exception):
-                    flush()
                     if isinstance(event, StaleNotebookError) and attached:
                         return
                     if not attached or not isinstance(
@@ -370,33 +430,20 @@ def run_forwarder(
                     reconnect_delay = 0.1
                 elif event.name == "attachment.removed":
                     if json.loads(event.data)["id"] == attachment:
-                        flush()
                         return
                 elif event.name == "custom":
                     payload = json.loads(event.data)["custom"]
-                    if payload["type"] != AGENT_MESSAGE_TYPE:
-                        if event.id is not None:
-                            cursor = event.id
-                        continue
-                    if not attached:
-                        raise PairError(
-                            "The notebook stream did not confirm its attachment."
+                    if payload["type"] == MESSAGE_TYPE:
+                        pointer = msgspec.convert(
+                            payload["data"], type=PointerEvent
                         )
-                    message = inbox_message(
-                        payload["data"],
-                        notebook=config.notebook,
-                        budget=inbox.inbox_bytes,
-                        files=files,
-                    )
-                    combined = (
-                        f"{pending}\n\n{message}" if pending else message
-                    )
-                    if len(combined.encode("utf-8")) > inbox.inbox_bytes:
-                        flush()
-                        combined = message
-                    if not pending:
-                        flush_at = time.monotonic() + _BURST_SECONDS
-                    pending = combined
+                        response = responses[-1]
+                        own_attachment = response.response.getheader(
+                            ATTACHMENT_HEADER
+                        )
+                        key = response.response.getheader(REPORT_KEY_HEADER)
+                        if pointer.attachment_id == own_attachment and key:
+                            _deliver(config, inbox, pointer, key, files)
                 if event.id is not None:
                     cursor = event.id
         finally:

@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
 
 import msgspec
 import pytest
@@ -90,7 +91,13 @@ def opencode_server() -> Iterator[tuple[OpenCodeServer, str]]:
                             )
                         )
                     )
-                    body = {}
+                    body = {
+                        "data": {
+                            "id": "msg_one",
+                            "type": "user",
+                            "sessionID": "ses_one",
+                        }
+                    }
                 elif self.command == "GET" and self.path == "/api/info":
                     body = {"pid": state.pid, "version": state.version}
                 elif self.command != "GET" or location != [os.getcwd()]:
@@ -362,12 +369,18 @@ def test_detached_forwarder_to_opencode(
                 }
                 request = urllib.request.Request(
                     f"{notebook.url}/api/pair/notebooks/{notebook.stable_session_id}/messages",
-                    data=json.dumps(message).encode(),
+                    data=json.dumps(
+                        {
+                            "message_id": str(uuid4()),
+                            "message": message,
+                            "broadcast": True,
+                        }
+                    ).encode(),
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
                 with urllib.request.urlopen(request, timeout=5) as response:
-                    assert response.status == 202
+                    assert response.status == 200
                 received = state.messages.get(timeout=5)
                 assert received["delivery"] == "queue"
                 assert (
