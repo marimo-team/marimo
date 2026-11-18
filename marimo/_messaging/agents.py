@@ -14,6 +14,8 @@ MESSAGE_TYPE = "marimo.agents.pointer.v1"
 MESSAGING_HEADER = "Marimo-Agent-Messaging"
 ATTACHMENT_HEADER = "Marimo-Agent-Attachment"
 REPORT_KEY_HEADER = "Marimo-Agent-Report-Key"
+MAX_MESSAGE_BYTES = 4 * 1024 * 1024
+MAX_SENDER_LENGTH = 64
 SubmissionStatus = Literal["submitted", "rejected", "unknown"]
 SubmissionReason = Literal[
     "not-connected",
@@ -113,6 +115,25 @@ class AgentContextUnavailableError(AgentError):
 
 class SendOutcomeUnknownError(AgentError):
     """The overall response was lost after possible dispatch."""
+
+
+def validate_sender(sender: str | None) -> None:
+    if sender is None:
+        return
+    if not isinstance(sender, str):
+        raise TypeError("sender must be a string")
+    if len(sender) > MAX_SENDER_LENGTH or (
+        sender and sender.splitlines() != [sender]
+    ):
+        raise ValueError("sender must be one line of at most 64 characters")
+
+
+def validate_message_size(message: Any) -> int:
+    """Check the encoded content limit and return its size in bytes."""
+    size = len(msgspec.json.encode(message))
+    if size > MAX_MESSAGE_BYTES:
+        raise ValueError("Message exceeds 4 MB of encoded JSON")
+    return size
 
 
 def validate_recipient(to: str) -> None:

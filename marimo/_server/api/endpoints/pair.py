@@ -15,21 +15,29 @@ from marimo._utils.http import HTTPException, HTTPStatus
 if TYPE_CHECKING:
     from starlette.requests import Request
 
+    from marimo._core.notebook import Notebook
+    from marimo._server.host.agents import AgentMessaging
+
 pair_router = APIRouter()
+
+
+def _messaging_target(request: Request) -> tuple[Notebook, AgentMessaging]:
+    state = AppState(request)
+    session = state.session_by_stable_id(request.path_params["id"])
+    notebook = state.notebook_for_session(session)
+    if notebook is None or state.host_context is None:
+        raise HTTPException(status_code=409, detail="Notebook unavailable")
+    return notebook, state.host_context.agents
 
 
 @pair_router.post("/notebooks/{id}/messages", include_in_schema=False)
 @requires("edit")
 async def messages(request: Request) -> Response:
     """Send any JSON content to all agents attached to the notebook."""
-    state = AppState(request)
-    session = state.session_by_stable_id(request.path_params["id"])
-    notebook = state.notebook_for_session(session)
-    if notebook is None or state.host_context is None:
-        raise HTTPException(status_code=409, detail="Notebook unavailable")
+    notebook, messaging = _messaging_target(request)
     try:
         # Do not cache raw content while the call waits for submission reports.
-        result = await state.host_context.agents.send(
+        result = await messaging.send(
             notebook,
             msgspec.json.decode(
                 b"".join([chunk async for chunk in request.stream()]),
@@ -74,12 +82,8 @@ async def detach(request: Request) -> Response:
 @requires("edit")
 async def agents(request: Request) -> Response:
     """List the logical agents that can receive messages."""
-    state = AppState(request)
-    session = state.session_by_stable_id(request.path_params["id"])
-    notebook = state.notebook_for_session(session)
-    if notebook is None or state.host_context is None:
-        raise HTTPException(status_code=409, detail="Notebook unavailable")
-    listing = state.host_context.agents.list(notebook)
+    notebook, messaging = _messaging_target(request)
+    listing = messaging.list(notebook)
     return Response(
         msgspec.json.encode(listing), media_type="application/json"
     )

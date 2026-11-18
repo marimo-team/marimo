@@ -15,7 +15,9 @@ from marimo._messaging.agents import (
     SendOutcomeUnknownError,
     SendResult,
     validate_message,
+    validate_message_size,
     validate_recipient,
+    validate_sender,
     validate_timeout,
 )
 
@@ -77,15 +79,8 @@ def _send(
 
     timeout = validate_timeout(timeout)
     validate_message(message)
-    if sender is not None:
-        if not isinstance(sender, str):
-            raise TypeError("sender must be a string")
-        if len(sender) > 64 or (sender and sender.splitlines() != [sender]):
-            raise ValueError(
-                "sender must be one line of at most 64 characters"
-            )
-    if len(msgspec.json.encode(message)) > 4 * 1024 * 1024:
-        raise ValueError("Message exceeds 4 MB of encoded JSON")
+    validate_sender(sender)
+    validate_message_size(message)
     value = call(
         _connection(),
         "broadcast" if to is None else "send",

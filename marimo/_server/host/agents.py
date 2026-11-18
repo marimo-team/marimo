@@ -27,6 +27,8 @@ from marimo._messaging.agents import (
     SubmissionReason,
     SubmissionReport,
     SubmissionStatus,
+    validate_message_size,
+    validate_sender,
 )
 
 if TYPE_CHECKING:
@@ -82,31 +84,24 @@ class AgentMessaging:
                 self._expire(attempt)
                 self._finish(attempt, "disconnected")
 
-    def _recipients(
-        self, notebook: Notebook, body: MessageRequest
-    ) -> dict[str, protocol.Attachment | None]:
-        recipients: dict[str, protocol.Attachment | None] = {
+    def _capable_attachments(
+        self, notebook: Notebook
+    ) -> dict[str, protocol.Attachment]:
+        return {
             candidate.identity or candidate.id: candidate
             for candidate in notebook.attachments
             if candidate.kind == "agent" and candidate.id in self._keys
         }
-        if body.broadcast:
-            return recipients
-        assert body.to is not None
-        return {body.to: recipients.get(body.to)}
 
     def list(self, notebook: Notebook) -> tuple[AgentInfo, ...]:
         """Return capable agents in stable first connection order."""
-        recipients = self._recipients(
-            notebook, MessageRequest("", None, broadcast=True)
-        )
+        recipients = self._capable_attachments(notebook)
         first = self._first_connection.get(notebook.id, {})
         return tuple(
             AgentInfo(identity, attachment.name or identity)
             for identity, attachment in sorted(
                 recipients.items(), key=lambda item: (first[item[0]], item[0])
             )
-            if attachment is not None
         )
 
     async def send(
@@ -118,24 +113,20 @@ class AgentMessaging:
             raise ValueError("Select one agent or an explicit broadcast")
         if not math.isfinite(body.timeout) or body.timeout <= 0:
             raise ValueError("timeout must be positive and finite")
-        if body.sender is not None and (
-            len(body.sender) > 64
-            or (body.sender and body.sender.splitlines() != [body.sender])
-        ):
-            raise ValueError(
-                "sender must be one line of at most 64 characters"
-            )
+        validate_sender(body.sender)
         deadline = self._clock() + body.timeout
-        recipients = self._recipients(notebook, body)
+        capable = self._capable_attachments(notebook)
+        recipients: dict[str, protocol.Attachment | None] = dict(capable)
+        if not body.broadcast:
+            assert body.to is not None
+            recipients = {body.to: capable.get(body.to)}
         recent = self._recent.setdefault(notebook.id, deque(maxlen=1024))
         if message_id in recent or any(
             a.notebook_id == notebook.id and a.message_id == message_id
             for a in self._pending.values()
         ):
             raise ValueError("Message ID is already held")
-        content_bytes = len(msgspec.json.encode(body.message))
-        if content_bytes > 4 * 1024 * 1024:
-            raise ValueError("Message exceeds 4 MB of encoded JSON")
+        content_bytes = validate_message_size(body.message)
         pending = [
             a
             for a in self._pending.values()
