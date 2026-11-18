@@ -49,6 +49,25 @@ def get_attached_duckdb_catalogs() -> set[str]:
         return set()
 
 
+def get_attached_duckdb_catalog_ids() -> set[tuple[str, int]]:
+    """Fetch `(name, oid)` for each catalog attached to the default DuckDB connection.
+
+    Unlike names alone, the OID changes when a catalog is re-attached, so
+    swapping the database behind an alias is detectable.
+    """
+    import duckdb
+
+    try:
+        result = duckdb.sql(
+            "SELECT database_name, database_oid FROM duckdb_databases()"
+        )
+        if result is None:
+            return set()
+        return {(row[0].lower(), row[1]) for row in result.fetchall()}
+    except Exception:
+        return set()
+
+
 @dataclass(frozen=True)
 class _CatalogSchema:
     """DuckDB schema metadata with an OID and ordered path within a database."""

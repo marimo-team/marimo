@@ -53,7 +53,7 @@ from marimo._runtime.side_effect import SideEffect
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
-    get_attached_duckdb_catalogs,
+    get_attached_duckdb_catalog_ids,
 )
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
@@ -176,24 +176,10 @@ def _broadcast_data_source_connection(
 
 
 class _DuckDBDatasourceBroadcaster:
-    """Broadcasts the internal DuckDB connection when a cell changes it.
-
-    Scanning the cell's SQL strings misses changes made indirectly, e.g. an
-    `ATTACH` inside a function defined elsewhere, so we also compare the
-    attached catalogs against the last ones seen.
-    """
+    """Broadcasts the internal DuckDB connection when a cell changes it."""
 
     def __init__(self) -> None:
-        self._last_catalogs: set[str] | None = None
-
-    def _catalogs_changed(self) -> bool:
-        # Only inspect DuckDB once user code has imported it.
-        if not DependencyManager.duckdb.imported():
-            return False
-        catalogs = get_attached_duckdb_catalogs()
-        changed = catalogs != self._last_catalogs
-        self._last_catalogs = catalogs
-        return changed
+        self._broadcast_catalogs: set[tuple[str, int]] | None = None
 
     @kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")
     def __call__(
@@ -209,7 +195,12 @@ class _DuckDBDatasourceBroadcaster:
             return
 
         try:
-            catalogs_changed = self._catalogs_changed()
+            catalogs = (
+                get_attached_duckdb_catalog_ids()
+                if DependencyManager.duckdb.imported()
+                else None
+            )
+            catalogs_changed = catalogs != self._broadcast_catalogs
             modifies_datasources = any(
                 has_updates_to_datasource(sql) for sql in cell.sqls
             )
@@ -226,6 +217,7 @@ class _DuckDBDatasourceBroadcaster:
                     ]
                 )
             )
+            self._broadcast_catalogs = catalogs
         except Exception:
             return
 
