@@ -702,6 +702,26 @@ class TestBroadcastInternalDuckDB:
             _internal_duckdb_notifications(stream)[-1]
         )
 
+    async def test_preserves_pending_default_connection_result(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"), code="import duckdb"
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("1"), code='duckdb.execute("SELECT 42")'
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("2"), code="rows = duckdb.fetchall()"
+                ),
+            ]
+        )
+        assert k.globals["rows"] == [(42,)]
+
     async def test_no_broadcast_when_catalogs_unchanged(
         self, mocked_kernel: MockedKernel
     ) -> None:

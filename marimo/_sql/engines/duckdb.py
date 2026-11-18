@@ -54,16 +54,22 @@ def get_attached_duckdb_catalog_ids() -> set[tuple[str, int]]:
 
     Unlike names alone, the OID changes when a catalog is re-attached, so
     swapping the database behind an alias is detectable.
+
+    Queries through a cursor so the user's pending result on the default
+    connection is preserved. `temp` is per-connection, so its OID differs
+    on every cursor and is excluded.
     """
     import duckdb
 
+    default = duckdb.default_connection
+    connection = default() if callable(default) else default
     try:
-        result = duckdb.sql(
-            "SELECT database_name, database_oid FROM duckdb_databases()"
-        )
-        if result is None:
-            return set()
-        return {(row[0].lower(), row[1]) for row in result.fetchall()}
+        with connection.cursor() as cursor:
+            rows = cursor.sql(
+                "SELECT database_name, database_oid FROM duckdb_databases() "
+                "WHERE database_name != 'temp'"
+            ).fetchall()
+        return {(name.lower(), oid) for name, oid in rows}
     except Exception:
         return set()
 
