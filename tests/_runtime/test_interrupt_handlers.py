@@ -146,7 +146,7 @@ async def test_sigint_with_suspended_async_task_cancels_without_raising() -> (
     internals and surface as an internal-error empty RunResult."""
     sched = MagicMock()
     sched.has_active_tasks.return_value = True
-    sched.owns_task.return_value = False
+    sched.is_running_cell_body.return_value = False
 
     ctx = MagicMock(spec=KernelRuntimeContext)
     ctx.execution_context = None

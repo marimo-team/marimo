@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from contextvars import ContextVar
+from contextlib import nullcontext
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -16,18 +16,12 @@ from marimo._types.globals import MutableGlobals
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from contextlib import AbstractContextManager
 
     from marimo._ast.cell import CellImpl
 
 
 LOGGER = _loggers.marimo_logger()
-
-# Whether the current task is inside `Executor.execute_cell_async`, where
-# a `MarimoInterrupt` becomes the cell's result. Set per task, so a cell's
-# lifecycle hooks and other tasks read `False`.
-running_cell_body: ContextVar[bool] = ContextVar(
-    "running_cell_body", default=False
-)
 
 
 class Evaluator:
@@ -42,7 +36,11 @@ class Evaluator:
         self.lifecycles: list[ExecutionLifecycle] = lifecycles
 
     async def evaluate(
-        self, cell: CellImpl, glbls: MutableGlobals
+        self,
+        cell: CellImpl,
+        glbls: MutableGlobals,
+        *,
+        body: AbstractContextManager[None] | None = None,
     ) -> RunResult:
         """Compose `ExecutionLifecycle`s around an `Executor` run.
 
@@ -63,14 +61,12 @@ class Evaluator:
                 else RunResult(output=None, exception=None)
             )
         else:
-            token = running_cell_body.set(True)
             try:
-                value = await self.executor.execute_cell_async(cell, glbls)
+                with body if body is not None else nullcontext():
+                    value = await self.executor.execute_cell_async(cell, glbls)
                 result = RunResult(output=value, exception=None)
             except BaseException as e:
                 result = RunResult(output=None, exception=e)
-            finally:
-                running_cell_body.reset(token)
 
         return self._teardown_chain(cell, glbls, completed, result)
 

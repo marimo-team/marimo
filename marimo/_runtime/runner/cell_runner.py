@@ -554,9 +554,11 @@ class Runner:
         """Evaluate `cell`. Coroutine cells run as a scheduler-tracked
         task so the SIGINT-handler's `cancel_all` can preempt them — a
         plain `await` is not cancellable from another thread."""
-        coro = self._evaluator.evaluate(cell, self.glbls)
         if not cell.is_coroutine():
-            return await coro
+            return await self._evaluator.evaluate(cell, self.glbls)
+        coro = self._evaluator.evaluate(
+            cell, self.glbls, body=self._scheduler.cell_body(cell.cell_id)
+        )
         try:
             async with self._scheduler.start_task(cell.cell_id, coro) as task:
                 return await task

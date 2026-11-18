@@ -11,7 +11,6 @@ from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt
-from marimo._runtime.executor.evaluator import running_cell_body
 from marimo._utils.signals import SigintHandler
 
 LOGGER = _loggers.marimo_logger()
@@ -65,9 +64,7 @@ def construct_interrupt_handler() -> SigintHandler:
                 )
 
         if sched is not None and sched.has_active_tasks():
-            if running_cell_body.get() and sched.owns_task(
-                asyncio.current_task()
-            ):
+            if sched.is_running_cell_body(asyncio.current_task()):
                 # The cell's body is running, so a cancel would wait for
                 # its next `await`. Raise into it like a sync cell. Do not
                 # also cancel the task: the cancel would interrupt the
