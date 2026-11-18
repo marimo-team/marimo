@@ -28,8 +28,14 @@ async def messages(request: Request) -> Response:
     if notebook is None or state.host_context is None:
         raise HTTPException(status_code=409, detail="Notebook unavailable")
     try:
-        body = msgspec.json.decode(await request.body(), type=MessageRequest)
-        result = await state.host_context.agents.send(notebook, body)
+        # Do not cache raw content while the call waits for submission reports.
+        result = await state.host_context.agents.send(
+            notebook,
+            msgspec.json.decode(
+                b"".join([chunk async for chunk in request.stream()]),
+                type=MessageRequest,
+            ),
+        )
     except (msgspec.DecodeError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     return Response(msgspec.json.encode(result), media_type="application/json")

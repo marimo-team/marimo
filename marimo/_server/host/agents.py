@@ -8,6 +8,7 @@ import hmac
 import math
 import secrets
 import time
+from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -37,11 +38,13 @@ if TYPE_CHECKING:
 
 @dataclass
 class _Attempt:
+    message_id: UUID
     notebook_id: str
     attachment_id: str
     agent_id: str
     name: str | None
     content: MessageContent | None
+    content_bytes: int
     result: asyncio.Future[RecipientResult]
     fetch_deadline: float
     deadline: float
@@ -62,6 +65,7 @@ class AgentMessaging:
         self._host = host
         self._keys: dict[str, tuple[str, str]] = {}
         self._pending: dict[str, _Attempt] = {}
+        self._recent: dict[str, deque[UUID]] = {}
         self._unsubscribe = host.subscribe(self._observe)
 
     def register(self, notebook: Notebook, attachment_id: str) -> str:
@@ -92,13 +96,45 @@ class AgentMessaging:
     async def send(
         self, notebook: Notebook, body: MessageRequest
     ) -> SendResult:
-        UUID(body.message_id)
+        message_id_text = body.message_id
+        message_id = UUID(message_id_text)
         if (body.to is None) == (not body.broadcast) or body.to == "":
             raise ValueError("Select one agent or an explicit broadcast")
         if not math.isfinite(body.timeout) or body.timeout <= 0:
             raise ValueError("timeout must be positive and finite")
         deadline = self._clock() + body.timeout
         recipients = self._recipients(notebook, body)
+        recent = self._recent.setdefault(notebook.id, deque(maxlen=1024))
+        if message_id in recent or any(
+            a.notebook_id == notebook.id and a.message_id == message_id
+            for a in self._pending.values()
+        ):
+            raise ValueError("Message ID is already held")
+        content_bytes = len(msgspec.json.encode(body.message))
+        if content_bytes > 4 * 1024 * 1024:
+            raise ValueError("Message exceeds 4 MB of encoded JSON")
+        pending = [
+            a
+            for a in self._pending.values()
+            if a.notebook_id == notebook.id and not a.result.done()
+        ]
+        if (
+            len(pending) + sum(a is not None for a in recipients.values())
+            > 1024
+        ):
+            raise ValueError("Notebook exceeds 1024 pending attempts")
+        retained = {
+            id(a.content): a.content_bytes
+            for a in pending
+            if a.content is not None
+        }
+        if (
+            sum(retained.values())
+            + (content_bytes if any(recipients.values()) else 0)
+            > 64 * 1024 * 1024
+        ):
+            raise ValueError("Notebook exceeds 64 MB of pending content")
+        recent.append(message_id)
         content = MessageContent(
             body.message,
             self._host.notebooks[notebook.id].path or notebook.id,
@@ -109,11 +145,13 @@ class AgentMessaging:
         try:
             for identity, attachment in recipients.items():
                 attempt = _Attempt(
+                    message_id,
                     notebook.id,
                     attachment.id if attachment else "",
                     identity,
                     attachment.name if attachment else None,
                     content,
+                    content_bytes,
                     loop.create_future(),
                     min(deadline, self._clock() + 5.0),
                     deadline,
@@ -136,7 +174,7 @@ class AgentMessaging:
                             )
                         ),
                     )
-            del content
+            del content, body
             while pending := [
                 a for a in attempts.values() if not a.result.done()
             ]:
@@ -158,7 +196,7 @@ class AgentMessaging:
                 for attempt in pending:
                     self._expire(attempt)
             return SendResult(
-                body.message_id,
+                message_id_text,
                 tuple(a.result.result() for a in attempts.values()),
             )
         finally:
@@ -230,10 +268,13 @@ class AgentMessaging:
         self._unsubscribe()
         for attachment_id in list(self._keys):
             self.unregister(attachment_id)
+        self._recent.clear()
 
     def _observe(self, event: RoutedEvent) -> None:
         if isinstance(event.event, protocol.AttachmentRemovedEvent):
             self.unregister(event.event.data.id)
+        elif isinstance(event.event, protocol.NotebookRemovedEvent):
+            self._recent.pop(event.event.data.id, None)
 
     def _expire(self, attempt: _Attempt) -> None:
         deadline = (

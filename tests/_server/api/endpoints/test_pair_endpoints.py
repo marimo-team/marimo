@@ -207,3 +207,67 @@ def test_sessions_include_host_notebook_id(
             "path": session.app_file_manager.path,
         }
     }
+
+
+def test_message_id_is_returned_and_cannot_be_reused(
+    client: TestClient, target: tuple[SessionImpl, Notebook]
+) -> None:
+    from uuid import uuid4
+
+    session, _ = target
+    message_id = str(uuid4())
+    body = {"message_id": message_id, "message": "hello", "broadcast": True}
+    response = client.post(
+        path(session, "messages"),
+        json=body,
+        headers=token_header("fake-token"),
+    )
+    assert response.json() == {"message_id": message_id, "recipients": []}
+    body["message_id"] = message_id.upper()
+    response = client.post(
+        path(session, "messages"),
+        json=body,
+        headers=token_header("fake-token"),
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("message_id", ["invalid", "", "123"])
+def test_invalid_message_id(
+    client: TestClient, target: tuple[SessionImpl, Notebook], message_id: str
+) -> None:
+    session, _ = target
+    response = client.post(
+        path(session, "messages"),
+        json={"message_id": message_id, "message": "hello", "broadcast": True},
+        headers=token_header("fake-token"),
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["x" * (4 * 1024 * 1024 - 1), "😀" * 1048576],
+    ids=["ascii", "utf8"],
+)
+def test_message_limit_counts_encoded_json(
+    client: TestClient, target: tuple[SessionImpl, Notebook], message: str
+) -> None:
+    from uuid import uuid4
+
+    session, _ = target
+    message_id = str(uuid4())
+    body = {"message_id": message_id, "message": message, "broadcast": True}
+    response = client.post(
+        path(session, "messages"),
+        json=body,
+        headers=token_header("fake-token"),
+    )
+    assert response.status_code == 400
+    body["message"] = "small"
+    response = client.post(
+        path(session, "messages"),
+        json=body,
+        headers=token_header("fake-token"),
+    )
+    assert response.status_code == 200

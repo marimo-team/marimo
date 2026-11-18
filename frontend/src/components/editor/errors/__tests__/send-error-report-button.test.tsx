@@ -277,6 +277,32 @@ describe("SendErrorReportButton", () => {
     expect(getContent).toHaveBeenCalledOnce();
   });
 
+  it("makes a new UUID before each request", async () => {
+    const ids: string[] = [];
+    vi.mocked(API.post).mockImplementation(async (_route, body) => {
+      if (
+        body == null ||
+        typeof body !== "object" ||
+        !("message_id" in body) ||
+        typeof body.message_id !== "string"
+      ) {
+        throw new Error("Expected a message with a Message ID");
+      }
+      const { message_id } = body;
+      expect(message_id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+      ids.push(message_id);
+      return { message_id, recipients: [] };
+    });
+    renderButton();
+    send();
+    await waitFor(() => expect(screen.getByRole("button")).toBeEnabled());
+    send();
+    await waitFor(() => expect(ids).toHaveLength(2));
+    expect(ids[0]).not.toBe(ids[1]);
+  });
+
   it("prevents duplicate sends while a request is pending", async () => {
     const deferred = new Deferred<string>();
     vi.mocked(API.post).mockReturnValue(deferred.promise);

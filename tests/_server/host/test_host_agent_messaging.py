@@ -74,20 +74,33 @@ class MessagingRoutes:
     def attempt_id(self) -> str:
         return next(
             r["data"]["custom"]["data"]["attempt_id"]
-            for r in self.stream.records
+            for r in reversed(self.stream.records)
             if r.get("event") == "custom"
         )
 
-    async def start(self, timeout: float = 30) -> asyncio.Task[SendResult]:
+    async def start(
+        self,
+        timeout: float = 30,
+        *,
+        message: str = "private",
+        broadcast: bool = False,
+    ) -> asyncio.Task[SendResult]:
+        count = self.stream.names().count("custom")
         task = asyncio.create_task(
             self.service.send(
                 await self.harness.host.notebook(self.harness.notebook_id),
                 MessageRequest(
-                    str(uuid4()), "private", to="k1", timeout=timeout
+                    str(uuid4()),
+                    message,
+                    to=None if broadcast else "k1",
+                    broadcast=broadcast,
+                    timeout=timeout,
                 ),
             )
         )
-        await wait_for(self.stream, lambda r: "custom" in r.names())
+        await wait_for(
+            self.stream, lambda r: r.names().count("custom") > count
+        )
         return task
 
     async def fetch(self) -> Response:
@@ -200,3 +213,195 @@ async def test_content_is_single_use_and_reports_are_final(
     assert (await messaging.report()).status == 409
     assert (await messaging.fetch()).status == 409
     assert (await send).recipients[0].status == "submitted"
+
+
+async def test_attempt_limit_refuses_the_whole_broadcast(
+    messaging: MessagingRoutes,
+) -> None:
+    notebook = await messaging.harness.host.notebook(
+        messaging.harness.notebook_id
+    )
+    second, stream_task, disconnect = request(
+        messaging.harness.app,
+        "GET",
+        f"/notebooks/{notebook.id}/events",
+        headers={
+            **IDENTIFIED,
+            "Marimo-Attachment-Identity": "k2",
+            MESSAGING_HEADER: "1",
+        },
+    )
+    await wait_for(second, until_ready)
+    sends = []
+    try:
+        for _ in range(1023):
+            sends.append(await messaging.start())
+            await asyncio.sleep(0)
+        before = len(messaging.stream.records)
+        with pytest.raises(ValueError, match="1024"):
+            await asyncio.wait_for(
+                messaging.service.send(
+                    notebook,
+                    MessageRequest(str(uuid4()), "overflow", broadcast=True),
+                ),
+                1,
+            )
+        await asyncio.sleep(0)
+        assert len(messaging.stream.records) == before
+        sends.append(await messaging.start())
+        with pytest.raises(ValueError, match="1024"):
+            await asyncio.wait_for(
+                messaging.service.send(
+                    notebook, MessageRequest(str(uuid4()), "overflow", to="k1")
+                ),
+                1,
+            )
+        messaging.clock.advance(5)
+        await asyncio.gather(*sends)
+        send = await messaging.start()
+        assert (await messaging.fetch()).status == 200
+        assert (await messaging.report()).status == 204
+        assert (await send).recipients[0].status == "submitted"
+    finally:
+        for send in sends:
+            send.cancel()
+        await asyncio.gather(*sends, return_exceptions=True)
+        disconnect()
+        await stream_task
+
+
+async def test_content_limit_counts_a_broadcast_once_and_releases_after_fetch(
+    messaging: MessagingRoutes,
+) -> None:
+    h = messaging.harness
+    second, stream_task, disconnect = request(
+        h.app,
+        "GET",
+        f"/notebooks/{h.notebook_id}/events",
+        headers={
+            **IDENTIFIED,
+            "Marimo-Attachment-Identity": "k2",
+            MESSAGING_HEADER: "1",
+        },
+    )
+    await wait_for(second, until_ready)
+    sends = []
+    notebook = await h.host.notebook(h.notebook_id)
+    message = "x" * (4 * 1024 * 1024 - 2)
+    overflow_id = str(uuid4())
+
+    async def overflow() -> SendResult:
+        return await asyncio.wait_for(
+            messaging.service.send(
+                notebook, MessageRequest(overflow_id, message, broadcast=True)
+            ),
+            1,
+        )
+
+    try:
+        for _ in range(16):
+            sends.append(
+                await messaging.start(message=message, broadcast=True)
+            )
+        before = len(messaging.stream.records)
+        with pytest.raises(ValueError, match="64 MB"):
+            await overflow()
+        await asyncio.sleep(0)
+        assert len(messaging.stream.records) == before
+        pointers = [
+            r["data"]["custom"]["data"]
+            for r in messaging.stream.records
+            if r.get("event") == "custom"
+        ]
+        first = pointers[:2]
+        assert first[0]["message_id"] == first[1]["message_id"]
+        for index, pointer in enumerate(first):
+            headers = (
+                messaging.headers
+                if pointer["agent_id"] == "k1"
+                else {
+                    **IDENTIFIED,
+                    ATTACHMENT_HEADER: second.headers[
+                        ATTACHMENT_HEADER.lower()
+                    ],
+                    REPORT_KEY_HEADER: second.headers[
+                        REPORT_KEY_HEADER.lower()
+                    ],
+                }
+            )
+            response = await finished(
+                h.app,
+                "POST",
+                messaging.path + f"/{pointer['attempt_id']}/content",
+                headers=headers,
+            )
+            assert response.json()["message"] == message
+            if index == 0:
+                with pytest.raises(ValueError, match="64 MB"):
+                    await overflow()
+        accepted = asyncio.create_task(overflow())
+        sends.append(accepted)
+        await wait_for(messaging.stream, lambda r: len(r.records) > before)
+        assert not accepted.done()
+    finally:
+        for send in sends:
+            send.cancel()
+        await asyncio.gather(*sends, return_exceptions=True)
+        disconnect()
+        await stream_task
+
+
+async def test_duplicate_message_id_never_creates_another_attempt(
+    messaging: MessagingRoutes,
+) -> None:
+    notebook = await messaging.harness.host.notebook(
+        messaging.harness.notebook_id
+    )
+    send = await messaging.start()
+    pointer = next(
+        r["data"]["custom"]["data"]
+        for r in messaging.stream.records
+        if r.get("event") == "custom"
+    )
+    before = len(messaging.stream.records)
+    try:
+        for message_id in [
+            pointer["message_id"],
+            pointer["message_id"].upper(),
+        ]:
+            with pytest.raises(ValueError, match="Message ID"):
+                await asyncio.wait_for(
+                    messaging.service.send(
+                        notebook,
+                        MessageRequest(
+                            message_id, "duplicate", broadcast=True
+                        ),
+                    ),
+                    1,
+                )
+        await asyncio.sleep(0)
+        assert len(messaging.stream.records) == before
+        assert (await messaging.fetch()).json()["message"] == "private"
+        assert (await messaging.report()).status == 204
+        assert (await send).message_id == pointer["message_id"]
+    finally:
+        send.cancel()
+        await asyncio.gather(send, return_exceptions=True)
+
+
+async def test_oversize_message_emits_no_pointer(
+    messaging: MessagingRoutes,
+) -> None:
+    notebook = await messaging.harness.host.notebook(
+        messaging.harness.notebook_id
+    )
+    before = len(messaging.stream.records)
+    with pytest.raises(ValueError, match="4 MB"):
+        await messaging.service.send(
+            notebook,
+            MessageRequest(
+                str(uuid4()), "x" * (4 * 1024 * 1024 - 1), broadcast=True
+            ),
+        )
+    await asyncio.sleep(0)
+    assert len(messaging.stream.records) == before
