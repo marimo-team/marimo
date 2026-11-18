@@ -55,7 +55,7 @@ const FallbackComponent: React.FC<FallbackProps> = (props) => {
         </Dialog>
         <Button
           data-testid="reset-error-boundary-button"
-          // WASM workers and their initialization promises survive React resets.
+          // WASM initialization promises survive React resets, so reload to retry.
           onClick={requiresReload ? reloadSafe : props.resetErrorBoundary}
           variant="outline"
         >
