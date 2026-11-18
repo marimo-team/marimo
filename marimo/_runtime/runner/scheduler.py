@@ -25,7 +25,6 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from contextlib import asynccontextmanager, contextmanager
-from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._runtime import dataflow
@@ -70,17 +69,12 @@ class Scheduler(Protocol):
     ) -> AbstractAsyncContextManager[asyncio.Task[RunResult]]: ...
     def has_active_tasks(self) -> bool: ...
     def owns_task(self, task: asyncio.Task[Any] | None) -> bool: ...
-    def cell_body(self, cell_id: CellId_t) -> AbstractContextManager[None]: ...
+    def cell_body(self) -> AbstractContextManager[None]: ...
     def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool: ...
     def cancel_all(self) -> None: ...
 
     async def __aenter__(self) -> Self: ...
     async def __aexit__(self, *exc_info: object) -> None: ...
-
-
-_RUNNING_CELL_SCHEDULER: ContextVar[Scheduler | None] = ContextVar(
-    "running_cell_scheduler", default=None
-)
 
 
 class SequentialScheduler:
@@ -220,23 +214,38 @@ class SequentialScheduler:
         return task is not None and task in self._active.values()
 
     @contextmanager
-    def cell_body(self, cell_id: CellId_t) -> Iterator[None]:
-        del cell_id
-        token = None
+    def cell_body(self) -> Iterator[None]:
+        """Mark the current task as executing one of this run's cell bodies.
+
+        Only a kernel context tracks bodies, because only its interrupt
+        handler asks.
+        """
+        from marimo._runtime.context.kernel_context import (
+            KernelRuntimeContext,
+        )
+
+        ctx = safe_get_context()
+        if not isinstance(ctx, KernelRuntimeContext):
+            yield
+            return
+        token = ctx._running_cell_scheduler.set(self)
         try:
-            # Child tasks inherit the body scope even while their parent awaits.
-            token = _RUNNING_CELL_SCHEDULER.set(self)
             yield
         finally:
-            if token is not None:
-                _RUNNING_CELL_SCHEDULER.reset(token)
+            ctx._running_cell_scheduler.reset(token)
 
     def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool:
         """Whether this task is in a cell body rather than a lifecycle hook."""
+        from marimo._runtime.context.kernel_context import (
+            KernelRuntimeContext,
+        )
+
+        ctx = safe_get_context()
         return (
             task is not None
             and task is asyncio.current_task()
-            and _RUNNING_CELL_SCHEDULER.get() is self
+            and isinstance(ctx, KernelRuntimeContext)
+            and ctx._running_cell_scheduler.get() is self
         )
 
     def cancel_all(self) -> None:

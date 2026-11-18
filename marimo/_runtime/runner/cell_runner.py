@@ -557,7 +557,7 @@ class Runner:
         if not cell.is_coroutine():
             return await self._evaluator.evaluate(cell, self.glbls)
         coro = self._evaluator.evaluate(
-            cell, self.glbls, body=self._scheduler.cell_body(cell.cell_id)
+            cell, self.glbls, body=self._scheduler.cell_body()
         )
         try:
             async with self._scheduler.start_task(cell.cell_id, coro) as task:

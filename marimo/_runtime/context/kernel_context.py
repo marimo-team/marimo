@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
@@ -47,6 +48,15 @@ class KernelRuntimeContext(RuntimeContext):
     # the currently-installed context — not one captured at install
     # time — so embedded-app child contexts route SIGINT correctly.
     _active_scheduler: Scheduler | None = None
+    # The scheduler whose cell body the current task is executing, or None
+    # in a lifecycle hook, between cells, or in a task that a hook started.
+    # A task started inside the body inherits the value, so a child
+    # coroutine that blocks is interrupted like the body itself.
+    _running_cell_scheduler: ContextVar[Scheduler | None] = field(
+        default_factory=lambda: ContextVar(
+            "running_cell_scheduler", default=None
+        )
+    )
 
     @property
     def active_scheduler(self) -> Scheduler | None:
