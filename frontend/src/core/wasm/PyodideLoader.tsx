@@ -13,6 +13,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { PyodideBridge } from "./bridge";
+import { WasmInitializationError } from "./errors";
 import { isWasm } from "./utils";
 
 /**
@@ -51,7 +52,7 @@ const PyodideLoaderInner: React.FC<PropsWithChildren> = ({ children }) => {
   }, [error, canPaint]);
 
   if (error && !canPaint) {
-    throw error;
+    throw new WasmInitializationError(error);
   }
 
   return (
