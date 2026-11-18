@@ -23,6 +23,8 @@ from marimo._messaging.agents import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._messaging.agents import AgentConnection
 
 
@@ -194,3 +196,44 @@ def start_broadcast(
     and error behavior as `start_send`. An empty broadcast has no recipients.
     """
     return _start_send(message, None, sender, timeout)
+
+
+def subscribe_connections(
+    callback: Callable[[tuple[AgentInfo, ...]], None],
+) -> Callable[[], None]:
+    """Run a callback as agents connect or disconnect.
+
+    Args:
+        callback (Callable): Synchronous function that receives an immutable
+            tuple of `AgentInfo` values. An empty tuple means no agents.
+
+    Returns:
+        A function that removes this subscription. Repeated calls are safe.
+
+    Callbacks run on the kernel queue without an owning cell. A busy kernel
+    delays callbacks, and intermediate changes can be skipped. Callbacks do not
+    rerun cells. Capture the objects that your callback needs in a closure.
+
+    Call the returned function to unsubscribe. Cell reruns
+    and deletion do not remove subscriptions. Session shutdown removes them.
+    Registration waits at most one second for the editor response.
+    Background thread registration is unsupported.
+
+    Raises:
+        TypeError: The callback is not callable or returns an awaitable.
+        AgentError: The editor does not answer or rejects registration.
+    """
+    if not callable(callback):
+        raise TypeError("Agent connection callback must be callable")
+    config = _connection()
+    from marimo._runtime.agent_connections import ConnectionSubscription
+    from marimo._runtime.context import get_context
+    from marimo._runtime.threads import is_marimo_thread
+
+    if is_marimo_thread():
+        raise AgentContextUnavailableError(
+            "Register agent connection callbacks from a notebook cell or widget callback"
+        )
+    subscription = ConnectionSubscription(config, callback)
+    subscription.create(get_context().function_registry)
+    return subscription.close

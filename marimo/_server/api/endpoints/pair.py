@@ -7,7 +7,10 @@ import msgspec
 from starlette.authentication import requires
 from starlette.responses import Response
 
-from marimo._messaging.agents import MessageRequest
+from marimo._messaging.agents import (
+    ConnectionSubscriptionRequest,
+    MessageRequest,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._utils.http import HTTPException, HTTPStatus
@@ -87,3 +90,37 @@ async def agents(request: Request) -> Response:
     return Response(
         msgspec.json.encode(listing), media_type="application/json"
     )
+
+
+@pair_router.post(
+    "/notebooks/{id}/agents/subscriptions", include_in_schema=False
+)
+@requires("edit")
+async def subscriptions(request: Request) -> Response:
+    """Register a connection callback for the current Session."""
+    notebook, messaging = _messaging_target(request)
+    session = AppState(request).session_by_stable_id(request.path_params["id"])
+    try:
+        body = msgspec.json.decode(
+            await request.body(), type=ConnectionSubscriptionRequest
+        )
+        if len(body.subscription_id) != 32 or any(
+            c not in "0123456789abcdef" for c in body.subscription_id
+        ):
+            raise ValueError("Invalid subscription ID")
+        if notebook.runtime is None or notebook.runtime.status not in {
+            "starting",
+            "running",
+        }:
+            raise HTTPException(
+                status_code=409, detail="The kernel is no longer active"
+            )
+        if body.active:
+            messaging.connections.subscribe(
+                notebook, session, body.subscription_id
+            )
+        else:
+            messaging.connections.unsubscribe(session, body.subscription_id)
+    except (msgspec.DecodeError, ValueError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return Response(b"{}", media_type="application/json")

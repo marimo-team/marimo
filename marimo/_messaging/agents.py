@@ -202,3 +202,16 @@ class AgentConnection:
     url: str
     auth_token: str = field(repr=False)
     server_token: str = field(repr=False)
+
+
+class ConnectionSubscriptionRequest(
+    msgspec.Struct, forbid_unknown_fields=True
+):
+    """Private registration addressed through the owning stable Session URL."""
+
+    subscription_id: str
+    active: bool = True
+
+
+def connection_namespace(subscription_id: str) -> str:
+    return f"marimo.agents.connections.{subscription_id}"

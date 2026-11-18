@@ -30,6 +30,7 @@ from marimo._messaging.agents import (
     validate_message_size,
     validate_sender,
 )
+from marimo._server.host.agent_connections import AgentConnections
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -71,10 +72,12 @@ class AgentMessaging:
         self._pending: dict[str, _Attempt] = {}
         self._recent: dict[str, deque[UUID]] = {}
         self._unsubscribe = host.subscribe(self._observe)
+        self.connections = AgentConnections(host, self.list)
 
     def register(self, notebook: Notebook, attachment_id: str) -> str:
         key = secrets.token_urlsafe(32)
         self._keys[attachment_id] = (notebook.id, key)
+        self.connections.refresh(notebook.id)
         return key
 
     def unregister(self, attachment_id: str) -> None:
@@ -282,6 +285,7 @@ class AgentMessaging:
         )
 
     def close(self) -> None:
+        self.connections.close()
         self._unsubscribe()
         for attachment_id in list(self._keys):
             self.unregister(attachment_id)

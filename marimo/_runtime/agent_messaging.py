@@ -12,6 +12,7 @@ import msgspec
 from marimo._messaging.agents import (
     AgentConnection,
     AgentError,
+    ConnectionSubscriptionRequest,
     MessageRequest,
     SendOutcomeUnknownError,
 )
@@ -49,13 +50,14 @@ def _http_error(status: int, data: bytes, operation: str) -> AgentError:
 
 def call(
     config: AgentConnection,
-    operation: Literal["list", "send", "broadcast"],
+    operation: Literal["list", "send", "broadcast", "connections"],
     *,
     timeout: float,
     message: Any = None,
     to: str | None = None,
     sender: str | None = None,
     message_id: str | None = None,
+    subscription: ConnectionSubscriptionRequest | None = None,
 ) -> Any:
     """Call the same authenticated endpoints used by browser controls."""
     deadline = monotonic() + timeout
@@ -79,6 +81,9 @@ def call(
     if operation == "list":
         body = None
         path = "/agents"
+    elif operation == "connections":
+        body = msgspec.json.encode(subscription)
+        path = "/agents/subscriptions"
     else:
         remaining = max(0, deadline - monotonic())
         response_margin = min(_RESPONSE_MARGIN_SECONDS, remaining / 10)

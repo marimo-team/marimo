@@ -2675,7 +2675,7 @@ class Kernel:
                 sorted(ctx.function_registry.namespaces),
                 sum(1 for child in ctx.children if child.app is not None),
             )
-        elif function.cell_id is None:
+        elif function.cell_bound and function.cell_id is None:
             found = True
             error_title = "Function not associated with cell"
             error_message = (
@@ -2686,9 +2686,15 @@ class Kernel:
             found = True
             LOGGER.debug("Executing RPC %s", request)
             with (
-                command_console(function.cell_id, CallbackOutputNotification),
-                self._install_execution_context(cell_id=function.cell_id),
-                ctx.provide_ui_ids(str(uuid4())),
+                command_console(function.cell_id, CallbackOutputNotification)
+                if function.cell_id is not None
+                else contextlib.nullcontext(),
+                self._install_execution_context(cell_id=function.cell_id)
+                if function.cell_id is not None
+                else contextlib.nullcontext(),
+                ctx.provide_ui_ids(str(uuid4()))
+                if function.cell_id is not None
+                else contextlib.nullcontext(),
             ):
                 # Usually UI element IDs are deterministic, based on
                 # cell id, so that element values can be matched up

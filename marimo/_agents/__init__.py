@@ -9,6 +9,7 @@ from marimo._agents._impl import (
     send,
     start_broadcast,
     start_send,
+    subscribe_connections,
 )
 from marimo._messaging.agents import (
     AgentContextUnavailableError,
@@ -37,4 +38,5 @@ __all__ = [
     "send",
     "start_broadcast",
     "start_send",
+    "subscribe_connections",
 ]
