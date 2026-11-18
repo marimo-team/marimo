@@ -64,12 +64,17 @@ def construct_interrupt_handler() -> SigintHandler:
                 )
 
         if sched is not None and sched.has_active_tasks():
-            if sched.is_running_cell_body(asyncio.current_task()):
+            task = asyncio.current_task()
+            if sched.is_running_cell_body(task):
                 # The cell's body is running, so a cancel would wait for
                 # its next `await`. Raise into it like a sync cell. Do not
                 # also cancel the task: the cancel would interrupt the
                 # cell's cleanup at its first `await`.
                 sched.interrupted = True
+                if not sched.owns_task(task):
+                    # KeyboardInterrupt escaping a child task stops the loop.
+                    # Raise cancellation directly so awaited cleanup can finish.
+                    raise asyncio.CancelledError
                 raise MarimoInterrupt
             # Raising anywhere else in an async run escapes into asyncio
             # internals or skips lifecycle teardown: cancel via the loop.

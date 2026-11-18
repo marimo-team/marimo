@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._runtime import dataflow
@@ -77,6 +78,11 @@ class Scheduler(Protocol):
     async def __aexit__(self, *exc_info: object) -> None: ...
 
 
+_RUNNING_CELL_SCHEDULER: ContextVar[Scheduler | None] = ContextVar(
+    "running_cell_scheduler", default=None
+)
+
+
 class SequentialScheduler:
     """Single-threaded FIFO queue + cancellation + async task tracking."""
 
@@ -90,7 +96,6 @@ class SequentialScheduler:
         self._graph = graph
         self._interrupted = False
         self._active: dict[CellId_t, asyncio.Task[Any]] = {}
-        self._running_cell_bodies: set[asyncio.Task[Any]] = set()
         # Scheduler that was active on the context when this one was
         # entered. Saved on `__aenter__`, restored on `__aexit__`, so
         # nested `run_all` calls on the same context compose as a stack
@@ -216,16 +221,23 @@ class SequentialScheduler:
 
     @contextmanager
     def cell_body(self, cell_id: CellId_t) -> Iterator[None]:
-        task = self._active[cell_id]
+        del cell_id
+        token = None
         try:
-            self._running_cell_bodies.add(task)
+            # Child tasks inherit the body scope even while their parent awaits.
+            token = _RUNNING_CELL_SCHEDULER.set(self)
             yield
         finally:
-            self._running_cell_bodies.discard(task)
+            if token is not None:
+                _RUNNING_CELL_SCHEDULER.reset(token)
 
     def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool:
         """Whether this task is in a cell body rather than a lifecycle hook."""
-        return task is not None and task in self._running_cell_bodies
+        return (
+            task is not None
+            and task is asyncio.current_task()
+            and _RUNNING_CELL_SCHEDULER.get() is self
+        )
 
     def cancel_all(self) -> None:
         # Set `_interrupted` first so a SIGINT arriving between cells

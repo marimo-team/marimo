@@ -302,6 +302,41 @@ async def test_sigint_interrupts_async_cell_running_blocking_code(
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+@pytest.mark.parametrize("spawn", ["gather", "create_task"])
+async def test_sigint_interrupts_blocking_child_coroutine(
+    k: Kernel, exec_req: ExecReqProvider, spawn: str
+) -> None:
+    previous = signal.signal(signal.SIGINT, construct_interrupt_handler())
+    try:
+        await k.run(
+            [
+                exec_req.get("log = []"),
+                cell := exec_req.get(
+                    "import asyncio, os, signal, time\n"
+                    "async def work():\n"
+                    "    log.append('child started')\n"
+                    "    try:\n"
+                    "        os.kill(os.getpid(), signal.SIGINT)\n"
+                    "        time.sleep(5)\n"
+                    "        log.append('continued')\n"
+                    "    finally:\n"
+                    "        await asyncio.sleep(0)\n"
+                    "        log.append('cleanup finished')\n"
+                    f"await asyncio.{spawn}(work())\n"
+                    "z = 1"
+                ),
+                dependent := exec_req.get("w = z + 1"),
+            ]
+        )
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+    assert k.globals["log"] == ["child started", "cleanup finished"]
+    assert k.graph.cells[cell.cell_id].run_result_status == "interrupted"
+    assert k.graph.cells[dependent.cell_id].run_result_status == "cancelled"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
 @pytest.mark.parametrize("kernel", ["k", "strict_kernel"])
 def test_sigint_outside_async_cell_body_halts_run_and_keeps_kernel(
     request: pytest.FixtureRequest, kernel: str, exec_req: ExecReqProvider

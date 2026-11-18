@@ -640,6 +640,7 @@ class Runner:
             return raw_result
 
         if isinstance(exc, asyncio.exceptions.CancelledError):
+            self.cancel(cell_id)
             # Drop the two marimo frames above user code (the evaluator's
             # `await execute_cell_async` and the executor's `await eval`)
             # before surfacing as MarimoInterrupt.

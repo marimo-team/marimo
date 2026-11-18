@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from marimo._ast.compiler import compile_cell
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
@@ -28,6 +29,7 @@ from marimo._runtime.executor import (
     Skip,
 )
 from marimo._runtime.runner.cell_runner import Runner
+from marimo._runtime.runner.hooks import NotebookCellHooks
 from marimo._runtime.runner.result import RunResult
 from marimo._runtime.runner.scheduler import SequentialScheduler
 from marimo._types.ids import CellId_t
@@ -618,22 +620,26 @@ async def test_cell_body_scope_belongs_to_its_scheduler_and_task(
 
         def setup(self, cell: Any, glbls: Any) -> None:
             record(f"setup:{cell}")
+            glbls["setup_task"] = asyncio.create_task(
+                child(f"setup-child:{cell}")
+            )
 
         def teardown(
             self, cell: Any, glbls: Any, run_result: RunResult
         ) -> None:
             record(f"teardown:{cell}")
 
-    async def child() -> None:
-        record("child")
+    async def child(event: str) -> None:
+        record(event)
 
     async def body(cell: str, glbls: Any) -> str:
         record(f"body:{cell}")
+        await glbls["setup_task"]
         if cell == "A":
             started.set()
             await resume.wait()
         else:
-            await asyncio.create_task(child())
+            await asyncio.create_task(child("child"))
         record(f"resumed:{cell}")
         if cell == "B" and exception is not None:
             raise exception
@@ -662,10 +668,12 @@ async def test_cell_body_scope_belongs_to_its_scheduler_and_task(
     assert log == [
         ("setup:A", [False, False]),
         ("body:A", [True, False]),
+        ("setup-child:A", [False, False]),
         ("suspended", [False, False]),
         ("setup:B", [False, False]),
         ("body:B", [False, True]),
-        ("child", [False, False]),
+        ("setup-child:B", [False, False]),
+        ("child", [False, True]),
         ("resumed:B", [False, True]),
         ("teardown:B", [False, False]),
         ("resumed:A", [True, False]),
@@ -742,6 +750,34 @@ async def test_runner_evaluate_interruptible_routes_async_cells_to_scheduler() -
     assert runner._scheduler.started, (
         "async cell must be routed through scheduler.start_task"
     )
+
+
+@pytest.mark.skipif(
+    not hasattr(asyncio, "eager_task_factory"),
+    reason="Eager tasks require Python 3.12",
+)
+async def test_runner_evaluate_interruptible_with_eager_task_factory() -> None:
+    cell = compile_cell(
+        "import asyncio\nawait asyncio.sleep(0)\n42", cell_id=CellId_t("cell")
+    )
+    graph = DirectedGraph()
+    graph.register_cell(cell.cell_id, cell)
+    runner = Runner(
+        roots={cell.cell_id},
+        graph=graph,
+        glbls={},
+        debugger=None,
+        hooks=NotebookCellHooks(),
+    )
+    loop = asyncio.get_running_loop()
+    previous = loop.get_task_factory()
+    try:
+        loop.set_task_factory(asyncio.eager_task_factory)
+        result = await runner.evaluate_interruptible(cell)
+    finally:
+        loop.set_task_factory(previous)
+
+    assert result == RunResult(output=42, exception=None)
 
 
 async def test_runner_evaluate_interruptible_surfaces_cancelled_as_run_result() -> (
