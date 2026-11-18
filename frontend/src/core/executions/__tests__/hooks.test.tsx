@@ -133,7 +133,14 @@ describe("input-change warnings", () => {
       act(() => vi.runAllTimers());
       expect(result.current).toBe(true);
       rerender(false);
-      act(() => vi.runAllTimers());
+      expect(result.current).toBe(false);
+      act(() => vi.advanceTimersByTime(50));
+      rerender(true);
+      act(() => vi.advanceTimersByTime(199));
+      expect(result.current).toBe(false);
+      act(() => vi.advanceTimersByTime(1));
+      expect(result.current).toBe(true);
+      rerender(false);
       act(() =>
         store.set(configOverridesAtom, { runtime: { on_cell_change: "lazy" } }),
       );

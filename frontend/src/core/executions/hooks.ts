@@ -6,7 +6,7 @@ import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
 import { useMemo } from "react";
 import { autoRunOnChangeAtom } from "@/core/config/config";
-import { useDebounce } from "@/hooks/useDebounce";
+import { useDelayElapsed } from "@/hooks/useDelayElapsed";
 import type { CellId } from "@/core/cells/ids";
 import type { Outline } from "@/core/cells/outline";
 import {
@@ -59,8 +59,8 @@ export function useCellFreshness(id: Protocol.CellId): CellFreshness {
 /** A variable revision can arrive just before the host queues its readers. */
 export function useShowChangedInputs(changed: boolean): boolean {
   const autorun = useAtomValue(autoRunOnChangeAtom);
-  const settled = useDebounce(changed, 200);
-  return changed && (!autorun || settled);
+  const delayElapsed = useDelayElapsed(autorun && changed ? 200 : 0);
+  return changed && delayElapsed;
 }
 
 export function useCellPresentation(id: Protocol.CellId) {
