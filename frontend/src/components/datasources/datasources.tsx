@@ -278,7 +278,7 @@ export const DataSources: React.FC = () => {
           value={searchValue}
           onValueChange={(value) => {
             // If searching, remove open previews
-            closeAllColumns(value.length > 0);
+            closeAllColumns(value.trim().length > 0);
             setSearchValue(value);
           }}
           rootClassName="flex-1 border-r border-b-0"
