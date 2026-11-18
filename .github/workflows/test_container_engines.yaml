@@ -15,7 +15,6 @@ on:
       - tests/**/conftest.py
       - tests/_cli/test_container_engine.py
       - pyproject.toml
-      - uv.lock
 
 permissions:
   contents: read
@@ -37,7 +36,7 @@ jobs:
         with:
           version: "0.13.5"
       - name: Install Python dependencies
-        run: uv sync --locked --no-default-groups --group test --python 3.13.12
+        run: uv sync --no-default-groups --group test --python 3.13.12
       - name: Run the Docker contract
         if: matrix.engine == 'docker'
         env:
