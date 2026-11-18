@@ -22,7 +22,10 @@ from marimo._cli.config.overrides import (
     config_override_option,
     resolve_cli_config,
 )
-from marimo._cli.containers.launcher import prompt_run_in_container
+from marimo._cli.containers.launcher import (
+    container_engine_option,
+    prompt_run_in_container,
+)
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
@@ -381,9 +384,10 @@ class _OptionalValueOption(click.Option):
     type=bool,
     help=(
         "Use --trusted to run remote notebooks on the host. "
-        "Use --untrusted to run them in a container with Docker."
+        "Use --untrusted to run them in a container."
     ),
 )
+@container_engine_option
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
     "--watch",
@@ -468,6 +472,7 @@ def edit(
     sandbox: str | None,
     no_sandbox: bool,
     trusted: bool | None,
+    container_engine: str,
     profile_dir: str | None,
     remote_url: str | None,
     convert: bool,
@@ -513,6 +518,7 @@ def edit(
             name,
             "edit",
             port=server_config.port,
+            container_engine=container_engine,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         )
         return
@@ -997,9 +1003,10 @@ Example:
     type=bool,
     help=(
         "Use --trusted to run remote notebooks on the host. "
-        "Use --untrusted to run them in a container with Docker."
+        "Use --untrusted to run them in a container."
     ),
 )
+@container_engine_option
 @click.option(
     "--server-startup-command",
     default=None,
@@ -1040,6 +1047,7 @@ def run(
     no_sandbox: bool,
     check: bool,
     trusted: bool | None,
+    container_engine: str,
     server_startup_command: str | None,
     asset_url: str | None,
     execute_opengraph_generators: bool,
@@ -1076,6 +1084,7 @@ def run(
             paths[0],
             "run",
             port=config_manager.get_config().server.port,
+            container_engine=container_engine,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
             execute_opengraph_generators=execute_opengraph_generators,
         )

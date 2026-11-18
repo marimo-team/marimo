@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 import click
 from click import echo
 
-from marimo._cli.containers.docker import DockerEngine
 from marimo._cli.containers.engine import (
     Cancelled,
     EngineFailure,
@@ -16,6 +15,7 @@ from marimo._cli.containers.engine import (
     StartFailure,
     WorkloadExit,
 )
+from marimo._cli.containers.selection import resolve_engine
 from marimo._cli.errors import MarimoCLIRuntimeError
 from marimo._cli.print import green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -26,11 +26,30 @@ if TYPE_CHECKING:
 
     from marimo._cli.containers.engine import (
         CleanupResult,
-        ContainerEngine,
         SessionResult,
     )
 
-_ENGINE: ContainerEngine = DockerEngine()
+
+def _validate_engine(
+    _ctx: click.Context, _param: click.Parameter, value: str
+) -> str:
+    value = value.strip()
+    if not value or "\x00" in value:
+        raise click.BadParameter("Specify one container engine executable")
+    return value
+
+
+container_engine_option = click.option(
+    "--container-engine",
+    default="docker",
+    show_default=True,
+    metavar="EXECUTABLE",
+    callback=_validate_engine,
+    help=(
+        "Engine for container execution. Use docker, podman, nerdctl, finch, "
+        "or a Docker-compatible executable name or path."
+    ),
+)
 
 
 def prompt_run_in_container(
@@ -88,6 +107,7 @@ def run_in_container(
     mode: Literal["edit", "run"],
     *,
     port: int | None,
+    container_engine: str,
     debug: bool = False,
     execute_opengraph_generators: bool = False,
 ) -> None:
@@ -117,7 +137,7 @@ def run_in_container(
         working_directory="/home",
         ports=(PortMapping(host=port, container=port),),
     )
-    session = _ENGINE.start(request)
+    session = resolve_engine(container_engine).start(request)
     if isinstance(session, StartFailure):
         _report_result(session.result, session.cleanup)
         return

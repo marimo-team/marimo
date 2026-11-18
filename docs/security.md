@@ -47,11 +47,18 @@ This distinction reflects the different threat models: editing is exploratory an
 
 ### Remote notebooks in a container
 
-Use `--untrusted` with `marimo edit` or `marimo run` to open a remote notebook in a container. This option requires Docker.
+Use `--untrusted` with `marimo edit` or `marimo run` to open a remote notebook in a container. Docker is the default engine.
+Use `--container-engine` to select `podman`, `nerdctl`, `finch`, or another Docker-compatible executable.
+The option takes one executable name or path. Quote paths with spaces.
+
+```bash
+marimo edit https://example.com/notebook.py --untrusted --container-engine podman
+```
+
 marimo streams the notebook logs and removes the container when the notebook exits or you press Ctrl+C.
 If the notebook exits with an error, marimo reports its exit status.
 
-Docker uses its own certificate trust settings to pull the image.
+The selected engine uses its own certificate trust settings to pull the image.
 Package and notebook downloads use the certificates inside the container. marimo does not copy host CA certificates into the container.
 
 ### Project files

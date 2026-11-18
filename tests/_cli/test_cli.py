@@ -2189,6 +2189,77 @@ HAS_DOCKER = DependencyManager.which("docker")
 
 
 @pytest.mark.parametrize("mode", ["edit", "run"])
+@pytest.mark.parametrize(
+    ("option", "expected"),
+    [
+        ([], "docker"),
+        (["--container-engine", " podman "], "podman"),
+        (["--container-engine", "nerdctl"], "nerdctl"),
+        (
+            ["--container-engine", "/path to engine/finch"],
+            "/path to engine/finch",
+        ),
+        (["--container-engine", "custom-engine"], "custom-engine"),
+    ],
+)
+def test_cli_forwards_container_engine(
+    mode: str, option: list[str], expected: str
+) -> None:
+    with patch("marimo._cli.containers.launcher.run_in_container") as launch:
+        result = CliRunner().invoke(
+            cli_main,
+            [
+                mode,
+                "https://example.com/notebook.py",
+                "--untrusted",
+                *option,
+                "--port",
+                "9123",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    launch.assert_called_once()
+    assert launch.call_args.kwargs["container_engine"] == expected
+    assert launch.call_args.kwargs["port"] == 9123
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
+def test_cli_rejects_empty_container_engine(mode: str) -> None:
+    result = CliRunner().invoke(
+        cli_main,
+        [
+            mode,
+            "https://example.com/notebook.py",
+            "--untrusted",
+            "--container-engine",
+            "  ",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "Specify one container engine executable" in result.output
+
+
+def test_cli_does_not_fall_back_when_container_engine_is_missing(
+    tmp_path: Path,
+) -> None:
+    executable = tmp_path / "missing engine"
+    result = CliRunner().invoke(
+        cli_main,
+        [
+            "run",
+            "https://example.com/notebook.py",
+            "--untrusted",
+            "--container-engine",
+            str(executable),
+        ],
+    )
+    assert result.exit_code == 1
+    assert str(executable) in result.output
+    assert "availability check failed" in result.output
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
 def test_cli_container_startup_reports_engine_error(mode: str) -> None:
     with patch("subprocess.run") as run:
 
@@ -2221,8 +2292,8 @@ def test_cli_container_reports_cleanup_failure(status: int) -> None:
     session.close.return_value = EngineFailure(
         "Docker", "remove", "permission denied", "owned"
     )
-    with patch("marimo._cli.containers.launcher._ENGINE") as engine:
-        engine.start.return_value = session
+    with patch("marimo._cli.containers.launcher.resolve_engine") as resolve:
+        resolve.return_value.start.return_value = session
         result = CliRunner().invoke(
             cli_main, ["run", "https://example.com/notebook.py", "--untrusted"]
         )
@@ -2245,8 +2316,8 @@ def test_cli_container_closes_session_on_interrupt() -> None:
     session.identity = ContainerIdentity("Docker", "owned")
     session.logs.side_effect = KeyboardInterrupt
     session.close.return_value = CleanupComplete("removed")
-    with patch("marimo._cli.containers.launcher._ENGINE") as engine:
-        engine.start.return_value = session
+    with patch("marimo._cli.containers.launcher.resolve_engine") as resolve:
+        resolve.return_value.start.return_value = session
         result = CliRunner().invoke(
             cli_main,
             ["edit", "https://example.com/notebook.py", "--untrusted"],
