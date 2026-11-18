@@ -6,6 +6,11 @@ from collections import deque
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from marimo._cli.containers._process import (
+    COMMAND_TIMEOUT,
+    error_detail,
+    finish_process,
+)
 from marimo._cli.containers.engine import (
     Cancelled,
     CleanupComplete,
@@ -25,20 +30,7 @@ if TYPE_CHECKING:
         SessionResult,
     )
 
-_COMMAND_TIMEOUT = 10
 _OWNERSHIP_LABEL = "io.marimo.session"
-
-
-def _error_detail(error: OSError | subprocess.SubprocessError) -> str:
-    if isinstance(
-        error, (subprocess.CalledProcessError, subprocess.TimeoutExpired)
-    ):
-        stderr = error.stderr
-        if isinstance(stderr, bytes):
-            stderr = stderr.decode(errors="replace")
-        if stderr and stderr.strip():
-            return stderr.strip()
-    return str(error)
 
 
 class _DockerCompatibleEngine:
@@ -46,7 +38,7 @@ class _DockerCompatibleEngine:
         self.name = name
         self.executable = executable
 
-    def run(self, *args: str, timeout: float | None = _COMMAND_TIMEOUT) -> str:
+    def run(self, *args: str, timeout: float | None = COMMAND_TIMEOUT) -> str:
         result = subprocess.run(
             [self.executable, *args],
             check=True,
@@ -74,7 +66,7 @@ class _DockerCompatibleEngine:
         except (OSError, subprocess.SubprocessError) as error:
             return StartFailure(
                 EngineFailure(
-                    self.name, "availability check", _error_detail(error)
+                    self.name, "availability check", error_detail(error)
                 )
             )
         except KeyboardInterrupt:
@@ -88,7 +80,7 @@ class _DockerCompatibleEngine:
             self.run("start", session.identity.container)
         except (OSError, subprocess.SubprocessError) as error:
             return StartFailure(
-                session.failure(stage, _error_detail(error)),
+                session.failure(stage, error_detail(error)),
                 session.close_after_start_failure(),
             )
         except KeyboardInterrupt:
@@ -169,7 +161,7 @@ class _DockerCompatibleSession:
                     f"Engine exited with status {status}.\n{detail}".rstrip(),
                 )
         except (OSError, subprocess.SubprocessError) as error:
-            self._result = self.failure("logs", _error_detail(error))
+            self._result = self.failure("logs", error_detail(error))
 
     def exit_result(self) -> SessionResult:
         if self._result is not None:
@@ -181,7 +173,7 @@ class _DockerCompatibleSession:
                 "wait", self.identity.container, timeout=None
             )
         except (OSError, subprocess.SubprocessError) as error:
-            result = self.failure("wait", _error_detail(error))
+            result = self.failure("wait", error_detail(error))
         else:
             try:
                 code = int(status)
@@ -195,21 +187,6 @@ class _DockerCompatibleSession:
                 result = WorkloadExit(code)
         self._result = result
         return result
-
-    def _finish_logs(self) -> None:
-        process = self._log_process
-        if process is None:
-            return
-        if process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=_COMMAND_TIMEOUT)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=_COMMAND_TIMEOUT)
-        if process.stdout is not None:
-            process.stdout.close()
-        self._log_process = None
 
     def _find_owned_container(self) -> str:
         return self._engine.run(
@@ -225,7 +202,7 @@ class _DockerCompatibleSession:
         try:
             container = self._id or self._find_owned_container()
         except (OSError, subprocess.SubprocessError) as error:
-            return self.failure("find owned container", _error_detail(error))
+            return self.failure("find owned container", error_detail(error))
         if not container:
             return CleanupComplete("absent")
 
@@ -235,12 +212,12 @@ class _DockerCompatibleSession:
             # Docker can return success with no output for a missing container.
             detail = "The engine did not report removal."
         except (OSError, subprocess.SubprocessError) as error:
-            detail = _error_detail(error)
+            detail = error_detail(error)
         try:
             if not self._find_owned_container():
                 return CleanupComplete("absent")
         except (OSError, subprocess.SubprocessError) as check_error:
-            detail += f"\nCould not check container presence: {_error_detail(check_error)}"
+            detail += f"\nCould not check container presence: {error_detail(check_error)}"
         return self.failure("remove", detail)
 
     def close(self) -> CleanupResult:
@@ -249,10 +226,12 @@ class _DockerCompatibleSession:
 
         logs_failure = None
         try:
-            self._finish_logs()
+            if self._log_process is not None:
+                finish_process(self._log_process)
+                self._log_process = None
         except (OSError, subprocess.SubprocessError) as error:
             logs_failure = self.failure(
-                "close log process", _error_detail(error)
+                "close log process", error_detail(error)
             )
 
         cleanup = self._cleanup or self._remove()

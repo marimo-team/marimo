@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from marimo._cli.containers.apple import AppleContainerEngine
 from marimo._cli.containers.docker import DockerEngine
 from marimo._cli.containers.finch import FinchEngine
 from marimo._cli.containers.nerdctl import NerdctlEngine
@@ -21,6 +22,7 @@ _ENGINES: dict[str, Callable[[str], ContainerEngine]] = {
     "podman": PodmanEngine,
     "nerdctl": NerdctlEngine,
     "finch": FinchEngine,
+    "container": AppleContainerEngine,
 }
 
 

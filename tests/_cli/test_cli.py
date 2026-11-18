@@ -2195,6 +2195,7 @@ HAS_DOCKER = DependencyManager.which("docker")
         ([], "docker"),
         (["--container-engine", " podman "], "podman"),
         (["--container-engine", "nerdctl"], "nerdctl"),
+        (["--container-engine", "container"], "container"),
         (
             ["--container-engine", "/path to engine/finch"],
             "/path to engine/finch",

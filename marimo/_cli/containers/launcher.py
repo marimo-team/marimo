@@ -47,7 +47,7 @@ container_engine_option = click.option(
     callback=_validate_engine,
     help=(
         "Engine for container execution. Use docker, podman, nerdctl, finch, "
-        "or a Docker-compatible executable name or path."
+        "container (Apple), or a Docker-compatible executable name or path."
     ),
 )
 
