@@ -25,6 +25,7 @@ from marimo._cli.config.overrides import (
 from marimo._cli.containers.launcher import (
     container_engine_option,
     prompt_run_in_container,
+    run_in_container,
 )
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -512,9 +513,9 @@ def edit(
         name = path.absolute_name
         stdin_notebook = name
 
-    if prompt_run_in_container(name, trusted=trusted):
-        from marimo._cli.containers.launcher import run_in_container
-
+    if prompt_run_in_container(
+        name, container_engine=container_engine, trusted=trusted
+    ):
         if args and not args[0].startswith("-"):
             raise click.UsageError(
                 "Container execution supports one notebook."
@@ -1080,9 +1081,9 @@ def run(
     )
 
     trust_input = next((path for path in paths if is_url(path)), paths[0])
-    if prompt_run_in_container(trust_input, trusted=trusted):
-        from marimo._cli.containers.launcher import run_in_container
-
+    if prompt_run_in_container(
+        trust_input, container_engine=container_engine, trusted=trusted
+    ):
         if len(paths) != 1:
             raise click.UsageError(
                 "Container execution supports one notebook."

@@ -1,12 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import subprocess
 from collections import Counter, deque
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from marimo._cli.containers._create import create_args
+from marimo._cli.containers._create import OWNERSHIP_LABEL, create_args
 from marimo._cli.containers._process import (
     COMMAND_TIMEOUT,
     error_detail,
@@ -171,15 +172,35 @@ class _AppleSession:
         self._result = result
         return result
 
-    def _exists(self) -> bool:
-        return (
-            self._container
-            in self.run("list", "--all", "--quiet").splitlines()
-        )
+    def _owns_container(self) -> bool:
+        # Apple uses the container name as its ID. A replacement can reuse it.
+        try:
+            containers = json.loads(
+                self.run("list", "--all", "--format", "json")
+            )
+        except ValueError as error:
+            raise OSError(
+                "Invalid container list from Apple container."
+            ) from error
+        if not isinstance(containers, list):
+            raise OSError("Invalid container list from Apple container.")
+        for item in containers:
+            if isinstance(item, dict) and item.get("id") == self._container:
+                configuration = item.get("configuration")
+                if not isinstance(configuration, dict):
+                    raise OSError(
+                        "Missing configuration in Apple container list."
+                    )
+                labels = configuration.get("labels")
+                return (
+                    isinstance(labels, dict)
+                    and labels.get(OWNERSHIP_LABEL) == self._container
+                )
+        return False
 
     def _remove(self) -> CleanupResult:
         try:
-            if not self._created and not self._exists():
+            if not self._owns_container():
                 return CleanupComplete("absent")
         except (OSError, subprocess.SubprocessError) as error:
             return self.failure("find owned container", error_detail(error))
@@ -192,7 +213,7 @@ class _AppleSession:
         except (OSError, subprocess.SubprocessError) as error:
             detail = error_detail(error)
         try:
-            if not self._exists():
+            if not self._owns_container():
                 return CleanupComplete("absent")
         except (OSError, subprocess.SubprocessError) as error:
             detail += (

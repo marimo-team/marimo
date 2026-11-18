@@ -6,6 +6,7 @@ import socket
 import subprocess
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -25,6 +26,9 @@ from marimo._cli.containers.nerdctl import NerdctlEngine
 from marimo._cli.containers.podman import PodmanEngine
 from marimo._cli.containers.selection import resolve_engine
 from marimo._cli.containers.source import prepare_notebook
+
+if TYPE_CHECKING:
+    from marimo._cli.containers.engine import SessionResult
 
 pytestmark = pytest.mark.timeout(90)
 _IMAGE = "docker.io/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
@@ -114,7 +118,6 @@ def test_container_close_stops_only_the_owned_session(
             assert not _exists(executable, session.identity.container)
             assert _exists(executable, unrelated.identity.container)
         finally:
-            logs.close()
             assert isinstance(session.close(), CleanupComplete)
     finally:
         assert isinstance(unrelated.close(), CleanupComplete)
@@ -128,6 +131,7 @@ def test_container_reports_external_removal_with_engine_outcome(
     )
     assert not isinstance(session, StartFailure), session
     logs = session.logs()
+    replacement = False
     try:
         assert next(logs) == "ready\n"
         _run_engine(executable, "rm", "-f", session.identity.container)
@@ -149,10 +153,23 @@ def test_container_reports_external_removal_with_engine_outcome(
                 assert result == WorkloadExit(137)
             else:
                 assert isinstance(result, EngineFailure)
+        if Path(executable).name == "container":
+            _run_engine(
+                executable,
+                "create",
+                "--name",
+                session.identity.container,
+                _IMAGE,
+                "true",
+            )
+            replacement = True
         assert session.close() == CleanupComplete("absent")
         assert session.close() == CleanupComplete("absent")
+        if replacement:
+            assert _exists(executable, session.identity.container)
     finally:
-        logs.close()
+        if replacement and _exists(executable, session.identity.container):
+            _run_engine(executable, "rm", "-f", session.identity.container)
         assert isinstance(session.close(), CleanupComplete)
 
 
@@ -162,6 +179,7 @@ def test_container_removes_resource_after_engine_start_fails(
     result = resolve_engine(executable).start(
         LaunchRequest(_IMAGE, ("/missing-program",))
     )
+    failure: SessionResult
     if isinstance(result, StartFailure):
         failure, cleanup = result.result, result.cleanup
     else:

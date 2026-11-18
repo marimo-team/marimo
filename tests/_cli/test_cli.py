@@ -2247,16 +2247,19 @@ def test_cli_stages_only_the_local_notebook(
 
 
 @pytest.mark.parametrize("mode", ["edit", "run"])
-@pytest.mark.parametrize("form", ["directory", "missing", "multiple"])
+@pytest.mark.parametrize("form", ["directory", "missing", "multiple", "html"])
 def test_cli_rejects_unsupported_container_inputs_before_host_execution(
     mode: str, form: str, tmp_path: Path
 ) -> None:
     source = tmp_path / "notebook.py"
     source.touch()
+    html = tmp_path / "regular.html"
+    html.write_text("<html>Not a notebook</html>", encoding="utf-8")
     paths = {
         "directory": [str(tmp_path)],
         "missing": [str(tmp_path / "missing.py")],
         "multiple": [str(source), str(source)],
+        "html": [str(html)],
     }[form]
     with (
         patch("marimo._cli.cli.validate_name") as validate_host,
@@ -2287,7 +2290,7 @@ def test_cli_rejects_unsupported_container_inputs_before_host_execution(
 def test_cli_forwards_container_engine(
     mode: str, option: list[str], expected: str
 ) -> None:
-    with patch("marimo._cli.containers.launcher.run_in_container") as launch:
+    with patch("marimo._cli.cli.run_in_container") as launch:
         result = CliRunner().invoke(
             cli_main,
             [
@@ -2412,7 +2415,7 @@ def test_cli_container_closes_session_on_interrupt() -> None:
 
 
 @pytest.mark.parametrize("backend", ["uv", "pixi"])
-def test_cli_edit_remote_sandbox_prompts_for_docker_once(
+def test_cli_edit_remote_sandbox_names_container_engine_once(
     backend: str, temp_marimo_file: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from marimo._config.settings import GLOBAL_SETTINGS
@@ -2421,6 +2424,8 @@ def test_cli_edit_remote_sandbox_prompts_for_docker_once(
         "edit",
         "https://example.com/notebook.py",
         f"--sandbox={backend}",
+        "--container-engine",
+        "finch",
         "--headless",
         "--skip-update-check",
     ]
@@ -2456,6 +2461,7 @@ def test_cli_edit_remote_sandbox_prompts_for_docker_once(
         outer = runner.invoke(cli_main, args)
         assert outer.exit_code == 0, outer.output
         confirm.assert_called_once()
+        assert "using finch" in confirm.call_args.args[0]
         start_server.assert_not_called()
 
         plan = wait.call_args.args[0]

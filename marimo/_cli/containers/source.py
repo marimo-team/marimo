@@ -13,6 +13,7 @@ import click
 from marimo._cli.containers.engine import BindMount
 from marimo._cli.errors import MarimoCLIRuntimeError
 from marimo._cli.files.cloudflare import is_r2_path
+from marimo._cli.files.file_path import StaticNotebookReader
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
 
@@ -40,7 +41,10 @@ def prepare_notebook(path: str | None) -> Iterator[NotebookSource]:
         source = selected.resolve(strict=True)
         if not source.is_file() or (
             not MarimoPath.is_valid_path(selected)
-            and selected.suffix != ".html"
+            and not (
+                selected.suffix == ".html"
+                and StaticNotebookReader().can_read(str(selected.absolute()))
+            )
         ):
             raise ValueError
     except (OSError, RuntimeError, ValueError) as error:

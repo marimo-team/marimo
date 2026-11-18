@@ -54,7 +54,7 @@ container_engine_option = click.option(
 
 
 def prompt_run_in_container(
-    name: str | None, trusted: bool | None = None
+    name: str | None, *, container_engine: str, trusted: bool | None = None
 ) -> bool:
     if GLOBAL_SETTINGS.IN_SECURE_ENVIRONMENT:
         return False
@@ -75,7 +75,10 @@ def prompt_run_in_container(
 
     return click.confirm(
         "This notebook is hosted on a remote server.\n"
-        + green("Would you like to run it in a container?", bold=True),
+        + green(
+            f"Would you like to run it in a container using {container_engine}?",
+            bold=True,
+        ),
         default=True,
     )
 
