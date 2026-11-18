@@ -1,12 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import inspect
 import sys
 from pdb import Pdb, Restart as pdbRestart
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._ast.compiler import cell_id_from_filename
+from marimo._ast.variables import demangle_locals_in_text, is_local
+from marimo._ast.visitor import ScopedVisitor
 from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
@@ -102,6 +106,69 @@ class MarimoPdb(Pdb):
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
+
+    def _mangle_cell_locals(self, source: str, frame: FrameType | None) -> str:
+        """Mangle cell-local names in `source` the way the cell's code was.
+
+        A cell stores `_b` as `_cell_<cell_id>_b`, so `p _b` only finds it
+        once the input is compiled like the cell. Input outside a cell's
+        frames, or input that is not valid Python, is returned as is.
+        """
+        if frame is None:
+            return source
+        cell_id = cell_id_from_filename(frame.f_code.co_filename)
+        # Ids of embedded-app cells contain `-`, so their mangled names
+        # cannot be typed at the prompt.
+        if cell_id is None or not f"_cell_{cell_id}".isidentifier():
+            return source
+        # Before 3.13, rereading `f_locals` drops prompt assignments.
+        local_names = (
+            self.curframe_locals
+            if sys.version_info < (3, 13) and frame is self.curframe
+            else frame.f_locals
+        )
+        scopes = (local_names, frame.f_globals, frame.f_builtins)
+
+        def bound(name: str) -> bool:
+            return any(name in scope for scope in scopes)
+
+        # Rewrite `_b` only when the frame binds `_cell_<id>_b` and not `_b`
+        # itself: raw imports, comprehension and function locals, and names
+        # typed already mangled stay as typed.
+        visitor = ScopedVisitor("cell_" + cell_id)
+        visitor.is_local = lambda name: (
+            is_local(name)
+            and not bound(name)
+            and bound(f"_cell_{cell_id}{name}")
+        )
+        try:
+            tree = ast.parse(source)
+            before = ast.dump(tree)
+            visitor.visit(tree)
+        except (SyntaxError, ValueError):
+            return source
+        if ast.dump(tree) == before:
+            return source
+        # pdb compiles a line in `single` mode, so keep `a = 1; _b = 2` on
+        # one line rather than unparsing it to two.
+        return "; ".join(ast.unparse(stmt) for stmt in tree.body)
+
+    def error(self, msg: object) -> None:
+        # Report names as typed, not as mangled for evaluation. Some
+        # commands pass an exception, not a string.
+        super().error(demangle_locals_in_text(str(msg)))
+
+    def default(self, line: str) -> None:
+        # pdb strips a leading `!` itself; strip it first so the rest parses.
+        line = line.removeprefix("!").lstrip()
+        super().default(self._mangle_cell_locals(line, self.curframe))
+
+    def _getval(self, arg: str) -> Any:
+        return super()._getval(self._mangle_cell_locals(arg, self.curframe))
+
+    def _getval_except(self, arg: str, frame: FrameType | None = None) -> Any:
+        source = self._mangle_cell_locals(arg, frame or self.curframe)
+        return super()._getval_except(source, frame)
 
     def cmdloop(self, intro: str | None = None) -> None:
         """Override to gracefully handle restarts."""
