@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+import gc
 import io
 import json
 import os
 import subprocess
 import sys
 import threading
+import weakref
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -184,6 +187,116 @@ def test_wasm_threading_local_dict_is_read_only() -> None:
             with pytest.raises(AttributeError, match=r"__dict__.*read-only"):
                 del local.__dict__
             assert local.__dict__ == {"value": 1}
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_local_unhashable_dataclass_subclass(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _mock_pyodide_with_run_sync():
+        from marimo._runtime._wasm._concurrency import _state
+
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            reused_ident = max(_stdlib_thread_ids(_state.patch_state())) + 1000
+            monkeypatch.setattr(
+                _state, "_IDENTS", iter([reused_ident, reused_ident])
+            )
+
+            @dataclasses.dataclass
+            class ThreadLocals(threading.local):
+                value: int = 1
+
+            assert ThreadLocals.__hash__ is None
+            local = ThreadLocals(3)
+            assert local.value == 3
+            worker_values: list[int] = []
+
+            def worker() -> None:
+                worker_values.append(local.value)
+                local.value = 9
+                worker_values.append(local.value)
+
+            first_thread = threading.Thread(name="worker-1", target=worker)
+            first_thread.start()
+            first_thread.join(timeout=1)
+            second_thread = threading.Thread(name="worker-2", target=worker)
+            second_thread.start()
+            second_thread.join(timeout=1)
+
+            assert first_thread.ident == reused_ident
+            assert second_thread.ident == reused_ident
+            assert worker_values == [3, 9, 3, 9]
+            assert local.value == 3
+
+            def _make_ephemeral_ref() -> weakref.ref[ThreadLocals]:
+                return weakref.ref(ThreadLocals(4))
+
+            local_ref = _make_ephemeral_ref()
+            gc.collect()
+            assert local_ref() is None
+        finally:
+            unpatch()
+
+
+def test_wasm_threading_local_ignores_user_hash_and_eq(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _mock_pyodide_with_run_sync():
+        from marimo._runtime._wasm._concurrency import _state
+
+        unpatch = install_wasm_concurrency_shims()
+        try:
+            reused_ident = max(_stdlib_thread_ids(_state.patch_state())) + 1000
+            monkeypatch.setattr(
+                _state, "_IDENTS", iter([reused_ident, reused_ident])
+            )
+
+            class CustomHashEqLocal(threading.local):
+                def __init__(self, tag: str) -> None:
+                    self.tag = tag
+
+                def __hash__(self) -> int:
+                    return hash(self.tag)
+
+                def __eq__(self, other: object) -> bool:
+                    return (
+                        isinstance(other, CustomHashEqLocal)
+                        and self.tag == other.tag
+                    )
+
+            first = CustomHashEqLocal("same")
+            second = CustomHashEqLocal("same")
+            assert first == second
+            assert first is not second
+            reused_thread_has_extra: list[tuple[bool, bool]] = []
+
+            def populate_worker() -> None:
+                first.extra = "one"
+                second.extra = "two"
+
+            def verify_clean_worker() -> None:
+                reused_thread_has_extra.append(
+                    (hasattr(first, "extra"), hasattr(second, "extra"))
+                )
+
+            first_thread = threading.Thread(
+                name="worker-1", target=populate_worker
+            )
+            first_thread.start()
+            first_thread.join(timeout=1)
+            second_thread = threading.Thread(
+                name="worker-2", target=verify_clean_worker
+            )
+            second_thread.start()
+            second_thread.join(timeout=1)
+
+            assert first_thread.ident == reused_ident
+            assert second_thread.ident == reused_ident
+            assert reused_thread_has_extra == [(False, False)]
+            assert not hasattr(first, "extra")
+            assert not hasattr(second, "extra")
         finally:
             unpatch()
 
