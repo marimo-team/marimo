@@ -282,23 +282,23 @@ Hello world
       expect(offset).toBe(11);
     });
 
-    it("should escape triple quotes in the Markdown code", () => {
+    it("should use single triple quotes around triple double quotes", () => {
       const code = 'Markdown with an escaped """quote""""!!';
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toBe(
-        `mo.md("""
-Markdown with an escaped "\\""quote"\\""\\"!!
-""")`,
+        `mo.md('''
+Markdown with an escaped """quote""""!!
+''')`,
       );
       expect(offset).toBe(11);
     });
 
-    it("should escape triple quotes in the Markdown code with backslash", () => {
-      const code = 'Markdown with an escaped \\"""quote\\""""!!';
+    it("should escape triple quotes when the body has both kinds", () => {
+      const code = `"""quote"""" and '''quote'''`;
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toBe(
         `mo.md("""
-Markdown with an escaped \\"\\""quote\\"\\""\\"!!
+\\"""quote"\\""" and '''quote'''
 """)`,
       );
       expect(offset).toBe(11);

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from marimo._ast import codegen
@@ -12,18 +13,39 @@ if TYPE_CHECKING:
 DEFAULT_MARKDOWN_PREFIX = "r"
 
 
+def _escape_triple_quotes(source: str, quote: str) -> str | None:
+    # Mirrors escapeTripleQuotes in markdown-parser.ts
+    runs = f"(?:{quote}{{3}})+(?!{quote})"
+    if re.search(rf"(?<!\\)(?:\\\\)*\\{runs}", source):
+        return None
+    triple = quote * 3
+    return re.sub(
+        runs, lambda run: run.group().replace(triple, "\\" + triple), source
+    )
+
+
 def markdown_to_marimo(
     source: str, prefix: str = DEFAULT_MARKDOWN_PREFIX
 ) -> str:
     # NB. This should be kept in sync with the logic in
-    # frontend/src/core/codemirror/language/languages/markdown.ts
-    # ::transformOut
-    source = source.replace('"""', '\\"\\"\\"')
+    # packages/smart-cells/src/parsers/markdown-parser.ts::transformOut
 
     # 6 quotes in a row breaks
     if not source:
         source = " "
-    return codegen.construct_markdown_call(source, '"""', prefix)
+
+    # Prefer a delimiter the body does not contain: escapes survive in raw
+    # strings and render as backslashes in code blocks.
+    quotes = "'" if '"""' in source and "'''" not in source else "\"'"
+    for quote in quotes:
+        escaped = _escape_triple_quotes(source, quote)
+        if escaped is not None:
+            return codegen.construct_markdown_call(escaped, quote * 3, prefix)
+
+    # Neither delimiter can hold this body losslessly.
+    return codegen.construct_markdown_call(
+        source.replace('""', '"\\"'), '"""', prefix
+    )
 
 
 def sql_to_marimo(

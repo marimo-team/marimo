@@ -151,13 +151,13 @@ Count: {str(data["items"][0]["count"])}`.trim(),
       `);
     });
 
-    it("should escape triple quotes", () => {
+    it("should use single triple quotes around triple double quotes", () => {
       const code = 'Markdown with an escaped """quote"""!!';
       const { code: pythonCode } = parser.transformOut(code, {
         quotePrefix: "",
       });
       expect(pythonCode).toBe(
-        `mo.md("""\nMarkdown with an escaped "\\""quote"\\""!!\n""")`,
+        `mo.md('''\nMarkdown with an escaped """quote"""!!\n''')`,
       );
     });
 
@@ -217,6 +217,47 @@ Count: {str(data["items"][0]["count"])}`.trim(),
       const { code: backToPython } = parser.transformOut(code, metadata);
       const { code: roundtripped } = parser.transformIn(backToPython);
       expect(roundtripped).toBe(originalMarkdown);
+    });
+
+    it.each([
+      ["an empty-string literal", '```python\nx = ""\n```'],
+      ["a docstring", '```python\ndef f():\n    """Docstring."""\n```'],
+      ["a trailing quote", 'say """hi"""'],
+    ])("should not add backslashes to %s", (_, markdown) => {
+      const { code: pythonCode } = parser.transformOut(markdown, {
+        quotePrefix: "r",
+      });
+      // Backslashes survive in raw strings and render in code blocks
+      expect(pythonCode).not.toContain("\\");
+      expect(parser.transformIn(pythonCode).code).toBe(markdown);
+    });
+
+    it.each([
+      ["both triple-quote kinds", `"""double""" and '''single'''`],
+      ["a backslash before both kinds", String.raw`a\""" and '''`],
+      ["a literal escaped triple quote", String.raw`Write \"\"\" to escape`],
+      [
+        "a literal escaped triple quote beside '''",
+        String.raw`Write \"\"\" to escape '''`,
+      ],
+    ])("should roundtrip %s", (_, markdown) => {
+      for (const quotePrefix of ["", "r", "f", "rf"] as const) {
+        const { code: pythonCode } = parser.transformOut(markdown, {
+          quotePrefix,
+        });
+        expect(parser.transformIn(pythonCode).code).toBe(markdown);
+      }
+    });
+
+    it("should still load the old escaped spelling", () => {
+      const { code } = parser.transformIn(
+        String.raw`mo.md("""Write \""" and '''""")`,
+      );
+      expect(code).toBe(`Write """ and '''`);
+      const { code: pythonCode } = parser.transformOut(code, {
+        quotePrefix: "",
+      });
+      expect(parser.transformIn(pythonCode).code).toBe(code);
     });
   });
 });
