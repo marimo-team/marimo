@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
+    from marimo._messaging.agents import AgentConnection
     from marimo._messaging.notebook.document import NotebookDocument
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
@@ -64,6 +65,7 @@ class KernelManager(Protocol):
 
     kernel_task: ProcessLike | threading.Thread | None
     mode: SessionMode
+    agent_messaging: AgentConnection | None
 
     async def start_kernel(self) -> None:
         """Start the kernel process or thread."""

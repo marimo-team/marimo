@@ -68,3 +68,18 @@ async def detach(request: Request) -> Response:
     if notebook is not None:
         notebook.detach(body.attachment_id)
     return Response(status_code=204)
+
+
+@pair_router.get("/notebooks/{id}/agents", include_in_schema=False)
+@requires("edit")
+async def agents(request: Request) -> Response:
+    """List the logical agents that can receive messages."""
+    state = AppState(request)
+    session = state.session_by_stable_id(request.path_params["id"])
+    notebook = state.notebook_for_session(session)
+    if notebook is None or state.host_context is None:
+        raise HTTPException(status_code=409, detail="Notebook unavailable")
+    listing = state.host_context.agents.list(notebook)
+    return Response(
+        msgspec.json.encode(listing), media_type="application/json"
+    )

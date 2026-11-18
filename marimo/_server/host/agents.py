@@ -18,6 +18,7 @@ import msgspec
 from marimo._core import protocol
 from marimo._messaging.agents import (
     MESSAGE_TYPE,
+    AgentInfo,
     MessageContent,
     MessageRequest,
     PointerEvent,
@@ -63,6 +64,7 @@ class AgentMessaging:
         self._sleep: Callable[[float], Awaitable[None]] = sleep
         self._clock = clock
         self._host = host
+        self._first_connection: dict[str, dict[str, float]] = {}
         self._keys: dict[str, tuple[str, str]] = {}
         self._pending: dict[str, _Attempt] = {}
         self._recent: dict[str, deque[UUID]] = {}
@@ -92,6 +94,20 @@ class AgentMessaging:
             return recipients
         assert body.to is not None
         return {body.to: recipients.get(body.to)}
+
+    def list(self, notebook: Notebook) -> tuple[AgentInfo, ...]:
+        """Return capable agents in stable first connection order."""
+        recipients = self._recipients(
+            notebook, MessageRequest("", None, broadcast=True)
+        )
+        first = self._first_connection.get(notebook.id, {})
+        return tuple(
+            AgentInfo(identity, attachment.name or identity)
+            for identity, attachment in sorted(
+                recipients.items(), key=lambda item: (first[item[0]], item[0])
+            )
+            if attachment is not None
+        )
 
     async def send(
         self, notebook: Notebook, body: MessageRequest
@@ -193,8 +209,11 @@ class AgentMessaging:
                     self._sleep(max(0, next_deadline - self._clock()))
                 )
                 try:
+                    waiters: list[
+                        asyncio.Future[RecipientResult] | asyncio.Future[None]
+                    ] = [*(a.result for a in pending), timer]
                     await asyncio.wait(
-                        [*(a.result for a in pending), timer],
+                        waiters,
                         return_when=asyncio.FIRST_COMPLETED,
                     )
                 finally:
@@ -208,9 +227,9 @@ class AgentMessaging:
             )
         finally:
             for attempt_id in attempts:
-                attempt = self._pending.pop(attempt_id, None)
-                if attempt is not None:
-                    attempt.content = None
+                removed = self._pending.pop(attempt_id, None)
+                if removed is not None:
+                    removed.content = None
 
     def _authorize(
         self, notebook_id: str, attachment_id: str, key: str
@@ -276,12 +295,22 @@ class AgentMessaging:
         for attachment_id in list(self._keys):
             self.unregister(attachment_id)
         self._recent.clear()
+        self._first_connection.clear()
 
     def _observe(self, event: RoutedEvent) -> None:
-        if isinstance(event.event, protocol.AttachmentRemovedEvent):
+        if isinstance(event.event, protocol.AttachmentEvent):
+            attachment = event.event.data.attachment
+            if attachment.kind == "agent":
+                self._first_connection.setdefault(
+                    attachment.notebook_id, {}
+                ).setdefault(
+                    attachment.identity or attachment.id, self._clock()
+                )
+        elif isinstance(event.event, protocol.AttachmentRemovedEvent):
             self.unregister(event.event.data.id)
         elif isinstance(event.event, protocol.NotebookRemovedEvent):
             self._recent.pop(event.event.data.id, None)
+            self._first_connection.pop(event.event.data.id, None)
 
     def _expire(self, attempt: _Attempt) -> None:
         deadline = (

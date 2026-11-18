@@ -15,6 +15,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
 from marimo._core.ids import mint
+from marimo._messaging.agents import AgentConnection
 from marimo._messaging.input import InputReply, deliver_reply
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
@@ -107,6 +108,8 @@ class SessionImpl(Session):
         extensions: list[SessionExtension] | None = None,
         sandbox: bool = False,
         app_host_context: AppHostContext | None = None,
+        stable_id: StableSessionId | None = None,
+        agent_messaging: AgentConnection | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -196,6 +199,9 @@ class SessionImpl(Session):
             cache_enabled = config_manager.get_config().runtime.serve_cached_sessions_in_apps
             cache_mode = CacheMode.READ
 
+        stable_id = stable_id or mint(StableSessionId, "sess")
+        if mode is SessionMode.EDIT:
+            kernel_manager.agent_messaging = agent_messaging
         extensions = [
             *(extensions or []),
             LoggingExtension(),
@@ -219,6 +225,7 @@ class SessionImpl(Session):
             raise
 
         return cls(
+            stable_id=stable_id,
             initialization_id=initialization_id,
             session_consumer=session_consumer,
             session_view=startup.view,
@@ -239,11 +246,12 @@ class SessionImpl(Session):
         config_manager: MarimoConfigManager,
         ttl_seconds: int | None,
         extensions: list[SessionExtension],
+        stable_id: StableSessionId | None = None,
     ) -> None:
         """Initialize kernel and client connection to it."""
         # The notebook's creation key is used to find resumable sessions.
         self.initialization_id = initialization_id
-        self._stable_id = mint(StableSessionId, "sess")
+        self._stable_id = stable_id or mint(StableSessionId, "sess")
         self.app_file_manager = app_file_manager
         # Read configuration on each save to pick up later edits.
         self.app_file_manager.config_reader = config_manager

@@ -968,3 +968,242 @@ def test_native_harness_failure_results(
             assert (result.status, result.reason) == (status, reason)
         finally:
             record.forwarder.stop()
+
+
+def test_blocking_agents_from_cell_and_widget(tmp_path: Path) -> None:
+    from marimo._cli.pair.forwarder import run_forwarder
+
+    class ControlledInbox:
+        inbox_bytes = 8192
+        running = True
+        messages: queue.Queue[str] = queue.Queue()
+
+        def alive(self) -> bool:
+            return self.running
+
+        def send(self, text: str) -> Submission:
+            self.messages.put(text)
+            return Submission("submitted")
+
+    inbox = ControlledInbox()
+    with pair_test_server(tmp_path, token="editor-secret") as server:
+        host = resolve_host(server.url)
+        ready = threading.Event()
+        thread = threading.Thread(
+            target=run_forwarder,
+            args=(
+                ForwarderConfig(
+                    host.url,
+                    server.notebook_id,
+                    "agent",
+                    host.token,
+                    DeliveryTarget("test", "test", "Test"),
+                ),
+                inbox,
+            ),
+            kwargs={"ready": ready.set},
+            daemon=True,
+        )
+
+        def post(path: str, body: object) -> dict:
+            request = urllib.request.Request(
+                f"{server.url}{path}",
+                data=json.dumps(body).encode(),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer editor-secret",
+                    "Marimo-Session-Id": server.session_id,
+                    "Idempotency-Key": str(uuid4()),
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=10) as response:
+                return json.load(response)
+
+        def execute(code: str) -> str:
+            cell_id = uuid4().hex[:4]
+            base = f"/api/marimo/v1/notebooks/{server.notebook_id}"
+            post(
+                base + "/edits",
+                {
+                    "changes": [
+                        {
+                            "kind": "put_cell",
+                            "base_etag": None,
+                            "cell": {"id": cell_id, "code": code},
+                        }
+                    ]
+                },
+            )
+            run = post(base + "/runtime/runs", {"cells": [{"id": cell_id}]})
+            output = ""
+            while True:
+                event = json.loads(server._websocket.recv(timeout=15))
+                if event["event"] == "console":
+                    output += event["data"]["console"]["text"]
+                if (
+                    event["event"] == "marimo"
+                    and event["data"]["marimo"]["op"] == "completed-run"
+                    and event["data"]["marimo"]["run_id"] == run["id"]
+                ):
+                    return output
+
+        try:
+            initial = execute(
+                "import marimo as mo, msgspec\n"
+                "print(mo.agents.available())\n"
+                "print(mo.agents.list())\n"
+                "print(mo.agents.broadcast(None).recipients)\n"
+                "print(mo.agents.send(None, to='absent').recipients[0].reason)"
+            )
+            assert initial == "True\n()\n()\nnot-connected\n"
+            thread.start()
+            assert ready.wait(10)
+            output = execute(
+                "print(mo.agents.available())\n"
+                "print([(a.id, a.name) for a in mo.agents.list()])\n"
+                "print(msgspec.json.encode(mo.agents.send({'from': 'cell'}, to='agent', sender='Lens')).decode())\n"
+                "results = []\n"
+                "button = mo.ui.button(on_change=lambda _: results.append(mo.agents.broadcast({'from': 'widget'}, sender='Lens')))\n"
+                "print(button._id)"
+            ).splitlines()
+            assert output[:2] == ["True", "[('agent', 'Test')]"]
+            cell_result = json.loads(output[2])
+            assert cell_result["recipients"] == [
+                {
+                    "agent_id": "agent",
+                    "name": "Test",
+                    "status": "submitted",
+                    "reason": None,
+                    "detail": None,
+                }
+            ]
+            assert inbox.messages.get(timeout=5).endswith('{"from": "cell"}')
+            request = urllib.request.Request(
+                f"{server.url}/api/kernel/set_ui_element_value",
+                data=json.dumps(
+                    {"objectIds": [output[3]], "values": [1]}
+                ).encode(),
+                headers={
+                    "Content-Type": "application/json",
+                    "Marimo-Session-Id": server.session_id,
+                    "Authorization": "Bearer editor-secret",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                assert response.status == 200
+            assert inbox.messages.get(timeout=5).endswith('{"from": "widget"}')
+            callback_result = json.loads(
+                execute("print(msgspec.json.encode(results[0]).decode())")
+            )
+            assert callback_result["recipients"] == cell_result["recipients"]
+            assert callback_result["message_id"] != cell_result["message_id"]
+
+        finally:
+            inbox.running = False
+            if thread.ident is not None:
+                thread.join(timeout=3)
+
+
+def test_agent_listing_retains_first_connection_order(tmp_path: Path) -> None:
+    from marimo._cli.pair.forwarder import run_forwarder
+
+    class ControlledInbox:
+        inbox_bytes = 8192
+        running = True
+
+        def alive(self) -> bool:
+            return self.running
+
+        def send(self, _text: str) -> Submission:
+            return Submission("submitted")
+
+    with pair_test_server(tmp_path) as server:
+        host = resolve_host(server.url)
+        inboxes: list[ControlledInbox] = []
+        threads: list[threading.Thread] = []
+        streams = []
+
+        def start(identity: str, name: str) -> ControlledInbox:
+            inbox = ControlledInbox()
+            inboxes.append(inbox)
+            ready = threading.Event()
+            thread = threading.Thread(
+                target=run_forwarder,
+                args=(
+                    ForwarderConfig(
+                        host.url,
+                        server.notebook_id,
+                        identity,
+                        host.token,
+                        DeliveryTarget("test", "test", name),
+                    ),
+                    inbox,
+                ),
+                kwargs={"ready": ready.set},
+                daemon=True,
+            )
+            threads.append(thread)
+            thread.start()
+            assert ready.wait(10)
+            return inbox
+
+        def listing() -> list[dict[str, str]]:
+            with urllib.request.urlopen(
+                f"{server.url}/api/pair/notebooks/{server.stable_session_id}/agents",
+                timeout=5,
+            ) as response:
+                return json.load(response)
+
+        try:
+            for kind, messaging in [("agent", False), ("client", True)]:
+                stream = open_events(
+                    url=host.url,
+                    notebook=server.notebook_id,
+                    token=host.token,
+                    identity=kind,
+                    name="Not a recipient",
+                    kind=kind,
+                    messaging=messaging,
+                )
+                streams.append(stream)
+                for event in iter_sse(stream):
+                    if event.name == "ready":
+                        break
+            assert listing() == []
+            first = start("z", "First")
+            start("a", "Second")
+            assert listing() == [
+                {"id": "z", "name": "First"},
+                {"id": "a", "name": "Second"},
+            ]
+            first.running = False
+            for event in iter_sse(streams[0]):
+                if event.name == "attachment":
+                    attachment = json.loads(event.data)["attachment"]
+                    if attachment["identity"] == "z":
+                        break
+            request = urllib.request.Request(
+                f"{server.url}/api/pair/notebooks/{server.stable_session_id}/attachments/detach",
+                data=json.dumps({"attachment_id": attachment["id"]}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                assert response.status == 204
+            threads[0].join(timeout=10)
+            assert not threads[0].is_alive()
+            assert listing() == [{"id": "a", "name": "Second"}]
+            start("z", "Reconnected")
+            assert listing() == [
+                {"id": "z", "name": "Reconnected"},
+                {"id": "a", "name": "Second"},
+            ]
+        finally:
+            for inbox in inboxes:
+                inbox.running = False
+            for stream in streams:
+                stream.close()
+            for thread in threads:
+                thread.join(timeout=3)
