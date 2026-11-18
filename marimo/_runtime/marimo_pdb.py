@@ -9,17 +9,41 @@ from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._ast.compiler import cell_id_from_filename
-from marimo._ast.variables import demangle_locals_in_text, is_local
+from marimo._ast.variables import demangle_locals_in_text
 from marimo._ast.visitor import ScopedVisitor
 from marimo._messaging.streams import PdbInput
 from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from types import FrameType, TracebackType
 
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
+
+
+class _FrameLocalsVisitor(ScopedVisitor):
+    """Rewrite `_b` only when the frame binds `_cell_<id>_b` and not `_b`
+    itself: raw imports, comprehension and function locals, and names
+    typed already mangled stay as typed.
+    """
+
+    def __init__(
+        self, cell_id: CellId_t, scopes: tuple[Mapping[str, Any], ...]
+    ) -> None:
+        super().__init__("cell_" + cell_id)
+        self._scopes = scopes
+
+    def _bound(self, name: str) -> bool:
+        return any(name in scope for scope in self._scopes)
+
+    def is_local(self, name: str) -> bool:
+        return (
+            super().is_local(name)
+            and not self._bound(name)
+            and self._bound(f"_{self.id}{name}")
+        )
 
 
 def try_restart() -> bool:
@@ -128,19 +152,8 @@ class MarimoPdb(Pdb):
             if sys.version_info < (3, 13) and frame is self.curframe
             else frame.f_locals
         )
-        scopes = (local_names, frame.f_globals, frame.f_builtins)
-
-        def bound(name: str) -> bool:
-            return any(name in scope for scope in scopes)
-
-        # Rewrite `_b` only when the frame binds `_cell_<id>_b` and not `_b`
-        # itself: raw imports, comprehension and function locals, and names
-        # typed already mangled stay as typed.
-        visitor = ScopedVisitor("cell_" + cell_id)
-        visitor.is_local = lambda name: (
-            is_local(name)
-            and not bound(name)
-            and bound(f"_cell_{cell_id}{name}")
+        visitor = _FrameLocalsVisitor(
+            cell_id, (local_names, frame.f_globals, frame.f_builtins)
         )
         try:
             tree = ast.parse(source)
