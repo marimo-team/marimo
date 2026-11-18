@@ -282,6 +282,9 @@ class ScopedVisitor(ast.NodeVisitor):
     def is_local(self, name: str) -> bool:
         return not self._ignore_local and is_local(name)
 
+    def _mangle(self, name: str) -> str:
+        return f"_{self.id}{name}"
+
     @property
     def defs(self) -> set[Name]:
         """Get all global defs."""
@@ -341,7 +344,7 @@ class ScopedVisitor(ast.NodeVisitor):
         if self.is_local(name) and (
             len(self.block_stack) == 1 or ignore_scope
         ):
-            return f"_{self.id}{name}"
+            return self._mangle(name)
         else:
             return name
 

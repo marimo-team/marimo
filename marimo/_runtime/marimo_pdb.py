@@ -25,14 +25,14 @@ LOGGER = _loggers.marimo_logger()
 
 class _FrameLocalsVisitor(ScopedVisitor):
     """Rewrite `_b` only when the frame binds `_cell_<id>_b` and not `_b`
-    itself: raw imports, comprehension and function locals, and names
-    typed already mangled stay as typed.
+    itself. Raw imports, comprehension and function locals, and names that
+    the user typed in mangled form stay as typed.
     """
 
     def __init__(
-        self, cell_id: CellId_t, scopes: tuple[Mapping[str, Any], ...]
+        self, mangle_prefix: str, scopes: tuple[Mapping[str, Any], ...]
     ) -> None:
-        super().__init__("cell_" + cell_id)
+        super().__init__(mangle_prefix)
         self._scopes = scopes
 
     def _bound(self, name: str) -> bool:
@@ -42,7 +42,7 @@ class _FrameLocalsVisitor(ScopedVisitor):
         return (
             super().is_local(name)
             and not self._bound(name)
-            and self._bound(f"_{self.id}{name}")
+            and self._bound(self._mangle(name))
         )
 
 
@@ -133,27 +133,27 @@ class MarimoPdb(Pdb):
         return super().set_trace(frame)
 
     def _mangle_cell_locals(self, source: str, frame: FrameType | None) -> str:
-        """Mangle cell-local names in `source` the way the cell's code was.
+        """Mangle cell-local names in `source` to match the cell's code.
 
-        A cell stores `_b` as `_cell_<cell_id>_b`, so `p _b` only finds it
-        once the input is compiled like the cell. Input outside a cell's
-        frames, or input that is not valid Python, is returned as is.
+        If `frame` does not belong to a cell, or if `source` is not valid
+        Python, `source` is returned unchanged.
         """
         if frame is None:
             return source
         cell_id = cell_id_from_filename(frame.f_code.co_filename)
-        # Ids of embedded-app cells contain `-`, so their mangled names
+        # Cell ids in an embedded app contain `-`, so their mangled names
         # cannot be typed at the prompt.
         if cell_id is None or not f"_cell_{cell_id}".isidentifier():
             return source
-        # Before 3.13, rereading `f_locals` drops prompt assignments.
+        # Before 3.13, a prompt assignment is lost if `f_locals` is read
+        # again.
         local_names = (
             self.curframe_locals
             if sys.version_info < (3, 13) and frame is self.curframe
             else frame.f_locals
         )
         visitor = _FrameLocalsVisitor(
-            cell_id, (local_names, frame.f_globals, frame.f_builtins)
+            "cell_" + cell_id, (local_names, frame.f_globals, frame.f_builtins)
         )
         try:
             tree = ast.parse(source)
@@ -163,17 +163,18 @@ class MarimoPdb(Pdb):
             return source
         if ast.dump(tree) == before:
             return source
-        # pdb compiles a line in `single` mode, so keep `a = 1; _b = 2` on
-        # one line rather than unparsing it to two.
+        # pdb compiles a line in `single` mode, so `a = 1; _b = 2` must stay
+        # on one line.
         return "; ".join(ast.unparse(stmt) for stmt in tree.body)
 
     def error(self, msg: object) -> None:
-        # Report names as typed, not as mangled for evaluation. Some
-        # commands pass an exception, not a string.
+        # Show names as the user typed them. Some commands pass an
+        # exception instead of a string.
         super().error(demangle_locals_in_text(str(msg)))
 
     def default(self, line: str) -> None:
-        # pdb strips a leading `!` itself; strip it first so the rest parses.
+        # Remove a leading `!` before parsing. pdb removes it too, but only
+        # later.
         line = line.removeprefix("!").lstrip()
         super().default(self._mangle_cell_locals(line, self.curframe))
 

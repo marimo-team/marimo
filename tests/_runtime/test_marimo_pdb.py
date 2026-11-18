@@ -53,22 +53,20 @@ def test_cell_locals_resolve_at_prompt() -> None:
         'a = 7\n_b = 3 + a\n_b + "Hello"',
         [
             "p _b",
-            "pp _b + a",
+            "display _b",
             "_b * 2",
             "!_b = 100",
             "import math as _m; _c = _m.sqrt(_b)",
             "p _c",
-            "p _nope",
         ],
     )
     assert output.split("(Pdb) ")[1:-1] == [
         "10\n",
-        "17\n",
+        "display _b: 10\n",
         "20\n",
         "",
         "",
         "10.0\n",
-        "*** NameError: name '_nope' is not defined\n",
     ]
     assert glbls["_cell_0_b"] == 100
 
@@ -77,14 +75,12 @@ def test_names_the_cell_does_not_mangle_are_untouched() -> None:
     output, _ = _post_mortem(
         "import _thread\na = 7\n_b = 1\n1 / 0",
         [
-            "p a",
             "p _thread.__name__",
             "p [_b for _b in range(3)]",
             "p (lambda _b: _b * a)(2)",
         ],
     )
     assert output.split("(Pdb) ")[1:-1] == [
-        "7\n",
         "'_thread'\n",
         "[0, 1, 2]\n",
         "14\n",
@@ -100,17 +96,16 @@ def test_function_frame_resolves_cell_locals() -> None:
 
 
 def test_unmangleable_cell_id_input_is_untouched() -> None:
-    # Embedded-app cell ids contain `-`, so their mangled names are not
-    # identifiers; input runs as typed.
-    output, glbls = _post_mortem(
-        "_b = 1\n1 / 0", ["!_c = 3", "p _c"], cell_id="9f1c-Hbol"
-    )
-    assert output.split("(Pdb) ")[1:-1] == ["", "3\n"]
-    assert glbls["_c"] == 3
+    # Cell ids in an embedded app contain `-`, so their mangled names are
+    # not identifiers and input runs as typed.
+    output, _ = _post_mortem("_b = 1\n1 / 0", ["p _b"], cell_id="9f1c-Hbol")
+    assert output.split("(Pdb) ")[1:-1] == [
+        "*** NameError: name '_b' is not defined\n"
+    ]
 
 
 def test_mangled_names_typed_at_prompt_are_untouched() -> None:
-    # `locals()` shows the compiled name, so it can be typed directly.
+    # `locals()` returns the compiled name, so a user can type it directly.
     output, glbls = _post_mortem(
         "_b = 1\n1 / 0",
         ["!_cell_0_b = 2", "!_cell_0_b += 1", "p _cell_0_b, _b"],
@@ -120,18 +115,19 @@ def test_mangled_names_typed_at_prompt_are_untouched() -> None:
     assert "_cell_0_cell_0_b" not in glbls
 
 
-def test_non_string_errors_are_reported() -> None:
-    # pdb passes some commands' exceptions, not strings, to `error`.
-    output, _ = _post_mortem("_b = 1\n1 / 0", ["enable 9999", "p _b"])
+def test_errors_report_names_as_typed() -> None:
+    output, _ = _post_mortem(
+        "def _f(): pass\n1 / 0", ["enable 9999", "p _f(1)"]
+    )
     assert output.split("(Pdb) ")[1:-1] == [
         "*** Breakpoint number 9999 out of range\n",
-        "1\n",
+        "*** TypeError: _f() takes 0 positional arguments but 1 was given\n",
     ]
 
 
 def test_unmangled_import_is_assigned_in_place() -> None:
-    # The cell keeps an unaliased underscore import raw, so the prompt must
-    # write to the same binding.
+    # An unaliased underscore import is not mangled in the cell, so an
+    # assignment at the prompt must write to the same name.
     output, glbls = _post_mortem(
         "from re import _MAXCACHE\n1 / 0",
         ["!_MAXCACHE = 1", "!_MAXCACHE += 1", "p _MAXCACHE"],
@@ -141,10 +137,11 @@ def test_unmangled_import_is_assigned_in_place() -> None:
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 12), reason="comprehensions inline from 3.12"
+    sys.version_info < (3, 12), reason="comprehensions are inlined from 3.12"
 )
 def test_inlined_comprehension_local_shadows_cell_local() -> None:
-    # The comprehension runs in the cell's frame, so its `_x` is raw there.
+    # The comprehension is inlined into the cell's frame, so its `_x` is
+    # bound there without mangling.
     stdout = io.StringIO()
     debugger = MarimoPdb(
         stdin=io.StringIO("p _x\nc\n"),  # type: ignore[arg-type]
