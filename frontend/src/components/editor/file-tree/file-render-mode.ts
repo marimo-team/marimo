@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { isMediaMime, MIME_TO_LANGUAGE } from "./renderers";
+import { isMarkdownMime, isMediaMime, MIME_TO_LANGUAGE } from "./renderers";
 
 export type FileRenderMode =
   | "text"
@@ -25,11 +25,7 @@ export function getFileRenderMode(
   if (mime === "text/csv") {
     return "csv";
   }
-  if (
-    mime === "text/markdown" ||
-    filename?.toLowerCase().endsWith(".md") ||
-    filename?.toLowerCase().endsWith(".markdown")
-  ) {
+  if (isMarkdownMime(mime, filename)) {
     return "markdown";
   }
   if (

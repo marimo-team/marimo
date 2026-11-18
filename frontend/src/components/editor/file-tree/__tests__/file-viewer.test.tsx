@@ -176,14 +176,14 @@ describe("FileViewer bounded previews", () => {
     expect(editor).toBeVisible();
     expect(editor).not.toHaveAttribute("readonly");
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Preview" }));
 
     expect(
       await screen.findByRole("heading", { name: "Project README" }),
     ).toBeVisible();
     expect(screen.queryByTestId("code-editor")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Source" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Source" }));
 
     expect(await screen.findByTestId("code-editor")).toBeVisible();
   });

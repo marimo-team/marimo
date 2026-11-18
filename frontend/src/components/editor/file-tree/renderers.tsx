@@ -33,6 +33,17 @@ export function isMediaMime(mime: string): boolean {
   );
 }
 
+export function isMarkdownMime(mime: string, filename?: string): boolean {
+  const normalizedMime = mime.split(";", 1)[0].trim().toLowerCase();
+  const normalizedFilename = filename?.toLowerCase() ?? "";
+
+  return (
+    normalizedMime === "text/markdown" ||
+    normalizedFilename.endsWith(".md") ||
+    normalizedFilename.endsWith(".markdown")
+  );
+}
+
 export const MIME_TO_LANGUAGE: Record<string, string> = {
   "application/javascript": "javascript",
   "text/markdown": "markdown",

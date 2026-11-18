@@ -13,6 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip } from "@/components/ui/tooltip";
 import { disableFileDownloadsAtom, hotkeysAtom } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
@@ -49,10 +50,6 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   const [markdownViewMode, setMarkdownViewMode] = useState<
     "source" | "preview"
   >("source");
-
-  useEffect(() => {
-    setMarkdownViewMode("source");
-  }, [file.path]);
 
   const { data, isPending, error, setData, refetch } =
     useAsyncData(async () => {
@@ -189,17 +186,17 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
             </Tooltip>
           )}
           {isMarkdown && (
-            <Button
-              variant="text"
-              size="xs"
-              onClick={() =>
-                setMarkdownViewMode((mode) =>
-                  mode === "source" ? "preview" : "source",
-                )
+            <Tabs
+              value={markdownViewMode}
+              onValueChange={(value) =>
+                setMarkdownViewMode(value as "source" | "preview")
               }
             >
-              {markdownViewMode === "source" ? "Preview" : "Source"}
-            </Button>
+              <TabsList>
+                <TabsTrigger value="preview">Preview</TabsTrigger>
+                <TabsTrigger value="source">Source</TabsTrigger>
+              </TabsList>
+            </Tabs>
           )}
           {isText && (
             <>
