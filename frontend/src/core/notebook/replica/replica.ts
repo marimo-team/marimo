@@ -60,6 +60,8 @@ const MarimoMessage = z.object({ marimo: z.unknown() });
 export interface NotebookReplica {
   /** Connection status, independent of application session readiness. */
   readonly connectionAtom: Atom<ConnectionStatus>;
+  /** Local generation of the open stream. Opening or resetting a stream starts a new one. */
+  readonly generationAtom: Atom<number>;
   /** Identity and capabilities, available while the stream is connected and ready. */
   readonly notebookAtom: Atom<NotebookOutput | null>;
   /**
@@ -160,6 +162,7 @@ export function createNotebookReplica(
   const connectionAtom = atom<ConnectionStatus>({
     state: ConnectionState.NOT_STARTED,
   });
+  const generationAtom = atom(0);
   // One atom holds the whole stream, which resource atoms derive from.
   const reducer = createNotebookReducer({
     document,
@@ -257,6 +260,7 @@ export function createNotebookReplica(
 
   return {
     connectionAtom,
+    generationAtom,
     notebookAtom,
     documentAtom,
     shownDocumentAtom,
@@ -298,6 +302,7 @@ export function createNotebookReplica(
           if (status === "connecting") {
             setStatus({ state: ConnectionState.CONNECTING });
           } else if (status === "connected") {
+            store.set(generationAtom, (generation) => generation + 1);
             setStatus({ state: ConnectionState.OPEN });
           }
         },
@@ -338,6 +343,9 @@ export function createNotebookReplica(
       }
       try {
         setStream(reducer.reduce(store.get(streamAtom), event));
+        if (event.event === "reset") {
+          store.set(generationAtom, (generation) => generation + 1);
+        }
       } catch (error) {
         // An event the replica cannot apply, such as another notebook's.
         Logger.error("Failed to apply notebook event", error);
