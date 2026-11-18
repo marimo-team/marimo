@@ -2,13 +2,19 @@
 
 import { isMediaMime, MIME_TO_LANGUAGE } from "./renderers";
 
-export type FileRenderMode = "text" | "csv" | "media" | "unsupported";
+export type FileRenderMode =
+  | "text"
+  | "markdown"
+  | "csv"
+  | "media"
+  | "unsupported";
 
 export function getFileRenderMode(
   mimeType: string | null | undefined,
   isBase64: boolean | undefined,
+  filename?: string,
 ): FileRenderMode {
-  const mime = mimeType || "text/plain";
+  const mime = (mimeType || "text/plain").split(";", 1)[0].trim().toLowerCase();
 
   if (isMediaMime(mime)) {
     return "media";
@@ -18,6 +24,13 @@ export function getFileRenderMode(
   }
   if (mime === "text/csv") {
     return "csv";
+  }
+  if (
+    mime === "text/markdown" ||
+    filename?.toLowerCase().endsWith(".md") ||
+    filename?.toLowerCase().endsWith(".markdown")
+  ) {
+    return "markdown";
   }
   if (
     mime.startsWith("text/") ||

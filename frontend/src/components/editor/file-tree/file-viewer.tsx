@@ -46,6 +46,13 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   const currentNotebookFilename = useAtomValue(filenameAtom);
   // undefined value means not modified yet
   const [internalValue, setInternalValue] = useState<string>("");
+  const [markdownViewMode, setMarkdownViewMode] = useState<
+    "source" | "preview"
+  >("source");
+
+  useEffect(() => {
+    setMarkdownViewMode("source");
+  }, [file.path]);
 
   const { data, isPending, error, setData, refetch } =
     useAsyncData(async () => {
@@ -53,8 +60,12 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
         path: file.path,
         maxBytes: MAX_FILE_PREVIEW_BYTES,
       });
-      const mode = getFileRenderMode(details.mimeType, details.isBase64);
-      if (!details.isTooLarge && mode === "text") {
+      const mode = getFileRenderMode(
+        details.mimeType,
+        details.isBase64,
+        details.file.name,
+      );
+      if (!details.isTooLarge && (mode === "text" || mode === "markdown")) {
         const contents = details.contents || "";
         setInternalValue(unsavedContentsForFile.get(file.path) ?? contents);
       }
@@ -90,7 +101,9 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       if (
         data?.contents == null ||
         data.isTooLarge ||
-        getFileRenderMode(data.mimeType, data.isBase64) !== "text"
+        !["text", "markdown"].includes(
+          getFileRenderMode(data.mimeType, data.isBase64, data.file.name),
+        )
       ) {
         return;
       }
@@ -118,8 +131,13 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   }
 
   const mimeType = data.mimeType || "text/plain";
-  const renderMode = getFileRenderMode(data.mimeType, data.isBase64);
-  const isText = renderMode === "text";
+  const renderMode = getFileRenderMode(
+    data.mimeType,
+    data.isBase64,
+    data.file.name,
+  );
+  const isMarkdown = renderMode === "markdown";
+  const isText = renderMode === "text" || isMarkdown;
   const isCsv = renderMode === "csv";
   const isMedia = renderMode === "media";
   const isActiveNotebook =
@@ -169,6 +187,19 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
                 <ExternalLinkIcon className="h-3.5 w-3.5" />
               </Button>
             </Tooltip>
+          )}
+          {isMarkdown && (
+            <Button
+              variant="text"
+              size="xs"
+              onClick={() =>
+                setMarkdownViewMode((mode) =>
+                  mode === "source" ? "preview" : "source",
+                )
+              }
+            >
+              {markdownViewMode === "source" ? "Preview" : "Source"}
+            </Button>
           )}
           {isText && (
             <>
@@ -255,6 +286,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
         readOnly={!isText}
         onChange={isText ? setInternalValue : undefined}
         extensions={isText ? [saveKeymapExtension] : []}
+        markdownPreview={isMarkdown && markdownViewMode === "preview"}
       />
     </>
   );

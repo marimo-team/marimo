@@ -10,6 +10,7 @@ import {
   inferFieldTypes,
 } from "@/components/data-table/columns";
 import { DataTable } from "@/components/data-table/data-table";
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { useTheme } from "@/theme/useTheme";
@@ -194,8 +195,10 @@ const EMPTY_EXTENSIONS: readonly Extension[] = [];
 export const FileContentRenderer: React.FC<{
   mimeType: string;
   filename?: string;
-  /** Text content for text/CSV files. */
+  /** Text content for text/CSV/Markdown files. */
   contents?: string;
+  /** Render Markdown instead of showing its source in the editor. */
+  markdownPreview?: boolean;
   /** Media source for image/audio/video/PDF files. */
   mediaSource?: MediaSource;
   readOnly?: boolean;
@@ -206,6 +209,7 @@ export const FileContentRenderer: React.FC<{
   mimeType,
   filename,
   contents,
+  markdownPreview = false,
   mediaSource,
   readOnly = true,
   onChange,
@@ -230,6 +234,18 @@ export const FileContentRenderer: React.FC<{
   }
 
   if (contents != null) {
+    if (markdownPreview) {
+      return (
+        <div className="flex-1 overflow-auto p-4">
+          <MarkdownRenderer
+            content={contents}
+            allowNotebookInsertion={false}
+            readOnlyCodeBlocks={true}
+          />
+        </div>
+      );
+    }
+
     const language = resolveLanguage(mimeType, filename);
     return (
       <div className="flex-1 overflow-auto">
