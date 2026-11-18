@@ -22,6 +22,11 @@ from marimo._cli.config.overrides import (
     config_override_option,
     resolve_cli_config,
 )
+from marimo._cli.containers.launcher import (
+    container_engine_option,
+    prompt_run_in_container,
+    run_in_container,
+)
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
@@ -35,9 +40,6 @@ from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
 from marimo._cli.print import bright_green, light_blue, red
-from marimo._cli.run_docker import (
-    prompt_run_in_docker_container,
-)
 from marimo._cli.tips import choose_startup_tip
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._cli.utils import (
@@ -69,6 +71,7 @@ from marimo._tutorials import (
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 from marimo._utils.platform import is_windows
+from marimo._utils.url import is_url
 from marimo._version import __version__
 
 
@@ -381,15 +384,12 @@ class _OptionalValueOption(click.Option):
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a container.",
+    help=(
+        "Use --trusted to run remote notebooks on the host. "
+        "Use --untrusted to run one remote or local notebook in a container."
+    ),
 )
-@click.option(
-    "--container-engine",
-    default="docker",
-    callback=validators.container_engine,
-    type=str,
-    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman.",
-)
+@container_engine_option
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
     "--watch",
@@ -513,16 +513,18 @@ def edit(
         name = path.absolute_name
         stdin_notebook = name
 
-    if prompt_run_in_docker_container(
-        name, engine=container_engine, trusted=trusted
+    if prompt_run_in_container(
+        name, container_engine=container_engine, trusted=trusted
     ):
-        from marimo._cli.run_docker import run_in_docker
-
-        run_in_docker(
+        if args and not args[0].startswith("-"):
+            raise click.UsageError(
+                "Container execution supports one notebook."
+            )
+        run_in_container(
             name,
             "edit",
-            engine=container_engine,
             port=server_config.port,
+            container_engine=container_engine,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         )
         return
@@ -1005,15 +1007,12 @@ Example:
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a container.",
+    help=(
+        "Use --trusted to run remote notebooks on the host. "
+        "Use --untrusted to run one remote or local notebook in a container."
+    ),
 )
-@click.option(
-    "--container-engine",
-    default="docker",
-    callback=validators.container_engine,
-    type=str,
-    help="Container engine used to run notebooks in a container. Any engine with docker-style commands works, e.g. docker, podman.",
-)
+@container_engine_option
 @click.option(
     "--server-startup-command",
     default=None,
@@ -1081,19 +1080,22 @@ def run(
         else None,
     )
 
-    if len(paths) == 1 and prompt_run_in_docker_container(
-        paths[0], engine=container_engine, trusted=trusted
+    trust_input = next((path for path in paths if is_url(path)), paths[0])
+    if prompt_run_in_container(
+        trust_input, container_engine=container_engine, trusted=trusted
     ):
-        from marimo._cli.run_docker import run_in_docker
-
+        if len(paths) != 1:
+            raise click.UsageError(
+                "Container execution supports one notebook."
+            )
         config_manager = resolve_cli_config(
             current_path=paths[0], overrides=config_overrides
         )
-        run_in_docker(
+        run_in_container(
             paths[0],
             "run",
-            engine=container_engine,
             port=config_manager.get_config().server.port,
+            container_engine=container_engine,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
             execute_opengraph_generators=execute_opengraph_generators,
         )

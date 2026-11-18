@@ -68,4 +68,6 @@ def container_engine(ctx: Any, param: Any, value: str) -> str:
     value = value.strip()
     if not value:
         raise click.BadParameter("Must not be empty")
+    if "\x00" in value:
+        raise click.BadParameter("Specify one container engine executable")
     return value
