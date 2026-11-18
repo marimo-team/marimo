@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Blocking agent operations for notebook cells and widget callbacks."""
+"""Agent operations for notebook cells and widget callbacks."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import msgspec
 
+from marimo._agents._futures import SendFuture, send_queue
 from marimo._messaging.agents import (
     AgentContextUnavailableError,
     AgentError,
@@ -72,22 +73,31 @@ def list(*, timeout: float = 30.0) -> tuple[AgentInfo, ...]:  # noqa: A001
         raise AgentError("The agent listing response is invalid") from error
 
 
-def _send(
-    message: Any, to: str | None, sender: str | None, timeout: float
-) -> SendResult:
-    from marimo._runtime.agent_messaging import call
-
+def _validate_send(message: Any, sender: str | None, timeout: float) -> float:
     timeout = validate_timeout(timeout)
     validate_message(message)
     validate_sender(sender)
     validate_message_size(message)
+    return timeout
+
+
+def _send(
+    message: Any,
+    to: str | None,
+    sender: str | None,
+    timeout: float,
+    message_id: str,
+    config: AgentConnection,
+) -> SendResult:
+    from marimo._runtime.agent_messaging import call
+
     value = call(
-        _connection(),
+        config,
         "broadcast" if to is None else "send",
         message=message,
         to=to,
         sender=sender,
-        message_id=str(uuid4()),
+        message_id=message_id,
         timeout=timeout,
     )
     try:
@@ -114,7 +124,8 @@ def send(
     mean the model read the message or completed a task.
     """
     validate_recipient(to)
-    return _send(message, to, sender, timeout)
+    timeout = _validate_send(message, sender, timeout)
+    return _send(message, to, sender, timeout, str(uuid4()), _connection())
 
 
 def broadcast(
@@ -129,4 +140,57 @@ def broadcast(
 
     An empty broadcast returns a result with no recipients.
     """
-    return _send(message, None, sender, timeout)
+    timeout = _validate_send(message, sender, timeout)
+    return _send(message, None, sender, timeout, str(uuid4()), _connection())
+
+
+def _start_send(
+    message: Any, to: str | None, sender: str | None, timeout: float
+) -> SendFuture:
+    timeout = _validate_send(message, sender, timeout)
+    config = _connection()
+    # The producer can change its content after this call returns.
+    message = msgspec.json.decode(msgspec.json.encode(message))
+    future = SendFuture(str(uuid4()))
+    send_queue.submit(
+        future,
+        lambda: _send(message, to, sender, timeout, future.message_id, config),
+    )
+    return future
+
+
+def start_send(
+    message: Any, *, to: str, sender: str | None = None, timeout: float = 30.0
+) -> SendFuture:
+    """Queue a send to one agent and return a standard future immediately.
+
+    Args:
+        message (Any): JSON content. Objects require string keys.
+        to (str): Recipient ID from `mo.agents.list()`.
+        sender (str, optional): Unverified label, at most 64 characters, one line.
+        timeout (float, optional): Send wait in seconds after dispatch. Defaults to 30.
+
+    The future's `message_id` is available at once. Done callbacks run on a
+    marimo thread. A callback added after completion runs on the caller's thread,
+    as with any standard future. Arguments and context are checked at the call;
+    request errors appear in the future. At most four sends run at once.
+    Each reactive rerun sends again. Submission does not mean task completion.
+    """
+    validate_recipient(to)
+    return _start_send(message, to, sender, timeout)
+
+
+def start_broadcast(
+    message: Any, *, sender: str | None = None, timeout: float = 30.0
+) -> SendFuture:
+    """Queue a broadcast and return a standard future immediately.
+
+    Args:
+        message (Any): JSON content. Objects require string keys.
+        sender (str, optional): Unverified label, at most 64 characters, one line.
+        timeout (float, optional): Send wait in seconds after dispatch. Defaults to 30.
+
+    The future exposes `message_id` before completion and has the same callback
+    and error behavior as `start_send`. An empty broadcast has no recipients.
+    """
+    return _start_send(message, None, sender, timeout)

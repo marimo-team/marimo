@@ -1,7 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Send JSON data to agents connected to a live editor notebook."""
 
-from marimo._agents._impl import available, broadcast, list, send
+from marimo._agents._futures import SendFuture
+from marimo._agents._impl import (
+    available,
+    broadcast,
+    list,
+    send,
+    start_broadcast,
+    start_send,
+)
 from marimo._messaging.agents import (
     AgentContextUnavailableError,
     AgentError,
@@ -18,6 +26,7 @@ __all__ = [
     "AgentError",
     "AgentInfo",
     "RecipientResult",
+    "SendFuture",
     "SendOutcomeUnknownError",
     "SendResult",
     "SubmissionReason",
@@ -26,4 +35,6 @@ __all__ = [
     "broadcast",
     "list",
     "send",
+    "start_broadcast",
+    "start_send",
 ]

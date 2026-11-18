@@ -6,7 +6,8 @@ import pytest
 import marimo as mo
 
 
-def test_plain_script_has_no_agent_context() -> None:
+@pytest.mark.parametrize("send", [mo.agents.send, mo.agents.start_send])
+def test_plain_script_has_no_agent_context(send) -> None:
     assert not mo.agents.available()
     with pytest.raises(
         mo.agents.AgentContextUnavailableError,
@@ -14,7 +15,7 @@ def test_plain_script_has_no_agent_context() -> None:
     ):
         mo.agents.list()
     with pytest.raises(mo.agents.AgentContextUnavailableError):
-        mo.agents.send(None, to="agent")
+        send(None, to="agent")
 
 
 @pytest.mark.parametrize(
@@ -30,9 +31,12 @@ def test_plain_script_has_no_agent_context() -> None:
         ({"sender": 1}, TypeError),
     ],
 )
-def test_bad_call_arguments(kwargs: dict, error: type[Exception]) -> None:
+@pytest.mark.parametrize("send", [mo.agents.send, mo.agents.start_send])
+def test_bad_call_arguments(
+    kwargs: dict, error: type[Exception], send
+) -> None:
     with pytest.raises(error):
-        mo.agents.send(None, **{"to": "agent", **kwargs})
+        send(None, **{"to": "agent", **kwargs})
 
 
 @pytest.mark.parametrize(
@@ -44,9 +48,10 @@ def test_bad_call_arguments(kwargs: dict, error: type[Exception]) -> None:
         "x" * (4 * 1024 * 1024),
     ],
 )
-def test_invalid_message_is_a_call_error(message: object) -> None:
+@pytest.mark.parametrize("send", [mo.agents.send, mo.agents.start_send])
+def test_invalid_message_is_a_call_error(message: object, send) -> None:
     with pytest.raises((TypeError, ValueError)):
-        mo.agents.send(message, to="agent")
+        send(message, to="agent")
 
 
 def test_transport_reports_no_server() -> None:
@@ -78,3 +83,23 @@ def test_transport_returns_call_rejection(status: int) -> None:
         ) as error:
             call(config, "send", timeout=1, message_id="id", to="agent")
         assert not isinstance(error.value, mo.agents.SendOutcomeUnknownError)
+
+
+@pytest.mark.parametrize(
+    "start", [mo.agents.start_send, mo.agents.start_broadcast]
+)
+def test_future_request_errors(executing_kernel, start) -> None:
+    from marimo._messaging.agents import AgentConnection
+    from tests._http import http_test_server
+
+    with http_test_server() as endpoint:
+        endpoint.status = 503
+        endpoint.body = b'{"detail":"Call exceeds a limit"}'
+        executing_kernel.agent_messaging = AgentConnection(
+            endpoint.url, "", ""
+        )
+        kwargs = {"to": "agent"} if start is mo.agents.start_send else {}
+        future = start(None, **kwargs)
+        with pytest.raises(mo.agents.AgentError, match="Call exceeds a limit"):
+            future.result(timeout=5)
+        assert isinstance(future.exception(), mo.agents.AgentError)

@@ -924,11 +924,10 @@ def test_native_harness_failure_results(
             record.forwarder.stop()
 
 
-def test_blocking_agents_from_cell_and_widget(tmp_path: Path) -> None:
-    inbox = ControlledInbox()
+@pytest.fixture
+def notebook_client(tmp_path: Path):
     with (
         pair_test_server(tmp_path, token="editor-secret") as server,
-        ExitStack() as stack,
     ):
 
         def post(path: str, body: object) -> dict:
@@ -974,6 +973,13 @@ def test_blocking_agents_from_cell_and_widget(tmp_path: Path) -> None:
                 ):
                     return output
 
+        yield server, execute, post
+
+
+def test_blocking_agents_from_cell_and_widget(notebook_client) -> None:
+    server, execute, _post = notebook_client
+    inbox = ControlledInbox()
+    with ExitStack() as stack:
         initial = execute(
             "import marimo as mo, msgspec\n"
             "print(mo.agents.available())\n"
@@ -1099,3 +1105,114 @@ def test_agent_listing_retains_first_connection_order(tmp_path: Path) -> None:
         finally:
             for stream in streams:
                 stream.close()
+
+
+@pytest.mark.parametrize("broadcast", [False, True])
+def test_future_agents_from_cell_and_widget(
+    notebook_client, broadcast: bool
+) -> None:
+    server, execute, post = notebook_client
+    entered = threading.Event()
+    release = threading.Event()
+
+    def submit(_text: str) -> Submission:
+        entered.set()
+        assert release.wait(10)
+        return Submission("submitted")
+
+    inbox = ControlledInbox(submit)
+    with running_forwarder(server, inbox):
+        try:
+            call = (
+                "mo.agents.start_broadcast"
+                if broadcast
+                else "mo.agents.start_send"
+            )
+            args = "" if broadcast else ", to='agent'"
+            output = execute(
+                "import marimo as mo, msgspec, concurrent.futures, threading\n"
+                "done = threading.Event()\n"
+                "results = []\n"
+                "def on_done(f):\n"
+                "    results.append((f.result(), mo.current_thread().name, mo.agents.available()))\n"
+                "    if len(results) == 2:\n"
+                "        done.set()\n"
+                f"future = {call}({{'from': 'cell'}}, sender='Lens'{args})\n"
+                "future.add_done_callback(on_done)\n"
+                "print(isinstance(future, concurrent.futures.Future), future.done())\n"
+                "print(future.message_id)\n"
+                "def on_widget(_):\n"
+                f"    f = {call}({{'from': 'widget'}}{args})\n"
+                "    widget_futures.append(f)\n"
+                "    f.add_done_callback(on_done)\n"
+                "button = mo.ui.button(on_change=on_widget)\n"
+                "widget_futures = []\n"
+                "print(button._id)"
+            ).splitlines()
+            assert output[0] == "True False"
+            assert output[1]
+            assert entered.wait(5)
+            post(
+                "/api/kernel/set_ui_element_value",
+                {"objectIds": [output[2]], "values": [1]},
+            )
+            assert (
+                execute("print(len(widget_futures), widget_futures[0].done())")
+                == "1 False\n"
+            )
+            release.set()
+            result = json.loads(
+                execute(
+                    "assert done.wait(10)\n"
+                    "assert list(concurrent.futures.as_completed([future, *widget_futures], timeout=10))\n"
+                    "assert any(r[0] == future.result() for r in results)\n"
+                    "assert all(r[2] for r in results)\n"
+                    "assert widget_futures[0].result().recipients == mo.agents.send(None, to='agent').recipients\n"
+                    "print(msgspec.json.encode(future.result()).decode())"
+                )
+            )
+            assert result["message_id"] == output[1]
+            assert result["recipients"][0]["status"] == "submitted"
+            assert inbox.messages[0].endswith('{"from": "cell"}')
+            assert inbox.messages[1].endswith('{"from": "widget"}')
+        finally:
+            release.set()
+
+
+def test_future_send_loop_bounds_threads(notebook_client) -> None:
+    server, execute, _post = notebook_client
+    release = threading.Event()
+    entered = threading.Event()
+
+    def submit(_text: str) -> Submission:
+        entered.set()
+        assert release.wait(10)
+        return Submission("submitted")
+
+    inbox = ControlledInbox(submit)
+    with running_forwarder(server, inbox):
+        try:
+            assert (
+                execute(
+                    "import marimo as mo, threading, concurrent.futures\n"
+                    "loop_futures = [mo.agents.start_send(i, to='agent') for i in range(100)]\n"
+                    "print(sum(t.name == 'marimo-agent-send' for t in threading.enumerate()) <= 5)\n"
+                    "print(sum(not f.running() and not f.done() for f in loop_futures) >= 96)\n"
+                    "print(len({f.message_id for f in loop_futures}))\n"
+                    "for f in loop_futures[4:]:\n"
+                    "    assert f.cancel()"
+                )
+                == "True\nTrue\n100\n"
+            )
+            assert entered.wait(5)
+            release.set()
+            assert (
+                execute(
+                    "assert len(list(concurrent.futures.as_completed(loop_futures, timeout=10))) == 100\n"
+                    "print([f.result(timeout=10).recipients[0].status for f in loop_futures[:4]])"
+                )
+                == "['submitted', 'submitted', 'submitted', 'submitted']\n"
+            )
+            assert len(inbox.messages) == 4
+        finally:
+            release.set()
