@@ -2322,7 +2322,7 @@ def test_cli_rejects_empty_container_engine(mode: str) -> None:
         ],
     )
     assert result.exit_code == 2
-    assert "Specify one container engine executable" in result.output
+    assert "Must not be empty" in result.output
 
 
 def test_cli_does_not_fall_back_when_container_engine_is_missing(
@@ -2366,6 +2366,36 @@ def test_cli_container_startup_reports_engine_error(mode: str) -> None:
     assert "image pull denied" in result.output
     assert "Container removed." not in result.output
     assert "Container is already absent." not in result.output
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        subprocess.CalledProcessError(1, "info", stderr="Service unavailable"),
+        subprocess.TimeoutExpired("info", 10),
+        PermissionError("Permission denied"),
+    ],
+)
+def test_cli_container_reports_failed_engine_availability(
+    error: Exception,
+) -> None:
+    with patch("subprocess.run", side_effect=error) as run:
+        result = CliRunner().invoke(
+            cli_main,
+            [
+                "edit",
+                "https://example.com/notebook.py",
+                "--untrusted",
+                "--container-engine",
+                "podman",
+            ],
+        )
+
+    assert result.exit_code == 1, result.output
+    assert "Podman availability check failed" in result.output
+    run.assert_called_once()
+    assert run.call_args.args[0] == ["podman", "info"]
+    assert run.call_args.kwargs["timeout"] == 10
 
 
 @pytest.mark.parametrize("status", [0, 7])

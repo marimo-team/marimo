@@ -84,7 +84,7 @@ class DeliveryTarget:
 class Harness(Protocol):
     """Discover a ready harness destination and bind its inbox.
 
-    Each adapter checks readiness during detection, before returning a target.
+    Detection can identify the owner before checking inbox readiness.
     """
 
     kind: str
@@ -96,6 +96,7 @@ class Harness(Protocol):
         env: Mapping[str, str],
         *,
         process: ProcessHandle | None = None,
+        check_ready: bool = True,
     ) -> DeliveryTarget | None: ...
 
     def check(self) -> None: ...

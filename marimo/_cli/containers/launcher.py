@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import click
 from click import echo
 
+from marimo._cli import cli_validators
 from marimo._cli.containers.engine import (
     Cancelled,
     EngineFailure,
@@ -31,21 +32,12 @@ if TYPE_CHECKING:
     )
 
 
-def _validate_engine(
-    _ctx: click.Context, _param: click.Parameter, value: str
-) -> str:
-    value = value.strip()
-    if not value or "\x00" in value:
-        raise click.BadParameter("Specify one container engine executable")
-    return value
-
-
 container_engine_option = click.option(
     "--container-engine",
     default="docker",
     show_default=True,
     metavar="EXECUTABLE",
-    callback=_validate_engine,
+    callback=cli_validators.container_engine,
     help=(
         "Engine for container execution. Use docker, podman, nerdctl, finch, "
         "container (Apple), or a Docker-compatible executable name or path."
@@ -76,7 +68,8 @@ def prompt_run_in_container(
     return click.confirm(
         "This notebook is hosted on a remote server.\n"
         + green(
-            f"Would you like to run it in a container using {container_engine}?",
+            f"Would you like to run it in a container using {container_engine}?"
+            " Use --container-engine to select a different engine.",
             bold=True,
         ),
         default=True,
