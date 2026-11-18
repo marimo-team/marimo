@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
 import {
   ChevronRightIcon,
   ChevronsDownUpIcon,
@@ -8,6 +9,9 @@ import {
 } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useState } from "react";
 import { ToggleButton } from "react-aria-components";
+import { pendingPdbInputAtom } from "@/core/codemirror/cells/debugger-state";
+import { kioskModeAtom } from "@/core/mode";
+import { getRequestClient } from "@/core/network/requests";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Button } from "@/components/ui/button";
@@ -124,7 +128,11 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     );
   } */
 
-  const hasOutputs = consoleOutputs.length > 0;
+  const kioskMode = useAtomValue(kioskModeAtom);
+  const prompt = useAtomValue(pendingPdbInputAtom);
+  const pdbInput =
+    !kioskMode && prompt?.cellId === cellId ? prompt.inputId : null;
+  const hasOutputs = consoleOutputs.length > 0 || pdbInput != null;
 
   // Enable Ctrl/Cmd-A to select all content within the console output
   const selectAllProps = useSelectAllContent(hasOutputs);
@@ -235,6 +243,24 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
         )}
         style={isExpanded ? { maxHeight: "none" } : undefined}
       >
+        {pdbInput != null && (
+          <StdInput
+            key={pdbInput}
+            output=""
+            isPdb={true}
+            onSubmit={(value) => {
+              void getRequestClient()
+                .sendPdbReply({ cellId, inputId: pdbInput, value })
+                .catch(() => {
+                  /* The request client reports the failure. */
+                });
+            }}
+            onClear={onClear}
+            value={stdinValue}
+            setValue={setStdinValue}
+            inputHistory={inputHistory}
+          />
+        )}
         {reversedOutputs.map((output, idx) => {
           if (output.channel === "pdb") {
             return null;

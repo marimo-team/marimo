@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { withPdbOutput } from "@/core/cells/types";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
@@ -107,7 +108,7 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
       errorData: parsed.errorData,
       tracebackHtml: resolveTracebackHtml(
         parsed,
-        cellRuntime[cellId].consoleOutputs,
+        withPdbOutput(cellRuntime[cellId]).consoleOutputs,
       ),
     });
   }

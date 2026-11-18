@@ -4,6 +4,8 @@ import { atom, useAtomValue } from "jotai";
 import { notebookAtom } from "@/core/cells/cells";
 import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
 import { Banner } from "@/plugins/impl/common/error-banner";
+import { pendingPdbInputAtom } from "@/core/codemirror/cells/debugger-state";
+import { kioskModeAtom } from "@/core/mode";
 import { Logger } from "@/utils/Logger";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
@@ -13,6 +15,9 @@ import { DelayMount } from "../utils/delay-mount";
 const hasBlockingStdinAtom = atom((get) => {
   const notebook = get(notebookAtom);
   const executions = get(cellExecutionInputsAtom);
+  if (!get(kioskModeAtom) && get(pendingPdbInputAtom) !== null) {
+    return true;
+  }
 
   // Check each cell in order
   for (const cellId of notebook.cellIds) {

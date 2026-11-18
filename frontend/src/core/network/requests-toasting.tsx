@@ -38,6 +38,7 @@ export function createErrorToastingRequests(
     getFileRoots: "", // RequestingTree surfaces this error
     sendListFiles: "Failed to list files",
     sendSearchFiles: "", // Search callers handle errors
+    sendPdbReply: "Failed to send debugger command",
     sendPdb: "Failed to start debug session",
     sendSetBreakpoints: "", // No toast
     sendCreateFileOrFolder: "Failed to create file or folder",

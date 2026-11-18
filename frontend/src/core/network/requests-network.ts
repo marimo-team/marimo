@@ -253,6 +253,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendPdbReply: (request) => {
+      return getClient()
+        .POST("/api/kernel/pdb/reply", { body: request, params: getParams() })
+        .then(handleResponseReturnNull);
+    },
     sendSetBreakpoints: (request) => {
       return getClient()
         .POST("/api/kernel/pdb/breakpoints", {

@@ -25,7 +25,8 @@ import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 import type { SerializedEditorState } from "../codemirror/types";
 import { mergeOutlines } from "../dom/outline";
-import type { CellMessage } from "../kernel/messages";
+import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
+import type { NotificationMessage, CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
@@ -37,6 +38,8 @@ import { type CellLog, getCellLogsForMessage } from "./logs";
 import type { Outline } from "./outline";
 import { focusAndScrollCellIntoView } from "./scrollCellIntoView";
 import {
+  withPdbOutput,
+  type ConsoleOutputMessage,
   type CellData,
   type CellRuntimeState,
   createCell,
@@ -170,6 +173,41 @@ const {
       cellId: action.cellId,
       cellReducer: (cell) => ({ ...cell, debuggerActive: false }),
     }),
+  showPdbOutput: (
+    state,
+    {
+      cell_id,
+      entries,
+      replace,
+    }: Extract<NotificationMessage, { op: "pdb-output" }>,
+  ) => {
+    return updateCellRuntimeState({
+      state,
+      cellId: cell_id,
+      cellReducer: (cell) => {
+        let transcript =
+          replace || entries.length === 0 ? [] : (cell.pdbOutput ?? []);
+        for (const entry of entries) {
+          // Execution entries have positive keys.
+          const output: ConsoleOutputMessage = {
+            ...entry,
+            id: (transcript.at(-1)?.id ?? 0) - 1,
+          };
+          transcript = collapseConsoleOutputs([...transcript, output]);
+        }
+        return { ...cell, pdbOutput: transcript };
+      },
+    });
+  },
+  clearDebuggerOutput: (state) => {
+    const cellRuntime = { ...state.cellRuntime };
+    for (const cellId of Object.keys(cellRuntime) as CellId[]) {
+      if (cellRuntime[cellId].pdbOutput) {
+        cellRuntime[cellId] = { ...cellRuntime[cellId], pdbOutput: undefined };
+      }
+    }
+    return { ...state, cellRuntime };
+  },
   handleCellMessage: (state, message: CellMessage) => {
     const cellId = message.cell_id;
     const nextState = updateCellRuntimeState({
@@ -317,6 +355,7 @@ function clearConsoleOutputs(
     }
     cellRuntime[cellId] = {
       ...cell,
+      pdbOutput: undefined,
       consoleOutputs: cell.consoleOutputs.filter(
         (output) => output.channel === "stdin" && output.response == null,
       ),
@@ -520,7 +559,7 @@ export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
 );
 const cellRuntimeAtom = atomFamily((cellId: CellId) =>
-  atom((get) => get(notebookAtom).cellRuntime[cellId]),
+  atom((get) => withPdbOutput(get(notebookAtom).cellRuntime[cellId])),
 );
 export const cellHandleAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellHandles[cellId]),
@@ -585,7 +624,7 @@ export function flattenTopLevelNotebookCells(
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.map((cellId) => ({
     ...cellData[cellId],
-    ...cellRuntime[cellId],
+    ...withPdbOutput(cellRuntime[cellId]),
     output: outputs.get(cellId) ?? null,
   }));
 }

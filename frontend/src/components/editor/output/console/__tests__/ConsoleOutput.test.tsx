@@ -5,9 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createStore, Provider } from "jotai";
 import { SetupMocks } from "@/__mocks__/common";
 import { mockDocumentModel } from "@/__mocks__/document";
+import { MockRequestClient } from "@/__mocks__/requests";
+import * as requests from "@/core/network/requests";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { WithResponse } from "@/core/cells/types";
+import { pendingPdbInputAtom } from "@/core/codemirror/cells/debugger-state";
 import { DocumentProvider } from "@/core/notebook/document";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { CONSOLE_CLEAR_DEBOUNCE_MS, ConsoleOutput } from "../ConsoleOutput";
@@ -86,6 +89,36 @@ describe("ConsoleOutput pdb history", () => {
     data,
     timestamp: 0,
     response,
+  });
+
+  it("answers the failed cell's debugger prompt by ID and allows a retry", () => {
+    const client = MockRequestClient.create();
+    client.sendPdbReply.mockRejectedValueOnce(new Error("disconnected"));
+    const getter = vi
+      .spyOn(requests, "getRequestClient")
+      .mockReturnValue(client);
+    try {
+      store.set(pendingPdbInputAtom, {
+        cellId: defaultProps.cellId,
+        inputId: "prompt-1",
+      });
+      renderWithProvider(<ConsoleOutput {...defaultProps} />);
+      const input = screen.getByTestId("console-input");
+      for (let attempt = 0; attempt < 2; attempt++) {
+        fireEvent.change(input, { target: { value: "where" } });
+        fireEvent.keyDown(input, { key: "Enter" });
+      }
+      expect(client.sendPdbReply).toHaveBeenCalledTimes(2);
+      expect(client.sendPdbReply).toHaveBeenLastCalledWith({
+        cellId: defaultProps.cellId,
+        inputId: "prompt-1",
+        value: "where",
+      });
+      expect(defaultProps.onSubmitDebugger).not.toHaveBeenCalled();
+    } finally {
+      act(() => store.set(pendingPdbInputAtom, null));
+      getter.mockRestore();
+    }
   });
 
   it("should persist command history across StdInput remounts", () => {

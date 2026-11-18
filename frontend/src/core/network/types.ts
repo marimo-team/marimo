@@ -185,6 +185,7 @@ export interface EditRequests {
   getUsageStats: () => Promise<UsageResponse>;
   getEnvironmentInfo: () => Promise<EnvironmentInfo>;
   // Debugger
+  sendPdbReply: (request: schemas["PdbInputReplyRequest"]) => Promise<null>;
   sendPdb: (request: DebugCellRequest) => Promise<null>;
   sendSetBreakpoints: (request: SetBreakpointsRequest) => Promise<null>;
   // File explorer requests
