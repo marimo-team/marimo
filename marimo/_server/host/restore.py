@@ -121,7 +121,6 @@ def _result(cell: DocumentCell, stored: Cell) -> CellExecution | None:
             runtime_id=None,
             caused_by=None,
             cell_id=cell.id,
-            code=None,
             code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
             depends_on={},
             status="completed",

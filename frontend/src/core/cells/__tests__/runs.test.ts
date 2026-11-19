@@ -19,7 +19,6 @@ const queued = {
   runtime_id: "runtime",
   caused_by: null,
   cell_id: "cell",
-  code: null,
   code_fingerprint: "fp",
   depends_on: {},
   status: "queued",

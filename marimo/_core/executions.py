@@ -524,7 +524,6 @@ class Executions:
                         cell_id=protocol.CellId(entry.cell_id)
                         if entry.cell_id is not None
                         else None,
-                        code=entry.code,
                         code_fingerprint=protocol.CodeFingerprint(
                             entry.code_fingerprint
                         ),

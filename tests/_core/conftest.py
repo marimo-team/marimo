@@ -360,7 +360,6 @@ def retained_execution(
             runtime_id=None,
             caused_by=None,
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
-            code="42" if cell_id is None else None,
             code_fingerprint=code_fingerprint("42"),
             depends_on={},
             status="completed",

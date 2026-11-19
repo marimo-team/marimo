@@ -461,9 +461,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                     executions[execution["caused_by"]]["run_id"] == run["id"]
                 )
             if execution["cell_id"] is None:
-                assert execution["code"] is not None
-            else:
-                assert execution["code"] is None
+                assert run["origin"]["kind"] == "code"
             if execution["status"] == "queued":
                 assert execution["outcome"] is None
                 assert execution["started_at"] is None

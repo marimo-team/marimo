@@ -558,7 +558,12 @@ class RunCellsOrigin(Struct, frozen=True, tag_field="kind", tag="cells"):
 
 
 class RunCodeOrigin(Struct, frozen=True, tag_field="kind", tag="code"):
-    pass
+    code: Annotated[
+        str,
+        Meta(
+            description="The submitted code, which the run's scratch execution evaluates."
+        ),
+    ]
 
 
 if TYPE_CHECKING:
@@ -1527,7 +1532,7 @@ class RemovedMessage(Struct, frozen=True):
 RunOrigin: TypeAlias = Annotated[
     RunCellsOrigin | RunCodeOrigin | RunRuntimeOrigin,
     Meta(
-        description="What a run was given when it was created, tagged on `kind`. A\n`cells` run was given the cells in `cell_ids`. A `code` run was\ngiven code to evaluate, which its scratch execution carries. A\n`runtime` run was given neither. The runtime scheduled it in\nresponse to a change, such as the cells that read a UI element\nafter its value changes. Other kinds are defined by later versions\nof this protocol.\n"
+        description="What a run was given when it was created, tagged on `kind`. A\n`cells` run was given the cells in `cell_ids`. A `code` run was\ngiven the code in `code`, which its scratch execution evaluates. A\n`runtime` run was given neither. The runtime scheduled it in\nresponse to a change, such as the cells that read a UI element\nafter its value changes. Other kinds are defined by later versions\nof this protocol.\n"
     ),
 ]
 
@@ -1823,16 +1828,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             CellId,
             Meta(
-                description="The cell this execution belongs to. Null for scratch code, a cell outside the document."
-            ),
-        ]
-        | None
-    )
-    code: (
-        Annotated[
-            str,
-            Meta(
-                description="The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it."
+                description="The cell this execution belongs to. Null for a scratch execution, which evaluates the code in its run's `origin`."
             ),
         ]
         | None

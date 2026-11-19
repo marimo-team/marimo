@@ -421,19 +421,21 @@ class RunTranslators:
                 or notification.phase != "planned"
             ):
                 return None, []
-            scratch = notification.cell_id == SCRATCH_CELL_ID
+            code = (
+                notification.code
+                if notification.cell_id == SCRATCH_CELL_ID
+                else None
+            )
             translator = RunTranslator(
-                protocol.RunId(run_id),
-                notification.code if scratch else None,
-                self._cell_order,
+                protocol.RunId(run_id), code, self._cell_order
             )
             self.add(translator)
             out.append(
                 be.Scheduled(
                     translator.run_id,
-                    protocol.RunCodeOrigin()
-                    if scratch
-                    else protocol.RunRuntimeOrigin(),
+                    protocol.RunRuntimeOrigin()
+                    if code is None
+                    else protocol.RunCodeOrigin(code=code),
                 )
             )
         out.extend(

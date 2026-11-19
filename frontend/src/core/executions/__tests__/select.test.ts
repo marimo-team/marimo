@@ -25,7 +25,6 @@ function record(
     runtime_id: "r1",
     caused_by: null,
     cell_id: "c1",
-    code: null,
     code_fingerprint: "0f71456db2ea83f4",
     depends_on: {},
     status: "completed",

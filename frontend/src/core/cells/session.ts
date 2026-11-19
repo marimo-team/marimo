@@ -257,7 +257,6 @@ function resultRecord(
     runtime_id: EMBEDDED,
     caused_by: null,
     cell_id: cell.id,
-    code: null,
     code_fingerprint: cell.code_fingerprint,
     depends_on: {},
     status: "completed",
