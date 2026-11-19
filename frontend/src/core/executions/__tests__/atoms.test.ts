@@ -233,24 +233,6 @@ describe("acceptRun", () => {
     expect(statusOf(store)).toBe("idle");
   });
 
-  it("keeps waiting while the stream is between a reset and its snapshot", () => {
-    const { store, replica } = shown();
-    const made = request(store, [C1]);
-    acceptRun(store, made, run([C1]));
-
-    const notebook = store.get(replica.notebookAtom);
-    store.set(replica.notebookAtom, null);
-    const stream = store.get(replica.executionsAtom);
-    store.set(replica.executionsAtom, { ...stream });
-    store.set(replica.notebookAtom, notebook);
-    expect(requested(store)).toEqual([C1]);
-    expect(statusOf(store)).toBe("queued");
-
-    store.set(replica.executionsAtom, withRuns(stream, [run([C1])]));
-    expect(requested(store)).toEqual([]);
-    expect(statusOf(store)).toBe("queued");
-  });
-
   it("drops the request once the replica shows another notebook", () => {
     const { store, replica } = shown();
     const made = request(store, [C1]);

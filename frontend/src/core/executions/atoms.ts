@@ -51,15 +51,9 @@ const NO_CLEARED: ReadonlyMap<Protocol.CellId, ClearedOutput> = new Map();
 interface ShownNotebook {
   readonly replica: NotebookReplica;
   readonly id: Protocol.NotebookId;
+  readonly generation: number;
 }
 
-/**
- * What the editor marks about cells of one replica's notebook.
- *
- * The marks refer to cells by id, which another notebook, or the same one
- * after a reconnect, reuses with different executions behind it. They
- * therefore count only for the replica and host notebook they belong to.
- */
 type Marks<T> = {
   readonly notebook: ShownNotebook;
   readonly value: T;
@@ -96,55 +90,44 @@ const requestsAtom = atom<Marks<ReadonlySet<RunRequest>>>(null);
  */
 const blockedCellsAtom = atom<Marks<ReadonlySet<Protocol.CellId>>>(null);
 
-function current<T>(
-  marks: Marks<T>,
-  replica: NotebookReplica | null,
-  notebookId: Protocol.NotebookId | null,
-  empty: T,
-): T {
-  return marks !== null &&
-    marks.notebook.replica === replica &&
-    marks.notebook.id === notebookId
+function sameNotebook(
+  marked: ShownNotebook,
+  shown: ShownNotebook | null,
+): boolean {
+  return (
+    shown !== null &&
+    marked.replica === shown.replica &&
+    marked.id === shown.id &&
+    marked.generation === shown.generation
+  );
+}
+
+function current<T>(marks: Marks<T>, shown: ShownNotebook | null, empty: T): T {
+  return marks !== null && sameNotebook(marks.notebook, shown)
     ? marks.value
     : empty;
 }
 
-function shownNotebook(store: Pick<Store, "get">): ShownNotebook | null {
-  const replica = store.get(activeNotebookReplicaAtom);
-  const notebook = replica === null ? null : store.get(replica.notebookAtom);
+const shownNotebookAtom = atom((get): ShownNotebook | null => {
+  const replica = get(activeNotebookReplicaAtom);
+  const notebook = replica === null ? null : get(replica.notebookAtom);
   return replica === null || notebook === null
     ? null
-    : { replica, id: notebook.id };
-}
+    : { replica, id: notebook.id, generation: get(replica.generationAtom) };
+});
 
-function mark<T>(store: Pick<Store, "get">, value: T): Marks<T> {
-  const notebook = shownNotebook(store);
-  return notebook === null ? null : { notebook, value };
-}
-
-/**
- * Whether `request` still belongs to the notebook being shown.
- *
- * Between a reset and the next snapshot the replica has no notebook for a
- * moment. That says nothing about where the request belongs, so it does
- * not count against it. Another replica, or another notebook on the same
- * replica, does.
- */
+/** Whether the request still belongs to the current stream. */
 export function isCurrent(store: Store, request: RunRequest): boolean {
-  const replica = store.get(activeNotebookReplicaAtom);
-  if (replica !== request.notebook.replica) {
-    return false;
-  }
-  const notebook = store.get(replica.notebookAtom);
-  return notebook === null || notebook.id === request.notebook.id;
+  return sameNotebook(request.notebook, store.get(shownNotebookAtom));
 }
 
 /** Cells named by pending requests made in the notebook now shown. */
 const requestedCellsAtom = atom((get) => {
-  const replica = get(activeNotebookReplicaAtom);
-  const notebookId =
-    replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
-  const requests = current(get(requestsAtom), replica, notebookId, NO_REQUESTS);
+  const requests = current(
+    get(requestsAtom),
+    get(shownNotebookAtom),
+    NO_REQUESTS,
+  );
   return requests.size === 0
     ? NO_REQUESTED
     : new Set([...requests].flatMap((request) => request.cells));
@@ -153,15 +136,13 @@ const requestedCellsAtom = atom((get) => {
 /** What every cell's view derives from. Pair with `cellExecutionView`. */
 export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
   const replica = get(activeNotebookReplicaAtom);
-  const notebookId =
-    replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
   const document = replica === null ? null : get(replica.shownDocumentAtom);
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
     cells: document?.cells ?? NO_CELLS,
     requested: get(requestedCellsAtom),
-    blocked: current(get(blockedCellsAtom), replica, notebookId, NO_BLOCKED),
+    blocked: current(get(blockedCellsAtom), get(shownNotebookAtom), NO_BLOCKED),
     runtimeId: replica === null ? null : (get(replica.runtimeAtom)?.id ?? null),
   };
 });
@@ -195,17 +176,24 @@ const displayedNotebookAtom = atom((get): ShownNotebook | null => {
   const document = replica === null ? null : get(replica.shownDocumentAtom);
   return replica === null || document === null
     ? null
-    : { replica, id: document.revision.notebook_id };
+    : {
+        replica,
+        id: document.revision.notebook_id,
+        generation: get(replica.generationAtom),
+      };
 });
 
 /** What every cell's output derives from. Pair with `cellOutputView`. */
 export const cellOutputInputsAtom = atom((get): CellOutputInputs => {
   const replica = get(activeNotebookReplicaAtom);
-  const notebookId = get(displayedNotebookAtom)?.id ?? null;
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
-    cleared: current(get(clearedOutputsAtom), replica, notebookId, NO_CLEARED),
+    cleared: current(
+      get(clearedOutputsAtom),
+      get(displayedNotebookAtom),
+      NO_CLEARED,
+    ),
     cells:
       replica === null
         ? NO_CELLS
@@ -347,18 +335,12 @@ export function requestRun(
   store: Store,
   cellIds: readonly Protocol.CellId[],
 ): RunRequest | null {
-  const notebook = shownNotebook(store);
+  const notebook = store.get(shownNotebookAtom);
   if (notebook === null) {
     return null;
   }
   const request: RunRequest = { notebook, cells: [...cellIds] };
-  const marks = store.get(requestsAtom);
-  const kept =
-    marks !== null &&
-    marks.notebook.replica === notebook.replica &&
-    marks.notebook.id === notebook.id
-      ? marks.value
-      : NO_REQUESTS;
+  const kept = current(store.get(requestsAtom), notebook, NO_REQUESTS);
   store.set(requestsAtom, { notebook, value: new Set(kept).add(request) });
   return request;
 }
@@ -385,13 +367,14 @@ export function acceptRun(
   request: RunRequest,
   run: Protocol.Run,
 ): void {
-  const { replica } = request.notebook;
-  const unsubscribe = store.sub(replica.executionsAtom, check);
+  const waitingAtom = atom(
+    (get) =>
+      sameNotebook(request.notebook, get(shownNotebookAtom)) &&
+      !get(request.notebook.replica.executionsAtom).runs.has(run.id),
+  );
+  const unsubscribe = store.sub(waitingAtom, check);
   function check() {
-    if (
-      isCurrent(store, request) &&
-      !store.get(replica.executionsAtom).runs.has(run.id)
-    ) {
+    if (store.get(waitingAtom)) {
       return;
     }
     unsubscribe();
@@ -415,7 +398,10 @@ function setCellBlocked(
   } else {
     next.delete(cellId);
   }
-  store.set(blockedCellsAtom, mark(store, next));
+  const notebook = store.get(shownNotebookAtom);
+  if (notebook !== null) {
+    store.set(blockedCellsAtom, { notebook, value: next });
+  }
 }
 
 /**

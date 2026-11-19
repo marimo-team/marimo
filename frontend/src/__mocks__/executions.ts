@@ -248,6 +248,7 @@ export const MockExecutions = {
       // Settable, so a test can close the connection or give the replica a
       // backend to command.
       connectionAtom: atom<ConnectionStatus>({ state: ConnectionState.OPEN }),
+      generationAtom: atom(1),
       backendAtom: atom<NotebookBackend | null>(null),
       notebookAtom: atom<Protocol.Notebook | null>(MockExecutions.notebook()),
       documentAtom,
