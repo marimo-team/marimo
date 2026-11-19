@@ -1,21 +1,216 @@
+from __future__ import annotations
+
+import gc
+import os
 import signal
+import subprocess
 import sys
 import threading
+import weakref
+from contextvars import ContextVar
 from queue import Queue
 from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
+from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.context import execution_id_context
 from marimo._messaging.input import InputReply
-from marimo._messaging.notification import InterruptedNotification
-from marimo._messaging.serde import serialize_kernel_message
-from marimo._messaging.streams import ThreadSafeStream
+from marimo._messaging.notification import (
+    CellNotification,
+    InterruptedNotification,
+)
+from marimo._messaging.serde import (
+    deserialize_kernel_message,
+    serialize_kernel_message,
+)
+from marimo._messaging.streams import (
+    QueuePipe,
+    ThreadSafeStderr,
+    ThreadSafeStdout,
+    ThreadSafeStream,
+    redirect,
+)
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.handlers import construct_interrupt_handler
+from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._utils.signals import SigintHandler
 from tests.conftest import ExecReqProvider, MockedKernel
+
+
+def test_inherited_fd_keeps_its_execution_during_a_later_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = Queue[KernelMessage]()
+    stream = ThreadSafeStream(
+        QueuePipe(messages), Queue(), redirect_console=True
+    )
+    try:
+        with open(os.devnull, "w") as terminal, monkeypatch.context() as patch:
+            patch.setattr(sys, "stdout", terminal)
+            stdout = ThreadSafeStdout(stream)
+            stream.cell_id = "first"
+            with (
+                execution_id_context("first", "old-execution"),
+                redirect(stdout),
+            ):
+                child = subprocess.Popen(
+                    [
+                        sys.executable,
+                        "-c",
+                        "import sys; sys.stdout.write(sys.stdin.read())",
+                    ],
+                    stdin=subprocess.PIPE,
+                    stdout=stdout,
+                )
+            with child:
+                stream.cell_id = "second"
+                with (
+                    execution_id_context("second", "new-execution"),
+                    redirect(stdout),
+                ):
+                    child.communicate(b"from subprocess", timeout=5)
+                    assert child.returncode == 0
+                    os.write(stdout.fileno(), b"from later execution")
+            writes = {}
+            for _ in range(2):
+                msg = deserialize_kernel_message(messages.get(timeout=2))
+                assert isinstance(msg, CellNotification)
+                assert msg.console is not None
+                assert not isinstance(msg.console, list)
+                writes[msg.cell_id] = (msg.execution_id, msg.console.data)
+            assert writes == {
+                "first": ("old-execution", "from subprocess"),
+                "second": ("new-execution", "from later execution"),
+            }
+    finally:
+        stream.stop()
+
+
+@pytest.mark.parametrize(
+    ("name", "wrapper"),
+    [("stdout", ThreadSafeStdout), ("stderr", ThreadSafeStderr)],
+)
+def test_buffered_native_writes_stay_with_their_owner(
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    wrapper: type[ThreadSafeStdout | ThreadSafeStderr],
+) -> None:
+    messages = Queue[KernelMessage]()
+    stream = ThreadSafeStream(
+        QueuePipe(messages), Queue(), True, cell_id="public"
+    )
+    try:
+        with open(os.devnull, "w") as terminal, monkeypatch.context() as patch:
+            patch.setattr(sys, name, terminal)
+            out = wrapper(stream)
+            assert out.buffer is not None
+            with execution_id_context("public", "evaluation"), redirect(out):
+                out.buffer.write(b"public")
+                stream.cell_id = "nested"
+                with (
+                    execution_id_context("nested", "inner-execution"),
+                    redirect(out),
+                ):
+                    out.buffer.write(b"nested")
+        writes = {}
+        for _ in range(2):
+            msg = deserialize_kernel_message(messages.get(timeout=2))
+            assert isinstance(msg, CellNotification)
+            assert isinstance(msg.console, CellOutput)
+            writes[msg.cell_id] = (msg.execution_id, msg.console.data)
+        assert writes == {
+            "public": ("evaluation", "public"),
+            "nested": ("inner-execution", "nested"),
+        }
+    finally:
+        stream.stop()
+
+
+def test_idle_inherited_fd_releases_the_callers_context_and_retires_on_stop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Payload:
+        pass
+
+    stream = ThreadSafeStream(
+        QueuePipe(Queue()), Queue(), True, cell_id="cell"
+    )
+    state = ContextVar[Payload]("notebook-state")
+    try:
+        with open(os.devnull, "w") as terminal, monkeypatch.context() as patch:
+            patch.setattr(sys, "stdout", terminal)
+            out = ThreadSafeStdout(stream)
+            value = Payload()
+            retained = weakref.ref(value)
+            token = state.set(value)
+            before = set(threading.enumerate())
+            with redirect(out):
+                writer = os.dup(out.fileno())
+                (reader,) = set(threading.enumerate()) - before
+            try:
+                state.reset(token)
+                del value
+                gc.collect()
+                assert retained() is None
+
+                stream.stop()
+                reader.join(timeout=2)
+                assert not reader.is_alive()
+            finally:
+                os.close(writer)
+    finally:
+        stream.stop()
+
+
+def test_native_writes_from_a_cell_run_inside_scratch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = Queue[KernelMessage]()
+    stream = ThreadSafeStream(
+        QueuePipe(messages), Queue(), redirect_console=True
+    )
+    try:
+        with (
+            open(os.devnull, "w") as terminal,
+            open(os.devnull, "w") as errors,
+        ):
+            monkeypatch.setattr(sys, "stdout", terminal)
+            monkeypatch.setattr(sys, "stderr", errors)
+            stdout, stderr = ThreadSafeStdout(stream), ThreadSafeStderr(stream)
+            with (
+                execution_id_context(SCRATCH_CELL_ID, "outer"),
+                redirect_streams(
+                    SCRATCH_CELL_ID, stream, stdout, stderr, None
+                ),
+            ):
+                with (
+                    execution_id_context("cell", "inner"),
+                    redirect_streams("cell", stream, stdout, stderr, None),
+                ):
+                    os.write(sys.stderr.fileno(), b"inner")
+                os.write(sys.stdout.fileno(), b"outer")
+
+        writes = {}
+        for _ in range(2):
+            msg = deserialize_kernel_message(messages.get(timeout=2))
+            assert isinstance(msg, CellNotification)
+            assert msg.console is not None
+            assert not isinstance(msg.console, list)
+            writes[msg.cell_id] = (
+                msg.execution_id,
+                msg.console.channel,
+                msg.console.data,
+            )
+        assert writes == {
+            "cell": ("inner", "stderr", "inner"),
+            SCRATCH_CELL_ID: ("outer", "stdout", "outer"),
+        }
+    finally:
+        stream.stop()
 
 
 @pytest.mark.parametrize("custom_handler", [False, True])
