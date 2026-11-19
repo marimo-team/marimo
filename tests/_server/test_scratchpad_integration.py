@@ -155,8 +155,6 @@ class _Session:
             # HTTP execution emits notifications while this client isn't reading.
             max_queue=None,
         )
-        # Drain kernel-ready handshake.
-        self._recv_until(lambda m: m.get("op") == "kernel-ready")
 
     def close(self) -> None:
         # Close the session on the server via ``restart_session`` —
@@ -375,6 +373,7 @@ def _normalize(body: str) -> list[str]:
 def session(_server: str) -> Generator[_Session, None, None]:
     s = _Session(_server)
     try:
+        s._recv_until(lambda m: m.get("op") == "kernel-ready")
         yield s
     finally:
         s.close()
