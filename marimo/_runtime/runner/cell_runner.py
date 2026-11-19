@@ -5,6 +5,7 @@ import ast
 import asyncio
 import io
 import traceback
+from contextlib import nullcontext
 from pathlib import Path
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
@@ -776,26 +777,31 @@ class Runner:
         ctx: PostExecutionHookContext,
         run_result: RunResult,
     ) -> None:
-        try:
-            for post_hook in self._hooks.post_execution_hooks:
-                try:
-                    post_hook(cell, ctx, run_result)
-                except KeyboardInterrupt:
-                    self.interrupted = True
-                    LOGGER.info(
-                        "Cell %s interrupted during post-execution hook",
-                        cell.cell_id,
-                    )
-        finally:
-            # Cleanup must complete even if interrupted after updating local
-            # state but before broadcasting it to the frontend.
-            while True:
-                try:
-                    for finalize in self._hooks.finalization_hooks:
-                        finalize(cell, ctx, run_result)
-                    break
-                except KeyboardInterrupt:
-                    self.interrupted = True
+        for post_hook in self._hooks.post_execution_hooks:
+            try:
+                post_hook(cell, ctx, run_result)
+            except KeyboardInterrupt:
+                self.interrupted = True
+                LOGGER.info(
+                    "Cell %s interrupted during post-execution hook",
+                    cell.cell_id,
+                )
+
+    def _finalize_cell(
+        self,
+        cell: CellImpl,
+        ctx: PostExecutionHookContext,
+        run_result: RunResult,
+    ) -> None:
+        # Cleanup must complete even if interrupted after updating local
+        # state but before broadcasting it to the frontend.
+        while True:
+            try:
+                for finalize in self._hooks.finalization_hooks:
+                    finalize(cell, ctx, run_result)
+                return
+            except KeyboardInterrupt:
+                self.interrupted = True
 
     def _take_attempt(self, cell_id: CellId_t) -> ExecutionAttempt:
         """The attempt planned for the cell, or a new one.
@@ -837,22 +843,27 @@ class Runner:
             pre_hook(cell, pre_exec_ctx)
         LOGGER.debug("Running cell %s", cell_id)
 
-        if self.execution_context is not None:
-            try:
-                with self.execution_context(cell_id) as exc_ctx:
-                    run_result = await self.run(cell_id)
+        run_result = None
+        try:
+            with (
+                self.execution_context(cell_id)
+                if self.execution_context is not None
+                else nullcontext()
+            ) as exc_ctx:
+                run_result = await self.run(cell_id)
+                if exc_ctx is not None:
                     run_result.accumulated_output = exc_ctx.output
-                    self._run_post_execution_hooks(
-                        cell, post_exec_ctx, run_result
-                    )
-            except KeyboardInterrupt:
-                LOGGER.error(
-                    "A keyboard interrupt was raised but not handled by "
-                    "the runner."
-                )
-        else:
-            run_result = await self.run(cell_id)
-            self._run_post_execution_hooks(cell, post_exec_ctx, run_result)
+                self._run_post_execution_hooks(cell, post_exec_ctx, run_result)
+        except KeyboardInterrupt:
+            if self.execution_context is None:
+                raise
+            LOGGER.error(
+                "A keyboard interrupt was raised but not handled by the runner."
+            )
+        finally:
+            # Restore the native descriptors before flushing and publishing idle.
+            if run_result is not None:
+                self._finalize_cell(cell, post_exec_ctx, run_result)
 
     async def run_all(self) -> None:
         from marimo._runtime.runner.hook_context import (

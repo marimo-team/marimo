@@ -26,6 +26,7 @@ from marimo._messaging.types import KernelMessage
 
 if TYPE_CHECKING:
     from marimo._messaging.mimetypes import ConsoleMimeType
+    from marimo._types.ids import CellId_t
 
 
 class MockStream(ThreadSafeStream):
@@ -76,9 +77,13 @@ class MockStdout(ThreadSafeStdout):
         self.messages: list[str] = []
 
     def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
+        self,
+        data: str,
+        mimetype: ConsoleMimeType,
+        *,
+        cell_id: CellId_t | None = None,
     ) -> int:
-        del mimetype
+        del mimetype, cell_id
         self.messages.append(data)
         return len(data)
 
@@ -99,8 +104,9 @@ class MockStderr(ThreadSafeStderr):
         mimetype: ConsoleMimeType,
         *,
         code: str | None = None,
+        cell_id: CellId_t | None = None,
     ) -> int:
-        del mimetype, code
+        del mimetype, code, cell_id
         self.messages.append(data)
         return len(data)
 

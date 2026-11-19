@@ -160,9 +160,9 @@ def clear_console() -> None:
     if ctx.execution_context is None:
         return
 
-    ctx.stream.flush_console()
-    if ctx.stream.cell_id is not None:
+    if (cell_id := ctx.stream.cell_id) is not None:
+        ctx.stream.flush_console(clear_cell_id=cell_id)
         broadcast_notification(
-            CellNotification(cell_id=ctx.stream.cell_id, console=[]),
+            CellNotification(cell_id=cell_id, console=[]),
             stream=ctx.stream,
         )

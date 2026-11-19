@@ -26,9 +26,9 @@ class Stream(abc.ABC):
     def write(self, data: KernelMessage) -> None:
         pass
 
-    def flush_console(self) -> None:
-        """Flush buffered console output, if any."""
-        return
+    def flush_console(self, *, clear_cell_id: CellId_t | None = None) -> None:
+        """Flush console output, discarding partial characters for the cleared cell."""
+        del clear_cell_id
 
     def stop(self) -> None:
         """Tear down resources, if any."""
