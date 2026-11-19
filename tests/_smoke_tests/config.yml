@@ -59,6 +59,9 @@ files:
   sql/sqlite.py:
     skip: true
   # Network requests
+  sql/polars_engine.py:
+    skip: true
+  # Network requests
   sql.py:
     skip: true
   # This runs plt.show() which blocks the test
