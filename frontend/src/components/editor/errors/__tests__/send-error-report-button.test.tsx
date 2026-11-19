@@ -114,6 +114,8 @@ function renderButton({
   store.set(pairConfigAtom, { ...PAIR_CONFIG, hostEnabled: preview });
   store.set(attachmentsAtom, attachments);
   store.set(stableSessionIdAtom, stableId);
+  // The error output reads the console of a cell from the replica.
+  MockExecutions.seed(store, []);
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <Provider store={store}>
       <TooltipProvider>{children}</TooltipProvider>
@@ -505,7 +507,7 @@ describe("SendErrorReportButton", () => {
           cellData: { [CELL_ID]: { code: CODE } },
           cellRuntime: {
             [CELL_ID]: {
-              consoleOutputs: [
+              embeddedConsole: [
                 {
                   channel: "stderr",
                   mimetype: "application/vnd.marimo+traceback",
