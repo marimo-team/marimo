@@ -250,6 +250,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
     {
       "channel": "stdin",
       "data": "hello again!",
+      "id": 1,
       "mimetype": "text/plain",
       "timestamp": 2,
     },
