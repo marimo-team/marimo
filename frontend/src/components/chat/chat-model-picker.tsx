@@ -8,7 +8,7 @@ import {
   SettingsIcon,
 } from "lucide-react";
 import { Popover as PopoverPrimitive } from "radix-ui";
-import { type RefObject, useId, useMemo, useState } from "react";
+import { type RefObject, useId, useMemo, useRef, useState } from "react";
 import { AiProviderIcon } from "@/components/ai/ai-provider-icon";
 import { getProviderLabel } from "@/components/ai/ai-model-dropdown";
 import { listModelsForAiSettings } from "@/components/ai/ai-utils";
@@ -53,6 +53,7 @@ export function ChatModelPicker({
   );
   const [search, setSearch] = useState("");
   const [isSavingModel, setIsSavingModel] = useState(false);
+  const activeProviderRef = useRef<HTMLButtonElement>(null);
   const webSearchId = useId();
   const ai = useAtomValue(aiAtom);
   const [storedOptions, setOptions] = useAtom(chatOptionsAtom);
@@ -149,6 +150,12 @@ export function ChatModelPicker({
       <PopoverContent
         side="top"
         align="center"
+        onOpenAutoFocus={() => {
+          activeProviderRef.current?.scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+          });
+        }}
         className="chat-model-picker w-[420px] max-w-[calc(100vw-1rem)] p-0 overflow-hidden"
       >
         <div className="chat-model-picker-layout flex">
@@ -159,6 +166,9 @@ export function ChatModelPicker({
             {modelsByProvider.map(([provider]) => (
               <Button
                 key={provider}
+                ref={
+                  provider === visibleProvider ? activeProviderRef : undefined
+                }
                 variant="text"
                 size="icon"
                 aria-label={getProviderLabel(provider)}

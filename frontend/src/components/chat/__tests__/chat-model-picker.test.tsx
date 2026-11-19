@@ -68,6 +68,37 @@ beforeEach(() => {
 });
 
 describe("ChatModelPicker", () => {
+  it("scrolls the active provider into view without resetting on option changes", () => {
+    renderPicker(true);
+    const providers = screen.getByRole("navigation", {
+      name: "Model providers",
+    });
+    const scrollIntoView = vi.mocked(HTMLElement.prototype.scrollIntoView);
+    expect(scrollIntoView.mock.contexts).toContain(
+      within(providers).getByRole("button", { name: "OpenAI" }),
+    );
+
+    const lastProvider = within(providers).getAllByRole("button").at(-1);
+    if (!lastProvider) {
+      throw new Error("Expected a provider");
+    }
+    scrollIntoView.mockClear();
+    fireEvent.click(lastProvider);
+    expect(lastProvider).toHaveAttribute("aria-pressed", "true");
+
+    scrollIntoView.mockClear();
+    fireEvent.click(screen.getByRole("switch", { name: "Web search" }));
+    expect(scrollIntoView.mock.contexts).not.toContain(lastProvider);
+
+    const trigger = screen.getByRole("button", { name: /^Model:/ });
+    fireEvent.click(trigger);
+    scrollIntoView.mockClear();
+    fireEvent.click(trigger);
+    expect(scrollIntoView.mock.contexts).toContain(
+      screen.getByRole("button", { name: "OpenAI", pressed: true }),
+    );
+  });
+
   it("searches and selects a model while keeping reasoning accessible", () => {
     const { model } = renderPicker(true);
     fireEvent.change(screen.getByRole("combobox"), {
