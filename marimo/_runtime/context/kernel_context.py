@@ -45,15 +45,17 @@ class KernelRuntimeContext(RuntimeContext):
     _app: InternalApp | None = None
     _id_provider: IDProvider | None = None
     _execution_context: ExecutionContext | None = None
-    # Set while a Scheduler's `async with` is open. Lookup goes through
-    # the currently-installed context — not one captured at install
-    # time — so embedded-app child contexts route SIGINT correctly.
+    # The scheduler whose run is executing right now. Set while that
+    # scheduler's `async with` is open. Nested runs save and restore it, so
+    # it always names the innermost run. The SIGINT handler reads it from
+    # the context that is installed at that moment, so an embedded app's
+    # child context routes SIGINT to its own run.
     _active_scheduler: Scheduler | None = None
     # The scheduler and the cell task whose body the current task is
-    # executing, or None in a lifecycle hook, between cells, or in a task
-    # that a hook started. A task started inside the body inherits the
-    # value, so a child coroutine that blocks is interrupted like the body
-    # itself and the cell it belongs to is still known.
+    # executing. `None` in a lifecycle hook, between cells, and in a task
+    # that a hook started. A task started inside a body inherits the value,
+    # so the SIGINT handler can interrupt a child task that blocks and can
+    # still find the cell task that the child belongs to.
     _running_cell_body: ContextVar[
         tuple[Scheduler, asyncio.Task[Any]] | None
     ] = field(

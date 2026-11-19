@@ -307,8 +307,8 @@ async def test_sigint_interrupts_async_cell_running_blocking_code(
     [
         "await asyncio.gather(work())",
         "await asyncio.create_task(work())",
-        # The child's cancellation comes back as a value, so only the
-        # cell's own cancellation can stop it.
+        # The child's cancellation is returned as a value, so only the
+        # cell's own cancellation can stop the cell.
         "await asyncio.gather(work(), return_exceptions=True)",
         # A task group ignores a cancelled child.
         "async with asyncio.TaskGroup() as tg:\n    tg.create_task(work())",

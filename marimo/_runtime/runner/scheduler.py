@@ -1,23 +1,51 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Scheduler: per-run cell queue, cancellation, and async-task tracking.
+"""Scheduler: the per-run cell queue, cancellation, and cell task tracking.
 
-Active-scheduler stack
-----------------------
-`KernelRuntimeContext._active_scheduler` points at the scheduler whose
-run is currently executing, so the SIGINT handler can route a cancel to
-it. Runs nest as a stack on a single context: a re-entrant `run_all`
-(e.g. code_mode `ctx.run_cell` driving a run from inside a running cell)
-suspends the outer run at its `await`, runs to completion, then restores
-the outer scheduler. `__aenter__` saves the previously-active scheduler
-and `__aexit__` restores it, so the field always names the innermost
-(currently executing) run. The kernel still serializes top-level runs —
-control requests queue and state-update cascades only re-enter after
-`run_all()` returns.
+A scheduler drives one run. It holds the queue of cells still to execute,
+the set of cancelled cells, and one task for each async cell that is
+being evaluated right now.
 
-A future non-blocking `AsyncScheduler.submit()` (returning before
-dispatch completes) would allow genuinely *concurrent* schedulers on one
-context; that PR will need to promote `_active_scheduler` from a saved
-stack to a plural `OrderedDict[int, Scheduler]`.
+Active scheduler
+----------------
+`KernelRuntimeContext._active_scheduler` names the scheduler whose run is
+executing right now, and the SIGINT handler reads it to find the run that
+it must stop. Several schedulers can be entered on one kernel context at
+once, and they nest as a stack. A re-entrant `run_all` suspends the outer
+run at its `await`, executes its own cells to completion, and then
+restores the outer scheduler. For example, an executing cell can call
+`ctx.run_cell` in code mode and enter a nested run. `__aenter__` saves
+the scheduler that was active and `__aexit__` restores it, so the field
+always names the innermost run. The kernel still serializes top-level
+runs. Control requests wait in a queue, and a cascade of state updates
+re-enters only after `run_all()` returns.
+
+Cell body marker
+----------------
+`KernelRuntimeContext._running_cell_body` is a `ContextVar` that holds the
+scheduler and the cell task whose body the current task is executing.
+`cell_body` sets it around the body and resets it after, so it is `None`
+in a lifecycle hook, between cells, and in a task that a hook started.
+A task started inside the body inherits the value. So for any task, the
+marker records the scheduler whose cell body it is executing and the cell
+task that the body belongs to.
+
+SIGINT routing
+--------------
+The interrupt handler reads the active scheduler and the body marker and
+takes one of four paths. If the signal arrived in a cell's own task while
+its body was executing, `MarimoInterrupt` is raised into the body, as in
+a sync cell. If the signal arrived in a child task that the body started,
+`interrupt_cell_body` arranges to cancel the cell's task once the child
+ends, and `CancelledError` is raised into the child. If a cell task is
+active but the signal arrived somewhere else, for example in a lifecycle
+hook, `cancel_all` cancels the cell tasks through the event loop. If no
+cell task is active, the signal arrived in a sync cell or between cells,
+so `cancel_all` halts the queue and `MarimoInterrupt` is raised.
+
+A future non-blocking `AsyncScheduler.submit()` that returns before
+dispatch completes would allow concurrent schedulers on one context. That
+change must promote `_active_scheduler` from a saved stack to a plural
+`OrderedDict[int, Scheduler]`.
 """
 
 from __future__ import annotations
@@ -42,9 +70,19 @@ if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager, AbstractContextManager
     from typing import Self
 
+    from marimo._runtime.context.kernel_context import KernelRuntimeContext
     from marimo._runtime.dataflow import DirectedGraph
     from marimo._runtime.runner.result import RunResult
     from marimo._types.ids import CellId_t
+
+
+def _kernel_context() -> KernelRuntimeContext | None:
+    """The installed kernel context, or `None` outside a kernel."""
+    # Late import to avoid a cycle through the runtime context tree.
+    from marimo._runtime.context.kernel_context import KernelRuntimeContext
+
+    ctx = safe_get_context()
+    return ctx if isinstance(ctx, KernelRuntimeContext) else None
 
 
 class Scheduler(Protocol):
@@ -91,10 +129,9 @@ class SequentialScheduler:
         self._graph = graph
         self._interrupted = False
         self._active: dict[CellId_t, asyncio.Task[Any]] = {}
-        # Scheduler that was active on the context when this one was
-        # entered. Saved on `__aenter__`, restored on `__aexit__`, so
-        # nested `run_all` calls on the same context compose as a stack
-        # (see module docstring).
+        # The scheduler that was active on the context when this one was
+        # entered. `__aexit__` restores it, so nested runs on one context
+        # form a stack.
         self._prev_scheduler: Scheduler | None = None
 
     def pending(self) -> bool:
@@ -177,19 +214,15 @@ class SequentialScheduler:
         cell_id: CellId_t,
         coro: Coroutine[Any, Any, RunResult],
     ) -> AsyncIterator[asyncio.Task[RunResult]]:
-        """Atomically create and register a task for `coro`.
-
-        Closes the SIGINT race where a task is created before being
-        tracked: `ensure_future` and `_register_task` run as two
-        adjacent synchronous statements (the narrowest gap in pure
-        Python), then `_interrupted` is re-checked. A SIGINT delivered
-        between them flips `_interrupted` via `cancel_all`; the
-        re-check cancels the freshly-registered task before the loop
-        ever resumes it.
-        """
+        """Create the task for `coro` and register it under `cell_id`."""
         if self._interrupted:
             coro.close()
             raise asyncio.CancelledError()
+        # A SIGINT between these two statements sets `_interrupted` through
+        # `cancel_all` but does not cancel the new task, because it is not
+        # registered yet. The check after these statements cancels the task
+        # before the loop resumes it. Two adjacent synchronous statements
+        # leave the narrowest gap that pure Python allows.
         task = asyncio.ensure_future(coro)
         self._register_task(cell_id, task)
         if self._interrupted:
@@ -211,22 +244,19 @@ class SequentialScheduler:
         return any(not t.done() for t in self._active.values())
 
     def owns_task(self, task: asyncio.Task[Any] | None) -> bool:
-        """Whether this task is a cell evaluation the scheduler awaits."""
+        """Whether `task` is a cell task that this scheduler started."""
         return task is not None and task in self._active.values()
 
     @contextmanager
     def cell_body(self) -> Iterator[None]:
-        """Mark the current task as executing one of this run's cell bodies.
+        """Mark the current task as executing a cell body of this scheduler.
 
-        Only a kernel context tracks bodies, because only its interrupt
-        handler asks.
+        The marker is a `ContextVar` on the kernel context, so a task that
+        starts inside the body inherits it. Without a kernel context nothing
+        is recorded, because only the kernel's interrupt handler reads it.
         """
-        from marimo._runtime.context.kernel_context import (
-            KernelRuntimeContext,
-        )
-
-        ctx = safe_get_context()
-        if not isinstance(ctx, KernelRuntimeContext):
+        ctx = _kernel_context()
+        if ctx is None:
             yield
             return
         owner = asyncio.current_task()
@@ -238,34 +268,24 @@ class SequentialScheduler:
             ctx._running_cell_body.reset(token)
 
     def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool:
-        """Whether this task is in a cell body rather than a lifecycle hook."""
-        from marimo._runtime.context.kernel_context import (
-            KernelRuntimeContext,
-        )
+        """Whether `task` is the current task and is inside a cell body of
+        this scheduler.
 
-        ctx = safe_get_context()
+        A task counts if the body started it. A lifecycle hook does not
+        count, and neither does a task that a hook started.
+        """
         if task is None or task is not asyncio.current_task():
             return False
-        if not isinstance(ctx, KernelRuntimeContext):
+        ctx = _kernel_context()
+        if ctx is None:
             return False
         body = ctx._running_cell_body.get()
         return body is not None and body[0] is self
 
     def interrupt_cell_body(self, task: asyncio.Task[Any]) -> None:
-        """Stop the cell whose body started `task`, once `task` ends.
-
-        The cell's own task is suspended while the child runs, so it cannot
-        take an exception, and a cancellation that only the child sees can
-        come back as a value from `gather` or be ignored by a task group.
-        Cancelling the cell's task after the child ends stops the cell at
-        its next `await` and lets the child's awaited cleanup finish first.
-        """
-        from marimo._runtime.context.kernel_context import (
-            KernelRuntimeContext,
-        )
-
-        ctx = safe_get_context()
-        if not isinstance(ctx, KernelRuntimeContext):
+        """Cancel the cell task whose body started `task`, once `task` ends."""
+        ctx = _kernel_context()
+        if ctx is None:
             return
         body = ctx._running_cell_body.get()
         if body is None or body[0] is not self or body[1] is task:
@@ -276,49 +296,38 @@ class SequentialScheduler:
             if not owner.done():
                 owner.cancel()
 
+        # Wait for the child to end. If the owner were cancelled now while
+        # it awaits the child, the cancel would also reach the child and cut
+        # the child's cleanup short. Afterwards the owner's cancel takes effect
+        # at its next `await`, even when `gather` returned the child's
+        # cancellation as a value, a task group ignored it, or the owner was
+        # awaiting something else.
         task.add_done_callback(cancel_owner)
 
     def cancel_all(self) -> None:
-        # Set `_interrupted` first so a SIGINT arriving between cells
-        # (no task registered) still halts the queue.
-        #
-        # `call_soon_threadsafe` is required: a plain `task.cancel()`
-        # from the signal-handler thread queues the cancel but doesn't
-        # wake the loop's `select()` — the task keeps sleeping until
-        # its next scheduled wakeup.
+        """Halt the queue and cancel every active cell task."""
+        # Set `_interrupted` first, so a SIGINT that arrives between cells,
+        # when no task is registered, still halts the queue.
         self._interrupted = True
         for task in list(self._active.values()):
             if task.done():
                 continue
+            # A plain `task.cancel()` from the signal handler queues the
+            # cancel but does not wake the loop from `select()`, so the task
+            # keeps sleeping until its next scheduled wakeup.
             task.get_loop().call_soon_threadsafe(task.cancel)
 
     async def __aenter__(self) -> Self:
-        # Late import to avoid a cycle through the runtime context tree.
-        from marimo._runtime.context.kernel_context import (
-            KernelRuntimeContext,
-        )
-
-        ctx = safe_get_context()
-        if isinstance(ctx, KernelRuntimeContext):
-            # Save any scheduler already active on the context and make
-            # this one active. A re-entrant `run_all` on the same context
-            # (e.g. code_mode `ctx.run_cell` driving a run from inside a
-            # running cell) suspends the outer run at its `await`, runs to
-            # completion here, then restores the outer scheduler on exit —
-            # a clean stack. SIGINT routes to the innermost (currently
-            # executing) scheduler, which is the correct target.
+        ctx = _kernel_context()
+        if ctx is not None:
+            # Save the scheduler that is already active and make this one
+            # active. A nested run suspends the outer run at its `await`, so
+            # SIGINT must reach the innermost scheduler.
             self._prev_scheduler = ctx._active_scheduler
             ctx._active_scheduler = self
         return self
 
     async def __aexit__(self, *exc_info: object) -> None:
-        from marimo._runtime.context.kernel_context import (
-            KernelRuntimeContext,
-        )
-
-        ctx = safe_get_context()
-        if (
-            isinstance(ctx, KernelRuntimeContext)
-            and ctx._active_scheduler is self
-        ):
+        ctx = _kernel_context()
+        if ctx is not None and ctx._active_scheduler is self:
             ctx._active_scheduler = self._prev_scheduler

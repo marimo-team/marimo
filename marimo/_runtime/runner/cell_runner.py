@@ -551,9 +551,12 @@ class Runner:
         ), unwrapped_exception
 
     async def evaluate_interruptible(self, cell: CellImpl) -> RunResult:
-        """Evaluate `cell`. Coroutine cells run as a scheduler-tracked
-        task so the SIGINT-handler's `cancel_all` can preempt them — a
-        plain `await` is not cancellable from another thread."""
+        """Evaluate `cell`.
+
+        A coroutine cell executes as a task that the scheduler tracks, so
+        the SIGINT handler can stop it with `cancel_all`. A plain `await`
+        creates no task to cancel.
+        """
         if not cell.is_coroutine():
             return await self._evaluator.evaluate(cell, self.glbls)
         coro = self._evaluator.evaluate(
@@ -563,10 +566,11 @@ class Runner:
             async with self._scheduler.start_task(cell.cell_id, coro) as task:
                 return await task
         except asyncio.CancelledError as exc:
-            # SIGINT cancelled the task at any point — either pre-admit
-            # (start_task refused entry) or mid-await. Hand back to
-            # `_finalize_run_result` so it converts to MarimoInterrupt
-            # rather than escaping to the broad except below.
+            # A SIGINT cancelled the task, either before `start_task`
+            # accepted it or during an `await`. Return the error in the
+            # result, so that `_finalize_run_result` converts it to
+            # `MarimoInterrupt` rather than letting the broad except below
+            # catch it.
             return RunResult(output=None, exception=exc)
 
     async def run(self, cell_id: CellId_t) -> RunResult:

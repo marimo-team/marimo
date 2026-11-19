@@ -596,7 +596,7 @@ async def test_start_task_cancel_all_propagates() -> None:
 
 @pytest.fixture
 def kernel_context_stub() -> Iterator[MagicMock]:
-    """Install a kernel context so schedulers have somewhere to mark bodies."""
+    """Install a kernel context stub, so `cell_body` has a marker to set."""
     from marimo._runtime.context.kernel_context import KernelRuntimeContext
     from marimo._runtime.context.types import _THREAD_LOCAL_CONTEXT
 

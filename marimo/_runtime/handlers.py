@@ -33,26 +33,25 @@ def construct_interrupt_handler() -> SigintHandler:
         del signum
         del frame
 
-        # Resolve the *currently installed* context, not one captured at
-        # install time — embedded apps swap in their own child context.
+        # Read the context that is installed now, not one captured when the
+        # handler was installed, because an embedded app swaps in its own
+        # child context.
         ctx = safe_get_context()
         if not isinstance(ctx, KernelRuntimeContext):
             return
 
-        # `execution_context` is a plain attribute set only for the
-        # duration of a single cell's body via `with_cell_id` (see
-        # `kernel_context.py`); between cells, and around the scheduler's
-        # own bookkeeping, it is `None`. The scheduler publication is the
-        # authoritative "is a run in flight" signal that spans the whole
-        # run; `execution_context` is opportunistic (only used for the
-        # duckdb hook below).
+        # `execution_context` is set only while one cell's body executes, so
+        # it is `None` between cells and during the scheduler's own
+        # bookkeeping. The active scheduler is set for the whole run, and it
+        # indicates that a run is executing. `execution_context` is used
+        # only for the duckdb interrupt below.
         sched = ctx.active_scheduler
         exec_ctx = ctx.execution_context
         if sched is None and exec_ctx is None:
             return
 
-        # DuckDB connections are sometimes left in an inconsistent state
-        # when interrupted by a SIGINT; route through duckdb's own API.
+        # A SIGINT can leave a DuckDB connection in an inconsistent state,
+        # so interrupt it through duckdb's own API.
         if exec_ctx is not None and exec_ctx.duckdb_connection is not None:
             try:
                 exec_ctx.duckdb_connection.interrupt()
@@ -66,24 +65,27 @@ def construct_interrupt_handler() -> SigintHandler:
         if sched is not None and sched.has_active_tasks():
             task = asyncio.current_task()
             if sched.is_running_cell_body(task):
-                # The cell's body is running, so a cancel would wait for
-                # its next `await`. Raise into it like a sync cell. Do not
-                # also cancel the task: the cancel would interrupt the
-                # cell's cleanup at its first `await`.
+                # A cell body is executing, so raise into it as in a sync
+                # cell. A cancel takes effect only at the body's next
+                # `await`. Do not cancel the task as well, because that
+                # cancel interrupts the cell's cleanup at its first `await`.
                 sched.interrupted = True
                 assert task is not None
                 if not sched.owns_task(task):
-                    # The signal landed in a task the body started. A
-                    # KeyboardInterrupt escaping it would stop the loop, so
-                    # raise a cancellation here, and cancel the cell's own
-                    # task once this one ends: a gather that returns
-                    # exceptions, or a task group, would otherwise let the
-                    # cell carry on and succeed.
+                    # The signal arrived in a child task that the body
+                    # started. A `KeyboardInterrupt` that escapes a child
+                    # task stops the event loop, so raise `CancelledError`
+                    # here instead. The child's cancellation alone does not
+                    # always stop the cell, because `gather` can return it
+                    # as a value and a task group ignores it. So the cell's
+                    # own task is also cancelled once the child ends.
                     sched.interrupt_cell_body(task)
                     raise asyncio.CancelledError
                 raise MarimoInterrupt
-            # Raising anywhere else in an async run escapes into asyncio
-            # internals or skips lifecycle teardown: cancel via the loop.
+            # The signal arrived somewhere else in the async run, such as a
+            # lifecycle hook or the loop itself. A raise there escapes into
+            # asyncio internals or skips lifecycle teardown, so cancel
+            # through the loop instead.
             sched.cancel_all()
             return
 
