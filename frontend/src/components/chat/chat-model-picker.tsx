@@ -132,12 +132,19 @@ export function ChatModelPicker({
             provider={current.providerId}
             className="chat-model-icon size-3.5 shrink-0"
           />
-          <span className="truncate">{displayName}</span>
-          {effortLabel && (
-            <span className="text-muted-foreground shrink-0">
-              {effortLabel}
-            </span>
-          )}
+          <span
+            className={cn(
+              "grid min-w-0 grid-cols-[minmax(0,max-content)_minmax(0,1fr)] items-center",
+              effortLabel && "gap-1.5",
+            )}
+          >
+            <span className="truncate">{displayName}</span>
+            {effortLabel && (
+              <span className="truncate text-muted-foreground">
+                {effortLabel}
+              </span>
+            )}
+          </span>
           {options.webSearch && (
             <GlobeIcon
               className="chat-model-icon size-3 shrink-0 text-muted-foreground"
