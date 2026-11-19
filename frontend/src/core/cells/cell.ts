@@ -31,6 +31,9 @@ export function transitionCell(
 ): CellRuntimeState {
   const nextCell = { ...cell };
 
+  if (message.status === "running" && nextCell.pdbOutput) {
+    delete nextCell.pdbOutput;
+  }
   if (message.status === "queued") {
     nextCell.debuggerActive = false;
   }

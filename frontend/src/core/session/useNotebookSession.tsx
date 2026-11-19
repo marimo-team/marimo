@@ -33,6 +33,7 @@ import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import {
   breakpointsAtom,
+  pendingPdbInputAtom,
   setActiveLine,
 } from "../codemirror/cells/debugger-state";
 import { notebookCells } from "../cells/utils";
@@ -89,8 +90,13 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
   const { sessionId } = opts;
   const store = useStore();
 
-  const { handleCellMessage, reconcileDocument, resetCellRuntimes } =
-    useReducerActions();
+  const {
+    showPdbOutput,
+    clearDebuggerOutput,
+    handleCellMessage,
+    reconcileDocument,
+    resetCellRuntimes,
+  } = useReducerActions();
   const { reconcileStagedCells } = useStagedAICellsActions();
   const { addCellNotification } = useRunsActions();
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
@@ -159,14 +165,25 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
             null,
         );
         setActiveLine(null);
+        store.set(pendingPdbInputAtom, null);
+        return;
+      }
+
+      case "pdb-output":
+        showPdbOutput(msg.data);
+        return;
+      case "pdb-input": {
+        const { cell_id, input_id } = msg.data;
+        store.set(
+          pendingPdbInputAtom,
+          input_id === null ? null : { cellId: cell_id, inputId: input_id },
+        );
         return;
       }
 
       case "completed-run":
         setInitialRunCompleted(true);
         return;
-      case "pdb-input":
-      case "pdb-output":
       case "execution":
         return;
       case "interrupted":
@@ -373,6 +390,10 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
         return;
       case "consumer-capabilities":
         setKioskMode(!msg.data.consumer_capabilities.edit);
+        if (!msg.data.consumer_capabilities.edit) {
+          store.set(pendingPdbInputAtom, null);
+          clearDebuggerOutput();
+        }
         return;
       default:
         logNever(msg.data);
@@ -495,6 +516,10 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
     const unsubscribes = [
       store.sub(replica.connectionAtom, updateConnection),
       store.sub(readyAtom, updateConnection),
+      // Same-session reconnects replay only the prompt that is still pending.
+      store.sub(replica.generationAtom, () =>
+        store.set(pendingPdbInputAtom, null),
+      ),
     ];
     updateConnection();
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());

@@ -25,6 +25,11 @@ export interface ActiveLine {
   startedAtMs: number;
 }
 
+export const pendingPdbInputAtom = atom<{
+  cellId: CellId;
+  inputId: string;
+} | null>(null);
+
 export const activeLineAtom = atom<ActiveLine | null>(null);
 
 /**

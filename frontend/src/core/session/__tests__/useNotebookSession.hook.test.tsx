@@ -41,7 +41,10 @@ import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
 import { notebookAtom } from "@/core/cells/cells";
-import { breakpointsAtom } from "@/core/codemirror/cells/debugger-state";
+import {
+  breakpointsAtom,
+  pendingPdbInputAtom,
+} from "@/core/codemirror/cells/debugger-state";
 import { AppConfigSchema } from "@/core/config/config-schema";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
@@ -486,6 +489,71 @@ it("tracks exported files from host execution values", async () => {
   expect(VirtualFileTracker.INSTANCE.filenames()).toContain(file);
   act(() => conn.send({ op: "remove-ui-elements", cell_id: id }));
   expect(VirtualFileTracker.INSTANCE.filenames()).not.toContain(file);
+});
+
+it("opens and closes the debugger prompt on the failed cell", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  await act(async () => conn.open());
+  const id = cellId("failed");
+  act(() => conn.send({ op: "pdb-input", cell_id: id, input_id: "p1" }));
+  expect(store.get(pendingPdbInputAtom)).toEqual({ cellId: id, inputId: "p1" });
+  act(() => conn.receive({ event: "reset", data: {} }));
+  expect(store.get(pendingPdbInputAtom)).toBeNull();
+  act(() => conn.send({ op: "pdb-input", cell_id: id, input_id: "p2" }));
+  expect(store.get(pendingPdbInputAtom)?.inputId).toBe("p2");
+  act(() => conn.send({ op: "pdb-input", cell_id: id, input_id: null }));
+  expect(store.get(pendingPdbInputAtom)).toBeNull();
+});
+
+it("clears the debugger prompt and private transcript when editing moves to another tab", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  const id = cellId("c1");
+  const entry = {
+    channel: "stdout",
+    mimetype: "text/plain",
+    data: "ordinary console",
+    timestamp: 1,
+  };
+  await act(async () => conn.open());
+  act(() => {
+    conn.ready();
+    conn.send({ op: "cell-op", cell_id: id, console: entry });
+    conn.send({
+      op: "pdb-output",
+      cell_id: id,
+      entries: [{ ...entry, data: "private debugger" }],
+    });
+    conn.send({ op: "pdb-input", cell_id: id, input_id: "pending" });
+  });
+  const runtime = () => store.get(notebookAtom).cellRuntime[id];
+  expect(runtime().pdbOutput?.map((row) => row.data)).toEqual([
+    "private debugger",
+  ]);
+  expect(store.get(pendingPdbInputAtom)?.inputId).toBe("pending");
+  act(() =>
+    conn.send({
+      op: "consumer-capabilities",
+      consumer_capabilities: { edit: false, interact: true },
+    }),
+  );
+  expect(runtime().pdbOutput).toBeUndefined();
+  expect(runtime().consoleOutputs.map((row) => row.data)).toEqual([
+    "ordinary console",
+  ]);
+  expect(
+    store.get(notebookAtom).cellLogs.map((log) => log.message),
+  ).not.toContain("private debugger");
+  expect(store.get(pendingPdbInputAtom)).toBeNull();
 });
 
 it("replaces gutter breakpoints with the session's replayed state", async () => {

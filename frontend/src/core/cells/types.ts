@@ -70,6 +70,7 @@ export interface CellData {
 export interface CellRuntimeState {
   /** messages encoding the cell's console outputs. TODO(MO-8405) */
   consoleOutputs: ConsoleOutputMessage[];
+  pdbOutput?: ConsoleOutputMessage[];
   /** debugger active */
   debuggerActive: boolean;
   /** serialization message. TODO(MO-8414) */
@@ -98,3 +99,9 @@ export type WithResponse<T> = T & {
 export type ConsoleOutputMessage = WithResponse<OutputMessage> & {
   id?: number;
 };
+
+export function withPdbOutput(cell: CellRuntimeState): CellRuntimeState {
+  return cell?.pdbOutput?.length
+    ? { ...cell, consoleOutputs: [...cell.consoleOutputs, ...cell.pdbOutput] }
+    : cell;
+}
