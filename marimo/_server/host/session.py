@@ -12,7 +12,10 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo._core import protocol
 from marimo._core.stream import RoutedEvent
-from marimo._messaging.notification import KernelStartupErrorNotification
+from marimo._messaging.notification import (
+    ConsumerCapabilitiesNotification,
+    KernelStartupErrorNotification,
+)
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._server.api.endpoints.ws.notification_filter import (
     should_filter_operation,
@@ -39,6 +42,7 @@ if TYPE_CHECKING:
     from starlette.requests import Request
 
     from marimo._core.notebook import Notebook
+    from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
     from marimo._server.api.endpoints.ws.ws_connection_validator import (
         ConnectionParams,
@@ -89,9 +93,26 @@ class SessionEventStream(SessionHandler):
         )
 
     def notify(self, notification: KernelMessage) -> None:
+        message = deserialize_kernel_message(notification)
+        if self._session is not None and should_filter_operation(
+            message.name, is_kiosk=self._is_viewer(self._session)
+        ):
+            return
+        self._queue_notification(message)
+        if (
+            isinstance(message, ConsumerCapabilitiesNotification)
+            and message.consumer_capabilities.edit
+            and self._session is not None
+        ):
+            for (
+                retained
+            ) in self._session.session_view.debugger_notifications():
+                self._queue_notification(retained)
+
+    def _queue_notification(self, message: NotificationMessage) -> None:
         event = notification_event(
             self.notebook.id if self.notebook is not None else None,
-            deserialize_kernel_message(notification),
+            message,
             editor_session=True,
             types=self.types,
         )

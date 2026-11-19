@@ -57,6 +57,12 @@ class DebugCellRequest(DebugCellCommand, tag=False):
         return DebugCellCommand(cell_id=self.cell_id, request=self.request)
 
 
+class PdbInputReplyRequest(msgspec.Struct, rename="camel"):
+    cell_id: CellId_t
+    input_id: str
+    value: str
+
+
 class SetBreakpointsRequest(SetBreakpointsCommand, tag=False):
     def as_command(self) -> SetBreakpointsCommand:
         return SetBreakpointsCommand(

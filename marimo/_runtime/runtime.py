@@ -46,6 +46,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._lint.validate_graph import check_for_errors
 from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.command_output import command_console
 from marimo._messaging.context import (
     EXECUTION_CTX,
     RUN_ID_CTX,
@@ -63,6 +64,7 @@ from marimo._messaging.errors import (
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     HumanReadableStatus,
+    PdbOutputNotification,
     RemoveUIElementsNotification,
     UIElementMessageNotification,
     VariableDeclarationNotification,
@@ -2193,8 +2195,17 @@ class Kernel:
         ):
             return
 
-        with self._install_execution_context(cell_id):
-            self.debugger.post_mortem_by_cell_id(cell_id)
+        with (
+            self.stream.debugger_input(cell_id)
+            if isinstance(self.stream, ThreadSafeStream)
+            else contextlib.nullcontext(None) as stdin,
+            command_console(cell_id, PdbOutputNotification),
+            self._install_execution_context(cell_id),
+        ):
+            self.debugger.post_mortem_by_cell_id(
+                cell_id,
+                stdin=stdin,
+            )
 
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:

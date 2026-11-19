@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
+from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pytest
@@ -19,7 +21,8 @@ from tests._server.mocks import get_session_manager
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from starlette.testclient import TestClient
+    from httpx import Response
+    from starlette.testclient import TestClient, WebSocketTestSession
 
 
 @pytest.mark.parametrize("kiosk", [False, True])
@@ -278,3 +281,212 @@ async def test_interrupt_closes_prompt_and_rejects_late_reply(
             and record["data"]["input"]["status"] == "cancelled"
         ]
         assert cancelled["request_id"] == "interrupt"
+
+
+@pytest.mark.parametrize("finish", ["continue", "quit", "interrupt"])
+def test_failed_cell_debugger_prompt_survives_reconnect(
+    client: TestClient, finish: str
+) -> None:
+    get_session_manager(client).redirect_console_to_browser = True
+    with client, ExitStack() as sockets:
+
+        def connect(name: str) -> WebSocketTestSession:
+            return sockets.enter_context(
+                client.websocket_connect(
+                    f"/ws?session_id={name}", headers=headers(name)
+                )
+            )
+
+        editor = connect("editor")
+        notebook = next(
+            e["data"]["notebook"]
+            for e in socket_snapshot(editor)
+            if e["event"] == "notebook"
+        )
+        base = f"{HOST_API_PATH}/notebooks/{notebook['id']}"
+        receive_until("kernel-ready", editor)
+        edit = client.post(
+            f"{base}/edits",
+            headers={**headers("editor"), "Idempotency-Key": "edit"},
+            json={
+                "changes": [
+                    {
+                        "kind": "put_cell",
+                        "base_etag": None,
+                        "cell": {
+                            "id": "probe",
+                            "code": dedent("""
+                                import marimo as mo
+                                import os
+                                import threading
+
+                                def debug_output(native_line, thread_line):
+                                    os.write(1, native_line.encode())
+                                    for cls in (threading.Thread, mo.Thread):
+                                        thread = cls(target=lambda: print(thread_line))
+                                        thread.start()
+                                        thread.join()
+
+                                raise ValueError("debug me")
+                            """),
+                        },
+                    }
+                ]
+            },
+        )
+        assert edit.status_code == 200, edit.text
+        run = client.post(
+            f"{base}/runtime/runs",
+            headers={**headers("editor"), "Idempotency-Key": "run"},
+            json={"cells": [{"id": "probe"}]},
+        )
+        assert run.status_code == 202, run.text
+        while True:
+            event = editor.receive_json()
+            if event["event"] == "marimo":
+                assert event["data"]["marimo"]["op"] != "execution"
+            if event["event"] == "execution":
+                retained = event["data"]["execution"]
+                if retained["status"] == "completed":
+                    break
+        assert retained["outcome"]["kind"] == "error"
+        start = client.post(
+            "/api/kernel/pdb/pm",
+            headers=headers("editor"),
+            json={"cellId": "probe"},
+        )
+        assert start.status_code == 200, start.text
+
+        transcript = []
+
+        def next_prompt(
+            socket: WebSocketTestSession, *, expected_output: str | None = None
+        ) -> str:
+            prompt = None
+            while True:
+                event = socket.receive_json()
+                if event["event"] != "marimo":
+                    continue
+                msg = event["data"]["marimo"]
+                if msg["op"] == "pdb-output":
+                    assert msg["cell_id"] == "probe"
+                    transcript.extend(
+                        entry["data"] for entry in msg["entries"]
+                    )
+                if msg["op"] == "pdb-input" and isinstance(
+                    msg["input_id"], str
+                ):
+                    assert msg["cell_id"] == "probe"
+                    prompt = msg["input_id"]
+                if prompt is not None and (
+                    expected_output is None
+                    or expected_output in "".join(transcript)
+                ):
+                    return prompt
+
+        first = next_prompt(editor)
+        initial_output = "".join(transcript)
+        sockets.close()
+        transcript.clear()
+        editor = connect("resumed")
+        assert next_prompt(editor) == first
+        assert "".join(transcript) == initial_output
+
+        def reply(prompt: str, value: str, name: str = "resumed") -> Response:
+            return client.post(
+                "/api/kernel/pdb/reply",
+                headers=headers(name),
+                json={"cellId": "probe", "inputId": prompt, "value": value},
+            )
+
+        viewer = connect("viewer")
+        receive_until("kernel-ready", viewer)
+        assert reply(first, "quit", "viewer").status_code == 403
+
+        def takeover(name: str) -> None:
+            response = client.post(
+                "/api/kernel/takeover", headers=headers(name)
+            )
+            assert response.status_code == 200, response.text
+
+        takeover("viewer")
+        assert not receive_until("consumer-capabilities", editor)["data"][
+            "consumer_capabilities"
+        ]["edit"]
+        assert receive_until("consumer-capabilities", viewer)["data"][
+            "consumer_capabilities"
+        ]["edit"]
+        transcript.clear()
+        assert next_prompt(viewer) == first
+        assert "".join(transcript) == initial_output
+        assert reply(first, "quit", "resumed").status_code == 403
+        transcript.clear()
+        native_line = "native debugger output"
+        thread_line = "thread debugger output"
+        command = f"p debug_output({native_line!r}, {thread_line!r})"
+        assert reply(first, command, "viewer").status_code == 200
+        second = next_prompt(viewer, expected_output=native_line)
+        assert "".join(transcript).count(native_line) == 1
+        assert "".join(transcript).count(thread_line) == 2
+        assert first != second
+        expected_output = initial_output + "".join(transcript)
+        takeover("resumed")
+        while True:
+            event = editor.receive_json()
+            assert native_line not in json.dumps(event)
+            assert thread_line not in json.dumps(event)
+            if event["event"] == "marimo":
+                msg = event["data"]["marimo"]
+                assert msg["op"] not in {"pdb-input", "pdb-output"}
+                if (
+                    msg["op"] == "consumer-capabilities"
+                    and msg["consumer_capabilities"]["edit"]
+                ):
+                    break
+        transcript.clear()
+        assert next_prompt(editor) == second
+        assert "".join(transcript) == expected_output
+        sockets.close()
+        transcript.clear()
+        editor = connect("resumed")
+        assert next_prompt(editor) == second
+        assert "".join(transcript) == expected_output
+        assert reply(first, "quit").status_code == 409
+        if finish == "interrupt":
+            interrupt = client.post(
+                f"{base}/runtime/interrupt",
+                headers={**headers("resumed"), "Idempotency-Key": "interrupt"},
+            )
+            assert interrupt.status_code == 202, interrupt.text
+        else:
+            assert reply(second, finish).status_code == 200
+        assert receive_until("pdb-input", editor)["data"]["input_id"] is None
+        assert reply(second, "late").status_code == 409
+        resumed = client.post(
+            f"{base}/runtime/execute",
+            headers={
+                **headers("resumed"),
+                "Idempotency-Key": "after-debugging",
+            },
+            json={"code": "4"},
+        )
+        assert resumed.status_code == 202
+        while True:
+            event = editor.receive_json()
+            if event["event"] == "run":
+                completed_run = event["data"]["run"]
+                if (
+                    completed_run["id"] == resumed.json()["id"]
+                    and completed_run["status"] == "completed"
+                ):
+                    assert completed_run["outcome"] == "succeeded"
+                    break
+        sockets.close()
+        snapshot = socket_snapshot(connect("after"))
+        assert [
+            e["data"]["execution"]
+            for e in snapshot
+            if e["event"] == "execution"
+            and e["data"]["execution"]["cell_id"] == "probe"
+        ] == [retained]
+        assert not any(e["event"] == "input" for e in snapshot)

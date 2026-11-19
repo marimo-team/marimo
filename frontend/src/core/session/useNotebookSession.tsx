@@ -165,6 +165,8 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       case "completed-run":
         setInitialRunCompleted(true);
         return;
+      case "pdb-input":
+      case "pdb-output":
       case "execution":
         return;
       case "interrupted":

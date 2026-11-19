@@ -33,6 +33,8 @@ with app.setup:
     OPS_MESSAGES = [
         # Message operations
         o.CellNotification,
+        o.PdbOutputNotification,
+        o.PdbInputNotification,
         o.FunctionCallResultNotification,
         o.RemoveUIElementsNotification,
         o.UIElementMessageNotification,

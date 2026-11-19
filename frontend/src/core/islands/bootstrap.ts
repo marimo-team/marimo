@@ -190,6 +190,8 @@ function handleNotification(
       case "completion-result":
       case "reload":
       case "focus-cell":
+      case "pdb-output":
+      case "pdb-input":
       case "breakpoints":
       case "active-line":
       case "variables":

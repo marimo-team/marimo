@@ -2200,7 +2200,7 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Run a post mortem on the most recent failed cell. */
+        /** @description Open the debugger for a failed cell. */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2208,6 +2208,54 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/pdb/reply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PdbInputReplyRequest"];
+        };
+      };
+      responses: {
+        /** @description Accepted the command for the pending debugger prompt. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description This debugger prompt is no longer pending. */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
@@ -6278,6 +6326,8 @@ export interface components {
       | components["schemas"]["CacheClearedNotification"]
       | components["schemas"]["CacheInfoNotification"]
       | components["schemas"]["FocusCellNotification"]
+      | components["schemas"]["PdbOutputNotification"]
+      | components["schemas"]["PdbInputNotification"]
       | components["schemas"]["BreakpointsNotification"]
       | components["schemas"]["ActiveLineNotification"]
       | components["schemas"]["NotebookDocumentTransactionNotification"]
@@ -6398,6 +6448,39 @@ export interface components {
       /** @default false */
       restartRequired?: boolean;
       success: boolean;
+    };
+    /**
+     * PdbInputNotification
+     * @description Identify the debugger prompt waiting for a command in a failed cell.
+     *
+     *     A null input ID closes the prompt.
+     */
+    PdbInputNotification: {
+      cell_id: components["schemas"]["CellId"];
+      input_id: string | null;
+      /** @enum {unknown} */
+      op: "pdb-input";
+    };
+    /** PdbInputReplyRequest */
+    PdbInputReplyRequest: {
+      cellId: components["schemas"]["CellId"];
+      inputId: string;
+      value: string;
+    };
+    /**
+     * PdbOutputNotification
+     * @description Show debugger output in the cell that failed.
+     *
+     *     Append live entries. When `replace` is true, replace the debugger's
+     *     transcript for this cell with the supplied entries.
+     */
+    PdbOutputNotification: {
+      cell_id: components["schemas"]["CellId"];
+      entries: components["schemas"]["CellOutput"][];
+      /** @enum {unknown} */
+      op: "pdb-output";
+      /** @default false */
+      replace?: boolean;
     };
     /**
      * PreviewDatasetColumnCommand

@@ -1460,6 +1460,48 @@ components:
       - kind
       title: OperationSucceeded
       type: object
+    PdbInputNotification:
+      description: "Identify the debugger prompt waiting for a command in a failed\
+        \ cell.\n\n    A null input ID closes the prompt."
+      properties:
+        cell_id:
+          type: string
+        input_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+        op:
+          enum:
+          - pdb-input
+      required:
+      - op
+      - cell_id
+      - input_id
+      title: PdbInputNotification
+      type: object
+    PdbOutputNotification:
+      description: "Show debugger output in the cell that failed.\n\n    Append live\
+        \ entries. When `replace` is true, replace the debugger's\n    transcript\
+        \ for this cell with the supplied entries."
+      properties:
+        cell_id:
+          type: string
+        entries:
+          items:
+            $ref: '#/components/schemas/CellOutput'
+          type: array
+        op:
+          enum:
+          - pdb-output
+        replace:
+          default: false
+          type: boolean
+      required:
+      - op
+      - cell_id
+      - entries
+      title: PdbOutputNotification
+      type: object
     QueryParamsAppendNotification:
       description: "Appends value to URL query parameter.\n\n    Attributes:\n   \
         \     key: Query parameter key.\n        value: Value to append."

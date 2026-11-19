@@ -26,6 +26,7 @@ from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
     ExecutionNotification,
+    PdbInputNotification,
     StartupProgressNotification,
     VariablesNotification,
 )
@@ -1298,11 +1299,14 @@ async def test_session_notifications_join_the_notebook_stream_once(
         code_fingerprint=code_fingerprint("x = 1"),
     )
     cell = CellNotification(cell_id="cell-1", status="queued")
+    prompt = PdbInputNotification(cell_id="cell-1", input_id="p1")
     session.broadcast(variables)
     session.broadcast(planned)
     session.broadcast(cell)
+    session.broadcast(prompt)
     session.session_view.snapshot_notifications.return_value = [
         cell,
+        prompt,
         variables,
     ]
     assert [e.event.data for e in bridge.session_snapshot(a.id)] == [

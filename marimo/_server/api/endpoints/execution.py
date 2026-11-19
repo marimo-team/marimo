@@ -9,7 +9,12 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse, StreamingResponse
 
 from marimo import _loggers
-from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
+from marimo._messaging.input import InputReply
+from marimo._runtime.commands import (
+    DebugCellCommand,
+    HTTPRequest,
+    UpdateUIElementCommand,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
     dispatch_control_request,
@@ -24,6 +29,7 @@ from marimo._server.models.models import (
     InvokeFunctionRequest,
     KernelStatusResponse,
     ModelRequest,
+    PdbInputReplyRequest,
     SetBreakpointsRequest,
     SuccessResponse,
 )
@@ -41,6 +47,7 @@ from marimo._session.requests import (
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId
 from marimo._utils.asyncio_utils import cancel_and_wait
+from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -355,13 +362,55 @@ async def run_post_mortem(
                     $ref: "#/components/schemas/DebugCellRequest"
     responses:
         200:
-            description: Run a post mortem on the most recent failed cell.
+            description: Open the debugger for a failed cell.
             content:
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, DebugCellRequest)
+
+
+@router.post("/pdb/reply")
+@requires("edit")
+async def reply_pdb(*, request: Request) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/PdbInputReplyRequest"
+    responses:
+        200:
+            description: Accepted the command for the pending debugger prompt.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+        409:
+            description: This debugger prompt is no longer pending.
+    """
+    state = AppState(request)
+    body = await parse_request(request, cls=PdbInputReplyRequest)
+    enforce_consumer_capability(state, DebugCellCommand)
+    session = state.require_current_session()
+    prompt = session.session_view.pending_pdb_input
+    if (
+        prompt is None
+        or prompt.cell_id != body.cell_id
+        or prompt.input_id != body.input_id
+        or session.kernel_state() != KernelState.RUNNING
+    ):
+        raise HTTPException(409, "This debugger prompt is no longer pending.")
+    session.reply_input(InputReply(body.input_id, body.value))
+    session.session_view.pending_pdb_input = None
+    return SuccessResponse()
 
 
 @router.post("/pdb/breakpoints")
