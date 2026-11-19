@@ -377,7 +377,9 @@ class WorkerBackend:
         notification = deserialize_kernel_message(message)
         for reported in variable_messages(notification):
             self._observe(reported)
-        translator, reports = self._translators.feed(notification)
+        translator, reports = self._translators.feed(
+            notification, view=self._session.session_view
+        )
         for reported in reports:
             self._observe(reported)
         if translator is None:
@@ -508,7 +510,9 @@ class PyodideNotebook:
         kinds = set(types.split(",")) if types else None
 
         def notify(notification: NotificationMessage) -> None:
-            for event in editor_events(self.id, notification, kinds):
+            for event in editor_events(
+                self.id, notification, kinds, self._session.session_view
+            ):
                 if event.wanted(kinds):
                     emit(serialize_event(event))
 

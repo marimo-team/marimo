@@ -1046,6 +1046,22 @@ class CallbackOutputNotification(Notification, tag="callback-output"):
     name: ClassVar[str] = "callback-output"
     cell_id: CellId_t
     entries: list[CellOutput]
+    replace: bool = False
+
+    @property
+    def clears_cell_console(self) -> bool:
+        return not self.entries and not self.replace
+
+
+class ConsoleInputsClearedNotification(
+    Notification, tag="console-inputs-cleared"
+):
+    """The settled input rows hidden by clear_console() in this execution."""
+
+    name: ClassVar[str] = "console-inputs-cleared"
+    cell_id: CellId_t
+    execution_id: str
+    input_ids: list[str]
 
 
 class PdbInputNotification(Notification, tag="pdb-input"):
@@ -1203,4 +1219,8 @@ EditorNotification = (
 )
 
 
-NotificationMessage = EditorNotification | CallbackOutputNotification
+NotificationMessage = (
+    EditorNotification
+    | CallbackOutputNotification
+    | ConsoleInputsClearedNotification
+)

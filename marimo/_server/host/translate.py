@@ -31,6 +31,7 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     CellNotification,
     CompletedRunNotification,
     ExecutionNotification,
@@ -45,6 +46,10 @@ from marimo._server.host import diagnostics
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
 
+    from marimo._session.state.session_view import SessionView
+    from marimo._types.ids import CellId_t
+
+    ConsolePosition = Callable[[CellId_t, str, int], None]
     CellOrder = Callable[[], Sequence[str]]
     """The document's cell ids in order, read when an error names cells."""
 
@@ -90,7 +95,12 @@ class RunTranslator:
         """Whether the kernel has planned an execution for this run."""
         return bool(self._executions)
 
-    def feed(self, notification: NotificationMessage) -> list[be.Message]:
+    def feed(
+        self,
+        notification: NotificationMessage,
+        *,
+        on_console: ConsolePosition | None = None,
+    ) -> list[be.Message]:
         """Translate an attempt's lifecycle and output by its kernel identity."""
         if isinstance(notification, InterruptedNotification):
             if notification.run_id == self.run_id and not self._finished:
@@ -131,7 +141,10 @@ class RunTranslator:
         execution = self._executions.get(notification.execution_id or "")
         if execution is None:
             return []
+        previous_seq = execution.seq
         out = self._console(execution, notification)
+        if on_console is not None and execution.seq != previous_seq:
+            on_console(notification.cell_id, execution.id, execution.seq - 1)
         if notification.output is not None:
             output = notification.output
             if (
@@ -275,6 +288,8 @@ class RunTranslator:
     ) -> list[be.Message]:
         if notification.console is None:
             return []
+        if notification.console == []:
+            return [be.ConsoleCleared(execution.id)]
         entries = (
             notification.console
             if isinstance(notification.console, list)
@@ -373,9 +388,20 @@ class RunTranslators:
         self._translators.clear()
 
     def feed(
-        self, notification: NotificationMessage
+        self,
+        notification: NotificationMessage,
+        *,
+        view: SessionView | None = None,
     ) -> tuple[RunTranslator | None, list[be.Message]]:
         """Translate a notification about a run, if it concerns one."""
+        if (
+            isinstance(notification, CallbackOutputNotification)
+            and notification.clears_cell_console
+            and view is not None
+            and (owner := view.current_execution_id(notification.cell_id))
+            is not None
+        ):
+            return None, [be.ConsoleCleared(protocol.ExecutionId(owner))]
         if not isinstance(
             notification,
             (
@@ -406,7 +432,12 @@ class RunTranslators:
             )
             self.add(translator)
             out.append(be.Scheduled(translator.run_id))
-        out.extend(translator.feed(notification))
+        out.extend(
+            translator.feed(
+                notification,
+                on_console=view.record_console_position if view else None,
+            )
+        )
         return translator, out
 
 

@@ -114,6 +114,7 @@ class SessionEventStream(SessionHandler):
             self.notebook.id if self.notebook is not None else None,
             message,
             self.types,
+            self._session.session_view if self._session is not None else None,
         ):
             if event.wanted(self.types):
                 self._events.put_nowait(event)

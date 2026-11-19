@@ -101,9 +101,6 @@ def console_notification(
         if destination is msgspec.UNSET
         else destination
     )
-    if output is CallbackOutputNotification and console == []:
-        # clear_console() also clears the defining cell's execution output.
-        output = None
     if output is not None and execution_id is None and status is None:
         return output(
             cell_id, console if isinstance(console, list) else [console]

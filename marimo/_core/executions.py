@@ -350,6 +350,13 @@ class Executions:
                             )
                         )
                     )
+            case be.ConsoleCleared(execution_id=execution_id):
+                if (result := self._results.get(execution_id)) is not None:
+                    changes.extend(
+                        Removed(type(item), item.id, result.execution.run_id)
+                        for item in result.outputs.values()
+                    )
+                    result.outputs.clear()
             case be.Produced(item=item):
                 if (
                     result := self._results.get(item.execution_id)

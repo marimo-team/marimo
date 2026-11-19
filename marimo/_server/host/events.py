@@ -13,6 +13,7 @@ from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.notification import (
     CallbackOutputNotification,
     CellNotification,
+    ConsoleInputsClearedNotification,
     EditorNotification,
     ExecutionNotification,
     NotificationMessage,
@@ -22,6 +23,8 @@ from marimo._messaging.notification import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    from marimo._session.state.session_view import SessionView
 
 
 class MarimoMessage(msgspec.Struct, frozen=True):
@@ -43,17 +46,33 @@ def editor_events(
     notebook_id: protocol.NotebookId | None,
     notification: NotificationMessage,
     types: set[str] | None,
+    view: SessionView | None = None,
 ) -> Iterator[RoutedEvent]:
     if isinstance(notification, CallbackOutputNotification):
-        # The legacy editor appends a single entry and replaces on a list.
-        for entry in notification.entries:
-            cell = CellNotification(
-                cell_id=notification.cell_id, console=entry
+        if notification.clears_cell_console:
+            notification = CellNotification(
+                cell_id=notification.cell_id, console=[]
             )
-            yield RoutedEvent(
-                MarimoEvent(MarimoMessage(cell)), notebook_id=notebook_id
-            )
-        return
+        else:
+            # The legacy editor appends a single entry and replaces on a list.
+            for entry in notification.entries:
+                cell = CellNotification(
+                    cell_id=notification.cell_id, console=entry
+                )
+                yield RoutedEvent(
+                    MarimoEvent(MarimoMessage(cell)), notebook_id=notebook_id
+                )
+            return
+    if (
+        isinstance(notification, CellNotification)
+        and notification.console == []
+        and view is not None
+    ):
+        # Keep a prompt answerable while a background writer clears the console.
+        notification = msgspec.structs.replace(
+            notification,
+            console=view.pending_console_inputs(notification.cell_id),
+        )
     event = notification_event(
         notebook_id, notification, editor_session=True, types=types
     )
@@ -70,7 +89,12 @@ def notification_event(
 ) -> RoutedEvent | None:
     """Project a kernel notification onto the host or attached editor stream."""
     if isinstance(
-        notification, (ExecutionNotification, CallbackOutputNotification)
+        notification,
+        (
+            ExecutionNotification,
+            CallbackOutputNotification,
+            ConsoleInputsClearedNotification,
+        ),
     ):
         return None
     # Attached editors still consume legacy cell updates (MO-8407) and handle

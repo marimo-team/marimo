@@ -103,6 +103,50 @@ def variable(execution_id: str = "e1") -> protocol.Variable:
     )
 
 
+def test_clear_console_removes_only_this_executions_output_items() -> None:
+    executions = Executions()
+    executions.begin(run("r1"), "request")
+    [queued] = executions.observe(planned("r1", ("e1", "a")), RUNTIME)
+    assert isinstance(queued, protocol.Execution)
+    eid = queued.id
+    executions.observe(be.Started(eid), RUNTIME)
+    for item in (
+        protocol.Console(
+            id=protocol.ItemId("text"),
+            execution_id=eid,
+            seq=0,
+            name="stdout",
+            text="hello",
+        ),
+        protocol.Display(
+            id=protocol.ItemId("plot"),
+            execution_id=eid,
+            seq=1,
+            content=protocol.DisplayData(mimetype="text/html", data="plot"),
+        ),
+        protocol.Input(
+            id=protocol.ItemId("prompt"),
+            execution_id=eid,
+            seq=2,
+            prompt="?",
+            password=False,
+            status="pending",
+        ),
+    ):
+        executions.observe(be.Produced(item), RUNTIME)
+    clear = be.ConsoleCleared(eid)
+    assert describe(executions.observe(clear, RUNTIME)) == [
+        "console.removed text",
+        "display.removed plot",
+    ]
+    assert executions.observe(clear, RUNTIME) == []
+    assert describe(executions._records()) == [
+        "run r1",
+        "execution e1",
+        "input prompt",
+    ]
+
+
 @pytest.mark.parametrize("started", [False, True])
 def test_completion_freezes_the_outcome_and_input_revisions(
     started: bool,

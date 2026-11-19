@@ -263,7 +263,7 @@ def test_widget_callback_console_is_routed_to_its_defining_cell(
     client: TestClient, editor_host: SessionBridge
 ) -> None:
     get_session_manager(client).redirect_console_to_browser = True
-    url = f"{socket_url(editor_host)}&types=marimo,run,execution"
+    url = f"{socket_url(editor_host)}&types=marimo,run,execution,console"
     with client.websocket_connect(url) as socket:
         receive_notification(socket, "kernel-ready")
         cell_id = first_cell_id(client, "s1")
@@ -335,7 +335,9 @@ def test_widget_callback_console_is_routed_to_its_defining_cell(
             ] == expected
 
     with client.websocket_connect(url) as socket:
-        socket_snapshot(socket)
+        assert not any(
+            frame["event"] == "console" for frame in socket_snapshot(socket)
+        )
         msg = receive_notification(socket, "cell-op")
         assert msg["cell_id"] == cell_id
         assert [entry["data"] for entry in msg["console"]] == ["changed 2\n"]

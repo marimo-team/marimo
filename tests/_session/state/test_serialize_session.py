@@ -304,6 +304,24 @@ def test_export_orders_execution_and_callback_writes_before_merging(
         ]
 
 
+def test_export_keeps_callback_between_writes_with_the_same_timestamp(
+    session_view: SessionView,
+) -> None:
+    def write(data: str) -> CellOutput:
+        return CellOutput(CellChannel.STDOUT, "text/plain", data, 1)
+
+    session_view.add_notification(CellNotification(CELL1, console=write("A")))
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [write("B")])
+    )
+    session_view.add_notification(CellNotification(CELL1, console=write("C")))
+
+    assert [
+        entry.data
+        for entry in session_view.cell_console(CELL1, include_callbacks=True)
+    ] == ["ABC"]
+
+
 def test_export_retains_callbacks_and_excludes_debugger_output(
     session_view: SessionView,
 ) -> None:

@@ -5,7 +5,7 @@ import copy
 import time
 from dataclasses import dataclass
 from itertools import groupby
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import msgspec
 
@@ -17,12 +17,14 @@ from marimo._messaging.notification import (
     BreakpointsNotification,
     CallbackOutputNotification,
     CellNotification,
+    ConsoleInputsClearedNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
     EnvironmentOperationNotification,
     EnvironmentState,
     EnvironmentStateNotification,
     EsmSpec,
+    ExecutionNotification,
     InterruptedNotification,
     ModelClose,
     ModelLifecycleNotification,
@@ -67,6 +69,9 @@ from marimo._sql.connection_utils import (
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
 from marimo._utils.lists import as_list
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -163,6 +168,17 @@ class AutoExportState:
         return True
 
 
+SnapshotScope = Literal["full", "host"]
+
+
+@dataclass(frozen=True)
+class _CommandEntry:
+    output: CellOutput
+    after_seq: int | None
+    # The session also retains rows that have no host item sequence.
+    console_offset: int
+
+
 class SessionView:
     """A representation of a session state for replay and serialization.
 
@@ -179,6 +195,18 @@ class SessionView:
     def __init__(self) -> None:
         # A mapping from cell (IDs) to their last seen notification
         self.cell_notifications: dict[CellId_t, CellNotification] = {}
+        self._planned_executions: dict[CellId_t, str] = {}
+        self._cleared_inputs: dict[
+            CellId_t, ConsoleInputsClearedNotification
+        ] = {}
+        self._console_positions: dict[CellId_t, int] = {}
+        self._command_output: dict[
+            tuple[
+                CellId_t,
+                type[PdbOutputNotification | CallbackOutputNotification],
+            ],
+            list[_CommandEntry],
+        ] = {}
         # The most recent datasets notification.
         self.datasets = DatasetsNotification(tables=[])
         # The most recent data-connectors notification
@@ -198,8 +226,6 @@ class SessionView:
         # Map of object id to value.
         self.ui_values: dict[str, Any] = {}
         self.breakpoints = BreakpointsNotification(breakpoints={})
-        self._callback_output: dict[CellId_t, list[CellOutput]] = {}
-        self._pdb_output: dict[CellId_t, list[CellOutput]] = {}
         self.pending_pdb_input: PdbInputNotification | None = None
         # Map of cell id to the last code that was executed in that cell.
         self.last_executed_code: dict[CellId_t, str] = {}
@@ -319,19 +345,27 @@ class SessionView:
         """Add a notification to the session view."""
         self._touch()
 
-        if isinstance(notification, CallbackOutputNotification):
-            self._callback_output.setdefault(notification.cell_id, []).extend(
-                notification.entries
-            )
+        if isinstance(notification, ExecutionNotification):
+            self._observe_execution(notification)
         elif isinstance(notification, CellNotification):
-            if notification.console == [] or notification.status == "running":
-                self._callback_output.pop(notification.cell_id, None)
+            owner = self._planned_executions.get(notification.cell_id)
             if (
-                notification.status == "running"
-                and notification.cell_id in self._pdb_output
+                owner is not None
+                and notification.execution_id is not None
+                and owner != notification.execution_id
             ):
-                self._pdb_output[notification.cell_id] = []
+                return
+            if notification.status == "running" or notification.console == []:
+                self._clear_command_output(notification.cell_id)
             previous = self.cell_notifications.get(notification.cell_id)
+            if (
+                notification.console == []
+                and previous is not None
+                and notification.execution_id is not None
+            ):
+                self._clear_console_inputs(
+                    notification.cell_id, notification.execution_id, previous
+                )
             self.cell_notifications[notification.cell_id] = (
                 merge_cell_notification(previous, notification)
             )
@@ -345,11 +379,33 @@ class SessionView:
             if previous.status == "running" and notification.status == "idle":
                 self.save_execution_time(notification, "end")
 
-        elif isinstance(notification, PdbOutputNotification):
-            entries = self._pdb_output.setdefault(notification.cell_id, [])
-            if notification.replace:
+        elif isinstance(
+            notification, (PdbOutputNotification, CallbackOutputNotification)
+        ):
+            if (
+                isinstance(notification, CallbackOutputNotification)
+                and notification.clears_cell_console
+            ):
+                self._clear_command_output(notification.cell_id)
+                cell = self.cell_notifications.get(notification.cell_id)
+                if cell is not None:
+                    owner = self.current_execution_id(notification.cell_id)
+                    if owner is not None:
+                        self._clear_console_inputs(
+                            notification.cell_id, owner, cell
+                        )
+                    cell.console = _pending_inputs(cell.console)
+            key = (notification.cell_id, type(notification))
+            entries = self._command_output.setdefault(key, [])
+            if notification.replace or not notification.entries:
                 entries.clear()
-            entries.extend(notification.entries)
+            position = self._console_positions.get(notification.cell_id)
+            cell = self.cell_notifications.get(notification.cell_id)
+            offset = len(as_list(cell.console)) if cell is not None else 0
+            entries.extend(
+                _CommandEntry(entry, position, offset)
+                for entry in notification.entries
+            )
 
         elif isinstance(notification, PdbInputNotification):
             self.pending_pdb_input = (
@@ -568,17 +624,104 @@ class SessionView:
                 outputs[cell_id] = cell_notif.output
         return outputs
 
+    def _observe_execution(self, notification: ExecutionNotification) -> None:
+        cell_id = notification.cell_id
+        owner = self._planned_executions.get(cell_id)
+        cell = self.cell_notifications.get(cell_id)
+        if (
+            notification.phase == "planned"
+            and owner != notification.execution_id
+        ):
+            self._planned_executions[cell_id] = notification.execution_id
+            self._console_positions[cell_id] = -1
+            self._cleared_inputs.pop(cell_id, None)
+            if cell is not None:
+                self.cell_notifications[cell_id] = msgspec.structs.replace(
+                    cell,
+                    execution_id=notification.execution_id,
+                    output=None,
+                    console=None,
+                )
+        elif (
+            notification.phase == "completed"
+            and owner == notification.execution_id
+            and cell is not None
+        ):
+            for entry in as_list(cell.console):
+                if entry.channel == CellChannel.STDIN:
+                    entry.channel = CellChannel.STDOUT
+                    entry.mimetype = "text/plain"
+
+    def _clear_command_output(self, cell_id: CellId_t) -> None:
+        for kind in (PdbOutputNotification, CallbackOutputNotification):
+            if entries := self._command_output.get((cell_id, kind)):
+                entries.clear()
+
+    def _clear_console_inputs(
+        self, cell_id: CellId_t, execution_id: str, previous: CellNotification
+    ) -> None:
+        ids = [
+            entry.input_id
+            for entry in as_list(previous.console)
+            if isinstance(entry.input_id, str)
+            and entry.channel != CellChannel.STDIN
+        ]
+        if ids:
+            cleared = self.cleared_console_inputs(cell_id, execution_id)
+            self._cleared_inputs[cell_id] = ConsoleInputsClearedNotification(
+                cell_id,
+                execution_id,
+                [*(cleared.input_ids if cleared else []), *ids],
+            )
+
+    def current_execution_id(self, cell_id: CellId_t) -> str | None:
+        return self._planned_executions.get(cell_id)
+
+    def cleared_console_inputs(
+        self, cell_id: CellId_t, execution_id: str | None = None
+    ) -> ConsoleInputsClearedNotification | None:
+        """Return the input rows hidden by this execution's console clears."""
+        cleared = self._cleared_inputs.get(cell_id)
+        return (
+            cleared
+            if cleared
+            and (execution_id is None or cleared.execution_id == execution_id)
+            else None
+        )
+
+    def pending_console_inputs(self, cell_id: CellId_t) -> list[CellOutput]:
+        cell = self.cell_notifications.get(cell_id)
+        return _pending_inputs(cell.console) if cell is not None else []
+
+    def has_cell_console_output(self, cell_id: CellId_t) -> bool:
+        """Whether the cell has public console output, including callback writes."""
+        cell = self.cell_notifications.get(cell_id)
+        return bool(
+            (cell is not None and cell.console)
+            or self._command_output.get((cell_id, CallbackOutputNotification))
+        )
+
     def cell_console(
         self, cell_id: CellId_t, *, include_callbacks: bool
     ) -> list[CellOutput]:
         cell = self.cell_notifications.get(cell_id)
         entries = as_list(cell.console) if cell is not None else []
         if include_callbacks and (
-            callbacks := self._callback_output.get(cell_id)
-        ):
-            entries = sorted(
-                [*entries, *callbacks], key=lambda item: item.timestamp
+            callbacks := self._command_output.get(
+                (cell_id, CallbackOutputNotification)
             )
+        ):
+            combined: list[CellOutput] = []
+            start = 0
+            for callback in callbacks:
+                combined.extend(entries[start : callback.console_offset])
+                combined.append(callback.output)
+                start = callback.console_offset
+            combined.extend(entries[start:])
+            if any(callback.after_seq is None for callback in callbacks):
+                # Unpositioned writes can arrive in separately buffered batches.
+                combined.sort(key=lambda entry: entry.timestamp)
+            entries = combined
         return _merge_consecutive_console_outputs(entries)
 
     def get_cell_console_outputs(
@@ -657,22 +800,46 @@ class SessionView:
 
         self.last_execution_time[cell_id] = time_elapsed
 
+    def command_entries(
+        self,
+        cell_id: CellId_t,
+        kind: type[PdbOutputNotification | CallbackOutputNotification],
+    ) -> Sequence[tuple[CellOutput, int | None]]:
+        """Retained command writes and the preceding execution item sequence."""
+        return [
+            (entry.output, entry.after_seq)
+            for entry in self._command_output.get((cell_id, kind), ())
+        ]
+
+    def record_console_position(
+        self, cell_id: CellId_t, execution_id: str, seq: int
+    ) -> None:
+        """Remember where private command writes fit among this execution's items."""
+        if self._planned_executions.get(cell_id) == execution_id:
+            self._console_positions[cell_id] = seq
+
     def debugger_notifications(
         self,
     ) -> list[PdbOutputNotification | PdbInputNotification]:
         """Private state a consumer gains when it takes over the editor."""
         notifications: list[PdbOutputNotification | PdbInputNotification] = [
-            PdbOutputNotification(cell_id, list(entries), replace=True)
-            for cell_id, entries in self._pdb_output.items()
+            PdbOutputNotification(
+                cell_id, [entry.output for entry in entries], replace=True
+            )
+            for (cell_id, kind), entries in self._command_output.items()
+            if kind is PdbOutputNotification
         ]
         if self.pending_pdb_input is not None:
             notifications.append(self.pending_pdb_input)
         return notifications
 
-    def snapshot_notifications(self) -> list[NotificationMessage]:
+    def snapshot_notifications(
+        self, *, scope: SnapshotScope = "full"
+    ) -> list[NotificationMessage]:
         """Copy retained notifications for a connecting client.
 
-        The caller supplies kernel-ready before replaying these notifications.
+        The shared host stream already snapshots execution output. Attached
+        editors also need retained console entries and private debugger state.
         """
         notifications: list[NotificationMessage] = [
             EnvironmentStateNotification(source=source, state=state)
@@ -680,10 +847,12 @@ class SessionView:
         ]
         if self.startup_progress is not None:
             notifications.append(self.startup_progress)
-        notifications.extend(self._notebook_notifications())
+        notifications.extend(self._notebook_notifications(scope))
         return copy.deepcopy(notifications)
 
-    def _notebook_notifications(self) -> list[NotificationMessage]:
+    def _notebook_notifications(
+        self, scope: SnapshotScope
+    ) -> list[NotificationMessage]:
         all_notifications: list[NotificationMessage] = [self.breakpoints]
         if self.variable_notifications.variables:
             all_notifications.append(self.variable_notifications)
@@ -709,19 +878,31 @@ class SessionView:
             for ui_messages in self.ui_element_messages.values():
                 all_notifications.extend(ui_messages)
 
-        for cell_id in dict.fromkeys(
-            (*self.cell_notifications, *self._callback_output)
-        ):
-            cell = self.cell_notifications.get(cell_id)
-            if cell is None:
-                cell = CellNotification(cell_id=cell_id)
-            if cell.console is not None or cell_id in self._callback_output:
-                cell = msgspec.structs.replace(
-                    cell,
-                    console=self.cell_console(cell_id, include_callbacks=True),
-                )
-            all_notifications.append(cell)
-        all_notifications.extend(self.debugger_notifications())
+        if scope == "full":
+            callback_cells = (
+                cell_id
+                for cell_id, kind in self._command_output
+                if kind is CallbackOutputNotification
+            )
+            for cell_id in dict.fromkeys(
+                (*self.cell_notifications, *callback_cells)
+            ):
+                cell = self.cell_notifications.get(cell_id)
+                if cell is None:
+                    cell = CellNotification(cell_id=cell_id)
+                if (
+                    cell.console is not None
+                    or (cell_id, CallbackOutputNotification)
+                    in self._command_output
+                ):
+                    cell = msgspec.structs.replace(
+                        cell,
+                        console=self.cell_console(
+                            cell_id, include_callbacks=True
+                        ),
+                    )
+                all_notifications.append(cell)
+            all_notifications.extend(self.debugger_notifications())
         # Only include startup logs if they are in progress (not done)
         if self.startup_logs and self.startup_logs.status != "done":
             all_notifications.append(self.startup_logs)
@@ -738,7 +919,13 @@ class SessionView:
         ]
 
     def is_empty(self) -> bool:
-        return not any(self._callback_output.values()) and all(
+        if any(
+            entries
+            for (_, kind), entries in self._command_output.items()
+            if kind is CallbackOutputNotification
+        ):
+            return False
+        return all(
             notif.output is None and notif.console is None
             for notif in self.cell_notifications.values()
         )
@@ -812,6 +999,16 @@ def _merge_consecutive_console_outputs(
     return merged
 
 
+def _pending_inputs(
+    console: CellOutput | list[CellOutput] | None,
+) -> list[CellOutput]:
+    return [
+        entry
+        for entry in as_list(console)
+        if entry.channel == CellChannel.STDIN
+    ]
+
+
 def merge_cell_notification(
     previous: CellNotification | None,
     current: CellNotification,
@@ -832,8 +1029,10 @@ def merge_cell_notification(
     queued_to_running = (
         current.status == "running" and previous.status == "queued"
     )
-    if explicit_clear or queued_to_running:
+    if queued_to_running:
         current.console = []
+    elif explicit_clear:
+        current.console = _pending_inputs(previous.console)
     else:
         combined_console: list[CellOutput] = as_list(previous.console)
         # Keep write boundaries until export can interleave callback output.
