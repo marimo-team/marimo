@@ -17,6 +17,10 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.command_output import (
+    CommandOutput,
+    console_notification,
+)
 from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
@@ -172,6 +176,7 @@ def test_clear_hides_only_closed_inputs_until_execution_replaced(
     hint = session_view.cleared_console_inputs(cell_id, "first")
     assert hint is not None
     assert hint.input_ids == ["password"]
+    assert hint in session_view.snapshot_notifications(scope="editor")
     assert hint not in session_view.snapshot_notifications(scope="host")
     assert [
         entry.input_id
@@ -188,6 +193,7 @@ def test_clear_hides_only_closed_inputs_until_execution_replaced(
         ExecutionNotification("second", cell_id, "run", "planned")
     )
     assert session_view.cleared_console_inputs(cell_id, "first") is None
+    assert hint not in session_view.snapshot_notifications(scope="editor")
 
 
 def test_session_view_serialization_hint_survives_status_updates(
@@ -2642,3 +2648,28 @@ def test_snapshot_notifications_preserve_replay_order(
     assert (
         msgspec.json.encode(session_view.snapshot_notifications()) != captured
     )
+
+
+@pytest.mark.parametrize(
+    "kind", [PdbOutputNotification, CallbackOutputNotification]
+)
+def test_command_writes_keep_their_identity_on_replay(
+    kind: CommandOutput,
+) -> None:
+    view = SessionView()
+    cell = CellId_t("cell")
+    row = CellOutput.stdout("identical")
+    live = console_notification(cell, [row, row], destination=kind)
+    assert isinstance(
+        live, (PdbOutputNotification, CallbackOutputNotification)
+    )
+    view.add_notification(live)
+    [replayed] = [
+        msg
+        for msg in view.snapshot_notifications(scope="editor")
+        if isinstance(msg, (PdbOutputNotification, CallbackOutputNotification))
+    ]
+    assert type(replayed) is kind
+    assert replayed.entries == live.entries
+    assert all(isinstance(entry.command_id, str) for entry in replayed.entries)
+    assert replayed.entries[0].command_id != replayed.entries[1].command_id

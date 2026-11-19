@@ -287,7 +287,8 @@ function handleNotification(
         return;
 
       case "consumer-capabilities":
-      case "execution":
+      case "callback-output":
+      case "console-inputs-cleared":
         return;
       default:
         logNever(msg);

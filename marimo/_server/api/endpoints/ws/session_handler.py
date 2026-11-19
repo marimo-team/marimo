@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from marimo._server.session_manager import SessionManager
     from marimo._session import Session
     from marimo._session.events import SessionEventBus
+    from marimo._session.state.session_view import SnapshotScope
 
 LOGGER = _loggers.marimo_logger()
 
@@ -56,6 +57,8 @@ class SessionHandler(SessionConsumer, abc.ABC):
     transport surface (`_request_close`, `_is_transport_connected`) and
     deliver notifications through the host stream.
     """
+
+    snapshot_scope: SnapshotScope = "full"
 
     def __init__(
         self,
@@ -250,7 +253,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
 
     def _replay_previous_session(self, session: Session) -> None:
         """Replay retained state to this client."""
-        notifications = session.session_view.snapshot_notifications()
+        notifications = session.session_view.snapshot_notifications(
+            scope=self.snapshot_scope
+        )
         LOGGER.debug("Replaying %s notifications", len(notifications))
         for notif in notifications:
             LOGGER.debug("Replaying notification %s", notif)
