@@ -136,7 +136,8 @@ class _DockerCompatibleSession:
                 errors="replace",
             )
             self._log_process = process
-            assert process.stdout is not None
+            if process.stdout is None:
+                raise RuntimeError("Container log stream is unavailable")
             for line in process.stdout:
                 tail.append(line)
                 yield line
