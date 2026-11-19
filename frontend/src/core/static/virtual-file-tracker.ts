@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { CellId } from "../cells/ids";
+import type { Execution } from "@marimo-team/client/protocol";
+import { type CellId, SCRATCH_CELL_ID } from "../cells/ids";
 import type { CellMessage } from "../kernel/messages";
 
 // Virtual files are of the form /@file/<file-name>.<extension>
@@ -28,12 +29,26 @@ export class VirtualFileTracker {
   }
 
   public track(message: Pick<CellMessage, "cell_id" | "output">): void {
-    const output = message.output;
-    const cellId = message.cell_id;
-    if (!output) {
-      return;
+    if (message.output) {
+      this.trackValue(message.cell_id, message.output);
     }
+  }
 
+  public trackExecution(record: Execution): void {
+    const value =
+      record.outcome?.kind === "value" ? record.outcome.display : null;
+    if (value) {
+      this.trackValue(
+        (record.cell_id as CellId | null) ?? SCRATCH_CELL_ID,
+        value,
+      );
+    }
+  }
+
+  private trackValue(
+    cellId: CellId,
+    output: { mimetype: string; data: unknown },
+  ): void {
     switch (output.mimetype) {
       case "application/json":
       case "text/html": {

@@ -72,6 +72,7 @@ def test_extension_routing_and_control_filters() -> None:
     event = notification_event(
         notebook_id, CompletedRunNotification(run_id="r1")
     )
+    assert event is not None
     assert [event.visible_in(scope) for scope in (None, "n1", "n2")] == [
         False,
         True,

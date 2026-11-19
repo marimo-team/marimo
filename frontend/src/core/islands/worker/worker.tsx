@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { unstable_NotebookCall } from "@marimo-team/client";
+import { EDITOR_EVENT_TYPES } from "@/core/notebook/replica";
 import type { PyodideInterface } from "pyodide";
 import {
   createRPC,
@@ -141,9 +142,14 @@ async function follow(
 ): Promise<void> {
   const notebook = bridge.notebook;
   try {
-    await notebook.subscribe(`island-${sessionGeneration}`, null, (event) => {
-      rpc.send.notebookEvent({ event, sessionGeneration });
-    });
+    await notebook.subscribe(
+      `island-${sessionGeneration}`,
+      null,
+      (event) => {
+        rpc.send.notebookEvent({ event, sessionGeneration });
+      },
+      EDITOR_EVENT_TYPES.join(","),
+    );
   } finally {
     notebook.destroy();
   }

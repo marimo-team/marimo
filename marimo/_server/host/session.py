@@ -92,8 +92,10 @@ class SessionEventStream(SessionHandler):
         event = notification_event(
             self.notebook.id if self.notebook is not None else None,
             deserialize_kernel_message(notification),
+            editor_session=True,
+            types=self.types,
         )
-        if event.wanted(self.types):
+        if event is not None and event.wanted(self.types):
             self._events.put_nowait(event)
 
     def _on_host_event(self, event: RoutedEvent) -> None:
