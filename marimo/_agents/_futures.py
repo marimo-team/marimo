@@ -1,12 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from marimo._messaging.agents import SendResult
 
 if TYPE_CHECKING:
+    import threading
     from collections.abc import Callable
 
 
@@ -30,6 +32,17 @@ class SendFuture(Future[SendResult]):
         return self._message_id
 
 
+@functools.cache
+def _send_thread_type() -> type[threading.Thread]:
+    from marimo._runtime.threads import Thread
+
+    class SendThread(Thread):
+        # A running send cannot stop, and a send can start outside a cell.
+        _cell_owned = False
+
+    return SendThread
+
+
 class _SendQueue:
     def __init__(self) -> None:
         self._executor = ThreadPoolExecutor(
@@ -39,8 +52,6 @@ class _SendQueue:
     def submit(
         self, future: SendFuture, send: Callable[[], SendResult]
     ) -> None:
-        from marimo._runtime.threads import Thread
-
         def run() -> None:
             try:
                 result = send()
@@ -50,7 +61,9 @@ class _SendQueue:
                 future.set_result(result)
 
         # Capture each caller's cell context before queueing the work.
-        thread = Thread(target=run, daemon=True, name="marimo-agent-send")
+        thread = _send_thread_type()(
+            target=run, daemon=True, name="marimo-agent-send"
+        )
 
         def dispatch() -> None:
             if not future.set_running_or_notify_cancel():

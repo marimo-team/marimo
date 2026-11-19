@@ -103,3 +103,34 @@ def test_future_request_errors(executing_kernel, start) -> None:
         with pytest.raises(mo.agents.AgentError, match="Call exceeds a limit"):
             future.result(timeout=5)
         assert isinstance(future.exception(), mo.agents.AgentError)
+
+
+def test_future_send_starts_outside_a_cell(k) -> None:
+    from marimo._messaging.agents import AgentConnection
+    from tests._http import http_test_server
+
+    with http_test_server() as endpoint:
+        endpoint.status = 503
+        endpoint.body = b'{"detail":"Call exceeds a limit"}'
+        k.agent_messaging = AgentConnection(endpoint.url, "", "")
+        future = mo.agents.start_broadcast(None)
+        with pytest.raises(mo.agents.AgentError, match="Call exceeds a limit"):
+            future.result(timeout=5)
+
+
+def test_future_sends_keep_no_cell_state(executing_kernel) -> None:
+    from marimo._messaging.agents import AgentConnection
+    from marimo._runtime.context import get_context
+    from tests._http import http_test_server
+
+    registry = get_context().cell_lifecycle_registry.registry
+    before = {cell: len(items) for cell, items in registry.items()}
+    with http_test_server() as endpoint:
+        endpoint.status = 503
+        endpoint.body = b'{"detail":"Call exceeds a limit"}'
+        executing_kernel.agent_messaging = AgentConnection(
+            endpoint.url, "", ""
+        )
+        for _ in range(3):
+            mo.agents.start_broadcast(None).exception(timeout=5)
+    assert {cell: len(items) for cell, items in registry.items()} == before
