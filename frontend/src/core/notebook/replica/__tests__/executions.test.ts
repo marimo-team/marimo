@@ -159,6 +159,7 @@ describe("executions resource", () => {
       ["console", "o-input-2", 2],
       ["input", "i2", "cancelled"],
     ]);
+    expect(execution!.items.get("i1")?.time).toBe("2026-11-03T14:00:03Z");
     expect(prompted.latest.size).toBe(0);
     const gone = resource(replay(inputs, start));
     expect(gone.executions.has("e-input")).toBe(false);

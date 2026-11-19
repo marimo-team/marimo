@@ -152,6 +152,34 @@ describe("NotebookReplica lifetime", () => {
     expect(store.get(client.notebookAtom)).toBeNull();
   });
 
+  it.each(["r1", "new-runtime", null])(
+    "restores completed scratch output only for its runtime (snapshot runtime %s)",
+    async (runtimeId) => {
+      const { connect, opened, client, store } = setup();
+      connect(lifetime().signal);
+      const { receive } = await opened();
+      const events = fixtureEvents("notebook-events.sse");
+      events.forEach(receive);
+      const previous = store.get(client.executionsAtom).scratchConsole;
+      expect(previous?.items.get("o3")).toMatchObject({ text: "2\n" });
+
+      receive({ event: "reset", data: {} });
+      for (const event of events) {
+        if (event.event === "notebook" || event.event === "ready") {
+          receive(event);
+        } else if (event.event === "runtime" && runtimeId !== null) {
+          receive({
+            ...event,
+            data: { runtime: { ...event.data.runtime, id: runtimeId } },
+          });
+        }
+      }
+      expect(store.get(client.executionsAtom).scratchConsole).toBe(
+        runtimeId === "r1" ? previous : undefined,
+      );
+    },
+  );
+
   it("rebuilds the replica after a reconnect reset selects a new notebook", async () => {
     vi.useFakeTimers();
     const { connect, opened, client, store } = setup();
@@ -481,6 +509,91 @@ describe("NotebookReplica lifetime", () => {
     expect(onNotification).toHaveBeenCalledExactlyOnceWith({
       data: { op: "interrupted" },
     });
+  });
+
+  it("delivers startup notifications immediately and snapshot notifications after the document", async () => {
+    const { connect, opened, onNotification, client, store } = setup();
+    connect(lifetime().signal);
+    const { receive } = await opened();
+    const startup = { op: "startup-progress", phase: "starting-kernel" };
+    receive({ event: "marimo", data: { marimo: startup } });
+    expect(onNotification).toHaveBeenCalledExactlyOnceWith({ data: startup });
+    onNotification.mockClear();
+
+    const snapshot = fixtureMessages("notebook-events.sse");
+    const readyIndex = snapshot.findIndex((event) => event.event === "ready");
+    snapshot.slice(0, readyIndex).forEach(receive);
+    const cellOutput = { op: "pdb-output", cell_id: "c1", entries: [] };
+    receive(kernelReady);
+    receive({ event: "marimo", data: { marimo: cellOutput } });
+    expect(onNotification).not.toHaveBeenCalled();
+    onNotification.mockImplementation(() => {
+      expect(store.get(client.documentAtom)?.revision.order).toContain("c1");
+    });
+
+    receive(snapshot[readyIndex]);
+    expect(onNotification.mock.calls).toEqual([
+      [{ data: kernelReady.data.marimo }],
+      [{ data: cellOutput }],
+    ]);
+  });
+
+  it("discards notifications from a snapshot interrupted by a dropped connection", async () => {
+    vi.useFakeTimers();
+    const { connect, opened, onNotification } = setup();
+    connect(lifetime().signal);
+    const first = await opened();
+    first.receive({ event: "notebook", data: { notebook } });
+    first.receive(kernelReady);
+    expect(onNotification).not.toHaveBeenCalled();
+    first.drop();
+    await backoff();
+
+    const next = await opened();
+    fixtureMessages("notebook-events.sse").forEach(next.receive);
+    expect(onNotification).not.toHaveBeenCalled();
+  });
+
+  it("stops delivering snapshot notifications when a callback disconnects", async () => {
+    const { connect, opened, onNotification } = setup();
+    const current = lifetime();
+    connect(current.signal);
+    const { receive } = await opened();
+    receive({ event: "notebook", data: { notebook } });
+    receive(kernelReady);
+    receive({ event: "marimo", data: { marimo: { op: "interrupted" } } });
+    onNotification.mockImplementationOnce(() => current.abort());
+
+    receive({ event: "ready", id: "1", data: {} });
+    expect(onNotification).toHaveBeenCalledExactlyOnceWith({
+      data: kernelReady.data.marimo,
+    });
+  });
+
+  it("delivers the rest of a snapshot when a notification callback throws", async () => {
+    const { connect, opened, onNotification } = setup();
+    connect(lifetime().signal);
+    const { receive } = await opened();
+    receive({ event: "notebook", data: { notebook } });
+    receive(kernelReady);
+    const interrupted = { op: "interrupted" };
+    receive({ event: "marimo", data: { marimo: interrupted } });
+    const error = new Error("notification failed");
+    onNotification.mockImplementationOnce(() => {
+      throw error;
+    });
+    const report = vi
+      .spyOn(globalThis, "queueMicrotask")
+      .mockImplementation(vi.fn());
+    onTestFinished(() => report.mockRestore());
+
+    receive({ event: "ready", id: "1", data: {} });
+    expect(onNotification.mock.calls).toEqual([
+      [{ data: kernelReady.data.marimo }],
+      [{ data: interrupted }],
+    ]);
+    expect(report).toHaveBeenCalledOnce();
+    expect(report.mock.calls[0][0]).toThrow(error);
   });
 });
 
