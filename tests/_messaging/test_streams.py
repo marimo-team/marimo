@@ -116,6 +116,8 @@ def test_buffered_native_writes_stay_with_their_owner(
                     redirect(out),
                 ):
                     out.buffer.write(b"nested")
+                    terminal.write(" text")
+                terminal.flush()
         writes = {}
         for _ in range(2):
             msg = deserialize_kernel_message(messages.get(timeout=2))
@@ -124,8 +126,39 @@ def test_buffered_native_writes_stay_with_their_owner(
             writes[msg.cell_id] = (msg.execution_id, msg.console.data)
         assert writes == {
             "public": ("evaluation", "public"),
-            "nested": ("inner-execution", "nested"),
+            "nested": ("inner-execution", "nested text"),
         }
+    finally:
+        stream.stop()
+
+
+def test_c_stdio_buffer_is_flushed_before_leaving_cell(
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    import ctypes
+
+    libc = ctypes.CDLL("ucrtbase" if sys.platform == "win32" else None)
+    messages = Queue[KernelMessage]()
+    stream = ThreadSafeStream(
+        QueuePipe(messages), Queue(), True, cell_id="first"
+    )
+    try:
+        with capfd.disabled():
+            stdout = ThreadSafeStdout(stream)
+            with execution_id_context("first", "execution"), redirect(stdout):
+                assert libc.putchar(ord("x")) == ord("x")
+
+            stream.cell_id = "second"
+            with redirect(stdout):
+                libc.fflush(None)
+        msg = deserialize_kernel_message(messages.get(timeout=2))
+        assert isinstance(msg, CellNotification)
+        assert isinstance(msg.console, CellOutput)
+        assert (msg.cell_id, msg.execution_id, msg.console.data) == (
+            "first",
+            "execution",
+            "x",
+        )
     finally:
         stream.stop()
 

@@ -12,6 +12,7 @@ import threading
 from collections import deque
 from contextvars import Context
 from dataclasses import replace
+from functools import cache
 from typing import (
     TYPE_CHECKING,
     Protocol,
@@ -40,7 +41,7 @@ from marimo._types.ids import CellId_t
 from marimo._utils.signals import SigintHandler
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -268,6 +269,47 @@ def _forward_os_stream(
             )
 
 
+@cache
+def _c_stdio_flush(fd: int) -> Callable[[], int] | None:
+    # C extensions write through libc's FILE*, separately buffered from Python.
+    if fd not in (1, 2):
+        return None
+    from functools import partial
+
+    try:
+        import ctypes
+
+        if sys.platform == "win32":
+            libc = ctypes.CDLL("ucrtbase")
+            get_stream = libc.__acrt_iob_func
+            get_stream.argtypes = [ctypes.c_uint]
+            get_stream.restype = ctypes.c_void_p
+            c_stream = get_stream(fd)
+        else:
+            libc = ctypes.CDLL(None)
+            name = "stdout" if fd == 1 else "stderr"
+            if sys.platform == "darwin":
+                name = f"__{name}p"
+            c_stream = ctypes.c_void_p.in_dll(libc, name).value
+        if c_stream is not None:
+            flush = libc.fflush
+            flush.argtypes = [ctypes.c_void_p]
+            return partial(flush, c_stream)
+    except (ImportError, AttributeError, OSError, ValueError):
+        # Some embedded interpreters don't expose the platform's C stdio.
+        pass
+    return None
+
+
+def _flush_redirected_stream(
+    stream: ThreadSafeStdout | ThreadSafeStderr,
+) -> None:
+    if not stream._original_stream.closed:
+        stream._original_stream.flush()
+    if flush := _c_stdio_flush(stream._original_fd):
+        flush()
+
+
 def _flush_native_buffer(stream: ThreadSafeStdout | ThreadSafeStderr) -> None:
     if stream.buffer is not None and not stream.buffer.closed:
         stream.buffer.flush()
@@ -284,7 +326,8 @@ class ThreadSafeStdout(Stdout):
         self, stream: ThreadSafeStream, forward_os_streams: bool = True
     ):
         self._stream = stream
-        self._original_fd = sys.stdout.fileno()
+        self._original_stream = sys.stdout
+        self._original_fd = self._original_stream.fileno()
         # Expose the underlying binary buffer so that code writing to
         # sys.stdout.buffer (e.g. package installation logging) keeps working.
         self.buffer: io.BufferedIOBase | None = getattr(
@@ -354,7 +397,8 @@ class ThreadSafeStderr(Stderr):
         self, stream: ThreadSafeStream, forward_os_streams: bool = True
     ):
         self._stream = stream
-        self._original_fd = sys.stderr.fileno()
+        self._original_stream = sys.stderr
+        self._original_fd = self._original_stream.fileno()
         # Expose the underlying binary buffer so that code writing to
         # sys.stderr.buffer keeps working.
         self.buffer: io.BufferedIOBase | None = getattr(
@@ -501,7 +545,7 @@ def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
     inheritable = os.get_inheritable(fd)
     outer_fileno = standard_stream._fileno
     with contextlib.ExitStack() as restore:
-        _flush_native_buffer(standard_stream)
+        _flush_redirected_stream(standard_stream)
         saved_fd = os.dup(fd)
         restore.callback(os.close, saved_fd)
         read_fd, write_fd = os.pipe()
@@ -534,7 +578,7 @@ def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
             os.dup2(write_fd, fd, inheritable)
         finally:
             os.close(write_fd)
-        restore.callback(_flush_native_buffer, standard_stream)
+        restore.callback(_flush_redirected_stream, standard_stream)
         standard_stream._fileno = fd
         try:
             yield
