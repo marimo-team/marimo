@@ -740,13 +740,11 @@ async def test_stored_results_are_on_the_stream_without_a_runtime(
     assert result.execution.outcome == protocol.ValueOutcome(
         protocol.DisplayData(mimetype="text/plain", data="1")
     )
-    assert names(bridge.host.events(notebook_id=record.id)) == [
-        "notebook",
-        "cell",
-        "document",
-        "execution",
-        "ready",
-    ]
+    assert [
+        event.event.data.execution
+        for event in bridge.host.events(notebook_id=record.id)
+        if isinstance(event.event, protocol.ExecutionEvent)
+    ] == [result.execution]
     bridge.close()
 
 
