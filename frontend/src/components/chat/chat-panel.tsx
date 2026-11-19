@@ -311,7 +311,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
           ref={footerRef}
           className="chat-input-footer px-3 py-2 border-t border-border/20 flex items-center gap-2"
         >
-          <div className="chat-input-selectors flex min-w-0 flex-1 items-center gap-1">
+          <div className="flex min-w-0 flex-1 items-center gap-1">
             <NotebookAccessSelector
               value={currentMode}
               onValueChange={saveModeChange}

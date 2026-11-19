@@ -125,7 +125,7 @@ export function ChatModelPicker({
           variant="text"
           size="sm"
           aria-label={triggerLabel}
-          className="chat-control h-6 min-w-0 max-w-[200px] gap-1.5 px-2 text-xs font-normal"
+          className="chat-control h-6 min-w-0 gap-1.5 px-2 text-xs font-normal"
         >
           <AiProviderIcon
             provider={current.providerId}
