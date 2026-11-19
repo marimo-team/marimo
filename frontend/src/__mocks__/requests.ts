@@ -22,7 +22,6 @@ export const MockRequestClient = {
       sendFormat: vi.fn().mockResolvedValue({ codes: {} }),
       sendShutdown: vi.fn().mockResolvedValue({}),
       sendRunScratchpad: vi.fn().mockResolvedValue({}),
-      sendInstantiate: vi.fn().mockResolvedValue({}),
       sendCodeCompletionRequest: vi.fn().mockResolvedValue({ items: [] }),
       saveUserConfig: vi.fn().mockResolvedValue({}),
       saveAppConfig: vi.fn().mockResolvedValue({}),

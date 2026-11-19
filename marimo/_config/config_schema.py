@@ -419,10 +419,16 @@ class ServerConfig(Config, kw_only=True):
             description="Only send session cookies over HTTPS. Enable when serving behind TLS."
         ),
     ] = False
+    session_cookie_partitioned: Annotated[
+        bool,
+        Meta(
+            description="Use partitioned cookies for cross-site HTTPS embeds. Implies SameSite=None and Secure."
+        ),
+    ] = False
     session_secret: Annotated[
         str | None,
         Meta(
-            description="Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process.",
+            description="Secret used to sign session cookies and to derive the default `marimo run` auth token. Set a stable value to preserve sessions and tokens across restarts or replicas; otherwise a random secret is generated per process.",
             extra={"sensitive": True},
         ),
     ] = None

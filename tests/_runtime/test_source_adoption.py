@@ -77,7 +77,7 @@ async def test_a_run_registers_never_run_ancestors_with_pending_source(
     await k.run([run(B, "y = x + 1")])
     assert k.globals["y"] == 8
     assert set(k.graph.cells) == {A, B}
-    assert set(k._uninstantiated_execution_requests) == {C}
+    assert set(k._pending_execution_requests) == {C}
 
 
 async def test_a_never_run_ancestor_that_does_not_parse_is_skipped(
@@ -87,7 +87,7 @@ async def test_a_never_run_ancestor_that_does_not_parse_is_skipped(
     await load(k, (A, "x = ("), (B, "y = x + 1"))
     await k.run([run(B, "y = x + 1")])
     assert k.graph.cells[B].run_result_status == "exception"
-    assert A in k._uninstantiated_execution_requests
+    assert A in k._pending_execution_requests
     assert not k.errors
 
 
@@ -148,7 +148,7 @@ async def test_a_syntax_error_keeps_the_adopted_source(k: Kernel) -> None:
     await k.run([run(A, "x = (")])
     assert A not in k.graph.cells
     assert k.cell_metadata[A].code == "x = ("
-    assert A not in k._uninstantiated_execution_requests
+    assert A not in k._pending_execution_requests
     assert A in k.errors
     assert "x" not in k.globals
     assert k.graph.cells[B].run_result_status == "exception"
@@ -159,7 +159,7 @@ async def test_markdown_cells_are_rendered_at_load_without_being_adopted(
 ) -> None:
     k = mocked_kernel.k
     await load(k, (A, "import marimo as mo"), (B, 'mo.md("hello")'))
-    assert set(k._uninstantiated_execution_requests) == {A}
+    assert set(k._pending_execution_requests) == {A}
     assert B not in k.graph.cells
     metadata = k.cell_metadata.get(B)
     assert metadata is None or metadata.code is None

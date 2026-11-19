@@ -108,15 +108,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendInstantiate: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/instantiate", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendCodeCompletionRequest: async (request) => {
       await waitForConnectionOpen();
       return getClient()

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from httpx import Response
-    from starlette.testclient import TestClient
+    from starlette.testclient import TestClient, WebSocketTestSession
 
 
 def get_session_manager(client: TestClient) -> SessionManager:
@@ -181,6 +181,21 @@ def with_workspace(
     return decorator
 
 
+def await_host_startup(
+    client: TestClient, websocket: WebSocketTestSession
+) -> None:
+    """Wait for the instantiate the server sends when an edit session opens.
+
+    The kernel reports that instantiate on the socket and reorders the
+    document for it. A test starts once it has finished, so the kernel
+    reports nothing the test did not ask for.
+    """
+    from tests._server.api.endpoints.ws_helpers import receive_until
+
+    if get_session_manager(client).mode is SessionMode.EDIT:
+        receive_until("completed-run", websocket)
+
+
 def with_session(
     session_id: str,
     auto_shutdown: bool = True,
@@ -205,6 +220,7 @@ def with_session(
 
                     data = receive_until("kernel-ready", websocket)
                     assert data
+                    await_host_startup(client, websocket)
                     if "temp_marimo_file" in func.__code__.co_varnames:
                         func(
                             client,
@@ -246,6 +262,7 @@ def with_websocket_session(
 
                     data = receive_until("kernel-ready", websocket)
                     assert data
+                    await_host_startup(client, websocket)
 
                     func(client, websocket)
             finally:

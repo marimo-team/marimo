@@ -208,6 +208,29 @@ describe("PairWithAgentModal", () => {
     },
   );
 
+  it.each(["http://localhost:8000/prefix/", "http://localhost:8000/prefix"])(
+    "fetches the token under the base URL of %s",
+    async (url) => {
+      store.set(runtimeConfigAtom, { ...DEFAULT_RUNTIME_CONFIG, url });
+      vi.mocked(fetch).mockImplementation((input) => {
+        const { pathname } = new URL(String(input));
+        const isServerRoute =
+          pathname === "/prefix/auth/token" ||
+          pathname === "/prefix/api/sessions";
+        return isServerRoute
+          ? responseFor(pathname, "secret-token")
+          : Promise.resolve(new Response(null, { status: 404 }));
+      });
+      await act(async () => {
+        render(<PairWithAgentModal onClose={vi.fn()} />, { wrapper });
+      });
+
+      const panel = screen.getByRole("tabpanel");
+      expect(panel).toHaveTextContent("2. When prompted, paste this token:");
+      expect(panel).toHaveTextContent("--with-token");
+    },
+  );
+
   it("uses the CLI when an older server omits Pair configuration", async () => {
     store.set(pairConfigAtom, undefined);
     await act(async () => {

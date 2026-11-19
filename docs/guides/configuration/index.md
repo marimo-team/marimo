@@ -3,6 +3,9 @@ marimo’s editor, runtime, and server can be configured through user settings, 
 
 ## Configuration options
 
+Browse the [configuration reference](../../api/configuration.md) for all options,
+including their types, defaults, and allowed values.
+
 For available options, descriptions, types, and defaults, run:
 
 ```bash
@@ -122,8 +125,7 @@ environment variable. Administrator restrictions such as `MARIMO_RESTRICT_SHARIN
 enforced, regardless of other sources.
 
 Settings supplied by `pyproject.toml`, script metadata, environment variables, or CLI overrides
-cannot be overridden through the editor's User settings menu. Server session
-cookie settings take effect when the server starts.
+cannot be overridden through the editor's User settings menu.
 
 !!! note "Trusted configuration"
     `signing`, `cache.verification`, `cache.loader`, `server.session_secret`,
@@ -133,6 +135,8 @@ cookie settings take effect when the server starts.
     metadata, and workspace `.marimo.toml` files. Workspace `.marimo.toml` files
     also cannot set `cache.store`. See [project file security](../../security.md#project-files)
     and [cache signing and trust](../../api/caching.md#cache-signing-and-trust).
+
+For authenticated cross-site embeds, see [cross-site session cookies](../deploying/authentication.md#cross-site-session-cookies).
 
 ## Notebook settings
 

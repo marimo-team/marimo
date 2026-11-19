@@ -641,3 +641,42 @@ def test_execution_without_confirmation_is_never_retried(
         )
     assert len(calls) == 1
     assert response.closed
+
+
+@pytest.mark.parametrize(
+    "suffix", ["?key=value", "#fragment", "?key=value#fragment"]
+)
+def test_events_preserve_query_and_drop_fragment(monkeypatch, suffix):
+    calls = []
+    monkeypatch.setattr(
+        client, "open_response", lambda **kwargs: calls.append(kwargs)
+    )
+    client.open_events(
+        url="http://localhost:2718/base/api/marimo/v1" + suffix,
+        notebook="nb-one",
+        token="private",
+        identity="test",
+        name="Test",
+    )
+    from urllib.parse import parse_qs, urlsplit
+
+    endpoint = urlsplit(calls[0]["url"])
+    assert endpoint.path == "/base/api/marimo/v1/notebooks/nb-one/events"
+    assert endpoint.fragment == ""
+    assert parse_qs(endpoint.query) == {
+        **({"key": ["value"]} if "?" in suffix else {}),
+        "types": ["custom,attachment"],
+    }
+
+
+@pytest.mark.parametrize(
+    "path", ["/base/", "/base/api/marimo/v1", "/base/api/marimo/v1/"]
+)
+@pytest.mark.parametrize(
+    "suffix", ["", "?key=value", "#fragment", "?key=value#fragment"]
+)
+def test_host_api_url(path: str, suffix: str) -> None:
+    assert client.host_api_url("http://localhost:2718" + path + suffix) == (
+        "http://localhost:2718/base/api/marimo/v1"
+        + ("?key=value" if "?" in suffix else "")
+    )

@@ -71,6 +71,10 @@ export const resolvedMarimoConfigAtom = atom<UserConfig>((get) => {
   return mergeConfig(userConfig, overrides);
 });
 
+export const autoRunOnChangeAtom = atom(
+  (get) => get(resolvedMarimoConfigAtom).runtime.on_cell_change === "autorun",
+);
+
 export const autoInstantiateAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).runtime.auto_instantiate;
 });

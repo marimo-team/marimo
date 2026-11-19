@@ -11,7 +11,7 @@ from tests._server.api.endpoints.ws_helpers import (
     receive_until,
 )
 from tests._server.host.drive import socket_snapshot
-from tests._server.mocks import run_cells
+from tests._server.mocks import await_host_startup, run_cells
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -49,6 +49,9 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
         notebook_id = notebook_id_of(snapshot)
         editor_ready = receive_notification(websocket)
         assert_kernel_ready_response(editor_ready)
+        # The kiosk joins once the kernel has finished instantiating, so
+        # the edit below is the next thing it hears about.
+        await_host_startup(client, websocket)
 
         # Connect in kiosk mode
         with client.websocket_connect(
@@ -74,6 +77,10 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                     receive_notification(other_websocket)["op"]
                     == "environment-state"
                 )
+            assert receive_notification(other_websocket)["data"] == {
+                "op": "breakpoints",
+                "breakpoints": {},
+            }
 
             # Edit the notebook through the host
             response = client.post(

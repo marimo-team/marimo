@@ -48,7 +48,7 @@ import {
   disabledCellIds,
   enabledCellIds,
   getUndoLabel,
-  notebookNeedsRun,
+  notebookRunReason,
 } from "./utils";
 
 /** A deleted cell as it was, with where it went in the document. */
@@ -380,13 +380,15 @@ export const canUndoDeletesAtom = atom((get) =>
 
 export const undoLabelAtom = atom((get) => getUndoLabel(get(notebookAtom)));
 
-export const needsRunAtom = atom((get) =>
-  notebookNeedsRun(
+export const runReasonAtom = atom((get) =>
+  notebookRunReason(
     get(notebookAtom),
     get(cellExecutionInputsAtom),
     get(cellFreshnessAtom),
   ),
 );
+
+export const needsRunAtom = atom((get) => get(runReasonAtom) !== null);
 
 export const cellErrorsAtom = atom((get) => {
   const { cellIds, cellData } = get(notebookAtom);

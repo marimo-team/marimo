@@ -31,7 +31,6 @@ from tests._server.api.endpoints.ws_helpers import (
     assert_kernel_ready_response,
     assert_parse_ready_response,
     create_response,
-    headers,
     receive_notification,
     receive_until,
 )
@@ -399,14 +398,7 @@ async def test_session_resumption(client: TestClient) -> None:
         data = receive_notification(websocket)
         assert_kernel_ready_response(data)
 
-        # Instantiate to generate some operations
-        client.post(
-            "/api/kernel/instantiate",
-            headers=headers("123"),
-            json={"objectIds": [], "values": [], "auto_run": True},
-        )
-
-        # Flush initial messages
+        # The server instantiates the session, which generates operations.
         flush_messages(websocket, at_least=1)
 
     await asyncio.sleep(0.2)
@@ -714,12 +706,6 @@ async def test_websocket_message_queue_delivery(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = receive_notification(websocket)
         assert_kernel_ready_response(data)
-
-        client.post(
-            "/api/kernel/instantiate",
-            headers=headers("123"),
-            json={"objectIds": [], "values": [], "autoRun": True},
-        )
 
         messages = flush_messages(websocket, at_least=1)
         assert len(messages) >= 1

@@ -448,7 +448,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
         app_config: Application configuration.
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
-        auto_instantiated: Whether cells already executed (run mode).
         stable_session_id: Server-owned Session identity that survives
             browser reconnects. None where no server Session exists.
     """
@@ -461,7 +460,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
     consumer_capabilities: ConsumerCapabilities
-    auto_instantiated: bool = False
     stable_session_id: StableSessionId | None = None
 
 
@@ -1029,6 +1027,13 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
+class BreakpointsNotification(Notification, tag="breakpoints"):
+    """The session's complete breakpoint set, restored on connection."""
+
+    name: ClassVar[str] = "breakpoints"
+    breakpoints: dict[CellId_t, list[int]]
+
+
 class ActiveLineNotification(Notification, tag="active-line"):
     """Reports the line a cell's frame watcher is currently executing.
 
@@ -1155,6 +1160,7 @@ NotificationMessage = (
     # Kiosk
     | FocusCellNotification
     # Debugger
+    | BreakpointsNotification
     | ActiveLineNotification
     # Document
     | NotebookDocumentTransactionNotification

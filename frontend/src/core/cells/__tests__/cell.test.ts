@@ -1,12 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import type {
-  CellExecutionView,
-  CellFreshness,
-  CellRunStatus,
-} from "@/core/executions";
+import type { CellExecutionView, CellFreshness } from "@/core/executions";
 import type { CellMessage, OutputMessage } from "@/core/kernel/messages";
-import type { Milliseconds, Seconds } from "@/utils/time";
+import type { Seconds } from "@/utils/time";
 import {
   consoleOutputIsStale,
   outputIsLoading,
@@ -15,26 +11,18 @@ import {
 } from "../cell";
 import { createCellRuntimeState } from "../types";
 
-const STATUSES: CellRunStatus[] = ["queued", "running", "idle"];
-
-const NOW = Date.now() as Milliseconds;
-
 const CURRENT: CellFreshness = { sourceChanged: false, inputsChanged: false };
 const EDITED: CellFreshness = { sourceChanged: true, inputsChanged: false };
 const REPLACED: CellFreshness = { sourceChanged: false, inputsChanged: true };
 const BOTH: CellFreshness = { sourceChanged: true, inputsChanged: true };
 
-type View = Pick<
-  CellExecutionView,
-  "status" | "outcome" | "startedAt" | "rendered"
->;
+type View = Pick<CellExecutionView, "status" | "outcome" | "startedAt">;
 
 function view(overrides: Partial<View>): View {
   return {
     status: "idle",
     outcome: null,
     startedAt: null,
-    rendered: false,
     ...overrides,
   };
 }
@@ -54,23 +42,12 @@ describe("outputIsLoading", () => {
 });
 
 describe("outputIsStale", () => {
-  it.each(STATUSES)(
-    "should return true if the cell is edited and status is %s",
+  it.each(["queued", "running"] as const)(
+    "keeps previous output visible while %s",
     (status) => {
-      expect(outputIsStale(view({ status }), EDITED, true)).toBe(true);
+      expect(outputIsStale(view({ status }), BOTH, true)).toBe(false);
     },
   );
-
-  it("should return true if the cell is loading", () => {
-    expect(outputIsStale(view({ status: "running" }), CURRENT, false)).toBe(
-      true,
-    );
-  });
-
-  it("should return false if the cell is running and has shown output", () => {
-    const running = view({ status: "running", rendered: true });
-    expect(outputIsStale(running, CURRENT, false)).toBe(false);
-  });
 
   it("should return true if the cell has stale inputs", () => {
     expect(outputIsStale(view({}), REPLACED, false)).toBe(true);
@@ -94,30 +71,10 @@ describe("outputIsStale", () => {
     expect(outputIsStale(view({}), EDITED, false)).toBe(false);
   });
 
-  it("should return true if the cell is queued", () => {
-    expect(outputIsStale(view({ status: "queued" }), CURRENT, false)).toBe(
-      true,
-    );
-  });
-
-  it("should return true if the cell is running but no output is received", () => {
-    const running = view({ status: "running", startedAt: NOW });
-    expect(outputIsStale(running, CURRENT, false)).toBe(true);
-  });
-
   it("should return true if the cell is interrupted and edited since", () => {
     expect(outputIsStale(view({ outcome: "interrupted" }), EDITED, true)).toBe(
       true,
     );
-  });
-
-  it("should not dim output the rerun of edited code has already shown", () => {
-    const running = view({ status: "running", rendered: true });
-    expect(outputIsStale(running, EDITED, true)).toBe(false);
-  });
-
-  it("should dim while the rerun of edited code has shown nothing", () => {
-    expect(outputIsStale(view({ status: "running" }), EDITED, true)).toBe(true);
   });
 
   it("should still dim for changed inputs in a read view when the source also changed", () => {
@@ -126,9 +83,9 @@ describe("outputIsStale", () => {
 });
 
 describe("consoleOutputIsStale", () => {
-  it("is stale while queued, since the run clears the console", () => {
+  it("keeps the queued console visible", () => {
     expect(consoleOutputIsStale(view({ status: "queued" }), CURRENT)).toBe(
-      true,
+      false,
     );
   });
 

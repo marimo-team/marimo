@@ -34,8 +34,7 @@ import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses } from "@/core/constants";
 import {
   runtimeStatusAtom,
-  useCellExecution,
-  useCellFreshness,
+  useCellPresentation,
   useCellOutput,
 } from "@/core/executions";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
@@ -328,8 +327,7 @@ const VerticalCell = memo(
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
     const output = useCellOutput(cellId);
-    const execution = useCellExecution(cellId);
-    const freshness = useCellFreshness(cellId);
+    const { execution, freshness } = useCellPresentation(cellId);
     const errored = execution.outcome === "error";
     const interrupted = execution.outcome === "interrupted";
     const stopped = execution.outcome === "skipped";

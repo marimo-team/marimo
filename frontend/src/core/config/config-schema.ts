@@ -240,6 +240,7 @@ export const UserConfigSchema = z
         redirect_console_to_browser: z.boolean().optional(),
         skip_update_check: z.boolean().optional(),
         session_cookie_secure: z.boolean().optional(),
+        session_cookie_partitioned: z.boolean().optional(),
         session_secret: z.string().nullish().prefault(null),
         disable_file_downloads: z.boolean().prefault(false),
         transport: z.enum(["websocket", "sse"]).optional(),

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -36,9 +37,10 @@ from tests._server.mocks import get_session_manager, run_cells
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
     from starlette.testclient import TestClient, WebSocketTestSession
+
+    from marimo._config.manager import UserConfigStore
 
 
 def first_cell_id(client: TestClient, session_id: str) -> CellId_t:
@@ -224,6 +226,27 @@ def test_editor_starts_and_runs_through_the_host_socket(
             and event["data"]["marimo"]["console"]
         ]
         assert sum("host socket" in str(output) for output in consoles) == 1
+
+
+def test_editor_with_autorun_reports_the_startup_run_on_the_host_socket(
+    client: TestClient,
+    editor_host: SessionBridge,
+    user_config_manager: UserConfigStore,
+) -> None:
+    Path(user_config_manager.get_config_path()).write_text(
+        "[runtime]\nauto_instantiate = true\n"
+    )
+    with client.websocket_connect(socket_url(editor_host)) as websocket:
+        while True:
+            event = websocket.receive_json()
+            if (
+                event["event"] == "execution"
+                and event["data"]["execution"]["status"] == "completed"
+            ):
+                execution = event["data"]["execution"]
+                break
+        assert execution["cell_id"] == first_cell_id(client, "s1")
+        assert execution["outcome"]["kind"] == "value"
 
 
 def test_editor_receives_native_attachment_snapshots_and_changes(

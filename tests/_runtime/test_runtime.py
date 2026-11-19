@@ -97,6 +97,106 @@ class TestExecution:
         assert not (expected_globals - set(k.globals.keys()))
         assert k.globals["success"] == 1
 
+    @pytest.mark.parametrize(
+        ("body", "result"),
+        [
+            ("x = 0\ndef value(self):\n    return x", "C().value()"),
+            ("def value(self):\n    return x\nx = 0", "C().value()"),
+            ("x = 0\nvalue = lambda self: x", "C().value()"),
+            ("x = 0\nvalues = [x for _ in (0,)]", "C.values[0]"),
+        ],
+    )
+    async def test_class_nested_scope_reacts_to_global(
+        self, k: Kernel, body: str, result: str
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="x = 10"),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="class C:\n"
+                    + textwrap.indent(body, "    ")
+                    + f"\nresult = {result}",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == 10
+
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 20")])
+        assert not k.errors
+        assert k.globals["result"] == 20
+
+    async def test_method_uses_cell_local_despite_class_attribute(
+        self, k: Kernel
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="_x = 10\nclass C:\n    _x = 0\n"
+                    "    def value(self):\n        return _x",
+                ),
+                ExecuteCellCommand(cell_id="1", code="result = C().value()"),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == 10
+
+    @pytest.mark.parametrize(
+        ("scope", "call", "result"),
+        [
+            (
+                "class C:\n    _x = 0\n    def value(self):\n        return _x",
+                "C().value()",
+                20,
+            ),
+            ("def value():\n    return _x", "value()", 20),
+            ("value = lambda: _x", "value()", 20),
+            ("values = (_x for _ in (0,))", "next(values)", 20),
+            (
+                (
+                    "def value():\n    def inner():\n        return _x\n"
+                    "    global _x\n    return inner()"
+                ),
+                "value()",
+                10,
+            ),
+            ("class C:\n    value = _x\n    _x = 0", "C.value", 10),
+            (
+                "def value():\n    class C:\n        v = _x\n    return C.v",
+                "value()",
+                20,
+            ),
+            (
+                (
+                    "def value():\n    class C:\n        v = _x\n"
+                    "        try:\n            pass\n"
+                    "        except Exception as _x:\n            pass\n"
+                    "    return C.v"
+                ),
+                "value()",
+                10,
+            ),
+        ],
+    )
+    async def test_private_name_resolves_like_python(
+        self, k: Kernel, scope: str, call: str, result: int
+    ) -> None:
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="_x = 10\ndef outer():\n"
+                    + textwrap.indent(scope, "    ")
+                    + f"\n    _x = 20\n    return {call}\n"
+                    "result = outer()",
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["result"] == result
+
     async def test_triangle(self, any_kernel: Kernel) -> None:
         k = any_kernel
         # x
@@ -411,7 +511,7 @@ class TestExecution:
         assert not k.errors
         assert "x" not in k.globals
         assert "y" not in k.globals
-        assert len(k._uninstantiated_execution_requests) == 3
+        assert len(k._pending_execution_requests) == 3
 
         # Expect the first cell to implicitly be included in the run ...
         await k.run([er1])
@@ -419,12 +519,118 @@ class TestExecution:
 
         # But z should still not be defined
         assert "z" not in k.globals
-        assert len(k._uninstantiated_execution_requests) == 1
+        assert len(k._pending_execution_requests) == 1
 
         # After running er2, no cells should be left uninstantiated
         await k.run([er2])
         assert k.globals["z"] == 2
-        assert not k._uninstantiated_execution_requests
+        assert not k._pending_execution_requests
+
+    @pytest.mark.parametrize("auto_run", [False, True])
+    @pytest.mark.parametrize(
+        "codes",
+        [(), ("x = 1",), ("import marimo as mo", 'mo.md("hello")')],
+        ids=["empty", "python", "markdown"],
+    )
+    async def test_instantiate_only_once(
+        self,
+        mocked_kernel: MockedKernel,
+        codes: tuple[str, ...],
+        auto_run: bool,
+    ) -> None:
+        k = mocked_kernel.k
+        cells = tuple(
+            ExecuteCellCommand(cell_id=CellId_t(str(i)), code=code)
+            for i, code in enumerate(codes)
+        )
+        request = CreateNotebookCommand(
+            execution_requests=cells,
+            cell_ids=tuple(cell.cell_id for cell in cells),
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+            auto_run=auto_run,
+        )
+        await k.instantiate(request)
+        mocked_kernel.stream.messages.clear()
+
+        await k.instantiate(request)
+
+        assert mocked_kernel.stream.messages == []
+        for cell in cells:
+            await k.delete_cell(DeleteCellCommand(cell_id=cell.cell_id))
+        mocked_kernel.stream.messages.clear()
+
+        await k.instantiate(request)
+
+        assert mocked_kernel.stream.messages == []
+        assert not k.graph.cells
+        assert not k._pending_execution_requests
+
+    async def test_instantiate_after_run_stays_initialized(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run([ExecuteCellCommand(cell_id="a", code="x = 2")])
+        request = CreateNotebookCommand(
+            execution_requests=(
+                ExecuteCellCommand(cell_id="a", code="x = 1"),
+            ),
+            cell_ids=("a",),
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+            auto_run=False,
+        )
+        await k.instantiate(request)
+        await k.delete_cell(DeleteCellCommand(cell_id="a"))
+        mocked_kernel.stream.messages.clear()
+
+        await k.instantiate(request)
+
+        assert mocked_kernel.stream.messages == []
+        assert not k.graph.cells
+        assert not k._pending_execution_requests
+
+    async def test_repeated_instantiate_preserves_pending_edits(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        k = mocked_kernel.k
+        request = CreateNotebookCommand(
+            execution_requests=(
+                ExecuteCellCommand(cell_id="a", code="x = 1"),
+                ExecuteCellCommand(cell_id="b", code="removed = 1"),
+            ),
+            cell_ids=("a", "b"),
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+            auto_run=False,
+        )
+        await k.instantiate(request)
+        await k.edit_cells(
+            EditCellsCommand(
+                codes={"a": "x = 2", "c": "y = x + 1"},
+                configs={},
+                delete_ids=["b"],
+            )
+        )
+        mocked_kernel.stream.messages.clear()
+
+        await k.instantiate(request)
+
+        assert mocked_kernel.stream.messages == []
+        assert not k.graph.cells
+        assert {
+            cid: pending.code
+            for cid, pending in k._pending_execution_requests.items()
+        } == {"a": "x = 2", "c": "y = x + 1"}
+
+        await k.run([ExecuteCellCommand(cell_id="d", code="answer = y")])
+
+        assert not k.errors
+        assert k.globals["answer"] == 3
+        assert "removed" not in k.globals
 
     async def test_instantiate_autorun_false_run_stale(
         self, any_kernel: Kernel
@@ -447,12 +653,12 @@ class TestExecution:
         assert not k.errors
         assert "x" not in k.globals
         assert "y" not in k.globals
-        assert len(k._uninstantiated_execution_requests) == 3
+        assert len(k._pending_execution_requests) == 3
 
         await k.run_stale_cells()
         assert k.globals["y"] == 1
         assert k.globals["z"] == 2
-        assert not k._uninstantiated_execution_requests
+        assert not k._pending_execution_requests
 
     async def test_instantiate_autorun_false_run_all(
         self, any_kernel: Kernel
@@ -475,12 +681,12 @@ class TestExecution:
         assert not k.errors
         assert "x" not in k.globals
         assert "y" not in k.globals
-        assert len(k._uninstantiated_execution_requests) == 3
+        assert len(k._pending_execution_requests) == 3
 
         await k.run([er1, er2, er3])
         assert k.globals["y"] == 1
         assert k.globals["z"] == 2
-        assert not k._uninstantiated_execution_requests
+        assert not k._pending_execution_requests
 
     async def test_instantiate_autorun_false_set_not_stale(
         self, any_kernel: Kernel
@@ -504,7 +710,7 @@ class TestExecution:
         assert not k.errors
         assert "x" not in k.globals
         assert "y" not in k.globals
-        assert len(k._uninstantiated_execution_requests) == 3
+        assert len(k._pending_execution_requests) == 3
 
         await k.run([er1])
         assert not k.graph.cells[er1.cell_id].stale
@@ -527,16 +733,16 @@ class TestExecution:
                 auto_run=False,
             )
         )
-        assert len(k._uninstantiated_execution_requests) == 3
+        assert len(k._pending_execution_requests) == 3
 
         await k.delete_cell(DeleteCellCommand(cell_id="0"))
-        assert len(k._uninstantiated_execution_requests) == 2
+        assert len(k._pending_execution_requests) == 2
 
         await k.delete_cell(DeleteCellCommand(cell_id="1"))
-        assert len(k._uninstantiated_execution_requests) == 1
+        assert len(k._pending_execution_requests) == 1
 
         await k.delete_cell(DeleteCellCommand(cell_id="2"))
-        assert not k._uninstantiated_execution_requests
+        assert not k._pending_execution_requests
 
     async def test_instantiate_autorun_false_run_different_code(
         self, any_kernel: Kernel
@@ -556,20 +762,20 @@ class TestExecution:
                 auto_run=False,
             )
         )
-        assert len(k._uninstantiated_execution_requests) == 3
+        assert len(k._pending_execution_requests) == 3
 
         # modify an uninstantiated cell before running it; make sure the old
         # er gets evicted.
         await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
-        assert len(k._uninstantiated_execution_requests) == 2
+        assert len(k._pending_execution_requests) == 2
         assert k.globals["x"] == 1
 
         await k.run([er1])
-        assert len(k._uninstantiated_execution_requests) == 1
+        assert len(k._pending_execution_requests) == 1
         assert k.globals["y"] == 2
 
         await k.run([er2])
-        assert not k._uninstantiated_execution_requests
+        assert not k._pending_execution_requests
         assert k.globals["z"] == 3
 
     # Test errors in marimo semantics
@@ -2271,7 +2477,7 @@ except NameError:
             EditCellsCommand(codes={"0": "x = 5"}, configs={}, delete_ids=[])
         )
 
-        assert k._uninstantiated_execution_requests["0"].code == "x = 5"
+        assert k._pending_execution_requests["0"].code == "x = 5"
         assert not k.graph.cells
 
     async def test_sync_graph_uninstantiated_request_cleanup(
@@ -2294,7 +2500,7 @@ except NameError:
                 auto_run=False,
             )
         )
-        assert len(k._uninstantiated_execution_requests) == 3
+        assert len(k._pending_execution_requests) == 3
 
         # Run cells 0 and 1 to add them to graph, keeping cell 2 uninstantiated
         await k.run(
@@ -2305,7 +2511,7 @@ except NameError:
         )
         # Cell 2 is still uninstantiated, cells 0 and 1 are in graph
         assert len(k.graph.cells) == 2
-        assert "2" in k._uninstantiated_execution_requests
+        assert "2" in k._pending_execution_requests
 
         # Action: Sync with only cell 0, cell 1 is orphaned (deleted from file)
         await k.sync_graph(
@@ -2319,9 +2525,9 @@ except NameError:
         assert "0" in k.graph.cells
         assert "1" not in k.graph.cells
         # Cell 1's uninstantiated request should be cleaned up if it existed
-        assert "1" not in k._uninstantiated_execution_requests
+        assert "1" not in k._pending_execution_requests
         # Cell 2 still has uninstantiated request (it was never in the graph)
-        assert "2" in k._uninstantiated_execution_requests
+        assert "2" in k._pending_execution_requests
 
     async def test_sync_graph_run_and_delete_combined(
         self, any_kernel: Kernel
@@ -4902,9 +5108,9 @@ class TestMarkdownHandling:
         await k.instantiate(creation_request)
 
         # Check that markdown cell was removed from uninstantiated requests
-        assert "md_cell" not in k._uninstantiated_execution_requests
+        assert "md_cell" not in k._pending_execution_requests
         # Regular cell should still be there
-        assert "regular_cell" in k._uninstantiated_execution_requests
+        assert "regular_cell" in k._pending_execution_requests
 
         # Check that the markdown cell output was broadcast
         notifications = [
@@ -4995,13 +5201,13 @@ class TestMarkdownHandling:
         await k.instantiate(creation_request)
 
         # Check that interpolated markdown cells are not matched
-        assert "md_cell_f" in k._uninstantiated_execution_requests
-        assert "md_cell_t" in k._uninstantiated_execution_requests
+        assert "md_cell_f" in k._pending_execution_requests
+        assert "md_cell_t" in k._pending_execution_requests
 
         # Without any interpolation can match for rendering
-        assert "md_cell_fe" not in k._uninstantiated_execution_requests
-        assert "md_cell_te" not in k._uninstantiated_execution_requests
-        assert "md_cell_r" not in k._uninstantiated_execution_requests
+        assert "md_cell_fe" not in k._pending_execution_requests
+        assert "md_cell_te" not in k._pending_execution_requests
+        assert "md_cell_r" not in k._pending_execution_requests
 
     async def test_non_markdown_cells_single_call(
         self, mocked_kernel: MockedKernel
@@ -5037,9 +5243,9 @@ class TestMarkdownHandling:
 
         # Check that markdown cell is also in uninstantiated requests-
         # since it does not contain a string
-        assert "md_cell" in k._uninstantiated_execution_requests
+        assert "md_cell" in k._pending_execution_requests
         # Regular cell should still be there
-        assert "regular_cell" in k._uninstantiated_execution_requests
+        assert "regular_cell" in k._pending_execution_requests
 
     async def test_non_markdown_cells_not_affected(
         self, mocked_kernel: MockedKernel
@@ -5068,8 +5274,8 @@ class TestMarkdownHandling:
         await k.instantiate(creation_request)
 
         # All cells should remain in uninstantiated requests
-        assert "cell1" in k._uninstantiated_execution_requests
-        assert "cell2" in k._uninstantiated_execution_requests
+        assert "cell1" in k._pending_execution_requests
+        assert "cell2" in k._pending_execution_requests
 
     async def test_malformed_markdown_cells_stay_uninstantiated(
         self, mocked_kernel: MockedKernel
@@ -5107,9 +5313,9 @@ class TestMarkdownHandling:
         await k.instantiate(creation_request)
 
         # Bad cell should remain in uninstantiated requests
-        assert "bad_cell" in k._uninstantiated_execution_requests
+        assert "bad_cell" in k._pending_execution_requests
         # Good markdown cell should be removed
-        assert "good_md" not in k._uninstantiated_execution_requests
+        assert "good_md" not in k._pending_execution_requests
 
         # Check operations
         cell_notifications = [
@@ -5161,9 +5367,9 @@ class TestMarkdownHandling:
         await k.instantiate(creation_request)
 
         # All cells should remain in uninstantiated requests since mo is not available
-        assert "md_cell1" in k._uninstantiated_execution_requests
-        assert "md_cell2" in k._uninstantiated_execution_requests
-        assert "regular_cell" in k._uninstantiated_execution_requests
+        assert "md_cell1" in k._pending_execution_requests
+        assert "md_cell2" in k._pending_execution_requests
+        assert "regular_cell" in k._pending_execution_requests
 
         cell_notifications = [
             deserialize_kernel_message(msg) for msg in stream.messages

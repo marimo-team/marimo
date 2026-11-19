@@ -353,11 +353,11 @@ def test_docker_port_uses_resolved_config(
         options += ["--port", "9000"]
         expected = 9000
     monkeypatch.setattr(
-        "marimo._cli.cli.prompt_run_in_docker_container",
+        "marimo._cli.cli.prompt_run_in_container",
         lambda *_args, **_kwargs: True,
     )
     docker = Mock()
-    monkeypatch.setattr("marimo._cli.run_docker.run_in_docker", docker)
+    monkeypatch.setattr("marimo._cli.cli.run_in_container", docker)
     validate = Mock(
         side_effect=AssertionError("The container downloads remote notebooks")
     )

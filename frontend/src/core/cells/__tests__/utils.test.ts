@@ -8,7 +8,7 @@ import type { CellData } from "@/core/cells/types";
 import type { CellFreshnessLookup } from "@/core/executions";
 import type { OutputMessage } from "@/core/kernel/messages";
 import {
-  cellNeedsRun,
+  cellRunReason,
   disabledCellIds,
   enabledCellIds,
   isUninstantiated,
@@ -27,7 +27,7 @@ function notebook(cells: Cells): NotebookState {
     cellData: Object.fromEntries(
       Object.entries(cells).map(([id, cell]) => [
         id,
-        { config: { disabled: cell.disabled } },
+        { code: "x", config: { disabled: cell.disabled } },
       ]),
     ),
     cellRuntime: Object.fromEntries(Object.keys(cells).map((id) => [id, {}])),
@@ -138,25 +138,34 @@ describe("staleCellIds with a run in progress", () => {
   });
 });
 
-describe("cellNeedsRun", () => {
-  const blocked = { interrupted: false, disabled: false, blocked: true };
+describe("cellRunReason", () => {
+  const view = {
+    status: "idle",
+    outcome: "value",
+    live: true,
+    blocked: false,
+  } as const;
+  const changes = { sourceChanged: false, inputsChanged: true };
+  const cell = { code: "x", config: { disabled: false, hide_code: false } };
 
-  it("flags a blocked cell whose source changed, whatever its inputs did", () => {
+  it("shows queued and running instead of a manual warning, then exposes intervening edits", () => {
+    const edited = { ...changes, sourceChanged: true };
+    expect(cellRunReason(view, changes, cell)).toBe("inputs");
     expect(
-      cellNeedsRun({
-        ...blocked,
-        freshness: freshness({ c: { edited: true, staleInputs: true } })("c"),
-      }),
-    ).toBe(true);
+      cellRunReason({ ...view, status: "queued" }, changes, cell),
+    ).toBeNull();
+    expect(
+      cellRunReason({ ...view, status: "running" }, edited, cell),
+    ).toBeNull();
+    expect(cellRunReason(view, edited, cell)).toBe("source");
   });
 
-  it("does not flag a blocked cell for changed inputs alone", () => {
-    expect(
-      cellNeedsRun({
-        ...blocked,
-        freshness: freshness({ c: { staleInputs: true } })("c"),
-      }),
-    ).toBe(false);
+  it("only asks for an initial run when the cell contains code", () => {
+    const fresh = { inputsChanged: false, sourceChanged: false };
+    const unrun = { ...view, outcome: null };
+    expect(cellRunReason(unrun, fresh, cell)).toBe("not-run");
+    expect(cellRunReason(unrun, fresh, { ...cell, code: " " })).toBeNull();
+    expect(cellRunReason(view, fresh, cell)).toBeNull();
   });
 });
 
