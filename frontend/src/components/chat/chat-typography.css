@@ -91,7 +91,7 @@
 }
 
 @container (max-width: 360px) {
-  .chat-model-provider-icon {
+  .chat-model-icon {
     display: none;
   }
 

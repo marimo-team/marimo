@@ -129,7 +129,7 @@ export function ChatModelPicker({
         >
           <AiProviderIcon
             provider={current.providerId}
-            className="chat-model-provider-icon size-3.5 shrink-0"
+            className="chat-model-icon size-3.5 shrink-0"
           />
           <span className="truncate">{displayName}</span>
           {effortLabel && (
@@ -139,7 +139,7 @@ export function ChatModelPicker({
           )}
           {options.webSearch && (
             <GlobeIcon
-              className="size-3 shrink-0 text-muted-foreground"
+              className="chat-model-icon size-3 shrink-0 text-muted-foreground"
               aria-hidden={true}
             />
           )}
