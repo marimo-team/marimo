@@ -20,6 +20,7 @@ const queued = {
   caused_by: null,
   cell_id: "cell",
   code_fingerprint: "fp",
+  created_at: "2026-10-01T09:20:00Z",
   state: { status: "queued" },
 } satisfies Execution;
 

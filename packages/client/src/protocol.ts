@@ -773,6 +773,9 @@ export const Run = zod
     notebook_id: NotebookId,
     runtime_id: RuntimeId.describe("The runtime that produced this run."),
     origin: RunOrigin,
+    created_at: Timestamp.describe(
+      "When the host accepted the run, or when the runtime scheduled it.",
+    ),
     state: RunState,
   })
   .describe(
@@ -1068,6 +1071,11 @@ export const Execution = zod
     code_fingerprint: CodeFingerprint.describe(
       "Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued.",
     ),
+    created_at: zod
+      .union([Timestamp, zod.null()])
+      .describe(
+        "When the runtime scheduled this execution. Null for a restored result, whose timing is unknown.",
+      ),
     state: ExecutionState,
   })
   .describe(

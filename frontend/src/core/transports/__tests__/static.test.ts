@@ -113,6 +113,7 @@ describe("static notebook backend", () => {
       caused_by: null,
       cell_id: cell.id,
       code_fingerprint: cell.code_fingerprint,
+      created_at: null,
       state: {
         status: "completed",
         started_at: null,

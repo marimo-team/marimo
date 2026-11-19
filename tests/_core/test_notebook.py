@@ -683,6 +683,7 @@ class TestRun:
             [
                 Run(
                     origin=protocol.RunCodeOrigin(code="3 * 3"),
+                    created_at=IsDatetime(),
                     id=run.id,
                     notebook_id=NotebookId("n1"),
                     runtime_id=runtime_id_of(notebook),
@@ -699,6 +700,7 @@ class TestRun:
                     id=ExecutionId("e7"),
                     run_id=run.id,
                     runtime_id=notebook.runtime.id,
+                    created_at=IsDatetime(),
                     state=protocol.ExecutionCompleted(
                         started_at=IsDatetime(),
                         completed_at=IsDatetime(),

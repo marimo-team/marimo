@@ -550,6 +550,7 @@ class Notebook:
                 origin=protocol.RunCodeOrigin(code=code)
                 if code is not None
                 else protocol.RunCellsOrigin(cell_ids=tuple(targets)),
+                created_at=utcnow(),
                 state=protocol.RunQueued(),
             )
             self._apply(self.executions.begin(run, request_id))
