@@ -32,7 +32,7 @@ with app.setup:
     ]
     OPS_MESSAGES = [
         # Message operations
-        o.CellNotification,
+        o.EditorCellNotification,
         o.ConsoleInputsClearedNotification,
         o.CallbackOutputNotification,
         o.PdbOutputNotification,

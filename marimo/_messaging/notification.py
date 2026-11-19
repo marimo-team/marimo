@@ -160,6 +160,20 @@ class CellNotification(Notification, tag="cell-op"):
             self.run_id = None
 
 
+# TODO(MO-8407): Remove once the editor and islands read reusability from
+# analysis (MO-8414) and blocked cells from the document and analysis (MO-8463).
+class EditorCellNotification(Notification, tag="cell-op"):
+    """A cell enters the blocked set with `disabled-transitively` and leaves with `idle`.
+
+    An omitted serialization hint is unchanged. A null hint clears reusability.
+    """
+
+    name: ClassVar[str] = "cell-op"
+    cell_id: CellId_t
+    status: Literal["disabled-transitively", "idle"] | None = None
+    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
+
+
 class HumanReadableStatus(msgspec.Struct):
     """Human-readable status for operation results.
 
@@ -1165,7 +1179,7 @@ class NotebookDocumentTransactionNotification(
     transaction: Transaction
 
 
-EditorNotification = (
+_SharedNotification = (
     FunctionCallResultNotification
     | UIElementMessageNotification
     | ModelLifecycleNotification
@@ -1217,7 +1231,6 @@ EditorNotification = (
     # Debugger
     | CallbackOutputNotification
     | PdbOutputNotification
-    | CellNotification
     | ConsoleInputsClearedNotification
     | PdbInputNotification
     | BreakpointsNotification
@@ -1228,5 +1241,7 @@ EditorNotification = (
     | ConsumerCapabilitiesNotification
 )
 
-# Internal kernel messages also carry execution facts for the host translator.
-NotificationMessage = EditorNotification | ExecutionNotification
+EditorNotification = _SharedNotification | EditorCellNotification
+NotificationMessage = (
+    _SharedNotification | CellNotification | ExecutionNotification
+)
