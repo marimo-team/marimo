@@ -82,7 +82,7 @@ The SQL statement itself is an f-string, letting you
 interpolate Python values into the query with `{}`. In particular, this means
 your SQL queries can depend on the values of UI elements or other Python values,
 and they are fit into marimo's reactive dataflow graph. The values become part
-of the SQL text, so read [Avoiding SQL injection](#avoiding-sql-injection)
+of the SQL text, so read the section on [avoiding SQL injection](#avoiding-sql-injection)
 before interpolating input that other people can control.
 
 ## SQL Output Types
@@ -185,7 +185,7 @@ SELECT * FROM my_table
 
 ### Other UI elements
 
-SQL queries can interpolate any Python value, so dropdowns, sliders, text inputs, and other UI elements already trigger re-queries when their values change. See the [`parametrizing_sql_queries.py` example](https://github.com/marimo-team/marimo/blob/main/examples/sql/parametrizing_sql_queries.py) on GitHub. If other people can type into a text input, bind its value as a parameter instead; see [Avoiding SQL injection](#avoiding-sql-injection).
+SQL queries can interpolate any Python value, so dropdowns, sliders, text inputs, and other UI elements already trigger re-queries when their values change. See the [`parametrizing_sql_queries.py` example](https://github.com/marimo-team/marimo/blob/main/examples/sql/parametrizing_sql_queries.py) on GitHub. If other people can type into a text input, bind its value as a parameter instead; see the section on [avoiding SQL injection](#avoiding-sql-injection).
 
 ## Escaping SQL brackets
 
@@ -199,17 +199,9 @@ SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
 
 ## Avoiding SQL injection
 
-Interpolating with `{}` inserts a Python value into the SQL text before the
-query runs. It is string formatting, not parameter binding, and SQL cells don't
-create prepared statements. That's what makes it useful: a query can depend on
-any Python value, including table names, and reruns when the value changes. For
-values you control, such as variables your own code computes, it's the simplest
-option.
+Using `{}` inserts a Python value into the SQL text before the query runs. It is string formatting, not parameter binding, so the query can include any Python value that can be coerced into a string. This approach works well for values your *own* code sets.
 
-If someone else can supply the value, they can change the query itself. That
-includes people using a [`mo.ui.text`][marimo.ui.text] in an app you share with
-`marimo run`, values from [`mo.query_params()`][marimo.query_params], and data
-loaded from files or APIs you don't control.
+However, if someone else can supply the value, they can change the query, so don't interpolate it directly. Examples include a [`mo.ui.text`][marimo.ui.text] in a shared app, [`mo.query_params()`][marimo.query_params], and data from files or APIs you don't control.
 
 !!! warning "Unsafe: interpolating untrusted input"
 
@@ -225,7 +217,7 @@ loaded from files or APIs you don't control.
 
 To use an untrusted value, pass it to the database separately from the SQL
 text with parameter binding. The database never parses the value as SQL.
-`mo.sql` doesn't accept parameters, so use a Python cell. With DuckDB, use `?`
+marimo's SQL cells don't accept parameters, so you'll need to use a Python cell instead. With DuckDB, use `?`
 placeholders and a list:
 
 ```python
@@ -262,10 +254,7 @@ database's Python library; placeholder syntax varies between libraries.
 
 ### Use an allowlist for table and column names
 
-Parameters can only stand in for values, not identifiers such as table or
-column names, so you can't bind the table in `FROM` or the column in
-`ORDER BY`. To let someone choose an identifier, offer a fixed set of choices
-with a [`mo.ui.dropdown`][marimo.ui.dropdown]:
+Parameters can't stand in for identifiers such as table or column names. To let users of a marimo app choose an identifier safely, offer them a fixed set of choices, for example with a [`mo.ui.dropdown`][marimo.ui.dropdown]:
 
 ```python
 sort_column = mo.ui.dropdown(
@@ -273,6 +262,7 @@ sort_column = mo.ui.dropdown(
     value="species",
     label="Sort by",
 )
+sort_column
 ```
 
 and interpolate its value in a SQL cell:
@@ -280,10 +270,6 @@ and interpolate its value in a SQL cell:
 ```sql
 SELECT * FROM df ORDER BY {sort_column.value}
 ```
-
-marimo rejects any value that isn't one of the dropdown's options, so the query
-can only sort by the columns you listed. If the name comes from somewhere else,
-check it against a fixed set of allowed names in Python before interpolating it.
 
 ## Connecting to a custom database
 

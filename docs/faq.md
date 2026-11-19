@@ -455,7 +455,7 @@ To escape real `{` / `}` that you don't want interpolated, use double `\{\{...\}
 SELECT unnest([\{\{'a': 42, 'b': 84\}\}, \{\{'a': 100, 'b': NULL\}\}]);
 ```
 
-Interpolation inserts values into the SQL text; it isn't parameter binding. To use input that other people control in a query, see [Avoiding SQL injection](guides/working_with_data/sql.md#avoiding-sql-injection).
+Interpolation inserts values into the SQL text; it isn't parameter binding. To use input that other people control in a query, see the section on [avoiding SQL injection](guides/working_with_data/sql.md#avoiding-sql-injection).
 
 <a name="faq-annotations"></a>
 
