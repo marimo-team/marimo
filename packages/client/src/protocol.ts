@@ -823,7 +823,7 @@ export const Error = zod
     kind: zod
       .string()
       .describe(
-        "The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors.",
+        "The producer's identifier, scoped by source. Open; this protocol defines `exception`, `marimo-bug` (an exception caused by a bug in marimo), `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors.",
       ),
     message: zod
       .string()
@@ -844,7 +844,7 @@ export const Error = zod
     name: zod
       .union([zod.string(), zod.null()])
       .describe(
-        "The exception class, such as `ZeroDivisionError`. Set when kind is exception, null otherwise.",
+        "The exception class, such as `ZeroDivisionError`. Set when kind is exception or marimo-bug, null otherwise.",
       ),
     traceback: zod
       .union([DisplayData, zod.null()])

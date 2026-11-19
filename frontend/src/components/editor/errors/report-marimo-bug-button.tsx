@@ -24,11 +24,11 @@ export function ReportMarimoBugButton({
 }) {
   const { openModal } = useImperativeModal();
   const view = useAtomValue(viewStateAtom);
-  const internalErrors = errors.filter(
-    (error) => error.type === "exception" && error.is_internal === true,
+  const marimoBugs = errors.filter(
+    (error) => error.type === "exception" && error.is_marimo_bug === true,
   );
 
-  if (view.mode !== "edit" || internalErrors.length === 0) {
+  if (view.mode !== "edit" || marimoBugs.length === 0) {
     return null;
   }
 
@@ -41,9 +41,9 @@ export function ReportMarimoBugButton({
         ? displayCellName(cell.name, notebook.cellIds.indexOf(cellId))
         : "Cell",
       cellCode: code ?? "",
-      errorData: internalErrors,
+      errorData: marimoBugs,
     };
-    openModal(<FeedbackModal initialErrors={[structuredClone(evidence)]} />);
+    openModal(<FeedbackModal initialErrors={[evidence]} />);
   };
 
   return (

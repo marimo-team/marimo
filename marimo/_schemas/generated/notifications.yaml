@@ -1258,7 +1258,7 @@ components:
       properties:
         exception_type:
           type: string
-        is_internal:
+        is_marimo_bug:
           default: false
           type: boolean
         msg:

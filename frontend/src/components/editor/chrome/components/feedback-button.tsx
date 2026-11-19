@@ -129,9 +129,13 @@ export const FeedbackModal: React.FC<{
   });
   const notebookSourceAvailable = notebookSourceReason === undefined;
 
-  const [includeErrors, setIncludeErrors] = useState(
-    initialErrors !== undefined,
+  const storedIncludeErrors = useLocalStorage(
+    "marimo:issue-report:include-errors",
+    false,
   );
+  const reportIncludeErrors = useState(true);
+  const [includeErrors, setIncludeErrors] =
+    initialErrors === undefined ? storedIncludeErrors : reportIncludeErrors;
   const [includeCode, setIncludeCode] = useLocalStorage(
     "marimo:issue-report:include-code",
     false,

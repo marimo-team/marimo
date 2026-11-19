@@ -30,11 +30,11 @@ function wrapper({ children }: PropsWithChildren) {
 
 const error: MarimoError = {
   type: "exception",
-  exception_type: "InternalError",
+  exception_type: "MarimoBugError",
   msg: "broken invariant",
   raising_cell: null,
-  is_internal: true,
-  traceback: "<pre>InternalError: broken invariant</pre>",
+  is_marimo_bug: true,
+  traceback: "<pre>MarimoBugError: broken invariant</pre>",
 };
 
 describe("ReportMarimoBugButton", () => {
@@ -49,8 +49,8 @@ describe("ReportMarimoBugButton", () => {
 
   it.each<{ errors: MarimoError[] }>([
     { errors: [] },
-    { errors: [{ ...error, is_internal: false }] },
-    { errors: [{ ...error, is_internal: undefined }] },
+    { errors: [{ ...error, is_marimo_bug: false }] },
+    { errors: [{ ...error, is_marimo_bug: undefined }] },
     {
       errors: [{ type: "internal", msg: "redacted error", error_id: "error1" }],
     },
@@ -73,20 +73,18 @@ describe("ReportMarimoBugButton", () => {
     },
   );
 
-  it("opens a report with a snapshot of the selected error and loads diagnostics on demand", async () => {
+  it("opens a report with the selected error and loads diagnostics on demand", async () => {
     const getEnvironmentInfo = vi.fn().mockResolvedValue({ marimo: "1.2.3" });
     const readCode = vi.fn().mockResolvedValue({ contents: "notebook source" });
     store.set(
       requestClientAtom,
       MockRequestClient.create({ getEnvironmentInfo, readCode }),
     );
-    const selectedError = { ...error };
-    const { rerender } = render(
-      <ReportMarimoBugButton
-        cellId={cellId("cell1")}
-        errors={[selectedError]}
-      />,
-      { wrapper },
+    render(
+      <ReportMarimoBugButton cellId={cellId("cell1")} errors={[error]} />,
+      {
+        wrapper,
+      },
     );
     expect(getEnvironmentInfo).not.toHaveBeenCalled();
     fireEvent.click(
@@ -102,16 +100,14 @@ describe("ReportMarimoBugButton", () => {
     const description = () =>
       new URL(link.getAttribute("href")!).searchParams.get("bug-description");
     expect(description()).toContain("broken invariant");
-    expect(description()).toContain("InternalError: broken invariant");
+    expect(description()).toContain("MarimoBugError: broken invariant");
     expect(link.getAttribute("href")).not.toContain("reproduction-code=");
-
-    selectedError.msg = "new error";
-    rerender(<ReportMarimoBugButton cellId={cellId("cell1")} errors={[]} />);
-    expect(description()).toContain("broken invariant");
-    expect(description()).not.toContain("new error");
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Include errors" }));
     expect(description()).toBeNull();
+    expect(
+      localStorage.getItem("marimo:issue-report:include-errors"),
+    ).toBeNull();
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Include notebook code" }),
     );

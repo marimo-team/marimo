@@ -226,21 +226,21 @@ describe("cellOutputView", () => {
 
 describe("cellError", () => {
   it.each([
-    { kind: "exception", source: "marimo", isInternal: false },
-    { kind: "internal-exception", source: "marimo", isInternal: true },
-    { kind: "internal-exception", source: "other", isInternal: false },
+    { kind: "exception", source: "marimo", isMarimoBug: false },
+    { kind: "marimo-bug", source: "marimo", isMarimoBug: true },
+    { kind: "marimo-bug", source: "other", isMarimoBug: false },
   ])(
     "preserves internal classification for $kind from $source",
-    ({ kind, source, isInternal }) => {
+    ({ kind, source, isMarimoBug }) => {
       expect(
-        cellError(hostError({ kind, source, name: "InternalError" })),
+        cellError(hostError({ kind, source, name: "MarimoBugError" })),
       ).toEqual({
         type: "exception",
-        exception_type: "InternalError",
+        exception_type: "MarimoBugError",
         msg: "boom",
         raising_cell: null,
         traceback: null,
-        ...(isInternal ? { is_internal: true } : {}),
+        ...(isMarimoBug ? { is_marimo_bug: true } : {}),
       });
     },
   );

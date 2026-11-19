@@ -170,7 +170,7 @@ export const Related = Schema.Struct({
 export const Error = Schema.Struct({
   kind: Schema.String.annotateKey({
     description:
-      "The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors.",
+      "The producer's identifier, scoped by source. Open; this protocol defines `exception`, `marimo-bug` (an exception caused by a bug in marimo), `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors.",
   }),
   message: Schema.String.annotateKey({
     description: "A description of the error to show people.",
@@ -193,7 +193,7 @@ export const Error = Schema.Struct({
   }),
   name: Schema.NullOr(Schema.String).annotateKey({
     description:
-      "The exception class, such as `ZeroDivisionError`. Set when kind is exception, null otherwise.",
+      "The exception class, such as `ZeroDivisionError`. Set when kind is exception or marimo-bug, null otherwise.",
   }),
   traceback: Schema.NullOr(DisplayData).annotateKey({
     description:

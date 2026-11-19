@@ -9,8 +9,8 @@ if TYPE_CHECKING:
     from marimo._core import protocol
 
 
-class InternalError(RuntimeError):
-    """A broken marimo invariant, which we should report to users."""
+class MarimoBugError(RuntimeError):
+    """A bug in marimo itself, which users should report to the marimo team."""
 
 
 class HostError(Exception):

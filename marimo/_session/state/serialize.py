@@ -102,8 +102,8 @@ def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
             evalue=error.get("msg", ""),
             traceback=as_list(error.get("traceback")),
         )
-        if error.get("is_internal") is True:
-            result["is_internal"] = True
+        if error.get("is_marimo_bug") is True:
+            result["is_marimo_bug"] = True
         return result
     else:
         if isinstance(error, MarimoExceptionRaisedError):
@@ -121,8 +121,11 @@ def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
             evalue=error.describe(),
             traceback=as_list(getattr(error, "traceback", None)),
         )
-        if isinstance(error, MarimoExceptionRaisedError) and error.is_internal:
-            result["is_internal"] = True
+        if (
+            isinstance(error, MarimoExceptionRaisedError)
+            and error.is_marimo_bug
+        ):
+            result["is_marimo_bug"] = True
         return result
 
 
@@ -288,7 +291,9 @@ def deserialize_session(
                         [
                             MarimoExceptionRaisedError(
                                 exception_type=output["ename"],
-                                is_internal=output.get("is_internal", False),
+                                is_marimo_bug=output.get(
+                                    "is_marimo_bug", False
+                                ),
                                 msg=output["evalue"],
                                 raising_cell=None,
                                 traceback=restore_traceback(

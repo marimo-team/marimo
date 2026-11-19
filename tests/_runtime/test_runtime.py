@@ -19,6 +19,7 @@ from marimo._config.config_schema import MarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
+    ANCESTOR_RAISED,
     CycleError,
     Error,
     MarimoExceptionRaisedError,
@@ -4676,15 +4677,15 @@ class TestErrorHandling:
                     ), "Traceback leaked to console in run mode"
 
     @pytest.mark.parametrize(
-        ("exception_type", "is_internal"),
-        [("ValueError", False), ("InternalError", True)],
+        ("exception_type", "is_marimo_bug"),
+        [("ValueError", False), ("MarimoBugError", True)],
     )
     async def test_error_handling_in_run_mode_with_show_tracebacks(
         self,
         run_mode_kernel: MockedKernel,
         exec_req: ExecReqProvider,
         exception_type: str,
-        is_internal: bool,
+        is_marimo_bug: bool,
     ) -> None:
         """When show_tracebacks is enabled, exceptions should not be
         sanitized and should include a formatted traceback."""
@@ -4694,7 +4695,7 @@ class TestErrorHandling:
         await k.run(
             [
                 exec_req.get(
-                    "from marimo._core.errors import InternalError\n"
+                    "from marimo._core.errors import MarimoBugError\n"
                     f"raise {exception_type}('some secret error')"
                 )
             ]
@@ -4708,7 +4709,7 @@ class TestErrorHandling:
         assert isinstance(errors[0], MarimoExceptionRaisedError)
         assert errors[0].msg == "some secret error"
         assert errors[0].exception_type == exception_type
-        assert errors[0].is_internal is is_internal
+        assert errors[0].is_marimo_bug is is_marimo_bug
         assert errors[0].traceback is not None
         assert exception_type in errors[0].traceback
 
@@ -5420,30 +5421,30 @@ def _filter_to_error_ops(
 
 
 @pytest.mark.parametrize(
-    ("code", "is_internal"),
+    ("code", "is_marimo_bug"),
     [
         (
             (
-                "from marimo._core.errors import InternalError\n"
-                "raise InternalError('broken invariant')"
+                "from marimo._core.errors import MarimoBugError\n"
+                "raise MarimoBugError('broken invariant')"
             ),
             True,
         ),
         ("raise RuntimeError('broken invariant')", False),
         (
             (
-                "class InternalError(RuntimeError):\n    pass\n"
-                "raise InternalError('broken invariant')"
+                "class MarimoBugError(RuntimeError):\n    pass\n"
+                "raise MarimoBugError('broken invariant')"
             ),
             False,
         ),
     ],
 )
-async def test_internal_error_classification(
+async def test_marimo_bug_classification(
     mocked_kernel: MockedKernel,
     exec_req: ExecReqProvider,
     code: str,
-    is_internal: bool,
+    is_marimo_bug: bool,
 ) -> None:
     await mocked_kernel.k.run([exec_req.get(code)])
     errors = _parse_error_output(
@@ -5452,19 +5453,43 @@ async def test_internal_error_classification(
     assert len(errors) == 1
     error = errors[0]
     assert isinstance(error, MarimoExceptionRaisedError)
-    assert error.is_internal is is_internal
+    assert error.is_marimo_bug is is_marimo_bug
     assert error.msg == "broken invariant"
     assert error.traceback is not None
 
 
-async def test_internal_error_redacted_in_run_mode(
+async def test_marimo_bug_is_not_inherited_by_descendants(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    await mocked_kernel.k.run(
+        [
+            exec_req.get(
+                "from marimo._core.errors import MarimoBugError\n"
+                "x = 1\n"
+                "raise MarimoBugError('broken invariant')"
+            ),
+            exec_req.get("y = x"),
+        ]
+    )
+    raising, descendant = (
+        _parse_error_output(op)[0]
+        for op in _filter_to_error_ops(mocked_kernel.stream.cell_notifications)
+    )
+    assert isinstance(raising, MarimoExceptionRaisedError)
+    assert raising.is_marimo_bug
+    assert isinstance(descendant, MarimoExceptionRaisedError)
+    assert descendant.exception_type == ANCESTOR_RAISED
+    assert not descendant.is_marimo_bug
+
+
+async def test_marimo_bug_redacted_in_run_mode(
     run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
     await run_mode_kernel.k.run(
         [
             exec_req.get(
-                "from marimo._core.errors import InternalError\n"
-                "raise InternalError('secret invariant details')"
+                "from marimo._core.errors import MarimoBugError\n"
+                "raise MarimoBugError('secret invariant details')"
             )
         ]
     )

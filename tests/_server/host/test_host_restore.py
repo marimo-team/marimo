@@ -151,7 +151,17 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
     assert restored.variables == ()
 
 
-def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
+@pytest.mark.parametrize(
+    ("classification", "kind"),
+    [
+        ({}, "exception"),
+        ({"is_marimo_bug": False}, "exception"),
+        ({"is_marimo_bug": True}, "marimo-bug"),
+    ],
+)
+def test_a_stored_error_keeps_its_type_message_and_traceback(
+    classification: dict[str, bool], kind: str
+) -> None:
     executions = executions_from_session(
         session(
             stored(
@@ -162,6 +172,7 @@ def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
                         "ename": "ZeroDivisionError",
                         "evalue": "division by zero",
                         "traceback": ["Traceback", "ZeroDivisionError"],
+                        **classification,
                     }
                 ],
             )
@@ -173,7 +184,7 @@ def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
     assert restored is not None
     assert restored.execution.state.outcome == protocol.ErrorOutcome(
         protocol.Error(
-            kind="exception",
+            kind=kind,
             name="ZeroDivisionError",
             message="division by zero",
             traceback=protocol.DisplayData(

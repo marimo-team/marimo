@@ -31,7 +31,7 @@ export interface components {
       code?: string;
       ename: string;
       evalue: string;
-      is_internal?: boolean;
+      is_marimo_bug?: boolean;
       traceback: string[];
       /** @enum {string} */
       type: "error";
