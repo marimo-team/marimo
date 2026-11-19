@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import msgspec
 import pytest
 from dirty_equals import IsStr
@@ -182,6 +184,60 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
             Done(run_id=RunId("r1"), outcome="succeeded"),
         ]
     )
+
+
+@pytest.mark.parametrize("console", [False, True])
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        pytest.param(
+            {"values": [float("nan"), float("inf"), float("-inf")]},
+            '{"values":[null,null,null]}',
+            id="non-finite",
+        ),
+        pytest.param(
+            {"date": datetime(2026, 1, 1)},
+            '{"date":"2026-01-01T00:00:00"}',
+            id="datetime",
+        ),
+        pytest.param(
+            {"values": range(3)},
+            '{"values":[0,1,2]}',
+            id="custom-encoder",
+        ),
+        pytest.param('{"value": 1}', '{"value": 1}', id="encoded-json"),
+    ],
+)
+def test_structured_displays_preserve_message_encoding(
+    data: str | dict[str, object], expected: str, console: bool
+) -> None:
+    t = RunTranslator(RunId("r1"), "3 * 3")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    output = CellOutput(
+        channel=CellChannel.MEDIA if console else CellChannel.OUTPUT,
+        mimetype="application/json",
+        data=data,
+    )
+    display = DisplayData(mimetype="application/json", data=expected)
+    if console:
+        assert t.feed(scratch(console=output)) == [
+            Produced(
+                protocol.Display(
+                    id=protocol.ItemId("scratch-0"),
+                    execution_id=ExecutionId("scratch"),
+                    seq=0,
+                    content=display,
+                )
+            )
+        ]
+    else:
+        assert t.feed(scratch(output=output)) == [
+            Displayed(ExecutionId("scratch"), display)
+        ]
+        assert t.feed(attempt("completed")) == [
+            Completed(ExecutionId("scratch"), ValueOutcome(display))
+        ]
 
 
 def test_unrelated_output_does_not_belong_to_the_scratch_execution() -> None:

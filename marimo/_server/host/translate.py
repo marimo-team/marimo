@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -28,6 +27,7 @@ from marimo._messaging.errors import (
     SetupRootError,
     UnknownError,
 )
+from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notification import (
     CallbackOutputNotification,
     CellNotification,
@@ -153,15 +153,10 @@ class RunTranslator:
             ):
                 execution.errors.extend(output.data)
             elif output.channel == CellChannel.OUTPUT:
-                text = (
-                    output.data
-                    if isinstance(output.data, str)
-                    else json.dumps(output.data)
-                )
                 display = (
                     None
-                    if output.mimetype == "text/plain" and text == ""
-                    else displayed(output.mimetype, text)
+                    if output.mimetype == "text/plain" and output.data == ""
+                    else displayed(output.mimetype, output.data)
                 )
                 if not execution.ended:
                     execution.outcome = protocol.ValueOutcome(display)
@@ -479,7 +474,7 @@ def displayed(mimetype: str, data: object) -> protocol.DisplayData:
     """A rendered value as the stream carries it, with structured data as JSON."""
     return protocol.DisplayData(
         mimetype=str(mimetype),
-        data=data if isinstance(data, str) else json.dumps(data),
+        data=data if isinstance(data, str) else encode_json_str(data),
     )
 
 
