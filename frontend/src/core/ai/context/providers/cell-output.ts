@@ -356,23 +356,15 @@ export function getCellContextData(
   cellId: CellId,
   notebook: NotebookState,
   output: CellOutput | null,
-  opts?: {
-    includeConsoleOutput: boolean;
-  },
+  rows?: readonly OutputMessage[],
 ): CellOutputData {
-  const { includeConsoleOutput = false } = opts || {};
-  const cellRuntime = notebook.cellRuntime[cellId];
-
   const cellData = notebook.cellData[cellId];
   const cellIndex = notebook.cellIds.indexOf(cellId);
   const cellName = displayCellName(cellData.name, cellIndex);
 
-  let consoleOutputs: BaseOutput[] | undefined;
-  if (includeConsoleOutput) {
-    consoleOutputs = cellRuntime.consoleOutputs
-      .map((output) => getBaseOutput(output))
-      .filter((output) => output !== null);
-  }
+  const consoleOutputs = rows
+    ?.map(getBaseOutput)
+    .filter((output) => output !== null);
 
   let cellOutput: BaseOutput | undefined;
   if (output !== null && !isOutputEmpty(output)) {

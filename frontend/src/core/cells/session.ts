@@ -12,7 +12,7 @@ import { DEFAULT_CELL_NAME } from "./names";
 import { type CellRuntimeState, createCellRuntimeState } from "./types";
 
 /** The identity of a snapshot the page carries. A host's own stream replaces it. */
-const EMBEDDED = "embedded";
+export const EMBEDDED = "embedded";
 
 // Constants
 const DEFAULT_TIMESTAMP = 0;

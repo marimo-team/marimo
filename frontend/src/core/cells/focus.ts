@@ -1,18 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { atom, useAtomValue } from "jotai";
+import { atom, useAtomValue, type Getter } from "jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import {
-  type CellExecutionInputs,
-  type CellOutput,
   type CellRunStatus,
   cellExecutionInputsAtom,
   cellExecutionView,
   cellOutputAtom,
 } from "@/core/executions";
 import type { CellConfig } from "../network/types";
-import { type NotebookState, notebookAtom } from "./cells";
+import { cellRuntimeAtom, notebookAtom } from "./cells";
 import type { CellId } from "./ids";
 import { SCRATCH_CELL_ID } from "./ids";
 export interface CellFocusState {
@@ -98,40 +96,22 @@ export const lastFocusedCellAtom = atom<{
     return null;
   }
 
-  return cellFocusDetails(
-    cellId,
-    get(notebookAtom),
-    get(cellExecutionInputsAtom),
-    get(cellOutputAtom(cellId)),
-  );
+  return cellFocusDetails(get, cellId);
 });
 
 export function cellFocusDetailsAtom(cellId: CellId) {
-  return atom((get) => {
-    return cellFocusDetails(
-      cellId,
-      get(notebookAtom),
-      get(cellExecutionInputsAtom),
-      get(cellOutputAtom(cellId)),
-    );
-  });
+  return atom((get) => cellFocusDetails(get, cellId));
 }
 
-function cellFocusDetails(
-  cellId: CellId,
-  notebookState: NotebookState,
-  executions: CellExecutionInputs,
-  output: CellOutput | null,
-) {
-  const { cellData, cellHandles, cellRuntime } = notebookState;
+function cellFocusDetails(get: Getter, cellId: CellId) {
+  const { cellData, cellHandles } = get(notebookAtom);
   const data = cellData[cellId];
-  const runtime = cellRuntime[cellId];
   const handle = cellHandles[cellId]?.current;
   if (!data || !handle) {
     return null;
   }
   const getEditorView = () => handle.editorViewOrNull;
-  const execution = cellExecutionView(executions, cellId);
+  const execution = cellExecutionView(get(cellExecutionInputsAtom), cellId);
 
   return {
     cellId,
@@ -140,8 +120,8 @@ function cellFocusDetails(
     status: execution.status,
     blocked: execution.blocked,
     getEditorView: getEditorView,
-    hasOutput: output !== null,
-    hasConsoleOutput: runtime?.consoleOutputs != null,
+    hasOutput: get(cellOutputAtom(cellId)) !== null,
+    hasConsoleOutput: get(cellRuntimeAtom(cellId)).consoleOutputs.length > 0,
   };
 }
 

@@ -31,6 +31,7 @@ import type { Seconds } from "@/utils/time";
 import {
   exportedForTesting,
   flattenTopLevelNotebookCells,
+  renderedNotebookCellsAtom,
   type NotebookState,
   notebookAtom,
 } from "../cells";
@@ -976,6 +977,28 @@ describe("cell reducer", () => {
       expect(handleAtom2).toBe(handleAtom1);
     });
   });
+});
+
+it("keeps layout cells stable when only a notebook log changes", () => {
+  const store = createStore();
+  const id = cellId("cell1");
+  const notebook = MockNotebook.notebookState({ cellData: { [id]: {} } });
+  store.set(notebookAtom, notebook);
+  const cells = store.get(renderedNotebookCellsAtom);
+  expect(cells.map((cell) => cell.id)).toEqual([id]);
+
+  store.set(notebookAtom, {
+    ...notebook,
+    cellLogs: [
+      {
+        level: "stderr",
+        message: "log",
+        timestamp: 0,
+        source: { type: "cell", cellId: id },
+      },
+    ],
+  });
+  expect(store.get(renderedNotebookCellsAtom)).toBe(cells);
 });
 
 describe("createTracebackInfoAtom", () => {

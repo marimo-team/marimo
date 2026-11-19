@@ -405,7 +405,7 @@ const StdInput = (props: {
 
 const StdInputWithResponse = (props: {
   output: string;
-  response?: string;
+  response?: string | null;
   isPassword?: boolean;
   interrupted?: boolean;
 }) => {

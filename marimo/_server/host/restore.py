@@ -16,7 +16,6 @@ from marimo._messaging.tracebacks import is_code_highlighting
 from marimo._server.host import diagnostics
 from marimo._server.host.translate import (
     displayed,
-    plain,
     rendered_traceback,
 )
 from marimo._session.state.serialize import (
@@ -249,7 +248,7 @@ def _console(
                     execution_id=execution_id,
                     seq=len(items),
                     name=entry["name"],
-                    text=plain(entry["text"]),
+                    text=entry["text"],
                 )
             )
     return tuple(items)

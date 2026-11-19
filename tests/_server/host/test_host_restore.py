@@ -313,6 +313,12 @@ def test_stored_values_and_text_keep_their_formats() -> None:
                         "text": highlighted,
                         "mimetype": "application/vnd.marimo+traceback",
                     },
+                    {
+                        "type": "stream",
+                        "name": "stdout",
+                        "text": highlighted,
+                        "mimetype": "text/plain",
+                    },
                 ],
             ),
         ),
@@ -343,6 +349,13 @@ def test_stored_values_and_text_keep_their_formats() -> None:
             raised.execution.id,
             raised.outputs[0].id,
             0,
+        ),
+        protocol.Console(
+            id=raised.outputs[1].id,
+            execution_id=raised.execution.id,
+            seq=1,
+            name="stdout",
+            text=highlighted,
         ),
     )
 

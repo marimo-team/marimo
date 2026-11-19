@@ -268,7 +268,7 @@ def test_an_interruption_ends_the_run_interrupted(
     )
 
 
-def test_console_items_number_in_order_and_lose_highlighting() -> None:
+def test_console_items_keep_literal_text_in_order() -> None:
     t = RunTranslator(RunId("r1"), "3 * 3")
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
@@ -299,7 +299,7 @@ def test_console_items_number_in_order_and_lose_highlighting() -> None:
                     id=IsStr(),
                     name="stderr",
                     seq=1,
-                    text="<b>",
+                    text='<span class="codehilite">&lt;b&gt;</span>',
                 )
             ),
         ]

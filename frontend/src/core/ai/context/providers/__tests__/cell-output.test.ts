@@ -515,9 +515,7 @@ describe("Cell output utility functions", () => {
         cellId("cell2"),
         mockNotebook,
         outputOf(mockNotebook, "cell2"),
-        {
-          includeConsoleOutput: true,
-        },
+        mockNotebook.cellRuntime[cellId("cell2")].consoleOutputs,
       );
 
       expect(result.consoleOutputs).toBeDefined();
@@ -530,7 +528,7 @@ describe("Cell output utility functions", () => {
     it("should filter out empty console outputs", () => {
       const cell2Runtime = mockNotebook.cellRuntime[cellId("cell2")];
       if (cell2Runtime) {
-        (cell2Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
+        cell2Runtime.consoleOutputs = [
           {
             mimetype: "text/plain",
             data: "valid output",
@@ -546,9 +544,7 @@ describe("Cell output utility functions", () => {
         cellId("cell2"),
         mockNotebook,
         outputOf(mockNotebook, "cell2"),
-        {
-          includeConsoleOutput: true,
-        },
+        mockNotebook.cellRuntime[cellId("cell2")].consoleOutputs,
       );
 
       expect(result.consoleOutputs).toHaveLength(1);
@@ -558,7 +554,7 @@ describe("Cell output utility functions", () => {
     it("should handle cells with both cell output and console outputs", () => {
       const cell1Runtime = mockNotebook.cellRuntime[cellId("cell1")];
       if (cell1Runtime) {
-        (cell1Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
+        cell1Runtime.consoleOutputs = [
           {
             mimetype: "text/plain",
             data: "debug message",
@@ -570,9 +566,7 @@ describe("Cell output utility functions", () => {
         cellId("cell1"),
         mockNotebook,
         outputOf(mockNotebook, "cell1"),
-        {
-          includeConsoleOutput: true,
-        },
+        mockNotebook.cellRuntime[cellId("cell1")].consoleOutputs,
       );
 
       expect(result.cellOutput).toBeDefined();
@@ -588,9 +582,7 @@ describe("Cell output utility functions", () => {
         cellId("cell1"),
         mockNotebook,
         outputOf(mockNotebook, "cell1"),
-        {
-          includeConsoleOutput: true,
-        },
+        mockNotebook.cellRuntime[cellId("cell1")].consoleOutputs,
       );
 
       expect(result.consoleOutputs).toEqual([]);
@@ -619,7 +611,7 @@ describe("Cell output utility functions", () => {
     it("should handle media outputs in console outputs", () => {
       const cell2Runtime = mockNotebook.cellRuntime[cellId("cell2")];
       if (cell2Runtime) {
-        (cell2Runtime as { consoleOutputs: OutputMessage[] }).consoleOutputs = [
+        cell2Runtime.consoleOutputs = [
           {
             mimetype: "image/png",
             data: "https://example.com/image.png",
@@ -631,9 +623,7 @@ describe("Cell output utility functions", () => {
         cellId("cell2"),
         mockNotebook,
         outputOf(mockNotebook, "cell2"),
-        {
-          includeConsoleOutput: true,
-        },
+        mockNotebook.cellRuntime[cellId("cell2")].consoleOutputs,
       );
 
       expect(result.consoleOutputs).toHaveLength(1);

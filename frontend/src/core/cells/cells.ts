@@ -558,7 +558,7 @@ export const hasCellsAtom = atom((get) => get(notebookAtom).cellIds.length > 0);
 export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
 );
-const cellRuntimeAtom = atomFamily((cellId: CellId) =>
+export const cellRuntimeAtom = atomFamily((cellId: CellId) =>
   atom((get) => withPdbOutput(get(notebookAtom).cellRuntime[cellId])),
 );
 export const cellHandleAtom = atomFamily((cellId: CellId) =>
@@ -615,6 +615,15 @@ export const ensureCellEditorView = (cellId: CellId) => {
   editorMountScheduler.promote(cellId);
   return getCellEditorView(cellId);
 };
+
+/** The document's cells with their runtime state and what each shows. */
+export const renderedNotebookCellsAtom = atom((get): RuntimeCell[] =>
+  get(cellIdsAtom).map((cellId) => ({
+    ...get(cellDataAtom(cellId)),
+    ...get(cellRuntimeAtom(cellId)),
+    output: get(cellOutputAtom(cellId)),
+  })),
+);
 
 /** The document's cells with their runtime state and what each shows. */
 export function flattenTopLevelNotebookCells(
