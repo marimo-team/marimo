@@ -372,7 +372,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
         isWasm()
           ? undefined
           : {
-              beforeText: "Type your message or ",
+              beforeText: "Ask anything or ",
               linkText: "pair your own coding agent",
               afterText: ". Use @ to reference variables and cells.",
               onClick: openPairWithAgentModal,
