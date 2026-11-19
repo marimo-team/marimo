@@ -6,7 +6,7 @@ import threading
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
-from marimo._messaging.context import EXECUTION_CTX, RUN_ID_CTX
+from marimo._messaging.command_output import ConsoleContext
 from marimo._output.rich_help import mddoc
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.cell_output_list import CellOutputList
@@ -76,8 +76,7 @@ class Thread(threading.Thread):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._run_id = RUN_ID_CTX.get(None)
-        self._execution_tag = EXECUTION_CTX.get()
+        self._console_context = ConsoleContext()
 
         self._marimo_ctx: RuntimeContext | None = None
         exit_event = threading.Event()
@@ -154,13 +153,10 @@ class Thread(threading.Thread):
         context_initialized: bool,
         thread_id: int,
     ) -> Any:
-        run_id_token = RUN_ID_CTX.set(self._run_id)
-        execution_token = EXECUTION_CTX.set(self._execution_tag)
         try:
-            return await awaitable
+            with self._console_context.install():
+                return await awaitable
         finally:
-            EXECUTION_CTX.reset(execution_token)
-            RUN_ID_CTX.reset(run_id_token)
             THREADS.discard(thread_id)
             if context_initialized:
                 teardown_context()
@@ -194,12 +190,11 @@ class Thread(threading.Thread):
                 output=output,
             )
         thread_id = threading.get_ident()
-        run_id_token = RUN_ID_CTX.set(self._run_id)
-        execution_token = EXECUTION_CTX.set(self._execution_tag)
         try:
             if managed_thread:
                 THREADS.add(thread_id)
-            result = super().run()
+            with self._console_context.install():
+                result = super().run()
             if is_pyodide() and managed_thread and inspect.isawaitable(result):
                 defer_cleanup = True
                 return self._finish_awaitable_run(
@@ -209,8 +204,6 @@ class Thread(threading.Thread):
                 )
             return result
         finally:
-            EXECUTION_CTX.reset(execution_token)
-            RUN_ID_CTX.reset(run_id_token)
             if not defer_cleanup:
                 if managed_thread:
                     THREADS.discard(thread_id)

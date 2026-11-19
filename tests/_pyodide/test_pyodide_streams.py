@@ -54,7 +54,7 @@ def pyodide_stderr(pyodide_: PyodideStream) -> PyodideStderr:
 def pyodide_stdin(
     pyodide_: PyodideStream,
 ) -> Generator[PyodideStdin, None, None]:
-    with asyncio.Runner():
+    with asyncio.Runner(), ExecutionAttempt(cell_id, "input()").activate():
         yield PyodideStdin(pyodide_)
 
 
@@ -190,11 +190,12 @@ class TestPyodideStdin:
         second = None
         try:
             await asyncio.wait_for(messages.get(), timeout=1)
-            second = asyncio.create_task(
-                PyodideStdin(stream.copy_for_thread())._read_input(
-                    "Second", False
+            with ExecutionAttempt(cell_id, "input()").activate():
+                second = asyncio.create_task(
+                    PyodideStdin(stream.copy_for_thread())._read_input(
+                        "Second", False
+                    )
                 )
-            )
             if cancelled:
                 first.cancel()
             else:

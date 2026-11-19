@@ -27,6 +27,8 @@ from marimo._messaging.notification import (
     ModelOpen,
     ModelUpdate,
     NotificationMessage,
+    PdbInputNotification,
+    PdbOutputNotification,
     SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
@@ -194,6 +196,8 @@ class SessionView:
         # Map of object id to value.
         self.ui_values: dict[str, Any] = {}
         self.breakpoints = BreakpointsNotification(breakpoints={})
+        self._pdb_output: dict[CellId_t, list[CellOutput]] = {}
+        self.pending_pdb_input: PdbInputNotification | None = None
         # Map of cell id to the last code that was executed in that cell.
         self.last_executed_code: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
@@ -313,6 +317,11 @@ class SessionView:
         self._touch()
 
         if isinstance(notification, CellNotification):
+            if (
+                notification.status == "running"
+                and notification.cell_id in self._pdb_output
+            ):
+                self._pdb_output[notification.cell_id] = []
             previous = self.cell_notifications.get(notification.cell_id)
             self.cell_notifications[notification.cell_id] = (
                 merge_cell_notification(previous, notification)
@@ -326,6 +335,17 @@ class SessionView:
                 self.save_execution_time(notification, "start")
             if previous.status == "running" and notification.status == "idle":
                 self.save_execution_time(notification, "end")
+
+        elif isinstance(notification, PdbOutputNotification):
+            entries = self._pdb_output.setdefault(notification.cell_id, [])
+            if notification.replace:
+                entries.clear()
+            entries.extend(notification.entries)
+
+        elif isinstance(notification, PdbInputNotification):
+            self.pending_pdb_input = (
+                notification if notification.input_id is not None else None
+            )
 
         elif isinstance(notification, VariablesNotification):
             self.variable_notifications = notification
@@ -616,6 +636,18 @@ class SessionView:
 
         self.last_execution_time[cell_id] = time_elapsed
 
+    def debugger_notifications(
+        self,
+    ) -> list[PdbOutputNotification | PdbInputNotification]:
+        """Private state a consumer gains when it takes over the editor."""
+        notifications: list[PdbOutputNotification | PdbInputNotification] = [
+            PdbOutputNotification(cell_id, list(entries), replace=True)
+            for cell_id, entries in self._pdb_output.items()
+        ]
+        if self.pending_pdb_input is not None:
+            notifications.append(self.pending_pdb_input)
+        return notifications
+
     def snapshot_notifications(self) -> list[NotificationMessage]:
         """Copy retained notifications for a connecting client.
 
@@ -657,6 +689,7 @@ class SessionView:
                 all_notifications.extend(ui_messages)
 
         all_notifications.extend(self.cell_notifications.values())
+        all_notifications.extend(self.debugger_notifications())
         # Only include startup logs if they are in progress (not done)
         if self.startup_logs and self.startup_logs.status != "done":
             all_notifications.append(self.startup_logs)

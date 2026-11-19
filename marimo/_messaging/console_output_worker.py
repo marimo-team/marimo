@@ -9,6 +9,11 @@ from typing import TYPE_CHECKING, Literal
 import msgspec
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.command_output import (
+    CommandOutput,
+    console_notification,
+    destination_for,
+)
 from marimo._messaging.context import RUN_ID_CTX, execution_id_for
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._types.ids import CellId_t
@@ -35,10 +40,14 @@ class ConsoleMsg:
     execution_id: str | None = None
     code: str | None = None
     input_id: str | None = None
+    timestamp: float = field(default_factory=time.time)
+
+    destination: CommandOutput | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         if self.execution_id is None:
             self.execution_id = execution_id_for(self.cell_id)
+        self.destination = destination_for(self.cell_id)
 
 
 @dataclass
@@ -48,31 +57,24 @@ class FlushMarker:
     done: threading.Event = field(default_factory=threading.Event)
 
 
-def _write_console_output(
-    stream: Stream,
-    stream_type: StreamT,
-    cell_id: CellId_t,
-    data: str,
-    mimetype: ConsoleMimeType,
-    run_id: str | None = None,
-    execution_id: str | None = None,
-    code: str | None = None,
-    input_id: str | None = None,
-) -> None:
-    from marimo._messaging.notification import CellNotification
+def _write_console_output(stream: Stream, output: ConsoleMsg) -> None:
     from marimo._messaging.notification_utils import broadcast_notification
 
     broadcast_notification(
-        CellNotification(
-            cell_id=cell_id,
-            run_id=run_id,
-            execution_id=execution_id,
+        console_notification(
+            destination=output.destination,
+            cell_id=output.cell_id,
+            run_id=output.run_id,
+            execution_id=output.execution_id,
             console=CellOutput(
-                channel=stream_type,
-                mimetype=mimetype,
-                data=data,
-                code=code if code is not None else msgspec.UNSET,
-                input_id=input_id if input_id is not None else msgspec.UNSET,
+                channel=output.stream,
+                mimetype=output.mimetype,
+                data=output.data,
+                timestamp=output.timestamp,
+                code=output.code if output.code is not None else msgspec.UNSET,
+                input_id=output.input_id
+                if output.input_id is not None
+                else msgspec.UNSET,
             ),
         ),
         stream,
@@ -85,6 +87,7 @@ def _can_merge_outputs(first: ConsoleMsg, second: ConsoleMsg) -> bool:
         and first.mimetype == second.mimetype
         and first.run_id == second.run_id
         and first.execution_id == second.execution_id
+        and first.destination is second.destination
         and first.code == second.code
         and first.input_id == second.input_id
     )
@@ -108,19 +111,9 @@ def _flush_outputs(
     outputs_buffered_per_cell: dict[CellId_t, list[ConsoleMsg]],
     stream: Stream,
 ) -> None:
-    for cell_id, buffer in outputs_buffered_per_cell.items():
+    for buffer in outputs_buffered_per_cell.values():
         for output in buffer:
-            _write_console_output(
-                stream,
-                output.stream,
-                cell_id,
-                output.data,
-                output.mimetype,
-                output.run_id,
-                output.execution_id,
-                output.code,
-                output.input_id,
-            )
+            _write_console_output(stream, output)
     outputs_buffered_per_cell.clear()
 
 

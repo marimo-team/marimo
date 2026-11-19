@@ -7,8 +7,8 @@ import traceback as tb
 import msgspec
 
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.command_output import console_notification
 from marimo._messaging.context import is_code_mode_request
-from marimo._messaging.notification import CellNotification
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.types import Stderr
 from marimo._runtime.context.types import safe_get_context
@@ -95,7 +95,7 @@ def write_traceback(traceback: str, *, code: str | None = None) -> None:
                 sys.stderr.write(traceback)
                 return
             broadcast_notification(
-                CellNotification(
+                console_notification(
                     cell_id=ctx.cell_id,
                     console=CellOutput(
                         channel=CellChannel.STDERR,

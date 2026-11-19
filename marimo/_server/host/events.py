@@ -12,6 +12,8 @@ from marimo._messaging.notification import (
     CellNotification,
     ExecutionNotification,
     NotificationMessage,
+    PdbInputNotification,
+    PdbOutputNotification,
 )
 
 
@@ -40,7 +42,11 @@ def notification_event(
     """Project a kernel notification onto the host or attached editor stream."""
     if isinstance(notification, ExecutionNotification):
         return None
-    if not editor_session and isinstance(notification, CellNotification):
+    # Attached editors still consume legacy cell updates (MO-8407) and handle
+    # debugger commands for failed cells. Both use the editor session stream.
+    if not editor_session and isinstance(
+        notification, (CellNotification, PdbInputNotification, PdbOutputNotification)
+    ):
         return None
     if (
         isinstance(notification, CellNotification)

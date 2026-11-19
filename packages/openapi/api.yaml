@@ -4475,6 +4475,8 @@ components:
       - $ref: '#/components/schemas/CacheClearedNotification'
       - $ref: '#/components/schemas/CacheInfoNotification'
       - $ref: '#/components/schemas/FocusCellNotification'
+      - $ref: '#/components/schemas/PdbOutputNotification'
+      - $ref: '#/components/schemas/PdbInputNotification'
       - $ref: '#/components/schemas/BreakpointsNotification'
       - $ref: '#/components/schemas/ActiveLineNotification'
       - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
@@ -4506,6 +4508,8 @@ components:
           missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
           model-lifecycle: '#/components/schemas/ModelLifecycleNotification'
           notebook-document-transaction: '#/components/schemas/NotebookDocumentTransactionNotification'
+          pdb-input: '#/components/schemas/PdbInputNotification'
+          pdb-output: '#/components/schemas/PdbOutputNotification'
           query-params-append: '#/components/schemas/QueryParamsAppendNotification'
           query-params-clear: '#/components/schemas/QueryParamsClearNotification'
           query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
@@ -4718,6 +4722,67 @@ components:
       required:
       - success
       title: PackageOperationResponse
+      type: object
+    PdbInputNotification:
+      description: 'Identify the debugger prompt waiting for a command in a failed cell.
+
+
+        A null input ID closes the prompt.'
+      properties:
+        cell_id:
+          $ref: '#/components/schemas/CellId'
+        input_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+        op:
+          enum:
+          - pdb-input
+      required:
+      - op
+      - cell_id
+      - input_id
+      title: PdbInputNotification
+      type: object
+    PdbInputReplyRequest:
+      properties:
+        cellId:
+          $ref: '#/components/schemas/CellId'
+        inputId:
+          type: string
+        value:
+          type: string
+      required:
+      - cellId
+      - inputId
+      - value
+      title: PdbInputReplyRequest
+      type: object
+    PdbOutputNotification:
+      description: 'Show debugger output in the cell that failed.
+
+
+        Append live entries. When `replace` is true, replace the debugger''s
+
+        transcript for this cell with the supplied entries.'
+      properties:
+        cell_id:
+          $ref: '#/components/schemas/CellId'
+        entries:
+          items:
+            $ref: '#/components/schemas/CellOutput'
+          type: array
+        op:
+          enum:
+          - pdb-output
+        replace:
+          default: false
+          type: boolean
+      required:
+      - op
+      - cell_id
+      - entries
+      title: PdbOutputNotification
       type: object
     PreviewDatasetColumnCommand:
       description: "Preview a dataset column.\n\nRetrieves and displays data from\
@@ -7894,7 +7959,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
-          description: Run a post mortem on the most recent failed cell.
+          description: Open the debugger for a failed cell.
+  /api/kernel/pdb/reply:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdbInputReplyRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Accepted the command for the pending debugger prompt.
+        409:
+          description: This debugger prompt is no longer pending.
   /api/kernel/read_code:
     post:
       parameters:

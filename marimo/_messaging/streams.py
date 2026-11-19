@@ -11,7 +11,6 @@ import sys
 import threading
 from collections import deque
 from contextvars import Context
-from dataclasses import replace
 from functools import cache
 from typing import (
     TYPE_CHECKING,
@@ -21,14 +20,15 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.command_output import ConsoleContext
 from marimo._messaging.console_output_worker import (
     ConsoleMsg,
     FlushMarker,
     buffered_writer,
 )
-from marimo._messaging.context import EXECUTION_CTX, RUN_ID_CTX
 from marimo._messaging.input import InputReply, require_active_execution
 from marimo._messaging.mimetypes import ConsoleMimeType
+from marimo._messaging.notification import PdbOutputNotification
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
@@ -126,6 +126,7 @@ class ThreadSafeStream(Stream):
         # An inherited writer can keep its reader alive beyond redirection.
         self._native_pipes: set[_NativePipe] = set()
         self._native_pipes_lock = threading.Lock()
+        self._debugger_cell: CellId_t | None = None
         self._parent_console: ThreadSafeStream | None = None
         self._console_stopped = threading.Event()
         if self.redirect_console:
@@ -170,6 +171,7 @@ class ThreadSafeStream(Stream):
             redirect_console=False,
             cell_id=self.cell_id,
         )
+        # A thread can write directly between two buffered writes by its parent.
         stream._parent_console = (
             self if self.redirect_console else self._parent_console
         )
@@ -179,7 +181,25 @@ class ThreadSafeStream(Stream):
         stream.stream_lock = self.stream_lock
         return stream
 
+    @contextlib.contextmanager
+    def debugger_input(self, cell_id: CellId_t) -> Iterator[PdbInput]:
+        previous = self._debugger_cell
+        self._debugger_cell = cell_id
+        try:
+            yield PdbInput(self, cell_id)
+        finally:
+            self._debugger_cell = previous
+
     def queue_console(self, message: ConsoleMsg) -> None:
+        # Ordinary Python threads do not inherit the debugger's context vars.
+        # Keep their writes to its redirected streams in the private transcript.
+        if (
+            message.cell_id == self._debugger_cell
+            and message.destination is None
+            and message.run_id is None
+            and message.execution_id is None
+        ):
+            message.destination = PdbOutputNotification
         with self.console_msg_cv:
             if not self._console_stopped.is_set():
                 self.console_msg_queue.append(message)
@@ -197,7 +217,10 @@ class ThreadSafeStream(Stream):
         if self._parent_console is not None:
             self._parent_console.flush_console(clear_cell_id=clear_cell_id)
             return
-        if not self.redirect_console:
+        if (
+            not self.redirect_console
+            or threading.current_thread() is self.buffered_console_thread
+        ):
             return
         # If the buffered writer isn't alive (e.g., shutdown in progress),
         # enqueuing a marker would never be drained. Bail out early.
@@ -307,12 +330,9 @@ class _NativePipe:
         with stream._native_pipes_lock:
             stream._native_pipes.add(self)
         try:
-            owner = Context()
-            owner.run(RUN_ID_CTX.set, RUN_ID_CTX.get(None))
-            if execution := EXECUTION_CTX.get():
-                owner.run(EXECUTION_CTX.set, replace(execution, attempt=None))
+            owner = ConsoleContext().for_native_writer()
             reader = threading.Thread(
-                target=owner.run, args=(self._forward,), daemon=True
+                target=self._forward, args=(owner,), daemon=True
             )
             Context().run(reader.start)
         except BaseException:
@@ -363,29 +383,32 @@ class _NativePipe:
             ):
                 LOGGER.warning("Timed out waiting for native console EOF")
 
-    def _forward(self) -> None:
+    def _forward(self, owner: ConsoleContext) -> None:
         with self._cv:
             if self._read_end.closed:
                 return
             self._claimed = True
         fd = self._read_end.fileno()
         try:
-            for _ in _wait_for_pipe(fd, self.stream._stream._console_stopped):
+            with owner.install():
+                for _ in _wait_for_pipe(
+                    fd, self.stream._stream._console_stopped
+                ):
+                    with self._cv:
+                        data = os.read(fd, 4096)
+                        if not data:
+                            break
+                        if text := self._decoder.decode(data):
+                            self.stream._write_with_mimetype(
+                                text, "text/plain", cell_id=self.cell_id
+                            )
+                        self._forwarded += len(data)
+                        self._cv.notify_all()
                 with self._cv:
-                    data = os.read(fd, 4096)
-                    if not data:
-                        break
-                    if text := self._decoder.decode(data):
+                    if tail := self._decoder.decode(b"", final=True):
                         self.stream._write_with_mimetype(
-                            text, "text/plain", cell_id=self.cell_id
+                            tail, "text/plain", cell_id=self.cell_id
                         )
-                    self._forwarded += len(data)
-                    self._cv.notify_all()
-            with self._cv:
-                if tail := self._decoder.decode(b"", final=True):
-                    self.stream._write_with_mimetype(
-                        tail, "text/plain", cell_id=self.cell_id
-                    )
         finally:
             with self._cv:
                 self._close()
@@ -609,6 +632,7 @@ class ThreadSafeStdin(Stdin):
         self, prompt: str = "", password: bool = False
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
+        require_active_execution()
         with self._stream.input_lock:
             return self._read_input(prompt, password)
 
@@ -642,14 +666,53 @@ class ThreadSafeStdin(Stdin):
             )
         )
 
-        while True:
+        return _wait_for_reply(self._stream, input_id, execution=True)
+
+
+def _wait_for_reply(
+    stream: ThreadSafeStream, input_id: str, *, execution: bool
+) -> str:
+    while True:
+        if execution:
             require_active_execution()
+        try:
+            reply = stream.input_queue.get(timeout=0.1)
+        except queue.Empty:
+            continue
+        if reply.input_id == input_id:
+            return reply.value
+
+
+class PdbInput(io.StringIO):
+    """Pdb's command reader while inspecting a saved traceback."""
+
+    def __init__(self, stream: ThreadSafeStream, cell_id: CellId_t) -> None:
+        super().__init__()
+        self._stream = stream
+        self._cell_id = cell_id
+
+    def readline(self, size: int | None = -1, /) -> str:  # type: ignore[override]
+        from marimo._messaging.notification import PdbInputNotification
+        from marimo._messaging.notification_utils import broadcast_notification
+
+        del size
+        with self._stream.input_lock:
+            input_id = str(uuid4())
+            self._stream.flush_console()
             try:
-                reply = self._stream.input_queue.get(timeout=0.1)
-            except queue.Empty:
-                continue
-            if reply.input_id == input_id:
-                return reply.value
+                broadcast_notification(
+                    PdbInputNotification(self._cell_id, input_id=input_id),
+                    self._stream,
+                )
+                return (
+                    _wait_for_reply(self._stream, input_id, execution=False)
+                    + "\n"
+                )
+            finally:
+                broadcast_notification(
+                    PdbInputNotification(self._cell_id, input_id=None),
+                    self._stream,
+                )
 
 
 @contextlib.contextmanager

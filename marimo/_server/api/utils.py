@@ -90,7 +90,7 @@ class RequestAsCommand(Protocol):
 
 
 def enforce_consumer_capability(
-    app_state: AppState, command: CommandMessage
+    app_state: AppState, command: CommandMessage | type[CommandMessage]
 ) -> None:
     """Raise 403 if the calling consumer lacks the command's capability.
 
@@ -113,7 +113,9 @@ def enforce_consumer_capability(
         if consumer is not None
         else ConsumerCapabilities.VIEWER
     )
-    if not consumer_can(capabilities, type(command)):
+    if not consumer_can(
+        capabilities, command if isinstance(command, type) else type(command)
+    ):
         raise HTTPException(
             status_code=403,
             detail="This connection is read-only for this action.",

@@ -1027,6 +1027,30 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
+class PdbOutputNotification(Notification, tag="pdb-output"):
+    """Show debugger output in the cell that failed.
+
+    Append live entries. When `replace` is true, replace the debugger's
+    transcript for this cell with the supplied entries.
+    """
+
+    name: ClassVar[str] = "pdb-output"
+    cell_id: CellId_t
+    entries: list[CellOutput]
+    replace: bool = False
+
+
+class PdbInputNotification(Notification, tag="pdb-input"):
+    """Identify the debugger prompt waiting for a command in a failed cell.
+
+    A null input ID closes the prompt.
+    """
+
+    name: ClassVar[str] = "pdb-input"
+    cell_id: CellId_t
+    input_id: str | None
+
+
 class BreakpointsNotification(Notification, tag="breakpoints"):
     """The session's complete breakpoint set, restored on connection."""
 
@@ -1160,6 +1184,8 @@ NotificationMessage = (
     # Kiosk
     | FocusCellNotification
     # Debugger
+    | PdbOutputNotification
+    | PdbInputNotification
     | BreakpointsNotification
     | ActiveLineNotification
     # Document

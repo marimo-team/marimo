@@ -7,6 +7,7 @@ from pdb import Pdb, Restart as pdbRestart
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._messaging.streams import PdbInput
 from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
@@ -107,6 +108,10 @@ class MarimoPdb(Pdb):
         """Override to gracefully handle restarts."""
         try:
             super().cmdloop(intro)
+        except KeyboardInterrupt:
+            # Returning lets pdb finish the interaction and release its frames.
+            if not isinstance(self.stdin, PdbInput):
+                raise
         except pdbRestart:
             if not try_restart():
                 LOGGER.warning("Unable to restart cell.")
@@ -118,8 +123,16 @@ class MarimoPdb(Pdb):
 
     do_restart = do_run
 
-    def post_mortem_by_cell_id(self, cell_id: CellId_t) -> None:
-        return self.post_mortem(t=self._last_tracebacks.get(cell_id))
+    def post_mortem_by_cell_id(
+        self, cell_id: CellId_t, *, stdin: PdbInput | None = None
+    ) -> None:
+        previous = self.stdin
+        try:
+            if stdin is not None:
+                self.stdin = stdin
+            self.post_mortem(t=self._last_tracebacks.get(cell_id))
+        finally:
+            self.stdin = previous
 
     def post_mortem(self, t: TracebackType | None = None) -> None:
         if t is None:

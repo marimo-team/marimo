@@ -71,7 +71,8 @@ class TestConsoleOutputWorker:
     def test_write_console_output_omits_code_when_absent(self) -> None:
         stream = MockStream()
         _write_console_output(
-            stream, CellChannel.STDERR, "cell1", "Hello", "text/plain"
+            stream,
+            ConsoleMsg(CellChannel.STDERR, "cell1", "Hello", "text/plain"),
         )
         assert "code" not in stream.operations[0]["console"]
 
@@ -200,10 +201,7 @@ class TestConsoleOutputWorker:
         stream = MockStream()
         _write_console_output(
             stream,
-            CellChannel.STDOUT,
-            "cell1",
-            "Hello",
-            "text/plain",
+            ConsoleMsg(CellChannel.STDOUT, "cell1", "Hello", "text/plain"),
         )
 
         assert len(stream.operations) == 1

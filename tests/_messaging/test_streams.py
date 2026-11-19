@@ -19,11 +19,13 @@ import pytest
 
 from marimo._messaging import streams as messaging_streams
 from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.command_output import command_console
 from marimo._messaging.context import execution_id_context
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     CellNotification,
     InterruptedNotification,
+    PdbOutputNotification,
 )
 from marimo._messaging.serde import (
     deserialize_kernel_message,
@@ -50,6 +52,40 @@ from tests.conftest import ExecReqProvider, MockedKernel
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
+
+
+def test_debugger_does_not_capture_other_streams_or_executions() -> None:
+    messages = Queue[KernelMessage]()
+    debugger, other = [
+        ThreadSafeStream(QueuePipe(messages), Queue(), True, cell_id="cell")
+        for _ in range(2)
+    ]
+    first, second = [
+        ThreadSafeStdout(stream, forward_os_streams=False)
+        for stream in (debugger, other)
+    ]
+    try:
+        with debugger.debugger_input("cell"):
+            with execution_id_context("cell", "earlier"):
+                first.write("background")
+            second.write("other session")
+        first.write("after debugger")
+        debugger.flush_console()
+        other.flush_console()
+        writes = {}
+        for _ in range(3):
+            msg = deserialize_kernel_message(messages.get(timeout=2))
+            assert isinstance(msg, CellNotification)
+            assert isinstance(msg.console, CellOutput)
+            writes[msg.console.data] = msg.execution_id
+        assert writes == {
+            "background": "earlier",
+            "other session": None,
+            "after debugger": None,
+        }
+    finally:
+        debugger.stop()
+        other.stop()
 
 
 def test_inherited_fd_keeps_its_execution_during_a_later_run(
@@ -123,23 +159,27 @@ def test_buffered_native_writes_stay_with_their_owner(
             assert out.buffer is not None
             with execution_id_context("public", "evaluation"), redirect(out):
                 out.buffer.write(b"public")
-                stream.cell_id = "nested"
+                stream.cell_id = "private"
                 with (
-                    execution_id_context("nested", "inner-execution"),
+                    command_console("private", PdbOutputNotification),
                     redirect(out),
                 ):
-                    out.buffer.write(b"nested")
+                    out.buffer.write(b"private")
                     terminal.write(" text")
                 terminal.flush()
         writes = {}
         for _ in range(2):
             msg = deserialize_kernel_message(messages.get(timeout=2))
-            assert isinstance(msg, CellNotification)
-            assert isinstance(msg.console, CellOutput)
-            writes[msg.cell_id] = (msg.execution_id, msg.console.data)
+            if isinstance(msg, PdbOutputNotification):
+                (entry,) = msg.entries
+                writes[msg.cell_id] = (msg.name, entry.data)
+            else:
+                assert isinstance(msg, CellNotification)
+                assert isinstance(msg.console, CellOutput)
+                writes[msg.cell_id] = (msg.execution_id, msg.console.data)
         assert writes == {
             "public": ("evaluation", "public"),
-            "nested": ("inner-execution", "nested text"),
+            "private": ("pdb-output", "private text"),
         }
     finally:
         stream.stop()
