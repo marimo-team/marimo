@@ -26,6 +26,7 @@ import {
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
 import {
+  type Item,
   type Executions,
   executions,
   resumeResults,
@@ -36,7 +37,7 @@ import { runtime } from "./resources/runtime";
 /**
  * The kinds the editor reads, with marimo's own notifications.
  *
- * Console, display and stdin still render from the native console (MO-8405).
+ * Execution items provide the console, side-effect displays and input prompts.
  */
 export const EDITOR_EVENT_TYPES = [
   "notebook",
@@ -46,6 +47,9 @@ export const EDITOR_EVENT_TYPES = [
   "runtime",
   "run",
   "execution",
+  "console",
+  "display",
+  "input",
   "variable",
   "marimo",
 ] as const;
@@ -115,7 +119,13 @@ export interface NotebookReplica {
     options: {
       /** Handle a native marimo notification. Its payload has not been validated. */
       onNotification: (notification: unknown) => void;
-      /** Observe execution records as they arrive, including retained values on reconnect. */
+      /** Observe an item for live logs and virtual files in an export. */
+      onItem?: (record: HostExecution, item: Item, live: boolean) => void;
+      /**
+       * Export tracks file references from each execution as it arrives, including
+       * restored results and updates to completed values. Execution history uses
+       * `lifecycleChanged` to record restored executions and live status changes.
+       */
       onExecution?: (record: HostExecution, lifecycleChanged: boolean) => void;
     },
   ): () => void;
@@ -233,6 +243,7 @@ export function createNotebookReplica(
               executions: resumeResults(
                 next.resources.executions,
                 retained.resources.executions,
+                next.resources.runtime?.id,
               ),
             },
           };
@@ -276,7 +287,11 @@ export function createNotebookReplica(
 
   function connect(
     connected: NotebookBackend,
-    { onNotification, onExecution }: Parameters<NotebookReplica["connect"]>[1],
+    {
+      onNotification,
+      onExecution,
+      onItem,
+    }: Parameters<NotebookReplica["connect"]>[1],
   ) {
     current?.end();
     const lifetime = new AbortController();
@@ -286,10 +301,11 @@ export function createNotebookReplica(
     const { transport } = connected;
     let events: NotebookEvents<(typeof EDITOR_EVENT_TYPES)[number]> | undefined;
     let checkingHealth = false;
-
+    let pendingNotifications: unknown[] = [];
     /** Mirror one stream into the atoms until it closes. */
     function follow(cursor?: string) {
       if (cursor === undefined) {
+        pendingNotifications = [];
         setStream(reducer.initial);
       }
       const current = new NotebookEvents(transport, {
@@ -327,11 +343,15 @@ export function createNotebookReplica(
 
     function stopMalformed(source: NotebookEvents<string>) {
       source.close();
+      pendingNotifications = [];
       // The cursor can already include an event the replica rejected.
       clear(malformed);
     }
 
-    function observeExecution(record: HostExecution, lifecycleChanged: boolean) {
+    function observeExecution(
+      record: HostExecution,
+      lifecycleChanged: boolean,
+    ) {
       try {
         onExecution?.(record, lifecycleChanged);
       } catch (error) {
@@ -343,14 +363,26 @@ export function createNotebookReplica(
       if (event.event === "marimo") {
         const message = MarimoMessage.safeParse(event.data);
         if (message.success) {
-          onNotification(message.data.marimo);
+          const stream = store.get(streamAtom);
+          if (stream.phase === "snapshot" && stream.notebook !== null) {
+            pendingNotifications.push(message.data.marimo);
+          } else {
+            onNotification(message.data.marimo);
+          }
         } else {
           Logger.error("Failed to decode notebook message", event);
           stopMalformed(source);
         }
         return;
       }
+      if (event.event === "reset" || event.event === "notebook.removed") {
+        pendingNotifications = [];
+      }
       const before = store.get(streamAtom);
+      const previous =
+        event.event === "execution"
+          ? before.resources.executions.executions.get(event.data.execution.id)
+          : undefined;
       try {
         setStream(reducer.reduce(before, event));
         if (event.event === "reset") {
@@ -366,11 +398,61 @@ export function createNotebookReplica(
       if (event.event === "ready" && before.phase === "snapshot") {
         for (const execution of after.resources.executions.executions.values()) {
           observeExecution(execution.record, true);
+          if (onItem) {
+            for (const item of execution.items.values()) {
+              if (item.kind === "display") {
+                onItem(execution.record, item, false);
+              }
+            }
+          }
         }
-      } else if (event.event === "execution" && after.phase === "live") {
-        const record = event.data.execution;
-        const previous = before.resources.executions.executions.get(record.id);
-        observeExecution(record, previous?.record.status !== record.status);
+        const notifications = pendingNotifications;
+        pendingNotifications = [];
+        for (const notification of notifications) {
+          if (signal.aborted) {
+            break;
+          }
+          try {
+            onNotification(notification);
+          } catch (error) {
+            queueMicrotask(() => {
+              throw error;
+            });
+          }
+        }
+        return;
+      }
+      if (after.phase !== "live") {
+        return;
+      }
+      const executions = after.resources.executions.executions;
+      switch (event.event) {
+        case "execution": {
+          const record = event.data.execution;
+          const changed = previous?.record.status !== record.status;
+          observeExecution(record, changed);
+          return;
+        }
+        case "console":
+        case "display":
+        case "input": {
+          const item =
+            event.event === "console"
+              ? event.data.console
+              : event.event === "display"
+                ? event.data.display
+                : event.data.input;
+          const execution = executions.get(item.execution_id);
+          if (execution && onItem) {
+            const received = execution.items.get(item.id);
+            if (received) {
+              const live = !before.resources.executions.executions
+                .get(item.execution_id)
+                ?.items.has(item.id);
+              onItem(execution.record, received, live);
+            }
+          }
+        }
       }
     }
 

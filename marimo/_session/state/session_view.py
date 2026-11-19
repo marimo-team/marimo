@@ -5,7 +5,7 @@ import copy
 import time
 from dataclasses import dataclass
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 
 import msgspec
 
@@ -168,7 +168,11 @@ class AutoExportState:
         return True
 
 
-SnapshotScope = Literal["full", "host"]
+_CommandOutput = TypeVar(
+    "_CommandOutput", PdbOutputNotification, CallbackOutputNotification
+)
+
+SnapshotScope = Literal["full", "editor", "host"]
 
 
 @dataclass(frozen=True)
@@ -399,12 +403,17 @@ class SessionView:
             entries = self._command_output.setdefault(key, [])
             if notification.replace or not notification.entries:
                 entries.clear()
-            position = self._console_positions.get(notification.cell_id)
+            command = self.position_command_output(notification)
+            positions = command.after_seq
             cell = self.cell_notifications.get(notification.cell_id)
             offset = len(as_list(cell.console)) if cell is not None else 0
             entries.extend(
-                _CommandEntry(entry, position, offset)
-                for entry in notification.entries
+                _CommandEntry(
+                    entry,
+                    None if positions is msgspec.UNSET else positions[i],
+                    offset,
+                )
+                for i, entry in enumerate(command.entries)
             )
 
         elif isinstance(notification, PdbInputNotification):
@@ -818,14 +827,46 @@ class SessionView:
         if self._planned_executions.get(cell_id) == execution_id:
             self._console_positions[cell_id] = seq
 
+    def position_command_output(
+        self, command: PdbOutputNotification | CallbackOutputNotification
+    ) -> PdbOutputNotification | CallbackOutputNotification:
+        if (
+            command.replace
+            or command.after_seq is not msgspec.UNSET
+            or not command.entries
+        ):
+            return command
+        position = self._console_positions.get(command.cell_id)
+        if position is None:
+            return command
+        return msgspec.structs.replace(
+            command, after_seq=[position] * len(command.entries)
+        )
+
+    @staticmethod
+    def _command_snapshot(
+        kind: type[_CommandOutput],
+        cell_id: CellId_t,
+        entries: list[_CommandEntry],
+    ) -> _CommandOutput:
+        positions = [
+            entry.after_seq for entry in entries if entry.after_seq is not None
+        ]
+        return kind(
+            cell_id,
+            [entry.output for entry in entries],
+            replace=True,
+            after_seq=positions
+            if positions and len(positions) == len(entries)
+            else msgspec.UNSET,
+        )
+
     def debugger_notifications(
         self,
     ) -> list[PdbOutputNotification | PdbInputNotification]:
         """Private state a consumer gains when it takes over the editor."""
         notifications: list[PdbOutputNotification | PdbInputNotification] = [
-            PdbOutputNotification(
-                cell_id, [entry.output for entry in entries], replace=True
-            )
+            self._command_snapshot(PdbOutputNotification, cell_id, entries)
             for (cell_id, kind), entries in self._command_output.items()
             if kind is PdbOutputNotification
         ]
@@ -838,8 +879,8 @@ class SessionView:
     ) -> list[NotificationMessage]:
         """Copy retained notifications for a connecting client.
 
-        The shared host stream already snapshots execution output. Attached
-        editors also need retained console entries and private debugger state.
+        Editors receive cell hints alongside their execution snapshot. The
+        shared host stream omits cell updates and private debugger state.
         """
         notifications: list[NotificationMessage] = [
             EnvironmentStateNotification(source=source, state=state)
@@ -902,6 +943,21 @@ class SessionView:
                         ),
                     )
                 all_notifications.append(cell)
+            all_notifications.extend(self.debugger_notifications())
+        elif scope == "editor":
+            # Console items and values already arrive in the execution snapshot.
+            all_notifications.extend(
+                msgspec.structs.replace(cell, console=None, output=None)
+                for cell in self.cell_notifications.values()
+            )
+            all_notifications.extend(self._cleared_inputs.values())
+            all_notifications.extend(
+                self._command_snapshot(
+                    CallbackOutputNotification, cell_id, entries
+                )
+                for (cell_id, kind), entries in self._command_output.items()
+                if kind is CallbackOutputNotification
+            )
             all_notifications.extend(self.debugger_notifications())
         # Only include startup logs if they are in progress (not done)
         if self.startup_logs and self.startup_logs.status != "done":

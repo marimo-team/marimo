@@ -3943,6 +3943,24 @@ export interface components {
       time: number;
     };
     /**
+     * CallbackOutputNotification
+     * @description Show a widget callback or registered function's output in its defining cell.
+     *
+     *     Append live entries. When `replace` is true, replace the callback
+     *     transcript for this cell with the supplied entries. The editor's
+     *     `after_seq` gives the preceding execution item sequence for each entry,
+     *     or -1 before the first item.
+     */
+    CallbackOutputNotification: {
+      after_seq?: number[];
+      cell_id: components["schemas"]["CellId"];
+      entries: components["schemas"]["CellOutput"][];
+      /** @enum {unknown} */
+      op: "callback-output";
+      /** @default false */
+      replace?: boolean;
+    };
+    /**
      * CellChannel
      * @description The channel of a cell's output.
      * @enum {unknown}
@@ -3974,7 +3992,7 @@ export interface components {
     CellId: TypedString<"CellId">;
     /**
      * CellNotification
-     * @description Updates a cell's state in the frontend.
+     * @description A kernel update. The editor still receives serialization and blocked-state changes.
      *
      *     This is a partial update: each field carries its own "unchanged" semantics,
      *     documented per field below. Most fields treat None as "unchanged"; fields
@@ -4015,6 +4033,7 @@ export interface components {
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
       code?: string;
+      command_id?: string;
       data:
         | string
         | (
@@ -4273,6 +4292,17 @@ export interface components {
       op: "completion-result";
       options: components["schemas"]["CompletionOption"][];
       prefix_length: number;
+    };
+    /**
+     * ConsoleInputsClearedNotification
+     * @description The settled input rows hidden by clear_console() in this execution.
+     */
+    ConsoleInputsClearedNotification: {
+      cell_id: components["schemas"]["CellId"];
+      execution_id: string;
+      input_ids: string[];
+      /** @enum {unknown} */
+      op: "console-inputs-cleared";
     };
     /**
      * ConsumerCapabilities
@@ -4938,39 +4968,6 @@ export interface components {
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @default null */
       runId?: string | null;
-    };
-    /**
-     * ExecutionNotification
-     * @description An attempt's lifecycle, independent of a cell's displayed status.
-     *
-     *     `planned` includes the execution ID and code fingerprint before any output.
-     *     `code` is null when source is withheld.
-     *     `running` means evaluation began. `completed` follows the final output
-     *     and errors, including for attempts that never ran. Buffered and background
-     *     console output may still arrive with the completed attempt's identity.
-     *     A completed attempt that never ran and reported no error names why in
-     *     `skipped`, such as `superseded` when a newer attempt replaced it.
-     */
-    ExecutionNotification: {
-      /** @default null */
-      caused_by?: string | null;
-      cell_id: components["schemas"]["CellId"];
-      /** @default null */
-      code?: string | null;
-      /** @default null */
-      code_fingerprint?: string | null;
-      /** @default null */
-      depends_on?: {
-        [key: string]: components["schemas"]["Revision"] | null;
-      } | null;
-      execution_id: string;
-      /** @enum {unknown} */
-      op: "execution";
-      /** @enum {unknown} */
-      phase: "completed" | "planned" | "running";
-      run_id: string | null;
-      /** @default null */
-      skipped?: string | null;
     };
     /**
      * ExperimentalConfig
@@ -6286,8 +6283,6 @@ export interface components {
       transaction: components["schemas"]["Transaction"];
     };
     NotificationMessage:
-      | components["schemas"]["CellNotification"]
-      | components["schemas"]["ExecutionNotification"]
       | components["schemas"]["FunctionCallResultNotification"]
       | components["schemas"]["UIElementMessageNotification"]
       | components["schemas"]["ModelLifecycleNotification"]
@@ -6326,7 +6321,10 @@ export interface components {
       | components["schemas"]["CacheClearedNotification"]
       | components["schemas"]["CacheInfoNotification"]
       | components["schemas"]["FocusCellNotification"]
+      | components["schemas"]["CallbackOutputNotification"]
       | components["schemas"]["PdbOutputNotification"]
+      | components["schemas"]["CellNotification"]
+      | components["schemas"]["ConsoleInputsClearedNotification"]
       | components["schemas"]["PdbInputNotification"]
       | components["schemas"]["BreakpointsNotification"]
       | components["schemas"]["ActiveLineNotification"]
@@ -6472,9 +6470,12 @@ export interface components {
      * @description Show debugger output in the cell that failed.
      *
      *     Append live entries. When `replace` is true, replace the debugger's
-     *     transcript for this cell with the supplied entries.
+     *     transcript for this cell with the supplied entries. The editor's
+     *     `after_seq` gives the preceding execution item sequence for each entry,
+     *     or -1 before the first item.
      */
     PdbOutputNotification: {
+      after_seq?: number[];
       cell_id: components["schemas"]["CellId"];
       entries: components["schemas"]["CellOutput"][];
       /** @enum {unknown} */

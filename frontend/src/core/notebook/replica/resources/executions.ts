@@ -10,14 +10,20 @@ import {
 } from "./results";
 
 /** A console line, display, or input an execution produced, tagged by kind. */
-export type Item =
+type ProducedItem =
   | (Protocol.Console & { readonly kind: "console" })
   | (Protocol.Display & { readonly kind: "display" })
   | (Protocol.Input & { readonly kind: "input" });
 
+/** Time the host published the item, when included in a live event. */
+export type Item = ProducedItem & { readonly time?: string };
+
 /** An execution on the stream, with the items and variables it has produced. */
 export interface Execution extends Result {
   /** Items by id. `itemsInOrder` sorts them by `seq`. */
+  readonly lastSeq?: number;
+  /** Fast path for a reader displaying exactly the version before an append. */
+  readonly append?: { before: WeakRef<Execution["items"]>; item: Item };
   readonly items: ReadonlyMap<Protocol.ItemId, Item>;
   /** The variables the execution bound, by item id. */
   readonly variables: ReadonlyMap<Protocol.ItemId, Protocol.Variable>;
@@ -37,6 +43,8 @@ export interface Executions {
   readonly latest: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>;
   readonly results: Results;
   readonly scratch: Result | null;
+  /** The latest scratch execution to start, including one that printed nothing. */
+  readonly scratchConsole?: Execution;
 }
 
 type Kind =
@@ -62,12 +70,34 @@ function without<K, V>(map: ReadonlyMap<K, V>, key: K): ReadonlyMap<K, V> {
   return next;
 }
 
+function retainScratchConsole(
+  state: Executions,
+  execution: Execution,
+): Execution | undefined {
+  const current = state.scratchConsole;
+  const { id, cell_id, started_at } = execution.record;
+  if (cell_id !== null || started_at === null) {
+    return current;
+  }
+  if (!current || current.record.id === id) {
+    return execution;
+  }
+  // A late write from an older execution cannot select its console again.
+  if (state.executions.get(id)?.record.started_at != null) {
+    return current;
+  }
+  return Date.parse(started_at) >= Date.parse(current.record.started_at ?? "")
+    ? execution
+    : current;
+}
+
 /** Replace an execution on the stream, indexed under its cell. */
 function set(state: Executions, execution: Execution): Executions {
   const { id, cell_id: cellId } = execution.record;
   return {
     ...state,
     executions: new Map(state.executions).set(id, execution),
+    scratchConsole: retainScratchConsole(state, execution),
     latest:
       cellId === null || state.latest.get(cellId) === id
         ? state.latest
@@ -84,6 +114,8 @@ function remove(state: Executions, id: Protocol.ExecutionId): Executions {
   return {
     ...state,
     executions: without(state.executions, id),
+    scratchConsole:
+      state.scratchConsole?.record.id === id ? undefined : state.scratchConsole,
     latest:
       cellId !== null && state.latest.get(cellId) === id
         ? without(state.latest, cellId)
@@ -96,8 +128,18 @@ function attach(state: Executions, item: Item): Executions {
   if (execution === undefined) {
     return state;
   }
+  // Updating an input's status keeps the prompt at its original position.
+  const original = execution.items.get(item.id);
+  if (original) {
+    item = { ...item, time: original.time };
+  }
   return set(state, {
     ...execution,
+    append:
+      !original && item.seq > (execution.lastSeq ?? -1)
+        ? { before: new WeakRef(execution.items), item }
+        : undefined,
+    lastSeq: Math.max(execution.lastSeq ?? -1, item.seq),
     items: new Map(execution.items).set(item.id, item),
   });
 }
@@ -107,6 +149,7 @@ function detach(state: Executions, itemId: Protocol.ItemId): Executions {
     if (execution.items.has(itemId)) {
       return set(state, {
         ...execution,
+        append: undefined,
         items: without(execution.items, itemId),
       });
     }
@@ -148,6 +191,7 @@ function sameOutcome(a: Protocol.Execution, b: Protocol.Execution): boolean {
 export function resumeResults(
   next: Executions,
   previous: Executions,
+  runtimeId: Protocol.RuntimeId | undefined,
 ): Executions {
   const resumed = new Map(next.executions);
   for (const [id, execution] of resumed) {
@@ -184,6 +228,12 @@ export function resumeResults(
     ...next,
     executions: resumed,
     results,
+    scratchConsole:
+      next.scratchConsole ??
+      (previous.scratchConsole?.record.status === "completed" &&
+      previous.scratchConsole.record.runtime_id === runtimeId
+        ? previous.scratchConsole
+        : undefined),
     scratch:
       scratch == null
         ? previous.scratch
@@ -225,6 +275,8 @@ export const executions: NotebookResource<Executions, Kind> = {
             ? 0
             : previous.outputVersion +
               (sameOutcome(previous.record, record) ? 0 : 1),
+        append: previous?.append,
+        lastSeq: previous?.lastSeq,
         items: previous?.items ?? new Map(),
         variables: previous?.variables ?? new Map(),
       };
@@ -236,12 +288,13 @@ export const executions: NotebookResource<Executions, Kind> = {
     },
     "execution.removed": (state, { data }) => remove(state, data.id),
     console: (state, { data }) =>
-      attach(state, { ...data.console, kind: "console" }),
+      attach(state, { ...data.console, kind: "console", time: data.time }),
     "console.removed": (state, { data }) => detach(state, data.id),
     display: (state, { data }) =>
-      attach(state, { ...data.display, kind: "display" }),
+      attach(state, { ...data.display, kind: "display", time: data.time }),
     "display.removed": (state, { data }) => detach(state, data.id),
-    input: (state, { data }) => attach(state, { ...data.input, kind: "input" }),
+    input: (state, { data }) =>
+      attach(state, { ...data.input, kind: "input", time: data.time }),
     variable: (state, { data }) => bind(state, data.variable),
     "variable.removed": (state, { data }) => unbind(state, data.id),
   },

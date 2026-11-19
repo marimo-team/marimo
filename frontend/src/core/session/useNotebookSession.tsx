@@ -183,7 +183,8 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       case "completed-run":
         setInitialRunCompleted(true);
         return;
-      case "execution":
+      case "callback-output":
+      case "console-inputs-cleared":
         return;
       case "interrupted":
         return;

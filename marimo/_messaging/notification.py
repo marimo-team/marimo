@@ -112,7 +112,7 @@ class ExecutionNotification(Notification, tag="execution"):
 
 
 class CellNotification(Notification, tag="cell-op"):
-    """Updates a cell's state in the frontend.
+    """A kernel update. The editor still receives serialization and blocked-state changes.
 
     This is a partial update: each field carries its own "unchanged" semantics,
     documented per field below. Most fields treat None as "unchanged"; fields
@@ -1031,22 +1031,32 @@ class PdbOutputNotification(Notification, tag="pdb-output"):
     """Show debugger output in the cell that failed.
 
     Append live entries. When `replace` is true, replace the debugger's
-    transcript for this cell with the supplied entries.
+    transcript for this cell with the supplied entries. The editor's
+    `after_seq` gives the preceding execution item sequence for each entry,
+    or -1 before the first item.
     """
 
     name: ClassVar[str] = "pdb-output"
     cell_id: CellId_t
     entries: list[CellOutput]
     replace: bool = False
+    after_seq: list[int] | msgspec.UnsetType = msgspec.UNSET
 
 
 class CallbackOutputNotification(Notification, tag="callback-output"):
-    """Console writes made by a widget callback or registered function."""
+    """Show a widget callback or registered function's output in its defining cell.
+
+    Append live entries. When `replace` is true, replace the callback
+    transcript for this cell with the supplied entries. The editor's
+    `after_seq` gives the preceding execution item sequence for each entry,
+    or -1 before the first item.
+    """
 
     name: ClassVar[str] = "callback-output"
     cell_id: CellId_t
     entries: list[CellOutput]
     replace: bool = False
+    after_seq: list[int] | msgspec.UnsetType = msgspec.UNSET
 
     @property
     def clears_cell_console(self) -> bool:
@@ -1156,10 +1166,7 @@ class NotebookDocumentTransactionNotification(
 
 
 EditorNotification = (
-    # Cell operations
-    CellNotification
-    | ExecutionNotification
-    | FunctionCallResultNotification
+    FunctionCallResultNotification
     | UIElementMessageNotification
     | ModelLifecycleNotification
     | RemoveUIElementsNotification
@@ -1208,7 +1215,10 @@ EditorNotification = (
     # Kiosk
     | FocusCellNotification
     # Debugger
+    | CallbackOutputNotification
     | PdbOutputNotification
+    | CellNotification
+    | ConsoleInputsClearedNotification
     | PdbInputNotification
     | BreakpointsNotification
     | ActiveLineNotification
@@ -1218,9 +1228,5 @@ EditorNotification = (
     | ConsumerCapabilitiesNotification
 )
 
-
-NotificationMessage = (
-    EditorNotification
-    | CallbackOutputNotification
-    | ConsoleInputsClearedNotification
-)
+# Internal kernel messages also carry execution facts for the host translator.
+NotificationMessage = EditorNotification | ExecutionNotification

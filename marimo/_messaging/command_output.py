@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import msgspec
 
@@ -102,8 +103,13 @@ def console_notification(
         else destination
     )
     if output is not None and execution_id is None and status is None:
+        entries = console if isinstance(console, list) else [console]
         return output(
-            cell_id, console if isinstance(console, list) else [console]
+            cell_id,
+            [
+                msgspec.structs.replace(entry, command_id=uuid4().hex)
+                for entry in entries
+            ],
         )
     return CellNotification(
         cell_id=cell_id,

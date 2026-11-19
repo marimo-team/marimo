@@ -47,7 +47,7 @@ function sockets() {
         super();
         opened.push(String(url));
       }
-      public close() {}
+      public close = vi.fn();
     },
   );
   return opened;
@@ -92,9 +92,7 @@ describe("createEditorBackend", () => {
       "marimo",
     ];
     expect(executionKinds.filter((kind) => kinds?.includes(kind))).toEqual(
-      expected === "socket" || expected === "fetch"
-        ? ["execution", "marimo"]
-        : [],
+      expected === "socket" || expected === "fetch" ? executionKinds : [],
     );
     events.close();
   });
