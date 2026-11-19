@@ -637,7 +637,7 @@ class TestRun:
         assert [runs[-1], executions[-1], *consoles] == snapshot(
             [
                 Run(
-                    cells=(),
+                    origin=protocol.RunCodeOrigin(),
                     completed_at=IsDatetime(),
                     id=run.id,
                     notebook_id=NotebookId("n1"),
@@ -777,7 +777,9 @@ class TestRunCompletion:
         notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
         notebook.observe(be.Done(original.id, "succeeded"))
         log.clear()
-        notebook.observe(be.Scheduled(RunId("later")))
+        notebook.observe(
+            be.Scheduled(RunId("later"), protocol.RunRuntimeOrigin())
+        )
         notebook.observe(be.Done(RunId("later"), "succeeded"))
         assert request_ids(log) == [UNSET, UNSET]
         assert all(event.run_id == "later" for event in log)
@@ -1616,5 +1618,6 @@ def test_an_accepted_cell_run_records_its_cells(
         request_id="cells",
         request=None,
     )
-    assert run.cells == (CellId("c1"),)
-    assert notebook.run("1", request_id="scratch", request=None).cells == ()
+    assert run.origin == protocol.RunCellsOrigin(cell_ids=(CellId("c1"),))
+    scratch = notebook.run("1", request_id="scratch", request=None)
+    assert scratch.origin == protocol.RunCodeOrigin()

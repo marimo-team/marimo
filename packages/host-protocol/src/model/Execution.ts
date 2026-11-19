@@ -34,16 +34,39 @@ export const RunOutcome = Schema.Literals([
   identifier: "RunOutcome",
 });
 
+export const RunCellsOrigin = Schema.Struct({
+  kind: Schema.Literal("cells"),
+  cell_ids: Schema.Array(CellId).check(Schema.isMinLength(1)).annotateKey({
+    description:
+      "The cells the run was requested for. Fixed when the run is accepted, so a client can tell which cells a queued run will reach before the runtime has planned their executions. Each one's execution in this run reports the fingerprint of the source accepted for it.",
+  }),
+}).annotate({ identifier: "RunCellsOrigin" });
+
+export const RunCodeOrigin = Schema.Struct({
+  kind: Schema.Literal("code"),
+}).annotate({ identifier: "RunCodeOrigin" });
+
+export const RunRuntimeOrigin = Schema.Struct({
+  kind: Schema.Literal("runtime"),
+}).annotate({ identifier: "RunRuntimeOrigin" });
+
+export const RunOrigin = Schema.Union([
+  RunCellsOrigin,
+  RunCodeOrigin,
+  RunRuntimeOrigin,
+]).annotate({
+  description:
+    "What a run was given when it was created, tagged on `kind`. A\n`cells` run was given the cells in `cell_ids`. A `code` run was\ngiven code to evaluate, which its scratch execution carries. A\n`runtime` run was given neither. The runtime scheduled it in\nresponse to a change, such as the cells that read a UI element\nafter its value changes. Other kinds are defined by later versions\nof this protocol.\n",
+  identifier: "RunOrigin",
+});
+
 export const Run = Schema.Struct({
   id: RunId,
   notebook_id: NotebookId,
   runtime_id: RuntimeId.annotateKey({
     description: "The runtime that produced this run.",
   }),
-  cells: Schema.Array(CellId).annotateKey({
-    description:
-      "The cells the run was requested for. Fixed when the run is accepted, so a client can tell which cells a queued run will reach before the runtime has planned their executions. Each one's execution in this run reports the fingerprint of the source accepted for it. Empty for scratch code and for a run the runtime scheduled itself.",
-  }),
+  origin: RunOrigin,
   status: Lifecycle.annotateKey({
     description:
       "Queued until the first execution starts, running until the cycle has settled or been terminated, and completed once all member executions are terminal and no more can be scheduled in this run. A run can complete with no executions.",

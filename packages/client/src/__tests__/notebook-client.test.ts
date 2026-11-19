@@ -246,7 +246,7 @@ describe("NotebookClient", () => {
       id: "r/1",
       notebook_id: "n1",
       runtime_id: "rt-1",
-      cells: [],
+      origin: { kind: "code" },
       status: "running",
       started_at: "2026-10-01T09:20:01Z",
       completed_at: null,
@@ -337,7 +337,10 @@ describe("NotebookClient", () => {
         id: "run-1",
         notebook_id: "n1",
         runtime_id: "rt-1",
-        cells: method === "run" ? ["c1"] : [],
+        origin:
+          method === "run"
+            ? { kind: "cells", cell_ids: ["c1"] }
+            : { kind: "code" },
         status: "queued",
         started_at: null,
         completed_at: null,

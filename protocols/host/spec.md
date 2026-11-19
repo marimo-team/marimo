@@ -133,15 +133,20 @@ A **run** groups a cycle of work and the reactive evaluations it causes. An
 within that cycle. Clients can follow individual execution results and the
 overall progress of a run.
 
+A run's `origin` records what the run was given when it was created, which is
+the cells a client asked for or the scratch code a client submitted.
+
+    Run { ..., origin: { kind: "cells", cell_ids } | { kind: "code" } | { kind: "runtime" } }
+
 ```text
 Notebook
 │
-├── Run A · evaluate a cell
+├── Run A · origin cells · evaluate a cell
 │   ├── Cell execution · the requested cell
 │   ├── Cell execution · a dependent cell
 │   └── Cell execution · another dependent cell
 │
-└── Run B · evaluate scratch code
+└── Run B · origin code · evaluate scratch code
     └── Scratch execution
 ```
 
@@ -163,15 +168,16 @@ then on. A queued execution that will not run completes without starting, as
 
 An execution can also lead to a later run. For example, a cell may create a UI
 element that a user later interacts with, triggering reactive evaluation. That
-work belongs to a new run and does not extend the original run's lifetime.
+work belongs to a new run and does not extend the original run's lifetime. The
+runtime schedules the new run itself, so its origin is `runtime`.
 
 ```text
 Notebook
 │
-├── Run A · evaluate a cell
+├── Run A · origin cells · evaluate a cell
 │   └── Cell execution A1 · create a UI element
 │
-└── Run B · respond to a later UI interaction
+└── Run B · origin runtime · respond to a later UI interaction
     ├── Cell execution · a dependent cell
     └── Cell execution · another dependent cell
 ```
@@ -472,10 +478,10 @@ the notebook stream for all attached clients. Clients that need to observe the
 full sequence open the stream before submitting work. Hosts that offer execution
 MUST execute one run at a time, accept further requests as `queued` runs, and
 start them in the order they were accepted. A run's requested cells and their
-source are fixed when it is accepted, and the run's `cells` names them, so a
-client can tell which cells a queued run will reach before the runtime has
-planned their executions. Editing continues while runs are queued or running,
-and a result from source the document no longer has is outdated.
+source are fixed when it is accepted, and its `origin` names them in
+`cell_ids`, so a client can tell which cells a queued run will reach before the
+runtime has planned their executions. Editing continues while runs are queued
+or running, and a result from source the document no longer has is outdated.
 Completion means the work has finished, including any interruption that was
 requested.
 

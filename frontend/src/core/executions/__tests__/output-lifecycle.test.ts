@@ -111,7 +111,7 @@ describe("output lifetime", () => {
         id: "missed",
         notebook_id: "n1",
         runtime_id: "r1",
-        cells: [C1],
+        origin: { kind: "cells", cell_ids: [C1] },
         status: "queued",
         outcome: null,
         started_at: null,
