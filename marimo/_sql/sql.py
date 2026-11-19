@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+from marimo._ast.sql_visitor import POLARS_ENGINE
 from marimo._config.manager import (
     EnvVarReader,
     MarimoConfigManager,
@@ -26,6 +27,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.output import replace
 from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.engines.polars import PolarsEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
 from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
@@ -135,12 +137,26 @@ def _default_duckdb_deps() -> list[Dependency]:
     )
 
 
+def _polars_engine_deps(sql_output: SqlOutputType) -> list[Dependency]:
+    deps = [DependencyManager.polars]
+    if sql_output == "pandas":
+        deps.extend([DependencyManager.pandas, DependencyManager.pyarrow])
+    return deps
+
+
+def _execution_globals() -> dict[str, Any]:
+    try:
+        return get_context().globals
+    except ContextNotInitializedError:
+        return {}
+
+
 @mddoc
 def sql(
     query: str,
     *,
     output: bool = True,
-    engine: DBAPIConnection | None = None,
+    engine: DBAPIConnection | Literal["polars"] | None = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -159,7 +175,8 @@ def sql(
         output: Whether to display the result in the UI. Defaults to True.
         engine: Optional SQL engine to use. Can be a SQLAlchemy, DuckDB, Clickhouse,
             Redshift, Ibis, or DB-API 2.0 compatible connection (including ADBC drivers).
-               If None, uses DuckDB.
+            Pass `"polars"` to run the query with Polars against the Polars
+            DataFrames and LazyFrames in the notebook. If None, uses DuckDB.
 
     Returns:
         The result of the query.
@@ -175,6 +192,13 @@ def sql(
             source="kernel",
         )
         sql_engine = DuckDBEngine(connection=None)
+    elif PolarsEngine.is_compatible(engine):
+        DependencyManager.require_many(
+            "to execute sql with Polars",
+            *_polars_engine_deps(get_configured_sql_output_format()),
+            source="kernel",
+        )
+        sql_engine = PolarsEngine(_execution_globals())
     else:
         for engine_cls in SUPPORTED_ENGINES:
             if engine_cls.is_compatible(engine):
@@ -184,7 +208,7 @@ def sql(
                 break
         else:
             raise ValueError(
-                "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift, StarRocks or DBAPI 2.0 compatible engine."
+                f"Unsupported engine. Must be {POLARS_ENGINE!r} or a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift, StarRocks or DBAPI 2.0 compatible engine."
             )
 
     try:
@@ -288,6 +312,9 @@ def _apply_result_limit(
 
 def _query_includes_limit(query: str) -> bool:
     """Check if a SQL query includes a LIMIT clause."""
+    if not DependencyManager.sqlglot.has():
+        return False
+
     import sqlglot
     from sqlglot.expressions import Limit, Select
 

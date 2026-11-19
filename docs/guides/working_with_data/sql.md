@@ -127,6 +127,33 @@ Defining a non-private (non-underscored) output variable in the SQL cell allows 
   </figure>
 </div>
 
+## Querying dataframes with Polars
+
+To run a query with [Polars SQL](https://docs.pola.rs/user-guide/sql/intro/)
+instead of DuckDB, pass `engine="polars"`:
+
+```python
+cars = pl.scan_parquet("cars.parquet")
+```
+
+```python
+_df = mo.sql(
+    f"""
+    SELECT make, avg(mpg) AS mpg FROM cars GROUP BY make ORDER BY make
+    """,
+    engine="polars",
+)
+```
+
+The query can read any Polars `DataFrame` or `LazyFrame` defined in the
+notebook, and the cell re-runs when those frames change. This engine requires
+`polars>=1.37.0`.
+
+With the `auto` and `polars` output types, the result is collected into a
+`DataFrame`. With `lazy-polars` or `native`, the result stays a `LazyFrame`,
+so Polars can keep optimizing downstream operations. Each page of the table
+re-runs a lazy query, so sort by a unique key to keep pages consistent.
+
 ## Querying files, databases, and APIs
 
 In the above example, you may have noticed we queried an HTTP endpoint instead
