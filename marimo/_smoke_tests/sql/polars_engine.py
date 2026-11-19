@@ -12,17 +12,13 @@ import marimo
 __generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
-
-@app.cell
-def _():
+with app.setup:
     import marimo as mo
     import polars as pl
 
-    return mo, pl
 
-
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _():
     mo.md(r"""
     # Polars SQL engine
 
@@ -38,7 +34,7 @@ def _(mo):
 
 
 @app.cell
-def _(pl):
+def _():
     penguins = pl.read_csv(
         "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv",
         null_values="NA",
@@ -49,15 +45,15 @@ def _(pl):
     return flights, penguins
 
 
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _():
     mo.md(r"""
     ## Query an eager DataFrame
     """)
 
 
 @app.cell
-def _(mo, penguins):
+def _(penguins: pl.DataFrame):
     species_stats = mo.sql(
         f"""
         SELECT
@@ -74,15 +70,15 @@ def _(mo, penguins):
     return (species_stats,)
 
 
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _():
     mo.md(r"""
     ## Query the result of another SQL cell
     """)
 
 
 @app.cell
-def _(mo, species_stats):
+def _(species_stats):
     _df = mo.sql(
         f"""
         SELECT * FROM species_stats WHERE penguins > 100
@@ -92,7 +88,7 @@ def _(mo, species_stats):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md(r"""
     ## Query a remote LazyFrame
 
@@ -101,7 +97,7 @@ def _(mo):
 
 
 @app.cell
-def _(flights, mo):
+def _(flights: pl.LazyFrame):
     busiest_routes = mo.sql(
         f"""
         SELECT
@@ -119,8 +115,8 @@ def _(flights, mo):
     return (busiest_routes,)
 
 
-@app.cell
-def _(busiest_routes, mo):
+@app.cell(hide_code=True)
+def _(busiest_routes):
     mo.md(f"""
     `busiest_routes` is a `{type(busiest_routes).__name__}`. It's a
     `DataFrame` with the `auto` and `polars` SQL output types, and a
@@ -129,22 +125,24 @@ def _(busiest_routes, mo):
     """)
 
 
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _():
     mo.md(r"""
     ## React to UI elements
     """)
 
 
 @app.cell
-def _(mo):
-    min_mass = mo.ui.slider(2500, 6500, step=250, value=5500, label="Min mass (g)")
+def _():
+    min_mass = mo.ui.slider(
+        2500, 6500, step=250, value=5500, label="Min mass (g)"
+    )
     min_mass
     return (min_mass,)
 
 
 @app.cell
-def _(min_mass, mo, penguins):
+def _(min_mass, penguins: pl.DataFrame):
     _df = mo.sql(
         f"""
         SELECT species, island, sex, body_mass_g
@@ -157,7 +155,7 @@ def _(min_mass, mo, penguins):
 
 
 @app.cell
-def _(mo):
+def _():
     mo.md(r"""
     ## Polars-only syntax
 
@@ -167,13 +165,13 @@ def _(mo):
 
 
 @app.cell
-def _(pl):
+def _():
     islands = pl.DataFrame({"island": ["Biscoe", "Dream"]})
     return (islands,)
 
 
 @app.cell
-def _(islands, mo, penguins):
+def _(heavy, islands: pl.DataFrame, penguins: pl.DataFrame):
     _df = mo.sql(
         f"""
         WITH heavy AS (SELECT * FROM penguins WHERE body_mass_g > 4500)
@@ -187,8 +185,8 @@ def _(islands, mo, penguins):
     )
 
 
-@app.cell
-def _(mo):
+@app.cell(hide_code=True)
+def _():
     mo.md(r"""
     ## Errors
 
@@ -197,7 +195,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, penguins):
+def _(penguins: pl.DataFrame):
     _df = mo.sql(
         f"""
         SELECT no_such_column FROM penguins
@@ -207,7 +205,7 @@ def _(mo, penguins):
 
 
 @app.cell
-def _(mo):
+def _(no_such_table):
     _df = mo.sql(
         f"""
         SELECT * FROM no_such_table
