@@ -10,6 +10,7 @@ from typing import Any
 from unittest import mock
 
 import jedi
+import msgspec
 import pytest
 
 import marimo
@@ -421,9 +422,13 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
         )
     if path.endswith("dummy_func"):
         pytest.skip("Not picking up parameters for dummy_func")
-    if path.endswith("ChatMessage"):
+    if isinstance(obj, type) and issubclass(obj, Exception):
         pytest.skip(
-            "ChatMessage is a msgspec struct which does not support Jedi dict completions"
+            "Exception classes do not have typed constructor parameters for autocomplete"
+        )
+    if isinstance(obj, type) and issubclass(obj, msgspec.Struct):
+        pytest.skip(
+            "msgspec Struct classes do not support Jedi dict completions"
         )
     call = f"{path}("
     code = f"import {import_name};{call}"
