@@ -34,7 +34,6 @@ from marimo._sql.utils import (
     extract_explain_content,
     get_configured_sql_output_format,
     is_explain_query,
-    raise_df_import_error,
 )
 from marimo._types.ids import VariableName
 from marimo._utils.log_never import log_never
@@ -226,22 +225,9 @@ def sql(
 
     custom_total_count: Literal["too_many"] | None = None
     if enforce_own_limit:
-        if DependencyManager.polars.has():
-            custom_total_count = (
-                "too_many"
-                if len(df) > cast(int, default_result_limit)
-                else None
-            )
-            df = df.limit(default_result_limit)
-        elif DependencyManager.pandas.has():
-            custom_total_count = (
-                "too_many"
-                if len(df) > cast(int, default_result_limit)
-                else None
-            )
-            df = df.head(default_result_limit)
-        else:
-            raise_df_import_error("polars[pyarrow]")
+        df, custom_total_count = _apply_result_limit(
+            df, cast(int, default_result_limit)
+        )
 
     if output:
         from marimo._output.formatters.df_formatters import include_opinionated
@@ -279,6 +265,25 @@ def sql(
                 )
             )
     return df
+
+
+def _apply_result_limit(
+    df: Any, limit: int
+) -> tuple[Any, Literal["too_many"] | None]:
+    if DependencyManager.polars.imported():
+        import polars as pl
+
+        if isinstance(df, pl.LazyFrame):
+            # Counting the rows would execute the query.
+            return df.limit(limit), None
+
+    if DependencyManager.pandas.imported():
+        import pandas as pd
+
+        if isinstance(df, pd.DataFrame):
+            return df.head(limit), "too_many" if len(df) > limit else None
+
+    return df.limit(limit), "too_many" if len(df) > limit else None
 
 
 def _query_includes_limit(query: str) -> bool:

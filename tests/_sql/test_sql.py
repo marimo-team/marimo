@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +16,7 @@ from marimo._plugins import ui
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql import (
+    _apply_result_limit,
     _query_includes_limit,
     _resolve_default_duckdb_deps,
     get_default_result_limit,
@@ -465,6 +466,47 @@ def test_query_includes_limit() -> None:
         _query_includes_limit("SELECT * FROM t LIMIT 5; SELECT * FROM t2")
         is False
     )
+
+
+def _as_pandas(df: Any) -> Any:
+    return df.to_pandas()
+
+
+def _as_duckdb_relation(df: Any) -> Any:
+    import duckdb
+
+    duckdb.register("limit_frame", df)
+    return duckdb.sql("SELECT * FROM limit_frame")
+
+
+@pytest.mark.requires("polars", "pandas", "duckdb")
+@pytest.mark.parametrize(
+    "to_result", [lambda df: df, _as_pandas, _as_duckdb_relation]
+)
+def test_apply_result_limit_eager(to_result: Callable[[Any], Any]) -> None:
+    import polars as pl
+
+    df = pl.DataFrame({"n": range(5)})
+    result = to_result(df)
+
+    limited, total_count = _apply_result_limit(result, 3)
+    assert len(limited) == 3
+    assert total_count == "too_many"
+
+    _, total_count = _apply_result_limit(result, 5)
+    assert total_count is None
+
+
+@pytest.mark.requires("polars")
+def test_apply_result_limit_keeps_lazy_frames_lazy() -> None:
+    import polars as pl
+
+    limited, total_count = _apply_result_limit(
+        pl.LazyFrame({"n": range(5)}), 3
+    )
+    assert isinstance(limited, pl.LazyFrame)
+    assert len(limited.collect()) == 3
+    assert total_count is None
 
 
 @pytest.mark.parametrize(
