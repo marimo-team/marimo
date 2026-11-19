@@ -2,7 +2,10 @@
 
 import type { Execution } from "@marimo-team/client/protocol";
 import { type CellId, SCRATCH_CELL_ID } from "../cells/ids";
-import type { CellMessage } from "../kernel/messages";
+import type {
+  OutputMessage,
+  NotificationMessageData,
+} from "../kernel/messages";
 
 // Virtual files are of the form /@file/<file-name>.<extension>
 const VIRTUAL_FILE_REGEX = /\/@file\/([^\s"&'/]+)\.([\dA-Za-z]+)/g;
@@ -23,15 +26,14 @@ export class VirtualFileTracker {
   }
 
   public virtualFiles = new Map<CellId, Set<string>>();
+  private callbackFiles = new Map<CellId, Set<string>>();
 
   private constructor() {
     // Private
   }
 
-  public track(message: Pick<CellMessage, "cell_id" | "output">): void {
-    if (message.output) {
-      this.trackValue(message.cell_id, message.output);
-    }
+  public track(message: { cell_id: CellId; output: OutputMessage }): void {
+    this.trackValue(message.cell_id, message.output);
   }
 
   public trackExecution(record: Execution): void {
@@ -45,17 +47,29 @@ export class VirtualFileTracker {
     }
   }
 
+  public trackCallbackOutput(
+    message: NotificationMessageData<"callback-output">,
+  ): void {
+    if (message.replace || message.entries.length === 0) {
+      this.callbackFiles.delete(message.cell_id);
+    }
+    for (const entry of message.entries) {
+      this.trackValue(message.cell_id, entry, this.callbackFiles);
+    }
+  }
+
   private trackValue(
     cellId: CellId,
     output: { mimetype: string; data: unknown },
+    files = this.virtualFiles,
   ): void {
     switch (output.mimetype) {
       case "application/json":
       case "text/html": {
-        const prev = this.virtualFiles.get(cellId);
+        const prev = files.get(cellId);
         const matches = findVirtualFiles(output.data);
         prev?.forEach((file) => matches.add(file));
-        this.virtualFiles.set(cellId, matches);
+        files.set(cellId, matches);
         return;
       }
       default:
@@ -65,7 +79,10 @@ export class VirtualFileTracker {
 
   public filenames(): string[] {
     const set = new Set<string>();
-    for (const files of this.virtualFiles.values()) {
+    for (const files of [
+      ...this.virtualFiles.values(),
+      ...this.callbackFiles.values(),
+    ]) {
       files.forEach((file) => set.add(file));
     }
 
@@ -74,6 +91,7 @@ export class VirtualFileTracker {
 
   public removeForCellId(cellId: CellId): void {
     this.virtualFiles.delete(cellId);
+    this.callbackFiles.delete(cellId);
   }
 }
 

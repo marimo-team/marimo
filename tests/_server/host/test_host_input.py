@@ -12,7 +12,8 @@ import pytest
 
 from marimo._messaging.notification import ConsumerCapabilities
 from marimo._server.host import HOST_API_PATH
-from marimo._types.ids import ConsumerId, SessionId
+from marimo._session.state.serialize import serialize_session_view
+from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from tests._server.api.endpoints.ws_helpers import headers, receive_until
 from tests._server.host.drive import finished, socket_snapshot, wait_for
 from tests._server.host.live import key, open_host
@@ -283,6 +284,82 @@ async def test_interrupt_closes_prompt_and_rejects_late_reply(
         assert cancelled["request_id"] == "interrupt"
 
 
+def test_clear_console_hides_only_settled_input_on_reconnect(
+    client: TestClient,
+) -> None:
+    with client:
+        with client.websocket_connect(
+            "/ws?session_id=editor", headers=headers("editor")
+        ) as socket:
+            notebook_id = next(
+                frame["data"]["notebook"]["id"]
+                for frame in socket_snapshot(socket)
+                if frame["event"] == "notebook"
+            )
+            receive_until("kernel-ready", socket)
+            base = f"{HOST_API_PATH}/notebooks/{notebook_id}/runtime"
+            run = client.post(
+                f"{base}/execute",
+                headers={**headers("editor"), "Idempotency-Key": "run"},
+                json={
+                    "code": (
+                        "import marimo as mo\n"
+                        "input('first?')\n"
+                        "mo.output.clear_console()\n"
+                        "mo.output.clear_console()\n"
+                        "input('second?')"
+                    )
+                },
+            )
+            assert run.status_code == 202, run.text
+            while (event := socket.receive_json())["event"] != "input":
+                pass
+            first = event["data"]["input"]
+            response = client.post(
+                f"{base}/inputs/{first['id']}/reply",
+                headers={**headers("editor"), "Idempotency-Key": "reply"},
+                json={"value": "one"},
+            )
+            assert response.status_code == 200, response.text
+            clears = []
+            while True:
+                event = socket.receive_json()
+                if event["event"] == "marimo":
+                    notification = event["data"]["marimo"]
+                    if notification["op"] == "console-inputs-cleared":
+                        clears.append(notification)
+                if (
+                    event["event"] == "input"
+                    and event["data"]["input"]["prompt"] == "second?"
+                ):
+                    second = event["data"]["input"]
+                    break
+            assert len(clears) == 1
+            assert clears[0]["input_ids"] == [first["id"]]
+            assert clears[0]["execution_id"] == first["execution_id"]
+
+        with client.websocket_connect(
+            "/ws?session_id=resumed", headers=headers("resumed")
+        ) as socket:
+            snapshot = socket_snapshot(socket)
+            inputs = {
+                event["data"]["input"]["id"]: event["data"]["input"]["status"]
+                for event in snapshot
+                if event["event"] == "input"
+            }
+            assert inputs == {first["id"]: "answered", second["id"]: "pending"}
+            assert (
+                receive_until("console-inputs-cleared", socket)["data"]
+                == clears[0]
+            )
+            response = client.post(
+                f"{base}/inputs/{second['id']}/reply",
+                headers={**headers("resumed"), "Idempotency-Key": "second"},
+                json={"value": "two"},
+            )
+            assert response.status_code == 200, response.text
+
+
 @pytest.mark.parametrize("finish", ["continue", "quit", "interrupt"])
 def test_failed_cell_debugger_prompt_survives_reconnect(
     client: TestClient, finish: str
@@ -344,7 +421,10 @@ def test_failed_cell_debugger_prompt_survives_reconnect(
         while True:
             event = editor.receive_json()
             if event["event"] == "marimo":
-                assert event["data"]["marimo"]["op"] != "execution"
+                assert event["data"]["marimo"]["op"] not in {
+                    "execution",
+                    "cell-op",
+                }
             if event["event"] == "execution":
                 retained = event["data"]["execution"]
                 if retained["status"] == "completed":
@@ -368,6 +448,7 @@ def test_failed_cell_debugger_prompt_survives_reconnect(
                 if event["event"] != "marimo":
                     continue
                 msg = event["data"]["marimo"]
+                assert msg["op"] != "cell-op"
                 if msg["op"] == "pdb-output":
                     assert msg["cell_id"] == "probe"
                     transcript.extend(
@@ -430,6 +511,17 @@ def test_failed_cell_debugger_prompt_survives_reconnect(
         assert "".join(transcript).count(thread_line) == 2
         assert first != second
         expected_output = initial_output + "".join(transcript)
+        session = get_session_manager(client).get_session(SessionId("viewer"))
+        assert session is not None
+        export = serialize_session_view(
+            session.session_view,
+            [CellId_t("probe")],
+            include_callback_output=True,
+            drop_virtual_file_outputs=False,
+        )
+        console = json.dumps(export["cells"][0]["console"])
+        assert native_line not in console
+        assert thread_line not in console
         takeover("resumed")
         while True:
             event = editor.receive_json()

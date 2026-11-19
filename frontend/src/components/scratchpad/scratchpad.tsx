@@ -13,7 +13,7 @@ import type React from "react";
 import { Suspense, useMemo, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import useEvent from "react-use-event-hook";
-import { useNotebook } from "@/core/cells/cells";
+import { useCellRuntime } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
@@ -33,6 +33,7 @@ import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
+import { useAnswerPrompt } from "@/core/cells/useAnswerPrompt";
 import { Functions } from "@/utils/functions";
 import { CellEditor } from "../editor/cell/code/cell-editor";
 import {
@@ -59,7 +60,6 @@ const scratchpadCellConfig: CellConfig = {
 };
 
 export const ScratchPad: React.FC = () => {
-  const notebookState = useNotebook();
   const [userConfig] = useResolvedMarimoConfig();
   const { theme } = useTheme();
   const ref = useRef<EditorView | null>(null);
@@ -70,12 +70,13 @@ export const ScratchPad: React.FC = () => {
   const section = usePanelSection();
 
   const cellId = SCRATCH_CELL_ID;
-  const cellRuntime = notebookState.cellRuntime[cellId];
+  const cellRuntime = useCellRuntime(cellId);
   const output = useScratchOutput();
   const status = scratchStatus(
     useAtomValue(cellExecutionInputsAtom).executions,
   );
   const consoleOutputs = cellRuntime?.consoleOutputs;
+  const answerPrompt = useAnswerPrompt(cellId);
   const [code, setCode] = useAtom(scratchpadCodeAtom);
   const codeListener = useMemo(
     () => [
@@ -307,11 +308,9 @@ export const ScratchPad: React.FC = () => {
                 consoleOutputs={consoleOutputs}
                 className="overflow-auto"
                 stale={false}
-                interrupted={false}
                 cellName={DEFAULT_CELL_NAME}
-                onSubmitDebugger={Functions.NOOP}
+                onSubmitDebugger={answerPrompt}
                 cellId={cellId}
-                debuggerActive={false}
               />
             </div>
           </div>

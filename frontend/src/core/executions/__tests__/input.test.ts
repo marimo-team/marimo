@@ -47,7 +47,7 @@ describe("replyInput", () => {
   });
 
   it("answers the prompt by id in the connected notebook", async () => {
-    await replyInput(store, "prompt-1", "marimo");
+    expect(await replyInput(store, "prompt-1", "marimo")).toBe(true);
 
     expect(input).toHaveBeenCalledWith("n1", "prompt-1", { value: "marimo" });
     expect(toast).not.toHaveBeenCalled();
@@ -65,7 +65,7 @@ describe("replyInput", () => {
       },
     });
 
-    await replyInput(store, "prompt-1", "marimo");
+    expect(await replyInput(store, "prompt-1", "marimo")).toBe(false);
 
     expect(toast).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -78,7 +78,7 @@ describe("replyInput", () => {
   it("does nothing without a connected notebook", async () => {
     store.set(activeNotebookReplicaAtom, null);
 
-    await replyInput(store, "prompt-1", "marimo");
+    expect(await replyInput(store, "prompt-1", "marimo")).toBe(false);
 
     expect(input).not.toHaveBeenCalled();
     expect(toast).not.toHaveBeenCalled();

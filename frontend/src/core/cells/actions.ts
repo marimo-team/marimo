@@ -45,6 +45,7 @@ import {
   useReducerActions,
 } from "./cells";
 import { resolveColumns } from "./columns";
+import { consoleExecution } from "./execution-console";
 import { documentOf, focusWhenMounted, modelOf } from "./edit";
 import {
   isCodeHidden,
@@ -252,13 +253,32 @@ function clearOutputs(
   cellIds: readonly CellId[],
 ): void {
   clearCellOutputs(store, cellIds);
-  store.set(notebookAtom, (state) =>
-    notebookReducer(state, {
-      type: "clearCellConsoleOutputs",
-      payload: { cellIds },
-    }),
-  );
+  for (const cellId of cellIds) {
+    store.set(clearCellConsoleOutputAtom, { cellId });
+  }
 }
+
+export const clearCellConsoleOutputAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }) => {
+    const execution = consoleExecution(get, cellId);
+    const clearedConsole = execution && {
+      executionId: execution.record.id,
+      seq: execution.lastSeq ?? -1,
+      prompts: new Set(
+        [...execution.items.values()]
+          .filter((item) => item.kind === "input" && item.status === "pending")
+          .map((item) => item.id),
+      ),
+    };
+    set(notebookAtom, (state) =>
+      notebookReducer(state, {
+        type: "clearCellConsole",
+        payload: { cellId, clearedConsole },
+      }),
+    );
+  },
+);
 
 /** Clear one cell's output. */
 export const clearCellOutputAtom = atom(
@@ -636,7 +656,7 @@ export function useCellActions() {
   // The session feeds the kernel's messages and the document into the
   // notebook through `useReducerActions`; components get the operations.
   const {
-    handleCellMessage: _handleCellMessage,
+    setCellReusability: _setCellReusability,
     addLogs: _addLogs,
     reconcileDocument: _reconcileDocument,
     resetCellRuntimes: _resetCellRuntimes,
@@ -656,6 +676,7 @@ export function useCellActions() {
   const collapseAllCells = useSetAtom(collapseAllCellsAtom);
   const expandAllCells = useSetAtom(expandAllCellsAtom);
   const clearCellOutput = useSetAtom(clearCellOutputAtom);
+  const clearCellConsoleOutput = useSetAtom(clearCellConsoleOutputAtom);
   const clearAllCellOutputs = useSetAtom(clearAllCellOutputsAtom);
   const showCellIfHidden = useSetAtom(showCellIfHiddenAtom);
   const moveCell = useSetAtom(moveCellAtom);
@@ -707,6 +728,7 @@ export function useCellActions() {
       collapseAllCells,
       expandAllCells,
       clearCellOutput,
+      clearCellConsoleOutput,
       clearAllCellOutputs,
       showCellIfHidden,
     }),

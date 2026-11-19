@@ -23,20 +23,20 @@ export async function replyInput(
   store: Store,
   inputId: Protocol.ItemId,
   value: string,
-): Promise<void> {
+): Promise<boolean> {
   const replica = store.get(activeNotebookReplicaAtom);
   const notebook = replica === null ? null : store.get(replica.notebookAtom);
   const backend = replica === null ? null : store.get(replica.backendAtom);
   if (notebook === null || backend === null) {
     Logger.warn("No notebook is connected to answer the prompt in");
-    return;
+    return false;
   }
   try {
     const result = await backend
       .notebook(notebook.id)
       .input(inputId, { value });
     if (result.ok) {
-      return;
+      return true;
     }
     Logger.error("The host refused the input reply", result.problem);
     toast({
@@ -52,4 +52,5 @@ export async function replyInput(
       variant: "danger",
     });
   }
+  return false;
 }

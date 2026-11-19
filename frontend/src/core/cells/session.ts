@@ -280,7 +280,7 @@ function createCellRuntimeFromSession(
 
   return {
     ...runtimeState,
-    consoleOutputs: consoleOutputs.map((consoleOutput) => {
+    embeddedConsole: consoleOutputs.map((consoleOutput) => {
       // Handle StreamMediaOutput (type: "streamMedia")
       if (consoleOutput.type === "streamMedia") {
         return {

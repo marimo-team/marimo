@@ -197,26 +197,13 @@ async def test_worker_input_reply_reaches_its_prompt(
         key: value["status"]
         for key, value in latest_by_id(replay, "input").items()
     } == {"prompt": "answered", "next": "pending"}
-    [console] = [
-        frame["data"]["marimo"]["console"]
+    assert all(
+        frame["data"]["marimo"]["op"]
+        not in {"cell-op", "pdb-output", "callback-output"}
         for frame in replay
         if frame["event"] == "marimo"
-        and frame["data"]["marimo"]["op"] == "cell-op"
-        and frame["data"]["marimo"]["cell_id"] == cell_id
-    ]
-    assert [
-        (entry["input_id"], entry["channel"], entry["data"])
-        for entry in console
-    ] == [
-        (
-            "prompt",
-            "stdout",
-            "Prompt: \n" if password else "Prompt:  secret\n",
-        ),
-        ("next", "stdin", "Next: "),
-    ]
-    if password:
-        assert "secret" not in json.dumps(replay)
+    )
+    assert "secret" not in json.dumps(replay)
 
 
 def queued(bridge: PyodideBridge) -> list[Any]:
@@ -301,9 +288,6 @@ async def test_callback_position_and_clear_survive_worker_replay(bridge):
     )
     output = CellOutput.stdout("callback")
     deliver(bridge, CallbackOutputNotification(cell_id, [output]))
-    assert bridge.session.session_view.command_entries(
-        cell_id, CallbackOutputNotification
-    ) == [(output, 0)]
     deliver(
         bridge,
         CellNotification(
@@ -315,16 +299,14 @@ async def test_callback_position_and_clear_survive_worker_replay(bridge):
     )
     deliver(bridge, CallbackOutputNotification(cell_id, []))
     assert any(frame["event"] == "console.removed" for frame in events)
-    assert not bridge.session.session_view.command_entries(
-        cell_id, CallbackOutputNotification
-    )
-    cleared = next(
+    callback_events = [
         frame["data"]["marimo"]
-        for frame in reversed(editor_frames)
+        for frame in editor_frames
         if frame["event"] == "marimo"
-        and frame["data"]["marimo"]["op"] == "cell-op"
-    )
-    assert [row["input_id"] for row in cleared["console"]] == ["prompt"]
+        and frame["data"]["marimo"]["op"] == "callback-output"
+    ]
+    assert callback_events[0]["after_seq"] == [0]
+    assert callback_events[-1]["entries"] == []
 
     replay = await follow(bridge)
     assert not any(frame["event"] == "console" for frame in replay)
@@ -351,7 +333,7 @@ async def test_editor_receives_one_representation_of_each_output(bridge):
         frames.append(json.loads(raw))
 
     await bridge.notebook.subscribe(
-        "editor", None, receive, "marimo,execution"
+        "editor", None, receive, "marimo,execution,console"
     )
     deliver(bridge, planned(cell_id, run_id))
     deliver(bridge, running(cell_id, run_id))
@@ -369,63 +351,33 @@ async def test_editor_receives_one_representation_of_each_output(bridge):
             console=CellOutput.stdout("printed"),
         ),
     )
-    deliver(
-        bridge,
-        CellNotification(
-            cell_id=cell_id,
-            execution_id="e1",
-            run_id=run_id,
-            console=CellOutput.stdin("Continue?", input_id="confirm"),
-        ),
-    )
     for replay in (False, True):
         if replay:
             frames.clear()
             await bridge.notebook.subscribe(
-                "editor", None, receive, "marimo,execution"
+                "editor", None, receive, "marimo,execution,console"
             )
         assert (
             latest(frames, "execution")["outcome"]["display"]["data"]
             == "result"
         )
-        assert {f["event"] for f in frames} <= {"ready", "marimo", "execution"}
-        ops = [
-            f["data"]["marimo"]
+        assert {f["event"] for f in frames} <= {
+            "ready",
+            "marimo",
+            "execution",
+            "console",
+        }
+        assert [
+            f["data"]["console"]["text"]
             for f in frames
-            if f["event"] == "marimo"
-            and f["data"]["marimo"]["op"] == "cell-op"
-        ]
+            if f["event"] == "console"
+        ] == ["printed"]
         assert all(
-            f["data"]["marimo"]["op"] != "execution"
+            f["data"]["marimo"]["op"]
+            not in {"cell-op", "pdb-output", "callback-output"}
             for f in frames
             if f["event"] == "marimo"
         )
-        assert all(op["output"] is None for op in ops)
-        entries = [
-            entry
-            for op in ops
-            for entry in (
-                op["console"]
-                if isinstance(op["console"], list)
-                else [op["console"]]
-            )
-            if entry is not None
-        ]
-        assert [entry["data"] for entry in entries] == ["printed", "Continue?"]
-        assert entries[-1]["input_id"] == "confirm"
-
-    reply = await call(
-        bridge,
-        "runtime.input",
-        {"value": "yes"},
-        input_id="confirm",
-        key="answer",
-    )
-    assert reply["status"] == 200
-    assert (
-        bridge.session._queue_manager.input_queue.get_nowait()
-        == InputReply("confirm", "yes")
-    )
 
 
 @pytest.mark.parametrize("allowed", ["runtime.run", "runtime.execute"])

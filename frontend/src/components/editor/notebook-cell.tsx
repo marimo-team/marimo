@@ -2,7 +2,7 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
-import { useAtomValue, useSetAtom, useStore } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   HelpCircleIcon,
   MoreHorizontalIcon,
@@ -44,13 +44,11 @@ import {
   type CellExecutionView,
   type CellFreshness,
   type CellRunStatus,
-  replyInput,
   useCellPresentation,
   useCellOutline,
   useCellOutput,
 } from "@/core/executions";
-import type { WithResponse } from "@/core/cells/types";
-import type { OutputMessage } from "@/core/kernel/messages";
+import { useAnswerPrompt } from "@/core/cells/useAnswerPrompt";
 import type { CellConfig } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
@@ -244,30 +242,6 @@ export interface CellHandle {
   editorViewOrNull: EditorView | null;
 }
 
-/**
- * Answer the prompt at `index` of the cell's console through the host.
- *
- * The console entry is marked answered right away, as before. The reply
- * itself names the prompt, so the host can mark it answered and turn away
- * a late reply meant for an earlier prompt.
- */
-function useAnswerPrompt(
-  cellId: CellId,
-  consoleOutputs: readonly WithResponse<OutputMessage>[],
-) {
-  const store = useStore();
-  const actions = useCellActions();
-  return useEvent((text: string, index: number) => {
-    actions.setStdinResponse({ cellId, response: text, outputIndex: index });
-    const prompt = consoleOutputs[index];
-    if (prompt?.input_id === undefined) {
-      Logger.error("The prompt has no id to answer it by", prompt);
-      return;
-    }
-    void replyInput(store, prompt.input_id, text);
-  });
-}
-
 export interface CellProps {
   cellId: CellId;
   theme: Theme;
@@ -431,7 +405,7 @@ const EditableCellComponent = ({
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
   const runCell = useRunCell(cellId);
-  const answerPrompt = useAnswerPrompt(cellId, cellRuntime.consoleOutputs);
+  const answerPrompt = useAnswerPrompt(cellId);
   const isPendingCut = useIsPendingCut(cellId);
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
@@ -835,7 +809,6 @@ const EditableCellComponent = ({
               <ConsoleOutput
                 consoleOutputs={cellRuntime.consoleOutputs}
                 stale={consoleOutputStale}
-                interrupted={interrupted}
                 // Empty name if serialization triggered
                 cellName={cellRuntime.serialization ? "_" : cellData.name}
                 onRefactorWithAI={handleRefactorWithAI}
@@ -847,7 +820,6 @@ const EditableCellComponent = ({
                 }}
                 onSubmitDebugger={answerPrompt}
                 cellId={cellId}
-                debuggerActive={cellRuntime.debuggerActive}
               />
             )}
             <PendingDeleteConfirmation cellId={cellId} />
@@ -1067,7 +1039,6 @@ const SetupCellComponent = ({
   const output = useCellOutput(cellId);
   const { execution, freshness } = useCellPresentation(cellId);
   const errored = execution.outcome === "error";
-  const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
@@ -1078,7 +1049,7 @@ const SetupCellComponent = ({
   const deleteCell = useDeleteCellCallback();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const runCell = useRunCell(cellId);
-  const answerPrompt = useAnswerPrompt(cellId, cellRuntime.consoleOutputs);
+  const answerPrompt = useAnswerPrompt(cellId);
 
   const uninstantiated = isUninstantiated(execution);
 
@@ -1293,7 +1264,6 @@ const SetupCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
-              interrupted={interrupted}
               // Don't show name
               cellName={"_"}
               onRefactorWithAI={handleRefactorWithAI}
@@ -1305,7 +1275,6 @@ const SetupCellComponent = ({
               }}
               onSubmitDebugger={answerPrompt}
               cellId={cellId}
-              debuggerActive={cellRuntime.debuggerActive}
             />
           </div>
         </div>

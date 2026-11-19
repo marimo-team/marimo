@@ -3,7 +3,7 @@ import { SquareIcon } from "lucide-react";
 import type { JSX } from "react";
 import { interruptRuntime } from "@/core/executions";
 import { store } from "@/core/state/jotai";
-import type { RuntimeState } from "@/core/network/types";
+import type { CellRunStatus } from "@/core/executions";
 import { isAppInteractionDisabled } from "@/core/session/connection-utils";
 import type { ConnectionState } from "@/core/session/types";
 import { Functions } from "@/utils/functions";
@@ -12,7 +12,7 @@ import { ToolbarItem } from "./toolbar";
 import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
 
 export const StopButton = (props: {
-  status: RuntimeState;
+  status: CellRunStatus;
   connectionState: ConnectionState;
 }): JSX.Element => {
   const { connectionState, status } = props;

@@ -7,9 +7,9 @@ import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import type { EditableDocument, Placement } from "@/core/notebook/document";
 import {
-  type CellOutput,
   cellExecutionInputsAtom,
   cellExecutionView,
+  executionSource,
   cellFreshnessAtom,
   cellOutlineAtom,
   cellOutputAtom,
@@ -25,12 +25,15 @@ import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 import type { SerializedEditorState } from "../codemirror/types";
 import { mergeOutlines } from "../dom/outline";
-import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
-import type { NotificationMessage, CellMessage } from "../kernel/messages";
+import { confirmedDocumentAtom } from "../session/active-notebook";
 import { isErrorMime } from "../mime";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
-import { transitionCell } from "./cell";
+import {
+  type CommandOutputMessage,
+  updateCommandConsole,
+} from "./command-console";
+import { consoleExecution, consoleView } from "./execution-console";
 import { applyDocument } from "./document";
 import { isCodeHidden, shownHiddenCodeAtom } from "./editor";
 import { type CellId, SCRATCH_CELL_ID } from "./ids";
@@ -38,8 +41,6 @@ import { type CellLog, getCellLogsForMessage } from "./logs";
 import type { Outline } from "./outline";
 import { focusAndScrollCellIntoView } from "./scrollCellIntoView";
 import {
-  withPdbOutput,
-  type ConsoleOutputMessage,
   type CellData,
   type CellRuntimeState,
   createCell,
@@ -167,60 +168,90 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  prepareForRun: (state, action: { cellId: CellId }) =>
+  setCellReusability: (
+    state,
+    message: { cell_id: CellId; serialization: string | null },
+  ) =>
     updateCellRuntimeState({
       state,
-      cellId: action.cellId,
-      cellReducer: (cell) => ({ ...cell, debuggerActive: false }),
+      cellId: message.cell_id,
+      cellReducer: (cell) => ({
+        ...cell,
+        serialization: message.serialization,
+      }),
     }),
-  showPdbOutput: (
-    state,
-    {
-      cell_id,
-      entries,
-      replace,
-    }: Extract<NotificationMessage, { op: "pdb-output" }>,
-  ) => {
-    return updateCellRuntimeState({
+  startCellConsole: (state, { cellId }: { cellId: CellId }) =>
+    updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => ({
+        ...cell,
+        embeddedConsole: [],
+        commandConsole: undefined,
+        answers: undefined,
+        clearedConsoleInputs: undefined,
+      }),
+    }),
+  showCommandOutput: (state, message: CommandOutputMessage) => {
+    const { cell_id, entries, replace } = message;
+    const next = updateCellRuntimeState({
       state,
       cellId: cell_id,
-      cellReducer: (cell) => {
-        let transcript =
-          replace || entries.length === 0 ? [] : (cell.pdbOutput ?? []);
-        for (const entry of entries) {
-          // Execution entries have positive keys.
-          const output: ConsoleOutputMessage = {
-            ...entry,
-            id: (transcript.at(-1)?.id ?? 0) - 1,
-          };
-          transcript = collapseConsoleOutputs([...transcript, output]);
-        }
-        return { ...cell, pdbOutput: transcript };
-      },
+      cellReducer: (cell) => ({
+        ...cell,
+        commandConsole: updateCommandConsole(cell.commandConsole, message),
+      }),
+    });
+    // The debugger transcript belongs only to the editor that can see it.
+    return replace || message.op === "pdb-output"
+      ? next
+      : {
+          ...next,
+          cellLogs: [
+            ...next.cellLogs,
+            ...getCellLogsForMessage({ cell_id, console: entries }),
+          ],
+        };
+  },
+  hideConsoleInputs: (
+    state,
+    {
+      cellId,
+      executionId,
+      inputIds,
+    }: { cellId: CellId; executionId: string; inputIds: string[] },
+  ) => {
+    const ids = new Set(inputIds);
+    return updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => ({
+        ...cell,
+        clearedConsoleInputs: { executionId, ids },
+      }),
     });
   },
   clearDebuggerOutput: (state) => {
     const cellRuntime = { ...state.cellRuntime };
     for (const cellId of Object.keys(cellRuntime) as CellId[]) {
-      if (cellRuntime[cellId].pdbOutput) {
-        cellRuntime[cellId] = { ...cellRuntime[cellId], pdbOutput: undefined };
+      const cell = cellRuntime[cellId];
+      if (
+        cell.commandConsole?.entries.some(
+          (entry) => entry.source === "pdb-output",
+        )
+      ) {
+        cellRuntime[cellId] = {
+          ...cell,
+          commandConsole: updateCommandConsole(cell.commandConsole, {
+            op: "pdb-output",
+            cell_id: cellId,
+            entries: [],
+            replace: true,
+          }),
+        };
       }
     }
     return { ...state, cellRuntime };
-  },
-  handleCellMessage: (state, message: CellMessage) => {
-    const cellId = message.cell_id;
-    const nextState = updateCellRuntimeState({
-      state,
-      cellId,
-      cellReducer: (cell) => {
-        return transitionCell(cell, message);
-      },
-    });
-    return {
-      ...nextState,
-      cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
-    };
   },
   addLogs: (state, action: { logs: CellLog[] }) => {
     return {
@@ -240,43 +271,23 @@ const {
   },
   setStdinResponse: (
     state,
-    action: { cellId: CellId; response: string; outputIndex: number },
+    action: { cellId: CellId; response: string; inputId: string },
   ) => {
-    const { cellId, response, outputIndex } = action;
+    const { cellId, response, inputId } = action;
     return updateCellRuntimeState({
       state,
       cellId,
-      cellReducer: (cell) => {
-        const consoleOutputs = [...cell.consoleOutputs];
-        const stdinOutput = consoleOutputs[outputIndex];
-        if (stdinOutput == null || stdinOutput.channel !== "stdin") {
-          Logger.warn("Expected stdin output");
-          return cell;
-        }
-
-        consoleOutputs[outputIndex] = {
-          channel: "stdin",
-          mimetype: stdinOutput.mimetype,
-          data: stdinOutput.data,
-          timestamp: stdinOutput.timestamp,
-          id: stdinOutput.id,
-          input_id: stdinOutput.input_id,
-          // An empty response resolves the prompt without retaining the secret.
-          response: stdinOutput.mimetype === "text/password" ? "" : response,
-        };
-
-        return {
-          ...cell,
-          consoleOutputs,
-        };
-      },
+      cellReducer: (cell) => ({
+        ...cell,
+        answers: new Map(cell.answers).set(inputId, response),
+      }),
     });
   },
   /**
-   * Start each cell's runtime over for a new kernel. WASM keeps the console
-   * output its mount-time snapshot gave it.
+   * WASM keeps its mount-time snapshot. A resumed kernel replays execution
+   * items, so the browser also keeps the watermark for rows it hid.
    */
-  resetCellRuntimes: (state) => {
+  resetCellRuntimes: (state, resumed?: boolean) => {
     const preserveSnapshot = isWasm();
     const cellRuntime = { ...state.cellRuntime };
     for (const cellId of [...state.cellIds, SCRATCH_CELL_ID]) {
@@ -284,8 +295,12 @@ const {
       const hasSnapshot =
         preserveSnapshot &&
         previous !== undefined &&
-        previous.consoleOutputs.length > 0;
-      cellRuntime[cellId] = hasSnapshot ? previous : createCellRuntimeState();
+        previous.embeddedConsole.length > 0;
+      cellRuntime[cellId] = hasSnapshot
+        ? previous
+        : createCellRuntimeState({
+            clearedConsole: resumed ? previous?.clearedConsole : undefined,
+          });
     }
     return { ...state, cellRuntime };
   },
@@ -334,35 +349,27 @@ const {
       cellLogs: [],
     };
   },
-  clearCellConsoleOutput: (state, action: { cellId: CellId }) => {
-    return clearConsoleOutputs(state, [action.cellId]);
-  },
-  clearCellConsoleOutputs: (state, action: { cellIds: readonly CellId[] }) => {
-    return clearConsoleOutputs(state, action.cellIds);
-  },
+  clearCellConsole: (
+    state,
+    action: {
+      cellId: CellId;
+      clearedConsole?: CellRuntimeState["clearedConsole"];
+    },
+  ) =>
+    updateCellRuntimeState({
+      state,
+      cellId: action.cellId,
+      cellReducer: (cell) => ({
+        ...cell,
+        commandConsole: undefined,
+        clearedConsole: action.clearedConsole,
+        embeddedConsole: cell.embeddedConsole.filter(
+          (output) =>
+            output.channel === "stdin" && output.response === undefined,
+        ),
+      }),
+    }),
 });
-
-function clearConsoleOutputs(
-  state: NotebookState,
-  cellIds: readonly CellId[],
-): NotebookState {
-  const cellRuntime = { ...state.cellRuntime };
-  for (const cellId of cellIds) {
-    const cell = cellRuntime[cellId];
-    if (cell === undefined) {
-      Logger.warn(`Cell ${cellId} not found in state`);
-      continue;
-    }
-    cellRuntime[cellId] = {
-      ...cell,
-      pdbOutput: undefined,
-      consoleOutputs: cell.consoleOutputs.filter(
-        (output) => output.channel === "stdin" && output.response == null,
-      ),
-    };
-  }
-  return { ...state, cellRuntime };
-}
 
 // Helper function to update a cell in the array
 function updateCellRuntimeState({
@@ -558,9 +565,20 @@ export const hasCellsAtom = atom((get) => get(notebookAtom).cellIds.length > 0);
 export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
 );
-export const cellRuntimeAtom = atomFamily((cellId: CellId) =>
-  atom((get) => withPdbOutput(get(notebookAtom).cellRuntime[cellId])),
-);
+const EMPTY_RUNTIME = createCellRuntimeState();
+export const cellRuntimeAtom = atomFamily((cellId: CellId) => {
+  const inputs = atom((get) => {
+    const execution = consoleExecution(get, cellId);
+    const cells = get(confirmedDocumentAtom)?.cells;
+    return {
+      local: get(notebookAtom).cellRuntime[cellId] ?? EMPTY_RUNTIME,
+      execution,
+      code: execution && executionSource(execution.record, cells),
+    };
+  });
+  const view = selectAtom(inputs, consoleView);
+  return atom((get) => get(view).rendered);
+});
 export const cellHandleAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellHandles[cellId]),
 );
@@ -624,19 +642,6 @@ export const renderedNotebookCellsAtom = atom((get): RuntimeCell[] =>
     output: get(cellOutputAtom(cellId)),
   })),
 );
-
-/** The document's cells with their runtime state and what each shows. */
-export function flattenTopLevelNotebookCells(
-  state: NotebookState,
-  outputs: ReadonlyMap<CellId, CellOutput>,
-): RuntimeCell[] {
-  const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.map((cellId) => ({
-    ...cellData[cellId],
-    ...withPdbOutput(cellRuntime[cellId]),
-    output: outputs.get(cellId) ?? null,
-  }));
-}
 
 export function createTracebackInfoAtom(
   cellId: CellId,

@@ -25,8 +25,24 @@ const LONG_REPR =
 
 /** Show the long repr as the cell's result. */
 function seedLongRepr(store: ReturnType<typeof createStore>, cellId: CellId) {
+  const record = MockExecutions.shown(cellId, {
+    mimetype: "text/plain",
+    data: LONG_REPR,
+  });
   MockExecutions.seed(store, [
-    MockExecutions.shown(cellId, { mimetype: "text/plain", data: LONG_REPR }),
+    {
+      ...record,
+      items: [
+        {
+          kind: "console",
+          id: "printed",
+          execution_id: record.id,
+          seq: 0,
+          name: "stdout",
+          text: "hello",
+        },
+      ],
+    },
   ]);
 }
 
@@ -55,17 +71,7 @@ LongReprA()`,
   },
   cellIds: [cellId],
   cellRuntime: {
-    [cellId]: createCellRuntimeState({
-      consoleOutputs: [
-        {
-          channel: "stdout",
-          mimetype: "text/plain",
-          data: "hello",
-          timestamp: 1_686_863_705,
-        },
-      ],
-      debuggerActive: false,
-    }),
+    [cellId]: createCellRuntimeState(),
   },
   cellHandles: {
     [cellId]: createRef(),

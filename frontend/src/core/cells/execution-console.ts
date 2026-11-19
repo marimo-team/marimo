@@ -1,17 +1,22 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { Execution } from "@marimo-team/client/protocol";
 import type { Getter } from "jotai";
+import type { ReducerCellActions } from "./cells";
 import {
   itemsInOrder,
+  type NotebookReplica,
   type Execution as ReplicaExecution,
   type Item,
 } from "../notebook/replica";
+import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { activeNotebookReplicaAtom } from "../session/active-notebook";
 import type { OutputMessage } from "../kernel/messages";
 import {
   collapseConsoleBatch,
   collapseConsoleOutputs,
 } from "./collapseConsoleOutputs";
+import { getCellLogsForMessage } from "./logs";
 import { EMBEDDED } from "./session";
 import { SCRATCH_CELL_ID, type CellId } from "./ids";
 import type {
@@ -63,6 +68,41 @@ function consoleEntry(
         response: item.status === "pending" ? undefined : null,
       };
   }
+}
+
+/** Side effects of notebook events shared by the editor and islands. */
+export function consoleObservers(
+  actions: Pick<ReducerCellActions, "addLogs" | "startCellConsole">,
+  onExecution?: (record: Execution) => void,
+): Pick<Parameters<NotebookReplica["connect"]>[1], "onExecution" | "onItem"> {
+  return {
+    onExecution(record, changed) {
+      VirtualFileTracker.INSTANCE.trackExecution(record);
+      if (changed) {
+        if (record.status === "running") {
+          actions.startCellConsole({
+            cellId: (record.cell_id ?? SCRATCH_CELL_ID) as CellId,
+          });
+        }
+        onExecution?.(record);
+      }
+    },
+    onItem(record, item, live) {
+      const cellId = (record.cell_id ?? SCRATCH_CELL_ID) as CellId;
+      const output = consoleEntry(
+        item,
+        record.started_at ? Date.parse(record.started_at) / 1000 : 0,
+      );
+      if (output.channel === "media") {
+        VirtualFileTracker.INSTANCE.track({ cell_id: cellId, output });
+      }
+      if (live && (item.kind === "console" || output.channel === "stderr")) {
+        actions.addLogs({
+          logs: getCellLogsForMessage({ cell_id: cellId, console: output }),
+        });
+      }
+    },
+  };
 }
 
 export function consoleExecution(get: Getter, cellId: CellId) {
@@ -163,7 +203,7 @@ export function consoleView(
 
   let entries =
     !execution || (record?.runtime_id === EMBEDDED && !execution.items.size)
-      ? local.consoleOutputs
+      ? local.embeddedConsole
       : itemsInOrder(execution).flatMap((item) => project(item) ?? []);
   if (commands?.length) {
     const anchored =

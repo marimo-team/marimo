@@ -359,8 +359,8 @@ describe("readExport", () => {
         appConfig: {},
       });
       invariant(state.snapshot, "no snapshot");
-      expect(state.cellRuntime[CELL_1].consoleOutputs[0].code).toBe(code);
-      expect(state.cellRuntime[CELL_1].consoleOutputs[0]).toMatchObject({
+      expect(state.cellRuntime[CELL_1].embeddedConsole[0].code).toBe(code);
+      expect(state.cellRuntime[CELL_1].embeddedConsole[0]).toMatchObject({
         traceback_format: "text",
         data: "ValueError: cached <failure>",
       });
@@ -392,7 +392,7 @@ describe("readExport", () => {
     });
 
     it("handles console outputs in session cell", () => {
-      const consoleOutputs = [
+      const embeddedConsole = [
         {
           type: "stream",
           name: "stdout",
@@ -407,7 +407,7 @@ describe("readExport", () => {
         } as const,
       ];
       const session = createSession([
-        createSessionCell("cell-1", [], consoleOutputs),
+        createSessionCell("cell-1", [], embeddedConsole),
       ]);
       const result = readExport({
         session: session,
@@ -417,7 +417,7 @@ describe("readExport", () => {
       });
 
       invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([
+      expect(result.cellRuntime[CELL_1].embeddedConsole).toEqual([
         {
           channel: "stdout",
           data: "Hello stdout",
@@ -621,7 +621,7 @@ describe("readExport", () => {
         version: 1,
       });
       // Null result means no output.
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[CELL_1].embeddedConsole).toEqual([]);
     });
 
     it("creates state when cell order differs but same cells", () => {
@@ -718,7 +718,7 @@ describe("readExport", () => {
       });
 
       invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[CELL_1].embeddedConsole).toEqual([]);
     });
 
     it("handles session cell with empty console array", () => {
@@ -731,7 +731,7 @@ describe("readExport", () => {
       });
 
       invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[CELL_1].embeddedConsole).toEqual([]);
     });
 
     it("handles session cell with multiple outputs (uses first one)", () => {
@@ -1167,7 +1167,7 @@ describe("readExport", () => {
       expect(cellIn(result, "cell-3").code).toBe("x = mo.ui.slider(0, 10)");
 
       // cell-1: No matching session cell (hash is null), gets stub session cell
-      expect(result.cellRuntime[cellId("cell-1")].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[cellId("cell-1")].embeddedConsole).toEqual([]);
 
       // cell-2: Matches session cell-1 by hash (moMd), gets its output
 

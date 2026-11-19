@@ -43,8 +43,7 @@ export function createCellRuntimeState(
   state?: Partial<CellRuntimeState>,
 ): CellRuntimeState {
   return {
-    consoleOutputs: [],
-    debuggerActive: false,
+    embeddedConsole: [],
     ...state,
   };
 }
@@ -62,15 +61,10 @@ export interface CellData {
   config: CellConfig;
 }
 
-/**
- * What the kernel's cell-ops still own. Status, timing, and how a cell last
- * ended come from the host's executions (see `@/core/executions`).
- *
- * TODO(MO-8407): Delete.
- */
+/** Console presentation and editor-session hints for a cell. */
 export interface CellRuntimeState {
-  /** messages encoding the cell's console outputs. TODO(MO-8405) */
-  consoleOutputs: ConsoleOutputMessage[];
+  /** Embedded console output until the notebook reports an execution. */
+  embeddedConsole: ConsoleOutputMessage[];
   commandConsole?: CommandConsole;
   /** Settled input IDs hidden by this execution’s clear_console(). */
   clearedConsoleInputs?: { executionId: string; ids: ReadonlySet<string> };
@@ -82,9 +76,6 @@ export interface CellRuntimeState {
     seq: number;
     prompts: ReadonlySet<string>;
   };
-  pdbOutput?: ConsoleOutputMessage[];
-  /** debugger active */
-  debuggerActive: boolean;
   /** serialization message. TODO(MO-8414) */
   serialization?: string | null;
 }
@@ -99,14 +90,14 @@ export interface CellRuntimeView extends Pick<
 
 /** A cell as the layout renderers take it, with what it shows from the host. */
 export type RuntimeCell = CellData &
-  CellRuntimeState & {
+  CellRuntimeView & {
     output: CellOutput | null;
   };
 
 export type WithResponse<T> = T & {
   /**
-   * This is not saved to the server, but we update this field
-   * after sending the message to the kernel.
+   * The locally accepted reply. Undefined means the prompt is pending.
+   * Null closes the prompt when its answer is unavailable or secret.
    */
   response?: string | null;
 };
@@ -119,9 +110,3 @@ export type WithResponse<T> = T & {
 export type ConsoleOutputMessage = WithResponse<OutputMessage> & {
   id?: number;
 };
-
-export function withPdbOutput(cell: CellRuntimeState): CellRuntimeState {
-  return cell?.pdbOutput?.length
-    ? { ...cell, consoleOutputs: [...cell.consoleOutputs, ...cell.pdbOutput] }
-    : cell;
-}

@@ -5,7 +5,7 @@ import copy
 import time
 from dataclasses import dataclass
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
+from typing import Any, Literal, TypeVar, cast
 
 import msgspec
 
@@ -69,9 +69,6 @@ from marimo._sql.connection_utils import (
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
 from marimo._utils.lists import as_list
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -698,10 +695,6 @@ class SessionView:
             else None
         )
 
-    def pending_console_inputs(self, cell_id: CellId_t) -> list[CellOutput]:
-        cell = self.cell_notifications.get(cell_id)
-        return _pending_inputs(cell.console) if cell is not None else []
-
     def has_cell_console_output(self, cell_id: CellId_t) -> bool:
         """Whether the cell has public console output, including callback writes."""
         cell = self.cell_notifications.get(cell_id)
@@ -809,17 +802,6 @@ class SessionView:
 
         self.last_execution_time[cell_id] = time_elapsed
 
-    def command_entries(
-        self,
-        cell_id: CellId_t,
-        kind: type[PdbOutputNotification | CallbackOutputNotification],
-    ) -> Sequence[tuple[CellOutput, int | None]]:
-        """Retained command writes and the preceding execution item sequence."""
-        return [
-            (entry.output, entry.after_seq)
-            for entry in self._command_output.get((cell_id, kind), ())
-        ]
-
     def record_console_position(
         self, cell_id: CellId_t, execution_id: str, seq: int
     ) -> None:
@@ -920,36 +902,22 @@ class SessionView:
                 all_notifications.extend(ui_messages)
 
         if scope == "full":
-            callback_cells = (
-                cell_id
-                for cell_id, kind in self._command_output
-                if kind is CallbackOutputNotification
+            all_notifications.extend(
+                msgspec.structs.replace(
+                    cell,
+                    console=_merge_consecutive_console_outputs(cell.console),
+                )
+                if isinstance(cell.console, list)
+                else cell
+                for cell in self.cell_notifications.values()
             )
-            for cell_id in dict.fromkeys(
-                (*self.cell_notifications, *callback_cells)
-            ):
-                cell = self.cell_notifications.get(cell_id)
-                if cell is None:
-                    cell = CellNotification(cell_id=cell_id)
-                if (
-                    cell.console is not None
-                    or (cell_id, CallbackOutputNotification)
-                    in self._command_output
-                ):
-                    cell = msgspec.structs.replace(
-                        cell,
-                        console=self.cell_console(
-                            cell_id, include_callbacks=True
-                        ),
-                    )
-                all_notifications.append(cell)
-            all_notifications.extend(self.debugger_notifications())
         elif scope == "editor":
             # Console items and values already arrive in the execution snapshot.
             all_notifications.extend(
                 msgspec.structs.replace(cell, console=None, output=None)
                 for cell in self.cell_notifications.values()
             )
+        if scope != "host":
             all_notifications.extend(self._cleared_inputs.values())
             all_notifications.extend(
                 self._command_snapshot(

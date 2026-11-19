@@ -486,7 +486,7 @@ describe("SendErrorReportButton", () => {
         },
         cellRuntime: {
           [CELL_ID]: {
-            consoleOutputs: [
+            embeddedConsole: [
               {
                 channel: "stderr",
                 mimetype: "application/vnd.marimo+traceback",
