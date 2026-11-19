@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import os
 from collections.abc import Callable
 from typing import (
@@ -126,6 +127,15 @@ class CellManager:
                 "PYTEST_VERSION" in os.environ
                 and "PYTEST_CURRENT_TEST" not in os.environ
             ) or "MARIMO_PYTEST_WASM" in os.environ
+            if (
+                not top_level
+                and inspect.isfunction(obj)
+                and obj.__name__ == "<lambda>"
+            ):
+                raise TypeError(
+                    "`@app.cell` must decorate a function defined with `def`, "
+                    "not a lambda."
+                )
             factory: Callable[..., Cell] = (
                 toplevel_cell_factory if top_level else cell_factory
             )

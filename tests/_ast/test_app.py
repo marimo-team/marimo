@@ -378,6 +378,15 @@ class TestApp:
         e.match("_ _")
 
     @staticmethod
+    def test_cell_rejects_lambda() -> None:
+        app = App()
+        for cell in [lambda: 1]:
+            with pytest.raises(TypeError, match="not a lambda"):
+                app.cell(cell)
+        with pytest.raises(TypeError, match="not a lambda"):
+            app.cell(lambda: 1)
+
+    @staticmethod
     def test_init_not_rewritten_as_local() -> None:
         app = App()
 
