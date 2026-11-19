@@ -85,6 +85,10 @@ def published(
     return document, cells
 
 
+def ended(outcome: protocol.RuntimeOutcome) -> protocol.RuntimeEnded:
+    return protocol.RuntimeEnded(ended_at=IsDatetime(), outcome=outcome)
+
+
 def running(notebook: Notebook, backend: ScriptedBackend) -> Runtime:
     notebook.start(request_id="req-start")
     notebook.observe(
@@ -113,9 +117,9 @@ class TestStart:
     ) -> None:
         runtime, _ = notebook.start()
         with pytest.raises(AttributeError):
-            runtime.status = "running"
+            runtime.state = protocol.RuntimeReady()
         with pytest.raises(AttributeError):
-            notebook.runtime = replace(runtime, status="running")
+            notebook.runtime = replace(runtime, state=protocol.RuntimeReady())
         with pytest.raises(Conflict, match="starting"):
             notebook.run("1", request_id="too-early", request=None)
 
@@ -139,7 +143,7 @@ class TestStart:
         runtime, created = notebook.start(request_id="req-1")
 
         assert created
-        assert runtime.status == "starting"
+        assert runtime.state == protocol.RuntimeStarting(message=None)
         assert backend.calls == [("start", runtime.id)]
         assert names(log) == ["runtime"]
         assert request_ids(log) == ["req-1"]
@@ -173,9 +177,8 @@ class TestStart:
         assert names(log) == ["runtime", "runtime", "runtime", "attachment"]
         assert request_ids(log) == ["req-1", "req-1", "req-1", UNSET]
         assert notebook.runtime is not None
-        assert notebook.runtime.status == "running"
+        assert notebook.runtime.state == protocol.RuntimeReady()
         assert notebook.runtime.marimo_version == "0.25.0"
-        assert notebook.runtime.message is None
 
     def test_a_kernel_that_never_comes_up_fails(
         self, notebook: Notebook, log: list[RoutedEvent]
@@ -186,9 +189,28 @@ class TestStart:
         )
 
         assert notebook.runtime is not None
-        assert notebook.runtime.status == "failed"
-        assert notebook.runtime.message == "No such environment"
+        assert notebook.runtime.state == ended(
+            protocol.RuntimeFailedOutcome(message="No such environment")
+        )
         assert request_ids(log) == ["req-1", "req-1"]
+
+    def test_replaces_a_runtime_that_ended(
+        self,
+        notebook: Notebook,
+        backend: ScriptedBackend,
+        log: list[RoutedEvent],
+    ) -> None:
+        before, _ = notebook.start()
+        notebook.observe(be.Exited(before.id, "boom"))
+        log.clear()
+
+        runtime, created = notebook.start(request_id="again")
+
+        assert created
+        assert runtime.id != before.id
+        assert backend.calls == [("start", before.id), ("start", runtime.id)]
+        assert names(log) == ["runtime.removed", "runtime"]
+        assert request_ids(log) == ["again", "again"]
 
 
 class TestStop:
@@ -205,16 +227,20 @@ class TestStop:
 
         notebook.observe(be.Exited(runtime.id))
 
-        assert notebook.runtime is None
+        assert notebook.runtime is not None
+        assert notebook.runtime.id == runtime.id
+        assert notebook.runtime.state == ended(
+            protocol.RuntimeStoppedOutcome()
+        )
         assert backend.calls == [("stop", runtime.id)]
-        assert names(log) == ["runtime.removed"]
+        assert names(log) == ["runtime"]
         assert request_ids(log) == ["stop"]
 
     def test_needs_a_runtime(self, notebook: Notebook) -> None:
         with pytest.raises(NoRuntime):
             notebook.stop()
 
-    def test_terminates_then_removes_once_the_kernel_is_gone(
+    def test_stops_then_ends_once_the_kernel_is_gone(
         self,
         notebook: Notebook,
         backend: ScriptedBackend,
@@ -224,12 +250,16 @@ class TestStop:
         log.clear()
 
         runtime = notebook.stop(request_id="req-stop")
-        assert runtime.status == "terminating"
+        assert runtime.state == protocol.RuntimeStopping()
         assert backend.calls == [("stop", runtime.id)]
 
         notebook.observe(be.Exited(runtime_id_of(notebook), "Stopped"))
-        assert notebook.runtime is None
-        assert names(log) == ["runtime", "runtime.removed"]
+        assert notebook.runtime is not None
+        assert notebook.runtime.state == ended(
+            protocol.RuntimeStoppedOutcome()
+        )
+        assert notebook.live_runtime is None
+        assert names(log) == ["runtime", "runtime"]
         assert request_ids(log) == ["req-stop", "req-stop"]
 
     def test_ends_runs_in_flight_and_retains_results(
@@ -251,7 +281,7 @@ class TestStop:
             "runtime",
             "execution",
             "run",
-            "runtime.removed",
+            "runtime",
         ]
         interrupted = log[1].event.data
         assert isinstance(interrupted, ExecutionMessage)
@@ -264,13 +294,14 @@ class TestStop:
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
             "document",
+            "runtime",
             "run",
             "execution",
             "console",
             "ready",
         ]
 
-    def test_a_failed_runtime_is_removed_at_once(
+    def test_a_runtime_that_ended_cannot_be_stopped(
         self,
         notebook: Notebook,
         backend: ScriptedBackend,
@@ -281,12 +312,11 @@ class TestStop:
         backend.calls.clear()
         log.clear()
 
-        terminating = notebook.stop()
+        with pytest.raises(NoRuntime):
+            notebook.stop()
 
-        assert terminating.status == "terminating"
-        assert notebook.runtime is None
         assert backend.calls == []
-        assert names(log) == ["runtime", "runtime.removed"]
+        assert log == []
 
     def test_keeps_completed_results_when_stopped(
         self,
@@ -305,14 +335,12 @@ class TestStop:
         notebook.stop(request_id="stop")
         notebook.observe(be.Exited(runtime_id_of(notebook)))
 
-        assert names(log) == [
-            "runtime",
-            "runtime.removed",
-        ]
+        assert names(log) == ["runtime", "runtime"]
         assert request_ids(log) == ["stop", "stop"]
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
             "document",
+            "runtime",
             "run",
             "execution",
             "console",
@@ -321,7 +349,7 @@ class TestStop:
 
 
 class TestRestart:
-    def test_only_a_running_runtime_restarts(self, notebook: Notebook) -> None:
+    def test_only_a_ready_runtime_restarts(self, notebook: Notebook) -> None:
         with pytest.raises(NoRuntime):
             notebook.restart()
         notebook.start()
@@ -341,10 +369,10 @@ class TestRestart:
 
         response = notebook.restart(request_id="req-restart")
         assert response.id != before.id
-        assert response.status == "starting"
+        assert response.state == protocol.RuntimeStarting(message=None)
         assert notebook.runtime is not None
         assert notebook.runtime.id == before.id
-        assert notebook.runtime.status == "terminating"
+        assert notebook.runtime.state == protocol.RuntimeStopping()
         assert backend.calls == [("stop", before.id)]
         notebook.observe(be.Exited(before.id))
         assert notebook.runtime is not None
@@ -361,12 +389,13 @@ class TestRestart:
         after = notebook.runtime
         assert after is not None
         assert after.id != before.id
-        assert after.status == "running"
-        assert after.started_at >= before.started_at
+        assert after.state == protocol.RuntimeReady()
+        assert after.created_at >= before.created_at
         assert names(log) == [
             "runtime",
             "execution",
             "run",
+            "runtime",
             "runtime.removed",
             "runtime",
             "runtime",
@@ -388,7 +417,7 @@ class TestRestart:
 
         assert notebook.runtime is not None
         assert notebook.runtime.id == replacement.id
-        assert notebook.runtime.status == "starting"
+        assert notebook.runtime.state == protocol.RuntimeStarting(message=None)
         assert backend.calls == [
             ("stop", before.id),
             ("start", replacement.id),
@@ -410,11 +439,11 @@ class TestAdoption:
             be.Running(runtime_id_of(notebook), marimo_version="0.25.0")
         )
 
-        assert adopted.status == "starting"
+        assert adopted.state == protocol.RuntimeStarting(message=None)
         assert backend.calls == []
         assert notebook.runtime is not None
         assert notebook.runtime.id == adopted.id
-        assert notebook.runtime.status == "running"
+        assert notebook.runtime.state == protocol.RuntimeReady()
         assert names(log) == ["runtime", "runtime", "runtime"]
         assert request_ids(log) == [UNSET, UNSET, UNSET]
 
@@ -436,14 +465,14 @@ class TestAdoption:
         assert notebook.runtime == runtime
         assert log == []
 
-    def test_only_a_failed_runtime_can_be_replaced(
+    def test_only_a_runtime_that_ended_can_be_replaced(
         self, notebook: Notebook
     ) -> None:
         notebook.start()
         with pytest.raises(Conflict, match="starting"):
             notebook.adopt(lambda _: None)
         notebook.observe(be.Running(runtime_id_of(notebook)))
-        with pytest.raises(Conflict, match="running"):
+        with pytest.raises(Conflict, match="ready"):
             notebook.adopt(lambda _: None)
 
     def test_external_relaunch_recovers_a_failed_runtime(
@@ -486,8 +515,9 @@ class TestAdoption:
         notebook.observe(be.Exited(runtime_id_of(notebook), "killed"))
 
         assert notebook.runtime is not None
-        assert notebook.runtime.status == "failed"
-        assert notebook.runtime.message == "killed"
+        assert notebook.runtime.state == ended(
+            protocol.RuntimeFailedOutcome(message="killed")
+        )
         assert names(log) == ["execution", "run", "runtime"]
         [run] = [
             event.event.data.run
@@ -495,6 +525,7 @@ class TestAdoption:
             if isinstance(event.event.data, RunMessage)
         ]
         assert isinstance(run.state, protocol.RunCompleted)
+        assert run.state.outcome == protocol.RunFailedOutcome(message="killed")
 
 
 def console(

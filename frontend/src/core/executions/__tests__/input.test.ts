@@ -36,7 +36,7 @@ describe("replyInput", () => {
     const replica = MockExecutions.seed(
       store,
       [],
-      MockExecutions.runtime("running"),
+      MockExecutions.runtime(),
       documentOf(),
     );
     store.set(replica.backendAtom, fakeBackend({ input }));

@@ -97,7 +97,7 @@ class WorkspaceIndex:
             if notebook.id in seen or self._exists(notebook):
                 continue
             loaded = self._host.peek_notebook(notebook.id)
-            if loaded is not None and loaded.runtime is not None:
+            if loaded is not None and loaded.live_runtime is not None:
                 self._host.update_notebook(
                     replace(notebook, path=None, updated_at=None)
                 )

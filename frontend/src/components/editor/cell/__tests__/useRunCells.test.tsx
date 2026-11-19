@@ -66,7 +66,7 @@ describe("useRunStaleCells", () => {
     const replica = MockExecutions.seed(
       store,
       records,
-      MockExecutions.runtime("running"),
+      MockExecutions.runtime(),
       document,
     );
     store.set(replica.backendAtom, fakeBackend({ run }));

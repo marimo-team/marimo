@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import msgspec
 import pytest
+from dirty_equals import IsStr
 
 import marimo._pyodide.notebook as worker
 from marimo._ast.app_config import _AppConfig
@@ -410,14 +411,14 @@ async def test_the_runtime_runs_once_the_page_starts_the_kernel(bridge):
         "runtime.interrupt",
         "runtime.cancel",
     } <= set(notebook["operations"])
-    assert latest(events, "runtime")["status"] == "starting"
+    assert latest(events, "runtime")["state"]["status"] == "starting"
     reply = await call(bridge, "runtime.execute", {"code": "1"})
     assert reply["status"] == 409
 
     bridge.session.started.set()
     await settle()
     runtime = latest(events, "runtime")
-    assert runtime["status"] == "running"
+    assert runtime["state"]["status"] == "ready"
     assert runtime["marimo_version"]
 
 
@@ -901,12 +902,15 @@ async def test_runs_the_kernel_schedules_appear_on_the_stream(bridge):
 
 async def test_a_kernel_exit_fails_the_runtime(bridge):
     events = await started(bridge)
-    assert latest(events, "runtime")["status"] == "running"
+    assert latest(events, "runtime")["state"]["status"] == "ready"
     bridge.session.exit_reason = "kernel died"
     bridge.session.stopped.set()
     await settle()
-    runtime = latest(events, "runtime")
-    assert (runtime["status"], runtime["message"]) == ("failed", "kernel died")
+    assert latest(events, "runtime")["state"] == {
+        "status": "ended",
+        "ended_at": IsStr(),
+        "outcome": {"kind": "failed", "message": "kernel died"},
+    }
 
 
 async def test_a_failed_launch_fails_the_runtime(
@@ -921,8 +925,11 @@ async def test_a_failed_launch_fails_the_runtime(
     with pytest.raises(RuntimeError):
         await bridge.session.start()
     await settle()
-    runtime = latest(events, "runtime")
-    assert (runtime["status"], runtime["message"]) == ("failed", "no kernel")
+    assert latest(events, "runtime")["state"] == {
+        "status": "ended",
+        "ended_at": IsStr(),
+        "outcome": {"kind": "failed", "message": "no kernel"},
+    }
 
 
 async def test_the_first_host_run_registers_the_cells(bridge):
@@ -1003,15 +1010,15 @@ async def test_a_kernel_exit_mid_run_fails_the_run(bridge):
     bridge.session.exit_reason = "boom"
     bridge.session.stopped.set()
     await settle()
-    assert latest(events, "runtime")["status"] == "failed"
+    failed = {"kind": "failed", "message": "boom"}
+    assert latest(events, "runtime")["state"]["outcome"] == failed
     run = latest(events, "run")
-    assert (run["state"]["status"], run["state"]["outcome"]["kind"]) == (
+    assert (run["state"]["status"], run["state"]["outcome"]) == (
         "completed",
-        "failed",
+        failed,
     )
-    assert latest(events, "execution")["state"]["outcome"] == {
-        "kind": "cancelled"
-    }
+    outcome = latest(events, "execution")["state"]["outcome"]
+    assert (outcome["kind"], outcome["error"]["message"]) == ("failed", "boom")
 
     # The dying kernel's late completion changes nothing.
     for notification in finished(cell["id"], run_id):

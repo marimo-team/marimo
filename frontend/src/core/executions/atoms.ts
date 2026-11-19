@@ -255,7 +255,9 @@ export function clearCellOutputs(
 /** The runtime's status, null while the notebook has none or the stream is not ready. */
 export const runtimeStatusAtom = atom((get) => {
   const replica = get(activeNotebookReplicaAtom);
-  return replica === null ? null : (get(replica.runtimeAtom)?.status ?? null);
+  return replica === null
+    ? null
+    : (get(replica.runtimeAtom)?.state.status ?? null);
 });
 
 export const notebookIsRunningAtom = atom((get) =>
@@ -272,7 +274,7 @@ type RuntimeReadiness = "running" | "waiting" | { refused: string };
  * Whether a run can go to the host now, should wait, or has nothing to wait for.
  *
  * A runtime that is starting, or a stream that has not reported yet, will
- * settle one way or the other. A failed or absent runtime, or a connection
+ * settle one way or the other. An ended or absent runtime, or a connection
  * that has closed, will not, so a run waiting on it is refused instead.
  */
 const runtimeReadinessAtom = atom((get): RuntimeReadiness => {
@@ -292,11 +294,18 @@ const runtimeReadinessAtom = atom((get): RuntimeReadiness => {
   if (runtime === null) {
     return { refused: "The notebook has no runtime" };
   }
-  switch (runtime.status) {
-    case "running":
+  switch (runtime.state.status) {
+    case "ready":
       return "running";
-    case "failed":
-      return { refused: runtime.message ?? "The runtime failed" };
+    case "ended": {
+      const { outcome } = runtime.state;
+      return {
+        refused:
+          outcome.kind === "failed"
+            ? (outcome.message ?? "The runtime failed")
+            : "The notebook has no runtime",
+      };
+    }
     default:
       return "waiting";
   }

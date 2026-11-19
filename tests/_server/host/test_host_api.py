@@ -496,7 +496,7 @@ async def test_the_catalog_stream_sends_a_snapshot_then_changes(
     await wait_for(response, lambda r: r.names()[-1] == "runtime")
     live = response.records[-1]
     assert position(harness.host, live["id"]) > position(harness.host, cursor)
-    assert live["data"]["runtime"]["status"] == "starting"
+    assert live["data"]["runtime"]["state"]["status"] == "starting"
     assert "time" in live["data"]
     disconnect()
 
@@ -739,7 +739,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
 
     started = await finished(app, "PUT", path, headers=key("k1"), body=b"{}")
     assert started.status == 202
-    assert started.json()["status"] == "starting"
+    assert started.json()["state"]["status"] == "starting"
     assert harness.backend().calls == [("start", started.json()["id"])]
 
     again = await finished(app, "PUT", path, headers=key("k2"), body=b"{}")
@@ -755,7 +755,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     )
     restart = await finished(app, "POST", path + "/restart", headers=key("k4"))
     assert restart.status == 202
-    assert restart.json()["status"] == "starting"
+    assert restart.json()["state"]["status"] == "starting"
     assert restart.json()["id"] != started.json()["id"]
 
     (await harness.host.notebook(nid)).observe(
@@ -766,7 +766,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     )
     stopped = await finished(app, "DELETE", path, headers=key("k5"))
     assert stopped.status == 202
-    assert stopped.json()["status"] == "terminating"
+    assert stopped.json()["state"]["status"] == "stopping"
     assert stopped.json()["id"] != started.json()["id"]
     assert stopped.json()["id"] == restart.json()["id"]
 
@@ -931,7 +931,7 @@ async def test_stop_settles_superseded_lifecycle_receipts(
 
 
 @pytest.mark.parametrize(
-    "operation", ["start", "stop", "restart", "failed-stop"]
+    "operation", ["start", "stop", "restart", "start-after-ended"]
 )
 async def test_synchronous_lifecycle_completion(
     harness: Harness, monkeypatch: pytest.MonkeyPatch, operation: str
@@ -940,7 +940,7 @@ async def test_synchronous_lifecycle_completion(
     if operation != "start":
         await harness.running()
     notebook = await harness.host.notebook(nid)
-    if operation == "failed-stop":
+    if operation == "start-after-ended":
         notebook.observe(be.Exited(runtime_id_of(notebook), "failed"))
     backend = harness.backend()
     start, stop = backend.start, backend.stop
@@ -956,7 +956,7 @@ async def test_synchronous_lifecycle_completion(
     monkeypatch.setattr(backend, "start", start_immediately)
     monkeypatch.setattr(backend, "stop", stop_immediately)
     listeners = list(harness.host._stream._listeners)
-    method = "PUT" if operation == "start" else "DELETE"
+    method = "PUT" if operation.startswith("start") else "DELETE"
     path = f"/notebooks/{nid}/runtime"
     if operation == "restart":
         method, path = "POST", path + "/restart"
@@ -1150,7 +1150,7 @@ async def test_runtime_interrupt_over_http(harness: Harness) -> None:
     accepted = await finished(app, "POST", interrupt, headers=key("i1"))
     assert accepted.status == 202
     assert accepted.json()["id"] == runtime_id_of(notebook)
-    assert accepted.json()["status"] == "running"
+    assert accepted.json()["state"]["status"] == "ready"
     assert harness.backend().calls[-1] == ("interrupt",)
 
     # A retry answers with the first acknowledgement and interrupts nothing.

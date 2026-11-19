@@ -331,7 +331,9 @@ def test_catalog_capabilities_and_runtime_stop() -> None:
             if kind in {"runtime", "attachment"}:
                 assert obj["notebook_id"] in state["notebook"]
             state.setdefault(kind, {})[identity(obj)] = obj
-        assert not state.get("runtime")
+        assert [r["state"]["status"] for r in state["runtime"].values()] == [
+            "ended"
+        ]
         assert set(state["attachment"]) == {"a1", "a2"}
         catalogs.append(
             {kind: objects for kind, objects in state.items() if objects}

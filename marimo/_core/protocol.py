@@ -627,6 +627,20 @@ class RunRuntimeOrigin(Struct, frozen=True, tag_field="kind", tag="runtime"):
     pass
 
 
+class RuntimeFailedOutcome(
+    Struct, frozen=True, tag_field="kind", tag="failed"
+):
+    message: (
+        Annotated[
+            str,
+            Meta(
+                description="Why the kernel could not start or why it exited, to show people. Null when the host does not know."
+            ),
+        ]
+        | None
+    )
+
+
 if TYPE_CHECKING:
     RuntimeId = NewType("RuntimeId", str)
 else:
@@ -642,12 +656,30 @@ else:
     )
 
 
-RuntimeStatus: TypeAlias = Annotated[
-    Literal["starting", "running", "terminating", "failed"],
-    Meta(
-        description="Where a runtime is in its life. A `starting` runtime is bringing\nits kernel up. A `running` runtime accepts work. A `terminating`\nruntime is shutting its kernel down. A `failed` runtime could not\nstart, or its kernel exited unexpectedly. A runtime that has\nended is removed rather than given a status.\n"
-    ),
-]
+class RuntimeReady(Struct, frozen=True, tag_field="status", tag="ready"):
+    pass
+
+
+class RuntimeStarting(Struct, frozen=True, tag_field="status", tag="starting"):
+    message: (
+        Annotated[
+            str,
+            Meta(
+                description="A note about progress, such as the packages being installed. Null when the host has nothing to report."
+            ),
+        ]
+        | None
+    )
+
+
+class RuntimeStoppedOutcome(
+    Struct, frozen=True, tag_field="kind", tag="stopped"
+):
+    pass
+
+
+class RuntimeStopping(Struct, frozen=True, tag_field="status", tag="stopping"):
+    pass
 
 
 class SaveRequest(Struct, frozen=True, forbid_unknown_fields=True):
@@ -1551,53 +1583,12 @@ class RunRunning(Struct, frozen=True, tag_field="status", tag="running"):
     ]
 
 
-class Runtime(Struct, frozen=True):
-    id: RuntimeId
-    marimo_version: (
-        Annotated[
-            str,
-            Meta(
-                description="The version of marimo running the kernel. Null until the host knows it."
-            ),
-        ]
-        | None
-    )
-    message: (
-        Annotated[
-            str,
-            Meta(
-                description="A note about the current status, such as progress while `starting` or the reason when `failed`. Null otherwise."
-            ),
-        ]
-        | None
-    )
-    notebook_id: NotebookId
-    started_at: Annotated[
-        Timestamp, Meta(description="When this runtime started.")
-    ]
-    status: RuntimeStatus
-
-
-class RuntimeMessage(Struct, frozen=True):
-    runtime: Runtime
-    request_id: (
-        Annotated[
-            str,
-            Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    time: (
-        Annotated[
-            Timestamp,
-            Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
+RuntimeOutcome: TypeAlias = Annotated[
+    RuntimeStoppedOutcome | RuntimeFailedOutcome,
+    Meta(
+        description="How a runtime ended, tagged on `kind`. A `stopped` runtime was\nended by a client or the host. A `failed` runtime could not start,\nor its kernel exited unexpectedly.\n"
+    ),
+]
 
 
 class RuntimeRemovedEvent(
@@ -2001,18 +1992,17 @@ RunState: TypeAlias = Annotated[
 ]
 
 
-class RuntimeEvent(Struct, frozen=True, tag_field="event", tag="runtime"):
-    data: RuntimeMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
+class RuntimeEnded(Struct, frozen=True, tag_field="status", tag="ended"):
+    ended_at: Annotated[Timestamp, Meta(description="When the runtime ended.")]
+    outcome: RuntimeOutcome
+
+
+RuntimeState: TypeAlias = Annotated[
+    RuntimeStarting | RuntimeReady | RuntimeStopping | RuntimeEnded,
+    Meta(
+        description="Where a runtime is in its life, tagged on `status`. A `starting`\nruntime is bringing its kernel up. A `ready` runtime accepts work.\nA `stopping` runtime is shutting its kernel down. An `ended`\nruntime has no kernel and does not change again.\n"
+    ),
+]
 
 
 class Analysis(Struct, frozen=True):
@@ -2129,7 +2119,7 @@ class Execution(Struct, frozen=True):
         Annotated[
             RuntimeId,
             Meta(
-                description="The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown."
+                description="The runtime that produced this execution. Live while that runtime is the notebook's and has not ended. Null when the producer is unknown."
             ),
         ]
         | None
@@ -2171,6 +2161,49 @@ class Run(Struct, frozen=True):
 
 class RunMessage(Struct, frozen=True):
     run: Run
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class Runtime(Struct, frozen=True):
+    created_at: Annotated[
+        Timestamp,
+        Meta(
+            description="When the host created this runtime and began starting it."
+        ),
+    ]
+    id: RuntimeId
+    marimo_version: (
+        Annotated[
+            str,
+            Meta(
+                description="The version of marimo running the kernel. Null until the host knows it."
+            ),
+        ]
+        | None
+    )
+    notebook_id: NotebookId
+    state: RuntimeState
+
+
+class RuntimeMessage(Struct, frozen=True):
+    runtime: Runtime
     request_id: (
         Annotated[
             str,
@@ -2235,6 +2268,20 @@ class ExecutionEvent(Struct, frozen=True, tag_field="event", tag="execution"):
 
 class RunEvent(Struct, frozen=True, tag_field="event", tag="run"):
     data: RunMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class RuntimeEvent(Struct, frozen=True, tag_field="event", tag="runtime"):
+    data: RuntimeMessage
     id: (
         Annotated[
             str,

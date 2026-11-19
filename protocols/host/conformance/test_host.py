@@ -10,7 +10,7 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import pytest
-from contract import accepted, document_state, objects, problem
+from contract import accepted, document_state, ended, objects, problem
 
 
 def notebook_path(notebook):
@@ -302,15 +302,15 @@ async def start(host, path, watch):
     ).endswith("decision-required"):
         pytest.skip("runtime requires a user decision")
     runtime = accepted(response, 202, "Runtime")
-    assert runtime["status"] == "starting"
+    assert runtime["state"]["status"] == "starting"
     events = await watch.until(
         lambda f: (
             f.event == "runtime"
             and f.message()["runtime"]["id"] == runtime["id"]
-            and f.message()["runtime"]["status"] in ("running", "failed")
+            and f.message()["runtime"]["state"]["status"] in ("ready", "ended")
         )
     )
-    assert events[-1].message()["runtime"]["status"] == "running"
+    assert events[-1].message()["runtime"]["state"]["status"] == "ready"
     live(events[-1], key)
     return runtime
 
@@ -400,12 +400,13 @@ async def test_runtime_lifecycle(host, scratch):
             "Runtime",
         )
         assert replacement["id"] != runtime["id"]
-        assert replacement["status"] == "starting"
+        assert replacement["state"]["status"] == "starting"
         events = await watch.until(
             lambda f: (
                 f.event == "runtime"
                 and f.message()["runtime"]["id"] == replacement["id"]
-                and f.message()["runtime"]["status"] in ("running", "failed")
+                and f.message()["runtime"]["state"]["status"]
+                in ("ready", "ended")
             )
         )
         restart_events = [
@@ -415,14 +416,18 @@ async def test_runtime_lifecycle(host, scratch):
             and frame.message().get("request_id") == key
         ]
         transitions = [
-            (f.event, f.message().get("runtime", {}).get("status"))
+            (
+                f.event,
+                f.message().get("runtime", {}).get("state", {}).get("status"),
+            )
             for f in restart_events
         ]
         assert [transition for transition, _ in groupby(transitions)] == [
-            ("runtime", "terminating"),
+            ("runtime", "stopping"),
+            ("runtime", "ended"),
             ("runtime.removed", None),
             ("runtime", "starting"),
-            ("runtime", "running"),
+            ("runtime", "ready"),
         ]
         for frame in restart_events:
             live(frame, key)
@@ -432,8 +437,10 @@ async def test_runtime_lifecycle(host, scratch):
             202,
             "Runtime",
         )
-        events = await watch.until(lambda f: f.event == "runtime.removed")
-        assert live(events[-1], key)["id"] == replacement["id"]
+        events = await watch.until(ended)
+        stopped = live(events[-1], key)["runtime"]
+        assert stopped["id"] == replacement["id"]
+        assert stopped["state"]["outcome"] == {"kind": "stopped"}
 
 
 async def test_run_cells(host, scratch):
@@ -686,7 +693,7 @@ async def test_idle_interrupt_does_not_arm_future_work(host, scratch):
             "Runtime",
         )
         assert receipt["id"] == runtime["id"]
-        assert receipt["status"] == "running"
+        assert receipt["state"]["status"] == "ready"
         key = uuid4().hex
         run = accepted(
             await host.request(

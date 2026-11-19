@@ -26,10 +26,9 @@ NOTEBOOK = protocol.NotebookId("n1")
 RUNTIME = protocol.Runtime(
     id=protocol.RuntimeId("rt-1"),
     notebook_id=NOTEBOOK,
-    status="running",
-    message=None,
     marimo_version=None,
-    started_at=utcnow(),
+    created_at=utcnow(),
+    state=protocol.RuntimeReady(),
 )
 
 
@@ -290,6 +289,37 @@ def test_scratch_work_leaves_with_its_run() -> None:
     assert describe(done) == ["run r1", "released r1"]
     executions.release(protocol.RunId("r1"))
     assert executions._records() == []
+
+
+def test_a_kernel_exit_fails_the_running_execution_and_cancels_the_queued() -> (
+    None
+):
+    executions = Executions()
+    executions.begin(run("r1"), "request")
+    executions.observe(planned("r1", ("e1", "a"), ("e2", "b")), RUNTIME)
+    executions.observe(be.Started(protocol.ExecutionId("e1")), RUNTIME)
+
+    ended = executions.interrupt("failed", "killed")
+
+    outcomes = {
+        change.id: change.state.outcome
+        for change in ended
+        if isinstance(change, protocol.Execution)
+        and isinstance(change.state, protocol.ExecutionCompleted)
+    }
+    running = outcomes[protocol.ExecutionId("e1")]
+    assert isinstance(running, protocol.ExecutionFailedOutcome)
+    assert (running.error.kind, running.error.message) == (
+        "internal",
+        "killed",
+    )
+    assert outcomes[protocol.ExecutionId("e2")] == protocol.CancelledOutcome()
+    assert [
+        change.state.outcome
+        for change in ended
+        if isinstance(change, protocol.Run)
+        and isinstance(change.state, protocol.RunCompleted)
+    ] == [protocol.RunFailedOutcome(message="killed")]
 
 
 def test_a_run_completes_only_after_its_executions_and_reports_failures() -> (

@@ -904,9 +904,9 @@ def test_untitled_editor_restarts_its_runtime_through_the_host(
                     for e in reversed(snapshot)
                     if e["event"] == "runtime"
                 )
-                assert (runtime["id"], runtime["status"]) == (
+                assert (runtime["id"], runtime["state"]["status"]) == (
                     replacement,
-                    "running",
+                    "ready",
                 )
                 response = run_cells(
                     client,

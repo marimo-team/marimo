@@ -166,7 +166,7 @@ class TestExecutionRoutes_EditMode:
             headers={**HEADERS, "Idempotency-Key": "interrupt"},
         )
         assert response.status_code == 202, response.text
-        assert response.json()["status"] == "running"
+        assert response.json()["state"]["status"] == "ready"
 
     @staticmethod
     @with_session(SESSION_ID)

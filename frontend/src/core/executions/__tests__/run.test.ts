@@ -90,7 +90,7 @@ describe("runCells", () => {
     const replica = MockExecutions.seed(
       store,
       [],
-      MockExecutions.runtime("running"),
+      MockExecutions.runtime(),
       documentOf(),
     );
     store.set(replica.backendAtom, fakeBackend({ run }));
@@ -125,7 +125,7 @@ describe("runCells", () => {
     const replica = MockExecutions.seed(
       store,
       [],
-      MockExecutions.runtime("running"),
+      MockExecutions.runtime(),
       withCells(documentOf(), {
         c2: cell("c2", "y = 2", { config: { ...CONFIG, disabled: true } }),
       }),
@@ -146,7 +146,7 @@ describe("runCells", () => {
     const replica = MockExecutions.seed(
       store,
       [],
-      MockExecutions.runtime("starting"),
+      MockExecutions.runtime({ status: "starting", message: null }),
       documentOf(),
     );
     store.set(replica.backendAtom, fakeBackend({ run }));
@@ -157,7 +157,7 @@ describe("runCells", () => {
     expect(status(C1)).toBe("queued");
     expect(run).not.toHaveBeenCalled();
 
-    store.set(replica.runtimeAtom, MockExecutions.runtime("running"));
+    store.set(replica.runtimeAtom, MockExecutions.runtime());
     await pending;
     expect(run).toHaveBeenCalledOnce();
   });
@@ -173,7 +173,7 @@ describe("runCells", () => {
     expect(run).not.toHaveBeenCalled();
 
     // The real replica reports both at once, from one snapshot.
-    store.set(replica.runtimeAtom, MockExecutions.runtime("running"));
+    store.set(replica.runtimeAtom, MockExecutions.runtime());
     store.set(replica.notebookAtom, MockExecutions.notebook());
     await pending;
 
@@ -196,24 +196,35 @@ describe("runCells", () => {
     );
   });
 
-  it("withdraws the submission and reports when the runtime has failed", async () => {
-    const replica = MockExecutions.seed(
-      store,
-      [],
-      { ...MockExecutions.runtime("failed"), message: "The kernel exited" },
-      documentOf(),
-    );
-    store.set(replica.backendAtom, fakeBackend({ run }));
-    model();
+  it.each<[Protocol.RuntimeOutcome, string]>([
+    [{ kind: "failed", message: "The kernel exited" }, "The kernel exited"],
+    [{ kind: "failed", message: null }, "The runtime failed"],
+    [{ kind: "stopped" }, "The notebook has no runtime"],
+  ])(
+    "withdraws the submission and reports when the runtime ended %o",
+    async (outcome, description) => {
+      const replica = MockExecutions.seed(
+        store,
+        [],
+        MockExecutions.runtime({
+          status: "ended",
+          ended_at: "2026-10-01T09:30:00Z",
+          outcome,
+        }),
+        documentOf(),
+      );
+      store.set(replica.backendAtom, fakeBackend({ run }));
+      model();
 
-    await runCells(store, [C1]);
+      await runCells(store, [C1]);
 
-    expect(run).not.toHaveBeenCalled();
-    expect(status(C1)).toBe("idle");
-    expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({ description: "The kernel exited" }),
-    );
-  });
+      expect(run).not.toHaveBeenCalled();
+      expect(status(C1)).toBe("idle");
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({ description }),
+      );
+    },
+  );
 
   it("withdraws the submission and reports when the notebook has no runtime", async () => {
     const replica = MockExecutions.seed(store, [], null, documentOf());
@@ -233,7 +244,7 @@ describe("runCells", () => {
     const replica = MockExecutions.seed(
       store,
       [],
-      MockExecutions.runtime("starting"),
+      MockExecutions.runtime({ status: "starting", message: null }),
       documentOf(),
     );
     store.set(replica.backendAtom, fakeBackend({ run }));
@@ -313,7 +324,7 @@ describe("runCells", () => {
     const replica = MockExecutions.seed(
       store,
       [],
-      MockExecutions.runtime("running"),
+      MockExecutions.runtime(),
       documentOf(),
     );
     store.set(replica.backendAtom, fakeBackend({ run }));
@@ -335,7 +346,7 @@ describe("runCells", () => {
     const replica = MockExecutions.seed(
       store,
       [],
-      MockExecutions.runtime("running"),
+      MockExecutions.runtime(),
       documentOf(),
     );
     store.set(replica.backendAtom, fakeBackend({ run }));

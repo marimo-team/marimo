@@ -971,13 +971,13 @@ async def test_run_retries_return_the_result_even_after_restart(
     )
     assert restarted.status == 202
     new_runtime_id = restarted.json()["id"]
-    assert restarted.json()["status"] == "starting"
+    assert restarted.json()["state"]["status"] == "starting"
     await wait_for(
         events,
         lambda response: any(
             r.get("event") == "runtime"
             and r["data"]["runtime"]["id"] == new_runtime_id
-            and r["data"]["runtime"]["status"] == "running"
+            and r["data"]["runtime"]["state"]["status"] == "ready"
             for r in response.records
         ),
         timeout=15,

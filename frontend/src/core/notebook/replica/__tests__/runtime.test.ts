@@ -17,22 +17,22 @@ describe("runtime resource", () => {
     const state = confirmed();
     const running = current(state);
     expect(running?.id).toBe("r1");
-    expect(running?.status).toBe("running");
+    expect(running?.state).toEqual({ status: "ready" });
 
-    const terminating = reducer.reduce(state, {
+    const stopping = reducer.reduce(state, {
       event: "runtime",
       id: "98",
-      data: { runtime: { ...running!, status: "terminating" } },
+      data: { runtime: { ...running!, state: { status: "stopping" } } },
     });
-    expect(current(terminating)?.status).toBe("terminating");
-    expect(current(state)?.status).toBe("running");
+    expect(current(stopping)?.state).toEqual({ status: "stopping" });
+    expect(current(state)?.state).toEqual({ status: "ready" });
 
-    const other = reducer.reduce(terminating, {
+    const other = reducer.reduce(stopping, {
       event: "runtime.removed",
       id: "99",
       data: { id: "r0", time },
     });
-    expect(current(other)).toBe(current(terminating));
+    expect(current(other)).toBe(current(stopping));
 
     const removed = reducer.reduce(other, {
       event: "runtime.removed",
@@ -58,10 +58,9 @@ describe("runtime resource", () => {
     const replacement = {
       ...current(state)!,
       id: "r2",
-      status: "starting" as const,
-      message: "Starting the kernel",
       marimo_version: null,
-      started_at: "2026-10-01T09:31:00Z",
+      created_at: "2026-10-01T09:31:00Z",
+      state: { status: "starting" as const, message: "Starting the kernel" },
     };
     const starting = reducer.reduce(removed, {
       event: "runtime",
