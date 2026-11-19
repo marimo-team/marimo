@@ -106,21 +106,19 @@ export function outputIsLoading(status: CellRunStatus): boolean {
 }
 
 /**
- * A cell's output is stale if it is loading, an input it read has changed,
+ * A settled output is stale if an input it read has changed,
  * or, while `editing`, its source has changed. A read view keeps showing
  * the last result of edited source.
  */
 export function outputIsStale(
-  execution: Pick<CellExecutionView, "status" | "outcome" | "rendered">,
+  execution: Pick<CellExecutionView, "status" | "outcome">,
   freshness: CellFreshness,
   editing: boolean,
 ): boolean {
-  const { status, outcome, rendered } = execution;
+  const { status, outcome } = execution;
 
-  // A run in progress owns the output area: loading until the running cell
-  // has shown output (e.g. mo.output.append()), whatever the last result was.
   if (outputIsLoading(status)) {
-    return !(status === "running" && rendered);
+    return false;
   }
   if (editing && freshness.sourceChanged) {
     return true;
@@ -133,8 +131,7 @@ export function outputIsStale(
 }
 
 /**
- * Console output is stale while a run is queued, since the run will clear
- * it, and once a settled result is outdated. A run in progress owns it.
+ * Console output is stale once its settled result is outdated.
  */
 export function consoleOutputIsStale(
   execution: Pick<CellExecutionView, "status" | "outcome">,
@@ -144,10 +141,7 @@ export function consoleOutputIsStale(
   if (outcome === "interrupted") {
     return false;
   }
-  if (status === "queued") {
-    return true;
-  }
-  if (status === "running") {
+  if (outputIsLoading(status)) {
     return false;
   }
   return freshness.sourceChanged || freshness.inputsChanged;

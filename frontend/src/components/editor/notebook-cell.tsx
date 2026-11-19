@@ -45,8 +45,7 @@ import {
   type CellFreshness,
   type CellRunStatus,
   replyInput,
-  useCellExecution,
-  useCellFreshness,
+  useCellPresentation,
   useCellOutline,
   useCellOutput,
 } from "@/core/executions";
@@ -67,7 +66,7 @@ import {
 } from "../../core/cells/editor";
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import {
-  cellNeedsRun,
+  cellRunReason,
   cellStatusClasses,
   isUninstantiated,
   publishedCellClasses,
@@ -353,8 +352,7 @@ const ReadonlyCellComponent = forwardRef(
     const { cellId } = props;
     const cellData = useCellData(cellId);
     const output = useCellOutput(cellId);
-    const execution = useCellExecution(cellId);
-    const freshness = useCellFreshness(cellId);
+    const { execution, freshness } = useCellPresentation(cellId);
     const errored = execution.outcome === "error";
     const interrupted = execution.outcome === "interrupted";
     const stopped = execution.outcome === "skipped";
@@ -419,8 +417,7 @@ const EditableCellComponent = ({
   const cellRuntime = useCellRuntime(cellId);
   const output = useCellOutput(cellId);
   const outline = useCellOutline(cellId);
-  const execution = useCellExecution(cellId);
-  const freshness = useCellFreshness(cellId);
+  const { execution, freshness } = useCellPresentation(cellId);
   const errored = execution.outcome === "error";
   const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
@@ -441,12 +438,7 @@ const EditableCellComponent = ({
 
   const uninstantiated = isUninstantiated(execution);
 
-  const needsRun = cellNeedsRun({
-    freshness,
-    interrupted,
-    disabled: cellData.config.disabled,
-    blocked: execution.blocked,
-  });
+  const needsRun = cellRunReason(execution, freshness, cellData) !== null;
 
   const loading = outputIsLoading(execution.status);
 
@@ -1073,8 +1065,7 @@ const SetupCellComponent = ({
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
   const output = useCellOutput(cellId);
-  const execution = useCellExecution(cellId);
-  const freshness = useCellFreshness(cellId);
+  const { execution, freshness } = useCellPresentation(cellId);
   const errored = execution.outcome === "error";
   const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
@@ -1091,12 +1082,7 @@ const SetupCellComponent = ({
 
   const uninstantiated = isUninstantiated(execution);
 
-  const needsRun = cellNeedsRun({
-    freshness,
-    interrupted,
-    disabled: cellData.config.disabled,
-    blocked: execution.blocked,
-  });
+  const needsRun = cellRunReason(execution, freshness, cellData) !== null;
   const loading =
     execution.status === "running" || execution.status === "queued";
 
