@@ -199,7 +199,11 @@ const {
       cellId: cell_id,
       cellReducer: (cell) => ({
         ...cell,
-        commandConsole: updateCommandConsole(cell.commandConsole, message),
+        commandConsole: updateCommandConsole(
+          cell.commandConsole,
+          message,
+          cell.clearedCommandIds?.[message.op],
+        ),
       }),
     });
     // The debugger transcript belongs only to the editor that can see it.
@@ -300,6 +304,9 @@ const {
         ? previous
         : createCellRuntimeState({
             clearedConsole: resumed ? previous?.clearedConsole : undefined,
+            clearedCommandIds: resumed
+              ? previous?.clearedCommandIds
+              : undefined,
           });
     }
     return { ...state, cellRuntime };
@@ -359,15 +366,24 @@ const {
     updateCellRuntimeState({
       state,
       cellId: action.cellId,
-      cellReducer: (cell) => ({
-        ...cell,
-        commandConsole: undefined,
-        clearedConsole: action.clearedConsole,
-        embeddedConsole: cell.embeddedConsole.filter(
-          (output) =>
-            output.channel === "stdin" && output.response === undefined,
-        ),
-      }),
+      cellReducer: (cell) => {
+        const clearedCommandIds = { ...cell.clearedCommandIds };
+        for (const entry of cell.commandConsole?.entries ?? []) {
+          if (entry.command_id !== undefined) {
+            clearedCommandIds[entry.source] = entry.command_id;
+          }
+        }
+        return {
+          ...cell,
+          commandConsole: undefined,
+          clearedCommandIds,
+          clearedConsole: action.clearedConsole,
+          embeddedConsole: cell.embeddedConsole.filter(
+            (output) =>
+              output.channel === "stdin" && output.response === undefined,
+          ),
+        };
+      },
     }),
 });
 

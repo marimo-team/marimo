@@ -3,7 +3,7 @@
 import type { CellOutput } from "../executions";
 import type { OutputMessage } from "../kernel/messages";
 import type { CellConfig } from "../network/types";
-import type { CommandConsole } from "./command-console";
+import type { CommandConsole, CommandOutputMessage } from "./command-console";
 import type { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
 
@@ -66,6 +66,8 @@ export interface CellRuntimeState {
   /** Embedded console output until the notebook reports an execution. */
   embeddedConsole: ConsoleOutputMessage[];
   commandConsole?: CommandConsole;
+  /** Last write hidden by this browser for each command transcript. */
+  clearedCommandIds?: Partial<Record<CommandOutputMessage["op"], string>>;
   /** Settled input IDs hidden by this execution’s clear_console(). */
   clearedConsoleInputs?: { executionId: string; ids: ReadonlySet<string> };
   /** Only the browser that answered a prompt knows its non-secret reply. */

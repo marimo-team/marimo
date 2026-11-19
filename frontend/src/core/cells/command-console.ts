@@ -20,6 +20,7 @@ export interface CommandConsole {
 export function updateCommandConsole(
   previous: CommandConsole | undefined,
   { op, entries, replace, after_seq }: CommandOutputMessage,
+  clearedId?: string,
 ): CommandConsole {
   if (op === "callback-output" && !replace && entries.length === 0) {
     // A live callback's clear_console() clears the entire cell transcript.
@@ -27,10 +28,14 @@ export function updateCommandConsole(
   }
   const reset = replace || entries.length === 0;
   const retained = previous?.entries ?? [];
-  const incoming = entries.map((entry, index) => ({
+  const clearedIndex =
+    replace && clearedId !== undefined
+      ? entries.findIndex((entry) => entry.command_id === clearedId)
+      : -1;
+  const incoming = entries.slice(clearedIndex + 1).map((entry, index) => ({
     ...entry,
     source: op,
-    afterSeq: after_seq?.[index],
+    afterSeq: after_seq?.[clearedIndex + 1 + index],
   }));
   return {
     entries: [

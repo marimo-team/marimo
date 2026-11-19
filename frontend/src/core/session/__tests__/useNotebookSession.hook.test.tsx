@@ -678,6 +678,64 @@ it.each(["browser", "kernel"])(
   },
 );
 
+it.each(["callback-output", "pdb-output"] as const)(
+  "keeps cleared %s writes hidden on replay and shows later identical writes",
+  async (op) => {
+    const store = createStore();
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    renderConnectionHook(store);
+    await started();
+    const conn = connection(fake);
+    const cell = cellId("c1");
+    const rows = () =>
+      store.get(cellRuntimeAtom(cell)).consoleOutputs.map((row) => row.data);
+    const send = (replace: boolean, ...ids: string[]) =>
+      conn.send({
+        op,
+        cell_id: cell,
+        replace,
+        after_seq: ids.map(() => 0),
+        entries: ids.map((command_id) => ({
+          command_id,
+          channel: "stdout",
+          mimetype: "text/plain",
+          data: "same",
+          timestamp: 1,
+        })),
+      });
+    await act(async () => conn.open());
+    act(() => {
+      conn.ready();
+      send(false, "one");
+      store.set(clearCellConsoleOutputAtom, { cellId: cell });
+    });
+    expect(rows()).toEqual([]);
+    act(() => {
+      conn.receive({ event: "reset", data: {} });
+      conn.ready();
+      conn.send({
+        op: "kernel-ready",
+        resumed: true,
+        ui_values: {},
+        layout: null,
+        app_config: { width: "normal" },
+        kiosk: false,
+        capabilities: {},
+        consumer_capabilities: { edit: true, interact: true },
+      });
+      send(true, "one", "two");
+    });
+    expect(rows()).toEqual(["same"]);
+    act(() => {
+      store.set(clearCellConsoleOutputAtom, { cellId: cell });
+      // The host cleared its transcript while this editor was disconnected.
+      send(true, "three");
+    });
+    expect(rows()).toEqual(["same"]);
+  },
+);
+
 it.each(["live", "replay"])(
   "interleaves %s command output with untimed execution items",
   async (mode) => {
