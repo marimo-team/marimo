@@ -71,9 +71,15 @@ def construct_interrupt_handler() -> SigintHandler:
                 # also cancel the task: the cancel would interrupt the
                 # cell's cleanup at its first `await`.
                 sched.interrupted = True
+                assert task is not None
                 if not sched.owns_task(task):
-                    # KeyboardInterrupt escaping a child task stops the loop.
-                    # Raise cancellation directly so awaited cleanup can finish.
+                    # The signal landed in a task the body started. A
+                    # KeyboardInterrupt escaping it would stop the loop, so
+                    # raise a cancellation here, and cancel the cell's own
+                    # task once this one ends: a gather that returns
+                    # exceptions, or a task group, would otherwise let the
+                    # cell carry on and succeed.
+                    sched.interrupt_cell_body(task)
                     raise asyncio.CancelledError
                 raise MarimoInterrupt
             # Raising anywhere else in an async run escapes into asyncio

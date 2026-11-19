@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from inspect import CORO_CLOSED, getcoroutinestate
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -35,7 +37,7 @@ from marimo._runtime.runner.scheduler import SequentialScheduler
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Iterator
 
 
 class _Recorder:
@@ -592,6 +594,24 @@ async def test_start_task_cancel_all_propagates() -> None:
     assert sched.interrupted is True
 
 
+@pytest.fixture
+def kernel_context_stub() -> Iterator[MagicMock]:
+    """Install a kernel context so schedulers have somewhere to mark bodies."""
+    from marimo._runtime.context.kernel_context import KernelRuntimeContext
+    from marimo._runtime.context.types import _THREAD_LOCAL_CONTEXT
+
+    ctx = MagicMock(spec=KernelRuntimeContext)
+    ctx._active_scheduler = None
+    ctx._running_cell_body = ContextVar("running_cell_body", default=None)
+    prior = _THREAD_LOCAL_CONTEXT.runtime_context
+    _THREAD_LOCAL_CONTEXT.runtime_context = ctx
+    try:
+        yield ctx
+    finally:
+        _THREAD_LOCAL_CONTEXT.runtime_context = prior
+
+
+@pytest.mark.usefixtures("kernel_context_stub")
 @pytest.mark.parametrize(
     "exception", [None, ValueError("body failed"), asyncio.CancelledError()]
 )
@@ -649,13 +669,13 @@ async def test_cell_body_scope_belongs_to_its_scheduler_and_task(
     a, b = schedulers
     async with a.start_task(
         cell_id,
-        evaluator.evaluate("A", {}, body=a.cell_body(cell_id)),  # type: ignore[arg-type]
+        evaluator.evaluate("A", {}, body=a.cell_body()),  # type: ignore[arg-type]
     ) as task_a:
         await started.wait()
         record("suspended")
         async with b.start_task(
             cell_id,
-            evaluator.evaluate("B", {}, body=b.cell_body(cell_id)),  # type: ignore[arg-type]
+            evaluator.evaluate("B", {}, body=b.cell_body()),  # type: ignore[arg-type]
         ) as task_b:
             result_b = await task_b
         resume.set()
