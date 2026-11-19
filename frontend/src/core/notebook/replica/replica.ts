@@ -116,7 +116,7 @@ export interface NotebookReplica {
       /** Handle a native marimo notification. Its payload has not been validated. */
       onNotification: (notification: unknown) => void;
       /** Observe execution records as they arrive, including retained values on reconnect. */
-      onExecution?: (record: HostExecution) => void;
+      onExecution?: (record: HostExecution, lifecycleChanged: boolean) => void;
     },
   ): () => void;
   /** Restore the current connection after its stream closed, if the host is healthy. */
@@ -331,6 +331,14 @@ export function createNotebookReplica(
       clear(malformed);
     }
 
+    function observeExecution(record: HostExecution, lifecycleChanged: boolean) {
+      try {
+        onExecution?.(record, lifecycleChanged);
+      } catch (error) {
+        Logger.error("Failed to handle execution update", error);
+      }
+    }
+
     function apply(source: NotebookEvents<string>, event: EditorEvent) {
       if (event.event === "marimo") {
         const message = MarimoMessage.safeParse(event.data);
@@ -342,8 +350,9 @@ export function createNotebookReplica(
         }
         return;
       }
+      const before = store.get(streamAtom);
       try {
-        setStream(reducer.reduce(store.get(streamAtom), event));
+        setStream(reducer.reduce(before, event));
         if (event.event === "reset") {
           store.set(generationAtom, (generation) => generation + 1);
         }
@@ -353,12 +362,15 @@ export function createNotebookReplica(
         stopMalformed(source);
         return;
       }
-      if (event.event === "execution" && onExecution) {
-        try {
-          onExecution(event.data.execution);
-        } catch (error) {
-          Logger.error("Failed to handle execution update", error);
+      const after = store.get(streamAtom);
+      if (event.event === "ready" && before.phase === "snapshot") {
+        for (const execution of after.resources.executions.executions.values()) {
+          observeExecution(execution.record, true);
         }
+      } else if (event.event === "execution" && after.phase === "live") {
+        const record = event.data.execution;
+        const previous = before.resources.executions.executions.get(record.id);
+        observeExecution(record, previous?.record.status !== record.status);
       }
     }
 

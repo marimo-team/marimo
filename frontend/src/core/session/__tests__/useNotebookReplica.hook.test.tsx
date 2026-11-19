@@ -57,6 +57,7 @@ function setup(strict = false) {
     waitUntilReady: async () => undefined,
     checkHealth: async () => true,
     onNotification: vi.fn(),
+    onExecution: vi.fn(),
   };
   const wrapper = ({ children }: PropsWithChildren) => (
     <Provider store={store}>{children}</Provider>
