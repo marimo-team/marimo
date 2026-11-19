@@ -3990,45 +3990,6 @@ export interface components {
     };
     /** Format: cell-id */
     CellId: TypedString<"CellId">;
-    /**
-     * CellNotification
-     * @description A kernel update. The editor still receives serialization and blocked-state changes.
-     *
-     *     This is a partial update: each field carries its own "unchanged" semantics,
-     *     documented per field below. Most fields treat None as "unchanged"; fields
-     *     that need to distinguish "unchanged" from "clear" use msgspec.UNSET for the
-     *     former and None for the latter.
-     *
-     *     Attributes:
-     *         cell_id: Unique identifier of the cell being updated.
-     *         output: Cell's output. Use CellOutput.empty() to clear.
-     *         console: Console messages. Single/list appends, [] clears, None unchanged.
-     *         status: Execution status (idle/running/stale/queued/disabled-transitively).
-     *         run_id: Execution run ID for tracing. Auto-set from context.
-     *         execution_id: Evaluation of this cell producing the update, when known.
-     *         serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
-     *         timestamp: Creation timestamp, auto-set.
-     */
-    CellNotification: {
-      cell_id: components["schemas"]["CellId"];
-      /** @default null */
-      console?:
-        | components["schemas"]["CellOutput"][]
-        | components["schemas"]["CellOutput"]
-        | null;
-      /** @default null */
-      execution_id?: string | null;
-      /** @enum {unknown} */
-      op: "cell-op";
-      /** @default null */
-      output?: components["schemas"]["CellOutput"] | null;
-      /** @default null */
-      run_id?: string | null;
-      serialization?: string | null;
-      /** @default null */
-      status?: ("disabled-transitively" | "idle" | "queued" | "running") | null;
-      timestamp?: number;
-    };
     /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
@@ -4748,6 +4709,20 @@ export interface components {
        * @enum {unknown}
        */
       theme: "dark" | "light" | "system";
+    };
+    /**
+     * EditorCellNotification
+     * @description A cell enters the blocked set with `disabled-transitively` and leaves with `idle`.
+     *
+     *     An omitted serialization hint is unchanged. A null hint clears reusability.
+     */
+    EditorCellNotification: {
+      cell_id: components["schemas"]["CellId"];
+      /** @enum {unknown} */
+      op: "cell-op";
+      serialization?: string | null;
+      /** @default null */
+      status?: ("disabled-transitively" | "idle") | null;
     };
     /**
      * EnvironmentOperation
@@ -6323,13 +6298,13 @@ export interface components {
       | components["schemas"]["FocusCellNotification"]
       | components["schemas"]["CallbackOutputNotification"]
       | components["schemas"]["PdbOutputNotification"]
-      | components["schemas"]["CellNotification"]
       | components["schemas"]["ConsoleInputsClearedNotification"]
       | components["schemas"]["PdbInputNotification"]
       | components["schemas"]["BreakpointsNotification"]
       | components["schemas"]["ActiveLineNotification"]
       | components["schemas"]["NotebookDocumentTransactionNotification"]
-      | components["schemas"]["ConsumerCapabilitiesNotification"];
+      | components["schemas"]["ConsumerCapabilitiesNotification"]
+      | components["schemas"]["EditorCellNotification"];
     /**
      * OpenAiConfig
      * @description Configuration options for OpenAI or OpenAI-compatible services.

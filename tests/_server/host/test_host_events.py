@@ -162,17 +162,24 @@ def test_editor_sends_cell_hints_only_when_they_change() -> None:
             for event in editor.events(None, message)
         ]
 
-    [first] = hints(blocked)
-    assert (first["op"], first["serialization"], first["status"]) == (
-        "cell-op",
-        "class",
-        "disabled-transitively",
-    )
+    assert hints(blocked) == [
+        {
+            "op": "cell-op",
+            "cell_id": cell,
+            "status": "disabled-transitively",
+            "serialization": "class",
+        }
+    ]
     assert hints(blocked) == []
-    [second] = hints(unblocked)
-    assert (second["op"], second["serialization"], second["status"]) == (
-        "cell-op",
-        None,
-        "running",
-    )
+    assert hints(unblocked) == [
+        {
+            "op": "cell-op",
+            "cell_id": cell,
+            "status": "idle",
+            "serialization": None,
+        }
+    ]
     assert hints(unblocked) == []
+    assert hints(CellNotification(cell, status="disabled-transitively")) == [
+        {"op": "cell-op", "cell_id": cell, "status": "disabled-transitively"}
+    ]

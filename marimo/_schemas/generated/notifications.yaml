@@ -161,68 +161,6 @@ components:
       - stdin
       - stdout
       title: CellChannel
-    CellNotification:
-      description: "A kernel update. The editor still receives serialization and blocked-state\
-        \ changes.\n\nThis is a partial update: each field carries its own \"unchanged\"\
-        \ semantics,\ndocumented per field below. Most fields treat None as \"unchanged\"\
-        ; fields\nthat need to distinguish \"unchanged\" from \"clear\" use msgspec.UNSET\
-        \ for the\nformer and None for the latter.\n\nAttributes:\n    cell_id: Unique\
-        \ identifier of the cell being updated.\n    output: Cell's output. Use CellOutput.empty()\
-        \ to clear.\n    console: Console messages. Single/list appends, [] clears,\
-        \ None unchanged.\n    status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
-        \    run_id: Execution run ID for tracing. Auto-set from context.\n    execution_id:\
-        \ Evaluation of this cell producing the update, when known.\n    serialization:\
-        \ Top-level reusability hint. UNSET unchanged, None clears, str sets.\n  \
-        \  timestamp: Creation timestamp, auto-set."
-      properties:
-        cell_id:
-          type: string
-        console:
-          anyOf:
-          - items:
-              $ref: '#/components/schemas/CellOutput'
-            type: array
-          - $ref: '#/components/schemas/CellOutput'
-          - type: 'null'
-          default: null
-        execution_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
-        op:
-          enum:
-          - cell-op
-        output:
-          anyOf:
-          - $ref: '#/components/schemas/CellOutput'
-          - type: 'null'
-          default: null
-        run_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
-        serialization:
-          anyOf:
-          - type: string
-          - type: 'null'
-        status:
-          anyOf:
-          - enum:
-            - disabled-transitively
-            - idle
-            - queued
-            - running
-          - type: 'null'
-          default: null
-        timestamp:
-          type: number
-      required:
-      - op
-      - cell_id
-      title: CellNotification
-      type: object
     CellOutput:
       properties:
         channel:
@@ -892,6 +830,34 @@ components:
       - kind
       - substrings
       title: DialectHidesWhen
+      type: object
+    EditorCellNotification:
+      description: 'A cell enters the blocked set with `disabled-transitively` and
+        leaves with `idle`.
+
+
+        An omitted serialization hint is unchanged. A null hint clears reusability.'
+      properties:
+        cell_id:
+          type: string
+        op:
+          enum:
+          - cell-op
+        serialization:
+          anyOf:
+          - type: string
+          - type: 'null'
+        status:
+          anyOf:
+          - enum:
+            - disabled-transitively
+            - idle
+          - type: 'null'
+          default: null
+      required:
+      - op
+      - cell_id
+      title: EditorCellNotification
       type: object
     EnvironmentOperation:
       description: Current progress and logs for one execution of environment work.

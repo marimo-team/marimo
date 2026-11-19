@@ -13,6 +13,7 @@ from marimo._messaging.notification import (
     CallbackOutputNotification,
     CellNotification,
     ConsoleInputsClearedNotification,
+    EditorCellNotification,
     EditorNotification,
     ExecutionNotification,
     KernelReadyNotification,
@@ -93,14 +94,15 @@ class EditorNotifications:
                 blocked = status == "disabled-transitively"
                 if blocked == (cell_id in self._blocked):
                     status = None
-                elif blocked:
+                elif status == "disabled-transitively":
                     self._blocked.add(cell_id)
                 else:
-                    self._blocked.discard(cell_id)
+                    self._blocked.remove(cell_id)
+                    status = "idle"
             if hint is not msgspec.UNSET or status is not None:
                 yield self._event(
                     notebook_id,
-                    CellNotification(
+                    EditorCellNotification(
                         cell_id=cell_id, serialization=hint, status=status
                     ),
                 )
