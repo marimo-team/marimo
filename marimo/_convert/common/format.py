@@ -35,6 +35,7 @@ def markdown_to_marimo(
         source = " "
 
     raw = "r" in prefix.lower()
+    delimiters: tuple[str, ...]
     if not raw:
         # Non-raw strings evaluate an authored `\"""` under either delimiter;
         # only the `"""` escape rejects it.
