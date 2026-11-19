@@ -45,6 +45,21 @@ def validate_number(
         raise TypeError("Value must be a number")
 
 
+def validate_positive_step(step: float | None) -> None:
+    """Raise if a slider step is not a positive number.
+
+    A step of zero or less cannot be snapped to on the frontend
+    (e.g. `round(delta / step)` is undefined for `step=0`).
+    """
+    if step is None:
+        return
+    validate_number(step)
+    if not step > 0:
+        raise ValueError(
+            f"Invalid step: step must be a positive number, got {step}."
+        )
+
+
 def warn_js_safe_number(*values: float | None) -> None:
     # Number.MAX_SAFE_INTEGER in JavaScript
     MAX_SAFE_INTEGER = 9007199254740991

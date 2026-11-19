@@ -198,6 +198,12 @@ def test_slider_invalid_bounds() -> None:
     assert "Invalid bounds" in str(e.value)
 
 
+@pytest.mark.parametrize("step", [0, 0.0, -1, -0.5])
+def test_slider_invalid_step(step: float) -> None:
+    with pytest.raises(ValueError, match="Invalid step"):
+        ui.slider(0, 10, step=step)
+
+
 def test_slider_exclusive_args() -> None:
     with pytest.raises(ValueError) as e:
         ui.slider(start=1, steps=[1, 3, 6])
@@ -294,6 +300,31 @@ def test_range_slider_invalid_bounds() -> None:
         ui.range_slider(1, 0)
 
     assert "Invalid bounds" in str(e.value)
+
+
+@pytest.mark.parametrize("step", [0, 0.0, -1, -0.5])
+def test_range_slider_invalid_step(step: float) -> None:
+    with pytest.raises(ValueError, match="Invalid step"):
+        ui.range_slider(0, 10, step=step)
+
+
+@pytest.mark.parametrize("value", [[], [1], [1, 2, 3]])
+def test_range_slider_value_wrong_length(value: list[int]) -> None:
+    with pytest.raises(ValueError, match="sequence of two numbers"):
+        ui.range_slider(0, 10, value=value)
+
+    with pytest.raises(ValueError, match="sequence of two numbers"):
+        ui.range_slider(steps=[1, 2, 3], value=value)
+
+
+@pytest.mark.parametrize("value", [5, "ab"])
+def test_range_slider_value_not_a_sequence(value: object) -> None:
+    with pytest.raises(TypeError, match="sequence of two numbers"):
+        ui.range_slider(0, 10, value=value)  # type: ignore[arg-type]
+
+
+def test_range_slider_value_tuple() -> None:
+    assert ui.range_slider(0, 10, value=(2, 6)).value == [2, 6]
 
 
 def test_range_slider_exclusive_args() -> None:
