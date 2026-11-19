@@ -150,13 +150,14 @@ export function ChatModelPicker({
       <PopoverContent
         side="top"
         align="center"
+        collisionPadding={16}
         onOpenAutoFocus={() => {
           activeProviderRef.current?.scrollIntoView({
             block: "nearest",
             inline: "nearest",
           });
         }}
-        className="chat-model-picker w-[420px] max-w-[calc(100vw-1rem)] p-0 overflow-hidden"
+        className="chat-model-picker w-[420px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden"
       >
         <div className="chat-model-picker-layout flex">
           <nav
