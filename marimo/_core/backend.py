@@ -215,6 +215,13 @@ class Completed:
 
 
 @dataclass(frozen=True)
+class ConsoleCleared:
+    """Remove this execution's console and side-effect displays."""
+
+    execution_id: protocol.ExecutionId
+
+
+@dataclass(frozen=True)
 class Produced:
     """An item produced by an execution.
 
@@ -267,6 +274,7 @@ Message = (
     | Planned
     | Started
     | Completed
+    | ConsoleCleared
     | Produced
     | Unbound
     | Displayed

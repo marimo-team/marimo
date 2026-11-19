@@ -1040,6 +1040,30 @@ class PdbOutputNotification(Notification, tag="pdb-output"):
     replace: bool = False
 
 
+class CallbackOutputNotification(Notification, tag="callback-output"):
+    """Console writes made by a widget callback or registered function."""
+
+    name: ClassVar[str] = "callback-output"
+    cell_id: CellId_t
+    entries: list[CellOutput]
+    replace: bool = False
+
+    @property
+    def clears_cell_console(self) -> bool:
+        return not self.entries and not self.replace
+
+
+class ConsoleInputsClearedNotification(
+    Notification, tag="console-inputs-cleared"
+):
+    """The settled input rows hidden by clear_console() in this execution."""
+
+    name: ClassVar[str] = "console-inputs-cleared"
+    cell_id: CellId_t
+    execution_id: str
+    input_ids: list[str]
+
+
 class PdbInputNotification(Notification, tag="pdb-input"):
     """Identify the debugger prompt waiting for a command in a failed cell.
 
@@ -1131,7 +1155,7 @@ class NotebookDocumentTransactionNotification(
     transaction: Transaction
 
 
-NotificationMessage = (
+EditorNotification = (
     # Cell operations
     CellNotification
     | ExecutionNotification
@@ -1192,4 +1216,11 @@ NotificationMessage = (
     | NotebookDocumentTransactionNotification
     # Consumer
     | ConsumerCapabilitiesNotification
+)
+
+
+NotificationMessage = (
+    EditorNotification
+    | CallbackOutputNotification
+    | ConsoleInputsClearedNotification
 )

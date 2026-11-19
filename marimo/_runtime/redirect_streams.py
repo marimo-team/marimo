@@ -7,7 +7,7 @@ import sys
 from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
-from marimo._messaging.streams import redirect
+from marimo._messaging.streams import ThreadSafeStream, redirect
 from marimo._messaging.thread_local_streams import (
     ThreadLocalStreamProxy,
     clear_thread_local_streams,
@@ -98,7 +98,13 @@ def redirect_streams(
             sys.stdin = stdin  # type: ignore
 
         try:
-            with redirect(stdout), redirect(stderr):
+            with (
+                stream.own_console()
+                if isinstance(stream, ThreadSafeStream)
+                else contextlib.nullcontext(),
+                redirect(stdout),
+                redirect(stderr),
+            ):
                 yield
         finally:
             sys.stdout = py_stdout

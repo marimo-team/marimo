@@ -4071,7 +4071,7 @@ export interface components {
      *
      *     `output` carries the cell's last main (rich display) output;
      *     `console_outputs` carries the buffered stdout/stderr stream from
-     *     its last execution.  Both are keyed by cell id; missing keys mean
+     *     its last execution and subsequent callbacks. Both are keyed by cell id; missing keys mean
      *     "no output captured" (the cell never ran, or produced nothing on
      *     that channel).
      */

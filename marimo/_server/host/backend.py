@@ -537,7 +537,10 @@ class SessionBackend(SessionConsumer):
             return
         if self.session is None:
             return
-        translator, reports = self._translators.feed(message)
+        translator, reports = self._translators.feed(
+            message,
+            view=self.session.session_view,
+        )
         for reported in reports:
             self._observe(reported)
         if translator is None:

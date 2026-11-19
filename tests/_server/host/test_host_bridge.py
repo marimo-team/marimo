@@ -1313,6 +1313,10 @@ async def test_session_notifications_join_the_notebook_stream_once(
         MarimoMessage(variables)
     ]
 
+    session.session_view.snapshot_notifications.assert_called_once_with(
+        scope="host"
+    )
+
     assert first == second
     assert catalog == other == []
     assert filtered == [e for e in first if isinstance(e.event, MarimoEvent)]

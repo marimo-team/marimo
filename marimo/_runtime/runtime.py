@@ -63,6 +63,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     HumanReadableStatus,
     PdbOutputNotification,
     RemoveUIElementsNotification,
@@ -78,6 +79,7 @@ from marimo._messaging.notification_utils import (
     broadcast_notification,
 )
 from marimo._messaging.streams import (
+    PdbInput,
     QueuePipe,
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -2196,15 +2198,14 @@ class Kernel:
             return
 
         with (
-            self.stream.debugger_input(cell_id)
-            if isinstance(self.stream, ThreadSafeStream)
-            else contextlib.nullcontext(None) as stdin,
             command_console(cell_id, PdbOutputNotification),
             self._install_execution_context(cell_id),
         ):
             self.debugger.post_mortem_by_cell_id(
                 cell_id,
-                stdin=stdin,
+                stdin=PdbInput(self.stream, cell_id)
+                if isinstance(self.stream, ThreadSafeStream)
+                else None,
             )
 
     @kernel_tracer.start_as_current_span("rename_file")
@@ -2486,9 +2487,12 @@ class Kernel:
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
-            with self._install_execution_context(
-                ui_element_registry.get_cell(object_id),
-                setting_element_value=True,
+            cell_id = ui_element_registry.get_cell(object_id)
+            with (
+                command_console(cell_id, CallbackOutputNotification),
+                self._install_execution_context(
+                    cell_id, setting_element_value=True
+                ),
             ):
                 try:
                     component._update(value)
@@ -2680,6 +2684,7 @@ class Kernel:
             found = True
             LOGGER.debug("Executing RPC %s", request)
             with (
+                command_console(function.cell_id, CallbackOutputNotification),
                 self._install_execution_context(cell_id=function.cell_id),
                 ctx.provide_ui_ids(str(uuid4())),
             ):

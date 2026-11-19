@@ -17,6 +17,7 @@ from marimo._core.code import code_fingerprint
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     CellNotification,
     CompletedRunNotification,
     ExecutionNotification,
@@ -272,6 +273,70 @@ def finished(cell_id: str, run_id: str, execution_id: str = "e1"):
         ),
         CompletedRunNotification(run_id=run_id, outcome="succeeded"),
     ]
+
+
+async def test_callback_position_and_clear_survive_worker_replay(bridge):
+    events = await started(bridge)
+    cell_id = latest(events, "cell")["id"]
+    editor_frames = []
+    await bridge.notebook.subscribe(
+        "editor",
+        None,
+        lambda raw: editor_frames.append(json.loads(raw)),
+        "marimo",
+    )
+    run = await call(bridge, "runtime.run", {"cells": [{"id": cell_id}]})
+    run_id = run["body"]["id"]
+    await settle()
+    deliver(bridge, planned(cell_id, run_id))
+    deliver(bridge, running(cell_id, run_id))
+    deliver(
+        bridge,
+        CellNotification(
+            cell_id=cell_id,
+            execution_id="e1",
+            run_id=run_id,
+            console=CellOutput.stdout("during"),
+        ),
+    )
+    output = CellOutput.stdout("callback")
+    deliver(bridge, CallbackOutputNotification(cell_id, [output]))
+    assert bridge.session.session_view.command_entries(
+        cell_id, CallbackOutputNotification
+    ) == [(output, 0)]
+    deliver(
+        bridge,
+        CellNotification(
+            cell_id=cell_id,
+            execution_id="e1",
+            run_id=run_id,
+            console=CellOutput.stdin("Continue?", input_id="prompt"),
+        ),
+    )
+    deliver(bridge, CallbackOutputNotification(cell_id, []))
+    assert any(frame["event"] == "console.removed" for frame in events)
+    assert not bridge.session.session_view.command_entries(
+        cell_id, CallbackOutputNotification
+    )
+    cleared = next(
+        frame["data"]["marimo"]
+        for frame in reversed(editor_frames)
+        if frame["event"] == "marimo"
+        and frame["data"]["marimo"]["op"] == "cell-op"
+    )
+    assert [row["input_id"] for row in cleared["console"]] == ["prompt"]
+
+    replay = await follow(bridge)
+    assert not any(frame["event"] == "console" for frame in replay)
+    assert latest(replay, "input")["status"] == "pending"
+    response = await call(
+        bridge,
+        "runtime.input",
+        {"value": "yes"},
+        key="answer",
+        input_id="prompt",
+    )
+    assert response["status"] == 200
 
 
 async def test_editor_receives_one_representation_of_each_output(bridge):

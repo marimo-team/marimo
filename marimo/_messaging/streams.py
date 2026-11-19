@@ -28,7 +28,6 @@ from marimo._messaging.console_output_worker import (
 )
 from marimo._messaging.input import InputReply, require_active_execution
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.notification import PdbOutputNotification
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
@@ -126,7 +125,7 @@ class ThreadSafeStream(Stream):
         # An inherited writer can keep its reader alive beyond redirection.
         self._native_pipes: set[_NativePipe] = set()
         self._native_pipes_lock = threading.Lock()
-        self._debugger_cell: CellId_t | None = None
+        self._console_owner: ConsoleContext | None = None
         self._parent_console: ThreadSafeStream | None = None
         self._console_stopped = threading.Event()
         if self.redirect_console:
@@ -182,24 +181,32 @@ class ThreadSafeStream(Stream):
         return stream
 
     @contextlib.contextmanager
-    def debugger_input(self, cell_id: CellId_t) -> Iterator[PdbInput]:
-        previous = self._debugger_cell
-        self._debugger_cell = cell_id
+    def own_console(self) -> Iterator[None]:
+        previous = self._console_owner
+        self._console_owner = ConsoleContext()
         try:
-            yield PdbInput(self, cell_id)
+            yield
         finally:
-            self._debugger_cell = previous
+            self._console_owner = previous
 
-    def queue_console(self, message: ConsoleMsg) -> None:
-        # Ordinary Python threads do not inherit the debugger's context vars.
-        # Keep their writes to its redirected streams in the private transcript.
+    def queue_console(
+        self, message: ConsoleMsg, *, redirected_write: bool = False
+    ) -> None:
+        # Ordinary Python threads write to the redirected stdout/stderr but
+        # may not inherit the execution or command context.
+        owner = self._console_owner
         if (
-            message.cell_id == self._debugger_cell
+            redirected_write
+            and owner is not None
             and message.destination is None
             and message.run_id is None
             and message.execution_id is None
         ):
-            message.destination = PdbOutputNotification
+            if owner.execution and owner.execution.cell_id == message.cell_id:
+                message.execution_id = owner.execution.id
+                message.run_id = owner.run_id
+            elif owner.command and owner.command[0] == message.cell_id:
+                message.destination = owner.command[1]
         with self.console_msg_cv:
             if not self._console_stopped.is_set():
                 self.console_msg_queue.append(message)
@@ -506,6 +513,7 @@ class ThreadSafeStdout(Stdout):
         *,
         cell_id: CellId_t | None = None,
     ) -> int:
+        redirected_write = cell_id is None
         cell_id = self._stream.cell_id if cell_id is None else cell_id
         assert cell_id is not None
         if not isinstance(data, str):
@@ -524,7 +532,8 @@ class ThreadSafeStdout(Stdout):
                 cell_id=cell_id,
                 data=data,
                 mimetype=mimetype,
-            )
+            ),
+            redirected_write=redirected_write,
         )
         return len(data)
 
@@ -578,6 +587,7 @@ class ThreadSafeStderr(Stderr):
         code: str | None = None,
         cell_id: CellId_t | None = None,
     ) -> int:
+        redirected_write = cell_id is None
         cell_id = self._stream.cell_id if cell_id is None else cell_id
         assert cell_id is not None
         if not isinstance(data, str):
@@ -599,7 +609,8 @@ class ThreadSafeStderr(Stderr):
                 data=data,
                 mimetype=mimetype,
                 code=code,
-            )
+            ),
+            redirected_write=redirected_write,
         )
         return len(data)
 
