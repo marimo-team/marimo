@@ -2,6 +2,7 @@
 
 /** The editor session's replica, following its backend while mounted. */
 
+import type { Execution } from "@marimo-team/client/protocol";
 import { useStore } from "jotai";
 import { useEffect, useMemo } from "react";
 import useEvent from "react-use-event-hook";
@@ -18,6 +19,7 @@ import { activeNotebookReplicaAtom } from "./active-notebook";
 import { createEditorBackend, type EditorBackendOptions } from "./backend";
 
 type Options = EditorBackendOptions & {
+  onExecution: (execution: Execution) => void;
   onNotification: (notification: NotificationPayload) => void;
 };
 
@@ -30,6 +32,7 @@ export function useNotebookReplica(options: Options): NotebookReplica {
   const notebookUrl = useEvent(options.notebookUrl);
   const waitUntilReady = useEvent(options.waitUntilReady);
   const checkHealth = useEvent(options.checkHealth);
+  const onExecution = useEvent(options.onExecution);
   const onNotification = useEvent(options.onNotification);
   // Opens nothing until the replica follows it.
   const backend = useMemo(
@@ -59,8 +62,12 @@ export function useNotebookReplica(options: Options): NotebookReplica {
   useEffect(() => {
     store.set(activeNotebookReplicaAtom, replica);
     const disconnect = replica.connect(backend, {
-      onExecution: (record) =>
-        VirtualFileTracker.INSTANCE.trackExecution(record),
+      onExecution: (record, changed) => {
+        VirtualFileTracker.INSTANCE.trackExecution(record);
+        if (changed) {
+          onExecution(record);
+        }
+      },
       // The host validates the envelope, not the native notification contents.
       onNotification: (notification) =>
         onNotification({ data: notification as NotificationMessage }),
@@ -71,7 +78,7 @@ export function useNotebookReplica(options: Options): NotebookReplica {
         store.set(activeNotebookReplicaAtom, null);
       }
     };
-  }, [replica, backend, store, onNotification]);
+  }, [replica, backend, store, onExecution, onNotification]);
 
   return replica;
 }

@@ -43,6 +43,7 @@ export {
   type CellOutput,
   cellOutputsView,
   cellOutputView,
+  executionSource,
   type HostDiagnostic,
   scratchOutputView,
 } from "./output";

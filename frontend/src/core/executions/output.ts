@@ -186,9 +186,9 @@ function skippedOutput(
  * confirmed cell's fingerprint names the source the host holds, which is
  * the execution's own until an edit is confirmed.
  */
-function sourceOf(
+export function executionSource(
   record: Protocol.Execution,
-  cells: ReadonlyMap<Protocol.CellId, Protocol.Cell>,
+  cells: ReadonlyMap<Protocol.CellId, Protocol.Cell> = NO_CELLS,
 ): string | undefined {
   const cell = record.cell_id === null ? undefined : cells.get(record.cell_id);
   return cell !== undefined &&
@@ -207,7 +207,7 @@ export function outcomeOutput(
   cells: ReadonlyMap<Protocol.CellId, Protocol.Cell> = NO_CELLS,
 ): CellOutput | null {
   const output = outcomeDisplay(record);
-  const code = sourceOf(record, cells);
+  const code = executionSource(record, cells);
   return output === null || code === undefined ? output : { ...output, code };
 }
 

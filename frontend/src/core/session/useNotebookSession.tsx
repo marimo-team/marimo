@@ -5,7 +5,6 @@ import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import { toast } from "@/components/ui/use-toast";
 import {
-  getNotebook,
   notebookAtom,
   useReducerActions,
 } from "@/core/cells/cells";
@@ -64,7 +63,7 @@ import {
   type StableSessionId,
   stableSessionIdAtom,
 } from "../kernel/session";
-import { observeCellMessage } from "../executions";
+import { executionSource, observeCellMessage } from "../executions";
 import { initialRunCompletedAtom } from "../kernel/state";
 import { useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
@@ -81,7 +80,7 @@ import {
 import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
-import { activeDocumentModelAtom } from "./active-notebook";
+import { activeDocumentModelAtom, confirmedDocumentAtom } from "./active-notebook";
 import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
@@ -98,7 +97,7 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
     resetCellRuntimes,
   } = useReducerActions();
   const { reconcileStagedCells } = useStagedAICellsActions();
-  const { addCellNotification } = useRunsActions();
+  const { addExecution } = useRunsActions();
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -224,14 +223,6 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       case "cell-op": {
         observeCellMessage(store, msg.data);
         handleCellNotificationeration(msg.data, handleCellMessage);
-        const cellData = getNotebook().cellData[msg.data.cell_id];
-        if (!cellData) {
-          return;
-        }
-        addCellNotification({
-          cellNotification: msg.data,
-          code: cellData.code,
-        });
         return;
       }
 
@@ -425,6 +416,14 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       }
     },
     checkHealth: () => runtimeManager.reconcileFromHealth(),
+    onExecution: (record) => {
+      const time = record.completed_at ?? record.started_at;
+      addExecution({
+        record,
+        code: executionSource(record, store.get(confirmedDocumentAtom)?.cells),
+        receivedAt: time === null ? Date.now() / 1000 : Date.parse(time) / 1000,
+      });
+    },
     onNotification: (notification) => {
       try {
         handleNotification(notification);
