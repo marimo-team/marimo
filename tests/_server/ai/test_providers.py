@@ -1835,35 +1835,59 @@ def test_session_headers_do_not_affect_other_providers() -> None:
     assert provider.config.extra_headers is None
 
 
-@pytest.mark.requires("pydantic_ai")
+@pytest.mark.requires("openai", "pydantic_ai")
 @pytest.mark.parametrize(
-    ("model_id", "base_url", "thinking"),
+    ("model_id", "thinking", "expected"),
     [
-        ("openai/gpt-5.1", None, "high"),
-        ("openai/gpt-6.1-sol", None, "max"),
-        ("openai/gpt-5.1", "http://localhost:8080/v1", "high"),
-        ("custom-endpoint/gpt-5", "http://localhost:8080/v1", "xhigh"),
-        ("ollama/minimax-m3.1-flash", "http://localhost:8080/v1", "max"),
-        ("openrouter/openai/gpt-5", None, False),
+        ("openai/gpt-5.6-terra", "max", "max"),
+        ("custom-endpoint/gpt-5", "xhigh", "xhigh"),
+        ("ollama/minimax-m3.1-flash", "max", "max"),
+        ("ollama/minimax-m3.1-flash", None, None),
+        ("wandb/reflection/Beam-1.0-501B-A23B", "max", "max"),
+        ("opencode-go/kimi-k3.1-pro", "max", "max"),
+        ("openrouter/openai/gpt-5", False, "none"),
     ],
 )
-def test_agent_forwards_explicit_reasoning_effort(
-    model_id: str, base_url: str | None, thinking: ThinkingLevel
+async def test_agent_sends_reasoning_effort_to_provider(
+    model_id: str, thinking: ThinkingLevel | None, expected: str | None
 ) -> None:
-    provider = get_completion_provider(
-        AnyProviderConfig(api_key="test-key", base_url=base_url),
-        model=model_id,
-        session_id="test",
+    import httpx
+    from openai import AsyncOpenAI
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    requests: list[dict[str, Any]] = []
+
+    def capture(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        return httpx.Response(
+            400, json={"error": {"message": "Captured request"}}
+        )
+
+    base_url = "https://example.test/v1"
+    async with AsyncOpenAI(
+        api_key="test-key",
+        base_url=base_url,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(capture)),
+    ) as client:
+        with patch.object(
+            OpenAIClientMixin, "get_openai_client", return_value=client
+        ):
+            provider = get_completion_provider(
+                AnyProviderConfig(api_key="test-key", base_url=base_url),
+                model=model_id,
+            )
+        agent = provider.create_agent(
+            name="chat",
+            system_prompt="Help with the notebook.",
+            max_tokens=512,
+            enable_capabilities=False,
+            thinking=thinking,
+        )
+        with pytest.raises(ModelHTTPError, match="Captured request"):
+            await agent.run("Hello")
+
+    (body,) = requests
+    assert (
+        body.get("reasoning_effort", body.get("reasoning", {}).get("effort"))
+        == expected
     )
-    default_settings = (
-        provider._build_model_settings(provider.create_model(), max_tokens=512)
-        or {}
-    )
-    agent = provider.create_agent(
-        name="chat",
-        system_prompt="Help with the notebook.",
-        max_tokens=512,
-        enable_capabilities=False,
-        thinking=thinking,
-    )
-    assert agent.model_settings == {**default_settings, "thinking": thinking}

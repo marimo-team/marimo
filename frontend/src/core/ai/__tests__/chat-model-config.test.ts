@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getChatModelConfig,
+  getChatModelId,
   getEffectiveChatOptions,
 } from "../chat-model-config";
 import type { ChatOptions } from "@/core/network/types";
@@ -22,6 +23,42 @@ function resolveModel(model = "openai/gpt-6-luna", displayed: string[] = []) {
 }
 
 describe("chat model configuration", () => {
+  it.each([
+    ["o4-mini", "openai/o4-mini"],
+    ["deepseek-r1:8b", "ollama/deepseek-r1:8b"],
+    ["deepseek/deepseek-chat", "deepseek/deepseek-chat"],
+  ])("interprets %s as %s, matching server routing", (configured, expected) => {
+    const ai = defaultUserConfig().ai;
+    expect(
+      getChatModelId({
+        ...ai,
+        models: { ...ai.models, chat_model: configured },
+      }).id,
+    ).toBe(expected);
+  });
+
+  it("displays the legacy OpenAI model when no chat model is set", () => {
+    const { current } = getChatModelConfig({
+      ...defaultUserConfig().ai,
+      open_ai: { model: "gpt-4-legacy" },
+    });
+    expect(current.id).toBe("openai/gpt-4-legacy");
+  });
+
+  it("offers custom models configured for edit and autocomplete in chat", () => {
+    const ai = defaultUserConfig().ai;
+    const { registry } = getChatModelConfig(
+      { ...ai, models: { ...ai.models, edit_model: "ollama/team-coder" } },
+      "ollama/team-complete",
+    );
+    expect(
+      registry
+        .getModelsByProvider("ollama")
+        .filter((model) => model.custom)
+        .map((model) => model.model),
+    ).toEqual(["team-complete", "team-coder"]);
+  });
+
   it("preserves the active model when excluded from the allowlist", () => {
     const { registry, reasoningOptions, displayName } = resolveModel(
       "openai/gpt-6.1-sol",

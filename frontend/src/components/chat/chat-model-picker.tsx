@@ -40,7 +40,7 @@ import {
   getEffectiveChatOptions,
 } from "@/core/ai/chat-model-config";
 import { chatOptionsAtom } from "@/core/ai/state";
-import { aiAtom } from "@/core/config/config";
+import { aiAtom, completionAtom } from "@/core/config/config";
 
 export function ChatModelPicker({
   anchorRef,
@@ -56,12 +56,17 @@ export function ChatModelPicker({
   const activeProviderRef = useRef<HTMLButtonElement>(null);
   const webSearchId = useId();
   const ai = useAtomValue(aiAtom);
+  const { copilot } = useAtomValue(completionAtom);
   const [storedOptions, setOptions] = useAtom(chatOptionsAtom);
   const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
   const { current, reasoningOptions, registry, displayName } = useMemo(
-    () => getChatModelConfig(ai),
-    [ai],
+    () =>
+      getChatModelConfig(
+        ai,
+        copilot === "custom" ? ai?.models?.autocomplete_model : undefined,
+      ),
+    [ai, copilot],
   );
   const options = getEffectiveChatOptions(storedOptions, reasoningOptions);
 
@@ -158,13 +163,16 @@ export function ChatModelPicker({
         side="top"
         align="center"
         collisionPadding={16}
-        onOpenAutoFocus={() => {
-          activeProviderRef.current?.scrollIntoView({
-            block: "nearest",
-            inline: "nearest",
-          });
+        scrollable={true}
+        onOpenAutoFocus={(event) => {
+          const provider = activeProviderRef.current;
+          if (provider) {
+            event.preventDefault();
+            provider.scrollIntoView({ block: "nearest", inline: "nearest" });
+            provider.focus({ preventScroll: true });
+          }
         }}
-        className="chat-model-picker w-[520px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden"
+        className="chat-model-picker w-[520px] max-w-[calc(100vw-2rem)] p-0 scrollbar-thin"
       >
         <div className="chat-model-picker-layout flex">
           <nav

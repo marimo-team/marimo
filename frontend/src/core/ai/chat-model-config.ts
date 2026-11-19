@@ -9,14 +9,28 @@ import {
   type ReasoningEffortChoice,
 } from "./reasoning-options";
 
-export function getChatModelConfig(ai: AiConfig | undefined) {
-  const current = AiModelId.parse(ai?.models?.chat_model || DEFAULT_AI_MODEL);
+export function getChatModelId(ai: AiConfig | undefined) {
+  return AiModelId.parse(
+    ai?.models?.chat_model || ai?.open_ai?.model || DEFAULT_AI_MODEL,
+  );
+}
+
+export function getChatModelConfig(
+  ai: AiConfig | undefined,
+  autocompleteModel?: string | null,
+) {
+  const current = getChatModelId(ai);
   const displayedModels = ai?.models?.displayed_models ?? [];
-  const customModels = ai?.models?.custom_models ?? [];
+  const knownModels = getKnownModelMaps().modelMap;
   const registry = AiModelRegistry.create({
-    customModels: getKnownModelMaps().modelMap.has(current.id)
-      ? customModels
-      : [...customModels, current.id],
+    customModels: [
+      ...(ai?.models?.custom_models ?? []),
+      current.id,
+      autocompleteModel,
+      ai?.models?.edit_model,
+    ]
+      .filter(Boolean)
+      .filter((model) => !knownModels.has(AiModelId.parse(model).id)),
     displayedModels:
       displayedModels.length > 0 ? [...displayedModels, current.id] : [],
   });

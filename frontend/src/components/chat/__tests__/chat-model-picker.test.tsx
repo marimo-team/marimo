@@ -26,12 +26,12 @@ vi.mock("@/components/app-config/state", () => ({
   useOpenSettingsToTab: () => ({ handleClick }),
 }));
 
-function renderPicker(reasoning: boolean) {
+function renderPicker(reasoning: boolean, knownModelId = "openai/gpt-6.1-sol") {
   const knownModel = [...getKnownModelMaps().modelMap.values()].find(
-    (model) => model.provider === "openai" && model.model === "gpt-6.1-sol",
+    (model) => `${model.provider}/${model.model}` === knownModelId,
   );
   if (!knownModel) {
-    throw new Error("Expected a known OpenAI reasoning model");
+    throw new Error(`Expected a known model: ${knownModelId}`);
   }
   const model = reasoning
     ? knownModel
@@ -69,34 +69,36 @@ beforeEach(() => {
 
 describe("ChatModelPicker", () => {
   it("scrolls the active provider into view without resetting on option changes", () => {
-    renderPicker(true);
+    renderPicker(true, "wandb/reflection/Beam-1.0-501B-A23B");
     const providers = screen.getByRole("navigation", {
       name: "Model providers",
     });
     const scrollIntoView = vi.mocked(HTMLElement.prototype.scrollIntoView);
-    expect(scrollIntoView.mock.contexts).toContain(
-      within(providers).getByRole("button", { name: "OpenAI" }),
-    );
+    const activeProvider = within(providers).getByRole("button", {
+      pressed: true,
+    });
+    const firstProvider = within(providers).getAllByRole("button")[0];
+    expect(activeProvider).not.toBe(firstProvider);
+    expect(scrollIntoView.mock.contexts).toContain(activeProvider);
+    expect(activeProvider).toHaveFocus();
 
-    const lastProvider = within(providers).getAllByRole("button").at(-1);
-    if (!lastProvider) {
-      throw new Error("Expected a provider");
-    }
     scrollIntoView.mockClear();
-    fireEvent.click(lastProvider);
-    expect(lastProvider).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(firstProvider);
+    expect(firstProvider).toHaveAttribute("aria-pressed", "true");
 
     scrollIntoView.mockClear();
     fireEvent.click(screen.getByRole("switch", { name: "Web search" }));
-    expect(scrollIntoView.mock.contexts).not.toContain(lastProvider);
+    expect(scrollIntoView.mock.contexts).not.toContain(firstProvider);
 
     const trigger = screen.getByRole("button", { name: /^Model:/ });
     fireEvent.click(trigger);
     scrollIntoView.mockClear();
     fireEvent.click(trigger);
-    expect(scrollIntoView.mock.contexts).toContain(
-      screen.getByRole("button", { name: "OpenAI", pressed: true }),
-    );
+    const reopenedProvider = within(
+      screen.getByRole("navigation", { name: "Model providers" }),
+    ).getByRole("button", { pressed: true });
+    expect(scrollIntoView.mock.contexts).toContain(reopenedProvider);
+    expect(reopenedProvider).toHaveFocus();
   });
 
   it("searches and selects a model while keeping reasoning accessible", () => {

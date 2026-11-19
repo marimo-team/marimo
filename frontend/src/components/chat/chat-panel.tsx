@@ -22,9 +22,11 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import {
-  getChatModelConfig,
+  getChatModelId,
   getEffectiveChatOptions,
 } from "@/core/ai/chat-model-config";
+import { getKnownModelMaps } from "@/core/ai/model-registry";
+import { getChatReasoningOptions } from "@/core/ai/reasoning-options";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { getSupportedAttachmentTypes } from "@/core/ai/attachments";
 import { useAIConfigActions } from "@/core/ai/config";
@@ -42,7 +44,6 @@ import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import { useCellActions } from "@/core/cells/actions";
 import { aiAtom, aiModelConfiguredAtom } from "@/core/config/config";
-import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { isWasm } from "@/core/wasm/utils";
@@ -454,9 +455,7 @@ const ChatPanelBody = () => {
   const [newThreadInput, setNewThreadInput] = useState("");
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
   const ai = useAtomValue(aiAtom);
-  const supportedTypes = getSupportedAttachmentTypes(
-    ai?.models?.chat_model || DEFAULT_AI_MODEL,
-  );
+  const supportedTypes = getSupportedAttachmentTypes(getChatModelId(ai).id);
   const {
     files,
     addFiles,
@@ -537,14 +536,13 @@ const ChatPanelBody = () => {
           }
 
           const ai = store.get(aiAtom);
-          const modelConfig = getChatModelConfig(ai);
+          const model = getKnownModelMaps().modelMap.get(getChatModelId(ai).id);
           const storedOptions = store.get(chatOptionsAtom);
           const completionBody = {
-            model: modelConfig.current.id,
             uiMessages: options.messages,
             options: getEffectiveChatOptions(
               storedOptions,
-              modelConfig.reasoningOptions,
+              getChatReasoningOptions(model),
             ),
           };
 
@@ -643,8 +641,7 @@ const ChatPanelBody = () => {
   );
 
   const validateMessageAttachments = useEvent((parts: ChatMessagePart[]) => {
-    const currentModel =
-      store.get(aiAtom)?.models?.chat_model || DEFAULT_AI_MODEL;
+    const currentModel = getChatModelId(store.get(aiAtom)).id;
     return validateChatAttachments(
       parts,
       getSupportedAttachmentTypes(currentModel),

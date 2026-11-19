@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     )
     from pydantic_ai.models.google import GoogleModel
     from pydantic_ai.models.openai import (
+        OpenAIChatModelSettings,
         OpenAIResponsesModel,
         OpenAIResponsesModelSettings,
     )
@@ -110,6 +111,34 @@ class BaseModelSettings:
 
 
 ProviderT_co = TypeVar("ProviderT_co", bound="Provider", covariant=True)
+
+
+def _explicit_thinking_settings(
+    model: Model, thinking: ThinkingLevel
+) -> ModelSettings:
+    from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
+    from pydantic_ai.models.openrouter import OpenRouterModel
+    from pydantic_ai.settings import ThinkingEffort
+
+    if thinking is True:
+        return {"thinking": True}
+    effort: ThinkingEffort | Literal["none"] = (
+        "none" if thinking is False else thinking
+    )
+    if isinstance(model, OpenRouterModel):
+        settings: OpenRouterModelSettings = {
+            "openrouter_reasoning": {"effort": effort}
+        }
+        return settings
+    if isinstance(model, (OpenAIChatModel, OpenAIResponsesModel)):
+        # Unified thinking can be dropped by the SDK's model profile.
+        openai_settings: OpenAIChatModelSettings = {
+            "openai_reasoning_effort": effort
+        }
+        return openai_settings
+    if thinking == "max" and "max" not in get_args(ThinkingEffort):
+        thinking = "xhigh"
+    return {"thinking": thinking}
 
 
 def _structured_completion_finish_reason(
@@ -194,8 +223,9 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
 
         settings = self._build_model_settings(model, max_tokens)
         if thinking is not None:
-            settings = settings or {}
-            settings["thinking"] = thinking
+            settings = {**(settings or {})}
+            settings.pop("thinking", None)
+            settings.update(_explicit_thinking_settings(model, thinking))
 
         return Agent(
             model,
