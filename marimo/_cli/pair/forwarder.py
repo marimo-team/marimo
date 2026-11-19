@@ -268,6 +268,8 @@ def _read_stream(
         )
         responses.append(response)
         try:
+            if response.response.getheader(ATTACHMENT_HEADER) is None:
+                raise PairError("The server does not support agent messages.")
             if not stopped.is_set():
                 yield from iter_sse(response)
         finally:
@@ -305,6 +307,11 @@ def _deliver(
     }
     if config.token:
         headers["Authorization"] = f"Bearer {config.token}"
+    failure = Submission(
+        "unknown",
+        "The harness did not confirm submission.",
+        reason="failed",
+    )
     try:
         response = open_response(
             method="POST",
@@ -319,22 +326,27 @@ def _deliver(
             )
         finally:
             response.close()
-        message = inbox_message(
-            content.message,
-            notebook=content.notebook,
-            sender=content.sender,
-            budget=inbox.inbox_bytes,
-            files=files,
-        )
+        try:
+            message = inbox_message(
+                content.message,
+                notebook=content.notebook,
+                sender=content.sender,
+                budget=inbox.inbox_bytes,
+                files=files,
+            )
+        except Exception:
+            # The harness did not receive the message, so a retry is safe.
+            failure = Submission(
+                "rejected",
+                "The message could not be prepared for the harness.",
+                reason="failed",
+            )
+            raise
         submission = inbox.send(message)
     except SubmissionRejectedError as error:
         submission = Submission("rejected", str(error), reason=error.reason)
     except Exception:
-        submission = Submission(
-            "unknown",
-            "The harness did not confirm submission.",
-            reason="failed",
-        )
+        submission = failure
     report = SubmissionReport(
         pointer.attachment_id,
         pointer.attempt_id,

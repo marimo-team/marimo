@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import msgspec
 import pytest
 from click.testing import CliRunner
 
@@ -26,9 +27,17 @@ from marimo._cli.pair.client import (
     StaleNotebookError,
 )
 from marimo._cli.pair.connection import ConnectionStore, connection_identity
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.delivery import (
+    DeliveryTarget,
+    ProcessHandle,
+)
 from marimo._cli.pair.forwarder import ForwarderConfig, run_forwarder
 from marimo._cli.pair.target import ExecutionTarget
+from marimo._messaging.agents import (
+    MessageContent,
+    PointerEvent,
+    SubmissionReport,
+)
 from tests._cli.test_pair_delivery import record
 
 if TYPE_CHECKING:
@@ -254,6 +263,46 @@ def test_dead_harness_never_connects(
     inbox.living = False
     run_forwarder(config, inbox, ready=Mock())
     calls.assert_not_called()
+
+
+def test_server_without_messaging_fails_startup(
+    config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stream = SimpleNamespace(
+        response=SimpleNamespace(getheader=lambda _name: None), close=Mock()
+    )
+    monkeypatch.setattr(forwarder, "open_events", lambda **_kwargs: stream)
+    ready = Mock()
+    with pytest.raises(PairError):
+        run_forwarder(config, RecordingInbox(), ready=ready)
+    ready.assert_not_called()
+    stream.close.assert_called()
+
+
+def pointer(attempt_id: str) -> PointerEvent:
+    return PointerEvent(attempt_id, attempt_id, "att-one", "identity", None)
+
+
+def test_preparation_failure_is_rejected(
+    config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        forwarder, "inbox_message", Mock(side_effect=OSError("disk full"))
+    )
+    content = msgspec.json.encode(MessageContent("text", "nb.py", None))
+    reports = Mock(
+        return_value=SimpleNamespace(
+            response=SimpleNamespace(read=lambda: content), close=Mock()
+        )
+    )
+    monkeypatch.setattr(forwarder, "open_response", reports)
+    inbox = RecordingInbox()
+    forwarder._deliver(config, inbox, pointer("one"), "key", Mock())
+    report = msgspec.json.decode(
+        reports.call_args.kwargs["body"], type=SubmissionReport
+    )
+    assert (report.status, report.reason) == ("rejected", "failed")
+    assert inbox.messages == []
 
 
 def test_detached_platform_options(monkeypatch: pytest.MonkeyPatch) -> None:
