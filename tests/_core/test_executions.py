@@ -112,14 +112,15 @@ def test_clear_console_removes_only_this_executions_output_items() -> None:
             id=protocol.ItemId("text"),
             execution_id=eid,
             seq=0,
-            name="stdout",
-            text="hello",
+            content=protocol.ConsoleText(stream="stdout", text="hello"),
         ),
-        protocol.Display(
+        protocol.Console(
             id=protocol.ItemId("plot"),
             execution_id=eid,
             seq=1,
-            content=protocol.DisplayData(mimetype="text/html", data="plot"),
+            content=protocol.ConsoleMedia(
+                protocol.DisplayData(mimetype="text/html", data="plot")
+            ),
         ),
         protocol.Input(
             id=protocol.ItemId("prompt"),
@@ -134,7 +135,7 @@ def test_clear_console_removes_only_this_executions_output_items() -> None:
     clear = be.ConsoleCleared(eid)
     assert describe(executions.observe(clear, RUNTIME)) == [
         "console.removed text",
-        "display.removed plot",
+        "console.removed plot",
     ]
     assert executions.observe(clear, RUNTIME) == []
     assert describe(executions._records()) == [
@@ -272,11 +273,10 @@ def test_scratch_work_leaves_with_its_run() -> None:
     produced = executions.observe(
         be.Produced(
             protocol.Console(
-                protocol.ExecutionId("e1"),
-                protocol.ItemId("c1"),
-                "stdout",
-                0,
-                "x",
+                id=protocol.ItemId("c1"),
+                execution_id=protocol.ExecutionId("e1"),
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="x"),
             )
         ),
         RUNTIME,
@@ -366,11 +366,10 @@ def test_clearing_removes_results_and_releases_runs() -> None:
     executions.observe(
         be.Produced(
             protocol.Console(
-                protocol.ExecutionId("e1"),
-                protocol.ItemId("c1"),
-                "stdout",
-                0,
-                "x",
+                id=protocol.ItemId("c1"),
+                execution_id=protocol.ExecutionId("e1"),
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="x"),
             )
         ),
         RUNTIME,
@@ -531,12 +530,14 @@ def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
     assert executions.current(cell_id) is None
     executions.begin(run("r1"), "request")
     executions.observe(planned("r1", ("e1", "a")), RUNTIME)
-    output = protocol.Display(
+    output = protocol.Console(
         execution_id=protocol.ExecutionId("e1"),
         id=protocol.ItemId("d1"),
         seq=0,
-        content=protocol.DisplayData(
-            mimetype="application/json", data='{"values":[1]}'
+        content=protocol.ConsoleMedia(
+            protocol.DisplayData(
+                mimetype="application/json", data='{"values":[1]}'
+            )
         ),
     )
     executions.observe(be.Produced(output), RUNTIME)
@@ -546,16 +547,16 @@ def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
     assert result is not None
     assert result.outputs == (output,)
 
-    updated = protocol.Display(
-        execution_id=output.execution_id,
-        id=output.id,
-        seq=output.seq,
-        content=protocol.DisplayData(
-            mimetype=output.content.mimetype, data='{"values":[1,2]}'
+    updated = replace(
+        output,
+        content=protocol.ConsoleMedia(
+            protocol.DisplayData(
+                mimetype="application/json", data='{"values":[1,2]}'
+            )
         ),
     )
     executions.observe(be.Produced(updated), RUNTIME)
     current = executions.current(cell_id)
     assert current is not None
     assert current.outputs == (updated,)
-    assert result.outputs[0].content.data == '{"values":[1]}'
+    assert result.outputs == (output,)

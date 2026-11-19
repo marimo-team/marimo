@@ -107,7 +107,7 @@ async def test_sse_preserves_multiline_data_comments_and_explicit_ids():
 @pytest.mark.parametrize(
     ("event", "known"),
     [
-        ("display.removed", True),
+        ("output.removed", True),
         ("execution.removed", True),
         ("input.removed", False),
         ("document.removed", False),

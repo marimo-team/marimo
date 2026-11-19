@@ -138,6 +138,14 @@ class ConflictProblem(
     title: str = "Conflict"
 
 
+class ConsoleText(Struct, frozen=True, tag_field="kind", tag="text"):
+    stream: Annotated[
+        Literal["stdout", "stderr"],
+        Meta(description="Which stream the text went to."),
+    ]
+    text: Annotated[str, Meta(description="The text, exactly as written.")]
+
+
 class Custom(Struct, frozen=True):
     data: Annotated[
         Any,
@@ -307,7 +315,7 @@ else:
         Annotated[
             str,
             Meta(
-                description="Identifies an output, console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
+                description="Identifies an output, console, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
                 min_length=1,
             ),
         ],
@@ -372,14 +380,13 @@ ObjectType: TypeAlias = Annotated[
         "execution",
         "output",
         "console",
-        "display",
         "input",
         "variable",
         "analysis",
         "custom",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, display, input, variable, analysis, and custom. Custom events describe occurrences rather than object state."
+        description="The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, input, variable, analysis, and custom. Custom events describe occurrences rather than object state."
     ),
 ]
 
@@ -963,43 +970,13 @@ Change: TypeAlias = Annotated[
 ]
 
 
-class Console(Struct, frozen=True):
-    execution_id: ExecutionId
-    id: ItemId
-    name: Annotated[
-        Literal["stdout", "stderr"],
-        Meta(description="Which stream the text went to."),
-    ]
-    seq: Annotated[
-        int,
+class ConsoleMedia(Struct, frozen=True, tag_field="kind", tag="media"):
+    media: Annotated[
+        DisplayData,
         Meta(
-            description="Position among the execution's items, increasing in the order they were produced.",
-            ge=0,
+            description="Something rendered into the console, such as a figure from `plt.show()` or a formatted traceback."
         ),
     ]
-    text: Annotated[str, Meta(description="The text, exactly as written.")]
-
-
-class ConsoleMessage(Struct, frozen=True):
-    console: Console
-    request_id: (
-        Annotated[
-            str,
-            Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    time: (
-        Annotated[
-            Timestamp,
-            Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
 
 
 class CreateNotebookRequest(Struct, frozen=True, forbid_unknown_fields=True):
@@ -1079,41 +1056,6 @@ class DecisionRequiredProblem(
     instance: str | UnsetType = UNSET
     status: Literal[409] = 409
     title: str = "Decision required"
-
-
-class Display(Struct, frozen=True):
-    content: Annotated[DisplayData, Meta(description="The rendered value.")]
-    execution_id: ExecutionId
-    id: ItemId
-    seq: Annotated[
-        int,
-        Meta(
-            description="Position among the execution's items, increasing in the order they were produced.",
-            ge=0,
-        ),
-    ]
-
-
-class DisplayMessage(Struct, frozen=True):
-    display: Display
-    request_id: (
-        Annotated[
-            str,
-            Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    time: (
-        Annotated[
-            Timestamp,
-            Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
 
 
 class Document(Struct, frozen=True):
@@ -1311,7 +1253,7 @@ class Input(Struct, frozen=True):
     seq: Annotated[
         int,
         Meta(
-            description="Position among the execution's console, display, and input items, increasing in production order.",
+            description="Position among the execution's console and input items, increasing in production order.",
             ge=0,
         ),
     ]
@@ -1794,18 +1736,7 @@ class CellRemovedEvent(
     ) = UNSET
 
 
-class ConsoleEvent(Struct, frozen=True, tag_field="event", tag="console"):
-    data: ConsoleMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
+ConsoleContent: TypeAlias = ConsoleText | ConsoleMedia
 
 
 class ConsoleRemovedEvent(
@@ -1826,36 +1757,6 @@ class ConsoleRemovedEvent(
 
 class CustomEvent(Struct, frozen=True, tag_field="event", tag="custom"):
     data: CustomMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
-class DisplayEvent(Struct, frozen=True, tag_field="event", tag="display"):
-    data: DisplayMessage
-    id: (
-        Annotated[
-            str,
-            Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
-class DisplayRemovedEvent(
-    Struct, frozen=True, tag_field="event", tag="display.removed"
-):
-    data: RemovedMessage
     id: (
         Annotated[
             str,
@@ -2169,6 +2070,43 @@ class AnalysisMessage(Struct, frozen=True):
     ) = UNSET
 
 
+class Console(Struct, frozen=True):
+    content: Annotated[
+        ConsoleContent, Meta(description="What was written, tagged on `kind`.")
+    ]
+    execution_id: ExecutionId
+    id: ItemId
+    seq: Annotated[
+        int,
+        Meta(
+            description="Position among the execution's console and input items, increasing in the order they were produced.",
+            ge=0,
+        ),
+    ]
+
+
+class ConsoleMessage(Struct, frozen=True):
+    console: Console
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class Execution(Struct, frozen=True):
     caused_by: (
         Annotated[
@@ -2266,6 +2204,20 @@ class AnalysisEvent(Struct, frozen=True, tag_field="event", tag="analysis"):
     ) = UNSET
 
 
+class ConsoleEvent(Struct, frozen=True, tag_field="event", tag="console"):
+    data: ConsoleMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class ExecutionEvent(Struct, frozen=True, tag_field="event", tag="execution"):
     data: ExecutionMessage
     id: (
@@ -2292,7 +2244,6 @@ Event: TypeAlias = Annotated[
     | ExecutionEvent
     | OutputEvent
     | ConsoleEvent
-    | DisplayEvent
     | InputEvent
     | VariableEvent
     | AnalysisEvent
@@ -2306,7 +2257,6 @@ Event: TypeAlias = Annotated[
     | ExecutionRemovedEvent
     | OutputRemovedEvent
     | ConsoleRemovedEvent
-    | DisplayRemovedEvent
     | VariableRemovedEvent
     | ResetEvent
     | ReadyEvent,

@@ -478,7 +478,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                 for revision in state["depends_on"].values():
                     assert revision is None or revision["update"] >= 0
             executions[execution["id"]] = execution
-        elif kind in {"console", "display"}:
+        elif kind == "console":
             assert data[kind]["execution_id"] in executions
         elif kind == "variable":
             variable = data["variable"]

@@ -366,7 +366,7 @@ async def test_editor_receives_one_representation_of_each_output(bridge):
             "console",
         }
         assert [
-            f["data"]["console"]["text"]
+            f["data"]["console"]["content"]["text"]
             for f in frames
             if f["event"] == "console"
         ] == ["printed"]

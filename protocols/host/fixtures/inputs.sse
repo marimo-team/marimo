@@ -8,7 +8,7 @@ data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_
 
 id: 302
 event: console
-data: {"console":{"id":"o-input-0","execution_id":"e-input","seq":0,"name":"stdout","text":"Starting\n"},"request_id":"start-input","time":"2026-11-03T14:00:02Z"}
+data: {"console":{"id":"o-input-0","execution_id":"e-input","seq":0,"content":{"kind":"text","stream":"stdout","text":"Starting\n"}},"request_id":"start-input","time":"2026-11-03T14:00:02Z"}
 
 id: 303
 event: input
@@ -20,7 +20,7 @@ data: {"input":{"id":"i1","execution_id":"e-input","seq":1,"prompt":"Name: ","pa
 
 id: 305
 event: console
-data: {"console":{"id":"o-input-2","execution_id":"e-input","seq":2,"name":"stdout","text":"Name accepted\n"},"request_id":"start-input","time":"2026-11-03T14:00:05Z"}
+data: {"console":{"id":"o-input-2","execution_id":"e-input","seq":2,"content":{"kind":"text","stream":"stdout","text":"Name accepted\n"}},"request_id":"start-input","time":"2026-11-03T14:00:05Z"}
 
 id: 306
 event: input

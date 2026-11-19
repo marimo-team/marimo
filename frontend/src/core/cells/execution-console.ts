@@ -36,24 +36,26 @@ function consoleEntry(
   const id = item.seq + 1;
   switch (item.kind) {
     case "console":
-      return {
-        id,
-        channel: item.name,
-        data: item.text,
-        mimetype: "text/plain",
-        timestamp,
-      };
-    case "display":
+      if (item.content.kind === "text") {
+        return {
+          id,
+          channel: item.content.stream,
+          data: item.content.text,
+          mimetype: "text/plain",
+          timestamp,
+        };
+      }
+      const { media } = item.content;
       return {
         id,
         channel:
-          item.content.mimetype === "application/vnd.marimo+traceback"
+          media.mimetype === "application/vnd.marimo+traceback"
             ? "stderr"
             : "media",
-        mimetype: item.content.mimetype as OutputMessage["mimetype"],
-        data: item.content.data,
+        mimetype: media.mimetype as OutputMessage["mimetype"],
+        data: media.data,
         code:
-          item.content.mimetype === "application/vnd.marimo+traceback"
+          media.mimetype === "application/vnd.marimo+traceback"
             ? code
             : undefined,
         timestamp,
@@ -100,7 +102,10 @@ export function consoleObservers(
       if (output.channel === "media") {
         VirtualFileTracker.INSTANCE.track({ cell_id: cellId, output });
       }
-      if (live && (item.kind === "console" || output.channel === "stderr")) {
+      if (
+        live &&
+        (output.channel === "stdout" || output.channel === "stderr")
+      ) {
         actions.addLogs({
           logs: getCellLogsForMessage({ cell_id: cellId, console: output }),
         });

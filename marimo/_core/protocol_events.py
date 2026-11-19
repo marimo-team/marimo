@@ -21,7 +21,6 @@ Body: TypeAlias = (
     | protocol.Cell
     | protocol.Console
     | protocol.Custom
-    | protocol.Display
     | protocol.Document
     | protocol.Execution
     | protocol.Host
@@ -38,7 +37,6 @@ SnapshotBody: TypeAlias = (
     | protocol.Attachment
     | protocol.Cell
     | protocol.Console
-    | protocol.Display
     | protocol.Document
     | protocol.Execution
     | protocol.Host
@@ -56,7 +54,6 @@ RecordEvent: TypeAlias = (
     | protocol.CellEvent
     | protocol.ConsoleEvent
     | protocol.CustomEvent
-    | protocol.DisplayEvent
     | protocol.DocumentEvent
     | protocol.ExecutionEvent
     | protocol.HostEvent
@@ -72,7 +69,6 @@ RemovableBody: TypeAlias = (
     protocol.Attachment
     | protocol.Cell
     | protocol.Console
-    | protocol.Display
     | protocol.Execution
     | protocol.Notebook
     | protocol.Output
@@ -85,7 +81,6 @@ RemovalEvent: TypeAlias = (
     protocol.AttachmentRemovedEvent
     | protocol.CellRemovedEvent
     | protocol.ConsoleRemovedEvent
-    | protocol.DisplayRemovedEvent
     | protocol.ExecutionRemovedEvent
     | protocol.NotebookRemovedEvent
     | protocol.OutputRemovedEvent
@@ -139,15 +134,6 @@ def record(
     request_id: str | UnsetType = UNSET,
     time: datetime,
 ) -> protocol.CustomEvent: ...
-
-
-@overload
-def record(
-    value: protocol.Display,
-    *,
-    request_id: str | UnsetType = UNSET,
-    time: datetime | UnsetType = UNSET,
-) -> protocol.DisplayEvent: ...
 
 
 @overload
@@ -286,13 +272,6 @@ def record(
                 )
             )
 
-        case protocol.Display():
-            return protocol.DisplayEvent(
-                protocol.DisplayMessage(
-                    display=value, request_id=request_id, time=time
-                )
-            )
-
         case protocol.Document():
             return protocol.DocumentEvent(
                 protocol.DocumentMessage(
@@ -387,10 +366,6 @@ def body(event: protocol.CustomEvent) -> protocol.Custom: ...
 
 
 @overload
-def body(event: protocol.DisplayEvent) -> protocol.Display: ...
-
-
-@overload
 def body(event: protocol.DocumentEvent) -> protocol.Document: ...
 
 
@@ -447,9 +422,6 @@ def body(event: RecordEvent) -> Body:
 
         case protocol.CustomEvent(data=data):
             return data.custom
-
-        case protocol.DisplayEvent(data=data):
-            return data.display
 
         case protocol.DocumentEvent(data=data):
             return data.document
@@ -512,16 +484,6 @@ def removed(
     request_id: str | UnsetType = UNSET,
     time: datetime | UnsetType = UNSET,
 ) -> protocol.ConsoleRemovedEvent: ...
-
-
-@overload
-def removed(
-    record_type: type[protocol.Display],
-    object_id: str,
-    *,
-    request_id: str | UnsetType = UNSET,
-    time: datetime | UnsetType = UNSET,
-) -> protocol.DisplayRemovedEvent: ...
 
 
 @overload
@@ -619,13 +581,6 @@ def removed(
 
     if record_type is protocol.Console:
         return protocol.ConsoleRemovedEvent(
-            protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
-            )
-        )
-
-    if record_type is protocol.Display:
-        return protocol.DisplayRemovedEvent(
             protocol.RemovedMessage(
                 id=object_id, request_id=request_id, time=time
             )

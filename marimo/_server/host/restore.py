@@ -223,40 +223,32 @@ def _outcome(
 
 def _console(
     execution_id: protocol.ExecutionId, entries: Sequence[ConsoleType]
-) -> tuple[protocol.Console | protocol.Display, ...]:
+) -> tuple[protocol.Console, ...]:
     """The stored console text and media, in the order they were written."""
-    items: list[protocol.Console | protocol.Display] = []
+    items: list[protocol.Console] = []
     for entry in entries:
-        item_id = protocol.ItemId(f"{execution_id}-{len(items)}")
+        content: protocol.ConsoleContent
         if entry["type"] == "streamMedia":
-            items.append(
-                protocol.Display(
-                    id=item_id,
-                    execution_id=execution_id,
-                    seq=len(items),
-                    content=displayed(entry["mimetype"], entry["data"]),
-                )
+            content = protocol.ConsoleMedia(
+                displayed(entry["mimetype"], entry["data"])
             )
         elif rendered_traceback(entry.get("mimetype"), entry["text"]):
-            items.append(
-                protocol.Display(
-                    id=item_id,
-                    execution_id=execution_id,
-                    seq=len(items),
-                    content=displayed(
-                        "application/vnd.marimo+traceback", entry["text"]
-                    ),
-                )
+            content = protocol.ConsoleMedia(
+                displayed("application/vnd.marimo+traceback", entry["text"])
             )
         # Older files stored a password prompt and its answer as text.
         elif entry.get("mimetype") != "text/password":
-            items.append(
-                protocol.Console(
-                    id=item_id,
-                    execution_id=execution_id,
-                    seq=len(items),
-                    name=entry["name"],
-                    text=entry["text"],
-                )
+            content = protocol.ConsoleText(
+                stream=entry["name"], text=entry["text"]
             )
+        else:
+            continue
+        items.append(
+            protocol.Console(
+                id=protocol.ItemId(f"{execution_id}-{len(items)}"),
+                execution_id=execution_id,
+                seq=len(items),
+                content=content,
+            )
+        )
     return tuple(items)

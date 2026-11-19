@@ -29,7 +29,7 @@ event: output
 data: {"output":{"id":"e7:output","execution_id":"e7","media":{"mimetype":"text/html","data":"<span class=\"markdown\">working…</span>"}},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
 
 event: console
-data: {"console":{"id":"o3","execution_id":"e7","seq":0,"name":"stdout","text":"2\n"},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
+data: {"console":{"id":"o3","execution_id":"e7","seq":0,"content":{"kind":"text","stream":"stdout","text":"2\n"}},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
 
 event: attachment
 data: {"attachment":{"id":"a2","notebook_id":"n1","identity":null,"kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:03Z"}}

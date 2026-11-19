@@ -79,7 +79,12 @@ def test_replacing_a_cell_result_updates_history_before_delivery(
     notebook.observe(
         be.Produced(
             protocol.Console(
-                execution, protocol.ItemId("out"), "stdout", 0, "old output"
+                id=protocol.ItemId("out"),
+                execution_id=execution,
+                seq=0,
+                content=protocol.ConsoleText(
+                    stream="stdout", text="old output"
+                ),
             )
         )
     )
@@ -506,21 +511,20 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
     run = notebook.run("code", request_id="request", request=None)
     execution = plan(notebook, run, "e")
     item = protocol.Console(
-        protocol.ExecutionId("e"),
-        protocol.ItemId("console"),
-        "stdout",
-        0,
-        "output",
+        id=protocol.ItemId("console"),
+        execution_id=protocol.ExecutionId("e"),
+        seq=0,
+        content=protocol.ConsoleText(stream="stdout", text="output"),
     )
     notebook.observe(be.Produced(item))
     notebook.observe(
         be.Produced(
-            protocol.Display(
+            protocol.Console(
                 execution_id=execution,
                 id=protocol.ItemId("display"),
                 seq=1,
-                content=protocol.DisplayData(
-                    mimetype="text/html", data="value"
+                content=protocol.ConsoleMedia(
+                    protocol.DisplayData(mimetype="text/html", data="value")
                 ),
             )
         )
@@ -537,7 +541,6 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
         "execution",
         "output",
         "console",
-        "display",
     }
     live: list[RoutedEvent] = []
     host.subscribe(live.append, notebook_id=notebook.id, run_id=run.id)
@@ -548,7 +551,7 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
     host.expire()
     assert names(live) == [
         "console.removed",
-        "display.removed",
+        "console.removed",
         "output.removed",
         "execution.removed",
         "run.removed",
@@ -687,7 +690,10 @@ async def test_removal_listeners_can_read_snapshots() -> None:
     notebook.observe(
         be.Produced(
             protocol.Console(
-                execution, protocol.ItemId("console"), "stdout", 0, "x"
+                id=protocol.ItemId("console"),
+                execution_id=execution,
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="x"),
             )
         )
     )
@@ -714,7 +720,10 @@ async def test_expiration_does_not_scan_unrelated_outputs(
         notebook.observe(
             be.Produced(
                 protocol.Console(
-                    execution, protocol.ItemId(str(index)), "stdout", 0, "x"
+                    id=protocol.ItemId(str(index)),
+                    execution_id=execution,
+                    seq=0,
+                    content=protocol.ConsoleText(stream="stdout", text="x"),
                 )
             )
         )
@@ -744,7 +753,10 @@ async def test_completed_scratch_runs_belong_to_the_host() -> None:
     notebook.observe(
         be.Produced(
             protocol.Console(
-                execution, protocol.ItemId("out"), "stdout", 0, "x"
+                id=protocol.ItemId("out"),
+                execution_id=execution,
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="x"),
             )
         )
     )

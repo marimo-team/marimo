@@ -133,18 +133,26 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
     # Text and media keep the order they were written in.
     assert restored.outputs == (
         protocol.Console(
-            execution.id, restored.outputs[0].id, "stdout", 0, "hello\n"
-        ),
-        protocol.Display(
-            protocol.DisplayData(
-                mimetype="image/png", data="data:image/png;base64,"
-            ),
-            execution.id,
-            restored.outputs[1].id,
-            1,
+            id=restored.outputs[0].id,
+            execution_id=execution.id,
+            seq=0,
+            content=protocol.ConsoleText(stream="stdout", text="hello\n"),
         ),
         protocol.Console(
-            execution.id, restored.outputs[2].id, "stderr", 2, "careful\n"
+            id=restored.outputs[1].id,
+            execution_id=execution.id,
+            seq=1,
+            content=protocol.ConsoleMedia(
+                protocol.DisplayData(
+                    mimetype="image/png", data="data:image/png;base64,"
+                )
+            ),
+        ),
+        protocol.Console(
+            id=restored.outputs[2].id,
+            execution_id=execution.id,
+            seq=2,
+            content=protocol.ConsoleText(stream="stderr", text="careful\n"),
         ),
     )
     assert len({item.id for item in restored.outputs}) == 3
@@ -342,23 +350,25 @@ def test_stored_values_and_text_keep_their_formats() -> None:
         raised.execution.state.outcome.error.traceback
         == protocol.DisplayData(mimetype="text/html", data=highlighted)
     )
-    # An old password entry is dropped, and the rendered traceback is a
-    # display, not console text.
+    # An old password entry is dropped, and the rendered traceback is
+    # media, not console text.
     assert raised.outputs == (
-        protocol.Display(
-            protocol.DisplayData(
-                mimetype="application/vnd.marimo+traceback", data=highlighted
+        protocol.Console(
+            id=raised.outputs[0].id,
+            execution_id=raised.execution.id,
+            seq=0,
+            content=protocol.ConsoleMedia(
+                protocol.DisplayData(
+                    mimetype="application/vnd.marimo+traceback",
+                    data=highlighted,
+                )
             ),
-            raised.execution.id,
-            raised.outputs[0].id,
-            0,
         ),
         protocol.Console(
             id=raised.outputs[1].id,
             execution_id=raised.execution.id,
             seq=1,
-            name="stdout",
-            text=highlighted,
+            content=protocol.ConsoleText(stream="stdout", text=highlighted),
         ),
     )
 

@@ -418,7 +418,14 @@ describe("IslandsPyodideBridge", () => {
       };
       const write = (name: "stdout" | "stderr", text: string, seq = 0) => ({
         event: "console",
-        data: { console: { id: text, execution_id: "e1", seq, name, text } },
+        data: {
+          console: {
+            id: text,
+            execution_id: "e1",
+            seq,
+            content: { kind: "text", stream: name, text },
+          },
+        },
       });
       sendNotebookEvent(2, record);
       sendNotebookEvent(2, write("stdout", "snapshot"));

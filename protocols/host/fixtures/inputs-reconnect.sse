@@ -5,13 +5,13 @@ event: execution
 data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code_fingerprint":"c62108f175239e74","caused_by":null,"state":{"status":"running","started_at":"2026-11-03T14:00:00Z"}},"request_id":"start-input"}
 
 event: console
-data: {"console":{"id":"o-input-0","execution_id":"e-input","seq":0,"name":"stdout","text":"Starting\n"},"request_id":"start-input"}
+data: {"console":{"id":"o-input-0","execution_id":"e-input","seq":0,"content":{"kind":"text","stream":"stdout","text":"Starting\n"}},"request_id":"start-input"}
 
 event: input
 data: {"input":{"id":"i1","execution_id":"e-input","seq":1,"prompt":"Name: ","password":false,"status":"answered"}}
 
 event: console
-data: {"console":{"id":"o-input-2","execution_id":"e-input","seq":2,"name":"stdout","text":"Name accepted\n"},"request_id":"start-input"}
+data: {"console":{"id":"o-input-2","execution_id":"e-input","seq":2,"content":{"kind":"text","stream":"stdout","text":"Name accepted\n"}},"request_id":"start-input"}
 
 event: input
 data: {"input":{"id":"i2","execution_id":"e-input","seq":3,"prompt":"Password: ","password":true,"status":"pending"},"request_id":"start-input"}
