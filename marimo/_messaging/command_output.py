@@ -17,6 +17,7 @@ from marimo._messaging.context import (
     execution_id_for,
 )
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     CellNotification,
     PdbOutputNotification,
 )
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
     from marimo._messaging.cell_output import CellOutput
     from marimo._types.ids import CellId_t
 
-CommandOutput = type[PdbOutputNotification]
+CommandOutput = type[CallbackOutputNotification] | type[PdbOutputNotification]
 _destination: ContextVar[tuple[CellId_t, CommandOutput] | None] = ContextVar(
     "command_console", default=None
 )
@@ -94,12 +95,15 @@ def console_notification(
     execution_id: str | None = None,
     destination: CommandOutput | msgspec.UnsetType | None = msgspec.UNSET,
     status: RuntimeStateType | None = None,
-) -> CellNotification | PdbOutputNotification:
+) -> CellNotification | CallbackOutputNotification | PdbOutputNotification:
     output = (
         destination_for(cell_id)
         if destination is msgspec.UNSET
         else destination
     )
+    if output is CallbackOutputNotification and console == []:
+        # clear_console() also clears the defining cell's execution output.
+        output = None
     if output is not None and execution_id is None and status is None:
         return output(
             cell_id, console if isinstance(console, list) else [console]

@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any
 
 import msgspec
@@ -27,7 +28,10 @@ from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.notebook import AppFileManager
-from marimo._session.state.serialize import get_session_cache_file
+from marimo._session.state.serialize import (
+    get_session_cache_file,
+    serialize_session_view,
+)
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.code import hash_code
 from marimo._version import __version__
@@ -253,6 +257,88 @@ def test_editor_starts_and_runs_through_the_host_socket(
             and event["data"]["marimo"]["console"]
         ]
         assert sum("host socket" in str(output) for output in consoles) == 1
+
+
+def test_widget_callback_console_is_routed_to_its_defining_cell(
+    client: TestClient, editor_host: SessionBridge
+) -> None:
+    get_session_manager(client).redirect_console_to_browser = True
+    url = f"{socket_url(editor_host)}&types=marimo,run,execution"
+    with client.websocket_connect(url) as socket:
+        receive_notification(socket, "kernel-ready")
+        cell_id = first_cell_id(client, "s1")
+        (notebook_id,) = editor_host.host.notebooks
+        response = run_cells(
+            client,
+            notebook_id,
+            {
+                cell_id: dedent("""
+                import marimo as mo
+
+                def on_change(value):
+                    if value == 2:
+                        mo.output.clear_console()
+                    print(f"changed {value}")
+
+                slider = mo.ui.slider(0, 10, on_change=on_change)
+                print(slider._id)
+            """)
+            },
+            headers=headers("s1"),
+        )
+        assert response.status_code == 202
+        widget_id = None
+        while True:
+            frame = socket.receive_json()
+            if completed(frame, response.json()["id"]):
+                break
+            if frame["event"] == "marimo":
+                msg = frame["data"]["marimo"]
+                if msg["op"] == "cell-op" and isinstance(msg["console"], dict):
+                    widget_id = msg["console"]["data"].strip()
+        assert widget_id
+
+        def change(value: int) -> None:
+            update = client.post(
+                "/api/kernel/set_ui_element_value",
+                headers=headers("s1"),
+                json={"objectIds": [widget_id], "values": [value]},
+            )
+            assert update.status_code == 200
+
+        def next_write() -> dict:
+            while True:
+                msg = receive_notification(socket, "cell-op")
+                if msg["console"] is not None:
+                    assert msg["cell_id"] == cell_id
+                    return msg
+
+        change(1)
+        assert next_write()["console"]["data"] == "changed 1\n"
+        change(2)
+        assert next_write()["console"] == []
+        assert next_write()["console"]["data"] == "changed 2\n"
+        session = get_session_manager(client).get_session(SessionId("s1"))
+        assert session is not None
+        for include_callbacks, expected in [
+            (True, ["changed 2\n"]),
+            (False, []),
+        ]:
+            saved = serialize_session_view(
+                session.session_view,
+                [cell_id],
+                include_callback_output=include_callbacks,
+                drop_virtual_file_outputs=False,
+            )
+            assert [
+                row["text"] for row in saved["cells"][0]["console"]
+            ] == expected
+
+    with client.websocket_connect(url) as socket:
+        socket_snapshot(socket)
+        msg = receive_notification(socket, "cell-op")
+        assert msg["cell_id"] == cell_id
+        assert [entry["data"] for entry in msg["console"]] == ["changed 2\n"]
 
 
 def test_editor_with_autorun_reports_the_startup_run_on_the_host_socket(

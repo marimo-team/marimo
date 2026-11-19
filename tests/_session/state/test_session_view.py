@@ -1290,7 +1290,7 @@ def test_combine_console_outputs(session_view: SessionView) -> None:
     )
 
     # Consecutive text/plain stdout outputs are merged
-    assert session_view.cell_notifications[cell_id].console == [
+    assert session_view.cell_console(cell_id, include_callbacks=False) == [
         CellOutput.stdout("onetwo"),
     ]
 
@@ -1303,7 +1303,7 @@ def test_combine_console_outputs(session_view: SessionView) -> None:
         )
     )
 
-    assert session_view.cell_notifications[cell_id].console == [
+    assert session_view.cell_console(cell_id, include_callbacks=False) == [
         CellOutput.stdout("onetwo"),
     ]
 
@@ -1349,7 +1349,7 @@ def test_explicit_empty_console_clears_mid_run(
             status="running",
         )
     )
-    assert session_view.cell_notifications[cell_id].console == [
+    assert session_view.cell_console(cell_id, include_callbacks=False) == [
         CellOutput.stdout("secret code"),
     ]
 
@@ -1465,15 +1465,9 @@ def test_merge_consecutive_text_plain_outputs(
     )
 
     # Should be merged into a single output
-    assert len(session_view.cell_notifications[cell_id].console) == 1
-    assert (
-        session_view.cell_notifications[cell_id].console[0].data
-        == "Hello World!"
-    )
-    assert (
-        session_view.cell_notifications[cell_id].console[0].channel
-        == CellChannel.STDOUT
-    )
+    assert session_view.cell_console(cell_id, include_callbacks=False) == [
+        CellOutput.stdout("Hello World!")
+    ]
 
 
 @pytest.mark.usefixtures("fixed_time")

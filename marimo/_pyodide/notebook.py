@@ -44,7 +44,7 @@ from marimo._runtime.layout.layout import (
     layout_config_to_data_uri,
 )
 from marimo._server.host import document as documents
-from marimo._server.host.events import notification_event, serialize_event
+from marimo._server.host.events import editor_events, serialize_event
 from marimo._server.host.handover import Handover, Turn
 from marimo._server.host.translate import (
     RunTranslator,
@@ -508,11 +508,9 @@ class PyodideNotebook:
         kinds = set(types.split(",")) if types else None
 
         def notify(notification: NotificationMessage) -> None:
-            event = notification_event(
-                self.id, notification, editor_session=True, types=kinds
-            )
-            if event is not None and event.wanted(kinds):
-                emit(serialize_event(event))
+            for event in editor_events(self.id, notification, kinds):
+                if event.wanted(kinds):
+                    emit(serialize_event(event))
 
         def consume(message: KernelMessage) -> None:
             notify(deserialize_kernel_message(message))

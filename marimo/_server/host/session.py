@@ -24,7 +24,7 @@ from marimo._server.api.endpoints.ws.session_handler import SessionHandler
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.host.events import (
     MarimoEvent,
-    notification_event,
+    editor_events,
     serialize_event,
     serialize_sse_event,
 )
@@ -110,14 +110,13 @@ class SessionEventStream(SessionHandler):
                 self._queue_notification(retained)
 
     def _queue_notification(self, message: NotificationMessage) -> None:
-        event = notification_event(
+        for event in editor_events(
             self.notebook.id if self.notebook is not None else None,
             message,
-            editor_session=True,
-            types=self.types,
-        )
-        if event is not None and event.wanted(self.types):
-            self._events.put_nowait(event)
+            self.types,
+        ):
+            if event.wanted(self.types):
+                self._events.put_nowait(event)
 
     def _on_host_event(self, event: RoutedEvent) -> None:
         # The session delivers marimo notifications with recipient filtering,

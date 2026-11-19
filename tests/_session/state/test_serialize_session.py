@@ -17,7 +17,9 @@ from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     CellNotification,
+    PdbOutputNotification,
     StartupProgressNotification,
 )
 from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand
@@ -276,6 +278,75 @@ def test_serialize_session_with_console(session_view: SessionView):
         view, cell_ids=[CELL1], drop_virtual_file_outputs=False
     )
     snapshot("console_session.json", json.dumps(result, indent=2))
+
+
+def test_export_orders_execution_and_callback_writes_before_merging(
+    session_view: SessionView,
+) -> None:
+    def write(data: str, timestamp: float) -> CellOutput:
+        return CellOutput(CellChannel.STDOUT, "text/plain", data, timestamp)
+
+    session_view.add_notification(
+        CellNotification(CELL1, console=[write("A", 1), write("C", 3)])
+    )
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [write("B", 2)])
+    )
+    for include_callbacks, expected in [(True, "ABC"), (False, "AC")]:
+        saved = serialize_session_view(
+            session_view,
+            [CELL1],
+            include_callback_output=include_callbacks,
+            drop_virtual_file_outputs=False,
+        )
+        assert [row["text"] for row in saved["cells"][0]["console"]] == [
+            expected
+        ]
+
+
+def test_export_retains_callbacks_and_excludes_debugger_output(
+    session_view: SessionView,
+) -> None:
+    callback = CellOutput.stdout("callback")
+    session_view.add_notification(
+        PdbOutputNotification(CELL1, [CellOutput.stdout("debugger")])
+    )
+    assert session_view.is_empty()
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [callback])
+    )
+    assert not session_view.is_empty()
+    assert session_view.get_cell_console_outputs([CELL1]) == {
+        CELL1: [callback]
+    }
+
+    export = serialize_session_view(
+        session_view,
+        [CELL1],
+        include_callback_output=True,
+        drop_virtual_file_outputs=False,
+    )
+    assert export["cells"] == [
+        {
+            "id": CELL1,
+            "code_hash": None,
+            "outputs": [],
+            "console": [
+                {
+                    "type": "stream",
+                    "name": "stdout",
+                    "text": "callback",
+                    "mimetype": "text/plain",
+                }
+            ],
+        }
+    ]
+    cache = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=True
+    )
+    assert cache["cells"] == [
+        {"id": CELL1, "code_hash": None, "outputs": [], "console": []}
+    ]
 
 
 def test_serialize_session_with_mime_bundle(session_view: SessionView):

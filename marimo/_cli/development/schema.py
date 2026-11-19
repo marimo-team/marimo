@@ -9,7 +9,7 @@ import msgspec.json
 
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
-from marimo._messaging.notification import NotificationMessage
+from marimo._messaging.notification import EditorNotification
 from marimo._runtime.commands import ClientCommand
 
 
@@ -438,7 +438,7 @@ def generate_server_api_schema() -> dict[str, Any]:
     ]
 
     named_exports = {
-        "NotificationMessage": NotificationMessage,
+        "NotificationMessage": EditorNotification,
         "ClientCommand": ClientCommand,
         "MarimoError": MarimoError,
         "DataType": DataType,

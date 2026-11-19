@@ -9,7 +9,7 @@ import sys
 import tempfile
 import threading
 import weakref
-from contextvars import ContextVar
+from contextvars import Context, ContextVar
 from queue import Queue
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -18,15 +18,17 @@ from unittest.mock import Mock
 import pytest
 
 from marimo._messaging import streams as messaging_streams
-from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.command_output import command_console
 from marimo._messaging.context import execution_id_context
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     CellNotification,
     InterruptedNotification,
     PdbOutputNotification,
 )
+from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._messaging.serde import (
     deserialize_kernel_message,
     serialize_kernel_message,
@@ -45,6 +47,7 @@ from marimo._runtime.output import _output
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._session.state.session_view import SessionView
 from marimo._utils.signals import SigintHandler
 from tests._runtime._helpers.streams import MockStream
 from tests.conftest import ExecReqProvider, MockedKernel
@@ -65,10 +68,13 @@ def test_debugger_does_not_capture_other_streams_or_executions() -> None:
         for stream in (debugger, other)
     ]
     try:
-        with debugger.debugger_input("cell"):
+        with (
+            command_console("cell", PdbOutputNotification),
+            debugger.own_console(),
+        ):
             with execution_id_context("cell", "earlier"):
                 first.write("background")
-            second.write("other session")
+            Context().run(second.write, "other session")
         first.write("after debugger")
         debugger.flush_console()
         other.flush_console()
@@ -88,7 +94,7 @@ def test_debugger_does_not_capture_other_streams_or_executions() -> None:
         other.stop()
 
 
-def test_inherited_fd_keeps_its_execution_during_a_later_run(
+def test_inherited_fd_keeps_its_execution_during_a_later_callback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     messages = Queue[KernelMessage]()
@@ -118,23 +124,81 @@ def test_inherited_fd_keeps_its_execution_during_a_later_run(
             with child:
                 stream.cell_id = "second"
                 with (
-                    execution_id_context("second", "new-execution"),
+                    command_console("second", CallbackOutputNotification),
                     redirect(stdout),
                 ):
                     child.communicate(b"\x82\xac from subprocess", timeout=5)
                     assert child.returncode == 0
-                    os.write(stdout.fileno(), b"from later execution")
-            writes = {}
-            for _ in range(2):
-                msg = deserialize_kernel_message(messages.get(timeout=2))
-                assert isinstance(msg, CellNotification)
-                assert msg.console is not None
-                assert not isinstance(msg.console, list)
-                writes[msg.cell_id] = (msg.execution_id, msg.console.data)
-            assert writes == {
-                "first": ("old-execution", "€ from subprocess"),
-                "second": ("new-execution", "from later execution"),
-            }
+                    os.write(stdout.fileno(), b"from callback")
+            output = [
+                deserialize_kernel_message(messages.get(timeout=2))
+                for _ in range(2)
+            ]
+            (execution,) = (
+                entry
+                for entry in output
+                if isinstance(entry, CellNotification)
+            )
+            (callback,) = (
+                entry
+                for entry in output
+                if isinstance(entry, CallbackOutputNotification)
+            )
+            assert (execution.cell_id, execution.execution_id) == (
+                "first",
+                "old-execution",
+            )
+            assert execution.console is not None
+            assert not isinstance(execution.console, list)
+            assert execution.console.data == "€ from subprocess"
+            assert callback.cell_id == "second"
+            assert [entry.data for entry in callback.entries] == [
+                "from callback"
+            ]
+    finally:
+        stream.stop()
+
+
+def test_callback_media_interleaves_with_buffered_stdout() -> None:
+    messages = Queue[KernelMessage]()
+    stream = ThreadSafeStream(
+        QueuePipe(messages), Queue(), True, cell_id="cell"
+    )
+    out = ThreadSafeStdout(stream, forward_os_streams=False)
+    try:
+        with command_console("cell", CallbackOutputNotification):
+            out.write("before")
+            CellNotificationUtils.broadcast_console_output(
+                channel=CellChannel.MEDIA,
+                mimetype="text/html",
+                data="<b>media</b>",
+                cell_id="cell",
+                status=None,
+                stream=stream,
+            )
+            out.write("after")
+            stream.flush_console()
+
+        view = SessionView()
+        live = []
+        for _ in range(3):
+            msg = deserialize_kernel_message(messages.get(timeout=2))
+            assert isinstance(msg, CallbackOutputNotification)
+            live.extend((entry.channel, entry.data) for entry in msg.entries)
+            view.add_notification(msg)
+        exported = [
+            (entry.channel, entry.data)
+            for entry in view.cell_console("cell", include_callbacks=True)
+        ]
+        assert (
+            live
+            == exported
+            == [
+                ("stdout", "before"),
+                ("media", "<b>media</b>"),
+                ("stdout", "after"),
+            ]
+        )
     finally:
         stream.stop()
 

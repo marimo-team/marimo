@@ -21,6 +21,7 @@ from marimo._messaging.errors import (
     is_sensitive_error,
 )
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     CellNotification,
     PdbOutputNotification,
 )
@@ -61,7 +62,9 @@ def broadcast_notification(
     try:
         # A direct console write must follow any text that stdout/stderr
         # buffered before it, including in the thread that spawned this one.
-        if isinstance(notification, PdbOutputNotification) or (
+        if isinstance(
+            notification, (CallbackOutputNotification, PdbOutputNotification)
+        ) or (
             isinstance(notification, CellNotification)
             and notification.status is None
             and notification.console is not None

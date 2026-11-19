@@ -1040,6 +1040,14 @@ class PdbOutputNotification(Notification, tag="pdb-output"):
     replace: bool = False
 
 
+class CallbackOutputNotification(Notification, tag="callback-output"):
+    """Console writes made by a widget callback or registered function."""
+
+    name: ClassVar[str] = "callback-output"
+    cell_id: CellId_t
+    entries: list[CellOutput]
+
+
 class PdbInputNotification(Notification, tag="pdb-input"):
     """Identify the debugger prompt waiting for a command in a failed cell.
 
@@ -1131,7 +1139,7 @@ class NotebookDocumentTransactionNotification(
     transaction: Transaction
 
 
-NotificationMessage = (
+EditorNotification = (
     # Cell operations
     CellNotification
     | ExecutionNotification
@@ -1193,3 +1201,6 @@ NotificationMessage = (
     # Consumer
     | ConsumerCapabilitiesNotification
 )
+
+
+NotificationMessage = EditorNotification | CallbackOutputNotification

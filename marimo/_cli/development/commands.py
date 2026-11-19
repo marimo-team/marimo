@@ -330,6 +330,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         session_snapshot = serialize_session_view(
             session_view,
             cell_ids=list(file_manager.app.cell_manager.cell_ids()),
+            include_callback_output=True,
             drop_virtual_file_outputs=False,
         )
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import time
 from dataclasses import dataclass
+from itertools import groupby
 from typing import Any, Literal, cast
 
 import msgspec
@@ -14,6 +15,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleTuple
 from marimo._messaging.notification import (
     BreakpointsNotification,
+    CallbackOutputNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -196,6 +198,7 @@ class SessionView:
         # Map of object id to value.
         self.ui_values: dict[str, Any] = {}
         self.breakpoints = BreakpointsNotification(breakpoints={})
+        self._callback_output: dict[CellId_t, list[CellOutput]] = {}
         self._pdb_output: dict[CellId_t, list[CellOutput]] = {}
         self.pending_pdb_input: PdbInputNotification | None = None
         # Map of cell id to the last code that was executed in that cell.
@@ -316,7 +319,13 @@ class SessionView:
         """Add a notification to the session view."""
         self._touch()
 
-        if isinstance(notification, CellNotification):
+        if isinstance(notification, CallbackOutputNotification):
+            self._callback_output.setdefault(notification.cell_id, []).extend(
+                notification.entries
+            )
+        elif isinstance(notification, CellNotification):
+            if notification.console == [] or notification.status == "running":
+                self._callback_output.pop(notification.cell_id, None)
             if (
                 notification.status == "running"
                 and notification.cell_id in self._pdb_output
@@ -559,16 +568,28 @@ class SessionView:
                 outputs[cell_id] = cell_notif.output
         return outputs
 
+    def cell_console(
+        self, cell_id: CellId_t, *, include_callbacks: bool
+    ) -> list[CellOutput]:
+        cell = self.cell_notifications.get(cell_id)
+        entries = as_list(cell.console) if cell is not None else []
+        if include_callbacks and (
+            callbacks := self._callback_output.get(cell_id)
+        ):
+            entries = sorted(
+                [*entries, *callbacks], key=lambda item: item.timestamp
+            )
+        return _merge_consecutive_console_outputs(entries)
+
     def get_cell_console_outputs(
         self, ids: list[CellId_t]
     ) -> dict[CellId_t, list[CellOutput]]:
-        """Get the console outputs for the given cell ids."""
-        outputs: dict[CellId_t, list[CellOutput]] = {}
-        for cell_id in ids:
-            cell_notif = self.cell_notifications.get(cell_id)
-            if cell_notif is not None and cell_notif.console:
-                outputs[cell_id] = as_list(cell_notif.console)
-        return outputs
+        """Return each cell's console, including its widget and function callbacks."""
+        return {
+            cell_id: entries
+            for cell_id in ids
+            if (entries := self.cell_console(cell_id, include_callbacks=True))
+        }
 
     def update_cell_outputs(
         self, cell_id_to_output: dict[CellId_t, MimeBundleTuple]
@@ -688,7 +709,18 @@ class SessionView:
             for ui_messages in self.ui_element_messages.values():
                 all_notifications.extend(ui_messages)
 
-        all_notifications.extend(self.cell_notifications.values())
+        for cell_id in dict.fromkeys(
+            (*self.cell_notifications, *self._callback_output)
+        ):
+            cell = self.cell_notifications.get(cell_id)
+            if cell is None:
+                cell = CellNotification(cell_id=cell_id)
+            if cell.console is not None or cell_id in self._callback_output:
+                cell = msgspec.structs.replace(
+                    cell,
+                    console=self.cell_console(cell_id, include_callbacks=True),
+                )
+            all_notifications.append(cell)
         all_notifications.extend(self.debugger_notifications())
         # Only include startup logs if they are in progress (not done)
         if self.startup_logs and self.startup_logs.status != "done":
@@ -706,7 +738,7 @@ class SessionView:
         ]
 
     def is_empty(self) -> bool:
-        return all(
+        return not any(self._callback_output.values()) and all(
             notif.output is None and notif.console is None
             for notif in self.cell_notifications.values()
         )
@@ -757,33 +789,26 @@ def _merge_consecutive_console_outputs(
     console: list[CellOutput],
 ) -> list[CellOutput]:
     """Merge consecutive text/plain outputs with the same channel."""
-    if not console:
-        return console
-
     merged: list[CellOutput] = []
-
-    for output in console:
-        # Check if we can merge with the last output
-        if (
-            merged
-            and merged[-1].mimetype == "text/plain"
-            and output.mimetype == "text/plain"
-            and merged[-1].channel == output.channel
-            and merged[-1].input_id == output.input_id
-            and isinstance(merged[-1].data, str)
-            and isinstance(output.data, str)
-        ):
-            # Merge by concatenating the data
-            merged[-1] = CellOutput(
-                channel=merged[-1].channel,
-                mimetype=merged[-1].mimetype,
-                data=merged[-1].data + output.data,
-                timestamp=merged[-1].timestamp,
-                input_id=merged[-1].input_id,
+    for (_, mimetype, _, text), group in groupby(
+        console,
+        key=lambda entry: (
+            entry.channel,
+            entry.mimetype,
+            entry.input_id,
+            isinstance(entry.data, str),
+        ),
+    ):
+        entries = list(group)
+        if mimetype == "text/plain" and text and len(entries) > 1:
+            merged.append(
+                msgspec.structs.replace(
+                    entries[0],
+                    data="".join(cast(str, entry.data) for entry in entries),
+                )
             )
         else:
-            merged.append(output)
-
+            merged.extend(entries)
     return merged
 
 
@@ -811,8 +836,20 @@ def merge_cell_notification(
         current.console = []
     else:
         combined_console: list[CellOutput] = as_list(previous.console)
-        combined_console.extend(as_list(current.console))
-        current.console = _merge_consecutive_console_outputs(combined_console)
+        # Keep write boundaries until export can interleave callback output.
+        # An input split across writes must still accept one reply.
+        for entry in as_list(current.console):
+            if (
+                combined_console
+                and entry.channel == CellChannel.STDIN
+                and combined_console[-1].channel == CellChannel.STDIN
+            ):
+                combined_console[-1:] = _merge_consecutive_console_outputs(
+                    [combined_console[-1], entry]
+                )
+            else:
+                combined_console.append(entry)
+        current.console = combined_console
 
     # If we went from running to running, use the previous timestamp.
     if current.status == "running" and previous.status == "running":
