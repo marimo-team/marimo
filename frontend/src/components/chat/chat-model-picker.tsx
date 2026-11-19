@@ -162,7 +162,7 @@ export function ChatModelPicker({
         <div className="chat-model-picker-layout flex">
           <nav
             aria-label="Model providers"
-            className="flex w-11 shrink-0 flex-col gap-1 overflow-y-auto border-r p-1 max-h-64"
+            className="flex w-11 shrink-0 flex-col gap-1 overflow-y-auto scrollbar-thin border-r p-1 max-h-64"
           >
             {modelsByProvider.map(([provider]) => (
               <Button
@@ -199,7 +199,7 @@ export function ChatModelPicker({
               rootClassName="px-2"
             />
             <CommandList
-              className="h-55 max-h-55"
+              className="h-55 max-h-55 scrollbar-thin"
               aria-label={
                 visibleProvider
                   ? `${getProviderLabel(visibleProvider)} models`
