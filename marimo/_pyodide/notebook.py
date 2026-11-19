@@ -44,7 +44,7 @@ from marimo._runtime.layout.layout import (
     layout_config_to_data_uri,
 )
 from marimo._server.host import document as documents
-from marimo._server.host.events import editor_events, serialize_event
+from marimo._server.host.events import EditorNotifications, serialize_event
 from marimo._server.host.handover import Handover, Turn
 from marimo._server.host.translate import (
     RunTranslator,
@@ -378,7 +378,8 @@ class WorkerBackend:
         for reported in variable_messages(notification):
             self._observe(reported)
         translator, reports = self._translators.feed(
-            notification, view=self._session.session_view
+            notification,
+            view=self._session.session_view,
         )
         for reported in reports:
             self._observe(reported)
@@ -509,9 +510,11 @@ class PyodideNotebook:
         self.unsubscribe(subscription_id)
         kinds = set(types.split(",")) if types else None
 
+        notifications = EditorNotifications()
+
         def notify(notification: NotificationMessage) -> None:
-            for event in editor_events(
-                self.id, notification, kinds, self._session.session_view
+            for event in notifications.events(
+                self.id, notification, self._session.session_view
             ):
                 if event.wanted(kinds):
                     emit(serialize_event(event))
@@ -545,7 +548,7 @@ class PyodideNotebook:
                     session.app_manager, view if session.instantiated else None
                 )
             )
-            for notification in view.snapshot_notifications():
+            for notification in view.snapshot_notifications(scope="editor"):
                 notify(notification)
         except BaseException:
             self.unsubscribe(subscription_id)

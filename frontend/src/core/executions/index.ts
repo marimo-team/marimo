@@ -19,7 +19,7 @@ export {
   clearCellOutputs,
   notebookIsRunningAtom,
   notebookQueuedOrRunningCountAtom,
-  observeCellMessage,
+  setCellBlocked,
   releaseCellOutputAtoms,
   runtimeStatusAtom,
   waitForRuntimeRunning,

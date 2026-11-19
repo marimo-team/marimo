@@ -4,7 +4,8 @@ import { fromUnixTime } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
 import { parseHtmlContent } from "@/utils/dom";
 import { Strings } from "@/utils/strings";
-import type { CellMessage, OutputMessage } from "../kernel/messages";
+import type { OutputMessage } from "../kernel/messages";
+import type { CellOutput } from "../executions";
 import { isErrorMime } from "../mime";
 import type { CellId } from "./ids";
 import { initialModeAtom } from "../mode";
@@ -32,7 +33,14 @@ export function logSourceLabel(source: LogSource): string {
 
 let didAlreadyToastError = false;
 
-export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
+export interface CellLogMessage {
+  cell_id: CellId;
+  console?: OutputMessage | OutputMessage[] | null;
+  output?: CellOutput | null;
+  timestamp?: number;
+}
+
+export function getCellLogsForMessage(cell: CellLogMessage): CellLog[] {
   const logs: CellLog[] = [];
   const consoleOutputs: OutputMessage[] = [cell.console].filter(Boolean).flat();
 

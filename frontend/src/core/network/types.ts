@@ -13,7 +13,6 @@ export type CellConfig = schemas["CellConfig"];
  * idle: not running.
  * disabled-transitively: disabled because an ancestor was disabled.
  */
-export type RuntimeState = schemas["CellNotification"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type AutoExportAsIPYNBRequest = schemas["AutoExportAsIPYNBRequest"];
 export type AutoExportAsMarkdownRequest =

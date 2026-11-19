@@ -3,9 +3,7 @@
 
 from __future__ import annotations
 
-import html
 import json
-import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -349,7 +347,7 @@ class RunTranslator:
                         name="stdout"
                         if entry.channel == CellChannel.STDOUT
                         else "stderr",
-                        text=plain(str(entry.data)),
+                        text=str(entry.data),
                     )
                 )
             )
@@ -489,13 +487,6 @@ def rendered_traceback(mimetype: str | None, data: object) -> bool:
         and isinstance(data, str)
         and is_code_highlighting(data)
     )
-
-
-def plain(text: str) -> str:
-    """Remove marimo's HTML syntax highlighting from console text."""
-    if not is_code_highlighting(text):
-        return text
-    return html.unescape(re.sub(r"<[^>]+>", "", text))
 
 
 def _skip_reason(error: Error) -> str | None:

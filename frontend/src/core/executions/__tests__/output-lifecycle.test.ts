@@ -20,7 +20,7 @@ import {
   cellOutputAtom,
   clearCellOutputs,
   isCurrent,
-  observeCellMessage,
+  setCellBlocked,
   requestRun,
   withdrawRequest,
 } from "../atoms";
@@ -120,13 +120,7 @@ describe("output lifetime", () => {
       const pending = requestRun(store, [C1])!;
       acceptRun(store, pending, run);
       const late = requestRun(store, [C1])!;
-      observeCellMessage(store, {
-        cell_id: C1,
-        status: "disabled-transitively",
-        timestamp: 1,
-        output: null,
-        console: null,
-      });
+      setCellBlocked(store, C1, true);
       clearCellOutputs(store, [C1]);
       expect(store.get(cellExecutionInputsAtom).blocked.has(C1)).toBe(true);
       expect(store.get(cellOutputAtom(C1))).toBeNull();

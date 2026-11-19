@@ -12,6 +12,7 @@ import {
   type CellRuntimeState,
   createCellRuntimeState,
 } from "@/core/cells/types";
+import type { Item } from "@/core/notebook/replica";
 import type { MarimoError } from "@/core/kernel/messages";
 import { Objects } from "@/utils/objects";
 import { MockExecutions } from "./executions";
@@ -148,6 +149,7 @@ export const MockNotebook = {
       cellName: string;
       code?: string;
       error: Partial<Protocol.Error>;
+      consoleTraceback?: string;
     }[],
   ): NotebookState => {
     const cellData: Record<string, Partial<CellData>> = {};
@@ -159,10 +161,24 @@ export const MockNotebook = {
     }
     const notebookState = MockNotebook.notebookState({ cellData });
     store.set(notebookAtom, notebookState);
-    MockExecutions.seed(
-      store,
-      errors.map(({ cellId, error }) => MockExecutions.failed(cellId, error)),
-    );
+    const records = errors.map(({ cellId, error, consoleTraceback }) => {
+      const record = MockExecutions.failed(cellId, error);
+      if (consoleTraceback === undefined) {
+        return record;
+      }
+      const traceback: Item = {
+        kind: "display",
+        id: `traceback-${record.id}`,
+        execution_id: record.id,
+        seq: 0,
+        content: {
+          mimetype: "application/vnd.marimo+traceback",
+          data: consoleTraceback,
+        },
+      };
+      return { ...record, items: [traceback] };
+    });
+    MockExecutions.seed(store, records);
     return notebookState;
   },
 };

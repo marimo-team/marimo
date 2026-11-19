@@ -25,12 +25,9 @@ import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import { createNotebookReplica } from "../notebook/replica";
-import { observeCellMessage } from "../executions";
-import {
-  handleCellNotificationeration,
-  handleKernelReady,
-  handleRemoveUIElements,
-} from "../kernel/handlers";
+import { consoleObservers } from "../cells/execution-console";
+import { setCellBlocked } from "../executions";
+import { handleKernelReady, handleRemoveUIElements } from "../kernel/handlers";
 import type { NotificationMessage } from "../kernel/messages";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
@@ -138,7 +135,7 @@ export async function initializeIslands(
   const replica = createNotebookReplica(store);
   replica.connect(bridge.notebookBackend, {
     onNotification: Functions.NOOP,
-    onExecution: (record) => VirtualFileTracker.INSTANCE.trackExecution(record),
+    ...consoleObservers(actions),
   });
   store.set(activeNotebookReplicaAtom, replica);
   const documentModel = createDocumentModel({
@@ -190,8 +187,8 @@ function handleNotification(
       case "completion-result":
       case "reload":
       case "focus-cell":
-      case "pdb-output":
       case "pdb-input":
+      case "pdb-output":
       case "breakpoints":
       case "active-line":
       case "variables":
@@ -256,11 +253,32 @@ function handleNotification(
         FUNCTIONS_REGISTRY.resolve(msg.function_call_id, msg);
         return;
 
-      case "cell-op":
-        observeCellMessage(store, msg);
-        handleCellNotificationeration(msg, actions.handleCellMessage);
+      case "console-inputs-cleared":
+        actions.hideConsoleInputs({
+          cellId: msg.cell_id,
+          executionId: msg.execution_id,
+          inputIds: msg.input_ids,
+        });
         return;
-
+      case "cell-op":
+        if (msg.status != null) {
+          setCellBlocked(
+            store,
+            msg.cell_id,
+            msg.status === "disabled-transitively",
+          );
+        }
+        if (msg.serialization !== undefined) {
+          actions.setCellReusability({
+            cell_id: msg.cell_id,
+            serialization: msg.serialization,
+          });
+        }
+        return;
+      case "callback-output":
+        VirtualFileTracker.INSTANCE.trackCallbackOutput(msg);
+        actions.showCommandOutput(msg);
+        return;
       case "alert":
         toast({
           title: msg.title,
@@ -287,8 +305,6 @@ function handleNotification(
         return;
 
       case "consumer-capabilities":
-      case "callback-output":
-      case "console-inputs-cleared":
         return;
       default:
         logNever(msg);

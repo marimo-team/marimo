@@ -9,7 +9,6 @@ import { atomFamily, selectAtom } from "jotai/utils";
 import type { CellId } from "@/core/cells/ids";
 import type { Outline } from "@/core/cells/outline";
 import { parseOutline } from "@/core/dom/outline";
-import type { CellMessage } from "@/core/kernel/messages";
 import {
   ConnectionState,
   type Executions,
@@ -84,7 +83,7 @@ const requestsAtom = atom<Marks<ReadonlySet<RunRequest>>>(null);
 
 /**
  * Cells the kernel reports as blocked by a disabled ancestor. Written only
- * by `observeCellMessage`.
+ * by the editor session.
  *
  * TODO(MO-8463): Derive from the document and the analysis stream.
  */
@@ -383,7 +382,7 @@ export function acceptRun(
   check();
 }
 
-function setCellBlocked(
+export function setCellBlocked(
   store: Store,
   cellId: Protocol.CellId,
   blocked: boolean,
@@ -401,23 +400,5 @@ function setCellBlocked(
   const notebook = store.get(shownNotebookAtom);
   if (notebook !== null) {
     store.set(blockedCellsAtom, { notebook, value: next });
-  }
-}
-
-/**
- * Learn from a cell-op whether the kernel considers the cell blocked by a
- * disabled ancestor. A blocked cell will not run, so a run that names it
- * does not show it as queued.
- *
- * TODO(MO-8407): Delete with the cell-op case. The blocked read goes with
- * MO-8463.
- */
-export function observeCellMessage(store: Store, message: CellMessage): void {
-  if (message.status != null) {
-    setCellBlocked(
-      store,
-      message.cell_id,
-      message.status === "disabled-transitively",
-    );
   }
 }

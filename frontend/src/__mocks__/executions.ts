@@ -10,6 +10,7 @@ import {
   type ConnectionStatus,
   type Document,
   type Execution,
+  type Item,
   type Executions,
   type NotebookBackend,
   type NotebookReplica,
@@ -53,10 +54,12 @@ function completed(
   };
 }
 
-function mirror(records: readonly Protocol.Execution[]): Executions {
+type ExecutionFixture = Protocol.Execution & { items?: readonly Item[] };
+
+function mirror(records: readonly ExecutionFixture[]): Executions {
   const executions = new Map<Protocol.ExecutionId, Execution>();
   const latest = new Map<Protocol.CellId, Protocol.ExecutionId>();
-  for (const record of records) {
+  for (const { items = [], ...record } of records) {
     if (record.cell_id !== null) {
       // The host retains one execution per cell on the stream.
       const previous = latest.get(record.cell_id);
@@ -68,7 +71,7 @@ function mirror(records: readonly Protocol.Execution[]): Executions {
     executions.set(record.id, {
       record,
       outputVersion: 0,
-      items: new Map(),
+      items: new Map(items.map((item) => [item.id, item])),
       variables: new Map(),
     });
   }
@@ -234,7 +237,7 @@ export const MockExecutions = {
   /** Make the store's active replica report `records`, `runtime`, and `document`. */
   seed(
     store: Store,
-    records: Protocol.Execution[],
+    records: ExecutionFixture[],
     runtime: Protocol.Runtime | null = null,
     document: Document | null = null,
   ) {

@@ -1,8 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtomValue } from "jotai";
-import { notebookAtom } from "@/core/cells/cells";
-import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
+import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { pendingPdbInputAtom } from "@/core/codemirror/cells/debugger-state";
 import { kioskModeAtom } from "@/core/mode";
@@ -11,28 +10,25 @@ import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
 import { DelayMount } from "../utils/delay-mount";
 
-// Atom to check if there is a cell with unresolved stdin
-const hasBlockingStdinAtom = atom((get) => {
-  const notebook = get(notebookAtom);
-  const executions = get(cellExecutionInputsAtom);
+export const hasBlockingStdinAtom = atom((get) => {
   if (!get(kioskModeAtom) && get(pendingPdbInputAtom) !== null) {
     return true;
   }
-
-  // Check each cell in order
-  for (const cellId of notebook.cellIds) {
-    // Check if the cell is idle and has unresolved stdin
-    const runtime = notebook.cellRuntime[cellId];
-    if (cellExecutionView(executions, cellId).status === "idle") {
-      const hasUnresolvedStdin = runtime.consoleOutputs.some(
-        (output) => output.channel === "stdin" && output.response === undefined,
-      );
-      if (hasUnresolvedStdin) {
-        return true;
+  const replica = get(activeNotebookReplicaAtom);
+  if (replica === null) {
+    return false;
+  }
+  for (const { record, items } of get(
+    replica.executionsAtom,
+  ).executions.values()) {
+    if (record.status === "running") {
+      for (const item of items.values()) {
+        if (item.kind === "input" && item.status === "pending") {
+          return true;
+        }
       }
     }
   }
-
   return false;
 });
 

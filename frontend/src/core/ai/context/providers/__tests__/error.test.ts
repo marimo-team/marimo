@@ -5,7 +5,6 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
-import { notebookAtom } from "@/core/cells/cells";
 import { type CellId, CellId as CellIdClass } from "@/core/cells/ids";
 import { ErrorContextProvider } from "../error";
 
@@ -279,26 +278,16 @@ describe("ErrorContextProvider", () => {
 
     it("includes console tracebacks for marimo error outputs", () => {
       const cellId = CellIdClass.create();
-      const notebookState = createMockNotebookWithErrors([
+      createMockNotebookWithErrors([
         {
           cellId,
           cellName: "Cell 1",
+          consoleTraceback:
+            '<pre>ValueError: boom\n  File "notebook.py", line 1</pre>',
           code: "raise ValueError('boom')",
           error: { kind: "exception", name: "ValueError", message: "boom" },
         },
       ]);
-      notebookState.cellRuntime[cellId] = {
-        ...notebookState.cellRuntime[cellId],
-        consoleOutputs: [
-          {
-            channel: "stderr",
-            data: '<pre>ValueError: boom\n  File "notebook.py", line 1</pre>',
-            mimetype: "application/vnd.marimo+traceback",
-            timestamp: Date.now(),
-          },
-        ],
-      };
-      store.set(notebookAtom, notebookState);
 
       const items = provider.getItems();
       const context = provider.formatContext(items[1]);
@@ -310,10 +299,11 @@ describe("ErrorContextProvider", () => {
 
     it("does not duplicate console traceback when error already has one", () => {
       const cellId = CellIdClass.create();
-      const notebookState = createMockNotebookWithErrors([
+      createMockNotebookWithErrors([
         {
           cellId,
           cellName: "Cell 1",
+          consoleTraceback: "<pre>console line 1</pre>",
           code: "raise ValueError('boom')",
           error: {
             kind: "exception",
@@ -326,18 +316,6 @@ describe("ErrorContextProvider", () => {
           },
         },
       ]);
-      notebookState.cellRuntime[cellId] = {
-        ...notebookState.cellRuntime[cellId],
-        consoleOutputs: [
-          {
-            channel: "stderr",
-            data: "<pre>console line 1</pre>",
-            mimetype: "application/vnd.marimo+traceback",
-            timestamp: Date.now(),
-          },
-        ],
-      };
-      store.set(notebookAtom, notebookState);
 
       const items = provider.getItems();
       if (items[1].data.type !== "cell-error") {

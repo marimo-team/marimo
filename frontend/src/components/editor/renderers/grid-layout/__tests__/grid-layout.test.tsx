@@ -40,7 +40,7 @@ function renderErroredCell(cells: GridLayout["cells"]) {
         cells={[
           {
             ...notebook.cellData[ERRORED],
-            ...notebook.cellRuntime[ERRORED],
+            consoleOutputs: [],
             output: null,
           },
         ]}

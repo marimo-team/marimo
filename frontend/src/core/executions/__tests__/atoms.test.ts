@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
 import type * as Protocol from "@marimo-team/client/protocol";
-import type { CellMessage } from "@/core/kernel/messages";
 import {
   document as documentOf,
   withCells,
@@ -15,7 +14,7 @@ import {
   acceptRun,
   cellExecutionInputsAtom,
   notebookQueuedOrRunningCountAtom,
-  observeCellMessage,
+  setCellBlocked,
   requestRun,
   type RunRequest,
   withdrawRequest,
@@ -46,16 +45,6 @@ function run(
 
 function withRuns(executions: Executions, runs: Protocol.Run[]): Executions {
   return { ...executions, runs: new Map(runs.map((r) => [r.id, r])) };
-}
-
-function cellOp(status: CellMessage["status"]): CellMessage {
-  return {
-    cell_id: C1,
-    output: null,
-    console: null,
-    status,
-    timestamp: 1,
-  };
 }
 
 /** A store whose replica shows the two-cell fixture document. */
@@ -117,10 +106,7 @@ describe("requestRun", () => {
   it("forgets requests and blocked cells with the notebook they were made in", () => {
     const { store, replica } = shown();
     request(store, [C1]);
-    observeCellMessage(store, {
-      ...cellOp("disabled-transitively"),
-      cell_id: C2,
-    });
+    setCellBlocked(store, C2, true);
 
     store.set(replica.notebookAtom, MockExecutions.notebook("n2"));
 
@@ -130,13 +116,13 @@ describe("requestRun", () => {
   });
 });
 
-describe("observeCellMessage", () => {
+describe("setCellBlocked", () => {
   it("does not show a requested cell as queued once the kernel reports it blocked", () => {
     const { store } = shown();
     request(store, [C1]);
     expect(statusOf(store)).toBe("queued");
 
-    observeCellMessage(store, cellOp("disabled-transitively"));
+    setCellBlocked(store, C1, true);
 
     const view = cellExecutionView(store.get(cellExecutionInputsAtom), C1);
     expect(view.status).toBe("idle");
@@ -147,7 +133,7 @@ describe("observeCellMessage", () => {
   it("forgets requests and blocked cells with the replica they were made for", () => {
     const { store } = shown();
     request(store, [C1]);
-    observeCellMessage(store, cellOp("disabled-transitively"));
+    setCellBlocked(store, C1, true);
 
     MockExecutions.seed(store, [], null, documentOf());
 
@@ -161,7 +147,7 @@ describe("observeCellMessage", () => {
     const { store } = shown();
     request(store, [C1]);
 
-    observeCellMessage(store, cellOp("queued"));
+    setCellBlocked(store, C1, false);
 
     expect(statusOf(store)).toBe("queued");
   });

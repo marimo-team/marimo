@@ -175,7 +175,7 @@ def test_editor_opens_with_the_results_an_earlier_session_stored(
 
 
 @pytest.mark.parametrize(
-    "types", [None, "marimo", "marimo,run", "marimo,run,execution"]
+    "types", [None, "marimo", "marimo,run", "marimo,run,execution,console"]
 )
 def test_editor_starts_and_runs_through_the_host_socket(
     client: TestClient, editor_host: SessionBridge, types: str | None
@@ -249,21 +249,24 @@ def test_editor_starts_and_runs_through_the_host_socket(
                 and event["data"]["marimo"]["output"] is not None
                 for event in messages
             )
-        consoles = [
-            event["data"]["marimo"]["console"]
+        assert not any(
+            event["event"] == "marimo"
+            and event["data"]["marimo"]["op"]
+            in {"cell-op", "pdb-output", "callback-output"}
             for event in messages
-            if event["event"] == "marimo"
-            and event["data"]["marimo"]["op"] == "cell-op"
-            and event["data"]["marimo"]["console"]
-        ]
-        assert sum("host socket" in str(output) for output in consoles) == 1
+        )
+        assert sum(
+            event["event"] == "console"
+            and "host socket" in event["data"]["console"]["text"]
+            for event in messages
+        ) == (types is None or "console" in types)
 
 
 def test_widget_callback_console_is_routed_to_its_defining_cell(
     client: TestClient, editor_host: SessionBridge
 ) -> None:
     get_session_manager(client).redirect_console_to_browser = True
-    url = f"{socket_url(editor_host)}&types=marimo,run,execution,console"
+    url = socket_url(editor_host)
     with client.websocket_connect(url) as socket:
         receive_notification(socket, "kernel-ready")
         cell_id = first_cell_id(client, "s1")
@@ -273,74 +276,142 @@ def test_widget_callback_console_is_routed_to_its_defining_cell(
             notebook_id,
             {
                 cell_id: dedent("""
-                import marimo as mo
+                    import marimo as mo
+                    from threading import Event, Thread
 
-                def on_change(value):
-                    if value == 2:
-                        mo.output.clear_console()
-                    print(f"changed {value}")
+                    _after_widget = Event()
+                    def _late_write():
+                        if _after_widget.wait(10):
+                            print("from original execution")
+                    mo.Thread(target=_late_write, daemon=True).start()
 
-                slider = mo.ui.slider(0, 10, on_change=on_change)
-                print(slider._id)
-            """)
+                    def on_change(value):
+                        if value == 0:
+                            mo.output.clear_console()
+                            return
+                        try:
+                            input("Another value? ")
+                        except EOFError:
+                            before = Thread(target=lambda: print("before"))
+                            before.start()
+                            before.join()
+                            worker = mo.Thread(target=lambda: print(f"changed {value}"))
+                            worker.start()
+                            worker.join()
+                            print("after", flush=True)
+                            _after_widget.set()
+
+                    slider = mo.ui.slider(0, 10, on_change=on_change)
+                    _writer = Thread(target=lambda: print(slider._id))
+                    _writer.start()
+                    _writer.join()
+                """)
             },
             headers=headers("s1"),
         )
-        assert response.status_code == 202
-        widget_id = None
+        assert response.status_code == 202, response.text
+        stdout = []
+        last_seq = -1
         while True:
             frame = socket.receive_json()
             if completed(frame, response.json()["id"]):
                 break
-            if frame["event"] == "marimo":
-                msg = frame["data"]["marimo"]
-                if msg["op"] == "cell-op" and isinstance(msg["console"], dict):
-                    widget_id = msg["console"]["data"].strip()
+            if frame["event"] == "console":
+                stdout.append(frame["data"]["console"]["text"])
+                last_seq = frame["data"]["console"]["seq"]
+        widget_id = "".join(stdout).strip()
         assert widget_id
-
-        def change(value: int) -> None:
-            update = client.post(
-                "/api/kernel/set_ui_element_value",
-                headers=headers("s1"),
-                json={"objectIds": [widget_id], "values": [value]},
+        update = client.post(
+            "/api/kernel/set_ui_element_value",
+            headers=headers("s1"),
+            json={"objectIds": [widget_id], "values": [7]},
+        )
+        assert update.status_code == 200, update.text
+        live = []
+        while not live or "after" not in "".join(live):
+            callback = receive_notification(socket, "callback-output")
+            assert callback["cell_id"] == cell_id
+            assert callback["after_seq"] == [last_seq] * len(
+                callback["entries"]
             )
-            assert update.status_code == 200
-
-        def next_write() -> dict:
-            while True:
-                msg = receive_notification(socket, "cell-op")
-                if msg["console"] is not None:
-                    assert msg["cell_id"] == cell_id
-                    return msg
-
-        change(1)
-        assert next_write()["console"]["data"] == "changed 1\n"
-        change(2)
-        assert next_write()["console"] == []
-        assert next_write()["console"]["data"] == "changed 2\n"
+            live.extend(entry["data"] for entry in callback["entries"])
+        assert "".join(live).splitlines() == ["before", "changed 7", "after"]
+        while (frame := socket.receive_json())["event"] != "console":
+            pass
+        assert frame["data"]["console"]["text"] == "from original execution\n"
+        assert frame["data"]["console"]["seq"] > last_seq
         session = get_session_manager(client).get_session(SessionId("s1"))
         assert session is not None
-        for include_callbacks, expected in [
-            (True, ["changed 2\n"]),
-            (False, []),
-        ]:
-            saved = serialize_session_view(
-                session.session_view,
-                [cell_id],
-                include_callback_output=include_callbacks,
-                drop_virtual_file_outputs=False,
-            )
-            assert [
-                row["text"] for row in saved["cells"][0]["console"]
-            ] == expected
+        export = serialize_session_view(
+            session.session_view,
+            [CellId_t(cell_id)],
+            include_callback_output=True,
+            drop_virtual_file_outputs=False,
+        )
+        text = "".join(
+            row["text"]
+            for row in export["cells"][0]["console"]
+            if row["type"] == "stream"
+        )
+        assert text.splitlines() == [
+            widget_id,
+            "before",
+            "changed 7",
+            "after",
+            "from original execution",
+        ]
+    with client.websocket_connect(url) as socket:
+        frames = socket_snapshot(socket)
+        console = [
+            frame["data"]["console"]
+            for frame in frames
+            if frame["event"] == "console"
+        ]
+        assert [item["text"] for item in console] == [
+            *stdout,
+            "from original execution\n",
+        ]
+        assert not any(
+            frame["event"] == "console"
+            and "changed 7" in frame["data"]["console"]["text"]
+            for frame in frames
+        )
+        replay = receive_notification(socket, "callback-output")
+        assert replay["replace"]
+        assert replay["after_seq"] == [last_seq] * len(replay["entries"])
+        assert "".join(
+            entry["data"] for entry in replay["entries"]
+        ).splitlines() == ["before", "changed 7", "after"]
 
+        clear = client.post(
+            "/api/kernel/set_ui_element_value",
+            headers=headers("s1"),
+            json={"objectIds": [widget_id], "values": [0]},
+        )
+        assert clear.status_code == 200, clear.text
+        removed = set()
+        cleared_callbacks = False
+        while len(removed) < len(console) or not cleared_callbacks:
+            frame = socket.receive_json()
+            if frame["event"] == "console.removed":
+                removed.add(frame["data"]["id"])
+            elif frame["event"] == "marimo":
+                message = frame["data"]["marimo"]
+                if message["op"] == "callback-output":
+                    assert message["entries"] == []
+                    cleared_callbacks = True
+        assert removed == {item["id"] for item in console}
+        assert (
+            session.session_view.cell_console(
+                CellId_t(cell_id), include_callbacks=True
+            )
+            == []
+        )
     with client.websocket_connect(url) as socket:
         assert not any(
             frame["event"] == "console" for frame in socket_snapshot(socket)
         )
-        msg = receive_notification(socket, "cell-op")
-        assert msg["cell_id"] == cell_id
-        assert [entry["data"] for entry in msg["console"]] == ["changed 2\n"]
+        assert receive_notification(socket, "callback-output")["entries"] == []
 
 
 def test_editor_with_autorun_reports_the_startup_run_on_the_host_socket(
@@ -410,7 +481,7 @@ def test_editor_receives_native_attachment_snapshots_and_changes(
 def test_reconnect_keeps_state_and_refresh_replays_it(
     client: TestClient, editor_host: SessionBridge
 ) -> None:
-    url = f"{socket_url(editor_host)}&types=marimo"
+    url = f"{socket_url(editor_host)}&types=marimo,console,execution"
     with client.websocket_connect(url) as websocket:
         receive_notification(websocket, "kernel-ready")
         cell_id = first_cell_id(client, "s1")
@@ -424,24 +495,42 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
         assert response.status_code == 202, response.text
         receive_completed_run(websocket, response.json()["id"])
     with client.websocket_connect(url) as websocket:
-        socket_snapshot(websocket)
+        retained = socket_snapshot(websocket)
+        [console] = [
+            f["data"]["console"]
+            for f in retained
+            if f["event"] == "console"
+            and "retained output" in f["data"]["console"]["text"]
+        ]
+        assert any(
+            f["event"] == "execution"
+            and f["data"]["execution"]["id"] == console["execution_id"]
+            and f["data"]["execution"]["cell_id"] == cell_id
+            for f in retained
+        )
         assert_reconnect_alert(websocket)
-        cell = receive_notification(websocket, "cell-op")
-        assert cell["cell_id"] == cell_id
-        assert "retained output" in str(cell["console"])
     with client.websocket_connect(
-        f"{socket_url(editor_host, 's2')}&types=marimo"
+        f"{socket_url(editor_host, 's2')}&types=marimo,console,execution"
     ) as websocket:
-        socket_snapshot(websocket)
+        retained = socket_snapshot(websocket)
+        [console] = [
+            f["data"]["console"]
+            for f in retained
+            if f["event"] == "console"
+            and "retained output" in f["data"]["console"]["text"]
+        ]
+        assert any(
+            f["event"] == "execution"
+            and f["data"]["execution"]["id"] == console["execution_id"]
+            and f["data"]["execution"]["cell_id"] == cell_id
+            for f in retained
+        )
         event = websocket.receive_json()
         assert event["event"] == "marimo"
         ready = event["data"]["marimo"]
         assert ready["op"] == "kernel-ready"
         assert ready["resumed"] is True
         assert ready["kiosk"] is False
-        cell = receive_notification(websocket, "cell-op")
-        assert cell["cell_id"] == cell_id
-        assert "retained output" in str(cell["console"])
 
 
 @pytest.mark.parametrize("replay", ["snapshot", "cursor", "reset"])
@@ -506,9 +595,11 @@ def test_reconnect_recovers_offline_notifications(
             ):
                 break
             notifications.append(notification)
-        assert [n for n in notifications if n["op"] == "cell-op"] == [
-            msgspec.json.decode(serialize_kernel_message(update))
-        ]
+        assert all(n["op"] != "cell-op" for n in notifications)
+        assert all(
+            n["op"] not in {"pdb-output", "callback-output"}
+            for n in notifications
+        )
         assert not any(n["op"] == "kernel-ready" for n in notifications)
         assert not any(
             n["op"] == "alert" and n["title"] == "excluded"

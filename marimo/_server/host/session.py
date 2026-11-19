@@ -23,8 +23,8 @@ from marimo._server.api.endpoints.ws.notification_filter import (
 from marimo._server.api.endpoints.ws.session_handler import SessionHandler
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.host.events import (
+    EditorNotifications,
     MarimoEvent,
-    editor_events,
     serialize_event,
     serialize_sse_event,
 )
@@ -61,6 +61,8 @@ class _Close:
 class SessionEventStream(SessionHandler):
     """Merge host events with the session's private notification delivery."""
 
+    snapshot_scope = "editor"
+
     def __init__(
         self,
         connection: WebSocket | Request,
@@ -83,6 +85,7 @@ class SessionEventStream(SessionHandler):
         self._stream_finished = False
         self.notebook = notebook
         self.bridge = bridge
+        self._notifications = EditorNotifications()
         self.types = types
         self.cursor = cursor
         self._attachment: protocol.Attachment | None = None
@@ -104,16 +107,14 @@ class SessionEventStream(SessionHandler):
             and message.consumer_capabilities.edit
             and self._session is not None
         ):
-            for (
-                retained
-            ) in self._session.session_view.debugger_notifications():
+            view = self._session.session_view
+            for retained in view.debugger_notifications():
                 self._queue_notification(retained)
 
     def _queue_notification(self, message: NotificationMessage) -> None:
-        for event in editor_events(
+        for event in self._notifications.events(
             self.notebook.id if self.notebook is not None else None,
             message,
-            self.types,
             self._session.session_view if self._session is not None else None,
         ):
             if event.wanted(self.types):

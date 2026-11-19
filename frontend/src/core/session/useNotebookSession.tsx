@@ -4,13 +4,10 @@ import { invalidatePackageData } from "@/core/packages/package-data";
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import { toast } from "@/components/ui/use-toast";
-import {
-  notebookAtom,
-  useReducerActions,
-} from "@/core/cells/cells";
+import { notebookAtom, useReducerActions } from "@/core/cells/cells";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import { followDocument } from "@/core/cells/document";
-import type { CellId } from "@/core/cells/ids";
+import { SCRATCH_CELL_ID, type CellId } from "@/core/cells/ids";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
 import type { NotificationPayload } from "@/core/kernel/messages";
@@ -52,18 +49,16 @@ import { useDatasetsActions } from "../datasets/state";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { kernelStartupErrorAtom, useBannersActions } from "../errors/state";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
-import {
-  handleCellNotificationeration,
-  handleKernelReady,
-  handleRemoveUIElements,
-} from "../kernel/handlers";
+import { handleKernelReady, handleRemoveUIElements } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import {
   type SessionId,
   type StableSessionId,
   stableSessionIdAtom,
 } from "../kernel/session";
-import { executionSource, observeCellMessage } from "../executions";
+import { cellError } from "../executions/output";
+import { getCellLogsForMessage } from "../cells/logs";
+import { setCellBlocked } from "../executions";
 import { initialRunCompletedAtom } from "../kernel/state";
 import { useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
@@ -73,6 +68,7 @@ import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
+import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import {
   DownloadStorage,
   ListStorageEntries,
@@ -81,6 +77,7 @@ import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { activeDocumentModelAtom, confirmedDocumentAtom } from "./active-notebook";
+import { executionSource } from "@/core/executions";
 import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
@@ -90,9 +87,10 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
   const store = useStore();
 
   const {
-    showPdbOutput,
+    setCellReusability,
+    showCommandOutput,
+    hideConsoleInputs,
     clearDebuggerOutput,
-    handleCellMessage,
     reconcileDocument,
     resetCellRuntimes,
   } = useReducerActions();
@@ -168,9 +166,6 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
         return;
       }
 
-      case "pdb-output":
-        showPdbOutput(msg.data);
-        return;
       case "pdb-input": {
         const { cell_id, input_id } = msg.data;
         store.set(
@@ -182,9 +177,6 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
 
       case "completed-run":
         setInitialRunCompleted(true);
-        return;
-      case "callback-output":
-      case "console-inputs-cleared":
         return;
       case "interrupted":
         return;
@@ -221,12 +213,35 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       case "function-call-result":
         FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
         return;
-      case "cell-op": {
-        observeCellMessage(store, msg.data);
-        handleCellNotificationeration(msg.data, handleCellMessage);
+      case "console-inputs-cleared":
+        hideConsoleInputs({
+          cellId: msg.data.cell_id,
+          executionId: msg.data.execution_id,
+          inputIds: msg.data.input_ids,
+        });
         return;
-      }
-
+      case "cell-op":
+        if (msg.data.status != null) {
+          setCellBlocked(
+            store,
+            msg.data.cell_id,
+            msg.data.status === "disabled-transitively",
+          );
+        }
+        if (msg.data.serialization !== undefined) {
+          setCellReusability({
+            cell_id: msg.data.cell_id,
+            serialization: msg.data.serialization,
+          });
+        }
+        return;
+      case "callback-output":
+        VirtualFileTracker.INSTANCE.trackCallbackOutput(msg.data);
+        showCommandOutput(msg.data);
+        return;
+      case "pdb-output":
+        showCommandOutput(msg.data);
+        return;
       case "variables":
         const variableNames = msg.data.variables.map((v) => v.name);
         setVariables(
@@ -418,11 +433,26 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
     },
     checkHealth: () => runtimeManager.reconcileFromHealth(),
     onExecution: (record) => {
+      const cellId = (record.cell_id ?? SCRATCH_CELL_ID) as CellId;
       const time = record.completed_at ?? record.started_at;
+      const timestamp =
+        time === null ? Date.now() / 1000 : Date.parse(time) / 1000;
+      if (record.status === "completed" && record.outcome?.kind === "error") {
+        getCellLogsForMessage({
+          cell_id: cellId,
+          timestamp,
+          output: {
+            channel: "marimo-error",
+            mimetype: "application/vnd.marimo+error",
+            data: [cellError(record.outcome.error)],
+            timestamp,
+          },
+        });
+      }
       addExecution({
         record,
         code: executionSource(record, store.get(confirmedDocumentAtom)?.cells),
-        receivedAt: time === null ? Date.now() / 1000 : Date.parse(time) / 1000,
+        receivedAt: timestamp,
       });
     },
     onNotification: (notification) => {

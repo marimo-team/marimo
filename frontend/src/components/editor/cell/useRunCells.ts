@@ -5,7 +5,6 @@ import { atom, useSetAtom } from "jotai";
 import useEvent from "react-use-event-hook";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook } from "@/core/cells/cells";
-import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
 import {
@@ -105,7 +104,6 @@ export function useRunAllCells() {
  * debugger view clears, as they would on any run.
  */
 export function useRunCells() {
-  const { prepareForRun } = useCellActions();
   const setHasRunAnyCell = useSetAtom(hasRunAnyCellAtom);
 
   const runCellsMemoized = useEvent(async (cellIds: CellId[]) => {
@@ -123,7 +121,6 @@ export function useRunCells() {
       if (ev && getCurrentLanguageAdapter(ev) !== "markdown") {
         closeCompletion(ev);
       }
-      prepareForRun({ cellId });
     }
     return runCells(store, cellIds);
   });

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { Trash2Icon } from "lucide-react";
 import type { JSX } from "react";
-import type { RuntimeState } from "@/core/network/types";
+import type { CellRunStatus } from "@/core/executions";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
@@ -13,7 +13,7 @@ import { Button } from "../../ui/button";
 import { Tooltip } from "../../ui/tooltip";
 
 export const DeleteButton = (props: {
-  status: RuntimeState;
+  status: CellRunStatus;
   connectionState: ConnectionState;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }): JSX.Element => {

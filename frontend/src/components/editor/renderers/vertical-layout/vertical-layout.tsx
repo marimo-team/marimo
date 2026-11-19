@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
-import type { CellRuntimeState, RuntimeCell } from "@/core/cells/types";
+import type { CellRuntimeView, RuntimeCell } from "@/core/cells/types";
 import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
@@ -300,7 +300,7 @@ const ActionButtons: React.FC<{
   );
 };
 
-interface VerticalCellProps extends Pick<CellRuntimeState, "consoleOutputs"> {
+interface VerticalCellProps extends Pick<CellRuntimeView, "consoleOutputs"> {
   cellOutputArea: "above" | "below";
   cellId: CellId;
   config: CellConfig;
@@ -329,7 +329,6 @@ const VerticalCell = memo(
     const output = useCellOutput(cellId);
     const { execution, freshness } = useCellPresentation(cellId);
     const errored = execution.outcome === "error";
-    const interrupted = execution.outcome === "interrupted";
     const stopped = execution.outcome === "skipped";
 
     const outputStale = outputIsStale(execution, freshness, false);
@@ -391,11 +390,9 @@ const VerticalCell = memo(
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}
-            interrupted={interrupted}
             cellName={name}
             onSubmitDebugger={() => null}
             cellId={cellId}
-            debuggerActive={false}
           />
         </div>
       );
@@ -405,7 +402,7 @@ const VerticalCell = memo(
     // instead of hiding them
     const hidden = shouldHidePublishedCell({
       errored,
-      interrupted,
+      interrupted: execution.outcome === "interrupted",
       stopped,
       output,
       showErrorTracebacks,
