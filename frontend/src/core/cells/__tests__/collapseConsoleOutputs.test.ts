@@ -6,10 +6,79 @@ import type { ConsoleOutputMessage } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import {
   collapseConsoleOutputs,
+  collapseConsoleBatch,
   maybeMakeOutputStateful,
 } from "../collapseConsoleOutputs";
 
 describe("collapseConsoleOutputs", () => {
+  it("keeps an unanswered prompt visible when later writes fill the console", () => {
+    const prompt: ConsoleOutputMessage = {
+      channel: "stdin",
+      mimetype: "text/password",
+      data: "Password: ",
+      timestamp: 0,
+      input_id: "p1",
+    };
+    const output: OutputMessage = {
+      channel: "stdout",
+      mimetype: "text/plain",
+      data: "line\n".repeat(5001),
+      timestamp: 1,
+    };
+    for (const collapse of [collapseConsoleOutputs, collapseConsoleBatch]) {
+      expect(collapse([prompt, output])).toContain(prompt);
+      expect(collapse([{ ...prompt, response: "" }, output])).toHaveLength(2);
+    }
+  });
+
+  it("renders a split escape sequence the same live and after replay", () => {
+    const start = StatefulOutputMessage.create({
+      channel: "stdout",
+      mimetype: "text/plain",
+      data: "abc\u001B[",
+      timestamp: 0,
+    });
+    const finish = { ...start, data: "2KX" };
+    expect(start.appendData(finish.data).data).toBe("   X");
+    expect(start.appendData("2KY").data).toBe("   Y");
+    expect(
+      collapseConsoleBatch([{ ...start, data: "abc\u001B[" }, finish])[0].data,
+    ).toBe("   X");
+  });
+
+  it.each(["1A\rupdated", "1;1Hoverwritten\u001B[5001;1Hupdated"])(
+    "keeps a split cursor sequence across the live line limit (%j)",
+    (completion) => {
+      const start: ConsoleOutputMessage = {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: `${"old\n".repeat(5000)}working\nlast\u001B[`,
+        timestamp: 0,
+      };
+      const finish = { ...start, data: completion };
+      const live = collapseConsoleOutputs([
+        ...collapseConsoleOutputs([start]),
+        finish,
+      ]);
+      const replay = collapseConsoleBatch([start, finish]);
+      expect(live.map((row) => row.data)).toEqual(
+        replay.map((row) => row.data),
+      );
+      expect(live.at(-1)?.data).toBe(`${"old\n".repeat(4998)}updated\nlast`);
+    },
+  );
+
+  it("preserves a static traceback row during replay", () => {
+    const traceback: OutputMessage = {
+      channel: "stderr",
+      mimetype: "application/vnd.marimo+traceback",
+      traceback_format: "text",
+      data: "ValueError: expected <column>",
+      timestamp: 0,
+    };
+    expect(collapseConsoleBatch([traceback])[0]).toBe(traceback);
+  });
+
   it("should collapse last two text/plain outputs on the same channel", () => {
     const consoleOutputs: OutputMessage[] = [
       {
@@ -64,7 +133,7 @@ describe("collapseConsoleOutputs", () => {
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
-    expect(result).toEqual(consoleOutputs);
+    expect(result).toMatchObject(consoleOutputs);
   });
 
   it("should not collapse outputs of different mimetypes", () => {
@@ -83,7 +152,7 @@ describe("collapseConsoleOutputs", () => {
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
-    expect(result).toEqual(consoleOutputs);
+    expect(result).toMatchObject(consoleOutputs);
   });
 
   it("should handle carriage returns", () => {
