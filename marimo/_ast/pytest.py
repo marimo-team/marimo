@@ -298,6 +298,7 @@ class _CellTarget:
         tuple[Any, Mapping[str, Any]]
         | Awaitable[tuple[Any, Mapping[str, Any]]],
     ]
+    file: str
     use_wrapped: bool
 
     def _lookup(self, cell_defs: Mapping[str, Any]) -> Callable[..., Any]:
@@ -329,6 +330,61 @@ class _CellTarget:
             _, cell_defs = res
         return self._lookup(cell_defs)
 
+    def build_hook(self) -> Callable[..., Any]:
+        def _hook(*args: Any, **kwargs: Any) -> Any:
+            with notebook_filename(self.file):
+                return self.resolve()(*args, **kwargs)
+
+        return _hook
+
+    def build_async_hook(self) -> Callable[..., Awaitable[Any]]:
+        async def _async_hook(*args: Any, **kwargs: Any) -> Any:
+            with notebook_filename(self.file):
+                fn = await self.resolve_async()
+                return await fn(*args, **kwargs)
+
+        return _async_hook
+
+    def build_generator_hook(self) -> Callable[..., Iterator[Any]]:
+        def _gen_hook(*args: Any, **kwargs: Any) -> Iterator[Any]:
+            with notebook_filename(self.file):
+                gen = self.resolve()(*args, **kwargs)
+            try:
+                while True:
+                    with notebook_filename(self.file):
+                        try:
+                            value = next(gen)
+                        except StopIteration:
+                            return
+                    yield value
+            finally:
+                with notebook_filename(self.file):
+                    gen.close()
+
+        return _gen_hook
+
+    def build_async_generator_hook(self) -> Callable[..., AsyncIterator[Any]]:
+        # Enter the notebook context per step: async teardown may resume in a
+        # different contextvars.Context than setup.
+        async def _async_gen_hook(
+            *args: Any, **kwargs: Any
+        ) -> AsyncIterator[Any]:
+            with notebook_filename(self.file):
+                gen = (await self.resolve_async())(*args, **kwargs)
+            try:
+                while True:
+                    with notebook_filename(self.file):
+                        try:
+                            value = await anext(gen)
+                        except StopAsyncIteration:
+                            return
+                    yield value
+            finally:
+                with notebook_filename(self.file):
+                    await gen.aclose()
+
+        return _async_gen_hook
+
 
 def _make_hook(
     var: str,
@@ -343,63 +399,14 @@ def _make_hook(
     is_generator: bool = False,
 ) -> Callable[..., Any]:
     """Single hook factory - handles both fixtures and tests."""
-    target = _CellTarget(var, run, use_wrapped)
-
+    target = _CellTarget(var, run, file, use_wrapped)
     if is_async and is_generator:
-        # Enter the notebook context per step: async teardown may resume in a
-        # different contextvars.Context than setup.
-        async def _async_gen_hook(
-            *args: Any, **kwargs: Any
-        ) -> AsyncIterator[Any]:
-            with notebook_filename(file):
-                gen = (await target.resolve_async())(*args, **kwargs)
-            try:
-                while True:
-                    with notebook_filename(file):
-                        try:
-                            value = await anext(gen)
-                        except StopAsyncIteration:
-                            return
-                    yield value
-            finally:
-                with notebook_filename(file):
-                    await gen.aclose()
-
-        return _async_gen_hook
-
+        return target.build_async_generator_hook()
     if is_async:
-
-        async def _async_hook(*args: Any, **kwargs: Any) -> Any:
-            with notebook_filename(file):
-                fn = await target.resolve_async()
-                return await fn(*args, **kwargs)
-
-        return _async_hook
-
+        return target.build_async_hook()
     if is_generator:
-
-        def _gen_hook(*args: Any, **kwargs: Any) -> Iterator[Any]:
-            with notebook_filename(file):
-                gen = target.resolve()(*args, **kwargs)
-            try:
-                while True:
-                    with notebook_filename(file):
-                        try:
-                            value = next(gen)
-                        except StopIteration:
-                            return
-                    yield value
-            finally:
-                with notebook_filename(file):
-                    gen.close()
-
-        return _gen_hook
-
-    def _hook(*args: Any, **kwargs: Any) -> Any:
-        with notebook_filename(file):
-            return target.resolve()(*args, **kwargs)
-
-    return _hook
+        return target.build_generator_hook()
+    return target.build_hook()
 
 
 def _build_hook(
