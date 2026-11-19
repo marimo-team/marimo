@@ -3,10 +3,17 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Protocol,
+    cast,
+    runtime_checkable,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
 from marimo._ast.sql_visitor import POLARS_ENGINE
 from marimo._config.manager import (
@@ -144,7 +151,7 @@ def _polars_engine_deps(sql_output: SqlOutputType) -> list[Dependency]:
     return deps
 
 
-def _execution_globals() -> dict[str, Any]:
+def _execution_globals() -> Mapping[str, object]:
     try:
         return get_context().globals
     except ContextNotInitializedError:
@@ -245,13 +252,9 @@ def sql(
     except OSError:
         default_result_limit = None
 
-    enforce_own_limit = not has_limit and default_result_limit is not None
-
-    custom_total_count: Literal["too_many"] | None = None
-    if enforce_own_limit:
-        df, custom_total_count = _apply_result_limit(
-            df, cast(int, default_result_limit)
-        )
+    custom_total_count: TotalRowCount = None
+    if not has_limit and default_result_limit is not None:
+        df, custom_total_count = _apply_result_limit(df, default_result_limit)
 
     if output:
         from marimo._output.formatters.df_formatters import include_opinionated
@@ -291,9 +294,24 @@ def sql(
     return df
 
 
+TotalRowCount = Literal["too_many"] | None
+
+
+@runtime_checkable
+class _LimitableResult(Protocol):
+    """An eager result such as a Polars DataFrame or a DuckDB relation."""
+
+    def __len__(self) -> int: ...
+
+    def limit(self, n: int, /) -> object: ...
+
+
 def _apply_result_limit(
-    df: Any, limit: int
-) -> tuple[Any, Literal["too_many"] | None]:
+    df: object, limit: int
+) -> tuple[object, TotalRowCount]:
+    def total_row_count(row_count: int) -> TotalRowCount:
+        return "too_many" if row_count > limit else None
+
     if DependencyManager.polars.imported():
         import polars as pl
 
@@ -305,9 +323,13 @@ def _apply_result_limit(
         import pandas as pd
 
         if isinstance(df, pd.DataFrame):
-            return df.head(limit), "too_many" if len(df) > limit else None
+            return df.head(limit), total_row_count(len(df))
 
-    return df.limit(limit), "too_many" if len(df) > limit else None
+    if isinstance(df, _LimitableResult):
+        return df.limit(limit), total_row_count(len(df))
+
+    # Cursors and other results can't be truncated or counted.
+    return df, None
 
 
 def _query_includes_limit(query: str) -> bool:

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from collections.abc import Sized
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -35,6 +36,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import duckdb
+    import pandas as pd
+    import polars as pl
     import sqlalchemy as sa
 
 
@@ -468,11 +471,15 @@ def test_query_includes_limit() -> None:
     )
 
 
-def _as_pandas(df: Any) -> Any:
+def _as_polars(df: pl.DataFrame) -> pl.DataFrame:
+    return df
+
+
+def _as_pandas(df: pl.DataFrame) -> pd.DataFrame:
     return df.to_pandas()
 
 
-def _as_duckdb_relation(df: Any) -> Any:
+def _as_duckdb_relation(df: pl.DataFrame) -> duckdb.DuckDBPyRelation:
     import duckdb
 
     duckdb.register("limit_frame", df)
@@ -481,20 +488,27 @@ def _as_duckdb_relation(df: Any) -> Any:
 
 @pytest.mark.requires("polars", "pandas", "duckdb")
 @pytest.mark.parametrize(
-    "to_result", [lambda df: df, _as_pandas, _as_duckdb_relation]
+    "to_result", [_as_polars, _as_pandas, _as_duckdb_relation]
 )
-def test_apply_result_limit_eager(to_result: Callable[[Any], Any]) -> None:
+def test_apply_result_limit_eager(
+    to_result: Callable[[pl.DataFrame], Sized],
+) -> None:
     import polars as pl
 
-    df = pl.DataFrame({"n": range(5)})
-    result = to_result(df)
+    result = to_result(pl.DataFrame({"n": range(5)}))
 
     limited, total_count = _apply_result_limit(result, 3)
+    assert isinstance(limited, Sized)
     assert len(limited) == 3
     assert total_count == "too_many"
 
     _, total_count = _apply_result_limit(result, 5)
     assert total_count is None
+
+
+def test_apply_result_limit_leaves_unknown_results_unchanged() -> None:
+    cursor = iter([1, 2, 3])
+    assert _apply_result_limit(cursor, 1) == (cursor, None)
 
 
 @pytest.mark.requires("polars")

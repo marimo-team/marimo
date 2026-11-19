@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypeAlias
 
 from marimo._ast.sql_visitor import POLARS_ENGINE, POLARS_SQL_MIN_VERSION
 from marimo._dependencies.dependencies import DependencyManager
@@ -11,7 +11,10 @@ from marimo._sql.error_utils import MarimoSQLException
 from marimo._utils.log_never import log_never
 
 if TYPE_CHECKING:
+    import pandas as pd
     import polars as pl
+
+PolarsSQLResult: TypeAlias = "pl.DataFrame | pl.LazyFrame | pd.DataFrame"
 
 
 class PolarsEngine(QueryEngine[Mapping[str, object]]):
@@ -29,10 +32,10 @@ class PolarsEngine(QueryEngine[Mapping[str, object]]):
         return "polars"
 
     @staticmethod
-    def is_compatible(var: Any) -> bool:
+    def is_compatible(var: object) -> bool:
         return isinstance(var, str) and var == POLARS_ENGINE
 
-    def execute(self, query: str) -> Any:
+    def execute(self, query: str) -> PolarsSQLResult:
         DependencyManager.polars.require_at_version(
             "to execute sql with Polars", min_version=POLARS_SQL_MIN_VERSION
         )
@@ -55,7 +58,7 @@ class PolarsEngine(QueryEngine[Mapping[str, object]]):
                 message=str(e), sql_statement=query
             ) from e
 
-    def _to_output(self, result: pl.LazyFrame) -> Any:
+    def _to_output(self, result: pl.LazyFrame) -> PolarsSQLResult:
         sql_output_format = self.sql_output_format()
         match sql_output_format:
             case "native" | "lazy-polars":

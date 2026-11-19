@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import importlib
 import os
 from unittest import mock
 
@@ -13,7 +12,7 @@ from marimo._ast.sql_visitor import (
 )
 from marimo._config.types import SqlOutputType
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.polars import PolarsEngine
+from marimo._sql.engines.polars import PolarsEngine, PolarsSQLResult
 from marimo._sql.error_utils import MarimoSQLException
 from marimo._sql.sql import sql
 
@@ -41,7 +40,7 @@ pytestmark = pytest.mark.skipif(
         ("SELECT * FROM sch.cars JOIN `my cars` USING (id)", set()),
         # CTE names are over-reported; at worst they add an extra edge.
         ("WITH t AS (SELECT * FROM a) SELECT * FROM t", {"a", "t"}),
-        ("SELECT * FRM cars", set()),
+        ("SELECT * FROM cars WHERE", set()),
     ],
 )
 def test_find_polars_sql_table_names(query: str, expected: set[str]) -> None:
@@ -67,39 +66,45 @@ def _engine(**namespace: object) -> PolarsEngine:
     return PolarsEngine(namespace)
 
 
-@pytest.mark.parametrize(
-    ("sql_output_format", "expected_library", "expected_class"),
-    [
-        ("auto", "polars", "DataFrame"),
-        ("polars", "polars", "DataFrame"),
-        ("lazy-polars", "polars", "LazyFrame"),
-        ("native", "polars", "LazyFrame"),
-        ("pandas", "pandas", "DataFrame"),
-    ],
-)
-def test_execute_output_formats(
-    sql_output_format: SqlOutputType,
-    expected_library: str,
-    expected_class: str,
-) -> None:
-    if sql_output_format == "pandas" and not (
-        DependencyManager.pandas.has() and DependencyManager.pyarrow.has()
-    ):
-        pytest.skip("pandas output requires pandas and pyarrow")
+def _execute_cars_query(sql_output_format: SqlOutputType) -> PolarsSQLResult:
     import polars as pl
 
     engine = _engine(cars=pl.LazyFrame({"id": [1, 2], "make": ["a", "b"]}))
     with mock.patch.object(
         PolarsEngine, "sql_output_format", return_value=sql_output_format
     ):
-        result = engine.execute("SELECT make FROM cars WHERE id > 1")
+        return engine.execute("SELECT make FROM cars WHERE id > 1")
 
-    library = importlib.import_module(expected_library)
-    assert isinstance(result, getattr(library, expected_class))
-    collected = (
-        result.collect() if isinstance(result, pl.LazyFrame) else result
-    )
-    assert list(collected["make"]) == ["b"]
+
+@pytest.mark.parametrize("sql_output_format", ["auto", "polars"])
+def test_execute_collects_eager_output(
+    sql_output_format: SqlOutputType,
+) -> None:
+    import polars as pl
+
+    result = _execute_cars_query(sql_output_format)
+    assert isinstance(result, pl.DataFrame)
+    assert result["make"].to_list() == ["b"]
+
+
+@pytest.mark.parametrize("sql_output_format", ["lazy-polars", "native"])
+def test_execute_keeps_lazy_output_lazy(
+    sql_output_format: SqlOutputType,
+) -> None:
+    import polars as pl
+
+    result = _execute_cars_query(sql_output_format)
+    assert isinstance(result, pl.LazyFrame)
+    assert result.collect()["make"].to_list() == ["b"]
+
+
+@pytest.mark.requires("pandas", "pyarrow")
+def test_execute_pandas_output() -> None:
+    import pandas as pd
+
+    result = _execute_cars_query("pandas")
+    assert isinstance(result, pd.DataFrame)
+    assert result["make"].to_list() == ["b"]
 
 
 def test_execute_joins_eager_and_lazy_frames() -> None:
@@ -116,13 +121,14 @@ def test_execute_joins_eager_and_lazy_frames() -> None:
         result = engine.execute(
             "SELECT make, owner FROM cars JOIN owners USING (id)"
         )
+    assert isinstance(result, pl.DataFrame)
     assert result.to_dicts() == [{"make": "b", "owner": "x"}]
 
 
 @pytest.mark.parametrize(
     "query",
     [
-        "SELECT * FROM cars",
+        "SELECT * FROM cars WHERE",
         "SELECT * FROM missing",
         "SELECT nope FROM cars",
     ],
@@ -151,9 +157,12 @@ def test_execute_requires_supported_polars() -> None:
         _engine().execute("SELECT 1")
 
 
-def test_sql_rejects_unknown_string_engine() -> None:
-    with pytest.raises(ValueError, match="Unsupported engine"):
-        sql("SELECT 1", engine="duckdb")  # type: ignore[arg-type]
+@pytest.mark.parametrize(
+    ("engine", "expected"),
+    [("polars", True), ("Polars", False), ("duckdb", False), (None, False)],
+)
+def test_is_compatible(engine: object, expected: bool) -> None:
+    assert PolarsEngine.is_compatible(engine) is expected
 
 
 @mock.patch("marimo._sql.sql.replace")
