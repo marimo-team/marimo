@@ -59,6 +59,8 @@ import {
   fixtureEvents,
   fixtureMessages,
 } from "../../notebook/replica/__tests__/fixtures";
+import { MockExecutions } from "@/__mocks__/executions";
+import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { useNotebookSession } from "../useNotebookSession";
 import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 
@@ -455,6 +457,35 @@ it("does not mark the session connected on kernel-ready alone", async () => {
     }),
   );
   expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
+});
+
+it("tracks exported files from host execution values", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  await act(async () => conn.open());
+  act(() => conn.ready());
+  const id = cellId("c1");
+  const file = "/@file/stream-image.png";
+  const record = MockExecutions.completed(id, {
+    outcome: {
+      kind: "value",
+      display: { mimetype: "text/html", data: `<img src="${file}">` },
+    },
+  });
+  act(() =>
+    conn.receive({
+      event: "execution",
+      id: "updated",
+      data: { execution: record },
+    }),
+  );
+  expect(VirtualFileTracker.INSTANCE.filenames()).toContain(file);
+  act(() => conn.send({ op: "remove-ui-elements", cell_id: id }));
+  expect(VirtualFileTracker.INSTANCE.filenames()).not.toContain(file);
 });
 
 it("replaces gutter breakpoints with the session's replayed state", async () => {

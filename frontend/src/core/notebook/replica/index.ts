@@ -9,7 +9,11 @@ export {
   ConnectionState,
   type ConnectionStatus,
 } from "./connection";
-export { createNotebookReplica, type NotebookReplica } from "./replica";
+export {
+  EDITOR_EVENT_TYPES,
+  createNotebookReplica,
+  type NotebookReplica,
+} from "./replica";
 export type { Document } from "./resources/document";
 export {
   type Execution,

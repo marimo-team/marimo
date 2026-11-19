@@ -13,6 +13,7 @@ import {
   createNotebookReplica,
   type NotebookReplica,
 } from "../notebook/replica";
+import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { activeNotebookReplicaAtom } from "./active-notebook";
 import { createEditorBackend, type EditorBackendOptions } from "./backend";
 
@@ -58,6 +59,8 @@ export function useNotebookReplica(options: Options): NotebookReplica {
   useEffect(() => {
     store.set(activeNotebookReplicaAtom, replica);
     const disconnect = replica.connect(backend, {
+      onExecution: (record) =>
+        VirtualFileTracker.INSTANCE.trackExecution(record),
       // The host validates the envelope, not the native notification contents.
       onNotification: (notification) =>
         onNotification({ data: notification as NotificationMessage }),

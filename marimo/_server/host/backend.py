@@ -516,7 +516,9 @@ class SessionBackend(SessionConsumer):
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
         with self._sink.deferred():
-            self._sink.append(notification_event(self._notebook_id, message))
+            event = notification_event(self._notebook_id, message)
+            if event is not None:
+                self._sink.append(event)
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:

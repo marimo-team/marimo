@@ -40,6 +40,7 @@ import {
   activeDocumentModelAtom,
   activeNotebookReplicaAtom,
 } from "../session/active-notebook";
+import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { store as defaultStore } from "../state/jotai";
 import type { IslandsPyodideBridge } from "./bridge";
 import { MarimoIslandElement } from "./components/web-components";
@@ -135,7 +136,10 @@ export async function initializeIslands(
 
   // The notebook's cells follow the managed session's host document.
   const replica = createNotebookReplica(store);
-  replica.connect(bridge.notebookBackend, { onNotification: Functions.NOOP });
+  replica.connect(bridge.notebookBackend, {
+    onNotification: Functions.NOOP,
+    onExecution: (record) => VirtualFileTracker.INSTANCE.trackExecution(record),
+  });
   store.set(activeNotebookReplicaAtom, replica);
   const documentModel = createDocumentModel({
     store,

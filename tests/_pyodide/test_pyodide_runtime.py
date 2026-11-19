@@ -14,7 +14,7 @@ import marimo._pyodide.notebook as worker
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._core.code import code_fingerprint
-from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     CellNotification,
@@ -272,6 +272,95 @@ def finished(cell_id: str, run_id: str, execution_id: str = "e1"):
         ),
         CompletedRunNotification(run_id=run_id, outcome="succeeded"),
     ]
+
+
+async def test_editor_receives_one_representation_of_each_output(bridge):
+    events = await started(bridge)
+    cell_id = latest(events, "cell")["id"]
+    reply = await call(bridge, "runtime.run", {"cells": [{"id": cell_id}]})
+    run_id = reply["body"]["id"]
+    await settle()
+    frames = []
+
+    def receive(raw):
+        frames.append(json.loads(raw))
+
+    await bridge.notebook.subscribe(
+        "editor", None, receive, "marimo,execution"
+    )
+    deliver(bridge, planned(cell_id, run_id))
+    deliver(bridge, running(cell_id, run_id))
+    deliver(
+        bridge,
+        CellNotification(
+            cell_id=cell_id,
+            execution_id="e1",
+            run_id=run_id,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="result",
+            ),
+            console=CellOutput.stdout("printed"),
+        ),
+    )
+    deliver(
+        bridge,
+        CellNotification(
+            cell_id=cell_id,
+            execution_id="e1",
+            run_id=run_id,
+            console=CellOutput.stdin("Continue?", input_id="confirm"),
+        ),
+    )
+    for replay in (False, True):
+        if replay:
+            frames.clear()
+            await bridge.notebook.subscribe(
+                "editor", None, receive, "marimo,execution"
+            )
+        assert (
+            latest(frames, "execution")["outcome"]["display"]["data"]
+            == "result"
+        )
+        assert {f["event"] for f in frames} <= {"ready", "marimo", "execution"}
+        ops = [
+            f["data"]["marimo"]
+            for f in frames
+            if f["event"] == "marimo"
+            and f["data"]["marimo"]["op"] == "cell-op"
+        ]
+        assert all(
+            f["data"]["marimo"]["op"] != "execution"
+            for f in frames
+            if f["event"] == "marimo"
+        )
+        assert all(op["output"] is None for op in ops)
+        entries = [
+            entry
+            for op in ops
+            for entry in (
+                op["console"]
+                if isinstance(op["console"], list)
+                else [op["console"]]
+            )
+            if entry is not None
+        ]
+        assert [entry["data"] for entry in entries] == ["printed", "Continue?"]
+        assert entries[-1]["input_id"] == "confirm"
+
+    reply = await call(
+        bridge,
+        "runtime.input",
+        {"value": "yes"},
+        input_id="confirm",
+        key="answer",
+    )
+    assert reply["status"] == 200
+    assert (
+        bridge.session._queue_manager.input_queue.get_nowait()
+        == InputReply("confirm", "yes")
+    )
 
 
 @pytest.mark.parametrize("allowed", ["runtime.run", "runtime.execute"])

@@ -11,6 +11,7 @@ import {
 } from "@marimo-team/client";
 import type {
   Attachment,
+  Execution as HostExecution,
   NotebookOutput,
   Runtime,
 } from "@marimo-team/client/protocol";
@@ -35,10 +36,9 @@ import { runtime } from "./resources/runtime";
 /**
  * The kinds the editor reads, with marimo's own notifications.
  *
- * Console and display items stay out until the editor reads outputs from
- * the replica. The native notifications still carry them.
+ * Console, display and stdin still render from the native console (MO-8405).
  */
-const TYPES = [
+export const EDITOR_EVENT_TYPES = [
   "notebook",
   "cell",
   "document",
@@ -46,12 +46,11 @@ const TYPES = [
   "runtime",
   "run",
   "execution",
-  "input",
   "variable",
   "marimo",
 ] as const;
 
-type EditorEvent = NotebookEvent<(typeof TYPES)[number]>;
+type EditorEvent = NotebookEvent<(typeof EDITOR_EVENT_TYPES)[number]>;
 
 /** A native marimo notification, passed through without interpretation. */
 const MarimoMessage = z.object({ marimo: z.unknown() });
@@ -116,6 +115,8 @@ export interface NotebookReplica {
     options: {
       /** Handle a native marimo notification. Its payload has not been validated. */
       onNotification: (notification: unknown) => void;
+      /** Observe execution records as they arrive, including retained values on reconnect. */
+      onExecution?: (record: HostExecution) => void;
     },
   ): () => void;
   /** Restore the current connection after its stream closed, if the host is healthy. */
@@ -275,7 +276,7 @@ export function createNotebookReplica(
 
   function connect(
     connected: NotebookBackend,
-    { onNotification }: { onNotification: (notification: unknown) => void },
+    { onNotification, onExecution }: Parameters<NotebookReplica["connect"]>[1],
   ) {
     current?.end();
     const lifetime = new AbortController();
@@ -283,7 +284,7 @@ export function createNotebookReplica(
     const checkHealth = connected.checkHealth ?? (async () => true);
     store.set(backendAtom, connected);
     const { transport } = connected;
-    let events: NotebookEvents<(typeof TYPES)[number]> | undefined;
+    let events: NotebookEvents<(typeof EDITOR_EVENT_TYPES)[number]> | undefined;
     let checkingHealth = false;
 
     /** Mirror one stream into the atoms until it closes. */
@@ -292,7 +293,7 @@ export function createNotebookReplica(
         setStream(reducer.initial);
       }
       const current = new NotebookEvents(transport, {
-        types: TYPES,
+        types: EDITOR_EVENT_TYPES,
         cursor,
         signal,
         // TODO(MO-8051): Gate editing and running on the notebook's operations
@@ -351,6 +352,13 @@ export function createNotebookReplica(
         Logger.error("Failed to apply notebook event", error);
         stopMalformed(source);
         return;
+      }
+      if (event.event === "execution" && onExecution) {
+        try {
+          onExecution(event.data.execution);
+        } catch (error) {
+          Logger.error("Failed to handle execution update", error);
+        }
       }
     }
 

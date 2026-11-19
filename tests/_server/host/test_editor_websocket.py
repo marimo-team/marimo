@@ -170,7 +170,9 @@ def test_editor_opens_with_the_results_an_earlier_session_stored(
     ]
 
 
-@pytest.mark.parametrize("types", [None, "marimo", "marimo,run"])
+@pytest.mark.parametrize(
+    "types", [None, "marimo", "marimo,run", "marimo,run,execution"]
+)
 def test_editor_starts_and_runs_through_the_host_socket(
     client: TestClient, editor_host: SessionBridge, types: str | None
 ) -> None:
@@ -204,7 +206,7 @@ def test_editor_starts_and_runs_through_the_host_socket(
         response = run_cells(
             client,
             notebook_id,
-            {cell_id: "print('host socket')"},
+            {cell_id: "print('host socket')\n1234567"},
             headers=headers("s1"),
         )
         assert response.status_code == 202, response.text
@@ -216,8 +218,33 @@ def test_editor_starts_and_runs_through_the_host_socket(
         received_types = {event["event"] for event in messages}
         if types is None:
             assert "run" in received_types
+            host_url = f"{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?access_token=fake-token"
+            with client.websocket_connect(host_url) as observer:
+                retained = socket_snapshot(observer)
+            assert any(
+                event["event"] == "console"
+                and "host socket" in event["data"]["console"]["text"]
+                for event in retained
+            )
+            assert not any(
+                event["event"] == "marimo"
+                and event["data"]["marimo"]["op"] == "cell-op"
+                for event in retained
+            )
         else:
             assert received_types == {*types.split(","), "ready"}
+        if types and "execution" in types:
+            assert any(
+                event["event"] == "execution"
+                and "1234567" in str(event["data"]["execution"]["outcome"])
+                for event in messages
+            )
+            assert not any(
+                event["event"] == "marimo"
+                and event["data"]["marimo"]["op"] == "cell-op"
+                and event["data"]["marimo"]["output"] is not None
+                for event in messages
+            )
         consoles = [
             event["data"]["marimo"]["console"]
             for event in messages

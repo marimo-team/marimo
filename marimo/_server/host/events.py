@@ -7,7 +7,12 @@ import msgspec
 
 from marimo._core import protocol
 from marimo._core.stream import ExtensionEvent, RoutedEvent, event_name
-from marimo._messaging.notification import NotificationMessage
+from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.notification import (
+    CellNotification,
+    ExecutionNotification,
+    NotificationMessage,
+)
 
 
 class MarimoMessage(msgspec.Struct, frozen=True):
@@ -26,9 +31,34 @@ class MarimoEvent(ExtensionEvent, frozen=True, tag="marimo"):
 
 
 def notification_event(
-    notebook_id: protocol.NotebookId | None, notification: NotificationMessage
-) -> RoutedEvent:
-    """Wrap a notification with its notebook and optional run scope."""
+    notebook_id: protocol.NotebookId | None,
+    notification: NotificationMessage,
+    *,
+    editor_session: bool = False,
+    types: set[str] | None = None,
+) -> RoutedEvent | None:
+    """Project a kernel notification onto the host or attached editor stream."""
+    if isinstance(notification, ExecutionNotification):
+        return None
+    if not editor_session and isinstance(notification, CellNotification):
+        return None
+    if (
+        isinstance(notification, CellNotification)
+        and types is not None
+        and "execution" in types
+        and notification.run_id is not None
+        and notification.execution_id is not None
+        and notification.output is not None
+        and notification.output.channel == CellChannel.OUTPUT
+    ):
+        # The execution carries this value, including updates after completion.
+        if (
+            notification.status is None
+            and notification.console is None
+            and notification.serialization is msgspec.UNSET
+        ):
+            return None
+        notification = msgspec.structs.replace(notification, output=None)
     run_id = getattr(notification, "run_id", None)
     return RoutedEvent(
         MarimoEvent(MarimoMessage(notification)),

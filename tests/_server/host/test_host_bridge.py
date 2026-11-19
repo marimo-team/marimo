@@ -23,6 +23,7 @@ from marimo._core.code import code_fingerprint
 from marimo._core.errors import Conflict, DecisionRequired, PreconditionFailed
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
+    CellNotification,
     CompletedRunNotification,
     ExecutionNotification,
     StartupProgressNotification,
@@ -1298,15 +1299,23 @@ async def test_session_notifications_join_the_notebook_stream_once(
         code="x = 1",
         code_fingerprint=code_fingerprint("x = 1"),
     )
+    cell = CellNotification(cell_id="cell-1", status="queued")
     session.broadcast(variables)
     session.broadcast(planned)
+    session.broadcast(cell)
+    session.session_view.snapshot_notifications.return_value = [
+        cell,
+        variables,
+    ]
+    assert [e.event.data for e in bridge.session_snapshot(a.id)] == [
+        MarimoMessage(variables)
+    ]
 
     assert first == second
     assert catalog == other == []
     assert filtered == [e for e in first if isinstance(e.event, MarimoEvent)]
     assert [(e.run_id, e.event.data) for e in filtered] == [
         (None, MarimoMessage(variables)),
-        (protocol.RunId("run-1"), MarimoMessage(planned)),
     ]
     bridge.close()
 

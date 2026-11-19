@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { unstable_NotebookCall } from "@marimo-team/client";
+import { EDITOR_EVENT_TYPES } from "@/core/notebook/replica";
 import type { PyodideInterface } from "pyodide";
 import {
   createRPC,
@@ -115,9 +116,14 @@ const requestHandler = createRPCRequestHandler({
       const session = await sessionReady.promise;
       const notebook = session.bridge.notebook;
       try {
-        await notebook.subscribe(request.id, request.cursor, (event) => {
-          rpc.send.notebookEvent({ id: request.id, event });
-        });
+        await notebook.subscribe(
+          request.id,
+          request.cursor,
+          (event) => {
+            rpc.send.notebookEvent({ id: request.id, event });
+          },
+          EDITOR_EVENT_TYPES.join(","),
+        );
         if (!canceled) {
           void session.start().catch((error: unknown) => {
             rpc.send.initializedError({ error: prettyError(error) });

@@ -129,26 +129,6 @@ def test_snapshot_is_private_and_precedes_updates_during_accept(
                             "marimo": {"op": "breakpoints", "breakpoints": {}}
                         },
                     },
-                    {
-                        "event": "marimo",
-                        "data": {
-                            "marimo": {
-                                "op": "cell-op",
-                                "cell_id": session.document.cell_ids[0],
-                                "output": {
-                                    "channel": "output",
-                                    "mimetype": "text/plain",
-                                    "data": "retained output",
-                                    "timestamp": 1.0,
-                                },
-                                "console": None,
-                                "status": "idle",
-                                "run_id": "r1",
-                                "execution_id": None,
-                                "timestamp": 1.0,
-                            }
-                        },
-                    },
                 ]
                 with client.websocket_connect(
                     url, headers=dict(AUTH)
@@ -173,17 +153,17 @@ def test_snapshot_is_private_and_precedes_updates_during_accept(
 
 
 @pytest.mark.parametrize(
-    ("query", "has_snapshot"),
+    ("query", "run_id"),
     [
-        ("types=marimo&run_id=r1", True),
-        ("types=marimo&run_id=other", False),
-        ("types=custom", False),
+        ("types=marimo&run_id=r1", "r1"),
+        ("types=marimo&run_id=other", "other"),
+        ("types=custom", None),
     ],
 )
 def test_snapshot_obeys_type_and_run_filters(
     session_host: tuple[Starlette, SessionBridge, FakeSession],
     query: str,
-    has_snapshot: bool,
+    run_id: str | None,
 ) -> None:
     app, bridge, session = session_host
     with TestClient(with_client_address(app)) as client:
@@ -197,21 +177,12 @@ def test_snapshot_obeys_type_and_run_filters(
                 url, headers=dict(AUTH)
             ) as websocket:
                 opening = socket_snapshot(websocket)
-                assert len(opening) == (2 if has_snapshot else 1)
-                if has_snapshot:
-                    snapshot = opening[0]
-                    assert "id" not in snapshot
-                    assert snapshot["event"] == "marimo"
-                    assert snapshot["data"]["marimo"]["run_id"] == "r1"
-                    assert (
-                        snapshot["data"]["marimo"]["output"]["data"]
-                        == "retained output"
-                    )
+                # The kernel's retained cell-op is private to its session view.
+                assert [frame["event"] for frame in opening] == ["ready"]
                 if query == "types=custom":
                     client.portal.call(notebook.emit, "test.marker", {})
                     assert websocket.receive_json()["event"] == "custom"
                 else:
-                    run_id = "r1" if has_snapshot else "other"
                     client.portal.call(
                         session.notify, CompletedRunNotification(run_id=run_id)
                     )
