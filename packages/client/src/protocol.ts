@@ -733,35 +733,12 @@ export const ExecutionId = zod
 export type ExecutionId = zod.input<typeof ExecutionId>;
 export type ExecutionIdOutput = zod.output<typeof ExecutionId>;
 
-export const revisionUpdateMin = 0;
+export const ExecutionQueued = zod.object({
+  status: zod.enum(["queued"]),
+});
 
-export const Revision = zod
-  .object({
-    execution: ExecutionId.describe(
-      "The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.",
-    ),
-    update: zod
-      .int()
-      .min(revisionUpdateMin)
-      .describe(
-        "How many times the value has been updated since it was produced. Zero at binding.",
-      ),
-  })
-  .describe(
-    "A variable's value at a point in time. Two revisions are equal\nwhen `execution` and `update` are equal. Clients compare\nrevisions for equality.\n",
-  );
-
-export type Revision = zod.input<typeof Revision>;
-export type RevisionOutput = zod.output<typeof Revision>;
-
-export const Lifecycle = zod
-  .enum(["queued", "running", "completed"])
-  .describe(
-    "Where an execution is in its lifecycle. An execution is `queued`\nuntil it starts, `running` while code executes, and `completed`\nonce it has ended. How it ended is its `outcome`.\n",
-  );
-
-export type Lifecycle = zod.input<typeof Lifecycle>;
-export type LifecycleOutput = zod.output<typeof Lifecycle>;
+export type ExecutionQueued = zod.input<typeof ExecutionQueued>;
+export type ExecutionQueuedOutput = zod.output<typeof ExecutionQueued>;
 
 export const DisplayData = zod
   .object({
@@ -790,6 +767,19 @@ export const ValueOutcome = zod.object({
 
 export type ValueOutcome = zod.input<typeof ValueOutcome>;
 export type ValueOutcomeOutput = zod.output<typeof ValueOutcome>;
+
+export const ExecutionRunning = zod.object({
+  status: zod.enum(["running"]),
+  started_at: Timestamp.describe("When the code started executing."),
+  value: zod
+    .union([ValueOutcome, zod.null()])
+    .describe(
+      "The value as rendered so far. Null until the execution shows something.",
+    ),
+});
+
+export type ExecutionRunning = zod.input<typeof ExecutionRunning>;
+export type ExecutionRunningOutput = zod.output<typeof ExecutionRunning>;
 
 export const positionLineMin = 0;
 
@@ -926,6 +916,59 @@ export const Outcome = zod
 export type Outcome = zod.input<typeof Outcome>;
 export type OutcomeOutput = zod.output<typeof Outcome>;
 
+export const revisionUpdateMin = 0;
+
+export const Revision = zod
+  .object({
+    execution: ExecutionId.describe(
+      "The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.",
+    ),
+    update: zod
+      .int()
+      .min(revisionUpdateMin)
+      .describe(
+        "How many times the value has been updated since it was produced. Zero at binding.",
+      ),
+  })
+  .describe(
+    "A variable's value at a point in time. Two revisions are equal\nwhen `execution` and `update` are equal. Clients compare\nrevisions for equality.\n",
+  );
+
+export type Revision = zod.input<typeof Revision>;
+export type RevisionOutput = zod.output<typeof Revision>;
+
+export const ExecutionCompleted = zod.object({
+  status: zod.enum(["completed"]),
+  started_at: zod
+    .union([Timestamp, zod.null()])
+    .describe(
+      "When the code started executing. Null if the execution completed before starting.",
+    ),
+  completed_at: zod
+    .union([Timestamp, zod.null()])
+    .describe(
+      "When the execution ended. Null for a restored result whose store does not record it.",
+    ),
+  outcome: Outcome,
+  depends_on: zod
+    .record(zod.string(), zod.union([Revision, zod.null()]))
+    .describe(
+      "The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Stamped as the execution ends.",
+    ),
+});
+
+export type ExecutionCompleted = zod.input<typeof ExecutionCompleted>;
+export type ExecutionCompletedOutput = zod.output<typeof ExecutionCompleted>;
+
+export const ExecutionState = zod
+  .union([ExecutionQueued, ExecutionRunning, ExecutionCompleted])
+  .describe(
+    "Where an execution is in its lifecycle, tagged on `status`. An\nexecution is `queued` until it starts, `running` while code\nexecutes, and `completed` once it has ended with its `outcome`.\n",
+  );
+
+export type ExecutionState = zod.input<typeof ExecutionState>;
+export type ExecutionStateOutput = zod.output<typeof ExecutionState>;
+
 export const Execution = zod
   .object({
     id: ExecutionId,
@@ -952,25 +995,7 @@ export const Execution = zod
     code_fingerprint: CodeFingerprint.describe(
       "Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued.",
     ),
-    depends_on: zod
-      .record(zod.string(), zod.union([Revision, zod.null()]))
-      .describe(
-        "The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.",
-      ),
-    status: Lifecycle,
-    outcome: zod
-      .union([Outcome, zod.null()])
-      .describe(
-        "How the execution ended. Null while queued; while running, a value carries the display so far; final once completed.",
-      ),
-    started_at: zod
-      .union([Timestamp, zod.null()])
-      .describe(
-        "When the code started executing. Null while queued or if the execution completed before starting.",
-      ),
-    completed_at: zod
-      .union([Timestamp, zod.null()])
-      .describe("When the execution ended. Null until it is completed."),
+    state: ExecutionState,
   })
   .describe(
     "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them, and items can arrive after completion while the\nexecution remains retained. Each new input belongs to a running\nexecution. Input calls from completed or removed executions raise\n`EOFError` in the calling code. A scratch execution has no cell and\nevaluates the code in its run's `origin`.\n",

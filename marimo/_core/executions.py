@@ -124,6 +124,35 @@ def _completed(
     )
 
 
+def _outcome(execution: protocol.Execution) -> protocol.Outcome | None:
+    state = execution.state
+    return (
+        state.outcome
+        if isinstance(state, protocol.ExecutionCompleted)
+        else None
+    )
+
+
+def _ended(
+    execution: protocol.Execution,
+    outcome: protocol.Outcome,
+    now: datetime,
+    depends_on: dict[str, protocol.Revision | None] | None = None,
+) -> protocol.Execution:
+    state = execution.state
+    return replace(
+        execution,
+        state=protocol.ExecutionCompleted(
+            started_at=state.started_at
+            if isinstance(state, protocol.ExecutionRunning)
+            else None,
+            completed_at=now,
+            outcome=outcome,
+            depends_on=depends_on or {},
+        ),
+    )
+
+
 class Executions:
     """Runs in progress and each cell's current result.
 
@@ -163,12 +192,10 @@ class Executions:
                 )
             outputs = sorted(retained.outputs, key=lambda item: item.seq)
             items = [*outputs, *retained.variables]
-            if execution.status != "completed":
+            if not isinstance(execution.state, protocol.ExecutionCompleted):
                 raise ValueError(
                     "initial results must be completed executions"
                 )
-            if execution.outcome is None:
-                raise ValueError("initial results must have an outcome")
             if execution.id in restored._results:
                 raise ValueError("initial execution ids must be unique")
             if any(item.execution_id != execution.id for item in items):
@@ -196,7 +223,9 @@ class Executions:
             if execution_id is not None
             else None
         )
-        if current is None or current.execution.status != "completed":
+        if current is None or not isinstance(
+            current.execution.state, protocol.ExecutionCompleted
+        ):
             return None
         return deepcopy(
             CellExecution(
@@ -317,7 +346,10 @@ class Executions:
         execution_id = self._cells.get(cell_id)
         if execution_id is None:
             return []
-        if self._results[execution_id].execution.status == "completed":
+        if isinstance(
+            self._results[execution_id].execution.state,
+            protocol.ExecutionCompleted,
+        ):
             return self._retire_execution(execution_id)
         self._cells.pop(cell_id)
         return []
@@ -353,16 +385,17 @@ class Executions:
             ):
                 if (
                     result := self._results.get(execution_id)
-                ) is not None and result.execution.status != "completed":
+                ) is not None and not isinstance(
+                    result.execution.state, protocol.ExecutionCompleted
+                ):
                     changes.extend(self._cancel_inputs(result))
                     changes.append(
                         self._set_execution(
-                            replace(
+                            _ended(
                                 result.execution,
-                                status="completed",
-                                outcome=outcome,
-                                depends_on=dict(depends_on),
-                                completed_at=utcnow(),
+                                outcome,
+                                utcnow(),
+                                dict(depends_on),
                             )
                         )
                     )
@@ -379,7 +412,10 @@ class Executions:
                 ) is not None:
                     if isinstance(item, protocol.Input):
                         if (
-                            result.execution.status != "running"
+                            not isinstance(
+                                result.execution.state,
+                                protocol.ExecutionRunning,
+                            )
                             or item.id in result.inputs
                             or item.status != "pending"
                         ):
@@ -405,22 +441,22 @@ class Executions:
                                 )
                             )
             case be.Displayed(execution_id=execution_id, display=display):
-                if (
-                    result := self._results.get(execution_id)
-                ) is not None and (
-                    result.execution.status != "completed"
-                    or isinstance(
-                        result.execution.outcome, protocol.ValueOutcome
-                    )
-                ):
-                    changes.append(
-                        self._set_execution(
-                            replace(
-                                result.execution,
-                                outcome=protocol.ValueOutcome(display),
+                if (result := self._results.get(execution_id)) is not None:
+                    state = result.execution.state
+                    value = protocol.ValueOutcome(display)
+                    shown: protocol.ExecutionState | None = None
+                    if isinstance(state, protocol.ExecutionRunning):
+                        shown = replace(state, value=value)
+                    elif isinstance(
+                        state, protocol.ExecutionCompleted
+                    ) and isinstance(state.outcome, protocol.ValueOutcome):
+                        shown = replace(state, outcome=value)
+                    if shown is not None:
+                        changes.append(
+                            self._set_execution(
+                                replace(result.execution, state=shown)
                             )
                         )
-                    )
             case be.Done(run_id=run_id, outcome=outcome):
                 if (
                     tracked := self._runs.get(run_id)
@@ -432,7 +468,9 @@ class Executions:
                         for eid in tracked.executions
                     ]
                     if any(
-                        execution.status != "completed"
+                        not isinstance(
+                            execution.state, protocol.ExecutionCompleted
+                        )
                         for execution in members
                     ):
                         raise ValueError(
@@ -441,7 +479,7 @@ class Executions:
                     if outcome == "succeeded" and (
                         not all(tracked.retired.values())
                         or any(
-                            not _settled(execution.outcome)
+                            not _settled(_outcome(execution))
                             for execution in members
                         )
                     ):
@@ -464,15 +502,16 @@ class Executions:
         changes: list[Change] = []
         now = utcnow()
         for result in list(self._results.values()):
-            if result.execution.status != "completed":
+            if not isinstance(
+                result.execution.state, protocol.ExecutionCompleted
+            ):
                 changes.extend(self._cancel_inputs(result))
                 changes.append(
                     self._set_execution(
-                        replace(
+                        _ended(
                             result.execution,
-                            status="completed",
-                            outcome=protocol.InterruptedOutcome(),
-                            completed_at=now,
+                            protocol.InterruptedOutcome(),
+                            now,
                         )
                     )
                 )
@@ -533,11 +572,7 @@ class Executions:
                         code_fingerprint=protocol.CodeFingerprint(
                             entry.code_fingerprint
                         ),
-                        depends_on={},
-                        status="queued",
-                        outcome=None,
-                        started_at=None,
-                        completed_at=None,
+                        state=protocol.ExecutionQueued(),
                     )
                 )
             )
@@ -551,10 +586,13 @@ class Executions:
         if result is None:
             return []
         execution = result.execution
-        if execution.status != "queued":
+        if not isinstance(execution.state, protocol.ExecutionQueued):
             return []
         now = utcnow()
-        execution = replace(execution, status="running", started_at=now)
+        execution = replace(
+            execution,
+            state=protocol.ExecutionRunning(started_at=now, value=None),
+        )
         assert execution.run_id is not None
         run = self._runs[execution.run_id].run
         if isinstance(run.state, protocol.RunQueued):
@@ -610,7 +648,7 @@ class Executions:
     ) -> list[Change]:
         """Replace a cell's current execution with a newer one."""
         execution = self._results[execution_id].execution
-        if execution.status != "completed":
+        if not isinstance(execution.state, protocol.ExecutionCompleted):
             raise ValueError("cannot replace an unfinished cell execution")
         tracked = (
             self._runs.get(execution.run_id)
@@ -620,7 +658,7 @@ class Executions:
         if tracked is not None and not isinstance(
             tracked.run.state, protocol.RunCompleted
         ):
-            tracked.retired[execution.id] = _settled(execution.outcome)
+            tracked.retired[execution.id] = _settled(_outcome(execution))
         changes: list[Change] = list(self._remove_execution(execution_id))
         if tracked is not None:
             changes.extend(self._prune_run(tracked))

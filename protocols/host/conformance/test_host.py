@@ -332,8 +332,7 @@ async def finish_run(watch, run, key, outcome):
                 executions[execution["id"]] = execution
     assert executions, "run completed without executions"
     assert all(
-        e["status"] == "completed" and e["outcome"] is not None
-        for e in executions.values()
+        e["state"]["status"] == "completed" for e in executions.values()
     ), "run completed before its executions"
     assert live(events[-1], key)["run"]["state"]["outcome"] == outcome
     return events, list(executions.values())
@@ -365,7 +364,7 @@ async def test_run(host, scratch, code, outcome, kind):
         events, executions = await finish_run(watch, run, key, outcome)
         assert run["origin"] == {"kind": "code", "code": code}
         assert all(e["cell_id"] is None for e in executions)
-        assert executions[-1]["outcome"]["kind"] == kind
+        assert executions[-1]["state"]["outcome"]["kind"] == kind
         if kind == "value":
             assert "conformance" in "".join(
                 item["text"] for item in objects(events, "console")
@@ -511,7 +510,7 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
             lambda f: (
                 f.event == "execution"
                 and f.message()["execution"]["run_id"] == run["id"]
-                and f.message()["execution"]["status"] == "running"
+                and f.message()["execution"]["state"]["status"] == "running"
             )
         )
         queued_key = uuid4().hex
@@ -567,14 +566,15 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
         }
         assert active_executions
         assert all(
-            e["status"] == "completed"
-            and e["outcome"]["kind"] == "interrupted"
+            e["state"]["status"] == "completed"
+            and e["state"]["outcome"]["kind"] == "interrupted"
             for e in active_executions.values()
         )
         if operation == "interrupt":
             # The queued run may leave an execution, but it never started.
             assert not any(
-                e["run_id"] == queued["id"] and e["started_at"] is not None
+                e["run_id"] == queued["id"]
+                and e["state"].get("started_at") is not None
                 for e in executions
             )
             assert (
@@ -611,7 +611,7 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             lambda f: (
                 f.event == "execution"
                 and f.message()["execution"]["run_id"] == active["id"]
-                and f.message()["execution"]["status"] == "running"
+                and f.message()["execution"]["state"]["status"] == "running"
             )
         )
         queued = accepted(
@@ -648,7 +648,8 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
         assert events[-1].message()["run"]["state"]["outcome"] == "interrupted"
         # The queued run may leave an execution, but it never started.
         assert not any(
-            e["run_id"] == queued["id"] and e["started_at"] is not None
+            e["run_id"] == queued["id"]
+            and e["state"].get("started_at") is not None
             for e in objects(events, "execution")
         )
         assert not any(

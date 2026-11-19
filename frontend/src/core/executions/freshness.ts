@@ -19,6 +19,7 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { Executions, Results } from "@/core/notebook/replica";
+import { completedAt, dependsOn, startedAt } from "@/core/notebook/replica";
 
 export interface CellFreshness {
   /** This cell's source differs from its pending execution, or its last result. */
@@ -84,7 +85,7 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
     visiting: ReadonlySet<Protocol.ExecutionId>,
   ): boolean {
     const path = new Set(visiting).add(record.id);
-    for (const [name, revision] of Object.entries(record.depends_on)) {
+    for (const [name, revision] of Object.entries(dependsOn(record))) {
       const variables = bound.get(name) ?? [];
       if (revision === null) {
         // Older runtimes bind nothing here, but a later binding invalidates
@@ -98,11 +99,12 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
             if (binder.runtime_id === record.runtime_id) {
               return true;
             }
-            const boundAt = binder.completed_at ?? binder.started_at;
+            const boundAt = completedAt(binder) ?? startedAt(binder);
+            const readAt = completedAt(record);
             return (
               boundAt !== null &&
-              record.completed_at !== null &&
-              Date.parse(boundAt) > Date.parse(record.completed_at)
+              readAt !== null &&
+              Date.parse(boundAt) > Date.parse(readAt)
             );
           })
         ) {
@@ -138,7 +140,7 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
     const latest = inputs.executions.latest.get(cell.id);
     const pending = latest === undefined ? undefined : recordOf(latest);
     const source =
-      pending !== undefined && pending.status !== "completed"
+      pending !== undefined && pending.state.status !== "completed"
         ? pending
         : result;
     return cell.code_fingerprint !== source.code_fingerprint;

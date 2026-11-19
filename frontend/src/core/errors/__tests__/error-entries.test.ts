@@ -49,7 +49,7 @@ describe("getCellErrorEntries", () => {
     );
     MockExecutions.seed(
       store,
-      [MockExecutions.failed(id, {}, { code_fingerprint: "ran" })],
+      [{ ...MockExecutions.failed(id, {}), code_fingerprint: "ran" }],
       null,
       withCells(
         documentOf(),

@@ -14,16 +14,6 @@ import {
   Timestamp,
 } from "./Ids.ts";
 
-export const Lifecycle = Schema.Literals([
-  "queued",
-  "running",
-  "completed",
-]).annotate({
-  description:
-    "Where an execution is in its lifecycle. An execution is `queued`\nuntil it starts, `running` while code executes, and `completed`\nonce it has ended. How it ended is its `outcome`.\n",
-  identifier: "Lifecycle",
-});
-
 export const RunOutcome = Schema.Literals([
   "succeeded",
   "failed",
@@ -261,6 +251,50 @@ export const Outcome = Schema.Union([
   identifier: "Outcome",
 });
 
+export const ExecutionQueued = Schema.Struct({
+  status: Schema.Literal("queued"),
+}).annotate({ identifier: "ExecutionQueued" });
+
+export const ExecutionRunning = Schema.Struct({
+  status: Schema.Literal("running"),
+  started_at: Timestamp.annotateKey({
+    description: "When the code started executing.",
+  }),
+  value: Schema.NullOr(ValueOutcome).annotateKey({
+    description:
+      "The value as rendered so far. Null until the execution shows something.",
+  }),
+}).annotate({ identifier: "ExecutionRunning" });
+
+export const ExecutionCompleted = Schema.Struct({
+  status: Schema.Literal("completed"),
+  started_at: Schema.NullOr(Timestamp).annotateKey({
+    description:
+      "When the code started executing. Null if the execution completed before starting.",
+  }),
+  completed_at: Schema.NullOr(Timestamp).annotateKey({
+    description:
+      "When the execution ended. Null for a restored result whose store does not record it.",
+  }),
+  outcome: Outcome,
+  depends_on: Schema.Record(Schema.String, Schema.NullOr(Revision)).annotateKey(
+    {
+      description:
+        "The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Stamped as the execution ends.",
+    },
+  ),
+}).annotate({ identifier: "ExecutionCompleted" });
+
+export const ExecutionState = Schema.Union([
+  ExecutionQueued,
+  ExecutionRunning,
+  ExecutionCompleted,
+]).annotate({
+  description:
+    "Where an execution is in its lifecycle, tagged on `status`. An\nexecution is `queued` until it starts, `running` while code\nexecutes, and `completed` once it has ended with its `outcome`.\n",
+  identifier: "ExecutionState",
+});
+
 export const Execution = Schema.Struct({
   id: ExecutionId,
   run_id: Schema.NullOr(RunId).annotateKey({
@@ -283,24 +317,7 @@ export const Execution = Schema.Struct({
     description:
       "Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued.",
   }),
-  depends_on: Schema.Record(Schema.String, Schema.NullOr(Revision)).annotateKey(
-    {
-      description:
-        "The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.",
-    },
-  ),
-  status: Lifecycle,
-  outcome: Schema.NullOr(Outcome).annotateKey({
-    description:
-      "How the execution ended. Null while queued; while running, a value carries the display so far; final once completed.",
-  }),
-  started_at: Schema.NullOr(Timestamp).annotateKey({
-    description:
-      "When the code started executing. Null while queued or if the execution completed before starting.",
-  }),
-  completed_at: Schema.NullOr(Timestamp).annotateKey({
-    description: "When the execution ended. Null until it is completed.",
-  }),
+  state: ExecutionState,
 }).annotate({
   description:
     "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them, and items can arrive after completion while the\nexecution remains retained. Each new input belongs to a running\nexecution. Input calls from completed or removed executions raise\n`EOFError` in the calling code. A scratch execution has no cell and\nevaluates the code in its run's `origin`.\n",

@@ -21,7 +21,7 @@ vi.mock("@/components/ui/use-toast", () => ({
 
 function run(
   id: string,
-  status: Protocol.Lifecycle = "running",
+  status: Protocol.RunState["status"] = "running",
   runtimeId = "r1",
 ): Protocol.Run {
   return {

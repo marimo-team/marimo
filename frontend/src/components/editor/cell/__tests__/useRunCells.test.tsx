@@ -82,8 +82,8 @@ describe("useRunStaleCells", () => {
 
   it("syncs pending edits before choosing the stale cells", async () => {
     const { replica, document } = seed([
-      MockExecutions.completed(C1, { code_fingerprint: "c1-hash" }),
-      MockExecutions.completed(C2, { code_fingerprint: "c2-hash" }),
+      { ...MockExecutions.completed(C1), code_fingerprint: "c1-hash" },
+      { ...MockExecutions.completed(C2), code_fingerprint: "c2-hash" },
     ]);
     store.set(
       notebookAtom,
@@ -110,7 +110,7 @@ describe("useRunStaleCells", () => {
   });
 
   it("does nothing when the notebook changed while the flush was pending", async () => {
-    seed([MockExecutions.completed(C1, { code_fingerprint: "stale" })]);
+    seed([{ ...MockExecutions.completed(C1), code_fingerprint: "stale" }]);
     store.set(
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [C1]: { code: "x = 1" } } }),
@@ -128,7 +128,7 @@ describe("useRunStaleCells", () => {
   });
 
   it("runs nothing while edits cannot reach the host", async () => {
-    seed([MockExecutions.completed(C1, { code_fingerprint: "stale" })]);
+    seed([{ ...MockExecutions.completed(C1), code_fingerprint: "stale" }]);
     store.set(
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [C1]: { code: "x = 1" } } }),

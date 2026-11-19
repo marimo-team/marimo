@@ -361,13 +361,14 @@ def retained_execution(
             caused_by=None,
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
             code_fingerprint=code_fingerprint("42"),
-            depends_on={},
-            status="completed",
-            outcome=protocol.ValueOutcome(
-                protocol.DisplayData(mimetype="text/plain", data="42")
+            state=protocol.ExecutionCompleted(
+                started_at=None,
+                completed_at=None,
+                outcome=protocol.ValueOutcome(
+                    protocol.DisplayData(mimetype="text/plain", data="42")
+                ),
+                depends_on={},
             ),
-            started_at=None,
-            completed_at=None,
         ),
         (
             protocol.Console(

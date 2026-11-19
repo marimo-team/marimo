@@ -24,7 +24,7 @@ const C2 = cellId("c2");
 
 /** A completed execution of `id` whose source matches the fixture document. */
 function ran(id: string) {
-  return MockExecutions.completed(id, { code_fingerprint: `${id}-hash` });
+  return { ...MockExecutions.completed(id), code_fingerprint: `${id}-hash` };
 }
 
 function setup(records: ReturnType<typeof ran>[]) {
@@ -153,14 +153,13 @@ describe("input-change warnings", () => {
 });
 
 describe("useCellOutput", () => {
-  const shown = (id: string) =>
-    MockExecutions.completed(id, {
-      code_fingerprint: `${id}-hash`,
-      outcome: {
-        kind: "value",
-        display: { mimetype: "text/plain", data: `${id} value` },
-      },
-    });
+  const shown = (id: string) => ({
+    ...MockExecutions.shown(id, {
+      mimetype: "text/plain",
+      data: `${id} value`,
+    }),
+    code_fingerprint: `${id}-hash`,
+  });
 
   it("reads the result's value and hides it once cleared, until a newer result", () => {
     const { store, replica, wrapper } = setup([shown(C1)]);

@@ -3,7 +3,6 @@
 import { createNotebookReducer, NotebookEvents } from "@marimo-team/client";
 import * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
-import { MockExecutions } from "@/__mocks__/executions";
 import type { NotebookBackend } from "../../notebook/replica";
 import { document as documentResource } from "../../notebook/replica/resources/document";
 import { executions } from "../../notebook/replica/resources/executions";
@@ -107,18 +106,24 @@ describe("static notebook backend", () => {
   it("delivers embedded results as completed executions after the document", async () => {
     const source = snapshot();
     const cell = source.cells[0];
-    const result = MockExecutions.completed(cell.id, {
+    const result: Protocol.Execution = {
       id: "embedded:result",
       run_id: "embedded:run",
       runtime_id: "embedded",
+      caused_by: null,
+      cell_id: cell.id,
       code_fingerprint: cell.code_fingerprint,
-      outcome: {
-        kind: "value",
-        display: { mimetype: "text/html", data: "<b>1</b>" },
+      state: {
+        status: "completed",
+        started_at: null,
+        completed_at: null,
+        outcome: {
+          kind: "value",
+          display: { mimetype: "text/html", data: "<b>1</b>" },
+        },
+        depends_on: {},
       },
-      started_at: null,
-      completed_at: null,
-    });
+    };
     const { events } = await read(
       createStaticNotebookBackend({ ...source, results: [result] }),
     );

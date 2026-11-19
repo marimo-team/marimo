@@ -21,7 +21,7 @@ export const hasBlockingStdinAtom = atom((get) => {
   for (const { record, items } of get(
     replica.executionsAtom,
   ).executions.values()) {
-    if (record.status === "running") {
+    if (record.state.status === "running") {
       for (const item of items.values()) {
         if (item.kind === "input" && item.status === "pending") {
           return true;

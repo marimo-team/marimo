@@ -163,7 +163,7 @@ def test_editor_opens_with_the_results_an_earlier_session_stored(
         opening = socket_snapshot(websocket)
 
     assert [
-        event["data"]["execution"]["outcome"]
+        event["data"]["execution"]["state"]["outcome"]
         for event in opening
         if event["event"] == "execution"
     ] == [
@@ -240,7 +240,7 @@ def test_editor_starts_and_runs_through_the_host_socket(
         if types and "execution" in types:
             assert any(
                 event["event"] == "execution"
-                and "1234567" in str(event["data"]["execution"]["outcome"])
+                and "1234567" in str(event["data"]["execution"]["state"])
                 for event in messages
             )
             assert not any(
@@ -427,12 +427,13 @@ def test_editor_with_autorun_reports_the_startup_run_on_the_host_socket(
             event = websocket.receive_json()
             if (
                 event["event"] == "execution"
-                and event["data"]["execution"]["status"] == "completed"
+                and event["data"]["execution"]["state"]["status"]
+                == "completed"
             ):
                 execution = event["data"]["execution"]
                 break
         assert execution["cell_id"] == first_cell_id(client, "s1")
-        assert execution["outcome"]["kind"] == "value"
+        assert execution["state"]["outcome"]["kind"] == "value"
 
 
 def test_editor_receives_native_attachment_snapshots_and_changes(

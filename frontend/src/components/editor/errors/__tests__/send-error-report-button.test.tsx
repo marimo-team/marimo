@@ -436,11 +436,13 @@ describe("SendErrorReportButton", () => {
     const replica = MockExecutions.seed(
       store,
       [
-        MockExecutions.failed(
-          CELL_ID,
-          { name: "NameError", message: MESSAGE },
-          { code_fingerprint: "ran" },
-        ),
+        {
+          ...MockExecutions.failed(CELL_ID, {
+            name: "NameError",
+            message: MESSAGE,
+          }),
+          code_fingerprint: "ran",
+        },
       ],
       null,
       confirmed("ran"),

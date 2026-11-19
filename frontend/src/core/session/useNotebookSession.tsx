@@ -76,7 +76,11 @@ import {
 import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
-import { activeDocumentModelAtom, confirmedDocumentAtom } from "./active-notebook";
+import {
+  activeDocumentModelAtom,
+  confirmedDocumentAtom,
+} from "./active-notebook";
+import { completedAt, startedAt } from "@/core/notebook/replica";
 import { executionSource } from "@/core/executions";
 import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
@@ -434,17 +438,20 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
     checkHealth: () => runtimeManager.reconcileFromHealth(),
     onExecution: (record) => {
       const cellId = (record.cell_id ?? SCRATCH_CELL_ID) as CellId;
-      const time = record.completed_at ?? record.started_at;
+      const time = completedAt(record) ?? startedAt(record);
       const timestamp =
         time === null ? Date.now() / 1000 : Date.parse(time) / 1000;
-      if (record.status === "completed" && record.outcome?.kind === "error") {
+      if (
+        record.state.status === "completed" &&
+        record.state.outcome?.kind === "error"
+      ) {
         getCellLogsForMessage({
           cell_id: cellId,
           timestamp,
           output: {
             channel: "marimo-error",
             mimetype: "application/vnd.marimo+error",
-            data: [cellError(record.outcome.error)],
+            data: [cellError(record.state.outcome.error)],
             timestamp,
           },
         });

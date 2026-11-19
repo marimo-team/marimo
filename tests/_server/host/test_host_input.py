@@ -172,7 +172,7 @@ async def test_input_replies_and_retries(
                 > index
             ), json.dumps(
                 [
-                    r["data"]["execution"]["outcome"]
+                    r["data"]["execution"]["state"]["outcome"]
                     for r in events.records
                     if r.get("event") == "execution"
                 ]
@@ -427,9 +427,9 @@ def test_failed_cell_debugger_prompt_survives_reconnect(
                 }
             if event["event"] == "execution":
                 retained = event["data"]["execution"]
-                if retained["status"] == "completed":
+                if retained["state"]["status"] == "completed":
                     break
-        assert retained["outcome"]["kind"] == "error"
+        assert retained["state"]["outcome"]["kind"] == "error"
         start = client.post(
             "/api/kernel/pdb/pm",
             headers=headers("editor"),

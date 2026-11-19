@@ -429,7 +429,7 @@ export function createNotebookReplica(
       switch (event.event) {
         case "execution": {
           const record = event.data.execution;
-          const changed = previous?.record.status !== record.status;
+          const changed = previous?.record.state.status !== record.state.status;
           observeExecution(record, changed);
           return;
         }

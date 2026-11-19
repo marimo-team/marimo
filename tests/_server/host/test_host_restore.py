@@ -118,13 +118,14 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
         code_fingerprint=protocol.CodeFingerprint(
             document[0].code_fingerprint
         ),
-        depends_on={},
-        status="completed",
-        outcome=protocol.ValueOutcome(
-            protocol.DisplayData(mimetype="text/plain", data="42")
+        state=protocol.ExecutionCompleted(
+            started_at=None,
+            completed_at=None,
+            outcome=protocol.ValueOutcome(
+                protocol.DisplayData(mimetype="text/plain", data="42")
+            ),
+            depends_on={},
         ),
-        started_at=None,
-        completed_at=None,
     )
     # Text and media keep the order they were written in.
     assert restored.outputs == (
@@ -167,7 +168,7 @@ def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
 
     restored = executions.current(protocol.CellId("a"))
     assert restored is not None
-    assert restored.execution.outcome == protocol.ErrorOutcome(
+    assert restored.execution.state.outcome == protocol.ErrorOutcome(
         protocol.Error(
             kind="exception",
             name="ZeroDivisionError",
@@ -253,7 +254,7 @@ def outcome_of(outputs: list[OutputType]) -> protocol.Outcome | None:
     )
     restored = executions.current(protocol.CellId("a"))
     assert restored is not None
-    return restored.execution.outcome
+    return restored.execution.state.outcome
 
 
 def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
@@ -326,7 +327,7 @@ def test_stored_values_and_text_keep_their_formats() -> None:
 
     value = executions.current(protocol.CellId("a"))
     assert value is not None
-    assert value.execution.outcome == protocol.ValueOutcome(
+    assert value.execution.state.outcome == protocol.ValueOutcome(
         protocol.DisplayData(
             mimetype="application/vnd.marimo+mimebundle",
             data='{"text/plain":"NaN","application/json":[null]}',
@@ -334,9 +335,10 @@ def test_stored_values_and_text_keep_their_formats() -> None:
     )
     raised = executions.current(protocol.CellId("b"))
     assert raised is not None
-    assert isinstance(raised.execution.outcome, protocol.ErrorOutcome)
-    assert raised.execution.outcome.error.traceback == protocol.DisplayData(
-        mimetype="text/html", data=highlighted
+    assert isinstance(raised.execution.state.outcome, protocol.ErrorOutcome)
+    assert (
+        raised.execution.state.outcome.error.traceback
+        == protocol.DisplayData(mimetype="text/html", data=highlighted)
     )
     # An old password entry is dropped, and the rendered traceback is a
     # display, not console text.
@@ -384,7 +386,7 @@ def test_stored_cells_follow_the_documents_order() -> None:
         result = executions.current(protocol.CellId(cell_id))
         if result is None:
             return None
-        outcome = result.execution.outcome
+        outcome = result.execution.state.outcome
         assert isinstance(outcome, protocol.ValueOutcome)
         assert outcome.display is not None
         return outcome.display.data

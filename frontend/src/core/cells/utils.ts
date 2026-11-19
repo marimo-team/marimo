@@ -171,7 +171,7 @@ function inFlight(executions: Executions, cellId: CellId): boolean {
     latest === undefined
       ? undefined
       : executions.executions.get(latest)?.record;
-  return record !== undefined && record.status !== "completed";
+  return record !== undefined && record.state.status !== "completed";
 }
 
 /**

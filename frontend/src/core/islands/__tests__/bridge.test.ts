@@ -413,12 +413,7 @@ describe("IslandsPyodideBridge", () => {
       const record = {
         event: "execution",
         data: {
-          execution: MockExecutions.completed("c2", {
-            id: "e1",
-            status: "running",
-            outcome: null,
-            completed_at: null,
-          }),
+          execution: { ...MockExecutions.running("c2"), id: "e1" },
         },
       };
       const write = (name: "stdout" | "stderr", text: string, seq = 0) => ({

@@ -20,11 +20,7 @@ const queued = {
   caused_by: null,
   cell_id: "cell",
   code_fingerprint: "fp",
-  depends_on: {},
-  status: "queued",
-  outcome: null,
-  started_at: null,
-  completed_at: null,
+  state: { status: "queued" },
 } satisfies Execution;
 
 function observe(
@@ -42,19 +38,19 @@ describe("execution traces", () => {
   it("derives the same trace from live transitions and a retained completion", () => {
     const started_at = "1970-01-01T00:01:40Z";
     const completed = {
+      depends_on: {},
       started_at,
       completed_at: "1970-01-01T00:01:42Z",
       status: "completed",
       outcome: { kind: "interrupted" },
-    } satisfies Partial<Execution>;
+    } satisfies Execution["state"];
     const runId = "r1" as RunId;
     const running = observe(observe(initialState()), {
-      started_at,
-      status: "running",
+      state: { started_at, status: "running", value: null },
     });
     for (const state of [
-      observe(running, completed),
-      observe(initialState(), completed),
+      observe(running, { state: completed }),
+      observe(initialState(), { state: completed }),
     ]) {
       expect(state.runMap.get(runId)?.cellRuns.get(cellId("cell"))).toEqual({
         cellId: "cell",
@@ -67,8 +63,7 @@ describe("execution traces", () => {
     }
     expect(
       observe(running, {
-        ...completed,
-        outcome: { kind: "value", display: null },
+        state: { ...completed, outcome: { kind: "value", display: null } },
       })
         .runMap.get(runId)
         ?.cellRuns.get(cellId("cell"))?.status,
@@ -79,12 +74,17 @@ describe("execution traces", () => {
     "shows %s as skipped",
     (reason) => {
       const state = observe(initialState(), {
-        status: "completed",
-        outcome: {
-          kind: "skipped",
-          reason,
-          related: [],
-          message: "Did not run",
+        state: {
+          status: "completed",
+          started_at: null,
+          completed_at: null,
+          depends_on: {},
+          outcome: {
+            kind: "skipped",
+            reason,
+            related: [],
+            message: "Did not run",
+          },
         },
       });
       expect(

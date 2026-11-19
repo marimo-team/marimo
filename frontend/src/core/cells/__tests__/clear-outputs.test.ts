@@ -94,11 +94,10 @@ describe("clearing a running cell", () => {
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [A]: {} } }),
     );
-    const running = MockExecutions.shown(
-      A,
-      { mimetype: "text/plain", data: "so far" },
-      { status: "running", completed_at: null },
-    );
+    const running = MockExecutions.running(A, {
+      kind: "value",
+      display: { mimetype: "text/plain", data: "so far" },
+    });
     const replica = MockExecutions.seed(store, [running], null, DOCUMENT);
     store.set(clearCellOutputAtom, { cellId: A });
     expect(store.get(cellOutputAtom(A))).toBeNull();
@@ -111,11 +110,11 @@ describe("clearing a running cell", () => {
           id: "more",
           data: {
             execution: {
-              ...running,
-              outcome: {
+              ...MockExecutions.running(A, {
                 kind: "value",
                 display: { mimetype: "text/plain", data: "more" },
-              },
+              }),
+              id: running.id,
             },
           },
         },
@@ -130,7 +129,7 @@ describe("clearing a running cell", () => {
         {
           event: "execution",
           id: "again",
-          data: { execution: { ...running, outcome: running.outcome } },
+          data: { execution: { ...running } },
         },
         { phase: "live" },
       ),

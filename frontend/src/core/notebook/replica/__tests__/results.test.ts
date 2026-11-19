@@ -39,13 +39,14 @@ const restored = {
   runtime_id: null,
   caused_by: null,
   cell_id: "c3",
-  code: null,
   code_fingerprint: "0f71456db2ea83f4",
-  depends_on: {},
-  status: "completed",
-  outcome: { kind: "value", display: null },
-  started_at: "2026-09-30T09:20:01Z",
-  completed_at: "2026-09-30T09:20:02Z",
+  state: {
+    status: "completed",
+    started_at: "2026-09-30T09:20:01Z",
+    completed_at: "2026-09-30T09:20:02Z",
+    outcome: { kind: "value", display: null },
+    depends_on: {},
+  },
 };
 
 describe("retained results", () => {
@@ -77,8 +78,8 @@ describe("retained results", () => {
 
     const done = resource(replay(runCells, start));
     expect(done.get("c3")?.record.id).toBe("e12");
-    expect(done.get("c3")?.record.status).toBe("completed");
-    expect(done.get("k7f2")?.record.depends_on).toEqual({
+    expect(done.get("c3")?.record.state.status).toBe("completed");
+    expect(done.get("k7f2")?.record.state).toHaveProperty("depends_on", {
       x: { execution: "e12", update: 0 },
     });
     expect(done.get("c1")).toBeNull();
@@ -97,13 +98,17 @@ describe("retained results", () => {
             ...result.record,
             id: "e14",
             run_id: "run-again",
-            started_at: null,
-            completed_at: time,
-            outcome: {
-              kind: "skipped",
-              reason: "superseded",
-              message: "Replaced by a newer execution",
-              related: [],
+            state: {
+              status: "completed",
+              started_at: null,
+              completed_at: time,
+              outcome: {
+                kind: "skipped",
+                reason: "superseded",
+                message: "Replaced by a newer execution",
+                related: [],
+              },
+              depends_on: {},
             },
           },
         },
@@ -122,10 +127,7 @@ describe("retained results", () => {
       ...result.record,
       id: "e14",
       run_id: "run-again",
-      status: "queued",
-      outcome: null,
-      started_at: null,
-      completed_at: null,
+      state: { status: "queued" },
     };
     const queued = reducer.reduce(
       retired,
@@ -141,10 +143,13 @@ describe("retained results", () => {
         data: {
           execution: {
             ...again,
-            status: "completed",
-            outcome: { kind: "value", display: null },
-            started_at: time,
-            completed_at: time,
+            state: {
+              status: "completed",
+              started_at: time,
+              completed_at: time,
+              outcome: { kind: "value", display: null },
+              depends_on: {},
+            },
           },
         },
       }),
@@ -159,10 +164,13 @@ describe("retained results", () => {
       ...result.record,
       id: "e14",
       run_id: "run-again",
-      status: "completed",
-      outcome: { kind: "interrupted" },
-      started_at: null,
-      completed_at: time,
+      state: {
+        status: "completed",
+        started_at: null,
+        completed_at: time,
+        outcome: { kind: "interrupted" },
+        depends_on: {},
+      },
     };
     const cancelled = replay(
       [
@@ -173,9 +181,7 @@ describe("retained results", () => {
           data: {
             execution: {
               ...interrupted,
-              status: "queued",
-              outcome: null,
-              completed_at: null,
+              state: { status: "queued" },
             },
           },
         }),
@@ -187,9 +193,12 @@ describe("retained results", () => {
       ],
       done,
     );
-    expect(resource(cancelled).get("c3")?.record.outcome).toEqual({
-      kind: "interrupted",
-    });
+    expect(resource(cancelled).get("c3")?.record.state).toHaveProperty(
+      "outcome",
+      {
+        kind: "interrupted",
+      },
+    );
   });
 
   it("drops a cell deleted while its execution runs", () => {

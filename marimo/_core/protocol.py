@@ -233,6 +233,10 @@ else:
     )
 
 
+class ExecutionQueued(Struct, frozen=True, tag_field="status", tag="queued"):
+    pass
+
+
 class ForbiddenProblem(
     Struct, frozen=True, tag_field="type", tag="urn:marimo:problem:forbidden"
 ):
@@ -308,14 +312,6 @@ else:
             ),
         ],
     )
-
-
-Lifecycle: TypeAlias = Annotated[
-    Literal["queued", "running", "completed"],
-    Meta(
-        description="Where an execution is in its lifecycle. An execution is `queued`\nuntil it starts, `running` while code executes, and `completed`\nonce it has ended. How it ended is its `outcome`.\n"
-    ),
-]
 
 
 class MethodNotAllowedProblem(
@@ -1260,6 +1256,21 @@ class ErrorOutcome(Struct, frozen=True, tag_field="kind", tag="error"):
     error: Error
 
 
+class ExecutionRunning(Struct, frozen=True, tag_field="status", tag="running"):
+    started_at: Annotated[
+        Timestamp, Meta(description="When the code started executing.")
+    ]
+    value: (
+        Annotated[
+            ValueOutcome,
+            Meta(
+                description="The value as rendered so far. Null until the execution shows something."
+            ),
+        ]
+        | None
+    )
+
+
 class HostMessage(Struct, frozen=True):
     host: Host
     request_id: (
@@ -1851,36 +1862,14 @@ class DocumentEvent(Struct, frozen=True, tag_field="event", tag="document"):
     ) = UNSET
 
 
-class Execution(Struct, frozen=True):
-    caused_by: (
-        Annotated[
-            ExecutionId,
-            Meta(
-                description="The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one."
-            ),
-        ]
-        | None
-    )
-    cell_id: (
-        Annotated[
-            CellId,
-            Meta(
-                description="The cell this execution belongs to. Null for a scratch execution, which evaluates the code in its run's `origin`."
-            ),
-        ]
-        | None
-    )
-    code_fingerprint: Annotated[
-        CodeFingerprint,
-        Meta(
-            description="Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued."
-        ),
-    ]
+class ExecutionCompleted(
+    Struct, frozen=True, tag_field="status", tag="completed"
+):
     completed_at: (
         Annotated[
             Timestamp,
             Meta(
-                description="When the execution ended. Null until it is completed."
+                description="When the execution ended. Null for a restored result whose store does not record it."
             ),
         ]
         | None
@@ -1888,69 +1877,19 @@ class Execution(Struct, frozen=True):
     depends_on: Annotated[
         dict[str, Revision | None],
         Meta(
-            description="The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on."
+            description="The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Stamped as the execution ends."
         ),
     ]
-    id: ExecutionId
-    outcome: (
-        Annotated[
-            Outcome,
-            Meta(
-                description="How the execution ended. Null while queued; while running, a value carries the display so far; final once completed."
-            ),
-        ]
-        | None
-    )
-    run_id: (
-        Annotated[
-            RunId,
-            Meta(
-                description="The run that owns this execution. Every live execution belongs to exactly one run. May name a run the host has dropped. Null only for a restored result whose run is unknown."
-            ),
-        ]
-        | None
-    )
-    runtime_id: (
-        Annotated[
-            RuntimeId,
-            Meta(
-                description="The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown."
-            ),
-        ]
-        | None
-    )
+    outcome: Outcome
     started_at: (
         Annotated[
             Timestamp,
             Meta(
-                description="When the code started executing. Null while queued or if the execution completed before starting."
+                description="When the code started executing. Null if the execution completed before starting."
             ),
         ]
         | None
     )
-    status: Lifecycle
-
-
-class ExecutionMessage(Struct, frozen=True):
-    execution: Execution
-    request_id: (
-        Annotated[
-            str,
-            Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    time: (
-        Annotated[
-            Timestamp,
-            Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
 
 
 class ExecutionRemovedEvent(
@@ -1967,6 +1906,14 @@ class ExecutionRemovedEvent(
         ]
         | UnsetType
     ) = UNSET
+
+
+ExecutionState: TypeAlias = Annotated[
+    ExecutionQueued | ExecutionRunning | ExecutionCompleted,
+    Meta(
+        description="Where an execution is in its lifecycle, tagged on `status`. An\nexecution is `queued` until it starts, `running` while code\nexecutes, and `completed` once it has ended with its `outcome`.\n"
+    ),
+]
 
 
 class HostEvent(Struct, frozen=True, tag_field="event", tag="host"):
@@ -2172,14 +2119,69 @@ class AnalysisMessage(Struct, frozen=True):
     ) = UNSET
 
 
-class ExecutionEvent(Struct, frozen=True, tag_field="event", tag="execution"):
-    data: ExecutionMessage
-    id: (
+class Execution(Struct, frozen=True):
+    caused_by: (
+        Annotated[
+            ExecutionId,
+            Meta(
+                description="The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one."
+            ),
+        ]
+        | None
+    )
+    cell_id: (
+        Annotated[
+            CellId,
+            Meta(
+                description="The cell this execution belongs to. Null for a scratch execution, which evaluates the code in its run's `origin`."
+            ),
+        ]
+        | None
+    )
+    code_fingerprint: Annotated[
+        CodeFingerprint,
+        Meta(
+            description="Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued."
+        ),
+    ]
+    id: ExecutionId
+    run_id: (
+        Annotated[
+            RunId,
+            Meta(
+                description="The run that owns this execution. Every live execution belongs to exactly one run. May name a run the host has dropped. Null only for a restored result whose run is unknown."
+            ),
+        ]
+        | None
+    )
+    runtime_id: (
+        Annotated[
+            RuntimeId,
+            Meta(
+                description="The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown."
+            ),
+        ]
+        | None
+    )
+    state: ExecutionState
+
+
+class ExecutionMessage(Struct, frozen=True):
+    execution: Execution
+    request_id: (
         Annotated[
             str,
             Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -2202,6 +2204,20 @@ class RunEvent(Struct, frozen=True, tag_field="event", tag="run"):
 
 class AnalysisEvent(Struct, frozen=True, tag_field="event", tag="analysis"):
     data: AnalysisMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class ExecutionEvent(Struct, frozen=True, tag_field="event", tag="execution"):
+    data: ExecutionMessage
     id: (
         Annotated[
             str,

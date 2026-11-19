@@ -5,6 +5,7 @@ import type { Getter } from "jotai";
 import type { ReducerCellActions } from "./cells";
 import {
   itemsInOrder,
+  startedAt,
   type NotebookReplica,
   type Execution as ReplicaExecution,
   type Item,
@@ -79,7 +80,7 @@ export function consoleObservers(
     onExecution(record, changed) {
       VirtualFileTracker.INSTANCE.trackExecution(record);
       if (changed) {
-        if (record.status === "running") {
+        if (record.state.status === "running") {
           actions.startCellConsole({
             cellId: (record.cell_id ?? SCRATCH_CELL_ID) as CellId,
           });
@@ -89,10 +90,8 @@ export function consoleObservers(
     },
     onItem(record, item, live) {
       const cellId = (record.cell_id ?? SCRATCH_CELL_ID) as CellId;
-      const output = consoleEntry(
-        item,
-        record.started_at ? Date.parse(record.started_at) / 1000 : 0,
-      );
+      const start = startedAt(record);
+      const output = consoleEntry(item, start ? Date.parse(start) / 1000 : 0);
       if (output.channel === "media") {
         VirtualFileTracker.INSTANCE.track({ cell_id: cellId, output });
       }
@@ -146,9 +145,8 @@ export function consoleView(
   const record = execution?.record;
   const cleared = local.clearedConsole;
   const hidden = local.clearedConsoleInputs;
-  const fallback = record?.started_at
-    ? Date.parse(record.started_at) / 1000
-    : 0;
+  const start = record && startedAt(record);
+  const fallback = start ? Date.parse(start) / 1000 : 0;
   const project = (item: Item) => {
     if (
       cleared &&

@@ -29,6 +29,7 @@ import {
   type CellExecutionInputs,
   queuedOrRunningCount,
 } from "./select";
+import { shownOutcome } from "@/core/notebook/replica";
 
 type Store = ReturnType<typeof createStore>;
 
@@ -237,7 +238,7 @@ export function clearCellOutputs(
   const next = new Map(inputs.cleared);
   for (const cellId of cellIds) {
     const shown = shownExecution(inputs, cellId);
-    if (shown?.record.outcome != null) {
+    if (shown != null && shownOutcome(shown.record) !== null) {
       next.set(cellId, {
         execution: shown.record.id,
         version: shown.outputVersion,

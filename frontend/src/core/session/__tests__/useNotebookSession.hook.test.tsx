@@ -487,11 +487,14 @@ it.each(["", "latest"])(
     });
     expect(rows()).toEqual(["2\n"]);
     const scratch = {
-      ...MockExecutions.completed(cellId("c1")),
-      cell_id: null,
+      ...MockExecutions.execution(null, {
+        status: "completed",
+        depends_on: {},
+        outcome: { kind: "value", display: null },
+        started_at: "2026-10-01T09:21:01Z",
+        completed_at: "2026-10-01T09:21:02Z",
+      }),
       id: "second-scratch",
-      started_at: "2026-10-01T09:21:01Z",
-      completed_at: "2026-10-01T09:21:02Z",
     };
     act(() => {
       conn.receive({
@@ -499,9 +502,11 @@ it.each(["", "latest"])(
         data: {
           execution: {
             ...scratch,
-            status: "running",
-            outcome: null,
-            completed_at: null,
+            state: {
+              status: "running",
+              started_at: "2026-10-01T09:21:01Z",
+              value: null,
+            },
           },
         },
       });
@@ -608,12 +613,7 @@ it.each(["browser", "kernel"])(
     await started();
     const conn = connection(fake);
     const cell = cellId("c1");
-    const execution = {
-      ...MockExecutions.completed(cell),
-      status: "running",
-      completed_at: null,
-      outcome: null,
-    };
+    const execution = MockExecutions.running(cell);
     const first = {
       id: "first",
       seq: 0,
@@ -746,7 +746,7 @@ it.each(["live", "replay"])(
     await started();
     const conn = connection(fake);
     const id = cellId("c1");
-    const execution = MockExecutions.completed(id, { id: "mixed-writes" });
+    const execution = { ...MockExecutions.completed(id), id: "mixed-writes" };
     const line = (seq: number, text: string) => ({
       event: "console",
       data: {
@@ -811,7 +811,7 @@ it("replays execution, debugger, and callback output independently", async () =>
   await started();
   const conn = connection(fake);
   const id = cellId("c1");
-  const execution = MockExecutions.failed(id, {}, { id: "failed-cell" });
+  const execution = { ...MockExecutions.failed(id), id: "failed-cell" };
   const line = {
     id: "line",
     execution_id: execution.id,
@@ -827,7 +827,7 @@ it("replays execution, debugger, and callback output independently", async () =>
     password: true,
     status: "answered",
   };
-  const afterExecution = Date.parse(execution.completed_at!) / 1000;
+  const afterExecution = Date.parse(MockExecutions.T1) / 1000;
   const session = {
     op: "pdb-output",
     cell_id: id,
@@ -936,7 +936,7 @@ it.each([
   await started();
   const conn = connection(fake);
   const cell = cellId("c1");
-  const execution = MockExecutions.completed(cell, { id: "previous-run" });
+  const execution = { ...MockExecutions.completed(cell), id: "previous-run" };
   const runtime = () => store.get(cellRuntimeAtom(cell));
   await act(async () => conn.open());
   act(() => {
@@ -1058,11 +1058,9 @@ it("collects exported files from execution values and public callback media", as
   const callbackFile = "/@file/callback-image.png";
   const previousFile = "/@file/previous-callback.png";
   const debuggerFile = "/@file/debugger-image.png";
-  const record = MockExecutions.completed(id, {
-    outcome: {
-      kind: "value",
-      display: { mimetype: "text/html", data: `<img src="${file}">` },
-    },
+  const record = MockExecutions.shown(id, {
+    mimetype: "text/html",
+    data: `<img src="${file}">`,
   });
   act(() => {
     conn.receive({

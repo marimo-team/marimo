@@ -108,11 +108,13 @@ describe("readExport", () => {
         expect.objectContaining({
           cell_id: "c1",
           code_fingerprint: "hash-1",
-          status: "completed",
-          outcome: {
-            kind: "value",
-            display: { mimetype: "text/html", data: "<b>1</b>" },
-          },
+          state: expect.objectContaining({
+            status: "completed",
+            outcome: {
+              kind: "value",
+              display: { mimetype: "text/html", data: "<b>1</b>" },
+            },
+          }),
         }),
       ]);
     });
@@ -162,7 +164,7 @@ describe("readExport", () => {
         });
         invariant(result.snapshot, "no snapshot");
         expect(result.snapshot.results?.map((r) => r.cell_id)).toEqual(["c1"]);
-        expect(result.snapshot.results?.[0]?.outcome).toEqual({
+        expect(result.snapshot.results?.[0]?.state).toHaveProperty("outcome", {
           kind: "error",
           error: expect.objectContaining({
             kind: "exception",
@@ -313,7 +315,7 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
+      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
         kind: "error",
         error: expect.objectContaining({
           kind: "exception",
@@ -383,7 +385,7 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
+      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
         kind: "value",
         display: { mimetype: "text/plain", data: "Hello World" },
       });
@@ -747,7 +749,7 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
+      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
         kind: "value",
         display: { mimetype: "text/plain", data: "First" },
       });
@@ -771,7 +773,7 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
+      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
         kind: "value",
         display: { mimetype: "text/plain", data: "Plain text" },
       });
@@ -794,7 +796,7 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
+      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
         kind: "value",
         display: null,
       });

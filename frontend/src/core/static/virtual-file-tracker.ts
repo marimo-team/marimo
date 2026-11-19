@@ -6,6 +6,7 @@ import type {
   OutputMessage,
   NotificationMessageData,
 } from "../kernel/messages";
+import { shownOutcome } from "@/core/notebook/replica";
 
 // Virtual files are of the form /@file/<file-name>.<extension>
 const VIRTUAL_FILE_REGEX = /\/@file\/([^\s"&'/]+)\.([\dA-Za-z]+)/g;
@@ -37,8 +38,8 @@ export class VirtualFileTracker {
   }
 
   public trackExecution(record: Execution): void {
-    const value =
-      record.outcome?.kind === "value" ? record.outcome.display : null;
+    const outcome = shownOutcome(record);
+    const value = outcome?.kind === "value" ? outcome.display : null;
     if (value) {
       this.trackValue(
         (record.cell_id as CellId | null) ?? SCRATCH_CELL_ID,

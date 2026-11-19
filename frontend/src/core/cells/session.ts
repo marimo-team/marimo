@@ -258,11 +258,13 @@ function resultRecord(
     caused_by: null,
     cell_id: cell.id,
     code_fingerprint: cell.code_fingerprint,
-    depends_on: {},
-    status: "completed",
-    outcome,
-    started_at: null,
-    completed_at: null,
+    state: {
+      status: "completed",
+      started_at: null,
+      completed_at: null,
+      outcome,
+      depends_on: {},
+    },
   };
 }
 

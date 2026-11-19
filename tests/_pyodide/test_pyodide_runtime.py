@@ -358,7 +358,7 @@ async def test_editor_receives_one_representation_of_each_output(bridge):
                 "editor", None, receive, "marimo,execution,console"
             )
         assert (
-            latest(frames, "execution")["outcome"]["display"]["data"]
+            latest(frames, "execution")["state"]["value"]["display"]["data"]
             == "result"
         )
         assert {f["event"] for f in frames} <= {
@@ -472,7 +472,7 @@ async def test_running_a_cell_loads_its_imports_and_queues_the_command(
         deliver(bridge, notification)
     execution = latest(events, "execution")
     assert execution["cell_id"] == cell["id"]
-    assert execution["status"] == "completed"
+    assert execution["state"]["status"] == "completed"
     assert execution["code_fingerprint"] == cell["code_fingerprint"]
     run = latest(events, "run")
     assert (run["state"]["status"], run["state"]["outcome"]) == (
@@ -1008,7 +1008,9 @@ async def test_a_kernel_exit_mid_run_fails_the_run(bridge):
         "completed",
         "failed",
     )
-    assert latest(events, "execution")["outcome"] == {"kind": "interrupted"}
+    assert latest(events, "execution")["state"]["outcome"] == {
+        "kind": "interrupted"
+    }
 
     # The dying kernel's late completion changes nothing.
     for notification in finished(cell["id"], run_id):
@@ -1093,7 +1095,9 @@ async def test_a_second_subscription_sees_the_run_in_flight(bridge):
         e["data"]["execution"] for e in snapshot if e["event"] == "execution"
     ]
     assert [run["state"]["status"] for run in runs] == ["running"]
-    assert [execution["status"] for execution in executions] == ["running"]
+    assert [execution["state"]["status"] for execution in executions] == [
+        "running"
+    ]
 
 
 async def test_cancelling_a_middle_run_keeps_the_order(bridge):
