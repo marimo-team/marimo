@@ -603,6 +603,7 @@ extend-exclude = [
     "patches/*", # Patches may contain typos from source code,
     "frontend/dist/assets/*", # Assets may contain typos from source code
     "tests/_sql/test_sql_parse.py", # Contains intentional invalid SQL for testing
+    "tests/_sql/test_polars.py", # Contains intentional invalid SQL for testing
 ]
 
 

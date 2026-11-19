@@ -40,7 +40,7 @@ pytestmark = pytest.mark.skipif(
         ("SELECT * FROM sch.cars JOIN `my cars` USING (id)", set()),
         # CTE names are over-reported; at worst they add an extra edge.
         ("WITH t AS (SELECT * FROM a) SELECT * FROM t", {"a", "t"}),
-        ("SELECT * FROM cars WHERE", set()),
+        ("SELEC * FRM cars", set()),
     ],
 )
 def test_find_polars_sql_table_names(query: str, expected: set[str]) -> None:
@@ -128,7 +128,7 @@ def test_execute_joins_eager_and_lazy_frames() -> None:
 @pytest.mark.parametrize(
     "query",
     [
-        "SELECT * FROM cars WHERE",
+        "SELEC * FROM cars",
         "SELECT * FROM missing",
         "SELECT nope FROM cars",
     ],
