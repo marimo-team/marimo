@@ -107,9 +107,9 @@ document or a separate concurrent runtime MUST appear as another notebook, even
 when both originate from the same file. Restarting a notebook's runtime
 preserves the notebook's identity.
 
-A runtime carries its status in `state`, like a run. It is `starting` while its
-kernel comes up, `ready` while it accepts work, `stopping` while its kernel
-shuts down, and `ended` after that. An ended state does not change.
+A runtime carries its status in `state` together with the fields that status
+has. It is `starting` while its kernel comes up, `ready` while it accepts work,
+`stopping` while its kernel shuts down, and `ended` after that.
 
     RuntimeState   { status: "starting", message }
                  | { status: "ready" }
@@ -122,8 +122,7 @@ shuts down, and `ended` after that. An ended state does not change.
 A runtime that a client or the host stopped ends `stopped`. One that could not
 start, or whose kernel exited on its own, ends `failed`. Its unfinished runs
 complete `failed` with the same message, the execution that was running fails
-with it too, and queued executions are cancelled. Hosts MUST complete a
-runtime's runs before publishing it as `ended`.
+with it too, and queued executions are cancelled.
 
 The notebook keeps its runtime after it ends, so a client that connects later
 can see how it ended. Hosts MUST send `runtime.removed` for the ended runtime
@@ -175,8 +174,7 @@ Notebook
 
 Runs and executions move through `queued`, `running`, and `completed`. Each
 carries its status in `state` together with the fields that status has, so a
-queued run has no start time and only a completed one has an outcome. A
-completed state does not change.
+queued run has no start time and only a completed one has an outcome.
 
     RunState       { status: "queued" }
                  | { status: "running", started_at }
@@ -202,9 +200,8 @@ such as one cancelled while queued, has no executions.
              | { kind: "cancelled" }
              | { kind: "skipped", reason, message, related }
 
-Hosts MUST complete a run only after its executions have ended and scheduling
-for that cycle has finished. An error in one execution may occur while others
-are still working. An execution that did not evaluate because of other work in
+Hosts MUST complete a run only after scheduling for its cycle has finished. An
+error in one execution may occur while others are still working. An execution that did not evaluate because of other work in
 the notebook, such as a dependent of a cell that raised or that stopped the
 cycle on purpose, or a queued execution that a later one of the same cell
 replaced, completes with the outcome `skipped`, which names the reason and the
@@ -287,14 +284,9 @@ its status records the progress of the request.
 | `answered` | The host accepted a reply for delivery to this input. |
 | `cancelled` | The host ended the wait while the input was still pending. |
 
-An input starts `pending` and can transition once to `answered` or `cancelled`.
+An input starts `pending` and becomes `answered` or `cancelled`.
 An answered input stays answered if execution later fails before consuming the
 value, because its status records that the host accepted the reply.
-
-The execution remains `running` while it waits, and clients determine whether
-it needs input by looking for pending inputs. Hosts MUST cancel any remaining
-pending inputs before publishing the execution as completed, including on
-interruption, runtime stop, restart, or failure.
 
 Inputs stay with their execution after they are answered or cancelled, so a
 reconnecting client can distinguish outstanding prompts from those already
@@ -306,6 +298,33 @@ Hosts MUST restrict input records, input events, and reply responses to the
 prompt's identity, metadata, and status. Submitted answers travel through the
 reply endpoint to the runtime, where user code may expose them through outputs
 or variables.
+
+### Lifecycles
+
+Runtimes, runs, executions, and inputs each have a status that only moves
+forward. Once a record reaches a final status, which is `ended`, `completed`,
+`answered`, or `cancelled`, it does not change again.
+
+Work settles from the inside out. Hosts MUST cancel an execution's pending
+inputs before publishing the execution as completed, complete a run's
+executions before the run, and complete a runtime's runs before publishing the
+runtime as `ended`. This holds whatever ends the work, including an interrupt,
+a cancel, a stop, a restart, or a kernel that exits on its own.
+
+A record with a status is kept after it reaches a final one, so a client that
+connects later can see how it ended. It leaves when the host stops retaining
+it. Records without a status, such as cells, attachments, console entries,
+outputs, and variables, are removed when what they describe is gone, or with
+the record that owns them.
+
+Each timestamp is named for the status it marks. `created_at` is when the host
+created the record, `started_at` is when it began `running`, and `completed_at`
+or `ended_at` is when it reached its final status.
+
+A condition that follows from other records has no status of its own. An
+execution waiting for an answer stays `running` and has a pending input, and a
+runtime is busy while one of its runs is `running`. Freshness is derived the
+same way, from the records described in the next section.
 
 ### Variables and result freshness
 
