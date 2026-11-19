@@ -118,7 +118,7 @@ def _changed(agents, consumer=_consumer):
     consumer.agent_connected = bool(agents)
     with open({str(updates)!r}, "a") as out:
         out.write(json.dumps([[(a.id, a.name) for a in agents], get_context().cell_id, consumer.agent_connected, Path({str(busy)!r}).exists()]) + "\\n")
-_unsubscribe = mo.agents.subscribe_connections(_changed)
+_unsubscribe = mo._agents.subscribe_connections(_changed)
 with open({str(updates)!r}, "a") as out:
     out.write(json.dumps("returned") + "\\n")
 """
@@ -215,7 +215,7 @@ import marimo as _mo
 def _fresh_changed(agents):
     from pathlib import Path
     Path({str(fresh)!r}).write_text(str(len(agents)))
-_fresh_unsubscribe = _mo.agents.subscribe_connections(_fresh_changed)
+_fresh_unsubscribe = _mo._agents.subscribe_connections(_fresh_changed)
 """,
             )
             deadline = time.monotonic() + 5
@@ -246,8 +246,8 @@ _original = _kernel.agent_messaging
 _kernel.agent_messaging = replace(_original, url={endpoint.url!r})
 _start = time.monotonic()
 try:
-    mo.agents.subscribe_connections(lambda agents: None)
-except mo.agents.AgentError as _error:
+    mo._agents.subscribe_connections(lambda agents: None)
+except mo._agents.AgentError as _error:
     with open({str(result)!r}, "a") as _out:
         _out.write(json.dumps([str(_error), time.monotonic() - _start]) + "\\n")
 finally:
@@ -294,11 +294,11 @@ def _changed(agents, holder=_holder):
     from pathlib import Path
     import marimo as mo
     with open({str(updates)!r}, "a") as _out:
-        _out.write(json.dumps([[(a.id, a.name) for a in agents], [(a.id, a.name) for a in mo.agents.list()]]) + "\\n")
+        _out.write(json.dumps([[(a.id, a.name) for a in agents], [(a.id, a.name) for a in mo._agents.list()]]) + "\\n")
     if Path({str(stop)!r}).exists():
         holder[0]()
         holder[0]()
-_holder.append(mo.agents.subscribe_connections(_changed))
+_holder.append(mo._agents.subscribe_connections(_changed))
 """,
         )
         values = wait_values(updates, bool)
@@ -369,9 +369,9 @@ def _broken(agents, consumer=_consumer, healthy=_healthy):
     import marimo as mo
     if not consumer.subscribed:
         consumer.subscribed = True
-        consumer.unsubscribe = mo.agents.subscribe_connections(healthy)
+        consumer.unsubscribe = mo._agents.subscribe_connections(healthy)
     raise ValueError("consumer callback failed")
-_unsubscribe = mo.agents.subscribe_connections(_broken)
+_unsubscribe = mo._agents.subscribe_connections(_broken)
 """,
         )
         assert wait_values(updates, bool) == [[[], None]]
@@ -402,7 +402,7 @@ def _changed(agents):
     import json
     with open({str(updates)!r}, "a") as out:
         out.write(json.dumps([(a.id, a.name) for a in agents]) + "\\n")
-consumer.unsubscribe = mo.agents.subscribe_connections(_changed)
+consumer.unsubscribe = mo._agents.subscribe_connections(_changed)
 """,
         )
         assert wait_values(updates, bool) == [[]]

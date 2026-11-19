@@ -38,7 +38,6 @@ __all__ = [  # noqa: RUF022
     "current_thread",
     # Other namespaces
     "ai",
-    "agents",
     "ui",
     "islands",
     # Application elements
@@ -102,9 +101,9 @@ __all__ = [  # noqa: RUF022
     "watch",
     "__version__",
 ]
-import marimo._agents as agents
 import marimo._ai as ai
 import marimo._islands as islands
+from marimo import _agents as _agents
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands._island_generator import MarimoIslandGenerator

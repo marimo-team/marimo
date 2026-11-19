@@ -54,7 +54,7 @@ def available() -> bool:
         ```python
         import marimo as mo
 
-        mo.agents.available()
+        mo._agents.available()
         ```
     """
     try:
@@ -74,7 +74,7 @@ def list(*, timeout: float = 30.0) -> tuple[AgentInfo, ...]:  # noqa: A001
         ```python
         import marimo as mo
 
-        agents = mo.agents.list()
+        agents = mo._agents.list()
         [(agent.id, agent.name) for agent in agents]
         ```
     """
@@ -132,7 +132,7 @@ def send(
 
     Args:
         message (Any): JSON content. Objects require string keys.
-        to (str): Recipient ID from `mo.agents.list()`.
+        to (str): Recipient ID from `mo._agents.list()`.
         sender (str, optional): Unverified label, at most 64 characters, one line.
         timeout (float, optional): Total wait in seconds. Defaults to 30.
 
@@ -144,9 +144,9 @@ def send(
         ```python
         import marimo as mo
 
-        agents = mo.agents.list()
+        agents = mo._agents.list()
         if len(agents) == 1:
-            result = mo.agents.send({"rows": [1, 3]}, to=agents[0].id)
+            result = mo._agents.send({"rows": [1, 3]}, to=agents[0].id)
             print(result.recipients)
         ```
     """
@@ -171,7 +171,7 @@ def broadcast(
         ```python
         import marimo as mo
 
-        result = mo.agents.broadcast({"note": "The data changed."})
+        result = mo._agents.broadcast({"note": "The data changed."})
         print(result.recipients)
         ```
     """
@@ -201,7 +201,7 @@ def start_send(
 
     Args:
         message (Any): JSON content. Objects require string keys.
-        to (str): Recipient ID from `mo.agents.list()`.
+        to (str): Recipient ID from `mo._agents.list()`.
         sender (str, optional): Unverified label, at most 64 characters, one line.
         timeout (float, optional): Send wait in seconds after dispatch. Defaults to 30.
 
@@ -215,9 +215,9 @@ def start_send(
         ```python
         import marimo as mo
 
-        agents = mo.agents.list()
+        agents = mo._agents.list()
         if len(agents) == 1:
-            future = mo.agents.start_send({"rows": [1, 3]}, to=agents[0].id)
+            future = mo._agents.start_send({"rows": [1, 3]}, to=agents[0].id)
             print(future.message_id)
         ```
     """
@@ -242,7 +242,7 @@ def start_broadcast(
         ```python
         import marimo as mo
 
-        future = mo.agents.start_broadcast({"note": "The data changed."})
+        future = mo._agents.start_broadcast({"note": "The data changed."})
         print(future.message_id)
         ```
     """
@@ -283,7 +283,7 @@ def subscribe_connections(
             print([(agent.id, agent.name) for agent in agents])
 
 
-        unsubscribe = mo.agents.subscribe_connections(show_connections)
+        unsubscribe = mo._agents.subscribe_connections(show_connections)
         ```
 
         To remove the subscription, run `unsubscribe()`.

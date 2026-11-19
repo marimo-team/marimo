@@ -112,7 +112,6 @@ nav:
       - Using coding agents:
           - Using coding agents: guides/generate_with_ai/index.md
           - marimo pair: guides/generate_with_ai/marimo_pair.md
-          - Send messages to agents: guides/generate_with_ai/agent_messages.md
           - Skills: guides/generate_with_ai/skills.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
@@ -289,7 +288,6 @@ nav:
       - Command Line Arguments: api/cli_args.md
       - Caching: api/caching.md
       - State: api/state.md
-      - Agents: api/agents.md
       - App: api/app.md
       - Cell: api/cell.md
       - Watch: api/watch.md
