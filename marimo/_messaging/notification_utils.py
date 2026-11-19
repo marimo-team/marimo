@@ -14,10 +14,15 @@ import msgspec
 
 from marimo import _loggers as loggers
 from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.command_output import console_notification
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
     MarimoInternalError,
     is_sensitive_error,
+)
+from marimo._messaging.notification import (
+    CellNotification,
+    PdbOutputNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.streams import output_max_bytes
@@ -54,6 +59,14 @@ def broadcast_notification(
             stream = ctx.stream
 
     try:
+        # A direct console write must follow any text that stdout/stderr
+        # buffered before it, including in the thread that spawned this one.
+        if isinstance(notification, PdbOutputNotification) or (
+            isinstance(notification, CellNotification)
+            and notification.status is None
+            and notification.console is not None
+        ):
+            stream.flush_console()
         stream.write(serialize_kernel_message(notification))
     except Exception:
         LOGGER.exception(
@@ -117,9 +130,6 @@ class CellNotificationUtils:
         status: RuntimeStateType | None,
         stream: Stream | None = None,
     ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
         mimetype, data = CellNotificationUtils.maybe_truncate_output(
             mimetype, data
         )
@@ -146,9 +156,6 @@ class CellNotificationUtils:
         status: RuntimeStateType | None,
         stream: Stream | None = None,
     ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
         cell_id = (
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
@@ -171,9 +178,6 @@ class CellNotificationUtils:
         status: RuntimeStateType | None,
         stream: Stream | None = None,
     ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
         mimetype, data = CellNotificationUtils.maybe_truncate_output(
             mimetype, data
         )
@@ -182,7 +186,7 @@ class CellNotificationUtils:
         )
         assert cell_id is not None
         broadcast_notification(
-            CellNotification(
+            console_notification(
                 cell_id=cell_id,
                 console=CellOutput(
                     channel=channel,
@@ -200,9 +204,6 @@ class CellNotificationUtils:
         status: RuntimeStateType,
         stream: Stream | None = None,
     ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
         if status != "running":
             broadcast_notification(
                 CellNotification(cell_id=cell_id, status=status), stream
@@ -222,9 +223,6 @@ class CellNotificationUtils:
         execution_id: str | None = None,
         code: str | None = None,
     ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
         console: list[CellOutput] | None = [] if clear_console else None
 
         # In run mode, we don't want to broadcast the error. Instead we want to print the error to the console
@@ -286,9 +284,6 @@ class CellNotificationUtils:
         serialization: TopLevelStatus,
         stream: Stream | None = None,
     ) -> None:
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
         status: TopLevelHints | None = serialization.hint
         broadcast_notification(
             CellNotification(cell_id=cell_id, serialization=str(status)),
@@ -306,9 +301,6 @@ class CellNotificationUtils:
         missing field means "unchanged", so a concrete None is required to
         remove a previously shown hint.
         """
-        # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellNotification
-
         broadcast_notification(
             CellNotification(cell_id=cell_id, serialization=None),
             stream,
