@@ -345,7 +345,7 @@ def test_widget_callback_console_is_routed_to_its_defining_cell(
         export = serialize_session_view(
             session.session_view,
             [CellId_t(cell_id)],
-            include_callback_output=True,
+            for_display=True,
             drop_virtual_file_outputs=False,
         )
         text = "".join(

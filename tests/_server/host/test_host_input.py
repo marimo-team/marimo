@@ -516,7 +516,7 @@ def test_failed_cell_debugger_prompt_survives_reconnect(
         export = serialize_session_view(
             session.session_view,
             [CellId_t("probe")],
-            include_callback_output=True,
+            for_display=True,
             drop_virtual_file_outputs=False,
         )
         console = json.dumps(export["cells"][0]["console"])

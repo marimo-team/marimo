@@ -26,6 +26,7 @@ from marimo._messaging.notification import ExecutionNotification
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.context.utils import get_mode
 from marimo._types.ids import CellId_t
+from marimo._utils.code import hash_code
 
 
 @dataclass
@@ -48,6 +49,7 @@ class ExecutionAttempt:
         cls, cell_id: CellId_t, code: str, code_fingerprint: str | None = None
     ) -> ExecutionAttempt:
         attempt = cls(cell_id, code=code)
+        withhold_source = get_mode() == "run"
         parent = EXECUTION_CTX.get()
         broadcast_notification(
             ExecutionNotification(
@@ -60,7 +62,8 @@ class ExecutionAttempt:
                     if code_fingerprint is not None
                     else source_fingerprint(code)
                 ),
-                code=code if get_mode() != "run" else None,
+                code=None if withhold_source else code,
+                code_hash=hash_code(code) if withhold_source else None,
                 caused_by=(
                     parent.id
                     if parent is not None and parent.run_id == attempt.run_id

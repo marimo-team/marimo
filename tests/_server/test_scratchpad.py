@@ -22,6 +22,7 @@ from marimo._messaging.errors import MarimoExceptionRaisedError
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
+    ExecutionNotification,
     NotificationMessage,
 )
 from marimo._messaging.serde import serialize_kernel_message
@@ -41,6 +42,7 @@ from marimo._server.scratchpad import (
     snapshot_for_scratchpad,
 )
 from marimo._session.requests import InstantiateNotebookRequest
+from marimo._session.state.session_view import SessionView
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -48,7 +50,6 @@ if TYPE_CHECKING:
     from starlette.types import Scope
 
     from marimo._session.session import Session
-    from marimo._types.ids import CellId_t
 
 _TEST_RUN_ID = "test-run-id"
 
@@ -61,7 +62,7 @@ def _make_session(
     notification: CellNotification | None = None,
 ) -> MagicMock:
     session = MagicMock()
-    session.session_view.cell_notifications = {}
+    session.session_view = SessionView()
     if notification is not None:
         session.session_view.cell_notifications[SCRATCH_CELL_ID] = notification
     return session
@@ -151,10 +152,8 @@ class _FakeSession:
     will never see a completion event).
     """
 
-    cell_outputs: dict[CellId_t, CellOutput]
-    console_outputs: dict[CellId_t, list[CellOutput]]
     document: SimpleNamespace
-    session_view: SimpleNamespace
+    session_view: SessionView
     scratchpad_lock: asyncio.Lock
     control_requests: list[CommandMessage]
     instantiate_calls: list[
@@ -168,14 +167,8 @@ class _FakeSession:
     def __init__(self, *, auto_complete: bool = True) -> None:
         self.app_file_manager = SimpleNamespace(path=None)
         self.initialization_id = "__new__notebook"
-        self.cell_outputs = {}
-        self.console_outputs = {}
         self.document = SimpleNamespace(cells=(), cell_ids=())
-        self.session_view = SimpleNamespace(
-            cell_notifications={},
-            get_cell_outputs=lambda _ids: self.cell_outputs,
-            get_cell_console_outputs=lambda _ids: self.console_outputs,
-        )
+        self.session_view = SessionView()
         self.scratchpad_lock = asyncio.Lock()
         self.control_requests = []
         self.instantiate_calls = []
@@ -477,6 +470,24 @@ class TestBuildDoneEvent:
     # carry an empty output — the actual error detail was streamed via
     # preceding `stderr` events.
     _EMPTY = {"mimetype": "text/plain", "data": ""}
+
+    def test_quiet_rerun_has_no_previous_result(self) -> None:
+        session = _make_session(
+            CellNotification(
+                SCRATCH_CELL_ID,
+                output=CellOutput(
+                    channel=CellChannel.OUTPUT,
+                    mimetype="text/plain",
+                    data="previous",
+                ),
+            )
+        )
+        session.session_view.add_notification(
+            ExecutionNotification("second", SCRATCH_CELL_ID, "run", "planned")
+        )
+        assert extract_result(session) == CodeExecutionResult(success=True)
+        _, data = _parse_sse(build_done_event(session))
+        assert data == {"success": True, "output": self._EMPTY}
 
     def test_no_notification(self) -> None:
         event, data = _parse_sse(build_done_event(_make_session()))
@@ -877,8 +888,10 @@ class TestRunScratchpadCode:
             channel=CellChannel.OUTPUT, mimetype="text/plain", data="42"
         )
         console = CellOutput.stdout("hi\n")
-        session.cell_outputs = {CellId_t("a"): output}
-        session.console_outputs = {CellId_t("a"): [console]}
+        session.document.cell_ids = (CellId_t("a"),)
+        session.session_view.add_notification(
+            CellNotification(CellId_t("a"), output=output, console=console)
+        )
 
         await run_scratchpad_code(
             session.as_session(),
