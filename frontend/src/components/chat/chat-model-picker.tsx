@@ -157,12 +157,12 @@ export function ChatModelPicker({
             inline: "nearest",
           });
         }}
-        className="chat-model-picker w-[420px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden"
+        className="chat-model-picker w-[520px] max-w-[calc(100vw-2rem)] p-0 overflow-hidden"
       >
         <div className="chat-model-picker-layout flex">
           <nav
             aria-label="Model providers"
-            className="flex w-11 shrink-0 flex-col gap-1 overflow-y-auto scrollbar-thin border-r p-1 max-h-64"
+            className="flex w-14 shrink-0 flex-col items-center gap-1 overflow-y-auto scrollbar-thin border-r p-1.5 max-h-80"
           >
             {modelsByProvider.map(([provider]) => (
               <Button
@@ -195,11 +195,11 @@ export function ChatModelPicker({
               aria-label="Search models"
               value={search}
               onValueChange={setSearch}
-              className="h-9 text-xs"
-              rootClassName="px-2"
+              className="h-10 text-sm"
+              rootClassName="px-3"
             />
             <CommandList
-              className="h-55 max-h-55 scrollbar-thin"
+              className="h-70 max-h-70 scrollbar-thin"
               aria-label={
                 visibleProvider
                   ? `${getProviderLabel(visibleProvider)} models`
@@ -219,7 +219,7 @@ export function ChatModelPicker({
                       onSelect={() => {
                         void selectModel(modelId);
                       }}
-                      className="gap-2 h-8 text-xs"
+                      className="gap-2 h-9 text-sm"
                     >
                       <span className="truncate">{model.name}</span>
                       {modelId === current.id && (
@@ -240,7 +240,7 @@ export function ChatModelPicker({
             }
           />
         </div>
-        <div className="flex items-center justify-between gap-2 border-t px-2 py-1.5">
+        <div className="flex items-center justify-between gap-2 border-t px-3 py-2">
           <label
             htmlFor={webSearchId}
             className="flex items-center gap-2 text-xs cursor-pointer"
@@ -291,7 +291,7 @@ function ReasoningControls({
 }: ReasoningControlsProps) {
   const labelId = useId();
   return (
-    <div className="chat-model-reasoning w-28 shrink-0 border-l p-1.5">
+    <div className="chat-model-reasoning w-32 shrink-0 border-l p-2">
       <div
         id={labelId}
         className="text-xs font-semibold text-muted-foreground h-6 px-1 flex items-center"
@@ -314,7 +314,7 @@ function ReasoningControls({
           {options.map((option) => (
             <label
               key={option.value}
-              className="flex h-7 items-center justify-between gap-1.5 rounded px-1.5 text-xs cursor-pointer hover:bg-accent focus-within:ring-1 focus-within:ring-ring"
+              className="flex h-8 items-center justify-between gap-1.5 rounded px-1.5 text-xs cursor-pointer hover:bg-accent focus-within:ring-1 focus-within:ring-ring"
             >
               <RadioGroupItem value={option.value} className="sr-only" />
               {option.label}
