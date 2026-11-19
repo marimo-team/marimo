@@ -118,7 +118,9 @@ export class MarkdownParser implements LanguageParser<MarkdownMetadata> {
 
   transformOut(code: string, metadata: MarkdownMetadata): FormatResult {
     // NB. Must be kept consistent with
-    // marimo/_convert/common/format.py::markdown_to_marimo
+    // marimo/_convert/common/format.py::markdown_to_marimo for raw prefixes.
+    // Non-raw prefixes are not handled here because transformIn does not
+    // evaluate escape sequences, so the editor could not read them back.
 
     // Empty string
     if (code === "") {

@@ -34,13 +34,19 @@ def markdown_to_marimo(
     if not source:
         source = " "
 
-    # Prefer a delimiter the body does not contain: escapes survive in raw
-    # strings and render as backslashes in code blocks.
-    quotes = "'" if '"""' in source and "'''" not in source else "\"'"
-    # Non-raw strings evaluate an authored `\"""` under either delimiter;
-    # only the `"""` escape rejects it.
     raw = "r" in prefix.lower()
-    for quote in quotes if raw else '"':
+    if not raw:
+        # Non-raw strings evaluate an authored `\"""` under either delimiter;
+        # only the `"""` escape rejects it.
+        delimiters = ('"',)
+    elif '"""' in source and "'''" not in source:
+        # Prefer a delimiter the body does not contain: escapes survive in raw
+        # strings and render as backslashes in code blocks.
+        delimiters = ("'",)
+    else:
+        delimiters = ('"', "'")
+
+    for quote in delimiters:
         escaped = _escape_triple_quotes(source, quote)
         if escaped is not None:
             return codegen.construct_markdown_call(escaped, quote * 3, prefix)
