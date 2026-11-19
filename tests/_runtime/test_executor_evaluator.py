@@ -13,11 +13,14 @@ double raise, and KeyboardInterrupt propagation through teardown.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from marimo._ast.compiler import compile_cell
+from marimo._core.errors import MarimoBugError
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
     DefaultExecutor,
@@ -27,9 +30,12 @@ from marimo._runtime.executor import (
 )
 from marimo._runtime.runner.cell_runner import Runner
 from marimo._runtime.runner.result import RunResult
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
+
+    from marimo._ast.cell import CellImpl
 
 
 class _Recorder:
@@ -253,6 +259,23 @@ async def test_default_executor_strips_own_frame_from_cause_async() -> None:
     assert files, "cause traceback unexpectedly empty"
     assert not any("executor/executor.py" in f for f in files), files
     assert files[0] == "<test>"
+
+
+def _cell_without_last_expr() -> CellImpl:
+    cell = compile_cell("value = 1", cell_id=CellId_t("0"))
+    return dataclasses.replace(cell, last_expr=None)
+
+
+def test_default_executor_rejects_cell_without_last_expr() -> None:
+    with pytest.raises(MarimoBugError, match="no last expression"):
+        DefaultExecutor().execute_cell(_cell_without_last_expr(), {})
+
+
+async def test_default_executor_async_rejects_cell_without_last_expr() -> None:
+    with pytest.raises(MarimoBugError, match="no last expression"):
+        await DefaultExecutor().execute_cell_async(
+            _cell_without_last_expr(), {}
+        )
 
 
 async def test_teardown_runs_for_completed_setups_when_later_setup_raises() -> (

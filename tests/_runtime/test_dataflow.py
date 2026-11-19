@@ -8,6 +8,7 @@ import pytest
 
 from marimo._ast import compiler
 from marimo._ast.visitor import Name, VariableData
+from marimo._core.errors import MarimoBugError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime import dataflow
 from marimo._runtime.runner import by_refs
@@ -124,6 +125,14 @@ def test_graph_single_node() -> None:
     assert graph.cells == {"0": cell}
     assert graph.parents == {"0": set()}
     assert graph.children == {"0": set()}
+
+
+def test_register_cell_twice_raises() -> None:
+    graph = dataflow.DirectedGraph()
+    cell = parse_cell("x = 0")
+    graph.register_cell(CellId_t("0"), cell)
+    with pytest.raises(MarimoBugError, match="Cell 0 is already in the graph"):
+        graph.register_cell(CellId_t("0"), cell)
 
 
 def test_graph_two_chains() -> None:

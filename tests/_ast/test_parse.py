@@ -8,6 +8,7 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._ast.parse import (
+    MarimoFileError,
     Parser,
     _eval_kwargs,
     fixed_dedent,
@@ -29,7 +30,7 @@ def test_cell_decorator_rejects_classes() -> None:
         "class Example:\n"
         "    pass\n"
     )
-    with pytest.raises(ValueError, match="cannot be used on classes"):
+    with pytest.raises(MarimoFileError, match="cannot be used on classes"):
         parse_notebook(source)
 
 

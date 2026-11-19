@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit
 
+from marimo._core.errors import expect
 from marimo._server.host import (
     ATTACHMENT_IDENTITY,
     ATTACHMENT_KIND,
@@ -245,9 +246,9 @@ def open_response(
             timeout=5.0,
         )
         connection.connect()
-        if connection.sock is None:
-            raise RuntimeError("Connection socket is not available")
-        response_socket = connection.sock
+        response_socket = expect(
+            connection.sock, "Connection socket is not available"
+        )
         response_socket.settimeout(read_timeout)
         path = parsed.path or "/"
         if parsed.query:

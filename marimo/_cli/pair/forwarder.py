@@ -47,6 +47,7 @@ from marimo._cli.pair.target import (
     resolve_inbox_target,
     resolve_target,
 )
+from marimo._core.errors import expect
 from marimo._messaging.messages import AGENT_MESSAGE_TYPE
 from marimo._utils.subprocess import kill_subprocess
 
@@ -100,9 +101,9 @@ def ensure_connection(
             token=selected.token,
             require_notebook=True,
         )
-    if selected.notebook_id is None:
-        raise RuntimeError("Execution target has no notebook ID")
-    notebook = selected.notebook_id
+    notebook = expect(
+        selected.notebook_id, "Execution target has no notebook ID"
+    )
     identity = connection_identity(notebook, target.kind, target.address)
     with store.locked(identity):
         if automatic and store.attempted(identity, owner):
@@ -175,8 +176,9 @@ def start_forwarder(
 ) -> Connection:
     import psutil
 
-    if config.target.process is None:
-        raise RuntimeError("Forwarder target process is not configured")
+    owner = expect(
+        config.target.process, "Forwarder target process is not configured"
+    )
     process = subprocess.Popen(
         [sys.executable, "-P", "-m", "marimo._cli.pair.forwarder"],
         stdin=subprocess.PIPE,
@@ -193,23 +195,18 @@ def start_forwarder(
             identity=config.identity,
             notebook=config.notebook,
             harness_kind=config.target.kind,
-            harness_pid=config.target.process.pid,
-            harness_start=config.target.process.started,
+            harness_pid=owner.pid,
+            harness_start=owner.started,
             forwarder_pid=handle.pid,
             forwarder_start=handle.started,
             created_at=time.time(),
         )
         store.save(record)
-        if process.stdin is None:
-            raise RuntimeError("Process stdin pipe is not available")
-        if process.stdout is None:
-            raise RuntimeError("Process stdout pipe is not available")
-        output = process.stdout
+        stdin = expect(process.stdin, "Process stdin pipe is not available")
+        output = expect(process.stdout, "Process stdout pipe is not available")
         # Secrets travel through the private pipe, never argv or a state file.
-        process.stdin.write(
-            msgspec.json.encode(_Bootstrap(config, str(store.root)))
-        )
-        process.stdin.close()
+        stdin.write(msgspec.json.encode(_Bootstrap(config, str(store.root))))
+        stdin.close()
         ready: queue.Queue[bytes] = queue.Queue(maxsize=1)
         threading.Thread(
             target=lambda: ready.put(output.readline()), daemon=True

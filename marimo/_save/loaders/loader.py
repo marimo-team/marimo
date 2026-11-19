@@ -29,12 +29,9 @@ if TYPE_CHECKING:
     from marimo._save.hash import HashKey
 
 INCONSISTENT_CACHE_BOILER_PLATE = (
-    "The cache state does not match "
-    "expectations, this can be due to file "
-    "corruption or an incompatible marimo "
-    "version. Alternatively, this may be a bug"
-    " in marimo. Please file an issue at "
-    "github.com/marimo-team/marimo/issues"
+    "The cache state does not match expectations, which can be caused by "
+    "file corruption or an incompatible marimo version. Clearing the cache "
+    "may resolve this."
 )
 
 

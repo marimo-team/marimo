@@ -20,6 +20,7 @@ from marimo._cli.containers.engine import (
     StartFailure,
     WorkloadExit,
 )
+from marimo._core.errors import expect
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -136,13 +137,14 @@ class _DockerCompatibleSession:
                 errors="replace",
             )
             self._log_process = process
-            if process.stdout is None:
-                raise RuntimeError("Container log stream is unavailable")
-            for line in process.stdout:
+            stdout = expect(
+                process.stdout, "Container log stream is unavailable"
+            )
+            for line in stdout:
                 tail.append(line)
                 yield line
             status = process.wait()
-            process.stdout.close()
+            stdout.close()
             self._log_process = None
             if status:
                 detail = "".join(tail).strip()

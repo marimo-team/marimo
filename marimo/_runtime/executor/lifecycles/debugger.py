@@ -11,6 +11,7 @@ import threading
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.compiler import cell_id_from_filename
+from marimo._core.errors import expect
 
 if TYPE_CHECKING:
     from types import FrameType
@@ -170,9 +171,7 @@ class FrameWatcher:
         `MarimoStopError` (the same path as `mo.stop()`) rather than letting
         execution run on.
         """
-        if self._debugger is None:
-            raise RuntimeError("Debugger is not initialized")
-        debugger = self._debugger
+        debugger = expect(self._debugger, "Debugger is not initialized")
         debugger.disable_sigint()
         debugger.reset()
         debugger.botframe = frame

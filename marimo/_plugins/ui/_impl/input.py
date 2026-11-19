@@ -16,6 +16,7 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._data.series import (
     DataFrameSeries,
     get_category_series_info,
@@ -315,10 +316,8 @@ class slider(UIElement[Numeric, Numeric]):
                 on_change=on_change,
             )
         else:
-            if start is None:
-                raise RuntimeError("Slider start is required")
-            if stop is None:
-                raise RuntimeError("Slider stop is required")
+            start = expect(start, "Slider start is required")
+            stop = expect(stop, "Slider stop is required")
 
             self._dtype = _infer_dtype([start, stop, step, value])
             value = start if value is None else value
@@ -532,10 +531,8 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                 on_change=on_change,
             )
         else:
-            if start is None:
-                raise RuntimeError("Slider start is required")
-            if stop is None:
-                raise RuntimeError("Slider stop is required")
+            start = expect(start, "Slider start is required")
+            stop = expect(stop, "Slider stop is required")
 
             self._dtype = _infer_dtype([start, stop, step, value])
 

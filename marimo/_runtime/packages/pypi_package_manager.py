@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
 from marimo import _loggers
+from marimo._core.errors import MarimoBugError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._environments import script_metadata
 from marimo._environments.uv import (
@@ -237,7 +238,7 @@ class MicropipPackageManager(PypiPackageManager):
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         if not is_pyodide():
-            raise RuntimeError("Micropip requires a Pyodide environment")
+            raise MarimoBugError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         # If we're upgrading, we need to uninstall the package first
@@ -275,7 +276,7 @@ class MicropipPackageManager(PypiPackageManager):
         base sequential path if micropip's internal API has shifted.
         """
         if not is_pyodide():
-            raise RuntimeError("Micropip requires a Pyodide environment")
+            raise MarimoBugError("Micropip requires a Pyodide environment")
 
         if log_callback_factory:
             for pkg in packages:
@@ -322,7 +323,7 @@ class MicropipPackageManager(PypiPackageManager):
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         if not is_pyodide():
-            raise RuntimeError("Micropip requires a Pyodide environment")
+            raise MarimoBugError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         try:
@@ -333,7 +334,7 @@ class MicropipPackageManager(PypiPackageManager):
 
     def list_packages(self) -> list[PackageDescription]:
         if not is_pyodide():
-            raise RuntimeError("Micropip requires a Pyodide environment")
+            raise MarimoBugError("Micropip requires a Pyodide environment")
         import micropip  # type: ignore
 
         packages = [

@@ -18,6 +18,7 @@ from marimo._core.errors import (
     Forbidden,
     HostError,
     Invalid,
+    MarimoBugError,
     NoRuntime,
     NotFound,
     PreconditionFailed,
@@ -236,7 +237,7 @@ class Mutations:
             )
         elif operation in {"runtime.start", "runtime.stop", "runtime.restart"}:
             if notebook_id is None:
-                raise RuntimeError("Notebook ID is required")
+                raise MarimoBugError("Notebook ID is required")
             lifecycle_accepted, unsubscribe = _watch_lifecycle(
                 self,
                 mutation,

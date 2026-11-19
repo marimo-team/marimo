@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import ContextNotInitializedError
@@ -147,9 +148,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
 
     @property
     def virtual_file(self) -> VirtualFile:
-        if self._virtual_file is None:
-            raise RuntimeError("Virtual file is not initialized")
-        return self._virtual_file
+        return expect(self._virtual_file, "Virtual file is not initialized")
 
     def create(self, context: RuntimeContext | None) -> None:
         """Create the virtual file

@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from marimo._core.errors import expect
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -29,13 +31,9 @@ class RestartableTask:
     def stop(self) -> None:
         # Stop the task and set the stopped flag
         self.stopped = True
-        if self.task is None:
-            raise RuntimeError("Task has not been started")
-        self.task.cancel()
+        expect(self.task, "Task has not been started").cancel()
 
     def restart(self) -> None:
         # Cancel the current task, which will cause
         # the while loop to start a new task
-        if self.task is None:
-            raise RuntimeError("Task has not been started")
-        self.task.cancel()
+        expect(self.task, "Task has not been started").cancel()

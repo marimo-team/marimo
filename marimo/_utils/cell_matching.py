@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from marimo._core.errors import MarimoBugError
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -242,9 +243,9 @@ def _match_cell_ids_by_similarity(
 ) -> list[CellId_t]:
     """Match cell IDs based on code similarity."""
     if len(prev_codes) != len(prev_ids):
-        raise ValueError("Mismatched previous codes and cell IDs")
+        raise MarimoBugError("Mismatched previous codes and cell IDs")
     if len(next_codes) != len(next_ids):
-        raise ValueError("Mismatched next codes and cell IDs")
+        raise MarimoBugError("Mismatched next codes and cell IDs")
 
     # ids that are not in prev_ids but in next_ids
     id_pool = set(next_ids) - set(prev_ids)
@@ -258,11 +259,7 @@ def _match_cell_ids_by_similarity(
             # Otherwise just use the next available id
             cell_id = id_pool.pop()
         else:
-            # If no ids are available, we could generate a new one
-            # but this should never run.
-            raise RuntimeError(
-                "No available IDs left to assign. This should not happen."
-            )
+            raise MarimoBugError("No available cell IDs left to assign")
         return cell_id
 
     def filter_and_backfill() -> list[CellId_t]:

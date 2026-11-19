@@ -38,6 +38,7 @@ from marimo._ast.transformers import (
     get_hashable_ast,
 )
 from marimo._ast.variables import is_mangled_local, unmangle_local
+from marimo._core.errors import MarimoBugError, expect
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.context import get_context, safe_get_context
@@ -46,7 +47,6 @@ from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._save.cache import (
-    UNEXPECTED_FAILURE_BOILERPLATE,
     Cache,
     CacheContext,
     CacheException,
@@ -304,16 +304,15 @@ class _cache_call(CacheContext, Generic[P, R]):
         # Build base block if needed (for external/late binding)
         if self.base_block is None:
             if not self._external:
-                raise RuntimeError(
+                raise MarimoBugError(
                     "Cached callable has no base block and is not external"
                 )
-            if self.__wrapped__ is None:
-                raise RuntimeError("Cached callable has no wrapped function")
-            graph = graph_from_scope(self.scope)
-            cell_id = get_cell_id_from_scope(self.__wrapped__, self.scope)
-            self.base_block = self._build_base_block(
-                self.__wrapped__, graph, cell_id
+            wrapped = expect(
+                self.__wrapped__, "Cached callable has no wrapped function"
             )
+            graph = graph_from_scope(self.scope)
+            cell_id = get_cell_id_from_scope(wrapped, self.scope)
+            self.base_block = self._build_base_block(wrapped, graph, cell_id)
 
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {
@@ -365,7 +364,7 @@ class _cache_call(CacheContext, Generic[P, R]):
             **(self._bound or {}),
         }
         if self._loader is None:
-            raise RuntimeError("Cache loader is not initialized")
+            raise MarimoBugError("Cache loader is not initialized")
         attempt = content_cache_attempt_from_base(
             self.base_block,
             scope,
@@ -656,8 +655,9 @@ class _cache_call_async(_cache_call[P, R]):
         This is called by a single task even when multiple concurrent
         callers request the same computation.
         """
-        if self.__wrapped__ is None:
-            raise RuntimeError("Cached callable has no wrapped function")
+        wrapped = expect(
+            self.__wrapped__, "Cached callable has no wrapped function"
+        )
         failed = False
         self._last_hash = attempt.hash
         try:
@@ -668,7 +668,7 @@ class _cache_call_async(_cache_call[P, R]):
 
             start_time = time.time()
             # Await the coroutine to get the actual result
-            response = await self.__wrapped__(*args, **kwargs)
+            response = await wrapped(*args, **kwargs)
             runtime = time.time() - start_time
 
             self._finalize_cache_update(attempt, response, runtime, scope)
@@ -718,8 +718,7 @@ class _cache_context(SkipContext, CacheContext):
         """Record the entry under the cell holding the block."""
         if self._cache is None or self._cell_id is None:
             return
-        if self._graph is None:
-            raise RuntimeError("Cache graph is not initialized")
+        graph = expect(self._graph, "Cache graph is not initialized")
 
         from marimo._save.manifest import record_cache_event
 
@@ -727,7 +726,7 @@ class _cache_context(SkipContext, CacheContext):
             self.loader,
             self._cache.key,
             self._cell_id,
-            self._graph,
+            graph,
             saved=not self._cache.hit,
         )
 
@@ -760,11 +759,8 @@ class _cache_context(SkipContext, CacheContext):
             if function_name == "<module>":
                 ctx = get_context()
                 if ctx.execution_context is None:
-                    raise CacheException(
-                        (
-                            "Could not resolve context for cache."
-                            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
-                        ),
+                    raise MarimoBugError(
+                        "Could not resolve execution context for cache"
                     )
                 graph = ctx.graph
                 cell_id = ctx.cell_id or ctx.execution_context.cell_id
@@ -774,9 +770,8 @@ class _cache_context(SkipContext, CacheContext):
                 if "__marimo__" not in filename:
                     cell = find_cell(filename, lineno)
                     if cell is None:
-                        raise CacheException(
-                            "Could not resolve cell for cache."
-                            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+                        raise MarimoBugError(
+                            "Could not resolve cell for cache"
                         )
                     lineno -= cell.lineno
                     code = cell.code
@@ -792,18 +787,14 @@ class _cache_context(SkipContext, CacheContext):
                     # handles cells outside the main graph.
                     lines = linecache.getlines(filename)
                     if not lines:
-                        raise CacheException(
-                            "Could not resolve cell for cache."
-                            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+                        raise MarimoBugError(
+                            "Could not resolve scratchpad source for cache"
                         )
                     code = "".join(lines)
                     graph = DirectedGraph()
                     cell_id = CellId_t("")
                 else:
-                    raise CacheException(
-                        "Could not resolve cell for cache."
-                        f"{UNEXPECTED_FAILURE_BOILERPLATE}"
-                    )
+                    raise MarimoBugError("Could not resolve cell for cache")
 
                 pre_module, save_module = CacheExtractWithBlock(
                     lineno - 1
@@ -842,10 +833,7 @@ class _cache_context(SkipContext, CacheContext):
                     "`cache` must be invoked from cell level "
                     "(cannot be in a function or class)"
                 )
-        raise CacheException(
-            "`persistent_cache` could not resolve block"
-            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
-        )
+        raise MarimoBugError("`persistent_cache` could not resolve block")
 
     def __exit__(
         self,
@@ -855,9 +843,7 @@ class _cache_context(SkipContext, CacheContext):
     ) -> bool:
         self.teardown()
         if not self.entered_trace:
-            raise CacheException(
-                f"Unexpected block format {UNEXPECTED_FAILURE_BOILERPLATE}"
-            )
+            raise MarimoBugError("Cache block was exited without being traced")
 
         # Cache hit is acceptable, because SkipWithBlock is raised.
         # NB: exception is a type.
@@ -867,16 +853,14 @@ class _cache_context(SkipContext, CacheContext):
             raise exception
 
         if self._cache is None or self._frame is None:
-            raise CacheException(
-                f"Cache was not correctly set {UNEXPECTED_FAILURE_BOILERPLATE}"
-            )
+            raise MarimoBugError("Cache was not set while tracing the block")
 
         failed = False
         try:
             # Backfill the loaded values into global scope.
             if self._cache.hit:
                 if self._frame is None:
-                    raise RuntimeError("Cache frame is not initialized")
+                    raise MarimoBugError("Cache frame is not initialized")
                 self._cache.restore(self._frame.f_locals)
                 self._record()
                 # Return true to suppress the SkipWithBlock exception.

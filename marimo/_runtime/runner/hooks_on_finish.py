@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from marimo import _loggers
+from marimo._core.errors import MarimoBugError
 from marimo._messaging.errors import (
     ANCESTOR_RAISED,
     Error,
@@ -24,7 +25,7 @@ LOGGER = _loggers.marimo_logger()
 def _send_interrupt_errors(ctx: OnFinishHookContext) -> None:
     if ctx.cells_to_run:
         if not ctx.interrupted:
-            raise RuntimeError(
+            raise MarimoBugError(
                 "Unfinished cells remain without an interruption"
             )
         for cid in ctx.cells_to_run:

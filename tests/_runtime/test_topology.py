@@ -6,7 +6,7 @@ from functools import partial
 import pytest
 
 from marimo._ast import compiler
-from marimo._core.errors import InternalError
+from marimo._core.errors import MarimoBugError
 from marimo._runtime.dataflow.topology import MutableGraphTopology
 from marimo._types.ids import CellId_t
 
@@ -43,7 +43,7 @@ class TestMutableGraphTopology:
         graph.add_node("cell_1", cell)
 
         with pytest.raises(
-            InternalError, match="Cell cell_1 already in graph"
+            MarimoBugError, match="Cell cell_1 is already in the graph"
         ):
             graph.add_node("cell_1", cell)
 

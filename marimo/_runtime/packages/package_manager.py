@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import msgspec
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_notification
@@ -336,11 +337,13 @@ class CanonicalizingPackageManager(PackageManager):
         """Canonicalizes a module name to a package name on PyPI."""
         if self._module_name_to_repo_name is None:
             self._initialize_mappings()
-        if self._module_name_to_repo_name is None:
-            raise RuntimeError("Module-to-package mapping is not initialized")
+        module_name_to_repo_name = expect(
+            self._module_name_to_repo_name,
+            "Module-to-package mapping is not initialized",
+        )
 
-        if module_name in self._module_name_to_repo_name:
-            return self._module_name_to_repo_name[module_name]
+        if module_name in module_name_to_repo_name:
+            return module_name_to_repo_name[module_name]
         else:
             return module_name.replace("_", "-")
 
@@ -351,23 +354,25 @@ class CanonicalizingPackageManager(PackageManager):
             or self._normalized_repo_name_to_module_name is None
         ):
             self._initialize_mappings()
-        if self._repo_name_to_module_name is None:
-            raise RuntimeError("Package-to-module mapping is not initialized")
-        if self._normalized_repo_name_to_module_name is None:
-            raise RuntimeError(
-                "Normalized package-to-module mapping is not initialized"
-            )
+        repo_name_to_module_name = expect(
+            self._repo_name_to_module_name,
+            "Package-to-module mapping is not initialized",
+        )
+        normalized_repo_name_to_module_name = expect(
+            self._normalized_repo_name_to_module_name,
+            "Normalized package-to-module mapping is not initialized",
+        )
 
         # Exact match first, to preserve any casing in the known mapping.
-        if package_name in self._repo_name_to_module_name:
-            return self._repo_name_to_module_name[package_name]
+        if package_name in repo_name_to_module_name:
+            return repo_name_to_module_name[package_name]
 
         # PyPI package names are case-insensitive and treat runs of `-`, `_`,
         # `.` as equivalent (PEP 503). uv normalizes names when it writes them
         # into a notebook's script metadata (e.g. `Pillow` -> `pillow`), so
         # fall back to a normalized lookup before guessing.
         normalized = _normalize_package_name(package_name)
-        if normalized in self._normalized_repo_name_to_module_name:
-            return self._normalized_repo_name_to_module_name[normalized]
+        if normalized in normalized_repo_name_to_module_name:
+            return normalized_repo_name_to_module_name[normalized]
 
         return package_name.replace("-", "_")

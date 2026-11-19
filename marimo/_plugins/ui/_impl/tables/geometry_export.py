@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import narwhals.stable.v2 as nw
 
+from marimo._core.errors import expect
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.geometry import (
     GeometryColumnInfo,
@@ -637,9 +638,8 @@ def _prepare_geographic_export(
             column=primary,
         )
     if manager.data.implementation.is_duckdb():
-        if source.schema is None:
-            raise RuntimeError("DuckDB geometry source has no schema")
-        manager = _duckdb_to_arrow_manager(manager, source.schema)
+        schema = expect(source.schema, "DuckDB geometry source has no schema")
+        manager = _duckdb_to_arrow_manager(manager, schema)
     return manager, source, primary
 
 

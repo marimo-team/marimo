@@ -5,8 +5,10 @@ import base64
 
 
 def build_data_url(mimetype: str, data: bytes) -> str:
-    if mimetype is None:
-        raise TypeError("mimetype must be a string")
+    if not isinstance(mimetype, str):
+        raise TypeError(
+            f"mimetype must be a string, got {type(mimetype).__name__}"
+        )
     # `data` must be base64 encoded
     str_repr = data.decode("utf-8").replace("\n", "")
     return f"data:{mimetype};base64,{str_repr}"

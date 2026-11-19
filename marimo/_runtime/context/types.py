@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app_config import _AppConfig
+from marimo._core.errors import MarimoBugError
 from marimo._messaging.context import HTTP_REQUEST_CTX
 from marimo._runtime.cell_output_list import CellOutputList
 
@@ -189,7 +190,7 @@ class RuntimeContext(abc.ABC):
         self.children.remove(runtime_context)
         runtime_context.virtual_file_registry.shutdown()
         if runtime_context in self.children:
-            raise RuntimeError(
+            raise MarimoBugError(
                 "Runtime context is still registered as a child after teardown"
             )
 

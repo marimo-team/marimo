@@ -21,6 +21,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._core.errors import expect
 from marimo._environments.overlay import runtime_overlay
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
@@ -507,9 +508,10 @@ class IPCKernelManagerImpl(KernelManager):
             stderr_tail: deque[bytes] = deque(maxlen=64)
 
             def drain_output(stream: Literal["stdout", "stderr"]) -> None:
-                pipe = process.stderr if stream == "stderr" else process.stdout
-                if pipe is None:
-                    raise RuntimeError("Process output pipe is not available")
+                pipe = expect(
+                    process.stderr if stream == "stderr" else process.stdout,
+                    "Process output pipe is not available",
+                )
                 with pipe:
                     for line in iter(pipe.readline, b""):
                         if stream == "stderr":
@@ -542,16 +544,18 @@ class IPCKernelManagerImpl(KernelManager):
             expected_lines = 2 if plan_launched else 1
 
             def exchange_handshake() -> list[str]:
-                if process.stdin is None:
-                    raise RuntimeError("Process stdin pipe is not available")
-                if process.stdout is None:
-                    raise RuntimeError("Process stdout pipe is not available")
-                with process.stdin:
-                    process.stdin.write(kernel_args.encode_json())
-                    process.stdin.flush()
+                stdin = expect(
+                    process.stdin, "Process stdin pipe is not available"
+                )
+                stdout = expect(
+                    process.stdout, "Process stdout pipe is not available"
+                )
+                with stdin:
+                    stdin.write(kernel_args.encode_json())
+                    stdin.flush()
                 try:
                     lines = [
-                        process.stdout.readline().decode().strip()
+                        stdout.readline().decode().strip()
                         for _ in range(expected_lines)
                     ]
                 finally:

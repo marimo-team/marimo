@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Literal, Protocol, cast
 from marimo import _loggers
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import AnnotationData, Name, ScopedVisitor
+from marimo._core.errors import expect
 from marimo._utils.strings import standardize_annotation_quotes
 
 if TYPE_CHECKING:
@@ -189,10 +190,9 @@ def probe_module(
     if setup_cell is not None and setup_cell.code.strip():
         blocks.append(setup_cell.code)
     for status in _dependency_order(extraction):
-        if status._cell is None:
-            raise RuntimeError("Cell is not initialized")
+        cell = expect(status._cell, "Cell is not initialized")
         # The compiler replaces non-breaking spaces in cell source.
-        tree = ast.parse(status._cell.code)
+        tree = ast.parse(cell.code)
         ScopedVisitor("cell_" + status.cell_id).visit(tree)
         blocks.append(ast.unparse(tree))
     body = "\n".join(blocks)

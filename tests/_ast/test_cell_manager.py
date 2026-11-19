@@ -9,6 +9,7 @@ from marimo._ast.cell_manager import (
 )
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
+from marimo._core.errors import MarimoBugError
 from marimo._types.ids import CellId_t
 from marimo._utils.cell_matching import _match_cell_ids_by_similarity
 
@@ -211,6 +212,34 @@ class TestCellManager:
 
         valid_ids = list(cell_manager.valid_cell_ids())
         assert valid_ids == [TEST_CELL1]
+
+    @pytest.mark.parametrize("obj", [print, 42, "code"])
+    def test_cell_decorator_rejects_non_functions(
+        self, cell_manager: CellManager, obj: object
+    ) -> None:
+        with pytest.raises(TypeError, match="must decorate a function") as e:
+            cell_manager.cell_decorator(
+                obj, column=None, disabled=False, hide_code=False
+            )
+        assert not isinstance(e.value, MarimoBugError)
+
+    def test_cell_decorator_reports_factory_failures_as_bugs(
+        self, cell_manager: CellManager, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def broken_factory(*args: object, **kwargs: object) -> Cell:
+            del args, kwargs
+            raise TypeError("broken factory")
+
+        def notebook_cell() -> None:
+            pass
+
+        monkeypatch.setattr(
+            "marimo._ast.cell_manager.cell_factory", broken_factory
+        )
+        with pytest.raises(MarimoBugError, match="notebook_cell"):
+            cell_manager.cell_decorator(
+                notebook_cell, column=None, disabled=False, hide_code=False
+            )
 
     def test_create_cell_id_1000(self) -> None:
         manager = CellManager()

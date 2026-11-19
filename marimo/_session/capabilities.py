@@ -12,6 +12,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from marimo._core.errors import MarimoBugError
 from marimo._runtime import commands
 
 if TYPE_CHECKING:
@@ -98,7 +99,7 @@ def required_capability(command_type: type) -> Capability:
         return Capability.INTERACT
     if command_type in _EDIT_COMMANDS:
         return Capability.EDIT
-    raise AssertionError(
+    raise MarimoBugError(
         f"Command {command_type.__name__} is not classified into a capability tier."
     )
 

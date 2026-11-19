@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from marimo._ast.parse import ast_parse
 from marimo._ast.variables import unmangle_local
+from marimo._core.errors import MarimoBugError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -65,7 +66,10 @@ def clean_to_modules(
     >>> </block>
     """
     if len(block.items) != 1:
-        raise RuntimeError("Unexpected with block structure.")
+        raise BlockException(
+            "Cached blocks must use a single context manager per `with` "
+            "statement."
+        )
     (with_block,) = block.items
     initializer: ast.AST = with_block.context_expr
     if with_block.optional_vars:
@@ -130,7 +134,9 @@ def get_hashable_ast(
     module = RemoveReturns().visit(extracted)
     module = MangleArguments(args).visit(module)
     if not isinstance(module, ast.Module):
-        raise RuntimeError("Expected a module")
+        raise MarimoBugError(
+            "Expected transformed function body to be a module"
+        )
     return module
 
 
@@ -221,7 +227,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         previous = None
 
         if not isinstance(node, list):
-            raise RuntimeError("Unexpected block structure.")
+            raise MarimoBugError("Expected a list of statements")
         parent = None
         for n in node:
             # There's a chance that the block is first evaluated somewhere in a
@@ -304,8 +310,8 @@ class ExtractWithBlock(ast.NodeTransformer):
         # It should be possible to relate the lines with the AST,
         # but reduce potential bugs by just throwing an error.
         raise BlockException(
-            "Unable to determine structure your call. Please"
-            " report this to github:marimo-team/marimo/issues"
+            f"Unable to determine the structure of the {self.name} block. "
+            "Try placing the `with` statement on its own line."
         )
 
 

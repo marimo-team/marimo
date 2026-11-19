@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._ast.cell import _is_coroutine
 from marimo._ast.variables import demangle_locals_in_text
-from marimo._core.errors import InternalError
+from marimo._core.errors import expect
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._types.globals import MutableGlobals
 
@@ -63,16 +63,17 @@ class DefaultExecutor:
     def execute_cell(self, cell: CellImpl, glbls: MutableGlobals) -> Any:
         if cell.body is None:
             return None
-        if cell.last_expr is None:
-            raise InternalError("Compiled cell has no last expression")
-        if _is_coroutine(cell.body) or _is_coroutine(cell.last_expr):
+        last_expr = expect(
+            cell.last_expr, "Compiled cell has no last expression"
+        )
+        if _is_coroutine(cell.body) or _is_coroutine(last_expr):
             raise RuntimeError(
                 "A coroutine cell cannot be run synchronously. Use "
                 "execute_cell_async() instead."
             )
         try:
             exec(cell.body, glbls)
-            return eval(cell.last_expr, glbls)
+            return eval(last_expr, glbls)
         except asyncio.CancelledError:
             # Cancellation is control flow, not user error — surface bare.
             raise
@@ -87,16 +88,17 @@ class DefaultExecutor:
     ) -> Any:
         if cell.body is None:
             return None
-        if cell.last_expr is None:
-            raise InternalError("Compiled cell has no last expression")
+        last_expr = expect(
+            cell.last_expr, "Compiled cell has no last expression"
+        )
         try:
             if _is_coroutine(cell.body):
                 await eval(cell.body, glbls)
             else:
                 exec(cell.body, glbls)
-            if _is_coroutine(cell.last_expr):
-                return await eval(cell.last_expr, glbls)
-            return eval(cell.last_expr, glbls)
+            if _is_coroutine(last_expr):
+                return await eval(last_expr, glbls)
+            return eval(last_expr, glbls)
         except asyncio.CancelledError:
             raise
         except BaseException as e:

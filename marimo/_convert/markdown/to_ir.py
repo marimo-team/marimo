@@ -44,6 +44,7 @@ from marimo._convert.markdown.flavor.base import (
     MarkdownImportContext,
     MarkdownImportDialect,
 )
+from marimo._core.errors import MarimoBugError
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
@@ -165,7 +166,7 @@ def get_source_from_tag(tag: Element) -> str:
         )
     else:
         if tag.tag != MARIMO_CODE:
-            raise RuntimeError(f"Unknown tag: {tag.tag}")
+            raise MarimoBugError(f"Unknown tag: {tag.tag}")
     return source
 
 
@@ -491,7 +492,7 @@ class ExpandAndClassifyProcessor(BlockProcessor):
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
         if not isinstance(self.parser.md, MarimoMdParser):
-            raise RuntimeError("Expected a marimo Markdown parser")
+            raise MarimoBugError("Expected a marimo Markdown parser")
         # Lists are kept too, for options like `auto_download: [html]`.
         # The root is only read back via `app_config_from_root`, never
         # serialized, so non-string attribute values are safe here.
@@ -565,7 +566,7 @@ def convert_from_md_to_marimo_ir(
         import_dialects=_markdown_import_dialects(text, filepath),
     ).convert(text)
     if not isinstance(notebook, NotebookSerializationV1):
-        raise RuntimeError("Expected a serialized notebook")
+        raise MarimoBugError("Expected a serialized notebook")
     return NotebookSerializationV1(
         app=notebook.app,
         filename=filepath,

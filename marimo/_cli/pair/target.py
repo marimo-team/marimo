@@ -17,6 +17,7 @@ from marimo._cli.pair.client import (
     resolve_host,
 )
 from marimo._cli.pair.discovery import list_running_notebooks
+from marimo._core.errors import MarimoBugError
 from marimo._server.host import HOST_API_PATH
 from marimo._server.host.auth import is_loopback
 
@@ -85,7 +86,7 @@ def resolve_target(
             and not require_notebook
         ):
             if url is None:
-                raise RuntimeError("Execution target URL is missing")
+                raise MarimoBugError("Execution target URL is missing")
             return ExecutionTarget(url, session_id, host.token)
         _require_one([n.id for n in found], url, selected_id)
         notebook = found[0]

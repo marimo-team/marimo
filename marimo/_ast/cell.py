@@ -15,6 +15,7 @@ from marimo import _loggers
 from marimo._ast.parse import ast_parse
 from marimo._ast.sql_visitor import SQLRef, SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
+from marimo._core.errors import MarimoBugError, expect
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._types.ids import CellId_t
@@ -395,7 +396,7 @@ class CellImpl:
             return
 
         if self.cell_id is None:
-            raise RuntimeError("Cell ID is not initialized")
+            raise MarimoBugError("Cell ID is not initialized")
         CellNotificationUtils.broadcast_status(
             cell_id=self.cell_id, status=status, stream=stream
         )
@@ -506,14 +507,13 @@ class Cell:
         """
         if hasattr(self, "_is_coro_cached"):
             return self._is_coro_cached
-        if self._app is None:
-            raise RuntimeError("Cell is not bound to an app")
+        app = expect(self._app, "Cell is not bound to an app")
         from marimo._runtime.runner import by_refs
 
         # Currently expensive since `graph` triggers _maybe_initialize on the
         # underlying App.
         self._is_coro_cached: bool = by_refs.is_coroutine(
-            self._app.graph, self._cell.cell_id
+            app.graph, self._cell.cell_id
         )
         return self._is_coro_cached
 
@@ -673,16 +673,15 @@ class Cell:
                 `output` is the cell's last expression and `defs` is a `Mapping`
                 from the cell's defined names to their values.
         """
-        if self._app is None:
-            raise RuntimeError("Cell is not bound to an app")
+        app = expect(self._app, "Cell is not bound to an app")
 
         # Inject setup cell definitions so that we do not rerun the setup cell.
         # With an exception for tests that should act as if it's in runtime.
         if "PYTEST_CURRENT_TEST" not in os.environ:
-            if self._app._app._setup is not None:
+            if app._app._setup is not None:
                 from_setup = {
                     k: v
-                    for k, v in self._app._app._setup._glbls.items()
+                    for k, v in app._app._setup._glbls.items()
                     if k in self._cell.refs
                 }
                 refs = {**from_setup, **refs}
@@ -691,23 +690,22 @@ class Cell:
             # TODO(dmadisetti): consider recomputing since caching doesn't close
             # closure over the correct set of refs, but this is also expensive.
             if self._is_coroutine:
-                return self._app.run_cell_async(cell=self, kwargs=refs)
+                return app.run_cell_async(cell=self, kwargs=refs)
             else:
-                return self._app.run_cell_sync(cell=self, kwargs=refs)
+                return app.run_cell_sync(cell=self, kwargs=refs)
         except MarimoRuntimeException as e:
             raise e.__cause__ from None  # type: ignore
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         from marimo._ast.toplevel import TopLevelExtraction
 
-        if self._app is None:
-            raise RuntimeError("Cell is not bound to an app")
+        app = expect(self._app, "Cell is not bound to an app")
         # Definitions on a module level are not part of the signature, and as
         # such, should not be provided with the call.
 
         # NB. TopLevelExtraction assumes that all cells that can be exposed will
         # be, but signature provides context for what is actually scoped.
-        allowed_refs = TopLevelExtraction.from_app(self._app).allowed_refs
+        allowed_refs = TopLevelExtraction.from_app(app).allowed_refs
         allowed_refs -= set(self._expected_signature or ())
 
         arg_names = sorted((self._cell.refs - allowed_refs) - self._cell.defs)

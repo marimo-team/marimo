@@ -17,6 +17,7 @@ from typing import (
 
 from marimo._ast.dedent import fixed_dedent
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
+from marimo._core.errors import MarimoBugError, expect
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
@@ -160,7 +161,7 @@ class Extractor:
             if not isinstance(
                 node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
             ):
-                raise RuntimeError("Expected a function or class definition")
+                raise MarimoBugError("Expected a function or class definition")
 
             # Scrub past the decorator + 1, lineno 1 index -1
             decorator: ast.expr | None
@@ -270,7 +271,7 @@ class Extractor:
         end_lineno = _none_to_0(node.end_lineno)
         end_col_offset = node.end_col_offset
         if not node.body:
-            raise RuntimeError("Expected a non-empty definition body")
+            raise MarimoBugError("Expected a non-empty definition body")
         if node.lineno - node.body[0].lineno == 0:
             # Quirk where the ellipse token seems to have a line index at
             # the end of the dots ...<
@@ -431,7 +432,9 @@ class Extractor:
                 if not isinstance(
                     node, (ast.FunctionDef, ast.AsyncFunctionDef)
                 ):
-                    raise ValueError("@app.cell cannot be used on classes.")
+                    raise MarimoFileError(
+                        "@app.cell cannot be used on classes."
+                    )
                 cell_result = self.to_cell_def(node, kwargs)
                 violations.extend(cell_result.violations)
                 return ParseResult(cell_result.unwrap(), violations=violations)
@@ -484,10 +487,8 @@ class Extractor:
             )
 
         raise MarimoFileError(
-            "Unexpected node type for cell extraction. "
-            "Please report this issue to the Marimo team with "
-            "your code if possible: "
-            "github.com/marimo-team/marimo/issues"
+            "Expected a decorated function or class, or an "
+            f"`app._unparsable_cell` call, got {type(node).__name__}."
         )
 
 
@@ -840,7 +841,7 @@ def extract_offsets_post_colon(
             def_node = token
             break
     if def_node is None:
-        raise RuntimeError("Function definition was not found")
+        raise MarimoBugError("Function definition was not found")
 
     paren_counter: int | None = None
     token = tokens.peek()
@@ -849,7 +850,7 @@ def extract_offsets_post_colon(
             paren_counter = 1 if paren_counter is None else paren_counter + 1
         elif token.type == token_types.OP and token.string == ")":
             if paren_counter is None:
-                raise RuntimeError(
+                raise MarimoBugError(
                     "Unexpected closing parenthesis before function parameters"
                 )
             paren_counter -= 1
@@ -870,34 +871,28 @@ def extract_offsets_post_colon(
                 break
 
     if paren_counter != 0:
-        raise RuntimeError("Unbalanced function parameter parentheses")
+        raise MarimoBugError("Unbalanced function parameter parentheses")
 
     while token := next(tokens):
         if token.type == token_types.OP and token.string == ":":
             break
 
-    after_colon = next(tokens)
-    if not after_colon:
-        raise RuntimeError("Expected a token after the function signature")
+    after_colon = expect(
+        next(tokens), "Expected a token after the function signature"
+    )
     start_line: int
     start_col: int
     if after_colon.type == token_types.NEWLINE:
-        fn_body_token = next(tokens)
-        if not fn_body_token:
-            raise RuntimeError("Expected a function body token")
+        fn_body_token = expect(next(tokens), "Expected a function body token")
         start_line = fn_body_token.start[0] - 1
         start_col = 0
     elif after_colon.type == token_types.COMMENT:
-        newline_token = next(tokens)
-        if not newline_token:
-            raise RuntimeError("Expected a newline token")
+        newline_token = expect(next(tokens), "Expected a newline token")
         if newline_token.type != token_types.NEWLINE:
-            raise RuntimeError(
+            raise MarimoBugError(
                 "Expected a newline after the function signature"
             )
-        fn_body_token = next(tokens)
-        if not fn_body_token:
-            raise RuntimeError("Expected a function body token")
+        fn_body_token = expect(next(tokens), "Expected a function body token")
         start_line = fn_body_token.start[0] - 1
         start_col = 0
     else:
@@ -930,7 +925,7 @@ def is_equal_ast(
         return basis == other
     elif isinstance(basis, list):
         if not isinstance(other, list):
-            raise RuntimeError("Expected matching AST list fields")
+            raise MarimoBugError("Expected matching AST list fields")
         if len(basis) != len(other):
             return False
         return all(

@@ -21,6 +21,7 @@ import msgspec
 from msgspec import UNSET
 
 from marimo._core import protocol, protocol_events
+from marimo._core.errors import MarimoBugError, expect
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ def event_name(event: protocol.Event | ExtensionEvent) -> str:
     """Read the wire tag for transport framing and client type filters."""
     tag = event.__struct_config__.tag
     if not isinstance(tag, str):
-        raise RuntimeError("Protocol event tag must be a string")
+        raise MarimoBugError("Protocol event tag must be a string")
     return tag
 
 
@@ -263,11 +264,10 @@ class Stream(Sink):
             return []
         if position > self._last_id:
             return None
-        oldest = (
-            self._history[0].position if self._history else self._last_id + 1
+        oldest = expect(
+            self._history[0].position if self._history else self._last_id + 1,
+            "Stream history event has no position",
         )
-        if oldest is None:
-            raise RuntimeError("Stream history is empty")
         if position < oldest - 1:
             return None
         return deepcopy(

@@ -16,7 +16,9 @@ from marimo._core.errors import (
     Conflict,
     DecisionRequired,
     Invalid,
+    MarimoBugError,
     NotFound,
+    expect,
 )
 from marimo._core.executions import Executions
 from marimo._core.host import Host
@@ -171,9 +173,10 @@ class SessionBridge(SessionEventListener):
     async def _initialize_app_notebook(
         self, record: protocol.Notebook, sink: Sink
     ) -> Notebook:
-        if self.app_sessions is None:
-            raise RuntimeError("App sessions are not initialized")
-        session = self.app_sessions.session(record.id)
+        app_sessions = expect(
+            self.app_sessions, "App sessions are not initialized"
+        )
+        session = app_sessions.session(record.id)
         cells, app_config = documents.from_session(session)
         document = Document(cells, app_config)
         path = session.app_file_manager.path
@@ -184,7 +187,7 @@ class SessionBridge(SessionEventListener):
         ):
             executions = await self._restore(Path(path), cells)
             # The session may have closed while its file was read.
-            self.app_sessions.session(record.id)
+            app_sessions.session(record.id)
         return Notebook(
             record.id,
             document,
@@ -648,9 +651,10 @@ class SessionBridge(SessionEventListener):
                 await asyncio.to_thread(write)
             except OSError as e:
                 raise Conflict(f"The notebook cannot be created: {e}") from e
-            notebook = self.index.ensure(str(target), request_id=request_id)
-            if notebook is None:
-                raise RuntimeError("Notebook is not available")
+            notebook = expect(
+                self.index.ensure(str(target), request_id=request_id),
+                "Notebook is not available",
+            )
             if name is not None:
                 self.index.rename(notebook.id, name, request_id=request_id)
             return self.host.notebooks[notebook.id]
@@ -727,7 +731,7 @@ class SessionBridge(SessionEventListener):
                 if not ok:
                     raise Conflict(error or "The notebook cannot be moved")
                 if session is None:
-                    raise RuntimeError("Notebook session is not available")
+                    raise MarimoBugError("Notebook session is not available")
                 session.put_control_request(
                     RenameNotebookCommand(filename=str(target)),
                     from_consumer_id=None,

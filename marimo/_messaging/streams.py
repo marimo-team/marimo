@@ -19,6 +19,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.command_output import ConsoleContext
 from marimo._messaging.console_output_worker import (
@@ -745,8 +746,10 @@ def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
         yield
         return
 
-    cell_id = standard_stream._stream.cell_id
-    assert cell_id is not None
+    cell_id = expect(
+        standard_stream._stream.cell_id,
+        "Native output redirected outside a cell",
+    )
     fd = standard_stream._original_fd
     inheritable = os.get_inheritable(fd)
     outer_pipe = standard_stream._active_pipe

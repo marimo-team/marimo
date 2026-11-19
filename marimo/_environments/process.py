@@ -8,6 +8,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._utils.subprocess import stop_subprocess
 
 if TYPE_CHECKING:
@@ -53,11 +54,12 @@ async def run_command(
         cwd=cwd,
         start_new_session=True,
     ) as process:
-        if process.stdout is None:
-            raise RuntimeError("Process stdout pipe is not available")
-        if process.stderr is None:
-            raise RuntimeError("Process stderr pipe is not available")
-        stderr_pipe = process.stderr
+        stdout_pipe = expect(
+            process.stdout, "Process stdout pipe is not available"
+        )
+        stderr_pipe = expect(
+            process.stderr, "Process stderr pipe is not available"
+        )
 
         def read_stderr() -> str:
             lines: list[str] = []
@@ -69,7 +71,7 @@ async def run_command(
             return "".join(lines)
 
         output = asyncio.gather(
-            loop.run_in_executor(None, process.stdout.read),
+            loop.run_in_executor(None, stdout_pipe.read),
             loop.run_in_executor(None, read_stderr),
         )
         try:

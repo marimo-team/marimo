@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 import msgspec
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.primitives import (
@@ -1538,10 +1539,9 @@ class LazyLoader(BasePersistenceLoader):
             # by `_put_or_mark_unserializable` are reflected in the manifest,
             # and (when signing) every blob hash has been collected.
             if signing:
-                if signer is None:
-                    raise RuntimeError(
-                        "Cache signing is enabled without a signer"
-                    )
+                manifest_signer = expect(
+                    signer, "Cache signing is enabled without a signer"
+                )
                 base_schema = CacheSchema(
                     hash=cache.hash,
                     cache_type=cache_type_enum,
@@ -1551,12 +1551,12 @@ class LazyLoader(BasePersistenceLoader):
                         version=version,
                         return_value=return_item,
                         blob_hashes=blob_hashes,
-                        signer_public_key=signer.public_key_pem(),
+                        signer_public_key=manifest_signer.public_key_pem(),
                         signature=None,
                     ),
                     ui_defs=ui_defs_list,
                 )
-                sig = signer.sign(_signable_bytes(base_schema))
+                sig = manifest_signer.sign(_signable_bytes(base_schema))
                 signed_meta = msgspec.structs.replace(
                     base_schema.meta, signature=sig
                 )

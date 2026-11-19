@@ -6,6 +6,8 @@ import logging
 import sys
 from typing import Any, cast
 
+from marimo._core.errors import MarimoBugError
+
 try:
     import curses
 except ImportError:
@@ -125,7 +127,7 @@ class LogFormatter(logging.Formatter):
         try:
             message = record.getMessage()
             if not isinstance(message, str):  # guaranteed by logging
-                raise RuntimeError("Log message must be a string")
+                raise MarimoBugError("Log message must be a string")
             record.message = message
         except Exception as e:
             record.message = f"Bad message ({e!r}): {record.__dict__!r}"

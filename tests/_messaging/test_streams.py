@@ -37,7 +37,6 @@ from marimo._messaging.serde import (
 from marimo._messaging.streams import (
     QueuePipe,
     ThreadSafeStderr,
-    ThreadSafeStdin,
     ThreadSafeStdout,
     ThreadSafeStream,
     redirect,
@@ -609,7 +608,6 @@ def test_console_io_without_cell_is_usage_error() -> None:
         partial(
             ThreadSafeStderr(stream, forward_os_streams=False).write, "output"
         ),
-        ThreadSafeStdin(stream).readline,
     ):
         with pytest.raises(RuntimeError, match="notebook cell") as exc_info:
             operation()

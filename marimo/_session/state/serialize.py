@@ -13,6 +13,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._ast.cell_manager import CellManager
+from marimo._core.errors import MarimoBugError
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
     Error as MarimoError,
@@ -218,7 +219,7 @@ def serialize_session_view(
         # Convert console outputs
         for console_out in cell_console:
             if not isinstance(console_out, CellOutput):
-                raise RuntimeError("Expected a console cell output")
+                raise MarimoBugError("Expected a console cell output")
             if console_out.channel == CellChannel.MEDIA:
                 console.append(
                     StreamMediaOutput(

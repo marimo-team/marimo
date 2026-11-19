@@ -9,6 +9,7 @@ import typing
 import msgspec
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._session.queue import QueueType
 
 LOGGER = _loggers.marimo_logger()
@@ -90,11 +91,10 @@ def start_receiver_thread(
                     if event & zmq.POLLIN:
                         ch = socket_to_channel[socket]
                         msg = socket.recv(flags=zmq.NOBLOCK)
-                        if ch.decoder is None:
-                            raise RuntimeError(
-                                "Pull channel must have a decoder"
-                            )
-                        ch.queue.put(ch.decoder.decode(msg))
+                        decoder = expect(
+                            ch.decoder, "Pull channel must have a decoder"
+                        )
+                        ch.queue.put(decoder.decode(msg))
             except zmq.Again:
                 continue
             except zmq.ZMQError as e:

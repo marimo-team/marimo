@@ -9,6 +9,7 @@ from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, get_args
 
+from marimo._core.errors import expect
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import ContextNotInitializedError, get_context
@@ -24,16 +25,6 @@ from marimo._save.stubs import (
     maybe_register_stub,
 )
 from marimo._save.stubs.lazy_stub import UnhashableStub
-
-# Many assertions are for typing and should always pass. This message is a
-# catch all to motive users to report if something does fail.
-UNEXPECTED_FAILURE_BOILERPLATE = (
-    "— this is"
-    " unexpected and is likely a bug in marimo. "
-    "Please file an issue at "
-    "https://github.com/marimo-team/marimo/issues"
-)
-
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
@@ -648,9 +639,7 @@ class CacheContext(abc.ABC):
 
     @property
     def loader(self) -> Loader:
-        if self._loader is None:
-            raise RuntimeError("Cache loader is not initialized")
-        return self._loader()
+        return expect(self._loader, "Cache loader is not initialized")()
 
     def cache_clear(self) -> None:
         if self._loader is not None:

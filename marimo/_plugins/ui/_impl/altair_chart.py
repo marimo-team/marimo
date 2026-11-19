@@ -29,7 +29,6 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 )
 from marimo._utils import flatten
 from marimo._utils.narwhals_utils import (
-    assert_can_narwhalify,
     can_narwhalify,
     empty_df,
     is_narwhals_lazyframe,
@@ -783,8 +782,11 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             selected_df = chart.apply_selection(cars)
             ```
         """
-        if not assert_can_narwhalify(df):
-            raise TypeError("Expected a dataframe supported by Narwhals")
+        if not can_narwhalify(df):
+            raise TypeError(
+                "apply_selection expects a dataframe supported by Narwhals, "
+                f"got {type(df).__name__}."
+            )
         return _filter_dataframe(
             df, selection=self.selections, binned_fields=self._binned_fields
         )

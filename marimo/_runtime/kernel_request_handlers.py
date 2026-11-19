@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._messaging.context import (
     http_request_context,
     run_id_context,
@@ -160,17 +161,17 @@ class KernelRequestHandlers:
 
     def _interrupt_cycle(self) -> None:
         """Record that the current command's work did not run to completion."""
-        cycle = _COMMAND_CYCLE.get()
-        if cycle is None:
-            raise RuntimeError("Command cycle is not initialized")
+        cycle = expect(
+            _COMMAND_CYCLE.get(), "Command cycle is not initialized"
+        )
         cycle.outcome = "interrupted"
 
     async def _handle_cancel_run(self, request: CancelRunCommand) -> None:
         """End a run the control loop cancelled before it executed."""
         with self._run_context(request.run_id):
-            cycle = _COMMAND_CYCLE.get()
-            if cycle is None:
-                raise RuntimeError("Command cycle is not initialized")
+            cycle = expect(
+                _COMMAND_CYCLE.get(), "Command cycle is not initialized"
+            )
             # Issued from inside another command, as code mode can, the
             # cancellation names a run that is not this cycle.
             if cycle.run_id == request.run_id:

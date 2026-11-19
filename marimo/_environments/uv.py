@@ -17,6 +17,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._environments.errors import (
     EnvironmentManagerError,
     EnvironmentManagerNotFoundError,
@@ -268,11 +269,12 @@ def uv_stream(
             raise UvNotFoundError() from e
         raise
 
-    if process.stdout is None:
-        raise RuntimeError("Process stdout pipe is not available")
-    if process.stderr is None:
-        raise RuntimeError("Process stderr pipe is not available")
-    stdout_pipe = process.stdout
+    stdout_pipe = expect(
+        process.stdout, "Process stdout pipe is not available"
+    )
+    stderr_pipe = expect(
+        process.stderr, "Process stderr pipe is not available"
+    )
     stdout_chunks: list[bytes] = []
 
     def drain_stdout() -> None:
@@ -284,7 +286,7 @@ def uv_stream(
 
     stderr_lines: list[bytes] = []
     try:
-        for line in iter(process.stderr.readline, b""):
+        for line in iter(stderr_pipe.readline, b""):
             stderr_lines.append(line)
             decoded = line.decode("utf-8", errors="replace")
             _stream_output(decoded, on_output)
@@ -293,7 +295,7 @@ def uv_stream(
         kill_subprocess(process, start_new_session=True)
         raise
     finally:
-        process.stderr.close()
+        stderr_pipe.close()
         reader.join()
 
     completed = subprocess.CompletedProcess(
