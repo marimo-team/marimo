@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from msgspec.structs import replace
@@ -41,6 +41,17 @@ def notebook_source(request: pytest.FixtureRequest) -> str:
             "@app.cell\ndef _():\n    example = 7\n    return (example,)\n"
         ),
     )
+
+
+def shown(events: Response, execution_id: str | None = None) -> Any:
+    """The content of the last output item on the stream, or None."""
+    contents = [
+        r["data"]["output"]["media"]
+        for r in events.records
+        if r.get("event") == "output"
+        and execution_id in (None, r["data"]["output"]["execution_id"])
+    ]
+    return contents[-1] if contents else None
 
 
 @pytest.fixture
@@ -104,12 +115,10 @@ async def test_move_preserves_the_running_notebook(
         .get("status")
         == "completed"
     ]
-    assert outcome == {
-        "kind": "value",
-        "display": {
-            "mimetype": "text/html",
-            "data": "<pre class='text-xs'>42</pre>",
-        },
+    assert outcome == {"kind": "succeeded"}
+    assert shown(events) == {
+        "mimetype": "text/html",
+        "data": "<pre class='text-xs'>42</pre>",
     }
 
 
@@ -167,12 +176,10 @@ async def test_scratch_outcomes_from_the_kernel(
     assert execution["runtime_id"] is not None
     assert execution["caused_by"] is None
     if kind == "value":
-        assert outcome == {
-            "kind": "value",
-            "display": None
-            if value is None
-            else {"mimetype": "text/html", "data": value},
-        }
+        assert outcome == {"kind": "succeeded"}
+        assert shown(events) == (
+            None if value is None else {"mimetype": "text/html", "data": value}
+        )
         if value is not None:
             assert "hello\n" == "".join(
                 r["data"]["console"]["text"]
@@ -509,11 +516,11 @@ async def test_startup_markdown_has_a_retained_result_and_its_own_completed_run(
         protocol.ExecutionCompleted,
         markdown.code_fingerprint,
     )
-    outcome = execution.state.outcome
-    assert isinstance(outcome, protocol.ValueOutcome)
-    assert outcome.display is not None
-    assert outcome.display.mimetype == "text/markdown"
-    assert "Startup markdown" in outcome.display.data
+    assert execution.state.outcome == protocol.SucceededOutcome()
+    assert result.output is not None
+    assert result.output.media is not None
+    assert result.output.media.mimetype == "text/markdown"
+    assert "Startup markdown" in result.output.media.data
     expected = {execution.run_id: "succeeded"}
     regular_result = notebook.executions.current(regular.id)
     if requested_run is not None:
@@ -571,40 +578,30 @@ def _():
         await wait_for(
             events,
             lambda s: any(
-                r.get("event") == "execution"
-                and r["data"]["execution"]["state"].get("outcome")
-                == {
-                    "kind": "value",
-                    "display": {
-                        "mimetype": "text/html",
-                        "data": "<b>late</b>",
-                    },
-                }
+                r.get("event") == "output"
+                and r["data"]["output"]["media"]
+                == {"mimetype": "text/html", "data": "<b>late</b>"}
                 for r in s.records
             ),
         )
+        assert before.output is not None
         expected = replace(
-            before.execution,
-            state=replace(
-                before.execution.state,
-                outcome=protocol.ValueOutcome(
-                    protocol.DisplayData(
-                        mimetype="text/html", data="<b>late</b>"
-                    )
-                ),
+            before.output,
+            media=protocol.DisplayData(
+                mimetype="text/html", data="<b>late</b>"
             ),
         )
         assert notebook.executions.current(cell.id) == dataclasses.replace(
-            before, execution=expected
+            before, output=expected
         )
         assert notebook.executions.run(protocol.RunId(run_id)) == run
         snapshot = app.state.host_context.bridge.host.events(
             notebook_id=notebook_id
         )
         assert [
-            event.event.data.execution
+            event.event.data.output
             for event in snapshot
-            if isinstance(event.event, protocol.ExecutionEvent)
+            if isinstance(event.event, protocol.OutputEvent)
         ] == [expected]
 
 
@@ -1109,7 +1106,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
     assert len(executions) == children + 1
     root, *downstream = executions
     assert root["cell_id"] is None
-    assert root["state"]["outcome"]["kind"] == "value"
+    assert root["state"]["outcome"]["kind"] == "succeeded"
     assert all(
         e["run_id"] == accepted.json()["id"]
         and e["cell_id"] is not None
@@ -1117,7 +1114,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
         for e in downstream
     )
     assert downstream[-1]["state"]["outcome"]["kind"] == (
-        "error" if outcome == "failed" else "value"
+        "error" if outcome == "failed" else "succeeded"
     )
     if outcome == "succeeded":
         consoles = [
@@ -1256,8 +1253,8 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
     ]
     assert len(executions) == 3
     [root] = [e for e in executions if e["cell_id"] is None]
-    assert root["state"]["outcome"]["kind"] == "value"
-    assert "42" in root["state"]["outcome"]["display"]["data"]
+    assert root["state"]["outcome"]["kind"] == "succeeded"
+    assert "42" in shown(events, root["id"])["data"]
     children = [e for e in executions if e["cell_id"] is not None]
     assert all(e["caused_by"] == root["id"] for e in children)
     assert {
@@ -1306,7 +1303,7 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         for e in executions
     ] == [
         (code_fingerprint("if !!!"), "error"),
-        (code_fingerprint("x = 42"), "value"),
+        (code_fingerprint("x = 42"), "succeeded"),
     ]
     assert len({e["id"] for e in executions}) == 2
     runs = [
@@ -1357,8 +1354,8 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
         and r["data"]["execution"]["state"]["status"] == "completed"
     ]
     assert [e["state"]["outcome"]["kind"] for e in executions] == [
-        "value",
-        "value",
+        "succeeded",
+        "succeeded",
     ]
     assert len({e["id"] for e in executions}) == 2
     runs = [
@@ -1424,8 +1421,8 @@ async def test_awaited_commands_join_the_enclosing_run(
     children = [e for e in executions if e["caused_by"] == root["id"]]
     assert len(children) == len(executions) - 1
     child = children[0]
-    assert root["state"]["outcome"]["kind"] == "value"
-    assert "42" in root["state"]["outcome"]["display"]["data"]
+    assert root["state"]["outcome"]["kind"] == "succeeded"
+    assert "42" in shown(events, root["id"])["data"]
     assert child["state"]["outcome"]["kind"] == "error"
     assert child["code_fingerprint"] == code_fingerprint(child_code)
     assert all(e["run_id"] == accepted.json()["id"] for e in executions)

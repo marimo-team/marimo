@@ -105,17 +105,19 @@ describe("readExport", () => {
       });
       invariant(result.snapshot, "no snapshot");
       expect(result.snapshot.results).toEqual([
-        expect.objectContaining({
-          cell_id: "c1",
-          code_fingerprint: "hash-1",
-          state: expect.objectContaining({
-            status: "completed",
-            outcome: {
-              kind: "value",
-              display: { mimetype: "text/html", data: "<b>1</b>" },
-            },
+        {
+          execution: expect.objectContaining({
+            cell_id: "c1",
+            code_fingerprint: "hash-1",
+            state: expect.objectContaining({
+              status: "completed",
+              outcome: { kind: "succeeded" },
+            }),
           }),
-        }),
+          output: expect.objectContaining({
+            media: { mimetype: "text/html", data: "<b>1</b>" },
+          }),
+        },
       ]);
     });
 
@@ -163,19 +165,24 @@ describe("readExport", () => {
           appConfig: {},
         });
         invariant(result.snapshot, "no snapshot");
-        expect(result.snapshot.results?.map((r) => r.cell_id)).toEqual(["c1"]);
-        expect(result.snapshot.results?.[0]?.state).toHaveProperty("outcome", {
-          kind: "error",
-          error: expect.objectContaining({
-            kind: "exception",
-            name: "ValueError",
-            message: "bad",
-            traceback:
-              expectedTraceback === null
-                ? null
-                : { mimetype: "text/plain", data: expectedTraceback },
-          }),
-        });
+        expect(
+          result.snapshot.results?.map((r) => r.execution.cell_id),
+        ).toEqual(["c1"]);
+        expect(result.snapshot.results?.[0]?.execution.state).toHaveProperty(
+          "outcome",
+          {
+            kind: "error",
+            error: expect.objectContaining({
+              kind: "exception",
+              name: "ValueError",
+              message: "bad",
+              traceback:
+                expectedTraceback === null
+                  ? null
+                  : { mimetype: "text/plain", data: expectedTraceback },
+            }),
+          },
+        );
       },
     );
   });
@@ -315,15 +322,18 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
-        kind: "error",
-        error: expect.objectContaining({
-          kind: "exception",
-          name: "ValueError",
-          message: "Something went wrong",
-          traceback: { mimetype: "text/plain", data: "Traceback line 1" },
-        }),
-      });
+      expect(result.snapshot?.results[0]?.execution.state).toHaveProperty(
+        "outcome",
+        {
+          kind: "error",
+          error: expect.objectContaining({
+            kind: "exception",
+            name: "ValueError",
+            message: "Something went wrong",
+            traceback: { mimetype: "text/plain", data: "Traceback line 1" },
+          }),
+        },
+      );
 
       invariant(result.snapshot, "no snapshot");
     });
@@ -385,9 +395,9 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
-        kind: "value",
-        display: { mimetype: "text/plain", data: "Hello World" },
+      expect(result.snapshot?.results[0]?.output).toHaveProperty("media", {
+        mimetype: "text/plain",
+        data: "Hello World",
       });
 
       invariant(result.snapshot, "no snapshot");
@@ -749,9 +759,9 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
-        kind: "value",
-        display: { mimetype: "text/plain", data: "First" },
+      expect(result.snapshot?.results[0]?.output).toHaveProperty("media", {
+        mimetype: "text/plain",
+        data: "First",
       });
     });
 
@@ -773,9 +783,9 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
-        kind: "value",
-        display: { mimetype: "text/plain", data: "Plain text" },
+      expect(result.snapshot?.results[0]?.output).toHaveProperty("media", {
+        mimetype: "text/plain",
+        data: "Plain text",
       });
 
       invariant(result.snapshot, "no snapshot");
@@ -796,10 +806,7 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.state).toHaveProperty("outcome", {
-        kind: "value",
-        display: null,
-      });
+      expect(result.snapshot?.results[0]?.output).toHaveProperty("media", null);
     });
 
     it("returns correct structure with all expected properties", () => {

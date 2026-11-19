@@ -141,7 +141,7 @@ describe("staleCellIds with a run in progress", () => {
 describe("cellRunReason", () => {
   const view = {
     status: "idle",
-    outcome: "value",
+    outcome: "succeeded",
     live: true,
     blocked: false,
   } as const;
@@ -178,7 +178,7 @@ describe("isUninstantiated", () => {
 
   it("should return false if the cell has run", () => {
     expect(
-      isUninstantiated({ status: "idle", outcome: "value", live: true }),
+      isUninstantiated({ status: "idle", outcome: "succeeded", live: true }),
     ).toBe(false);
   });
 
@@ -186,7 +186,7 @@ describe("isUninstantiated", () => {
     // Restored from storage, or kept across a kernel restart: the output
     // shows, and nothing the cell bound exists in this runtime.
     expect(
-      isUninstantiated({ status: "idle", outcome: "value", live: false }),
+      isUninstantiated({ status: "idle", outcome: "succeeded", live: false }),
     ).toBe(true);
     expect(
       isUninstantiated({ status: "running", outcome: null, live: false }),

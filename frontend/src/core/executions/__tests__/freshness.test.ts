@@ -35,12 +35,12 @@ function cell(
   };
 }
 
-const NO_VALUE: Protocol.Outcome = { kind: "value", display: null };
+const SUCCEEDED: Protocol.Outcome = { kind: "succeeded" };
 
 /** A completed state that read `depends_on`. */
 function completed(
   depends_on: Protocol.ExecutionCompleted["depends_on"] = {},
-  outcome: Protocol.Outcome = NO_VALUE,
+  outcome: Protocol.Outcome = SUCCEEDED,
 ): Protocol.ExecutionCompleted {
   return {
     status: "completed",
@@ -88,6 +88,7 @@ function execution(
 ): Execution {
   return {
     record: rec,
+    output: null,
     outputVersion: 0,
     items: new Map(),
     variables: new Map(variables.map((v) => [v.id, v])),
@@ -120,7 +121,11 @@ function inputs({
   );
   for (const result of results) {
     if (result.cell_id !== null) {
-      retained.set(result.cell_id, { record: result, outputVersion: 0 });
+      retained.set(result.cell_id, {
+        record: result,
+        output: null,
+        outputVersion: 0,
+      });
     }
   }
   return {
@@ -393,7 +398,7 @@ describe("cellFreshness", () => {
                 started_at: "2026-10-01T09:22:00Z",
                 completed_at: "2026-10-01T09:22:01Z",
               }
-            : { status, started_at: "2026-10-01T09:22:00Z", value: null },
+            : { status, started_at: "2026-10-01T09:22:00Z" },
       });
       const state = inputs({
         cells: [c3, k7f2],
@@ -454,10 +459,7 @@ describe("cellFreshness", () => {
         id: "e14",
         cell_id: "c3",
         code_fingerprint: "ffff000011112222",
-        state:
-          status === "running"
-            ? { status, started_at: T0, value: null }
-            : { status },
+        state: status === "running" ? { status, started_at: T0 } : { status },
       });
       const state = inputs({
         cells: [c3],
@@ -478,7 +480,7 @@ describe("cellFreshness", () => {
       id: "e14",
       cell_id: "c3",
       code_fingerprint: "ffff000011112222",
-      state: { status: "running", started_at: T0, value: null },
+      state: { status: "running", started_at: T0 },
     });
     const covered = inputs({
       cells: [edited, k7f2],

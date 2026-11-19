@@ -27,10 +27,12 @@ import {
 import { scratchOutputView } from "../output";
 
 const C1 = cellId("c1");
-const value = (data: string): Protocol.ValueOutcome => ({
-  kind: "value",
-  display: { mimetype: "text/plain", data },
+const text = (data: string): Protocol.DisplayData => ({
+  mimetype: "text/plain",
+  data,
 });
+
+type Record = Protocol.Execution | Protocol.Output;
 
 async function setup() {
   interface Attempt {
@@ -60,15 +62,23 @@ async function setup() {
     attempt = await opened.promise;
   };
   let cursor = 100;
-  const emit = (execution: Protocol.Execution) =>
-    message({ event: "execution", id: String(++cursor), data: { execution } });
+  const emit = (record: Record) =>
+    message(
+      "execution_id" in record
+        ? { event: "output", id: String(++cursor), data: { output: record } }
+        : {
+            event: "execution",
+            id: String(++cursor),
+            data: { execution: record },
+          },
+    );
   const remove = (execution: Protocol.Execution) =>
     message({
       event: "execution.removed",
       id: String(++cursor),
       data: { id: execution.id, time: MockExecutions.T1 },
     });
-  const snapshot = (records: Protocol.Execution[], notebookId = "n1") => {
+  const snapshot = (records: readonly Record[], notebookId = "n1") => {
     message({ event: "reset", data: {} });
     fixtureMessages("notebook-events.sse")
       .filter(({ event }) => ["notebook", "document", "cell"].includes(event))
@@ -105,8 +115,8 @@ describe("output lifetime", () => {
         vi.useRealTimers();
       });
       const { store, snapshot, message, reconnect } = await setup();
-      const result = MockExecutions.completed(C1, value("A"));
-      snapshot([result]);
+      const result = MockExecutions.shown(C1, text("A"));
+      snapshot(result);
       const run: Protocol.Run = {
         id: "missed",
         notebook_id: "n1",
@@ -126,7 +136,7 @@ describe("output lifetime", () => {
         await reconnect();
       }
       if (recovery !== "replay") {
-        snapshot([result]);
+        snapshot(result);
       } else {
         message({ event: "ready", id: "120", data: {} });
       }
@@ -148,19 +158,15 @@ describe("output lifetime", () => {
 
   it("keeps a changed display visible after its execution retires", async () => {
     const { store, replica, emit, remove, snapshot } = await setup();
-    const result = MockExecutions.completed(C1, value("A"));
-    snapshot([result]);
+    const [result, output] = MockExecutions.shown(C1, text("A"));
+    snapshot([result, output]);
     clearCellOutputs(store, [C1]);
     expect(store.get(cellOutputAtom(C1))).toBeNull();
 
-    const shown = (data: string) => ({
-      ...MockExecutions.completed(C1, value(data)),
-      id: result.id,
-    });
-    emit(shown("B"));
-    emit(shown("A"));
-    // No reader needs to observe the intermediate display for it to count.
-    snapshot([shown("A")]);
+    emit(MockExecutions.output(result, text("B")));
+    emit(output);
+    // No reader needs to observe the intermediate output for it to count.
+    snapshot([result, output]);
     remove(result);
     const running = MockExecutions.running(C1);
     emit(running);
@@ -176,27 +182,24 @@ describe("output lifetime", () => {
     const { store, emit, remove, snapshot } = await setup();
     const running = MockExecutions.running(C1);
     snapshot([running]);
-    emit({ ...MockExecutions.running(C1, value("A")), id: running.id });
+    emit(MockExecutions.output(running, text("A")));
     clearCellOutputs(store, [C1]);
     expect(store.get(cellOutputAtom(C1))).toBeNull();
 
-    const completed = {
-      ...MockExecutions.completed(C1, value("A")),
-      id: running.id,
-    };
+    const completed = { ...MockExecutions.completed(C1), id: running.id };
     emit(completed);
     expect(store.get(cellOutputAtom(C1))).toBeNull();
     remove(completed);
     const next = MockExecutions.running(C1);
     emit(next);
     expect(store.get(cellOutputAtom(C1))).toBeNull();
-    emit({ ...MockExecutions.running(C1, value("A")), id: next.id });
+    emit(MockExecutions.output(next, text("A")));
     expect(store.get(cellOutputAtom(C1))?.data).toBe("A");
   });
   it("keeps the scratch display after its execution expires", async () => {
     const { store, replica, emit, remove, snapshot } = await setup();
-    const scratch = MockExecutions.completed(null, value("scratch result"));
-    snapshot([scratch]);
+    const [scratch, shown] = MockExecutions.shown(null, text("scratch result"));
+    snapshot([scratch, shown]);
     const before = scratchOutputView(store.get(replica.executionsAtom));
     expect(before?.data).toBe("scratch result");
     remove(scratch);
@@ -213,16 +216,12 @@ describe("output lifetime", () => {
     const next = MockExecutions.execution(null, {
       status: "running",
       started_at,
-      value: null,
     });
     emit(next);
     expect(scratchOutputView(store.get(replica.executionsAtom))).toEqual(
       before,
     );
-    emit({
-      ...next,
-      state: { status: "running", started_at, value: value("next") },
-    });
+    emit(MockExecutions.output(next, text("next")));
     expect(scratchOutputView(store.get(replica.executionsAtom))?.data).toBe(
       "next",
     );
@@ -232,7 +231,7 @@ describe("output lifetime", () => {
         status: "completed",
         started_at,
         completed_at: "2026-10-01T09:22:01Z",
-        outcome: value("next"),
+        outcome: { kind: "succeeded" },
         depends_on: {},
       },
     });
@@ -246,12 +245,12 @@ describe("output lifetime", () => {
 
   it("keeps scratch output cleared when an empty execution expires", async () => {
     const { store, replica, emit, remove, snapshot } = await setup();
-    snapshot([MockExecutions.completed(null, value("old"))]);
+    snapshot(MockExecutions.shown(null, text("old")));
     const cleared = MockExecutions.execution(null, {
       status: "completed",
       started_at: MockExecutions.T0,
       completed_at: "2026-10-01T09:22:00Z",
-      outcome: { kind: "value", display: null },
+      outcome: { kind: "succeeded" },
       depends_on: {},
     });
     emit(cleared);

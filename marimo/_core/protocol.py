@@ -307,7 +307,7 @@ else:
         Annotated[
             str,
             Meta(
-                description="Identifies a console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
+                description="Identifies an output, console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
                 min_length=1,
             ),
         ],
@@ -370,6 +370,7 @@ ObjectType: TypeAlias = Annotated[
         "attachment",
         "run",
         "execution",
+        "output",
         "console",
         "display",
         "input",
@@ -378,7 +379,7 @@ ObjectType: TypeAlias = Annotated[
         "custom",
     ],
     Meta(
-        description="The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, console, display, input, variable, analysis, and custom. Custom events describe occurrences rather than object state."
+        description="The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, display, input, variable, analysis, and custom. Custom events describe occurrences rather than object state."
     ),
 ]
 
@@ -390,6 +391,20 @@ class OpenNotebookResponse(Struct, frozen=True):
             description="The URL the host used to show the notebook, with the host's token omitted."
         ),
     ]
+
+
+class Output(Struct, frozen=True):
+    execution_id: ExecutionId
+    id: ItemId
+    media: (
+        Annotated[
+            DisplayData,
+            Meta(
+                description="The output as last rendered. Null when the code set it to nothing or cleared it."
+            ),
+        ]
+        | None
+    )
 
 
 class Position(Struct, frozen=True):
@@ -691,6 +706,10 @@ class StartRuntimeRequest(Struct, frozen=True, forbid_unknown_fields=True):
     ) = UNSET
 
 
+class SucceededOutcome(Struct, frozen=True, tag_field="kind", tag="succeeded"):
+    pass
+
+
 Timestamp: TypeAlias = Annotated[
     datetime,
     Meta(
@@ -764,18 +783,6 @@ class UpdateNotebookRequest(Struct, frozen=True, forbid_unknown_fields=True):
         ]
         | UnsetType
     ) = UNSET
-
-
-class ValueOutcome(Struct, frozen=True, tag_field="kind", tag="value"):
-    display: (
-        Annotated[
-            DisplayData,
-            Meta(
-                description="The value as last rendered. Replaced as it grows. Null when the code produced no value."
-            ),
-        ]
-        | None
-    )
 
 
 class Variable(Struct, frozen=True):
@@ -1260,15 +1267,6 @@ class ExecutionRunning(Struct, frozen=True, tag_field="status", tag="running"):
     started_at: Annotated[
         Timestamp, Meta(description="When the code started executing.")
     ]
-    value: (
-        Annotated[
-            ValueOutcome,
-            Meta(
-                description="The value as rendered so far. Null until the execution shows something."
-            ),
-        ]
-        | None
-    )
 
 
 class HostMessage(Struct, frozen=True):
@@ -1400,11 +1398,33 @@ class NotebookMessage(Struct, frozen=True):
 
 
 Outcome: TypeAlias = Annotated[
-    ValueOutcome | ErrorOutcome | InterruptedOutcome | SkippedOutcome,
+    SucceededOutcome | ErrorOutcome | InterruptedOutcome | SkippedOutcome,
     Meta(
-        description="How an execution ended, tagged on `kind`. A `value` carries the\nlast rendered display. Background work can replace or clear that\ndisplay while the completed execution is retained. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n"
+        description="How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n"
     ),
 ]
+
+
+class OutputMessage(Struct, frozen=True):
+    output: Output
+    request_id: (
+        Annotated[
+            str,
+            Meta(
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class PreconditionFailedProblem(
@@ -2005,6 +2025,36 @@ class NotebookRemovedEvent(
     ) = UNSET
 
 
+class OutputEvent(Struct, frozen=True, tag_field="event", tag="output"):
+    data: OutputMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class OutputRemovedEvent(
+    Struct, frozen=True, tag_field="event", tag="output.removed"
+):
+    data: RemovedMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
 class ProjectEvent(Struct, frozen=True, tag_field="event", tag="project"):
     data: ProjectMessage
     id: (
@@ -2240,6 +2290,7 @@ Event: TypeAlias = Annotated[
     | AttachmentEvent
     | RunEvent
     | ExecutionEvent
+    | OutputEvent
     | ConsoleEvent
     | DisplayEvent
     | InputEvent
@@ -2253,6 +2304,7 @@ Event: TypeAlias = Annotated[
     | AttachmentRemovedEvent
     | RunRemovedEvent
     | ExecutionRemovedEvent
+    | OutputRemovedEvent
     | ConsoleRemovedEvent
     | DisplayRemovedEvent
     | VariableRemovedEvent

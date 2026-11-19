@@ -25,6 +25,7 @@ export type { Result, Results } from "./resources/results";
 export {
   completedAt,
   dependsOn,
-  shownOutcome,
+  type Shown,
+  shown,
   startedAt,
 } from "./execution-state";

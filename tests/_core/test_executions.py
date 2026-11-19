@@ -68,7 +68,7 @@ def complete(
     changes: list[Change] = []
     for msg in (
         be.Started(execution),
-        be.Completed(execution, outcome or protocol.ValueOutcome(None)),
+        be.Completed(execution, outcome or protocol.SucceededOutcome()),
     ):
         changes.extend(executions.observe(msg, RUNTIME))
     return changes
@@ -176,8 +176,7 @@ def test_completion_freezes_the_outcome_and_input_revisions(
     inputs.clear()
     for message in (
         be.Started(eid),
-        be.Displayed(eid, None),
-        be.Completed(eid, protocol.ValueOutcome(None)),
+        be.Completed(eid, protocol.SucceededOutcome()),
     ):
         assert executions.observe(message, RUNTIME) == []
     assert executions.current(protocol.CellId("a")) == retained
@@ -243,17 +242,16 @@ def test_late_display_updates_preserve_completion_and_stop_after_replacement() -
         protocol.DisplayData(mimetype="text/plain", data="late"),
         None,
     ):
-        expected = replace(
-            before.execution,
-            state=replace(
-                before.execution.state, outcome=protocol.ValueOutcome(display)
-            ),
+        expected = protocol.Output(
+            id=protocol.ItemId("e1:output"),
+            execution_id=protocol.ExecutionId("e1"),
+            media=display,
         )
         assert executions.observe(
             be.Displayed(protocol.ExecutionId("e1"), display), RUNTIME
         ) == [expected]
         assert executions.current(protocol.CellId("a")) == dataclasses.replace(
-            before, execution=expected
+            before, output=expected
         )
         assert executions.run(protocol.RunId("r1")) == completed_run
     executions.begin(run("r2"), "second")
@@ -505,7 +503,7 @@ def test_restore_rejects_inconsistent_executions(
         key = protocol.CellId("missing")
         retained = CellExecution(replace(execution, cell_id=key), outputs)
     elif invalid == "unfinished":
-        running = protocol.ExecutionRunning(started_at=utcnow(), value=None)
+        running = protocol.ExecutionRunning(started_at=utcnow())
         retained = CellExecution(replace(execution, state=running), outputs)
     elif invalid == "output-owner":
         retained = CellExecution(

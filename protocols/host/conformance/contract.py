@@ -31,6 +31,7 @@ KINDS = (
     "attachment",
     "run",
     "execution",
+    "output",
     "console",
     "display",
     "input",

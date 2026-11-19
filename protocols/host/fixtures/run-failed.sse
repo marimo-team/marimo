@@ -4,7 +4,7 @@ data: {"run":{"id":"run-failed","notebook_id":"n1","runtime_id":"r1","origin":{"
 
 id: 121
 event: execution
-data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_fingerprint":"a32ab03f8d972266","runtime_id":"r1","caused_by":null,"state":{"status":"running","started_at":"2026-10-01T09:21:10Z","value":null}},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
+data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_fingerprint":"a32ab03f8d972266","runtime_id":"r1","caused_by":null,"state":{"status":"running","started_at":"2026-10-01T09:21:10Z"}},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
 
 id: 122
 event: console

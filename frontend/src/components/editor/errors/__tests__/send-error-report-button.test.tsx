@@ -363,7 +363,11 @@ describe("SendErrorReportButton", () => {
     });
     const message = cellOutputView(
       {
-        ...MockExecutions.inputs(snapshot?.results ?? []),
+        ...MockExecutions.inputs(
+          (snapshot?.results ?? []).flatMap(({ execution, output }) =>
+            output === null ? [execution] : [execution, output],
+          ),
+        ),
         cleared: new Map(),
         cells: new Map(snapshot?.cells.map((cell) => [cell.id, cell])),
       },

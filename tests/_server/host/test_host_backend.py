@@ -215,7 +215,7 @@ async def test_interrupt_waits_for_the_kernel_result(
     assert concluded[-1].outcome == (
         protocol.InterruptedOutcome()
         if takes_effect
-        else protocol.ValueOutcome(None)
+        else protocol.SucceededOutcome()
     )
     assert observed.messages[-1] == be.Done(
         protocol.RunId("run-1"), "interrupted" if takes_effect else "succeeded"
@@ -694,7 +694,7 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
     session.broadcast(CompletedRunNotification(run_id="run-2"))
     expected = [
         be.Completed(
-            protocol.ExecutionId("attempt-2"), protocol.ValueOutcome(None)
+            protocol.ExecutionId("attempt-2"), protocol.SucceededOutcome()
         ),
         be.Done(protocol.RunId("run-2"), "succeeded"),
     ]

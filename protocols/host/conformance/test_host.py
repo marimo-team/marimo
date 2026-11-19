@@ -341,7 +341,7 @@ async def finish_run(watch, run, key, outcome):
 @pytest.mark.parametrize(
     ("code", "outcome", "kind"),
     [
-        ('print("conformance")', "succeeded", "value"),
+        ('print("conformance")', "succeeded", "succeeded"),
         ("raise RuntimeError('conformance')", "failed", "error"),
     ],
 )
@@ -365,7 +365,7 @@ async def test_run(host, scratch, code, outcome, kind):
         assert run["origin"] == {"kind": "code", "code": code}
         assert all(e["cell_id"] is None for e in executions)
         assert executions[-1]["state"]["outcome"]["kind"] == kind
-        if kind == "value":
+        if kind == "succeeded":
             assert "conformance" in "".join(
                 item["text"] for item in objects(events, "console")
             )

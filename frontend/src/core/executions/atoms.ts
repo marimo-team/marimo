@@ -29,7 +29,7 @@ import {
   type CellExecutionInputs,
   queuedOrRunningCount,
 } from "./select";
-import { shownOutcome } from "@/core/notebook/replica";
+import { shown } from "@/core/notebook/replica";
 
 type Store = ReturnType<typeof createStore>;
 
@@ -237,11 +237,11 @@ export function clearCellOutputs(
   const inputs = store.get(cellOutputInputsAtom);
   const next = new Map(inputs.cleared);
   for (const cellId of cellIds) {
-    const shown = shownExecution(inputs, cellId);
-    if (shown != null && shownOutcome(shown.record) !== null) {
+    const showing = shownExecution(inputs, cellId);
+    if (showing != null && shown(showing) !== null) {
       next.set(cellId, {
-        execution: shown.record.id,
-        version: shown.outputVersion,
+        execution: showing.record.id,
+        version: showing.outputVersion,
       });
     }
   }

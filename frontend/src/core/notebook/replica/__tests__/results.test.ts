@@ -44,7 +44,7 @@ const restored = {
     status: "completed",
     started_at: "2026-09-30T09:20:01Z",
     completed_at: "2026-09-30T09:20:02Z",
-    outcome: { kind: "value", display: null },
+    outcome: { kind: "succeeded" },
     depends_on: {},
   },
 };
@@ -147,7 +147,7 @@ describe("retained results", () => {
               status: "completed",
               started_at: time,
               completed_at: time,
-              outcome: { kind: "value", display: null },
+              outcome: { kind: "succeeded" },
               depends_on: {},
             },
           },

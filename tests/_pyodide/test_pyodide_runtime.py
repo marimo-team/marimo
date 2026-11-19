@@ -333,7 +333,7 @@ async def test_editor_receives_one_representation_of_each_output(bridge):
         frames.append(json.loads(raw))
 
     await bridge.notebook.subscribe(
-        "editor", None, receive, "marimo,execution,console"
+        "editor", None, receive, "marimo,execution,output,console"
     )
     deliver(bridge, planned(cell_id, run_id))
     deliver(bridge, running(cell_id, run_id))
@@ -355,16 +355,14 @@ async def test_editor_receives_one_representation_of_each_output(bridge):
         if replay:
             frames.clear()
             await bridge.notebook.subscribe(
-                "editor", None, receive, "marimo,execution,console"
+                "editor", None, receive, "marimo,execution,output,console"
             )
-        assert (
-            latest(frames, "execution")["state"]["value"]["display"]["data"]
-            == "result"
-        )
+        assert latest(frames, "output")["media"]["data"] == "result"
         assert {f["event"] for f in frames} <= {
             "ready",
             "marimo",
             "execution",
+            "output",
             "console",
         }
         assert [

@@ -49,19 +49,7 @@ function seedResult(
       status: "completed",
       started_at: MockExecutions.T0,
       completed_at: MockExecutions.T1,
-      outcome: {
-        kind: "value",
-        display:
-          output === null
-            ? null
-            : {
-                mimetype: output.mimetype,
-                data:
-                  typeof output.data === "string"
-                    ? output.data
-                    : JSON.stringify(output.data),
-              },
-      },
+      outcome: { kind: "succeeded" },
       depends_on:
         freshness === undefined || freshness === "edited"
           ? {}
@@ -83,7 +71,19 @@ function seedResult(
           },
           [cid],
         );
-  MockExecutions.seed(store, [ran], null, document);
+  const shown =
+    output === null
+      ? []
+      : [
+          MockExecutions.output(ran, {
+            mimetype: output.mimetype,
+            data:
+              typeof output.data === "string"
+                ? output.data
+                : JSON.stringify(output.data),
+          }),
+        ];
+  MockExecutions.seed(store, [ran, ...shown], null, document);
 }
 
 const Cell: React.FC<{

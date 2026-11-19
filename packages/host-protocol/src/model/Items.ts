@@ -40,6 +40,19 @@ export const Display = Schema.Struct({
   identifier: "Display",
 });
 
+export const Output = Schema.Struct({
+  id: ItemId,
+  execution_id: ExecutionId,
+  media: Schema.NullOr(DisplayData).annotateKey({
+    description:
+      "The output as last rendered. Null when the code set it to nothing or cleared it.",
+  }),
+}).annotate({
+  description:
+    "What an execution's code shows as its result, such as the value of\na cell's last expression. An execution has at most one, published\nonce the code first sets it. A producer replaces it by sending it\nagain with the same id, including after the execution completes,\nand it is removed with its execution.\n",
+  identifier: "Output",
+});
+
 export const InputStatus = Schema.Literals([
   "pending",
   "answered",

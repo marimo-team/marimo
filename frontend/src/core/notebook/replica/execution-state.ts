@@ -4,19 +4,27 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 
-/** The final outcome once completed, or the value so far while running. */
-export function shownOutcome(
-  record: Protocol.Execution,
-): Protocol.Outcome | null {
-  const state = record.state;
-  switch (state.status) {
-    case "queued":
-      return null;
-    case "running":
-      return state.value;
-    case "completed":
-      return state.outcome;
+/** What an execution shows in place of a cell's output. */
+export type Shown =
+  | { readonly kind: "output"; readonly media: Protocol.DisplayData | null }
+  | Exclude<Protocol.Outcome, { kind: "succeeded" }>;
+
+/**
+ * How an execution ended when it did not succeed, else its output. Null
+ * until a queued or running execution sets its output.
+ */
+export function shown(result: {
+  readonly record: Protocol.Execution;
+  readonly output: Protocol.Output | null;
+}): Shown | null {
+  const { state } = result.record;
+  if (state.status === "completed" && state.outcome.kind !== "succeeded") {
+    return state.outcome;
   }
+  if (result.output !== null) {
+    return { kind: "output", media: result.output.media };
+  }
+  return state.status === "completed" ? { kind: "output", media: null } : null;
 }
 
 export function startedAt(record: Protocol.Execution): string | null {

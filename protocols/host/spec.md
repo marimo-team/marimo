@@ -152,15 +152,15 @@ Notebook
 
 Runs and executions move through `queued`, `running`, and `completed`. Each
 carries its status in `state` together with the fields that status has, so a
-queued run has no start time and only a completed one has an outcome. A running
-execution carries the value it has shown so far.
+queued run has no start time and only a completed one has an outcome. A
+completed state does not change.
 
     RunState       { status: "queued" }
                  | { status: "running", started_at }
                  | { status: "completed", started_at, completed_at, outcome }
 
     ExecutionState { status: "queued" }
-                 | { status: "running", started_at, value }
+                 | { status: "running", started_at }
                  | { status: "completed", started_at, completed_at, outcome, depends_on }
 
 Hosts MUST complete a run only after its executions have ended and scheduling
@@ -169,7 +169,7 @@ are still working. An execution that did not evaluate because of other work in
 the notebook, such as a dependent of a cell that raised or that stopped the
 cycle on purpose, or a queued execution that a later one of the same cell
 replaced, completes with the outcome `skipped`, which names the reason and the
-cells involved. A skipped execution has no value, binds no variables, and does
+cells involved. A skipped execution sets no output, binds no variables, and does
 not fail its run.
 
 A host publishes an execution as `queued` when the runtime schedules the cell,
@@ -194,8 +194,8 @@ Notebook
     └── Cell execution · another dependent cell
 ```
 
-An execution's results include its outcome, **console** output, **display**
-items, **inputs**, and the **variables** a cell bound. Results can remain
+An execution's results include its outcome, its **output**, **console**
+output, **display** items, **inputs**, and the **variables** a cell bound. Results can remain
 available after the runtime stops or be restored from storage. Hosts choose
 how long to retain results and SHOULD keep ephemeral results briefly after
 completion to allow reconnection.
@@ -207,11 +207,21 @@ execution completes, as long as its results remain retained. Input requires a
 running execution, because the host must still be able to accept an answer or
 interrupt the work that is waiting for it.
 
-Background work may also replace or clear a value outcome's display while the
-execution is retained. Such updates MUST preserve its completed status,
-timestamps, and dependency revisions, and MUST NOT change a non-value outcome
-into a value. Updates from a removed execution MUST NOT affect a newer
-execution of the same cell.
+An execution's **output** is what its code shows as its result, such as the
+value of a cell's last expression. It is an item of its own, so the execution
+is not sent again when it changes.
+
+    Output { id, execution_id, media }
+
+An execution has no output item until its code first sets one, and the host
+then replaces that item in place. Its `media` is null when the code set the
+output to nothing or cleared it. For example, a cell that runs again has no
+output until it shows something, so a client can keep the previous result
+visible until then, and blank it when the new execution clears its output.
+
+Background work may also replace an output while its execution is retained,
+including after the execution completes. Updates from a removed execution MUST
+NOT affect a newer execution of the same cell.
 
 ### Inputs
 

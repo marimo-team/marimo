@@ -782,9 +782,7 @@ async def test_outputs_restored_from_the_session_cache_are_current_results(
     ) as c:
         restored = (await c.snapshot()).latest(c.cells["shown"])
         assert restored is not None
-        assert restored.state.outcome == protocol.ValueOutcome(
-            protocol.DisplayData(mimetype="text/plain", data="42")
-        )
+        assert restored.state.outcome == protocol.SucceededOutcome()
         # No run of this notebook's runtime produced it.
         assert (restored.run_id, restored.runtime_id) == (None, None)
         assert [

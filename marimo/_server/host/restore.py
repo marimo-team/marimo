@@ -110,9 +110,13 @@ def executions_from_session(
 
 def _result(cell: DocumentCell, stored: Cell) -> CellExecution | None:
     execution_id = mint(protocol.ExecutionId, "ex")
-    outcome = _outcome(cell, stored["outputs"])
+    outcome, shown = _outcome(cell, stored["outputs"])
     console = _console(execution_id, stored["console"])
-    if outcome == protocol.ValueOutcome(None) and not console:
+    if (
+        outcome == protocol.SucceededOutcome()
+        and shown is None
+        and not console
+    ):
         return None
     return CellExecution(
         protocol.Execution(
@@ -130,6 +134,13 @@ def _result(cell: DocumentCell, stored: Cell) -> CellExecution | None:
             ),
         ),
         console,
+        output=None
+        if shown is None
+        else protocol.Output(
+            id=protocol.ItemId(f"{execution_id}:output"),
+            execution_id=execution_id,
+            media=shown,
+        ),
     )
 
 
@@ -193,11 +204,11 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
 
 def _outcome(
     cell: DocumentCell, outputs: Sequence[OutputType]
-) -> protocol.Outcome:
-    """The first stored output that shows something, as an outcome."""
+) -> tuple[protocol.Outcome, protocol.DisplayData | None]:
+    """How the stored result ended, and the first output that shows something."""
     for output in outputs:
         if output["type"] == "error":
-            return _failure(cell, output)
+            return _failure(cell, output), None
         if output["type"] == "data" and output["data"]:
             data = output["data"]
             mimetype, value = (
@@ -206,8 +217,8 @@ def _outcome(
                 else ("application/vnd.marimo+mimebundle", data)
             )
             if (mimetype, value) != ("text/plain", ""):
-                return protocol.ValueOutcome(displayed(mimetype, value))
-    return protocol.ValueOutcome(None)
+                return protocol.SucceededOutcome(), displayed(mimetype, value)
+    return protocol.SucceededOutcome(), None
 
 
 def _console(
