@@ -4352,6 +4352,10 @@ def test_violin_click_with_empty_point_numbers_produces_no_rows() -> None:
         "datetime_objects",
         "datetime64_D",
         "datetime64_us",
+        "datetime64_ns",
+        "pd_timestamp_list",
+        "pd_datetime_index",
+        "pd_series",
         "iso_strings",
     ],
 )
@@ -4369,6 +4373,7 @@ def test_bar_chart_date_x_axis_selection(
     import datetime as dt
 
     import numpy as np
+    import pandas as pd
 
     days = [
         dt.date(2026, 1, 5),
@@ -4380,6 +4385,10 @@ def test_bar_chart_date_x_axis_selection(
         "datetime_objects": [dt.datetime.combine(d, dt.time()) for d in days],
         "datetime64_D": np.array(days, dtype="datetime64[D]"),
         "datetime64_us": np.array(days, dtype="datetime64[us]"),
+        "datetime64_ns": np.array(days, dtype="datetime64[ns]"),
+        "pd_timestamp_list": [pd.Timestamp(d) for d in days],
+        "pd_datetime_index": pd.DatetimeIndex(days),
+        "pd_series": pd.Series(pd.to_datetime(days)),
         "iso_strings": [d.isoformat() for d in days],
     }
     x = variants[variant]
@@ -4484,6 +4493,34 @@ def test_bar_chart_mixed_invalid_and_compact_iso_dates() -> None:
             fig_compact, "2026-01-05", "2026-01-06 12:00", 0, 3
         )
     ] == [0, 1]
+
+
+def test_bar_chart_horizontal_date_y_axis_and_reversed_bounds() -> None:
+    """Horizontal bar charts with date y-axis and reversed selection bounds."""
+    import datetime as dt
+
+    days = [
+        dt.date(2026, 1, 5),
+        dt.date(2026, 1, 6),
+        dt.date(2026, 1, 7),
+    ]
+    fig_h = go.Figure(go.Bar(x=[1, 2, 3], y=days, orientation="h"))
+    plot_h = plotly(fig_h)
+    reversed_selection: dict[str, Any] = {
+        "range": {
+            "x": [3, 0],
+            "y": ["2026-01-06 12:00:00.0000", "2026-01-05 00:00:00.0000"],
+        },
+        "points": [],
+        "indices": [],
+    }
+    result_h = plot_h._convert_value(reversed_selection)
+    assert [p["pointIndex"] for p in result_h] == [0, 1]
+
+    fallback_h = _extract_bars_fallback(
+        fig_h, 0, 3, "2026-01-05 00:00:00.0000", "2026-01-06 12:00:00.0000"
+    )
+    assert [p["pointIndex"] for p in fallback_h] == [0, 1]
 
 
 def test_scatter_datetime64_bounds_selection() -> None:
