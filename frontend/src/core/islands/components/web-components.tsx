@@ -24,6 +24,7 @@ import {
   extractIslandCodeFromEmbed,
   findIslandCodeEditor,
   retainIslandSource,
+  trackIslandCodeEditor,
 } from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
 
@@ -191,6 +192,8 @@ export class MarimoIslandElement extends HTMLElement {
   private extractRenderConfig(): IslandRenderConfig {
     const output = this.querySelectorOrThrow(MarimoIslandElement.outputTagName);
     const initialOutput = output.innerHTML;
+    // Mark the code editor before rendering replaces the source DOM.
+    trackIslandCodeEditor(this);
     const optionalEditor = this.getOptionalEditor();
     const code = this.code;
     retainIslandSource(this, { code, output: initialOutput });
