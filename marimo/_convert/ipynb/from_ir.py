@@ -121,12 +121,11 @@ def convert_from_ir_to_ipynb(
         # Get outputs if session_view is provided
         outputs: list[NotebookNode] = []
         if session_view is not None:
-            cell_output = session_view.get_cell_outputs([cid]).get(cid, None)
-            cell_console_outputs = session_view.get_cell_console_outputs(
-                [cid]
-            ).get(cid, [])
+            selected = session_view.outputs_for_export(
+                cid, cell_data.code, for_display=True
+            )
             outputs = _convert_marimo_output_to_ipynb(
-                cell_output, cell_console_outputs
+                selected.output, selected.console
             )
 
         notebook_cell = _create_ipynb_cell(
