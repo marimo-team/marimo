@@ -276,8 +276,14 @@ class ScopedVisitor(ast.NodeVisitor):
             if mangle_prefix is None
             else mangle_prefix
         )
-        self.is_local = (lambda _: False) if ignore_local else is_local
+        self._ignore_local = ignore_local
         self.language: Language = "python"
+
+    def is_local(self, name: str) -> bool:
+        return not self._ignore_local and is_local(name)
+
+    def _mangle(self, name: str) -> str:
+        return f"_{self.id}{name}"
 
     @property
     def defs(self) -> set[Name]:
@@ -338,7 +344,7 @@ class ScopedVisitor(ast.NodeVisitor):
         if self.is_local(name) and (
             len(self.block_stack) == 1 or ignore_scope
         ):
-            return f"_{self.id}{name}"
+            return self._mangle(name)
         else:
             return name
 
