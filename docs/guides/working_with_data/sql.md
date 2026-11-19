@@ -81,7 +81,9 @@ interact with the query result.
 The SQL statement itself is an f-string, letting you
 interpolate Python values into the query with `{}`. In particular, this means
 your SQL queries can depend on the values of UI elements or other Python values,
-and they are fit into marimo's reactive dataflow graph.
+and they are fit into marimo's reactive dataflow graph. The values become part
+of the SQL text, so read the section on [avoiding SQL injection](#avoiding-sql-injection)
+before interpolating input that other people can control.
 
 ## SQL Output Types
 
@@ -183,16 +185,90 @@ SELECT * FROM my_table
 
 ### Other UI elements
 
-SQL queries can interpolate any Python value, so dropdowns, sliders, text inputs, and other UI elements already trigger re-queries when their values change. See the [`parametrizing_sql_queries.py` example](https://github.com/marimo-team/marimo/blob/main/examples/sql/parametrizing_sql_queries.py) on GitHub.
+SQL queries can interpolate any Python value, so dropdowns, sliders, text inputs, and other UI elements already trigger re-queries when their values change. See the [`parametrizing_sql_queries.py` example](https://github.com/marimo-team/marimo/blob/main/examples/sql/parametrizing_sql_queries.py) on GitHub. If other people can type into a text input, bind its value as a parameter instead; see the section on [avoiding SQL injection](#avoiding-sql-injection).
 
 ## Escaping SQL brackets
 
-Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
+Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which lets you interpolate Python values into SQL like `SELECT * from table where value < {min}`.
 
-To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
+To escape real `{`/`}` that you don't want interpolated, use double `{{...}}`:
 
 ```sql
 SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
+```
+
+## Avoiding SQL injection
+
+Using `{}` inserts a Python value into the SQL text before the query runs. It is string formatting, not parameter binding, so the query can include any Python value that can be coerced into a string. This approach works well for values your *own* code sets.
+
+However, if someone else can supply the value, they can change the query, so don't interpolate it directly. Examples include a [`mo.ui.text`][marimo.ui.text] in a shared app, [`mo.query_params()`][marimo.query_params], and data from files or APIs you don't control.
+
+!!! warning "Unsafe: interpolating untrusted input"
+
+    ```sql
+    SELECT * FROM df WHERE species = '{species.value}'
+    ```
+
+    If `species` is a text input, typing `setosa' OR '1'='1` makes this query
+    return every row. Other inputs can end the statement and run new ones, for
+    example to create or drop tables.
+
+### Bind values with parameters
+
+To use an untrusted value, pass it to the database separately from the SQL
+text with parameter binding. The database never parses the value as SQL.
+marimo's SQL cells don't accept parameters, so you'll need to use a Python cell instead. With DuckDB, use `?`
+placeholders and a list:
+
+```python
+import duckdb
+
+result = duckdb.sql(
+    "SELECT * FROM df WHERE species = ?",
+    params=[species.value],
+).pl()
+```
+
+or named `$name` placeholders and a dictionary:
+
+```python
+result = duckdb.sql(
+    "SELECT * FROM df WHERE species = $species",
+    params={"species": species.value},
+).pl()
+```
+
+Typing `setosa' OR '1'='1` now matches no rows, because it is compared with
+`species` as an ordinary string. See DuckDB's
+[prepared statements](https://duckdb.org/docs/stable/sql/query_syntax/prepared_statements)
+documentation for more. For other databases, use the parameter binding of your
+database's Python library; placeholder syntax varies between libraries.
+
+!!! tip "Keep the query as the only positional argument"
+
+    marimo reads the query to find the dataframes and tables it uses, like `df`
+    above, so the cell reruns when they change. For `duckdb.sql` and
+    `duckdb.execute`, it does this only when the query is a string literal and
+    the only positional argument. Write the query inline and pass parameters by
+    keyword: `params=` for `duckdb.sql`, `parameters=` for `duckdb.execute`.
+
+### Use an allowlist for table and column names
+
+Parameters can't stand in for identifiers such as table or column names. To let users of a marimo app choose an identifier safely, offer them a fixed set of choices, for example with a [`mo.ui.dropdown`][marimo.ui.dropdown]:
+
+```python
+sort_column = mo.ui.dropdown(
+    options=["species", "petal_length"],
+    value="species",
+    label="Sort by",
+)
+sort_column
+```
+
+and interpolate its value in a SQL cell:
+
+```sql
+SELECT * FROM df ORDER BY {sort_column.value}
 ```
 
 ## Connecting to a custom database
