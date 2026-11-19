@@ -62,7 +62,7 @@ class SubmissionReport(msgspec.Struct, forbid_unknown_fields=True):
 class RecipientResult(msgspec.Struct, frozen=True):
     """The submission outcome for one recipient.
 
-    Args:
+    Attributes:
         agent_id (str): Selected logical Agent ID.
         name (str | None): Display name, absent for an unknown recipient.
         status (SubmissionStatus): `rejected` permits a safe retry. `unknown`
@@ -83,7 +83,7 @@ class RecipientResult(msgspec.Struct, frozen=True):
 class SendResult(msgspec.Struct, frozen=True):
     """Submission outcomes for one send or broadcast.
 
-    Args:
+    Attributes:
         message_id (str): UUID created for this call.
         recipients (tuple[RecipientResult, ...]): One outcome per recipient.
             An empty broadcast has no recipients.
@@ -96,7 +96,7 @@ class SendResult(msgspec.Struct, frozen=True):
 class AgentInfo(msgspec.Struct, frozen=True):
     """A logical agent connection within one Notebook.
 
-    Args:
+    Attributes:
         id (str): Opaque recipient ID, stable across stream reconnects.
         name (str): Display label. Names are not unique.
     """

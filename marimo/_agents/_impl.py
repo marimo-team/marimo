@@ -49,6 +49,13 @@ def available() -> bool:
     """Return whether this process supports messaging, without a request.
 
     Connected agents are not required.
+
+    Examples:
+        ```python
+        import marimo as mo
+
+        mo.agents.available()
+        ```
     """
     try:
         _connection()
@@ -62,6 +69,14 @@ def list(*, timeout: float = 30.0) -> tuple[AgentInfo, ...]:  # noqa: A001
 
     Args:
         timeout (float, optional): Maximum wait in seconds. Defaults to 30.
+
+    Examples:
+        ```python
+        import marimo as mo
+
+        agents = mo.agents.list()
+        [(agent.id, agent.name) for agent in agents]
+        ```
     """
     from marimo._runtime.agent_messaging import call
 
@@ -124,6 +139,16 @@ def send(
     Each call creates a Message ID. A reactive rerun sends again. An unknown
     outcome means another send can duplicate the message. Submission does not
     mean the model read the message or completed a task.
+
+    Examples:
+        ```python
+        import marimo as mo
+
+        agents = mo.agents.list()
+        if len(agents) == 1:
+            result = mo.agents.send({"rows": [1, 3]}, to=agents[0].id)
+            print(result.recipients)
+        ```
     """
     validate_recipient(to)
     timeout = _validate_send(message, sender, timeout)
@@ -141,6 +166,14 @@ def broadcast(
         timeout (float, optional): Total wait in seconds. Defaults to 30.
 
     An empty broadcast returns a result with no recipients.
+
+    Examples:
+        ```python
+        import marimo as mo
+
+        result = mo.agents.broadcast({"note": "The data changed."})
+        print(result.recipients)
+        ```
     """
     timeout = _validate_send(message, sender, timeout)
     return _send(message, None, sender, timeout, str(uuid4()), _connection())
@@ -177,6 +210,16 @@ def start_send(
     as with any standard future. Arguments and context are checked at the call;
     request errors appear in the future. At most four sends run at once.
     Each reactive rerun sends again. Submission does not mean task completion.
+
+    Examples:
+        ```python
+        import marimo as mo
+
+        agents = mo.agents.list()
+        if len(agents) == 1:
+            future = mo.agents.start_send({"rows": [1, 3]}, to=agents[0].id)
+            print(future.message_id)
+        ```
     """
     validate_recipient(to)
     return _start_send(message, to, sender, timeout)
@@ -194,6 +237,14 @@ def start_broadcast(
 
     The future exposes `message_id` before completion and has the same callback
     and error behavior as `start_send`. An empty broadcast has no recipients.
+
+    Examples:
+        ```python
+        import marimo as mo
+
+        future = mo.agents.start_broadcast({"note": "The data changed."})
+        print(future.message_id)
+        ```
     """
     return _start_send(message, None, sender, timeout)
 
@@ -222,6 +273,20 @@ def subscribe_connections(
     Raises:
         TypeError: The callback is not callable or returns an awaitable.
         AgentError: The editor does not answer or rejects registration.
+
+    Examples:
+        ```python
+        import marimo as mo
+
+
+        def show_connections(agents):
+            print([(agent.id, agent.name) for agent in agents])
+
+
+        unsubscribe = mo.agents.subscribe_connections(show_connections)
+        ```
+
+        To remove the subscription, run `unsubscribe()`.
     """
     if not callable(callback):
         raise TypeError("Agent connection callback must be callable")
