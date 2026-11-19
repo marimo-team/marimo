@@ -92,13 +92,15 @@ export function SendErrorReportButton({
       const outcomes = result.recipients.map((outcome) =>
         formatOutcome(outcome, labels),
       );
-      if (outcomes.length === 1) {
+      if (outcomes.length === 0) {
+        agentToast({ title: "No agent can receive messages" });
+      } else if (outcomes.length === 1) {
         const outcome = outcomes[0];
         agentToast({
           title: outcome.title,
           ...(outcome.detail ? { description: outcome.detail } : {}),
         });
-      } else if (outcomes.length > 1) {
+      } else {
         agentToast({
           title: "Agent message outcomes",
           description: outcomes
@@ -133,7 +135,7 @@ export function SendErrorReportButton({
         size="xs"
         variant="outline"
         disabled={disabled}
-        onClick={() => send({ broadcast: true })}
+        onClick={() => send({ to: agents[0].id })}
       >
         {label}
       </Button>

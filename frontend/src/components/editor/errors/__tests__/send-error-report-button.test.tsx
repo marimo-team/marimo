@@ -187,7 +187,7 @@ describe("SendErrorReportButton", () => {
         message_id: expect.any(String),
         message: REPORT,
         sender: "marimo error report",
-        broadcast: true,
+        to: "pi-thread",
       }),
     );
   });
@@ -253,7 +253,7 @@ describe("SendErrorReportButton", () => {
     expect(API.post).not.toHaveBeenCalled();
   });
 
-  it("builds content on click and sends it to all agents", async () => {
+  it("builds content on click and sends it to the one agent", async () => {
     const getContent = vi.fn(() => REPORT);
     renderButton({
       attachments: [AGENT, { ...AGENT, id: "a2", name: "Claude Code" }],
@@ -271,7 +271,7 @@ describe("SendErrorReportButton", () => {
       ROUTE,
       expect.objectContaining({
         message_id: expect.any(String),
-        broadcast: true,
+        to: "pi-thread",
         message: REPORT,
       }),
     );
@@ -341,6 +341,24 @@ describe("SendErrorReportButton", () => {
       const body = vi.mocked(API.post).mock.calls[0][1];
       expect(body).toMatchObject({ broadcast: true, message: REPORT });
       expect(body).not.toHaveProperty("to");
+    });
+
+    it("reports a broadcast that no agent can receive", async () => {
+      vi.mocked(API.post).mockResolvedValue({
+        message_id: "m",
+        recipients: [],
+      });
+      renderButton({ attachments: [AGENT, CODEX] });
+      openMenu();
+      fireEvent.click(
+        await screen.findByRole("menuitem", { name: "Send to all agents" }),
+      );
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith({
+          title: "No agent can receive messages",
+          duration: 3000,
+        }),
+      );
     });
 
     it("tells agents with the same name apart", async () => {
@@ -538,7 +556,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: {
             ...REPORT,
             output: {
@@ -585,7 +603,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: {
             ...REPORT,
             output: {
@@ -626,7 +644,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: {
             ...REPORT,
             output: {
@@ -695,7 +713,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: {
             ...REPORT,
             output: {
@@ -726,7 +744,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: updated,
         }),
       ),
@@ -748,7 +766,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: content,
         }),
       ),
@@ -793,7 +811,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: REPORT,
         }),
       ),
@@ -810,7 +828,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: {
             ...REPORT,
             code: undefined,
@@ -861,7 +879,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: {
             type: "cell-output",
             cell_id: CELL_ID,
@@ -893,7 +911,7 @@ describe("SendErrorReportButton", () => {
         ROUTE,
         expect.objectContaining({
           message_id: expect.any(String),
-          broadcast: true,
+          to: "pi-thread",
           message: {
             type: "cell-output",
             cell_id: CELL_ID,

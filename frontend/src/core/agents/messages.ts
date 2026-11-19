@@ -2,6 +2,7 @@
 
 import type { StableSessionId } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
+import { generateUUID } from "@/utils/uuid";
 
 /** One agent by its Agent ID, or every connected agent. */
 export type AgentRecipient = { to: string } | { broadcast: true };
@@ -33,6 +34,6 @@ export function sendAgentMessage(
 ): Promise<SendResult> {
   return API.post<MessageRequest, SendResult>(
     `/pair/notebooks/${encodeURIComponent(sessionId)}/messages`,
-    { message_id: crypto.randomUUID(), message, ...recipient, sender },
+    { message_id: generateUUID(), message, ...recipient, sender },
   );
 }
