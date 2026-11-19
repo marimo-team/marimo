@@ -91,6 +91,10 @@
 }
 
 @container (max-width: 360px) {
+  .chat-model-provider-icon {
+    display: none;
+  }
+
   .sidebar-panel-actions:not(:empty) {
     order: 1;
     flex-basis: 100%;

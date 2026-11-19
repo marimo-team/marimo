@@ -129,7 +129,7 @@ export function ChatModelPicker({
         >
           <AiProviderIcon
             provider={current.providerId}
-            className="size-3.5 shrink-0"
+            className="chat-model-provider-icon size-3.5 shrink-0"
           />
           <span className="truncate">{displayName}</span>
           {effortLabel && (
