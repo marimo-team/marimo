@@ -16,7 +16,11 @@ import {
   type ProviderId,
   type QualifiedModelId,
 } from "@/core/ai/ids/ids";
-import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
+import {
+  type AiModel,
+  AiModelRegistry,
+  listConfiguredModelIds,
+} from "@/core/ai/model-registry";
 import { aiAtom, completionAtom } from "@/core/config/config";
 import { capitalize } from "@/utils/strings";
 import { useOpenSettingsToTab } from "../app-config/state";
@@ -68,21 +72,8 @@ export const AIModelDropdown = ({
   const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
 
-  // Only include autocompleteModel if copilot is set to "custom"
-  const autocompleteModel =
-    completion.copilot === "custom"
-      ? ai?.models?.autocomplete_model
-      : undefined;
-
   const aiModelRegistry = AiModelRegistry.create({
-    // We add all the custom models and the models used in the editor.
-    // If they among the known models, they won't overwrite them.
-    customModels: [
-      ...(ai?.models?.custom_models ?? []),
-      ai?.models?.chat_model,
-      autocompleteModel,
-      ai?.models?.edit_model,
-    ].filter(Boolean),
+    customModels: listConfiguredModelIds(ai?.models, completion.copilot),
     displayedModels: ai?.models?.displayed_models,
   });
   const modelsByProvider = listModelsForAiSettings(

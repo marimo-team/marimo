@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from pathlib import Path
 
-    from pydantic_ai.settings import ThinkingLevel
+    from marimo._server.models.completion import ReasoningEffort
 
 
 @pytest.mark.parametrize(
@@ -1837,19 +1837,19 @@ def test_session_headers_do_not_affect_other_providers() -> None:
 
 @pytest.mark.requires("openai", "pydantic_ai")
 @pytest.mark.parametrize(
-    ("model_id", "thinking", "expected"),
+    ("model_id", "effort"),
     [
-        ("openai/gpt-5.6-terra", "max", "max"),
-        ("custom-endpoint/gpt-5", "xhigh", "xhigh"),
-        ("ollama/minimax-m3.1-flash", "max", "max"),
-        ("ollama/minimax-m3.1-flash", None, None),
-        ("wandb/reflection/Beam-1.0-501B-A23B", "max", "max"),
-        ("opencode-go/kimi-k3.1-pro", "max", "max"),
-        ("openrouter/openai/gpt-5", False, "none"),
+        ("openai/gpt-5.6-terra", "max"),
+        ("custom-endpoint/gpt-5", "xhigh"),
+        ("ollama/minimax-m3.1-flash", "max"),
+        ("ollama/minimax-m3.1-flash", None),
+        ("wandb/reflection/Beam-1.0-501B-A23B", "max"),
+        ("opencode-go/kimi-k3.1-pro", "max"),
+        ("openrouter/openai/gpt-5", "none"),
     ],
 )
 async def test_agent_sends_reasoning_effort_to_provider(
-    model_id: str, thinking: ThinkingLevel | None, expected: str | None
+    model_id: str, effort: ReasoningEffort | None
 ) -> None:
     import httpx
     from openai import AsyncOpenAI
@@ -1881,7 +1881,7 @@ async def test_agent_sends_reasoning_effort_to_provider(
             system_prompt="Help with the notebook.",
             max_tokens=512,
             enable_capabilities=False,
-            thinking=thinking,
+            reasoning_effort=effort,
         )
         with pytest.raises(ModelHTTPError, match="Captured request"):
             await agent.run("Hello")
@@ -1889,5 +1889,5 @@ async def test_agent_sends_reasoning_effort_to_provider(
     (body,) = requests
     assert (
         body.get("reasoning_effort", body.get("reasoning", {}).get("effort"))
-        == expected
+        == effort
     )

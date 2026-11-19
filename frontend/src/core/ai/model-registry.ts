@@ -3,6 +3,7 @@
 import type { AiModel as AiModelType, AiProvider } from "@marimo-team/llm-info";
 import { models as modelsJson } from "@marimo-team/llm-info/models.json";
 import { providers as providersJson } from "@marimo-team/llm-info/providers.json";
+import type { AiConfig, UserConfig } from "@/core/config/config-schema";
 import { Logger } from "@/utils/Logger";
 import { MultiMap } from "@/utils/multi-map";
 import { once } from "@/utils/once";
@@ -15,6 +16,18 @@ export interface AiModel extends AiModelType {
   provider: ProviderId;
   /** Whether this is a custom model. */
   custom: boolean;
+}
+
+export function listConfiguredModelIds(
+  models: Partial<AiConfig["models"]> | undefined,
+  copilot: UserConfig["completion"]["copilot"],
+): string[] {
+  return [
+    ...(models?.custom_models ?? []),
+    models?.chat_model,
+    copilot === "custom" ? models?.autocomplete_model : undefined,
+    models?.edit_model,
+  ].filter(Boolean);
 }
 
 // JSON shape matches the `AiModel` schema (Zod-validated at codegen time).

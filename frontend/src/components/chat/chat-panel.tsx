@@ -310,7 +310,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       <TooltipProvider>
         <div
           ref={footerRef}
-          className="chat-input-footer px-3 py-2 border-t border-border/20 flex items-center gap-2"
+          className="px-3 py-2 border-t border-border/20 flex items-center gap-2"
         >
           <div className="flex min-w-0 flex-1 items-center gap-1">
             <NotebookAccessSelector
@@ -319,7 +319,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             />
             <ChatModelPicker anchorRef={footerRef} />
           </div>
-          <div className="chat-input-actions flex shrink-0 items-center gap-0.5 ml-auto">
+          <div className="flex shrink-0 items-center gap-0.5 ml-auto">
             <AttachFileButton
               fileInputRef={fileInputRef}
               isLoading={isLoading}

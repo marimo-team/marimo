@@ -868,7 +868,8 @@ def test_chat_without_code(
             )
 
             assert (
-                mock_stream_completion.call_args.kwargs["thinking"] == effort
+                mock_stream_completion.call_args.kwargs["reasoning_effort"]
+                == effort
             )
 
     check_chat(client, temp_marimo_file)
@@ -939,22 +940,12 @@ def _openai_config_code_mode() -> MarimoConfig:
     return config
 
 
-@pytest.mark.parametrize(
-    ("effort", "expected_thinking"),
-    [
-        (None, None),
-        ("none", False),
-        ("minimal", "minimal"),
-        ("xhigh", "xhigh"),
-        ("max", "max"),
-    ],
-)
+@pytest.mark.parametrize("effort", [None, "none", "minimal", "xhigh", "max"])
 @pytest.mark.requires("openai", "pydantic_ai")
 def test_chat_code_mode_routes_to_harness(
     client: TestClient,
     temp_marimo_file: str,
     effort: str | None,
-    expected_thinking: str | bool | None,
 ) -> None:
     @with_session(SESSION_ID)
     @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
@@ -1010,7 +1001,7 @@ def test_chat_code_mode_routes_to_harness(
         kwargs = mock_harness.call_args.kwargs
         assert kwargs["session"] is not None
         assert kwargs["enable_capabilities"] is True
-        assert kwargs["thinking"] == expected_thinking
+        assert kwargs["reasoning_effort"] == effort
         assert "how to work with marimo" in kwargs["system_prompt"]
 
     check_chat(client, temp_marimo_file)

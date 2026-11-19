@@ -90,6 +90,7 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import StreamingResponse
 
+    from marimo._server.models.completion import ReasoningEffort
     from marimo._session import Session
 
 
@@ -113,18 +114,13 @@ class BaseModelSettings:
 ProviderT_co = TypeVar("ProviderT_co", bound="Provider", covariant=True)
 
 
-def _explicit_thinking_settings(
-    model: Model, thinking: ThinkingLevel
+def _reasoning_effort_settings(
+    model: Model, effort: ReasoningEffort
 ) -> ModelSettings:
     from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
     from pydantic_ai.models.openrouter import OpenRouterModel
     from pydantic_ai.settings import ThinkingEffort
 
-    if thinking is True:
-        return {"thinking": True}
-    effort: ThinkingEffort | Literal["none"] = (
-        "none" if thinking is False else thinking
-    )
     if isinstance(model, OpenRouterModel):
         settings: OpenRouterModelSettings = {
             "openrouter_reasoning": {"effort": effort}
@@ -136,9 +132,9 @@ def _explicit_thinking_settings(
             "openai_reasoning_effort": effort
         }
         return openai_settings
-    if thinking == "max" and "max" not in get_args(ThinkingEffort):
-        thinking = "xhigh"
-    return {"thinking": thinking}
+    if effort == "max" and "max" not in get_args(ThinkingEffort):
+        effort = "xhigh"
+    return {"thinking": False if effort == "none" else effort}
 
 
 def _structured_completion_finish_reason(
@@ -204,7 +200,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         extra_capabilities: Sequence[AbstractCapability[None]] | None = None,
         enable_capabilities: bool = True,
         system_prompt: str,
-        thinking: ThinkingLevel | None = None,
+        reasoning_effort: ReasoningEffort | None = None,
     ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent."""
         from pydantic_ai import Agent
@@ -222,10 +218,12 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         )
 
         settings = self._build_model_settings(model, max_tokens)
-        if thinking is not None:
+        if reasoning_effort is not None:
             settings = {**(settings or {})}
             settings.pop("thinking", None)
-            settings.update(_explicit_thinking_settings(model, thinking))
+            settings.update(
+                _reasoning_effort_settings(model, reasoning_effort)
+            )
 
         return Agent(
             model,
@@ -393,7 +391,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         additional_tools: list[ToolDefinition],
         stream_options: StreamOptions,
         enable_capabilities: bool = True,
-        thinking: ThinkingLevel | None = None,
+        reasoning_effort: ReasoningEffort | None = None,
     ) -> StreamingResponse:
         """Return a streaming response from the given messages. The response are AI SDK events."""
         tools = (self.config.tools or []) + additional_tools
@@ -404,7 +402,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             tools=tools,
             system_prompt=system_prompt,
             enable_capabilities=enable_capabilities,
-            thinking=thinking,
+            reasoning_effort=reasoning_effort,
         )
         stream_options.span_info.tool_count = len(tools) + len(
             agent.root_capability.capabilities
@@ -484,7 +482,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         max_tokens: int | None,
         stream_options: StreamOptions,
         enable_capabilities: bool = False,
-        thinking: ThinkingLevel | None = None,
+        reasoning_effort: ReasoningEffort | None = None,
     ) -> StreamingResponse:
         """Return code-mode streaming responses"""
         from marimo._server.ai.tools.code_mode import (
@@ -499,7 +497,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             toolsets=[build_execute_code_toolset(session, request)],
             extra_capabilities=references_capability(),
             enable_capabilities=enable_capabilities,
-            thinking=thinking,
+            reasoning_effort=reasoning_effort,
             system_prompt=system_prompt,
         )
 

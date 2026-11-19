@@ -61,11 +61,7 @@ export function ChatModelPicker({
   const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
   const { current, reasoningOptions, registry, displayName } = useMemo(
-    () =>
-      getChatModelConfig(
-        ai,
-        copilot === "custom" ? ai?.models?.autocomplete_model : undefined,
-      ),
+    () => getChatModelConfig(ai, copilot),
     [ai, copilot],
   );
   const options = getEffectiveChatOptions(storedOptions, reasoningOptions);
@@ -97,11 +93,10 @@ export function ChatModelPicker({
     ])
     .filter(([, models]) => models.length > 0);
   const activeProvider = selectedProvider ?? current.providerId;
-  const providerModels = modelsByProvider.find(
-    ([provider]) => provider === activeProvider,
-  );
-  const visibleProvider = providerModels?.[0] ?? modelsByProvider[0]?.[0];
-  const visibleModels = providerModels?.[1] ?? modelsByProvider[0]?.[1] ?? [];
+  const [visibleProvider, visibleModels = []] =
+    modelsByProvider.find(([provider]) => provider === activeProvider) ??
+    modelsByProvider[0] ??
+    [];
   const effort = options.reasoningEffort;
   const effortLabel = reasoningOptions.find(
     (option) => option.value === effort,
@@ -172,7 +167,7 @@ export function ChatModelPicker({
             provider.focus({ preventScroll: true });
           }
         }}
-        className="chat-model-picker w-[520px] max-w-[calc(100vw-2rem)] p-0 scrollbar-thin"
+        className="w-[520px] max-w-[calc(100vw-2rem)] p-0 scrollbar-thin"
       >
         <div className="chat-model-picker-layout flex">
           <nav

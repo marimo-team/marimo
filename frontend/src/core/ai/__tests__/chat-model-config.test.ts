@@ -48,8 +48,15 @@ describe("chat model configuration", () => {
   it("offers custom models configured for edit and autocomplete in chat", () => {
     const ai = defaultUserConfig().ai;
     const { registry } = getChatModelConfig(
-      { ...ai, models: { ...ai.models, edit_model: "ollama/team-coder" } },
-      "ollama/team-complete",
+      {
+        ...ai,
+        models: {
+          ...ai.models,
+          edit_model: "ollama/team-coder",
+          autocomplete_model: "ollama/team-complete",
+        },
+      },
+      "custom",
     );
     expect(
       registry
