@@ -846,6 +846,39 @@ def test_transform_remove_duplicate_imports_same_cell_rebinding():
     assert result == sources[:2] + [""]
 
 
+def test_transform_remove_duplicate_imports_keeps_submodule_alias():
+    # `import xml.etree` binds the package, `import xml.etree as xml` binds
+    # the submodule, so neither is a duplicate of the other.
+    for second in ("import xml.etree as xml", "from xml import etree as xml"):
+        sources = ["import xml.etree", second]
+        assert transform_remove_duplicate_imports(sources) == sources
+
+
+def test_transform_remove_duplicate_imports_removes_repeated_dotted_import():
+    sources = ["import os.path", "import os.path"]
+    result = transform_remove_duplicate_imports(sources)
+    assert result == ["import os.path", ""]
+
+
+def test_transform_remove_duplicate_imports_keeps_star_import():
+    sources = [
+        "import math",
+        "from os.path import *\nimport math",
+    ]
+    result = transform_remove_duplicate_imports(sources)
+    assert result == ["import math", "from os.path import *\nimport math"]
+
+
+def test_transform_remove_duplicate_imports_star_import_invalidates():
+    # The star import may rebind `join`, so the later import is not a duplicate.
+    sources = [
+        "from posixpath import join",
+        "from ntpath import *",
+        "from posixpath import join",
+    ]
+    assert transform_remove_duplicate_imports(sources) == sources
+
+
 def test_transform_fixup_multiple_definitions_keeps_dotted_import():
     sources = [
         "import os.path\nprint(os.path.sep)",

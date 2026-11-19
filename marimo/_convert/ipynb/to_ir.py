@@ -1344,7 +1344,8 @@ def bind_cell_metadata(
     return cells
 
 
-ImportIdentity = tuple[str, int]
+# (imported path, relative level, whether it binds the root package)
+ImportIdentity = tuple[str, int, bool]
 
 
 def _imported_bindings(
@@ -1352,8 +1353,13 @@ def _imported_bindings(
 ) -> list[tuple[ast.alias, str, ImportIdentity]]:
     """Each alias with the name it binds and the object it imports."""
     if isinstance(node, ast.Import):
+        # `import a.b` binds `a`, whereas `import a.b as a` binds `a.b`.
         return [
-            (alias, alias.asname or alias.name.split(".")[0], (alias.name, 0))
+            (
+                alias,
+                alias.asname or alias.name.split(".")[0],
+                (alias.name, 0, alias.asname is None and "." in alias.name),
+            )
             for alias in node.names
         ]
     module = node.module or ""
@@ -1361,7 +1367,7 @@ def _imported_bindings(
         (
             alias,
             alias.asname or alias.name,
-            (f"{module}.{alias.name}", node.level),
+            (f"{module}.{alias.name}", node.level, False),
         )
         for alias in node.names
         if alias.name != "*"
@@ -1388,6 +1394,14 @@ def transform_remove_duplicate_imports(sources: list[str]) -> list[str]:
         removed_any = False
         kept: list[ast.stmt] = []
         for stmt in tree.body:
+            if isinstance(stmt, ast.ImportFrom) and any(
+                alias.name == "*" for alias in stmt.names
+            ):
+                # A star import binds unknown names, so it is always kept
+                # and any tracked binding may have been overwritten.
+                bindings.clear()
+                kept.append(stmt)
+                continue
             if not isinstance(stmt, (ast.Import, ast.ImportFrom)):
                 visitor = ScopedVisitor("", ignore_local=True)
                 visitor.visit(stmt)
