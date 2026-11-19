@@ -73,7 +73,10 @@ class RunLog:
                         request_id if isinstance(request_id, str) else None,
                     )
                 entry.event = event
-                if run.status == "completed" and entry.completed_at is None:
+                if (
+                    isinstance(run.state, protocol.RunCompleted)
+                    and entry.completed_at is None
+                ):
                     entry.completed_at = self._clock()
                 return self._close(run.id)
             case protocol.ExecutionEvent(

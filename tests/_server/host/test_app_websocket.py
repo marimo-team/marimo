@@ -104,7 +104,7 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
                 executions.append(event["data"]["execution"])
             if (
                 event["event"] == "run"
-                and event["data"]["run"]["status"] == "completed"
+                and event["data"]["run"]["state"]["status"] == "completed"
             ):
                 break
         assert executions

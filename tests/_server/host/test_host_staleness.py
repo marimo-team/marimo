@@ -85,13 +85,13 @@ class Client:
                 for r in response.records
                 if (run := r.get("data", {}).get("run", {})).get("id")
                 == run_id
-                and run["status"] == "completed"
+                and run["state"]["status"] == "completed"
             ]
 
         while not completed(self.events):
             self.events.changed.clear()
             await self.events.changed.wait()
-        assert completed(self.events)[-1]["outcome"] == outcome
+        assert completed(self.events)[-1]["state"]["outcome"] == outcome
 
     async def edit(self, cell: str, code: str) -> None:
         edited = await finished(

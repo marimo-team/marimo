@@ -20,7 +20,7 @@ export const Lifecycle = Schema.Literals([
   "completed",
 ]).annotate({
   description:
-    "Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. A run is `queued` until its first\nexecution starts, `running` until its cycle has settled or been cut\nshort, and `completed` once no more work can join it. How either\nended is its `outcome`.\n",
+    "Where an execution is in its lifecycle. An execution is `queued`\nuntil it starts, `running` while code executes, and `completed`\nonce it has ended. How it ended is its `outcome`.\n",
   identifier: "Lifecycle",
 });
 
@@ -64,6 +64,41 @@ export const RunOrigin = Schema.Union([
   identifier: "RunOrigin",
 });
 
+export const RunQueued = Schema.Struct({
+  status: Schema.Literal("queued"),
+}).annotate({ identifier: "RunQueued" });
+
+export const RunRunning = Schema.Struct({
+  status: Schema.Literal("running"),
+  started_at: Timestamp.annotateKey({
+    description: "When the first execution started.",
+  }),
+}).annotate({ identifier: "RunRunning" });
+
+export const RunCompleted = Schema.Struct({
+  status: Schema.Literal("completed"),
+  started_at: Schema.NullOr(Timestamp).annotateKey({
+    description: "When the first execution started. Null if none started.",
+  }),
+  completed_at: Timestamp.annotateKey({
+    description: "When the run ended.",
+  }),
+  outcome: RunOutcome.annotateKey({
+    description:
+      "An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
+  }),
+}).annotate({ identifier: "RunCompleted" });
+
+export const RunState = Schema.Union([
+  RunQueued,
+  RunRunning,
+  RunCompleted,
+]).annotate({
+  description:
+    "Where a run is in its lifecycle, tagged on `status`. A run is\n`queued` until its first execution starts and `running` until the\ncycle has settled or been terminated. It is `completed` once all\nmember executions are terminal and no more can be scheduled in this\nrun, and that state is final. A run can complete with no executions.\n",
+  identifier: "RunState",
+});
+
 export const Run = Schema.Struct({
   id: RunId,
   notebook_id: NotebookId,
@@ -71,20 +106,7 @@ export const Run = Schema.Struct({
     description: "The runtime that produced this run.",
   }),
   origin: RunOrigin,
-  status: Lifecycle.annotateKey({
-    description:
-      "Queued until the first execution starts, running until the cycle has settled or been terminated, and completed once all member executions are terminal and no more can be scheduled in this run. A run can complete with no executions.",
-  }),
-  outcome: Schema.NullOr(RunOutcome).annotateKey({
-    description:
-      "Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
-  }),
-  started_at: Schema.NullOr(Timestamp).annotateKey({
-    description: "When the first execution started. Null if none has started.",
-  }),
-  completed_at: Schema.NullOr(Timestamp).annotateKey({
-    description: "When the run ended. Null until the run is `completed`.",
-  }),
+  state: RunState,
 }).annotate({
   description:
     "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",

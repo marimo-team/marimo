@@ -150,7 +150,14 @@ Notebook
     └── Scratch execution
 ```
 
-Runs and executions move through `queued`, `running`, and `completed`.
+Runs and executions move through `queued`, `running`, and `completed`. A run's
+`state` holds its status together with the fields that status has, so a queued
+run has no start time and only a completed run has an outcome.
+
+    RunState { status: "queued" }
+           | { status: "running", started_at }
+           | { status: "completed", started_at, completed_at, outcome }
+
 Hosts MUST complete a run only after its executions have ended and scheduling
 for that cycle has finished. An error in one execution may occur while others
 are still working. An execution that did not evaluate because of other work in

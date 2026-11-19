@@ -453,7 +453,7 @@ async def test_running_a_cell_loads_its_imports_and_queues_the_command(
     reply = await call(bridge, "runtime.run", {"cells": [{"id": cell["id"]}]})
     assert reply["status"] == 202
     run_id = reply["body"]["id"]
-    assert latest(events, "run")["status"] == "queued"
+    assert latest(events, "run")["state"]["status"] == "queued"
     await settle()
     [command] = queued(bridge)
     assert isinstance(command, ExecuteCellsCommand)
@@ -475,7 +475,10 @@ async def test_running_a_cell_loads_its_imports_and_queues_the_command(
     assert execution["status"] == "completed"
     assert execution["code_fingerprint"] == cell["code_fingerprint"]
     run = latest(events, "run")
-    assert (run["status"], run["outcome"]) == ("completed", "succeeded")
+    assert (run["state"]["status"], run["state"]["outcome"]) == (
+        "completed",
+        "succeeded",
+    )
 
 
 async def test_running_a_cell_loads_the_imports_of_the_whole_document(
@@ -649,7 +652,10 @@ async def test_a_failed_package_load_fails_the_run(bridge):
     await settle()
     assert queued(bridge) == []
     run = latest(events, "run")
-    assert (run["status"], run["outcome"]) == ("completed", "failed")
+    assert (run["state"]["status"], run["state"]["outcome"]) == (
+        "completed",
+        "failed",
+    )
 
 
 async def test_interrupting_a_queued_run_cancels_it_in_the_kernel(bridge):
@@ -670,7 +676,10 @@ async def test_interrupting_a_queued_run_cancels_it_in_the_kernel(bridge):
         bridge, CompletedRunNotification(run_id=run_id, outcome="interrupted")
     )
     run = latest(events, "run")
-    assert (run["status"], run["outcome"]) == ("completed", "interrupted")
+    assert (run["state"]["status"], run["state"]["outcome"]) == (
+        "completed",
+        "interrupted",
+    )
 
 
 async def test_an_interrupt_right_after_submission_asks_the_kernel(bridge):
@@ -769,7 +778,10 @@ async def test_interrupting_before_submission_ends_the_run(bridge):
     await settle()
     assert queued(bridge) == []
     run = latest(events, "run")
-    assert (run["status"], run["outcome"]) == ("completed", "interrupted")
+    assert (run["state"]["status"], run["state"]["outcome"]) == (
+        "completed",
+        "interrupted",
+    )
 
 
 async def test_a_runtime_interrupt_call_answers_with_the_runtime(
@@ -843,7 +855,7 @@ async def test_a_runtime_interrupt_ends_started_queued_and_preparing_runs(
     await settle()
     assert queued(bridge) == []
     assert {
-        run_id: run["outcome"]
+        run_id: run["state"]["outcome"]
         for run_id, run in latest_by_id(events, "run").items()
     } == dict.fromkeys((first, second, third), "interrupted")
 
@@ -879,7 +891,7 @@ async def test_runs_the_kernel_schedules_appear_on_the_stream(bridge):
         event["data"]["run"] for event in events if event["event"] == "run"
     ]
     assert runs[0]["id"] == "legacy"
-    assert (runs[-1]["status"], runs[-1]["outcome"]) == (
+    assert (runs[-1]["state"]["status"], runs[-1]["state"]["outcome"]) == (
         "completed",
         "succeeded",
     )
@@ -939,8 +951,8 @@ async def test_a_later_run_proceeds_after_a_failed_load(bridge):
     )
     await settle()
     runs = latest_by_id(events, "run")
-    assert runs[first["body"]["id"]]["outcome"] == "failed"
-    assert runs[second["body"]["id"]]["status"] == "queued"
+    assert runs[first["body"]["id"]]["state"]["outcome"] == "failed"
+    assert runs[second["body"]["id"]]["state"]["status"] == "queued"
     assert [command.run_id for command in queued(bridge)] == [
         second["body"]["id"]
     ]
@@ -970,7 +982,7 @@ async def test_a_later_run_proceeds_after_its_predecessor_is_interrupted(
     assert reply["status"] == 202
     await settle()
     runs = latest_by_id(events, "run")
-    assert runs[first["body"]["id"]]["outcome"] == "interrupted"
+    assert runs[first["body"]["id"]]["state"]["outcome"] == "interrupted"
     assert [command.run_id for command in queued(bridge)] == [
         second["body"]["id"]
     ]
@@ -992,13 +1004,16 @@ async def test_a_kernel_exit_mid_run_fails_the_run(bridge):
     await settle()
     assert latest(events, "runtime")["status"] == "failed"
     run = latest(events, "run")
-    assert (run["status"], run["outcome"]) == ("completed", "failed")
+    assert (run["state"]["status"], run["state"]["outcome"]) == (
+        "completed",
+        "failed",
+    )
     assert latest(events, "execution")["outcome"] == {"kind": "interrupted"}
 
     # The dying kernel's late completion changes nothing.
     for notification in finished(cell["id"], run_id):
         deliver(bridge, notification)
-    assert latest(events, "run")["outcome"] == "failed"
+    assert latest(events, "run")["state"]["outcome"] == "failed"
     reply = await call(
         bridge, "runtime.run", {"cells": [{"id": cell["id"]}]}, key="run-2"
     )
@@ -1077,7 +1092,7 @@ async def test_a_second_subscription_sees_the_run_in_flight(bridge):
     executions = [
         e["data"]["execution"] for e in snapshot if e["event"] == "execution"
     ]
-    assert [run["status"] for run in runs] == ["running"]
+    assert [run["state"]["status"] for run in runs] == ["running"]
     assert [execution["status"] for execution in executions] == ["running"]
 
 
@@ -1111,7 +1126,10 @@ async def test_cancelling_a_middle_run_keeps_the_order(bridge):
     await settle()
     # The third still waits for the first, which is loading a package.
     assert queued(bridge) == []
-    assert latest_by_id(events, "run")[second]["outcome"] == "interrupted"
+    assert (
+        latest_by_id(events, "run")[second]["state"]["outcome"]
+        == "interrupted"
+    )
 
     gate.set()
     await settle()
@@ -1167,7 +1185,10 @@ async def test_interrupting_a_scratch_run_waiting_for_the_scratchpad(bridge):
     reply = await call(bridge, "runtime.cancel", key="stop-1", run_id=second)
     assert reply["status"] == 202
     await settle()
-    assert latest_by_id(events, "run")[second]["outcome"] == "interrupted"
+    assert (
+        latest_by_id(events, "run")[second]["state"]["outcome"]
+        == "interrupted"
+    )
     assert queued(bridge) == []
 
     deliver(
@@ -1226,9 +1247,9 @@ async def test_a_queued_scratch_run_reads_the_document_the_run_ahead_leaves(
     assert command.run_id == first
     await handlers._handle_execute_scratchpad(command)
     await settle()
-    assert latest_by_id(events, "run")[first]["outcome"] == "succeeded", (
-        latest(events, "execution")
-    )
+    assert (
+        latest_by_id(events, "run")[first]["state"]["outcome"] == "succeeded"
+    ), latest(events, "execution")
     document = bridge.session.app_manager.app.cell_manager.document
     assert document.cells[0].code == "x = 2"
 
@@ -1236,5 +1257,5 @@ async def test_a_queued_scratch_run_reads_the_document_the_run_ahead_leaves(
     assert command.run_id == second
     await handlers._handle_execute_scratchpad(command)
     runs = latest_by_id(events, "run")
-    assert runs[first]["outcome"] == "succeeded"
-    assert runs[second]["outcome"] == "succeeded"
+    assert runs[first]["state"]["outcome"] == "succeeded"
+    assert runs[second]["state"]["outcome"] == "succeeded"

@@ -225,7 +225,7 @@ class Mutations:
                     if event.event.data.request_id == key:
                         mutation.run = run
                         if (
-                            run.status == "completed"
+                            isinstance(run.state, protocol.RunCompleted)
                             and unsubscribe is not None
                         ):
                             self.settle(mutation)
@@ -252,7 +252,8 @@ class Mutations:
             elif lifecycle_accepted is not None:
                 lifecycle_accepted(task.result())
             elif mutation.expires_at is None and (
-                mutation.run is None or mutation.run.status == "completed"
+                mutation.run is None
+                or isinstance(mutation.run.state, protocol.RunCompleted)
             ):
                 self.settle(mutation)
 

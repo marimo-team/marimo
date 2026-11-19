@@ -46,7 +46,7 @@ function execution(overrides: Partial<Protocol.Execution> & { id: string }) {
 
 function run(
   cells: string[],
-  status: Protocol.Run["status"],
+  status: Protocol.RunState["status"],
   id = "run-1",
 ): Protocol.Run {
   return {
@@ -54,10 +54,17 @@ function run(
     notebook_id: "n1",
     runtime_id: "r1",
     origin: { kind: "cells", cell_ids: cells },
-    status,
-    outcome: status === "completed" ? "succeeded" : null,
-    started_at: null,
-    completed_at: null,
+    state:
+      status === "completed"
+        ? {
+            status,
+            started_at: null,
+            completed_at: "2026-10-01T09:20:02Z",
+            outcome: "succeeded",
+          }
+        : status === "running"
+          ? { status, started_at: "2026-10-01T09:20:01Z" }
+          : { status },
   };
 }
 

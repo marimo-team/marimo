@@ -630,14 +630,20 @@ export const RunOrigin = zod
 export type RunOrigin = zod.input<typeof RunOrigin>;
 export type RunOriginOutput = zod.output<typeof RunOrigin>;
 
-export const Lifecycle = zod
-  .enum(["queued", "running", "completed"])
-  .describe(
-    "Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. A run is `queued` until its first\nexecution starts, `running` until its cycle has settled or been cut\nshort, and `completed` once no more work can join it. How either\nended is its `outcome`.\n",
-  );
+export const RunQueued = zod.object({
+  status: zod.enum(["queued"]),
+});
 
-export type Lifecycle = zod.input<typeof Lifecycle>;
-export type LifecycleOutput = zod.output<typeof Lifecycle>;
+export type RunQueued = zod.input<typeof RunQueued>;
+export type RunQueuedOutput = zod.output<typeof RunQueued>;
+
+export const RunRunning = zod.object({
+  status: zod.enum(["running"]),
+  started_at: Timestamp.describe("When the first execution started."),
+});
+
+export type RunRunning = zod.input<typeof RunRunning>;
+export type RunRunningOutput = zod.output<typeof RunRunning>;
 
 export const RunOutcome = zod
   .enum(["succeeded", "failed", "interrupted"])
@@ -648,26 +654,36 @@ export const RunOutcome = zod
 export type RunOutcome = zod.input<typeof RunOutcome>;
 export type RunOutcomeOutput = zod.output<typeof RunOutcome>;
 
+export const RunCompleted = zod.object({
+  status: zod.enum(["completed"]),
+  started_at: zod
+    .union([Timestamp, zod.null()])
+    .describe("When the first execution started. Null if none started."),
+  completed_at: Timestamp.describe("When the run ended."),
+  outcome: RunOutcome.describe(
+    "An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
+  ),
+});
+
+export type RunCompleted = zod.input<typeof RunCompleted>;
+export type RunCompletedOutput = zod.output<typeof RunCompleted>;
+
+export const RunState = zod
+  .union([RunQueued, RunRunning, RunCompleted])
+  .describe(
+    "Where a run is in its lifecycle, tagged on `status`. A run is\n`queued` until its first execution starts and `running` until the\ncycle has settled or been terminated. It is `completed` once all\nmember executions are terminal and no more can be scheduled in this\nrun, and that state is final. A run can complete with no executions.\n",
+  );
+
+export type RunState = zod.input<typeof RunState>;
+export type RunStateOutput = zod.output<typeof RunState>;
+
 export const Run = zod
   .object({
     id: RunId,
     notebook_id: NotebookId,
     runtime_id: RuntimeId.describe("The runtime that produced this run."),
     origin: RunOrigin,
-    status: Lifecycle.describe(
-      "Queued until the first execution starts, running until the cycle has settled or been terminated, and completed once all member executions are terminal and no more can be scheduled in this run. A run can complete with no executions.",
-    ),
-    outcome: zod
-      .union([RunOutcome, zod.null()])
-      .describe(
-        "Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
-      ),
-    started_at: zod
-      .union([Timestamp, zod.null()])
-      .describe("When the first execution started. Null if none has started."),
-    completed_at: zod
-      .union([Timestamp, zod.null()])
-      .describe("When the run ended. Null until the run is `completed`."),
+    state: RunState,
   })
   .describe(
     "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",
@@ -737,6 +753,15 @@ export const Revision = zod
 
 export type Revision = zod.input<typeof Revision>;
 export type RevisionOutput = zod.output<typeof Revision>;
+
+export const Lifecycle = zod
+  .enum(["queued", "running", "completed"])
+  .describe(
+    "Where an execution is in its lifecycle. An execution is `queued`\nuntil it starts, `running` while code executes, and `completed`\nonce it has ended. How it ended is its `outcome`.\n",
+  );
+
+export type Lifecycle = zod.input<typeof Lifecycle>;
+export type LifecycleOutput = zod.output<typeof Lifecycle>;
 
 export const DisplayData = zod
   .object({

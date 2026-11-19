@@ -108,7 +108,7 @@ function awaited(inputs: CellExecutionInputs, id: Protocol.CellId): boolean {
     inputs.results.get(id)?.record.run_id;
   for (const run of inputs.executions.runs.values()) {
     if (
-      run.status !== "completed" &&
+      run.state.status !== "completed" &&
       run.id !== planned &&
       run.origin.kind === "cells" &&
       run.origin.cell_ids.includes(id)
@@ -177,7 +177,7 @@ export function queuedOrRunningCount(inputs: CellExecutionInputs): number {
   );
   const named = new Set<Protocol.CellId>(inputs.requested);
   for (const run of inputs.executions.runs.values()) {
-    if (run.status !== "completed" && run.origin.kind === "cells") {
+    if (run.state.status !== "completed" && run.origin.kind === "cells") {
       for (const cellId of run.origin.cell_ids) {
         named.add(cellId);
       }

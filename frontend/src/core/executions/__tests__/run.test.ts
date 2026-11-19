@@ -40,10 +40,7 @@ function accepted(cells: Protocol.CellId[]): Protocol.Run {
     notebook_id: "n1",
     runtime_id: "r1",
     origin: { kind: "cells", cell_ids: cells },
-    status: "queued",
-    outcome: null,
-    started_at: null,
-    completed_at: null,
+    state: { status: "queued" },
   };
 }
 

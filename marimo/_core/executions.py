@@ -15,6 +15,7 @@ from marimo._core.stream import utcnow
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
+    from datetime import datetime
 
     from marimo._core.document import DocumentCell
 
@@ -104,6 +105,22 @@ def _settled(outcome: protocol.Outcome | None) -> bool:
     """Whether an outcome lets its run succeed: a value, or a skip by design."""
     return isinstance(
         outcome, (protocol.ValueOutcome, protocol.SkippedOutcome)
+    )
+
+
+def _completed(
+    run: protocol.Run, outcome: protocol.RunOutcome, now: datetime
+) -> protocol.Run:
+    started_at = (
+        None
+        if isinstance(run.state, protocol.RunQueued)
+        else run.state.started_at
+    )
+    return replace(
+        run,
+        state=protocol.RunCompleted(
+            started_at=started_at, completed_at=now, outcome=outcome
+        ),
     )
 
 
@@ -199,7 +216,7 @@ class Executions:
             (
                 tracked.run
                 for tracked in self._runs.values()
-                if tracked.run.status != "completed"
+                if not isinstance(tracked.run.state, protocol.RunCompleted)
             ),
             None,
         )
@@ -240,7 +257,9 @@ class Executions:
     def snapshot_request(self, run_id: protocol.RunId | None) -> str | None:
         """The request behind a run still in progress."""
         tracked = self._runs.get(run_id) if run_id is not None else None
-        if tracked is not None and tracked.run.status != "completed":
+        if tracked is not None and not isinstance(
+            tracked.run.state, protocol.RunCompleted
+        ):
             return tracked.request_id
         return None
 
@@ -319,10 +338,7 @@ class Executions:
                                 notebook_id=runtime.notebook_id,
                                 runtime_id=runtime.id,
                                 origin=origin,
-                                status="queued",
-                                outcome=None,
-                                started_at=None,
-                                completed_at=None,
+                                state=protocol.RunQueued(),
                             )
                         )
                     )
@@ -408,7 +424,9 @@ class Executions:
             case be.Done(run_id=run_id, outcome=outcome):
                 if (
                     tracked := self._runs.get(run_id)
-                ) is not None and tracked.run.status != "completed":
+                ) is not None and not isinstance(
+                    tracked.run.state, protocol.RunCompleted
+                ):
                     members = [
                         self._results[eid].execution
                         for eid in tracked.executions
@@ -432,12 +450,7 @@ class Executions:
                         )
                     changes.append(
                         self._set_run(
-                            replace(
-                                tracked.run,
-                                status="completed",
-                                outcome=outcome,
-                                completed_at=utcnow(),
-                            )
+                            _completed(tracked.run, outcome, utcnow())
                         )
                     )
                     tracked.retired.clear()
@@ -464,16 +477,9 @@ class Executions:
                     )
                 )
         for tracked in list(self._runs.values()):
-            if tracked.run.status != "completed":
+            if not isinstance(tracked.run.state, protocol.RunCompleted):
                 changes.append(
-                    self._set_run(
-                        replace(
-                            tracked.run,
-                            status="completed",
-                            outcome=outcome,
-                            completed_at=now,
-                        )
-                    )
+                    self._set_run(_completed(tracked.run, outcome, now))
                 )
             tracked.retired.clear()
             changes.extend(self._finish_run(tracked))
@@ -502,9 +508,9 @@ class Executions:
         runtime: protocol.Runtime | None,
     ) -> list[Change]:
         changes: list[Change] = []
-        if (
-            tracked := self._runs.get(run_id)
-        ) is None or tracked.run.status == "completed":
+        if (tracked := self._runs.get(run_id)) is None or isinstance(
+            tracked.run.state, protocol.RunCompleted
+        ):
             return []
         runtime = self._require(runtime)
         for entry in planned:
@@ -551,9 +557,11 @@ class Executions:
         execution = replace(execution, status="running", started_at=now)
         assert execution.run_id is not None
         run = self._runs[execution.run_id].run
-        if run.status == "queued":
+        if isinstance(run.state, protocol.RunQueued):
             changes.append(
-                self._set_run(replace(run, status="running", started_at=now))
+                self._set_run(
+                    replace(run, state=protocol.RunRunning(started_at=now))
+                )
             )
         changes.append(self._set_execution(execution))
         return changes
@@ -590,7 +598,10 @@ class Executions:
         return changes
 
     def _prune_run(self, tracked: _Run) -> list[Released]:
-        if tracked.run.status != "completed" or tracked.executions:
+        if (
+            not isinstance(tracked.run.state, protocol.RunCompleted)
+            or tracked.executions
+        ):
             return []
         return [Released(tracked.run.id)]
 
@@ -606,7 +617,9 @@ class Executions:
             if execution.run_id is not None
             else None
         )
-        if tracked is not None and tracked.run.status != "completed":
+        if tracked is not None and not isinstance(
+            tracked.run.state, protocol.RunCompleted
+        ):
             tracked.retired[execution.id] = _settled(execution.outcome)
         changes: list[Change] = list(self._remove_execution(execution_id))
         if tracked is not None:

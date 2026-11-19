@@ -247,10 +247,7 @@ describe("NotebookClient", () => {
       notebook_id: "n1",
       runtime_id: "rt-1",
       origin: { kind: "code", code: "pass" },
-      status: "running",
-      started_at: "2026-10-01T09:20:01Z",
-      completed_at: null,
-      outcome: null,
+      state: { status: "running", started_at: "2026-10-01T09:20:01Z" },
     };
     const { notebook, sent } = connect(() => json(202, run));
     expect(
@@ -341,10 +338,7 @@ describe("NotebookClient", () => {
           method === "run"
             ? { kind: "cells", cell_ids: ["c1"] }
             : { kind: "code", code },
-        status: "queued",
-        started_at: null,
-        completed_at: null,
-        outcome: null,
+        state: { status: "queued" },
       };
       const { notebook, sent } = connect(() => json(202, run));
       const controller = new AbortController();

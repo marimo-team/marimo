@@ -1177,7 +1177,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     )
     assert accepted.status == 202
     run_id = accepted.json()["id"]
-    assert accepted.json()["status"] == "queued"
+    assert accepted.json()["state"] == {"status": "queued"}
     assert harness.backend().calls[-1] == ("run", run_id, "3 * 3")
 
     repeated = await finished(
@@ -1194,7 +1194,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     running = await finished(
         app, "POST", execute, headers=key("r1"), body=body
     )
-    assert running.json()["status"] == "running"
+    assert running.json()["state"]["status"] == "running"
     reused = await finished(
         app,
         "POST",
@@ -1206,7 +1206,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
 
     queued = await finished(app, "POST", execute, headers=key("r2"), body=body)
     assert queued.status == 202
-    assert queued.json()["status"] == "queued"
+    assert queued.json()["state"] == {"status": "queued"}
     assert queued.json()["id"] != run_id
     assert harness.backend().calls[-1] == ("run", queued.json()["id"], "3 * 3")
 
@@ -1221,9 +1221,9 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     completed = await finished(
         app, "POST", execute, headers=key("r1"), body=body
     )
-    assert completed.json()["status"] == "completed"
-    assert completed.json()["outcome"] == "interrupted"
-    assert completed.json()["completed_at"] is not None
+    state = completed.json()["state"]
+    assert (state["status"], state["outcome"]) == ("completed", "interrupted")
+    assert state["completed_at"] is not None
     late = await finished(app, "DELETE", f"{runs}/{run_id}", headers=key("i2"))
     assert late.status == 409
     missing = await finished(app, "DELETE", runs + "/zz", headers=key("i3"))
@@ -1322,7 +1322,7 @@ async def test_request_receipts_expire_independently_of_results(
         harness.app, "POST", execute, headers=key("run"), body=body
     )
     assert active.json()["id"] == run_id
-    assert active.json()["status"] == "running"
+    assert active.json()["state"]["status"] == "running"
     notebook.observe(be.Completed(eid, protocol.ValueOutcome(None)))
     notebook.observe(be.Done(run_id, "succeeded"))
     harness.now = 129
@@ -1331,8 +1331,8 @@ async def test_request_receipts_expire_independently_of_results(
         harness.app, "POST", execute, headers=key("run"), body=body
     )
     assert replayed.json()["id"] == run_id
-    assert replayed.json()["status"] == "completed"
-    assert replayed.json()["outcome"] == "succeeded"
+    assert replayed.json()["state"]["status"] == "completed"
+    assert replayed.json()["state"]["outcome"] == "succeeded"
     assert any(
         isinstance(
             event.event,

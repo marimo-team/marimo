@@ -516,10 +516,7 @@ class Notebook:
                 origin=protocol.RunCodeOrigin(code=code)
                 if code is not None
                 else protocol.RunCellsOrigin(cell_ids=tuple(targets)),
-                status="queued",
-                outcome=None,
-                started_at=None,
-                completed_at=None,
+                state=protocol.RunQueued(),
             )
             self._apply(self.executions.begin(run, request_id))
             if code is not None:
@@ -563,7 +560,7 @@ class Notebook:
         run = self.executions.run(protocol.RunId(run_id))
         if run is None:
             raise NotFound(f"notebook {self.id} has no run {run_id}.")
-        if run.status == "completed":
+        if isinstance(run.state, protocol.RunCompleted):
             raise Conflict(f"run {run_id} has already ended.")
         with self.sink.deferred():
             self._apply(
