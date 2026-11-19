@@ -233,6 +233,9 @@ class SessionBackend(SessionConsumer):
                 for cell in document
             }
             execution_requests = tuple(cells.values())
+            for cell_id in cell_ids:
+                if cell_id not in cells:
+                    raise LookupError(f"cell {cell_id} is not in the document")
             command = ExecuteCellsCommand(
                 execution_requests=[cells[cell_id] for cell_id in cell_ids],
                 request=cast(HTTPRequest | None, request),

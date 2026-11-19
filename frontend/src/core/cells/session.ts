@@ -226,7 +226,7 @@ function resultRecord(
   } else if (primary.type === "error") {
     const traceback = normalizeTraceback(primary.traceback);
     outcome = {
-      kind: "error",
+      kind: "failed",
       error: {
         kind: "exception",
         name: primary.ename,

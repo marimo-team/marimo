@@ -342,10 +342,6 @@ describe("ErrorContextProvider", () => {
           expected: "Syntax error",
         },
         {
-          error: { kind: "interrupted", message: "" },
-          expected: "This cell was interrupted and needs to be re-run",
-        },
-        {
           error: { kind: "internal", message: "Unknown error" },
           expected: "Unknown error",
         },

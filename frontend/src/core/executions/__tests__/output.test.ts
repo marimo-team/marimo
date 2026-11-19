@@ -63,7 +63,7 @@ describe("cellOutputView", () => {
     const view = cellOutputView(
       inputs([
         MockExecutions.completed(C1, {
-          kind: "error",
+          kind: "failed",
           error: hostError({
             traceback: { mimetype: "text/plain", data: "Traceback..." },
             related: [{ cell_id: C2, range: null, message: "Raised it" }],
@@ -242,9 +242,6 @@ describe("cellError", () => {
     expect(
       cellError(hostError({ kind: "internal", name: "abc", message: "oops" })),
     ).toEqual({ type: "unknown", msg: "oops", error_type: "abc" });
-    expect(
-      cellError(hostError({ kind: "interrupted", name: null, message: "" })),
-    ).toEqual({ type: "interruption" });
   });
 
   it("shows any other kind as a diagnostic with the cells involved", () => {
@@ -305,11 +302,35 @@ describe("scratchOutputView", () => {
       status: "completed",
       started_at: null,
       completed_at: LATER,
-      outcome: { kind: "interrupted" },
+      outcome: { kind: "cancelled" },
       depends_on: {},
     });
     expect(
       scratchOutputView(inputs([done, interrupted]).executions)?.data,
     ).toEqual([{ type: "interruption" }]);
+  });
+
+  it("shows why a run failed when it has no execution to show", () => {
+    const done = MockExecutions.shown(null, HTML);
+    const { executions } = inputs([done]);
+    const failure = { message: "Kernel channel closed", completedAt: LATER };
+
+    // The run never reached the kernel, so only the run says what happened.
+    expect(
+      scratchOutputView({
+        ...executions,
+        scratchFailure: { ...failure, runId: "run-2" },
+      })?.data,
+    ).toEqual([
+      { type: "unknown", msg: "Kernel channel closed", error_type: null },
+    ]);
+
+    // Its own execution already shows the error.
+    expect(
+      scratchOutputView({
+        ...executions,
+        scratchFailure: { ...failure, runId: done[0].run_id! },
+      })?.data,
+    ).toBe("<b>1</b>");
   });
 });

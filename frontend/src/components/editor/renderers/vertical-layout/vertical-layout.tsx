@@ -328,7 +328,7 @@ const VerticalCell = memo(
     const cellRef = useRef<HTMLDivElement>(null);
     const output = useCellOutput(cellId);
     const { execution, freshness } = useCellPresentation(cellId);
-    const errored = execution.outcome === "error";
+    const errored = execution.outcome === "failed";
     const stopped = execution.outcome === "skipped";
 
     const outputStale = outputIsStale(execution, freshness, false);
@@ -402,7 +402,7 @@ const VerticalCell = memo(
     // instead of hiding them
     const hidden = shouldHidePublishedCell({
       errored,
-      interrupted: execution.outcome === "interrupted",
+      interrupted: execution.outcome === "cancelled",
       stopped,
       output,
       showErrorTracebacks,

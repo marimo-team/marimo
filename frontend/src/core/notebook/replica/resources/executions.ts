@@ -45,6 +45,28 @@ export interface Executions {
   readonly scratch: Result | null;
   /** The latest scratch execution to start, including one that printed nothing. */
   readonly scratchConsole?: Execution;
+  /** The latest scratch run, if the host could not finish it and says why. */
+  readonly scratchFailure?: RunFailure;
+}
+
+/** A run the host could not finish, with its reason. */
+export interface RunFailure {
+  readonly runId: Protocol.RunId;
+  readonly message: string;
+  readonly completedAt: string;
+}
+
+function hostFailure(run: Protocol.Run): RunFailure | undefined {
+  const { state } = run;
+  return state.status === "completed" &&
+    state.outcome.kind === "failed" &&
+    state.outcome.message !== null
+    ? {
+        runId: run.id,
+        message: state.outcome.message,
+        completedAt: state.completed_at,
+      }
+    : undefined;
 }
 
 type Kind =
@@ -275,6 +297,11 @@ export const executions: NotebookResource<Executions, Kind> = {
     run: (state, { data }) => ({
       ...state,
       runs: new Map(state.runs).set(data.run.id, data.run),
+      // A newer scratch run replaces what the last one reported.
+      scratchFailure:
+        data.run.origin.kind === "code"
+          ? hostFailure(data.run)
+          : state.scratchFailure,
     }),
     "run.removed": (state, { data }) =>
       state.runs.has(data.id)

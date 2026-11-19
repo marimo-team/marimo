@@ -204,10 +204,10 @@ describe("isUninstantiated", () => {
 
   it("should return false if the cell ended without a value", () => {
     expect(
-      isUninstantiated({ status: "idle", outcome: "error", live: true }),
+      isUninstantiated({ status: "idle", outcome: "failed", live: true }),
     ).toBe(false);
     expect(
-      isUninstantiated({ status: "idle", outcome: "interrupted", live: true }),
+      isUninstantiated({ status: "idle", outcome: "cancelled", live: true }),
     ).toBe(false);
     expect(
       isUninstantiated({ status: "idle", outcome: "skipped", live: true }),

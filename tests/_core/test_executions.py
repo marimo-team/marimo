@@ -161,14 +161,14 @@ def test_completion_freezes_the_outcome_and_input_revisions(
         "x": protocol.Revision(protocol.ExecutionId("producer"), 2),
         "print": None,
     }
-    completed = be.Completed(eid, protocol.InterruptedOutcome(), inputs)
+    completed = be.Completed(eid, protocol.CancelledOutcome(), inputs)
     assert executions.observe(completed, RUNTIME) == [
         replace(
             queued,
             state=protocol.ExecutionCompleted(
                 started_at=IsDatetime() if started else None,
                 completed_at=IsDatetime(),
-                outcome=protocol.InterruptedOutcome(),
+                outcome=protocol.CancelledOutcome(),
                 depends_on=inputs,
             ),
         )
@@ -301,7 +301,7 @@ def test_a_run_completes_only_after_its_executions_and_reports_failures() -> (
     executions.observe(be.Started(protocol.ExecutionId("e1")), RUNTIME)
     with pytest.raises(ValueError, match="unfinished"):
         executions.observe(be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME)
-    complete(executions, "e1", protocol.InterruptedOutcome())
+    complete(executions, "e1", protocol.CancelledOutcome())
     with pytest.raises(ValueError, match="successful"):
         executions.observe(be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME)
     done = executions.observe(be.Done(protocol.RunId("r1"), "failed"), RUNTIME)
@@ -310,7 +310,7 @@ def test_a_run_completes_only_after_its_executions_and_reports_failures() -> (
         for change in done
         if isinstance(change, protocol.Run)
         and isinstance(change.state, protocol.RunCompleted)
-    ] == ["failed"]
+    ] == [protocol.RunFailedOutcome(message=None)]
 
 
 def test_a_run_with_skipped_cells_succeeds() -> None:
@@ -337,7 +337,7 @@ def test_a_run_with_skipped_cells_succeeds() -> None:
         for change in done
         if isinstance(change, protocol.Run)
         and isinstance(change.state, protocol.RunCompleted)
-    ] == ["succeeded"]
+    ] == [protocol.SucceededOutcome()]
     assert executions.current(protocol.CellId("b")) is not None
 
 
@@ -351,7 +351,7 @@ def test_interrupting_completes_everything_in_flight() -> None:
     assert describe(changes) == ["execution e1", "execution e2", "run r1"]
     assert all(
         isinstance(change.state, protocol.ExecutionCompleted)
-        and isinstance(change.state.outcome, protocol.InterruptedOutcome)
+        and isinstance(change.state.outcome, protocol.CancelledOutcome)
         for change in changes
         if isinstance(change, protocol.Execution)
     )

@@ -33,7 +33,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
     id: props.cellId,
     graph: graphs[props.cellId],
     code: useCellData(props.cellId).code,
-    hasError: useCellExecution(props.cellId).outcome === "error",
+    hasError: useCellExecution(props.cellId).outcome === "failed",
   };
 
   let selectedCell: undefined | { id: CellId; graph: CellGraph };

@@ -117,8 +117,18 @@ def _settled(outcome: protocol.Outcome | None) -> bool:
 
 
 def _completed(
-    run: protocol.Run, outcome: protocol.RunOutcome, now: datetime
+    run: protocol.Run,
+    ending: be.RunEnding,
+    now: datetime,
+    message: str | None = None,
 ) -> protocol.Run:
+    outcome: protocol.RunOutcome
+    if ending == "succeeded":
+        outcome = protocol.SucceededOutcome()
+    elif ending == "failed":
+        outcome = protocol.RunFailedOutcome(message=message)
+    else:
+        outcome = protocol.CancelledOutcome()
     started_at = (
         None
         if isinstance(run.state, protocol.RunQueued)
@@ -468,7 +478,7 @@ class Executions:
                         media=display,
                     )
                     changes.append(result.output)
-            case be.Done(run_id=run_id, outcome=outcome):
+            case be.Done(run_id=run_id, outcome=outcome, message=message):
                 if (
                     tracked := self._runs.get(run_id)
                 ) is not None and not isinstance(
@@ -495,20 +505,18 @@ class Executions:
                         )
                     ):
                         raise ValueError(
-                            "a successful run cannot contain failed or interrupted executions"
+                            "a successful run cannot contain failed or cancelled executions"
                         )
                     changes.append(
                         self._set_run(
-                            _completed(tracked.run, outcome, utcnow())
+                            _completed(tracked.run, outcome, utcnow(), message)
                         )
                     )
                     tracked.retired.clear()
                     changes.extend(self._finish_run(tracked))
         return changes
 
-    def interrupt(
-        self, outcome: protocol.RunOutcome = "interrupted"
-    ) -> list[Change]:
+    def interrupt(self, outcome: be.RunEnding = "cancelled") -> list[Change]:
         """Complete every unfinished execution and run."""
         changes: list[Change] = []
         now = utcnow()
@@ -521,7 +529,7 @@ class Executions:
                     self._set_execution(
                         _ended(
                             result.execution,
-                            protocol.InterruptedOutcome(),
+                            protocol.CancelledOutcome(),
                             now,
                         )
                     )

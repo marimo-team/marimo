@@ -42,7 +42,7 @@ function run(
             status,
             started_at: null,
             completed_at: "2026-10-01T09:20:02Z",
-            outcome: "succeeded",
+            outcome: { kind: "succeeded" },
           }
         : status === "running"
           ? { status, started_at: "2026-10-01T09:20:01Z" }

@@ -62,8 +62,8 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   const cellOutputPosition = userConfig.display.cell_output;
   const hasOutput = cell.output != null;
   const { execution, freshness } = useCellPresentation(cell.id);
-  const errored = execution.outcome === "error";
-  const interrupted = execution.outcome === "interrupted";
+  const errored = execution.outcome === "failed";
+  const interrupted = execution.outcome === "cancelled";
   const stopped = execution.outcome === "skipped";
 
   const uninstantiated = isUninstantiated(execution);

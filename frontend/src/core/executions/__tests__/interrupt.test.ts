@@ -35,7 +35,7 @@ function run(
             status,
             started_at: MockExecutions.T0,
             completed_at: MockExecutions.T1,
-            outcome: "succeeded",
+            outcome: { kind: "succeeded" },
           }
         : status === "running"
           ? { status, started_at: MockExecutions.T0 }

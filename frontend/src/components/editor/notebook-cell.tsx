@@ -327,8 +327,8 @@ const ReadonlyCellComponent = forwardRef(
     const cellData = useCellData(cellId);
     const output = useCellOutput(cellId);
     const { execution, freshness } = useCellPresentation(cellId);
-    const errored = execution.outcome === "error";
-    const interrupted = execution.outcome === "interrupted";
+    const errored = execution.outcome === "failed";
+    const interrupted = execution.outcome === "cancelled";
     const stopped = execution.outcome === "skipped";
 
     const className = clsx("marimo-cell", "hover-actions-parent z-10", {
@@ -392,8 +392,8 @@ const EditableCellComponent = ({
   const output = useCellOutput(cellId);
   const outline = useCellOutline(cellId);
   const { execution, freshness } = useCellPresentation(cellId);
-  const errored = execution.outcome === "error";
-  const interrupted = execution.outcome === "interrupted";
+  const errored = execution.outcome === "failed";
+  const interrupted = execution.outcome === "cancelled";
   const stopped = execution.outcome === "skipped";
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
@@ -859,7 +859,7 @@ const CellRightSideActions = memo(
       <CellStatusComponent
         status={execution.status}
         freshness={freshness}
-        interrupted={execution.outcome === "interrupted"}
+        interrupted={execution.outcome === "cancelled"}
         editing={true}
         disabled={disabled}
         elapsedTime={execution.duration}
@@ -1038,7 +1038,7 @@ const SetupCellComponent = ({
   const cellRuntime = useCellRuntime(cellId);
   const output = useCellOutput(cellId);
   const { execution, freshness } = useCellPresentation(cellId);
-  const errored = execution.outcome === "error";
+  const errored = execution.outcome === "failed";
   const stopped = execution.outcome === "skipped";
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted

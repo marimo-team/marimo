@@ -52,7 +52,7 @@ describe("executions resource", () => {
     const done = resource(replay(snapshot));
     expect(done.executions.get("e7")?.record.state.status).toBe("completed");
     expect(done.runs.get("run-scratch")?.state).toMatchObject({
-      outcome: "succeeded",
+      outcome: { kind: "succeeded" },
     });
     const released = reducer.reduce(
       replay(snapshot),
@@ -80,7 +80,7 @@ describe("executions resource", () => {
       },
     );
     expect(resource(done).runs.get("run-cells")?.state).toMatchObject({
-      outcome: "succeeded",
+      outcome: { kind: "succeeded" },
     });
 
     const retired = replay(retire("e12", "e12-x"), done);
@@ -173,7 +173,7 @@ describe("executions resource", () => {
     const gone = resource(replay(inputs, start));
     expect(gone.executions.has("e-input")).toBe(false);
     expect(gone.runs.get("run-input")?.state).toMatchObject({
-      outcome: "interrupted",
+      outcome: { kind: "cancelled" },
     });
 
     const orphan = reducer.reduce(
@@ -207,5 +207,59 @@ describe("executions resource", () => {
     const done = replay(runCells, replay(snapshot));
     const reset = reducer.reduce(done, { event: "reset", data: {} });
     expect(resource(reset)).toBe(executions.initial);
+  });
+
+  it("remembers why the latest scratch run failed until a newer one arrives", () => {
+    const run = (
+      id: string,
+      origin: Protocol.RunOrigin,
+      state: Protocol.RunState,
+      cursor: string,
+    ) =>
+      event({
+        event: "run",
+        id: cursor,
+        data: {
+          run: { id, notebook_id: "n1", runtime_id: "r1", origin, state },
+          time,
+        },
+      });
+    const code: Protocol.RunOrigin = { kind: "code", code: "1" };
+    const failed: Protocol.RunState = {
+      status: "completed",
+      started_at: null,
+      completed_at: time,
+      outcome: { kind: "failed", message: "Kernel channel closed" },
+    };
+
+    const afterFailure = replay(
+      [run("run-9", code, failed, "200")],
+      replay(snapshot),
+    );
+    expect(resource(afterFailure).scratchFailure).toEqual({
+      runId: "run-9",
+      message: "Kernel channel closed",
+      completedAt: time,
+    });
+
+    // Cell runs say nothing about the scratchpad.
+    const afterCells = replay(
+      [
+        run(
+          "run-10",
+          { kind: "cells", cell_ids: ["c1"] },
+          { status: "queued" },
+          "201",
+        ),
+      ],
+      afterFailure,
+    );
+    expect(resource(afterCells).scratchFailure?.runId).toBe("run-9");
+
+    const afterNext = replay(
+      [run("run-11", code, { status: "queued" }, "202")],
+      afterCells,
+    );
+    expect(resource(afterNext).scratchFailure).toBeUndefined();
   });
 });

@@ -46,9 +46,9 @@ describe("outputIsStale", () => {
   });
 
   it("should return false if the cell is interrupted", () => {
-    expect(
-      outputIsStale(view({ outcome: "interrupted" }), CURRENT, false),
-    ).toBe(false);
+    expect(outputIsStale(view({ outcome: "cancelled" }), CURRENT, false)).toBe(
+      false,
+    );
   });
 
   it("should return false if the cell is idle and not edited", () => {
@@ -64,7 +64,7 @@ describe("outputIsStale", () => {
   });
 
   it("should return true if the cell is interrupted and edited since", () => {
-    expect(outputIsStale(view({ outcome: "interrupted" }), EDITED, true)).toBe(
+    expect(outputIsStale(view({ outcome: "cancelled" }), EDITED, true)).toBe(
       true,
     );
   });
@@ -94,14 +94,14 @@ describe("consoleOutputIsStale", () => {
   });
 
   it("is not stale after an interruption", () => {
-    expect(consoleOutputIsStale(view({ outcome: "interrupted" }), EDITED)).toBe(
+    expect(consoleOutputIsStale(view({ outcome: "cancelled" }), EDITED)).toBe(
       false,
     );
   });
 
   it("should return false if the cell is interrupted but has stale inputs", () => {
-    expect(
-      outputIsStale(view({ outcome: "interrupted" }), REPLACED, false),
-    ).toBe(false);
+    expect(outputIsStale(view({ outcome: "cancelled" }), REPLACED, false)).toBe(
+      false,
+    );
   });
 });

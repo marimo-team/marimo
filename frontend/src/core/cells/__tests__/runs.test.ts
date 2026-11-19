@@ -42,7 +42,7 @@ describe("execution traces", () => {
       started_at,
       completed_at: "1970-01-01T00:01:42Z",
       status: "completed",
-      outcome: { kind: "interrupted" },
+      outcome: { kind: "cancelled" },
     } satisfies Execution["state"];
     const runId = "r1" as RunId;
     const running = observe(observe(initialState()), {

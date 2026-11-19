@@ -23,15 +23,15 @@ from marimo._core.backend import (
 from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
 from marimo._core.protocol import (
+    CancelledOutcome,
     CellId,
     Console,
     ConsoleMedia,
     ConsoleText,
     DisplayData,
     Error,
-    ErrorOutcome,
+    ExecutionFailedOutcome,
     ExecutionId,
-    InterruptedOutcome,
     Position,
     Range,
     Related,
@@ -276,7 +276,7 @@ def test_an_exception_ends_the_run_in_error() -> None:
         [
             Completed(
                 execution_id=ExecutionId("scratch"),
-                outcome=ErrorOutcome(
+                outcome=ExecutionFailedOutcome(
                     error=Error(
                         source="marimo",
                         severity="error",
@@ -316,9 +316,9 @@ def test_an_interruption_ends_the_run_interrupted(
         [
             Completed(
                 execution_id=ExecutionId("scratch"),
-                outcome=InterruptedOutcome(),
+                outcome=CancelledOutcome(),
             ),
-            Done(run_id=RunId("r1"), outcome="interrupted"),
+            Done(run_id=RunId("r1"), outcome="cancelled"),
         ]
     )
 
@@ -469,31 +469,38 @@ def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
     assert output.item.execution_id == ids[0]
 
 
-def test_unsubmitted_runs_have_distinct_executions() -> None:
-    executions = []
-    for run_id in ("r1", "r2"):
-        translator = RunTranslator(RunId(run_id), "print('never ran')")
-        translator.interrupted = True
-        planned, completed, done = translator.finish()
-        assert isinstance(planned, Planned)
-        [execution] = planned.executions
-        executions.append(execution.id)
-        assert (completed, done) == (
-            Completed(execution.id, InterruptedOutcome()),
-            Done(RunId(run_id), "interrupted"),
-        )
-    assert len(set(executions)) == 2
+def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
+    None
+):
+    cancelled = RunTranslator(RunId("r1"), "print('never ran')")
+    cancelled.interrupted = True
+    assert cancelled.finish() == [Done(RunId("r1"), "cancelled")]
+
+    failed = RunTranslator(RunId("r2"), "print('never ran')")
+    error = protocol.Error(
+        kind="internal",
+        name=None,
+        message="Kernel channel closed",
+        traceback=None,
+        source="marimo",
+        severity="error",
+        range=None,
+        related=(),
+    )
+    assert failed.finish(error=error) == [
+        Done(RunId("r2"), "failed", "Kernel channel closed")
+    ]
 
 
 @pytest.mark.parametrize(
     ("error", "outcome_type", "run_outcome"),
     [
-        (MarimoInterruptionError(), InterruptedOutcome, "interrupted"),
+        (MarimoInterruptionError(), CancelledOutcome, "cancelled"),
         (
             MarimoExceptionRaisedError(
                 "ancestor failed", "RuntimeError", None
             ),
-            ErrorOutcome,
+            ExecutionFailedOutcome,
             "failed",
         ),
         (
@@ -511,7 +518,7 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
                 "NameError",
                 CellId_t("a"),
             ),
-            ErrorOutcome,
+            ExecutionFailedOutcome,
             "failed",
         ),
         (
@@ -805,7 +812,7 @@ def test_each_kernel_error_keeps_its_kind_and_names_the_cells_involved(
 
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     described = completed.outcome.error
     assert described.source == "marimo"
     assert described.kind == kind
@@ -824,7 +831,7 @@ def test_every_cell_in_a_cycle_describes_it_in_the_same_order() -> None:
         t.feed(cell_output(cell, CellOutput.errors([rotated])))  # type: ignore[list-item]
     for completed in t.finish()[:3]:
         assert isinstance(completed, Completed)
-        assert isinstance(completed.outcome, ErrorOutcome)
+        assert isinstance(completed.outcome, ExecutionFailedOutcome)
         related.append(completed.outcome.error.related)
     assert related[0] == related[1] == related[2]
     assert [r.cell_id for r in related[0]] == ["a", "b", "c"]
@@ -845,7 +852,7 @@ def test_a_sql_error_keeps_its_hint_and_counts_its_column_in_utf16() -> None:
 
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     assert (
         completed.outcome.error.message == "no such table: t\nDid you mean u?"
     )
@@ -863,7 +870,7 @@ def test_definers_follow_the_document_when_the_translator_knows_it() -> None:
 
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     assert [r.cell_id for r in completed.outcome.error.related] == [
         "c",
         "a",
@@ -885,7 +892,7 @@ def test_a_conflict_reads_the_same_from_analysis_and_from_execution() -> None:
     t.feed(cell_output("a", CellOutput.errors([error])))
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     executed = completed.outcome.error
 
     def without_ranges(described: Error) -> Error:
@@ -915,7 +922,7 @@ def test_an_internal_error_is_named_by_its_id() -> None:
 
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     assert completed.outcome.error.kind == "internal"
     assert completed.outcome.error.name == "abc123"
     assert "abc123" in completed.outcome.error.message

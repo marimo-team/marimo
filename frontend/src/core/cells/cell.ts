@@ -32,7 +32,7 @@ export function outputIsStale(
     return true;
   }
   // An interrupted run's partial output stands as the record of that run.
-  if (outcome === "interrupted") {
+  if (outcome === "cancelled") {
     return false;
   }
   return freshness.inputsChanged;
@@ -46,7 +46,7 @@ export function consoleOutputIsStale(
   freshness: CellFreshness,
 ): boolean {
   const { status, outcome } = execution;
-  if (outcome === "interrupted") {
+  if (outcome === "cancelled") {
     return false;
   }
   if (outputIsLoading(status)) {

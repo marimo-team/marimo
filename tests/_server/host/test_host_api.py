@@ -1216,13 +1216,16 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     assert interrupted.status == 202
     assert harness.backend().calls[-1] == ("cancel", run_id)
 
-    notebook.observe(be.Completed("e1", protocol.InterruptedOutcome()))
-    notebook.observe(be.Done(run_id, "interrupted"))
+    notebook.observe(be.Completed("e1", protocol.CancelledOutcome()))
+    notebook.observe(be.Done(run_id, "cancelled"))
     completed = await finished(
         app, "POST", execute, headers=key("r1"), body=body
     )
     state = completed.json()["state"]
-    assert (state["status"], state["outcome"]) == ("completed", "interrupted")
+    assert (state["status"], state["outcome"]["kind"]) == (
+        "completed",
+        "cancelled",
+    )
     assert state["completed_at"] is not None
     late = await finished(app, "DELETE", f"{runs}/{run_id}", headers=key("i2"))
     assert late.status == 409
@@ -1332,7 +1335,7 @@ async def test_request_receipts_expire_independently_of_results(
     )
     assert replayed.json()["id"] == run_id
     assert replayed.json()["state"]["status"] == "completed"
-    assert replayed.json()["state"]["outcome"] == "succeeded"
+    assert replayed.json()["state"]["outcome"]["kind"] == "succeeded"
     assert any(
         isinstance(
             event.event,

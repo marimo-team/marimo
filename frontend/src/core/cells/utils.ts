@@ -84,7 +84,7 @@ export function getDescendantsStatus(
   const stale = descendants.some(
     (id) => freshness(id).sourceChanged || freshness(id).inputsChanged,
   );
-  const errored = views.some((view) => view.outcome === "error");
+  const errored = views.some((view) => view.outcome === "failed");
   const runningOrQueued = views.some(
     (view) => view.status === "running" || view.status === "queued",
   );
@@ -112,7 +112,7 @@ export function cellRunReason(
   if (freshness.sourceChanged) {
     return "source";
   }
-  if (execution.outcome === "interrupted") {
+  if (execution.outcome === "cancelled") {
     return "interrupted";
   }
   return freshness.inputsChanged && !cell.config.disabled && !execution.blocked

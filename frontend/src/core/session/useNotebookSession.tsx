@@ -443,7 +443,7 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
         time === null ? Date.now() / 1000 : Date.parse(time) / 1000;
       if (
         record.state.status === "completed" &&
-        record.state.outcome?.kind === "error"
+        record.state.outcome.kind === "failed"
       ) {
         getCellLogsForMessage({
           cell_id: cellId,

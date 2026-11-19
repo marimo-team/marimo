@@ -180,7 +180,7 @@ export const MockExecutions = {
     error: Partial<Protocol.Error> = {},
   ): Protocol.Execution {
     return completed(cellId, {
-      kind: "error",
+      kind: "failed",
       error: {
         kind: "exception",
         message: "boom",
@@ -200,7 +200,7 @@ export const MockExecutions = {
   },
 
   interrupted(cellId: string | null): Protocol.Execution {
-    return completed(cellId, { kind: "interrupted" });
+    return completed(cellId, { kind: "cancelled" });
   },
 
   skipped(cellId: string): Protocol.Execution {

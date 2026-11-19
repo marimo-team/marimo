@@ -213,12 +213,12 @@ async def test_interrupt_waits_for_the_kernel_result(
     assert session.interrupts == 1
     concluded = [m for m in observed.messages if isinstance(m, be.Completed)]
     assert concluded[-1].outcome == (
-        protocol.InterruptedOutcome()
+        protocol.CancelledOutcome()
         if takes_effect
         else protocol.SucceededOutcome()
     )
     assert observed.messages[-1] == be.Done(
-        protocol.RunId("run-1"), "interrupted" if takes_effect else "succeeded"
+        protocol.RunId("run-1"), "cancelled" if takes_effect else "succeeded"
     )
 
 
@@ -271,7 +271,7 @@ async def test_interrupting_a_run_started_by_another_client(
         CompletedRunNotification(run_id="browser", outcome="interrupted")
     )
     assert observed.messages[-1] == be.Done(
-        protocol.RunId("browser"), "interrupted"
+        protocol.RunId("browser"), "cancelled"
     )
     b.cancel(protocol.RunId("browser"))
     assert session.interrupts == 1
@@ -366,10 +366,10 @@ async def test_canceling_a_queued_run_preserves_other_execution(
         b.cancel(protocol.RunId("canceled"))
         await observed.wait_for(be.Done)
         assert session.interrupts == 0
-        [outcome] = [
-            m.outcome for m in observed.messages if isinstance(m, be.Completed)
+        # The code never reached the kernel, so the run has no execution.
+        assert observed.messages == [
+            be.Done(protocol.RunId("canceled"), "cancelled")
         ]
-        assert outcome == protocol.InterruptedOutcome()
 
     observed.messages.clear()
     b.run(protocol.RunId("next"), "42", request=None)
@@ -392,21 +392,11 @@ async def test_submission_failure_is_an_error(
     monkeypatch.setattr(session, "put_control_request", failed)
     b.run(protocol.RunId("failed"), "42", request=None)
     await observed.wait_for(be.Done)
-    [outcome] = [
-        m.outcome for m in observed.messages if isinstance(m, be.Completed)
-    ]
-    assert outcome == protocol.ErrorOutcome(
-        protocol.Error(
-            kind="internal",
-            name=None,
-            message="Kernel channel closed",
-            traceback=None,
-            source="marimo",
-            severity="error",
-            range=None,
-            related=(),
-        )
+    # The run says why it failed. No execution exists to carry an error.
+    assert observed.messages[-1] == be.Done(
+        protocol.RunId("failed"), "failed", "Kernel channel closed"
     )
+    assert not any(isinstance(m, be.Planned) for m in observed.messages)
 
 
 @pytest.mark.parametrize("cell_run", [False, True])
@@ -586,7 +576,9 @@ async def test_cell_submission_failure_ends_the_run(
         request=None,
     )
 
-    assert observed.messages == [be.Done(protocol.RunId("failed"), "failed")]
+    assert observed.messages == [
+        be.Done(protocol.RunId("failed"), "failed", "Kernel channel closed")
+    ]
     assert b._runs == {}
 
 
@@ -607,7 +599,13 @@ async def test_cell_command_failure_ends_the_run(
         request=None,
     )
 
-    assert observed.messages == [be.Done(protocol.RunId("failed"), "failed")]
+    assert observed.messages == [
+        be.Done(
+            protocol.RunId("failed"),
+            "failed",
+            "cell missing is not in the document",
+        )
+    ]
     assert b._runs == {}
     assert session.commands == []
     assert session.instantiations == []
@@ -827,9 +825,7 @@ async def test_interrupting_a_waiting_cell_run_preserves_submission_order(
         )
     await asyncio.sleep(0)
 
-    assert observed.messages == [
-        be.Done(protocol.RunId("run-3"), "interrupted")
-    ]
+    assert observed.messages == [be.Done(protocol.RunId("run-3"), "cancelled")]
     assert session.interrupts == 0
     assert [c.run_id for c in session.commands] == ["run-1"]
     session.broadcast(CompletedRunNotification(run_id="run-1"))
@@ -861,9 +857,7 @@ async def test_interrupting_a_queued_cell_run_cancels_it_in_the_kernel(
         CompletedRunNotification(run_id="run-1", outcome="interrupted")
     )
     await observed.wait_for(be.Done)
-    assert observed.messages == [
-        be.Done(protocol.RunId("run-1"), "interrupted")
-    ]
+    assert observed.messages == [be.Done(protocol.RunId("run-1"), "cancelled")]
     assert b._runs == {}
 
 
@@ -900,7 +894,7 @@ async def test_a_cancelled_run_that_starts_anyway_is_interrupted(
     )
     await observed.wait_for(be.Done)
     assert observed.messages[-1] == be.Done(
-        protocol.RunId("run-1"), "interrupted"
+        protocol.RunId("run-1"), "cancelled"
     )
     assert b._runs == {}
 
@@ -978,7 +972,7 @@ async def test_a_runtime_interrupt_ends_every_run_and_signals_the_kernel_once(
         m.run_id: m.outcome
         for m in observed.messages
         if isinstance(m, be.Done)
-    } == {f"run-{n}": "interrupted" for n in (1, 2, 3, 4)}
+    } == {f"run-{n}": "cancelled" for n in (1, 2, 3, 4)}
     assert b._runs == {}
     assert session.interrupts == 1
     assert len(session.commands) == 5

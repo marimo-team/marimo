@@ -69,7 +69,7 @@ function run(
             status,
             started_at: null,
             completed_at: "2026-10-01T09:20:02Z",
-            outcome: "succeeded",
+            outcome: { kind: "succeeded" },
           }
         : status === "running"
           ? { status, started_at: "2026-10-01T09:20:01Z" }
@@ -210,7 +210,7 @@ describe("cellExecutionView", () => {
       live: true,
     });
     const error = (kind: string): Protocol.Outcome => ({
-      kind: "error",
+      kind: "failed",
       error: {
         kind,
         message: "",
@@ -222,7 +222,7 @@ describe("cellExecutionView", () => {
         related: [],
       },
     });
-    expect(ended(error("exception")).outcome).toBe("error");
+    expect(ended(error("exception")).outcome).toBe("failed");
     const skipped: Protocol.Outcome = {
       kind: "skipped",
       reason: "ancestor-stopped",
@@ -230,7 +230,7 @@ describe("cellExecutionView", () => {
       related: [],
     };
     expect(ended(skipped).outcome).toBe("skipped");
-    expect(ended({ kind: "interrupted" }).outcome).toBe("interrupted");
+    expect(ended({ kind: "cancelled" }).outcome).toBe("cancelled");
   });
 
   it("reads as queued from a request the stream has not shown a run for", () => {

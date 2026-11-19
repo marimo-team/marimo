@@ -123,7 +123,7 @@ schema. A shared identity lets clients group attachments across streams and
 reconnects. Each attachment keeps its own id and connection lifetime.
 
 Stopping a runtime ends its active and queued work, completing those runs as
-`interrupted`, and loses its Python state, while the document and retained
+`cancelled`, and loses its Python state, while the document and retained
 results remain available to clients.
 
 ### Runs and results
@@ -163,6 +163,22 @@ completed state does not change.
                  | { status: "running", started_at }
                  | { status: "completed", started_at, completed_at, outcome, depends_on }
 
+Both describe how they ended with the same words, tagged on `kind`. A run or
+an execution `succeeded`, `failed`, or was `cancelled`, and an execution can
+also be `skipped`. A failed execution carries its error. A failed run carries
+a message when the host could not finish the cycle, and leaves it null when one
+of its executions raised. A run that ends before the runtime plans its work,
+such as one cancelled while queued, has no executions.
+
+    RunOutcome { kind: "succeeded" }
+             | { kind: "failed", message }
+             | { kind: "cancelled" }
+
+    Outcome    { kind: "succeeded" }
+             | { kind: "failed", error }
+             | { kind: "cancelled" }
+             | { kind: "skipped", reason, message, related }
+
 Hosts MUST complete a run only after its executions have ended and scheduling
 for that cycle has finished. An error in one execution may occur while others
 are still working. An execution that did not evaluate because of other work in
@@ -176,7 +192,7 @@ A host publishes an execution as `queued` when the runtime schedules the cell,
 including work the run discovers as it goes, such as cells a state update marks
 for another evaluation. The execution's cell and code fingerprint are fixed from
 then on. A queued execution that will not run completes without starting, as
-`skipped` or `interrupted`.
+`skipped` or `cancelled`.
 
 An execution can also lead to a later run. For example, a cell may create a UI
 element that a user later interacts with, triggering reactive evaluation. That
@@ -532,14 +548,14 @@ no-op and MUST NOT arm an interrupt for future work.
 
 Interruption keeps the runtime alive and does not roll back work already
 performed. The host MUST remove queued runs from the queue and complete them
-`interrupted` without executing. Pending inputs belonging to interrupted work
+`cancelled` without executing. Pending inputs belonging to interrupted work
 MUST be cancelled. Work without a run record need not acquire one to be
 interrupted.
 
 The host answers `202` with the current `Runtime`. This acknowledges the
 request, not that active work has stopped. Runs and executions MUST report
 their actual outcomes once they settle; acceptance alone MUST NOT mark them
-`interrupted`. Within the retry window, repeating the same request MUST return
+`cancelled`. Within the retry window, repeating the same request MUST return
 the original acknowledgement without interrupting again, including after new
 work has started or the runtime has been replaced.
 
@@ -555,9 +571,9 @@ Idempotency-Key: cancel-1
 ```
 
 This request has no body. A queued run MUST be removed from the queue and
-complete `interrupted` without executing. For a running run, the host MUST
+complete `cancelled` without executing. For a running run, the host MUST
 interrupt only if that run is still active, and its remaining executions MUST
-end `interrupted`. If the target finishes before cancellation takes effect,
+end `cancelled`. If the target finishes before cancellation takes effect,
 the host MUST NOT interrupt a successor. Pending inputs belonging to cancelled
 work MUST be cancelled. Other runs MUST remain untouched.
 

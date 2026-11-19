@@ -19,7 +19,7 @@ unnecessary if marimo adopts the core model directly.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from marimo._core import protocol
 
@@ -110,7 +110,7 @@ class Backend(Protocol):
         """
 
     def cancel(self, run_id: protocol.RunId) -> None:
-        """End a run and report its `interrupted` outcome.
+        """End a run and report its `cancelled` outcome.
 
         A run the kernel has not started completes without running. One
         the kernel could not stop at once is stopped as it progresses.
@@ -121,7 +121,7 @@ class Backend(Protocol):
 
         Work the kernel does outside a run is interrupted too. A run the
         kernel has not started completes without running, and each run
-        reports its `interrupted` outcome. An idle kernel is left alone,
+        reports its `cancelled` outcome. An idle kernel is left alone,
         so nothing is held over for work that starts later.
         """
 
@@ -249,17 +249,22 @@ class Displayed:
     display: protocol.DisplayData | None
 
 
+RunEnding = Literal["succeeded", "failed", "cancelled"]
+
+
 @dataclass(frozen=True)
 class Done:
     """The cycle ended and will schedule no more executions.
 
     All planned executions must already have a final outcome and status.
-    The outcome also accounts for failures or interruption of the cycle
+    The outcome also accounts for failures or cancellation of the cycle
     itself, including termination before any execution was planned.
+    `message` says why the cycle failed when no execution's error does.
     """
 
     run_id: protocol.RunId
-    outcome: protocol.RunOutcome
+    outcome: RunEnding
+    message: str | None = None
 
 
 Message = (
