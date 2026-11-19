@@ -3,12 +3,14 @@
 import type { StableSessionId } from "@/core/kernel/session";
 import { API } from "@/core/network/api";
 
-interface MessageRequest {
+/** One agent by its Agent ID, or every connected agent. */
+export type AgentRecipient = { to: string } | { broadcast: true };
+
+type MessageRequest = AgentRecipient & {
   message_id: string;
   message: unknown;
-  broadcast: true;
   sender?: string;
-}
+};
 
 export interface RecipientResult {
   agent_id: string;
@@ -26,10 +28,11 @@ export interface SendResult {
 export function sendAgentMessage(
   sessionId: StableSessionId,
   message: unknown,
+  recipient: AgentRecipient,
   sender?: string,
 ): Promise<SendResult> {
   return API.post<MessageRequest, SendResult>(
     `/pair/notebooks/${encodeURIComponent(sessionId)}/messages`,
-    { message_id: crypto.randomUUID(), message, broadcast: true, sender },
+    { message_id: crypto.randomUUID(), message, ...recipient, sender },
   );
 }

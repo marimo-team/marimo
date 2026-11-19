@@ -1,18 +1,34 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { SendIcon } from "lucide-react";
+import { ChevronDownIcon, SendIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { type RecipientResult, sendAgentMessage } from "@/core/agents/messages";
-import { useNotebookAttachments } from "@/core/notebook";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  type AgentRecipient,
+  type RecipientResult,
+  sendAgentMessage,
+} from "@/core/agents/messages";
+import { attachmentLabel, useNotebookAttachments } from "@/core/notebook";
 import { agentToast } from "@/components/editor/agent-toast";
 import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
+import { uniqueByTakeLast } from "@/utils/arrays";
 import { prettyError } from "@/utils/errors";
 
-function formatOutcome(recipient: RecipientResult) {
-  const name = recipient.name ?? recipient.agent_id;
+function formatOutcome(
+  recipient: RecipientResult,
+  labels: Map<string, string>,
+) {
+  const name =
+    labels.get(recipient.agent_id) ?? recipient.name ?? recipient.agent_id;
   let title: string;
   if (recipient.status === "submitted") {
     title = `Submitted to ${name}`;
@@ -33,16 +49,36 @@ export function SendErrorReportButton({
   getContent: () => unknown;
 }) {
   const hostEnabled = useAtomValue(pairConfigAtom)?.hostEnabled;
-  const agents = useNotebookAttachments("agent");
+  const attachments = useNotebookAttachments("agent");
   const stableSessionId = useAtomValue(stableSessionIdAtom);
   const [sending, setSending] = useState(false);
+
+  // One agent can hold several attachments. The server addresses an agent by
+  // its identity, so the choices here are identities, not attachments.
+  const agents = uniqueByTakeLast(
+    attachments.map((attachment) => ({
+      id: attachment.identity || attachment.id,
+      name: attachmentLabel(attachment),
+    })),
+    (agent) => agent.id,
+  );
+  // Agents of the same harness share a name. The end of the Agent ID tells
+  // them apart.
+  const labels = new Map(
+    agents.map((agent) => [
+      agent.id,
+      agents.some((other) => other.id !== agent.id && other.name === agent.name)
+        ? `${agent.name} (${agent.id.slice(-6)})`
+        : agent.name,
+    ]),
+  );
 
   if (!hostEnabled || agents.length === 0) {
     return null;
   }
 
-  const send = async () => {
-    if (sending || agents.length === 0 || !stableSessionId) {
+  const send = async (recipient: AgentRecipient) => {
+    if (sending || !stableSessionId) {
       return;
     }
     setSending(true);
@@ -50,9 +86,12 @@ export function SendErrorReportButton({
       const result = await sendAgentMessage(
         stableSessionId,
         getContent(),
+        recipient,
         "marimo error report",
       );
-      const outcomes = result.recipients.map(formatOutcome);
+      const outcomes = result.recipients.map((outcome) =>
+        formatOutcome(outcome, labels),
+      );
       if (outcomes.length === 1) {
         const outcome = outcomes[0];
         agentToast({
@@ -80,15 +119,49 @@ export function SendErrorReportButton({
     }
   };
 
-  return (
-    <Button
-      size="xs"
-      variant="outline"
-      disabled={sending || agents.length === 0 || !stableSessionId}
-      onClick={send}
-    >
+  const disabled = sending || !stableSessionId;
+  const label = (
+    <>
       <SendIcon className="h-3 w-3 mr-2" />
       Send error to agent
-    </Button>
+    </>
+  );
+
+  if (agents.length === 1) {
+    return (
+      <Button
+        size="xs"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => send({ broadcast: true })}
+      >
+        {label}
+      </Button>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild={true}>
+        <Button size="xs" variant="outline" disabled={disabled}>
+          {label}
+          <ChevronDownIcon className="h-3 w-3 ml-2" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {agents.map((agent) => (
+          <DropdownMenuItem
+            key={agent.id}
+            onSelect={() => send({ to: agent.id })}
+          >
+            {labels.get(agent.id)}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => send({ broadcast: true })}>
+          Send to all agents
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

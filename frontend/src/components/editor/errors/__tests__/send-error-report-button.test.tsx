@@ -278,6 +278,110 @@ describe("SendErrorReportButton", () => {
     expect(getContent).toHaveBeenCalledOnce();
   });
 
+  describe("with several agents", () => {
+    const CODEX: Attachment = {
+      ...AGENT,
+      id: "a2",
+      name: "Codex",
+      identity: "codex-thread",
+    };
+
+    function openMenu() {
+      fireEvent.keyDown(
+        screen.getByRole("button", { name: "Send error to agent" }),
+        { key: "Enter" },
+      );
+    }
+
+    it("marks the button as a menu only when a choice exists", () => {
+      const chevron = () =>
+        screen
+          .getByRole("button", { name: "Send error to agent" })
+          .querySelector(".lucide-chevron-down");
+      const { store } = renderButton({ attachments: [AGENT, CODEX] });
+      expect(chevron()).toBeInTheDocument();
+      act(() => store.set(attachmentsAtom, [AGENT]));
+      expect(chevron()).not.toBeInTheDocument();
+    });
+
+    it("offers each agent and a broadcast without sending", async () => {
+      const getContent = vi.fn(() => REPORT);
+      renderButton({
+        attachments: [AGENT, CODEX],
+        content: <SendErrorReportButton getContent={getContent} />,
+      });
+      openMenu();
+      const items = await screen.findAllByRole("menuitem");
+      expect(items.map((item) => item.textContent)).toEqual([
+        "Pi",
+        "Codex",
+        "Send to all agents",
+      ]);
+      expect(getContent).not.toHaveBeenCalled();
+      expect(API.post).not.toHaveBeenCalled();
+    });
+
+    it("sends to the selected agent only", async () => {
+      renderButton({ attachments: [AGENT, CODEX] });
+      openMenu();
+      fireEvent.click(await screen.findByRole("menuitem", { name: "Codex" }));
+      await waitFor(() => expect(API.post).toHaveBeenCalledOnce());
+      const body = vi.mocked(API.post).mock.calls[0][1];
+      expect(body).toMatchObject({ to: "codex-thread", message: REPORT });
+      expect(body).not.toHaveProperty("broadcast");
+    });
+
+    it("broadcasts on request", async () => {
+      renderButton({ attachments: [AGENT, CODEX] });
+      openMenu();
+      fireEvent.click(
+        await screen.findByRole("menuitem", { name: "Send to all agents" }),
+      );
+      await waitFor(() => expect(API.post).toHaveBeenCalledOnce());
+      const body = vi.mocked(API.post).mock.calls[0][1];
+      expect(body).toMatchObject({ broadcast: true, message: REPORT });
+      expect(body).not.toHaveProperty("to");
+    });
+
+    it("tells agents with the same name apart", async () => {
+      vi.mocked(API.post).mockResolvedValue({
+        message_id: "m",
+        recipients: [
+          {
+            agent_id: "p1_bbbbbb222222",
+            name: "Claude Code",
+            status: "submitted",
+            reason: null,
+            detail: null,
+          },
+        ],
+      });
+      renderButton({
+        attachments: [
+          { ...AGENT, name: "Claude Code", identity: "p1_aaaaaa111111" },
+          { ...CODEX, name: "Claude Code", identity: "p1_bbbbbb222222" },
+        ],
+      });
+      openMenu();
+      const second = await screen.findByRole("menuitem", {
+        name: "Claude Code (222222)",
+      });
+      expect(
+        screen.getByRole("menuitem", { name: "Claude Code (111111)" }),
+      ).toBeInTheDocument();
+      fireEvent.click(second);
+      await waitFor(() =>
+        expect(toast).toHaveBeenCalledWith({
+          title: "Submitted to Claude Code (222222)",
+          duration: 3000,
+        }),
+      );
+      expect(vi.mocked(API.post).mock.calls[0][1]).toMatchObject({
+        to: "p1_bbbbbb222222",
+      });
+    });
+  });
+
   it("makes a new UUID before each request", async () => {
     const ids: string[] = [];
     vi.mocked(API.post).mockImplementation(async (_route, body) => {
