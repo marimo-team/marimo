@@ -53,5 +53,5 @@ export const objects = [
 
 export const Api = Host.make(objects);
 
-export const { NotebookEvent } = derive(objects);
-export type NotebookEvent = typeof NotebookEvent.Type;
+export const { NotebookStreamEvent } = derive(objects);
+export type NotebookStreamEvent = typeof NotebookStreamEvent.Type;

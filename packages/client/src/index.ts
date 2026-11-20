@@ -6,7 +6,7 @@ export type { ClientOptions } from "./request.ts";
 export {
   CatalogEvents,
   type CatalogEventsOptions,
-  type CatalogEvent,
+  type CatalogStreamEvent,
 } from "./catalog/events.ts";
 export type { CatalogKind, NotebookKind } from "./kinds.ts";
 export {
@@ -17,7 +17,7 @@ export {
 export {
   NotebookEvents,
   type NotebookEventsOptions,
-  type NotebookEvent,
+  type NotebookStreamEvent,
 } from "./notebook/events.ts";
 export {
   type ResultOf,

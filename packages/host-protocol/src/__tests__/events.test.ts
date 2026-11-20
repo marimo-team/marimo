@@ -31,12 +31,12 @@ describe("scoped events", () => {
     [{ event: "future", data: {} }, false, false],
     [analysisEvent, false, false],
   ])("decodes %j only in its scope", (event, catalog, notebook) => {
-    expect(Schema.is(Host.Event)(event)).toBe(catalog);
-    expect(Schema.is(Notebook.Event)(event)).toBe(notebook);
+    expect(Schema.is(Host.StreamEvent)(event)).toBe(catalog);
+    expect(Schema.is(Notebook.StreamEvent)(event)).toBe(notebook);
   });
 
   it("retains required cursors, empty control data, and custom timestamps", () => {
-    const accepts = Schema.is(Notebook.Event);
+    const accepts = Schema.is(Notebook.StreamEvent);
     expect(accepts({ event: "ready", data: {} })).toBe(false);
     expect(accepts({ event: "ready", id: "", data: {} })).toBe(false);
     expect(
@@ -53,16 +53,16 @@ describe("scoped events", () => {
   });
 
   it("opts into analysis without widening stable streams", () => {
-    expect(Schema.is(Notebook.Event)(analysisEvent)).toBe(false);
-    expect(Schema.is(Host.Event)(analysisEvent)).toBe(false);
-    const decoded = Schema.decodeUnknownSync(Analysis.NotebookEvent)(
+    expect(Schema.is(Notebook.StreamEvent)(analysisEvent)).toBe(false);
+    expect(Schema.is(Host.StreamEvent)(analysisEvent)).toBe(false);
+    const decoded = Schema.decodeUnknownSync(Analysis.NotebookStreamEvent)(
       analysisEvent,
     );
-    expect(Schema.encodeSync(Analysis.NotebookEvent)(decoded)).toEqual(
+    expect(Schema.encodeSync(Analysis.NotebookStreamEvent)(decoded)).toEqual(
       analysisEvent,
     );
     expect(
-      Schema.is(Analysis.NotebookEvent)({ event: "analysis", data: {} }),
+      Schema.is(Analysis.NotebookStreamEvent)({ event: "analysis", data: {} }),
     ).toBe(false);
   });
 });

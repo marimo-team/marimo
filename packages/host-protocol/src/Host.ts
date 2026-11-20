@@ -15,12 +15,12 @@ import * as Problems from "./Problems.ts";
 import * as P from "./api/Parameters.ts";
 import { sseEvents } from "./internal/http.ts";
 import { forGenerators } from "./internal/openapi.ts";
-import { CatalogEvent, derive } from "./Events.ts";
+import { CatalogStreamEvent, derive } from "./Events.ts";
 import { objects, type ObjectKind } from "./Objects.ts";
 import * as Notebook from "./Notebook.ts";
 
-export const Event = CatalogEvent;
-export type Event = typeof Event.Type;
+export const StreamEvent = CatalogStreamEvent;
+export type StreamEvent = typeof StreamEvent.Type;
 
 /** Admits requests that carry the host record's token from this machine. */
 export class HostToken extends HttpApiMiddleware.Service<HostToken>()(
@@ -92,11 +92,16 @@ export const make = <const Objects extends ReadonlyArray<ObjectKind>>(
 ) => {
   const derived = derive(objects);
   return HttpApi.make("Host")
-    .add(group(derived.CatalogEvent), Notebook.group(derived.NotebookEvent))
+    .add(
+      group(derived.CatalogStreamEvent),
+      Notebook.group(derived.NotebookStreamEvent),
+    )
     .middleware(HostToken)
     .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error" })
     .annotate(HttpApi.AdditionalSchemas, [
       derived.Event,
+      derived.CatalogStreamEvent,
+      derived.NotebookStreamEvent,
       derived.ObjectType,
       S.HostRecord,
       Problems.Problem,

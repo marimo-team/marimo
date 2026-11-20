@@ -2297,6 +2297,22 @@ class RuntimeEvent(Struct, frozen=True, tag_field="event", tag="runtime"):
     ) = UNSET
 
 
+CatalogStreamEvent: TypeAlias = Annotated[
+    HostEvent
+    | ProjectEvent
+    | NotebookEvent
+    | RuntimeEvent
+    | AttachmentEvent
+    | ProjectRemovedEvent
+    | NotebookRemovedEvent
+    | RuntimeRemovedEvent
+    | AttachmentRemovedEvent
+    | ResetEvent
+    | ReadyEvent,
+    Meta(description="Any event the catalog stream carries."),
+]
+
+
 class ExecutionEvent(Struct, frozen=True, tag_field="event", tag="execution"):
     data: ExecutionMessage
     id: (
@@ -2309,6 +2325,35 @@ class ExecutionEvent(Struct, frozen=True, tag_field="event", tag="execution"):
         ]
         | UnsetType
     ) = UNSET
+
+
+NotebookStreamEvent: TypeAlias = Annotated[
+    NotebookEvent
+    | DocumentEvent
+    | CellEvent
+    | RuntimeEvent
+    | AttachmentEvent
+    | RunEvent
+    | ExecutionEvent
+    | OutputEvent
+    | ConsoleEvent
+    | InputEvent
+    | VariableEvent
+    | AnalysisEvent
+    | CustomEvent
+    | NotebookRemovedEvent
+    | CellRemovedEvent
+    | RuntimeRemovedEvent
+    | AttachmentRemovedEvent
+    | RunRemovedEvent
+    | ExecutionRemovedEvent
+    | OutputRemovedEvent
+    | ConsoleRemovedEvent
+    | VariableRemovedEvent
+    | ResetEvent
+    | ReadyEvent,
+    Meta(description="Any event a notebook stream carries."),
+]
 
 
 Event: TypeAlias = Annotated[

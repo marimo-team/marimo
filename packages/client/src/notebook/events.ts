@@ -7,7 +7,8 @@ import type { NotebookTransport } from "../transport/frame.ts";
 import type { StreamEvent } from "../transport/stream.ts";
 
 /** An event delivered for the requested notebook kinds, plus ready and reset. */
-export type NotebookEvent<K extends string = NotebookKind> = StreamEvent<K>;
+export type NotebookStreamEvent<K extends string = NotebookKind> =
+  StreamEvent<K>;
 
 /** How a notebook stream reaches its host and what it follows. */
 export interface NotebookEventsOptions<

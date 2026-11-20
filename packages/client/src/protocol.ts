@@ -1759,6 +1759,57 @@ export const Event = zod
 export type Event = zod.input<typeof Event>;
 export type EventOutput = zod.output<typeof Event>;
 
+export const CatalogStreamEvent = zod
+  .union([
+    HostEvent,
+    ProjectEvent,
+    NotebookEvent,
+    RuntimeEvent,
+    AttachmentEvent,
+    ProjectRemovedEvent,
+    NotebookRemovedEvent,
+    RuntimeRemovedEvent,
+    AttachmentRemovedEvent,
+    ResetEvent,
+    ReadyEvent,
+  ])
+  .describe("Any event the catalog stream carries.");
+
+export type CatalogStreamEvent = zod.input<typeof CatalogStreamEvent>;
+export type CatalogStreamEventOutput = zod.output<typeof CatalogStreamEvent>;
+
+export const NotebookStreamEvent = zod
+  .union([
+    NotebookEvent,
+    DocumentEvent,
+    CellEvent,
+    RuntimeEvent,
+    AttachmentEvent,
+    RunEvent,
+    ExecutionEvent,
+    OutputEvent,
+    ConsoleEvent,
+    InputEvent,
+    VariableEvent,
+    AnalysisEvent,
+    CustomEvent,
+    NotebookRemovedEvent,
+    CellRemovedEvent,
+    RuntimeRemovedEvent,
+    AttachmentRemovedEvent,
+    RunRemovedEvent,
+    ExecutionRemovedEvent,
+    OutputRemovedEvent,
+    ConsoleRemovedEvent,
+    VariableRemovedEvent,
+    ResetEvent,
+    ReadyEvent,
+  ])
+  .describe("Any event a notebook stream carries.");
+
+export type NotebookStreamEvent = zod.input<typeof NotebookStreamEvent>;
+export type NotebookStreamEventOutput = zod.output<typeof NotebookStreamEvent>;
+
 export const ObjectType = zod
   .enum([
     "host",

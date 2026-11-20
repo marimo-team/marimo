@@ -40,7 +40,9 @@ const save = vi.fn(
 const events = vi.fn(
   HttpApiBuilder.handler(Host.Api, "Notebook", "events", () =>
     Effect.succeed(
-      Stream.make(Notebook.Event.make({ event: "ready", id: "98", data: {} })),
+      Stream.make(
+        Notebook.StreamEvent.make({ event: "ready", id: "98", data: {} }),
+      ),
     ),
   ),
 );

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { z } from "zod";
 import { NotebookClient } from "../notebook/client.ts";
 import { NotebookEvents } from "../notebook/events.ts";
-import type { NotebookEvent } from "../notebook/events.ts";
+import type { NotebookStreamEvent } from "../notebook/events.ts";
 import { type NotebookTransport, StreamStopped } from "../transport/frame.ts";
 import { ServerSentEventStream, sse } from "../transport/sse.ts";
 
@@ -68,7 +68,7 @@ function dropsAfter(uptime: number) {
 }
 
 function collect<K extends string>(events: NotebookEvents<K>) {
-  const received: NotebookEvent<K>[] = [];
+  const received: NotebookStreamEvent<K>[] = [];
   events.subscribe((event) => received.push(event));
   return received;
 }
@@ -227,9 +227,9 @@ describe("NotebookEvents", () => {
       fetch: answering().fetch,
     });
     events.close();
-    expectTypeOf<NotebookEvent<"cell" | "marimo">["event"]>().toEqualTypeOf<
-      "cell" | "cell.removed" | "ready" | "reset" | "marimo"
-    >();
+    expectTypeOf<
+      NotebookStreamEvent<"cell" | "marimo">["event"]
+    >().toEqualTypeOf<"cell" | "cell.removed" | "ready" | "reset" | "marimo">();
     events.subscribe((event) => {
       if (event.event === "cell") {
         expectTypeOf(event.data.cell.id).toBeString();
