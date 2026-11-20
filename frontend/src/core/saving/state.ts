@@ -18,8 +18,11 @@ export const documentVersionAtom = atom(
 /**
  * The layout as the file last had it. The host document does not carry
  * the layout file, so this client compares it itself until it does.
+ * A failed write needs a retry even if only the cell order changed.
  */
-export const savedLayoutAtom = atom<LayoutState | undefined>(undefined);
+export const savedLayoutAtom = atom<LayoutState | "write-failed" | undefined>(
+  undefined,
+);
 
 /**
  * Whether saving would change the file: the host's document differs from
@@ -42,6 +45,9 @@ export const needsSaveAtom = atom((get) => {
     }
   }
   const saved = get(savedLayoutAtom);
+  if (saved === "write-failed") {
+    return true;
+  }
   const layout = get(layoutStateAtom);
   return (
     saved !== undefined &&
