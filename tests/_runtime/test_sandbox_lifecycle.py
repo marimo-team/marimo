@@ -136,8 +136,7 @@ async def test_restart_required_batch_saves_every_requirement(
 
     assert not await mutate()
     assert [call.args[0] for call in mutation.call_args_list] == [
-        "boltons",
-        "six",
+        ["boltons", "six"],
     ]
     assert (manager.restart_required, manager.last_error) == (True, None)
 

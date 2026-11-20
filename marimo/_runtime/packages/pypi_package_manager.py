@@ -171,7 +171,11 @@ class PipPackageManager(PypiPackageManager):
         return False
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: str | None = None
+        self,
+        package: str | list[str],
+        *,
+        upgrade: bool,
+        group: str | None = None,
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -185,7 +189,9 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self, package: str | list[str], group: str | None = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         LOGGER.info(f"Uninstalling {package} with pip")
@@ -228,7 +234,7 @@ class MicropipPackageManager(PypiPackageManager):
 
     async def _install(
         self,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool,
         group: str | None = None,
@@ -243,7 +249,7 @@ class MicropipPackageManager(PypiPackageManager):
         # to avoid conflicts
         if upgrade:
             try:
-                await micropip.uninstall(split_packages(package))
+                micropip.uninstall(split_packages(package))
             except ValueError:
                 pass
 
@@ -316,14 +322,16 @@ class MicropipPackageManager(PypiPackageManager):
             ):
                 yield result
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self, package: str | list[str], group: str | None = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         assert is_pyodide()
         import micropip  # type: ignore
 
         try:
-            micropip.uninstall(package)
+            micropip.uninstall(split_packages(package))
             return True
         except ValueError:
             return False
@@ -380,7 +388,11 @@ class UvPackageManager(PypiPackageManager):
         return self._uv_bin != "uv" or super().is_manager_installed()
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: str | None = None
+        self,
+        package: str | list[str],
+        *,
+        upgrade: bool,
+        group: str | None = None,
     ) -> list[str]:
         install_cmd: list[str]
         if self.is_in_uv_project:
@@ -408,7 +420,7 @@ class UvPackageManager(PypiPackageManager):
 
     async def _install(
         self,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool,
         group: str | None = None,
@@ -440,7 +452,7 @@ class UvPackageManager(PypiPackageManager):
 
     def _install_with_cache_fallback(
         self,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool,
         group: str | None,
@@ -635,7 +647,9 @@ class UvPackageManager(PypiPackageManager):
         pyproject_path = Path(venv_path).parent / "pyproject.toml"
         return uv_lock_path.exists() and pyproject_path.exists()
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self, package: str | list[str], group: str | None = None
+    ) -> bool:
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
@@ -739,7 +753,11 @@ class RyePackageManager(PypiPackageManager):
     docs_url = "https://rye.astral.sh/"
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: str | None = None
+        self,
+        package: str | list[str],
+        *,
+        upgrade: bool,
+        group: str | None = None,
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -749,7 +767,9 @@ class RyePackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self, package: str | list[str], group: str | None = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
@@ -778,7 +798,11 @@ class PoetryPackageManager(PypiPackageManager):
         return major
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: str | None = None
+        self,
+        package: str | list[str],
+        *,
+        upgrade: bool,
+        group: str | None = None,
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -789,7 +813,9 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self, package: str | list[str], group: str | None = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
