@@ -152,7 +152,7 @@ async def test_scratch_outcomes_from_the_kernel(
         if r.get("data", {}).get("execution", {}).get("status") == "completed"
     ]
     outcome = execution["outcome"]
-    assert execution["code"] == code
+    assert accepted.json()["origin"] == {"kind": "code", "code": code}
     assert execution["code_fingerprint"]
     assert execution["runtime_id"] is not None
     assert execution["caused_by"] is None

@@ -637,7 +637,7 @@ class TestRun:
         assert [runs[-1], executions[-1], *consoles] == snapshot(
             [
                 Run(
-                    origin=protocol.RunCodeOrigin(),
+                    origin=protocol.RunCodeOrigin(code="3 * 3"),
                     completed_at=IsDatetime(),
                     id=run.id,
                     notebook_id=NotebookId("n1"),
@@ -649,7 +649,6 @@ class TestRun:
                 Execution(
                     caused_by=None,
                     cell_id=None,
-                    code="3 * 3",
                     code_fingerprint="9f",
                     completed_at=IsDatetime(),
                     depends_on={},
@@ -1620,4 +1619,4 @@ def test_an_accepted_cell_run_records_its_cells(
     )
     assert run.origin == protocol.RunCellsOrigin(cell_ids=(CellId("c1"),))
     scratch = notebook.run("1", request_id="scratch", request=None)
-    assert scratch.origin == protocol.RunCodeOrigin()
+    assert scratch.origin == protocol.RunCodeOrigin(code="1")

@@ -46,7 +46,6 @@ function record(
     run_id: "run-1",
     runtime_id: "r1",
     caused_by: null,
-    code: null,
     depends_on: {},
     status: "completed",
     outcome: { kind: "value", display: null },

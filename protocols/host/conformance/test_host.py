@@ -363,9 +363,8 @@ async def test_run(host, scratch, code, outcome, kind):
         assert run["status"] in ("queued", "running")
         assert run["id"] != key
         events, executions = await finish_run(watch, run, key, outcome)
-        assert all(
-            e["code"] == code and e["cell_id"] is None for e in executions
-        )
+        assert run["origin"] == {"kind": "code", "code": code}
+        assert all(e["cell_id"] is None for e in executions)
         assert executions[-1]["outcome"]["kind"] == kind
         if kind == "value":
             assert "conformance" in "".join(
@@ -472,9 +471,7 @@ async def test_run_cells(host, scratch):
             "Run",
         )
         _, executions = await finish_run(watch, run, key, "succeeded")
-        assert any(
-            e["cell_id"] == "check_a" and e["code"] is None for e in executions
-        )
+        assert any(e["cell_id"] == "check_a" for e in executions)
         response = await host.request(
             "POST",
             path + "/runtime/runs",

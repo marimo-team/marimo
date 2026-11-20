@@ -604,6 +604,11 @@ export type RunCellsOriginOutput = zod.output<typeof RunCellsOrigin>;
 
 export const RunCodeOrigin = zod.object({
   kind: zod.enum(["code"]),
+  code: zod
+    .string()
+    .describe(
+      "The submitted code, which the run's scratch execution evaluates.",
+    ),
 });
 
 export type RunCodeOrigin = zod.input<typeof RunCodeOrigin>;
@@ -619,7 +624,7 @@ export type RunRuntimeOriginOutput = zod.output<typeof RunRuntimeOrigin>;
 export const RunOrigin = zod
   .union([RunCellsOrigin, RunCodeOrigin, RunRuntimeOrigin])
   .describe(
-    "What a run was given when it was created, tagged on `kind`. A\n`cells` run was given the cells in `cell_ids`. A `code` run was\ngiven code to evaluate, which its scratch execution carries. A\n`runtime` run was given neither. The runtime scheduled it in\nresponse to a change, such as the cells that read a UI element\nafter its value changes. Other kinds are defined by later versions\nof this protocol.\n",
+    "What a run was given when it was created, tagged on `kind`. A\n`cells` run was given the cells in `cell_ids`. A `code` run was\ngiven the code in `code`, which its scratch execution evaluates. A\n`runtime` run was given neither. The runtime scheduled it in\nresponse to a change, such as the cells that read a UI element\nafter its value changes. Other kinds are defined by later versions\nof this protocol.\n",
   );
 
 export type RunOrigin = zod.input<typeof RunOrigin>;
@@ -917,12 +922,7 @@ export const Execution = zod
     cell_id: zod
       .union([CellId, zod.null()])
       .describe(
-        "The cell this execution belongs to. Null for scratch code, a cell outside the document.",
-      ),
-    code: zod
-      .union([zod.string(), zod.null()])
-      .describe(
-        "The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it.",
+        "The cell this execution belongs to. Null for a scratch execution, which evaluates the code in its run's `origin`.",
       ),
     code_fingerprint: CodeFingerprint.describe(
       "Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued.",
@@ -948,7 +948,7 @@ export const Execution = zod
       .describe("When the execution ended. Null until it is completed."),
   })
   .describe(
-    "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them, and items can arrive after completion while the\nexecution remains retained. Each new input belongs to a running\nexecution. Input calls from completed or removed executions raise\n`EOFError` in the calling code. Exactly one of `cell_id` and `code`\nis null: a cell's execution carries the cell and no code, and a\nscratch execution carries its code and no cell.\n",
+    "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them, and items can arrive after completion while the\nexecution remains retained. Each new input belongs to a running\nexecution. Input calls from completed or removed executions raise\n`EOFError` in the calling code. A scratch execution has no cell and\nevaluates the code in its run's `origin`.\n",
   );
 
 export type Execution = zod.input<typeof Execution>;

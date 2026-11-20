@@ -115,7 +115,6 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
         runtime_id=None,
         caused_by=None,
         cell_id=protocol.CellId("a"),
-        code=None,
         code_fingerprint=protocol.CodeFingerprint(
             document[0].code_fingerprint
         ),

@@ -28,7 +28,7 @@ function run(
     id,
     notebook_id: "n1",
     runtime_id: runtimeId,
-    origin: { kind: "code" },
+    origin: { kind: "code", code: "pass" },
     status,
     outcome: status === "completed" ? "succeeded" : null,
     started_at: status === "queued" ? null : MockExecutions.T0,

@@ -296,7 +296,7 @@ async def test_external_scratch_is_adopted_before_compilation(
     )
     assert observed.kinds() == ["Scheduled", "Planned"]
     assert observed.messages[0] == be.Scheduled(
-        protocol.RunId("browser"), protocol.RunCodeOrigin()
+        protocol.RunId("browser"), protocol.RunCodeOrigin(code="3 * 3")
     )
     planned = observed.messages[-1]
     assert isinstance(planned, be.Planned)

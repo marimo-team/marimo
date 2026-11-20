@@ -136,7 +136,7 @@ overall progress of a run.
 A run's `origin` records what the run was given when it was created, which is
 the cells a client asked for or the scratch code a client submitted.
 
-    Run { ..., origin: { kind: "cells", cell_ids } | { kind: "code" } | { kind: "runtime" } }
+    Run { ..., origin: { kind: "cells", cell_ids } | { kind: "code", code } | { kind: "runtime" } }
 
 ```text
 Notebook
