@@ -197,6 +197,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Sequence
     from types import ModuleType
 
+    from marimo._messaging.agents import AgentConnection
     from marimo._plugins.ui._core.ui_element import UIElement
     from marimo._runtime.virtual_file import VirtualFileStorageType
 
@@ -597,6 +598,7 @@ class Kernel:
         ]
 
         self.router = RequestRouter()
+        self.agent_messaging: AgentConnection | None = None
         KernelRequestHandlers(self).register(self.router)
         for cb in self._callbacks:
             cb.register(self.router)
@@ -2673,7 +2675,7 @@ class Kernel:
                 sorted(ctx.function_registry.namespaces),
                 sum(1 for child in ctx.children if child.app is not None),
             )
-        elif function.cell_id is None:
+        elif function.cell_bound and function.cell_id is None:
             found = True
             error_title = "Function not associated with cell"
             error_message = (
@@ -2684,9 +2686,15 @@ class Kernel:
             found = True
             LOGGER.debug("Executing RPC %s", request)
             with (
-                command_console(function.cell_id, CallbackOutputNotification),
-                self._install_execution_context(cell_id=function.cell_id),
-                ctx.provide_ui_ids(str(uuid4())),
+                command_console(function.cell_id, CallbackOutputNotification)
+                if function.cell_id is not None
+                else contextlib.nullcontext(),
+                self._install_execution_context(cell_id=function.cell_id)
+                if function.cell_id is not None
+                else contextlib.nullcontext(),
+                ctx.provide_ui_ids(str(uuid4()))
+                if function.cell_id is not None
+                else contextlib.nullcontext(),
             ):
                 # Usually UI element IDs are deterministic, based on
                 # cell id, so that element values can be matched up
@@ -3117,6 +3125,7 @@ def launch_kernel(
     is_ipc: bool = False,
     parent_pid: int | None = None,
     config_overrides: tuple[ConfigPath, ...] = (),
+    agent_messaging: AgentConnection | None = None,
 ) -> None:
     from marimo._runtime.kernel_lifecycle import (
         KernelArgs,
@@ -3158,6 +3167,7 @@ def launch_kernel(
                 control_queue=control_queue,
                 set_ui_element_queue=set_ui_element_queue,
                 virtual_file_storage=virtual_file_storage,
+                agent_messaging=agent_messaging,
             )
         ) as (kernel, _ctx):
             if is_edit_mode:

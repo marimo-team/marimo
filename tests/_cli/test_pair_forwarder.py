@@ -10,17 +10,16 @@ import sys
 import threading
 import time
 from dataclasses import replace
-from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
+import msgspec
 import pytest
 from click.testing import CliRunner
 
 from marimo._cli.cli import main as cli_main
 from marimo._cli.pair import commands, forwarder
-from marimo._cli.pair.artifacts import AgentMessageFiles
 from marimo._cli.pair.client import (
     PairConnectionError,
     PairError,
@@ -28,13 +27,22 @@ from marimo._cli.pair.client import (
     StaleNotebookError,
 )
 from marimo._cli.pair.connection import ConnectionStore, connection_identity
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.delivery import (
+    DeliveryTarget,
+    ProcessHandle,
+)
 from marimo._cli.pair.forwarder import ForwarderConfig, run_forwarder
 from marimo._cli.pair.target import ExecutionTarget
+from marimo._messaging.agents import (
+    MessageContent,
+    PointerEvent,
+    SubmissionReport,
+)
 from tests._cli.test_pair_delivery import record
 
 if TYPE_CHECKING:
     import queue
+    from pathlib import Path
 
 
 class RecordingInbox:
@@ -104,45 +112,11 @@ def attached(identity: str = "identity") -> SSEEvent:
     )
 
 
-def agent_message(value: object) -> SSEEvent:
+def unrelated_custom(value: object) -> SSEEvent:
     return SSEEvent(
         "custom",
-        json.dumps(
-            {"custom": {"type": "marimo.pair.agent-message", "data": value}}
-        ),
+        json.dumps({"custom": {"type": "other", "data": value}}),
     )
-
-
-def test_coalescing_bounds_final_messages(
-    config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(AgentMessageFiles, "cleanup", lambda _: None)
-    install_stream(
-        monkeypatch,
-        [
-            [
-                attached(),
-                agent_message("one"),
-                agent_message("two"),
-                agent_message("😀" * 1000),
-                agent_message({"lens": "custom"}),
-                None,
-            ]
-        ],
-    )
-    inbox = RecordingInbox()
-    ready = Mock()
-    run_forwarder(config, inbox, ready=ready)
-    ready.assert_called_once()
-    assert len(inbox.messages) == 3
-    assert "one" in inbox.messages[0]
-    assert "two" in inbox.messages[0]
-    for message in inbox.messages:
-        assert len(message.encode("utf-8")) <= inbox.inbox_bytes
-    path = Path(
-        inbox.messages[1].rsplit("Complete JSON agent message: ", 1)[1][:-1]
-    )
-    assert json.loads(path.read_text(encoding="utf-8")) == "😀" * 1000
 
 
 def test_reconnect_preserves_identity(
@@ -153,10 +127,15 @@ def test_reconnect_preserves_identity(
         [
             [
                 attached(),
-                agent_message("first"),
+                unrelated_custom("first"),
                 http.client.IncompleteRead(b""),
             ],
-            [attached(), SSEEvent("heartbeat", ""), agent_message(None), None],
+            [
+                attached(),
+                SSEEvent("heartbeat", ""),
+                unrelated_custom(None),
+                None,
+            ],
         ],
     )
     inbox = RecordingInbox()
@@ -164,9 +143,7 @@ def test_reconnect_preserves_identity(
     run_forwarder(config, inbox, ready=ready)
     assert calls.call_args_list == [((config,),), ((config,),)]
     ready.assert_called_once()
-    assert len(inbox.messages) == 2
-    assert inbox.messages[0].endswith("first")
-    assert inbox.messages[1].endswith("null")
+    assert inbox.messages == []
 
 
 def test_reconnect_backoff_caps_and_resets_after_attachment(
@@ -225,7 +202,7 @@ def test_reconnect_wait_stops_when_harness_exits(
 @pytest.mark.parametrize(
     "first",
     [
-        agent_message("too early"),
+        SSEEvent("ready", "{}"),
         attached("wrong"),
         PairError("Authentication failed."),
     ],
@@ -253,18 +230,6 @@ def test_stale_notebook_exit(
         ],
     )
     run_forwarder(config, RecordingInbox(), ready=Mock())
-
-
-def test_send_failure_does_not_retry_delivery(
-    config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    install_stream(monkeypatch, [[attached(), agent_message("once"), None]])
-    inbox = RecordingInbox()
-    send = Mock(side_effect=PairError("rejected"))
-    monkeypatch.setattr(inbox, "send", send)
-    with pytest.raises(PairError, match="rejected"):
-        run_forwarder(config, inbox, ready=Mock())
-    send.assert_called_once()
 
 
 def test_dead_harness_closes_reader(
@@ -298,6 +263,46 @@ def test_dead_harness_never_connects(
     inbox.living = False
     run_forwarder(config, inbox, ready=Mock())
     calls.assert_not_called()
+
+
+def test_server_without_messaging_fails_startup(
+    config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stream = SimpleNamespace(
+        response=SimpleNamespace(getheader=lambda _name: None), close=Mock()
+    )
+    monkeypatch.setattr(forwarder, "open_events", lambda **_kwargs: stream)
+    ready = Mock()
+    with pytest.raises(PairError):
+        run_forwarder(config, RecordingInbox(), ready=ready)
+    ready.assert_not_called()
+    stream.close.assert_called()
+
+
+def pointer(attempt_id: str) -> PointerEvent:
+    return PointerEvent(attempt_id, attempt_id, "att-one", "identity", None)
+
+
+def test_preparation_failure_is_rejected(
+    config: ForwarderConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        forwarder, "inbox_message", Mock(side_effect=OSError("disk full"))
+    )
+    content = msgspec.json.encode(MessageContent("text", "nb.py", None))
+    reports = Mock(
+        return_value=SimpleNamespace(
+            response=SimpleNamespace(read=lambda: content), close=Mock()
+        )
+    )
+    monkeypatch.setattr(forwarder, "open_response", reports)
+    inbox = RecordingInbox()
+    forwarder._deliver(config, inbox, pointer("one"), "key", Mock())
+    report = msgspec.json.decode(
+        reports.call_args.kwargs["body"], type=SubmissionReport
+    )
+    assert (report.status, report.reason) == ("rejected", "failed")
+    assert inbox.messages == []
 
 
 def test_detached_platform_options(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -457,7 +462,7 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
                 json.dumps(
                     {
                         "custom": {
-                            "type": "marimo.pair.agent-message",
+                            "type": "other",
                             "data": "first",
                         }
                     }
@@ -482,7 +487,7 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
                 json.dumps(
                     {
                         "custom": {
-                            "type": "marimo.pair.agent-message",
+                            "type": "other",
                             "data": "replayed",
                         }
                     }
@@ -526,10 +531,7 @@ def test_reconnect_uses_processed_cursor_and_ignores_old_removal(
     ready = Mock()
     run_forwarder(config, inbox, ready=ready)
     assert cursors == [None, "11"]
-    assert [message.rsplit("\n", 1)[1] for message in inbox.messages] == [
-        "first",
-        "replayed",
-    ]
+    assert inbox.messages == []
     ready.assert_called_once()
 
 
@@ -543,7 +545,7 @@ def test_reset_replaces_attachment_without_second_ready(
                 attached(),
                 SSEEvent("reset", "{}"),
                 attached(),
-                agent_message({"opaque": [1, None]}),
+                unrelated_custom({"opaque": [1, None]}),
                 None,
             ]
         ],
@@ -552,7 +554,7 @@ def test_reset_replaces_attachment_without_second_ready(
     ready = Mock()
     run_forwarder(config, inbox, ready=ready)
     ready.assert_called_once()
-    assert inbox.messages[0].endswith('{"opaque": [1, null]}')
+    assert inbox.messages == []
 
 
 @pytest.mark.parametrize(

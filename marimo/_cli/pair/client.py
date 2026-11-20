@@ -6,7 +6,7 @@ import json
 import queue
 import socket
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit
 
 from marimo._server.host import (
@@ -42,6 +42,19 @@ class UnsupportedInboxError(PairInputError):
 
 class InboxConnectionError(PairError):
     """Forwarder startup failed after harness readiness was confirmed."""
+
+
+class SubmissionRejectedError(PairError):
+    """Native evidence establishes that the message was not admitted."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: Literal["refused", "invalid"] = "refused",
+    ) -> None:
+        super().__init__(message)
+        self.reason: Literal["refused", "invalid"] = reason
 
 
 class PairConnectionError(PairError):
@@ -435,12 +448,17 @@ def open_events(
     kind: str = "agent",
     types: str = "custom,attachment",
     read_timeout: float | None = 45,
+    messaging: bool = False,
 ) -> EventStream:
     headers = {
         ATTACHMENT_IDENTITY: identity,
         ATTACHMENT_KIND: kind,
         ATTACHMENT_NAME: name,
     }
+    if messaging:
+        from marimo._messaging.agents import MESSAGING_HEADER
+
+        headers[MESSAGING_HEADER] = "1"
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
     if cursor is not None:

@@ -103,6 +103,7 @@ __all__ = [  # noqa: RUF022
 ]
 import marimo._ai as ai
 import marimo._islands as islands
+from marimo import _agents as _agents
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands._island_generator import MarimoIslandGenerator

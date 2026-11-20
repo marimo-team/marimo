@@ -15,6 +15,7 @@ import msgspec
 
 from marimo._cli.pair import forwarder
 from marimo._cli.pair.client import EventStream, open_events
+from marimo._cli.pair.delivery import Submission
 from marimo._cli.pair.forwarder import ForwarderConfig
 
 if TYPE_CHECKING:
@@ -31,9 +32,10 @@ class RecordingInbox:
     def alive(self) -> bool:
         return self.owner is not None and self.owner.alive()
 
-    def send(self, text: str) -> None:
+    def send(self, text: str) -> Submission:
         with (self.directory / "inbox.jsonl").open("a") as output:
             output.write(json.dumps({"message": text}) + "\n")
+        return Submission("submitted")
 
 
 def main() -> None:
@@ -49,6 +51,7 @@ def main() -> None:
         identity: str,
         name: str,
         cursor: str | None = None,
+        messaging: bool = False,
     ) -> EventStream:
         nonlocal calls
         calls += 1
@@ -62,6 +65,7 @@ def main() -> None:
             identity=identity,
             name=name,
             cursor=cursor,
+            messaging=messaging,
         )
         if calls == 1:
 

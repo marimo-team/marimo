@@ -11,6 +11,7 @@ import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
+from uuid import uuid4
 
 import msgspec
 import pytest
@@ -250,11 +251,17 @@ def test_detached_forwarder_delivers_to_claude_socket(
             request = urllib.request.Request(
                 f"{server.url}/api/pair/notebooks/{server.stable_session_id}/messages",
                 method="POST",
-                data=json.dumps(message).encode(),
+                data=json.dumps(
+                    {
+                        "message_id": str(uuid4()),
+                        "message": message,
+                        "broadcast": True,
+                    }
+                ).encode(),
                 headers={"Content-Type": "application/json"},
             )
             with urllib.request.urlopen(request, timeout=5) as response:
-                assert response.status == 202
+                assert response.status == 200
             frames = received.get(timeout=10)
             assert frames[0] == {
                 "type": "auth",

@@ -24,6 +24,12 @@ from marimo._core.errors import (
     NotFound,
 )
 from marimo._core.operations import Reply
+from marimo._messaging.agents import (
+    ATTACHMENT_HEADER,
+    MESSAGING_HEADER,
+    REPORT_KEY_HEADER,
+    SubmissionReport,
+)
 from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -96,6 +102,16 @@ def build_app() -> Router:
         ),
         Route(
             "/notebooks/{notebook_id}/open", _open_notebook, methods=["POST"]
+        ),
+        Route(
+            "/notebooks/{notebook_id}/messages/{attempt_id}/content",
+            _message_content,
+            methods=["POST"],
+        ),
+        Route(
+            "/notebooks/{notebook_id}/messages/report",
+            _message_report,
+            methods=["POST"],
         ),
         *notebook_routes(),
     ]
@@ -182,7 +198,18 @@ async def _notebook_events(request: Request) -> Response:
         )
     except msgspec.ValidationError as e:
         return problem("invalid-request", _attachment_problem(e))
-    return _stream(
+    headers = {}
+    if (
+        request.headers.get(MESSAGING_HEADER) == "1"
+        and attachment.kind == "agent"
+    ):
+        headers = {
+            ATTACHMENT_HEADER: attachment.id,
+            REPORT_KEY_HEADER: context.agents.register(
+                notebook, attachment.id
+            ),
+        }
+    response = _stream(
         context,
         cursor,
         types,
@@ -190,6 +217,42 @@ async def _notebook_events(request: Request) -> Response:
         run_id=run_id,
         on_close=lambda: notebook.detach(attachment.id),
     )
+    response.headers.update(headers)
+    return response
+
+
+async def _message_content(request: Request) -> Response:
+    try:
+        content = _context(request).agents.fetch(
+            request.path_params["notebook_id"],
+            request.headers.get(ATTACHMENT_HEADER, ""),
+            request.path_params["attempt_id"],
+            request.headers.get(REPORT_KEY_HEADER, ""),
+        )
+        return Response(
+            msgspec.json.encode(content), media_type="application/json"
+        )
+    except PermissionError as error:
+        return problem("forbidden", str(error))
+    except ValueError as error:
+        return problem("conflict", str(error))
+
+
+async def _message_report(request: Request) -> Response:
+    try:
+        report = await _decode(request, SubmissionReport)
+        _context(request).agents.report(
+            request.path_params["notebook_id"],
+            report,
+            request.headers.get(REPORT_KEY_HEADER, ""),
+        )
+        return Response(status_code=204)
+    except msgspec.DecodeError as error:
+        return problem("invalid-request", str(error))
+    except PermissionError as error:
+        return problem("forbidden", str(error))
+    except ValueError as error:
+        return problem("conflict", str(error))
 
 
 def editor_routes(base_url: str = "") -> list[BaseRoute]:

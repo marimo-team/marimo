@@ -85,9 +85,16 @@ class AgentMessageFiles:
 
 
 def inbox_message(
-    payload: object, *, notebook: str, budget: int, files: AgentMessageFiles
+    payload: object,
+    *,
+    notebook: str,
+    budget: int,
+    files: AgentMessageFiles,
+    sender: str | None = None,
 ) -> str:
-    prefix = f"Agent message from marimo (notebook {notebook}).\n"
+    prefix = f"Agent message from marimo (notebook {notebook}). No reply is expected.\n"
+    if sender is not None:
+        prefix += f"Sender (not verified): {sender}\n"
     text = (
         payload
         if isinstance(payload, str)

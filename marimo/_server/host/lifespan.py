@@ -52,6 +52,7 @@ async def ensure_host(app: Starlette) -> HostContext:
         server.host, server.port, route_bind_all_to_loopback=True
     )
     server_url = f"http://{url_host}:{server.port}{state.base_url.rstrip('/')}"
+    state.session_manager.agent_messaging_url = server_url
     bridge = SessionBridge(
         state.session_manager,
         state.config_manager,
@@ -78,6 +79,7 @@ async def host(app: Starlette) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            context.agents.close()
             context.bridge.close()
             app.state.host_context = None
         return
@@ -109,5 +111,6 @@ async def host(app: Starlette) -> AsyncIterator[None]:
             await maintenance
         if record is not None:
             record.remove()
+        context.agents.close()
         context.bridge.close()
         app.state.host_context = None

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { ExternalLink } from "@/components/ui/links";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useCellRuntime } from "@/core/cells/cells";
 import { buildErrorReport } from "@/core/cells/error-report";
 import type { CellId } from "@/core/cells/ids";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
@@ -99,6 +100,40 @@ interface Props {
   errors: readonly CellError[];
   code?: string;
   className?: string;
+}
+
+function SendErrorReportFallback({
+  cellId,
+  code,
+  errors,
+  showInlineTraceback,
+}: {
+  cellId: CellId;
+  code: string | undefined;
+  errors: MarimoError[];
+  showInlineTraceback: boolean;
+}) {
+  const runtime = useCellRuntime(cellId);
+  const hasConsoleTraceback =
+    !showInlineTraceback &&
+    errors.some(
+      (error) => error.type === "exception" && error.raising_cell == null,
+    ) &&
+    runtime?.consoleOutputs.some(
+      (output) =>
+        output.mimetype === "application/vnd.marimo+traceback" &&
+        typeof output.data === "string" &&
+        output.data.length > 0 &&
+        output.code === code,
+    );
+  if (hasConsoleTraceback) {
+    return null;
+  }
+  return (
+    <SendErrorReportButton
+      getContent={() => buildErrorReport(cellId, { code, errors })}
+    />
+  );
 }
 
 /**
@@ -775,10 +810,11 @@ export const MarimoErrorOutput = ({
       {title}
       <div className="flex flex-col gap-4">{renderMessages()}</div>
       {cellId && kernelErrors.length > 0 && (
-        <SendErrorReportButton
-          getContent={() =>
-            buildErrorReport(cellId, { code, errors: kernelErrors })
-          }
+        <SendErrorReportFallback
+          cellId={cellId}
+          code={code}
+          errors={kernelErrors}
+          showInlineTraceback={showInlineTraceback}
         />
       )}
     </Alert>

@@ -7,17 +7,18 @@ import os
 import stat
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, TypeVar
-from urllib.parse import quote, urlencode, urlsplit
+from typing import TYPE_CHECKING, ClassVar, Literal, TypeVar
+from urllib.parse import quote, unquote, urlencode, urlsplit
 
 import msgspec
 
 from marimo._cli.pair.client import (
     PairError,
     PairInputError,
+    SubmissionRejectedError,
     UnsupportedInboxError,
 )
-from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle
+from marimo._cli.pair.delivery import DeliveryTarget, ProcessHandle, Submission
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -68,6 +69,20 @@ def _request(
             "GET" if text is None else "POST", path, body, headers
         )
         response = connection.getresponse()
+        if text is not None and response.status in {
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+        }:
+            raise SubmissionRejectedError(
+                "OpenCode rejected the inbox request.",
+                reason="invalid"
+                if response.status in {400, 422}
+                else "refused",
+            )
         if response.status != 200:
             raise PairError(
                 "OpenCode rejected the inbox request. Check the session and credentials."
@@ -119,6 +134,16 @@ class _Session(msgspec.Struct):
 
 class _SessionResponse(msgspec.Struct):
     data: _Session
+
+
+class _AdmittedMessage(msgspec.Struct):
+    id: str
+    type: Literal["user"]
+    sessionID: str
+
+
+class _PromptResponse(msgspec.Struct):
+    data: _AdmittedMessage
 
 
 class OpenCodeHarness:
@@ -246,8 +271,19 @@ class OpenCodeInbox:
     target: DeliveryTarget
     inbox_bytes: ClassVar[int] = 64 * 1024
 
-    def send(self, text: str) -> None:
-        _request(self.target.address, self.target.auth_token, dict, text=text)
+    def send(self, text: str) -> Submission:
+        response = _request(
+            self.target.address,
+            self.target.auth_token,
+            _PromptResponse,
+            text=text,
+        )
+        session_id = unquote(
+            urlsplit(self.target.address).path.rsplit("/", 2)[1]
+        )
+        if not response.data.id or response.data.sessionID != session_id:
+            raise PairError("OpenCode returned an invalid admission response.")
+        return Submission("submitted", "OpenCode admitted the message.")
 
     def alive(self) -> bool:
         return self.target.process is not None and self.target.process.alive()

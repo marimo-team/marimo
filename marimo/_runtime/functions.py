@@ -31,22 +31,30 @@ class Function(Generic[S, T]):
     arg_cls: type[S]
     function: Callable[[S], T] | Callable[[S], Coroutine[Any, Any, T]]
     cell_id: CellId_t | None
+    cell_bound: bool
 
     def __init__(
         self,
         name: str,
         arg_cls: type[S],
         function: Callable[[S], T],
+        *,
+        cell_bound: bool = True,
     ) -> None:
         from marimo._runtime.context import safe_get_context
 
         self.name = name
         self.arg_cls = arg_cls
         self.function = function
+        self.cell_bound = cell_bound
 
         ctx = safe_get_context()
 
-        if ctx is not None and ctx.execution_context is not None:
+        if (
+            cell_bound
+            and ctx is not None
+            and ctx.execution_context is not None
+        ):
             self.cell_id = ctx.execution_context.cell_id
         else:
             self.cell_id = None
