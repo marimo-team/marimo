@@ -34,6 +34,7 @@ jobs:
             cli:
               - 'marimo/**'
               - 'tests/_cli/**'
+              - 'tests/_pyodide/test_pyodide_acceptance.mjs'
               - '.github/workflows/test_cli.yaml'
 
   build_wheel:

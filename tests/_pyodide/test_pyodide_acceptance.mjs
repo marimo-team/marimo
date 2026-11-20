@@ -115,6 +115,14 @@ async function waitForFrame(frames, predicate) {
   throw new Error(`Timed out waiting for a host event: ${JSON.stringify(frames)}`);
 }
 
+async function assertRunSucceeded(frames, runId) {
+  const completed = await waitForFrame(frames, (frame) =>
+    frame.event === "run" && frame.data.run.id === runId &&
+    frame.data.run.state.status === "completed",
+  );
+  assert.equal(completed.data.run.state.outcome, "succeeded");
+}
+
 async function testHostInputs(notebook, notebookId, frames) {
   const call = async (operation, key, body, params = {}) =>
     JSON.parse(await notebook.call(JSON.stringify({
@@ -141,14 +149,6 @@ async function testHostInputs(notebook, notebookId, frames) {
     assert.deepEqual(await reply(), answered);
   };
 
-  const assertSucceeded = async (runId) => {
-    const completed = await waitForFrame(frames, (frame) =>
-      frame.event === "run" && frame.data.run.id === runId &&
-      frame.data.run.status === "completed",
-    );
-    assert.equal(completed.data.run.outcome, "succeeded");
-  };
-
   const run = await call("runtime.execute", "wasm-input-run", { code: [
     "import getpass",
     "_secret = getpass.getpass('Password: ')",
@@ -158,7 +158,7 @@ async function testHostInputs(notebook, notebookId, frames) {
   assert.equal(run.status, 202);
   await answer("Password: ", "secret", true);
   await answer("Empty: ", "");
-  await assertSucceeded(run.body.id);
+  await assertRunSucceeded(frames, run.body.id);
   assert.doesNotMatch(
     JSON.stringify(frames.filter((frame) => frame.event === "input")),
     /secret/,
@@ -196,7 +196,7 @@ async function testHostInputs(notebook, notebookId, frames) {
       await answer(prompt, value);
     }
   }
-  await assertSucceeded(concurrent.body.id);
+  await assertRunSucceeded(frames, concurrent.body.id);
 }
 
 async function testIdleInterrupt(pyodide, notebook, notebookId, frames) {
@@ -215,11 +215,7 @@ async function testIdleInterrupt(pyodide, notebook, notebookId, frames) {
     assert.equal(buffer[0], 0, "The acknowledgement must not leave a pending signal");
     const run = JSON.parse(await call("runtime.execute", "after-idle-interrupt", { code: "42" }));
     assert.equal(run.status, 202);
-    const completed = await waitForFrame(frames, (frame) =>
-      frame.event === "run" && frame.data.run.id === run.body.id &&
-      frame.data.run.status === "completed",
-    );
-    assert.equal(completed.data.run.outcome, "succeeded");
+    await assertRunSucceeded(frames, run.body.id);
   } finally {
     pyodide.setInterruptBuffer(undefined);
   }
