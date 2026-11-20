@@ -21,6 +21,7 @@ import { Label } from "../../components/ui/label";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
 import { toast } from "@/components/ui/use-toast";
+import { prettyError } from "@/utils/errors";
 import { getNotebook } from "../cells/cells";
 import { notebookCells } from "../cells/utils";
 import { formatAll } from "../codemirror/format";
@@ -131,22 +132,50 @@ export function useSaveNotebook() {
         return;
       }
 
-      // The notebook is the host's document plus a layout the editor keeps
-      // beside it. TODO: fold the layout into the host document.
       const layout = store.get(layoutStateAtom);
+      const saved = store.get(savedLayoutAtom);
+      let layoutError: string | undefined;
+      // A sidecar follows cell order. Write it before the document so the
+      // notebook's layout_file points to the new layout (or clears the old one).
+      const shouldWriteLayout =
+        layout.selectedLayout !== "vertical" ||
+        saved === "write-failed" ||
+        (saved !== undefined && saved.selectedLayout !== "vertical");
+      if (shouldWriteLayout) {
+        try {
+          await saveLayout({ layout: getSerializedLayout() });
+        } catch (error) {
+          layoutError = prettyError(error);
+          Logger.error("Failed to save layout", error);
+        }
+      }
       try {
-        await saveLayout({ layout: getSerializedLayout() });
         await saveDocument();
       } catch (error) {
+        if (shouldWriteLayout) {
+          store.set(savedLayoutAtom, "write-failed");
+        }
         Logger.error("Failed to save notebook", error);
         toast({
-          title: "Failed to save",
-          description: error instanceof Error ? error.message : String(error),
+          title: "Failed to save cells",
+          description:
+            layoutError === undefined
+              ? prettyError(error)
+              : `Cells: ${prettyError(error)}\nLayout: ${layoutError}`,
           variant: "danger",
         });
         return;
       }
-      store.set(savedLayoutAtom, layout);
+      if (layoutError !== undefined) {
+        store.set(savedLayoutAtom, "write-failed");
+        toast({
+          title: "Cells saved. Layout could not be saved.",
+          description: layoutError,
+          variant: "danger",
+        });
+      } else {
+        store.set(savedLayoutAtom, layout);
+      }
     }),
   );
 
