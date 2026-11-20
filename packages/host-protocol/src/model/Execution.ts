@@ -138,7 +138,7 @@ export const DisplayData = Schema.Struct({
 });
 
 export const Revision = Schema.Struct({
-  execution: ExecutionId.annotateKey({
+  execution_id: ExecutionId.annotateKey({
     description:
       "The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.",
   }),
@@ -148,7 +148,7 @@ export const Revision = Schema.Struct({
   }),
 }).annotate({
   description:
-    "A variable's value at a point in time. Two revisions are equal\nwhen `execution` and `update` are equal. Clients compare\nrevisions for equality.\n",
+    "A variable's value at a point in time. Two revisions are equal\nwhen `execution_id` and `update` are equal. Clients compare\nrevisions for equality.\n",
   identifier: "Revision",
 });
 

@@ -6699,7 +6699,7 @@ export interface components {
     /** Revision */
     Revision: {
       /** @description Identifies an execution. Unique within the host. */
-      execution: string;
+      execution_id: string;
       /** @description How many times the value has been updated since it was produced. Zero at binding. */
       update: number;
     };

@@ -996,7 +996,7 @@ export const revisionUpdateMin = 0;
 
 export const Revision = zod
   .object({
-    execution: ExecutionId.describe(
+    execution_id: ExecutionId.describe(
       "The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.",
     ),
     update: zod
@@ -1007,7 +1007,7 @@ export const Revision = zod
       ),
   })
   .describe(
-    "A variable's value at a point in time. Two revisions are equal\nwhen `execution` and `update` are equal. Clients compare\nrevisions for equality.\n",
+    "A variable's value at a point in time. Two revisions are equal\nwhen `execution_id` and `update` are equal. Clients compare\nrevisions for equality.\n",
   );
 
 export type Revision = zod.input<typeof Revision>;

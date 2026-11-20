@@ -20,7 +20,7 @@ data: {"execution":{"id":"e12","run_id":"run-cells","cell_id":"c3","code_fingerp
 
 id: 105
 event: variable
-data: {"variable":{"id":"e12-x","execution_id":"e12","name":"x","revision":{"execution":"e12","update":0},"type":"int","preview":"21"},"request_id":"2b7d4e9c-1a3f-4c5d-8e6f-7a8b9c0d1e2f","time":"2026-10-01T09:20:11Z"}
+data: {"variable":{"id":"e12-x","execution_id":"e12","name":"x","revision":{"execution_id":"e12","update":0},"type":"int","preview":"21"},"request_id":"2b7d4e9c-1a3f-4c5d-8e6f-7a8b9c0d1e2f","time":"2026-10-01T09:20:11Z"}
 
 id: 106
 event: execution
@@ -32,11 +32,11 @@ data: {"execution":{"id":"e13","run_id":"run-cells","cell_id":"k7f2","code_finge
 
 id: 108
 event: variable
-data: {"variable":{"id":"e13-y","execution_id":"e13","name":"y","revision":{"execution":"e13","update":0},"type":"int","preview":"42"},"request_id":"2b7d4e9c-1a3f-4c5d-8e6f-7a8b9c0d1e2f","time":"2026-10-01T09:20:12Z"}
+data: {"variable":{"id":"e13-y","execution_id":"e13","name":"y","revision":{"execution_id":"e13","update":0},"type":"int","preview":"42"},"request_id":"2b7d4e9c-1a3f-4c5d-8e6f-7a8b9c0d1e2f","time":"2026-10-01T09:20:12Z"}
 
 id: 109
 event: execution
-data: {"execution":{"id":"e13","run_id":"run-cells","cell_id":"k7f2","code_fingerprint":"db2b9ee97e1ecf4c","runtime_id":"r1","caused_by":null,"created_at":"2026-10-01T09:20:10Z","state":{"status":"completed","started_at":"2026-10-01T09:20:11Z","completed_at":"2026-10-01T09:20:12Z","outcome":{"kind":"succeeded"},"depends_on":{"x":{"execution":"e12","update":0}}}},"request_id":"2b7d4e9c-1a3f-4c5d-8e6f-7a8b9c0d1e2f","time":"2026-10-01T09:20:12Z"}
+data: {"execution":{"id":"e13","run_id":"run-cells","cell_id":"k7f2","code_fingerprint":"db2b9ee97e1ecf4c","runtime_id":"r1","caused_by":null,"created_at":"2026-10-01T09:20:10Z","state":{"status":"completed","started_at":"2026-10-01T09:20:11Z","completed_at":"2026-10-01T09:20:12Z","outcome":{"kind":"succeeded"},"depends_on":{"x":{"execution_id":"e12","update":0}}}},"request_id":"2b7d4e9c-1a3f-4c5d-8e6f-7a8b9c0d1e2f","time":"2026-10-01T09:20:12Z"}
 
 id: 110
 event: run

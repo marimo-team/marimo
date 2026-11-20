@@ -1637,7 +1637,7 @@ components:
       type: object
     Revision:
       properties:
-        execution:
+        execution_id:
           description: Identifies an execution. Unique within the host.
           minLength: 1
           type: string
@@ -1647,7 +1647,7 @@ components:
           minimum: 0
           type: integer
       required:
-      - execution
+      - execution_id
       - update
       title: Revision
       type: object

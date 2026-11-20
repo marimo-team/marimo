@@ -548,7 +548,7 @@ class ResetEvent(Struct, frozen=True, tag_field="event", tag="reset"):
 
 
 class Revision(Struct, frozen=True):
-    execution: Annotated[
+    execution_id: Annotated[
         ExecutionId,
         Meta(
             description="The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward."

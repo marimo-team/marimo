@@ -76,7 +76,7 @@ describe("executions resource", () => {
     expect(resource(done).executions.get("e13")?.record.state).toHaveProperty(
       "depends_on",
       {
-        x: { execution: "e12", update: 0 },
+        x: { execution_id: "e12", update: 0 },
       },
     );
     expect(resource(done).runs.get("run-cells")?.state).toMatchObject({

@@ -70,14 +70,14 @@ def test_variable_value_revision_round_trip() -> None:
         value="1",
         datatype="int",
         execution_id="execution-1",
-        revision=Revision(execution=ExecutionId("execution-1"), update=2),
+        revision=Revision(execution_id=ExecutionId("execution-1"), update=2),
     )
     expected = {
         "name": "x",
         "value": "1",
         "datatype": "int",
         "execution_id": "execution-1",
-        "revision": {"execution": "execution-1", "update": 2},
+        "revision": {"execution_id": "execution-1", "update": 2},
     }
 
     assert adapter.validate_python(value) is value
@@ -87,7 +87,7 @@ def test_variable_value_revision_round_trip() -> None:
 
     invalid = {
         **expected,
-        "revision": {"execution": "execution-1", "update": -1},
+        "revision": {"execution_id": "execution-1", "update": -1},
     }
     with pytest.raises(ValidationError, match="Expected `int` >= 0"):
         adapter.validate_json(json.dumps(invalid))

@@ -490,7 +490,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                 # Bound before the execution completes.
                 assert execution["state"]["status"] == "running"
                 assert (
-                    variable["revision"]["execution"]
+                    variable["revision"]["execution_id"]
                     == variable["execution_id"]
                 )
     assert runs
@@ -516,7 +516,7 @@ def test_cell_run_request_and_results() -> None:
     assert executions["e13"]["caused_by"] is None
     assert executions["e12"]["state"]["depends_on"] == {}
     assert executions["e13"]["state"]["depends_on"] == {
-        "x": {"execution": "e12", "update": 0}
+        "x": {"execution_id": "e12", "update": 0}
     }
     for execution in executions.values():
         assert (
@@ -535,7 +535,7 @@ def test_cell_run_request_and_results() -> None:
             "id": "e12-x",
             "execution_id": "e12",
             "name": "x",
-            "revision": {"execution": "e12", "update": 0},
+            "revision": {"execution_id": "e12", "update": 0},
             "type": "int",
             "preview": "21",
         },
@@ -543,7 +543,7 @@ def test_cell_run_request_and_results() -> None:
             "id": "e13-y",
             "execution_id": "e13",
             "name": "y",
-            "revision": {"execution": "e13", "update": 0},
+            "revision": {"execution_id": "e13", "update": 0},
             "type": "int",
             "preview": "42",
         },

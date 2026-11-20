@@ -306,7 +306,7 @@ the execution whose evaluation produced the value and counts the updates
 since. Clients compare revisions for equality.
 
     Variable  { id, execution_id, name, revision, type, preview }
-    Revision  { execution, update }
+    Revision  { execution_id, update }
 
 Hosts MUST publish a cell execution's variables before its `completed` status,
 and MUST remove a cell's previous execution and its items before publishing
@@ -326,9 +326,9 @@ A completed cell execution is **current** when all of the following hold.
 - the execution that bound each of those variables is current.
 
 A client looks up each dependency by name, and also by the recorded revision's
-`execution` unless it is null. A dependency was replaced if no variable matches
-its revision, or if a variable now has a name recorded as null. It was updated
-if the variable's `update` is higher. An execution was edited if its
+`execution_id` unless it is null. A dependency was replaced if no variable
+matches its revision, or if a variable now has a name recorded as null. It was
+updated if the variable's `update` is higher. An execution was edited if its
 `code_fingerprint` differs from its cell's. A result whose dependency was bound
 by an outdated execution is outdated for the same reason. The first of replaced,
 updated, and edited that applies is why the result is **outdated**.
@@ -358,7 +358,7 @@ rules to describe the values in its namespace.
 - a name bound only by a result from an earlier runtime is recorded as
   unbound,
 - a value carried forward unchanged, such as an import, keeps its revision,
-  so a revision's `execution` can be earlier than the variable's
+  so a revision's `execution_id` can be earlier than the variable's
   `execution_id`.
 
 Updates are published before any execution that depends on them. A result is

@@ -81,7 +81,7 @@ describe("retained results", () => {
     expect(done.get("c3")?.record.id).toBe("e12");
     expect(done.get("c3")?.record.state.status).toBe("completed");
     expect(done.get("k7f2")?.record.state).toHaveProperty("depends_on", {
-      x: { execution: "e12", update: 0 },
+      x: { execution_id: "e12", update: 0 },
     });
     expect(done.get("c1")).toBeNull();
   });

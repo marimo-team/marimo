@@ -166,7 +166,9 @@ async def test_variables_outlive_the_run_that_bound_them(
         )
         execution = before.latest(c.cells["state"])
         assert execution is not None
-        assert getter.execution_id == getter.revision.execution == execution.id
+        assert (
+            getter.execution_id == getter.revision.execution_id == execution.id
+        )
         records = c.events.records
         bound = next(
             i

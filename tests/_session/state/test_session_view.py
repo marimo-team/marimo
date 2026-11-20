@@ -865,7 +865,9 @@ def test_serialize_parse_variable_value(execution_id: str | None) -> None:
         "value": "1",
         "execution_id": execution_id,
         "revision": (
-            {"execution": execution_id, "update": 2} if execution_id else None
+            {"execution_id": execution_id, "update": 2}
+            if execution_id
+            else None
         ),
     }
     parsed = parse_raw(serialized, VariableValue)

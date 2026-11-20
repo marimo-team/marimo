@@ -116,7 +116,7 @@ class Snapshot:
                 v
                 for v in self.variables.values()
                 if v.name == name
-                and v.revision.execution == revision.execution
+                and v.revision.execution_id == revision.execution_id
             ),
             None,
         )
