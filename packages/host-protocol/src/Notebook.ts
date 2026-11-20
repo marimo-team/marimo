@@ -327,7 +327,7 @@ export const Save = HttpApiEndpoint.post(
     payload: S.SaveRequest,
     success: [
       S.EditResponse.pipe(HttpApiSchema.status(200)).annotateKey({
-        description: "The document is in the store.",
+        description: "The host saved the revision identified by `saved_etag`.",
       }),
     ],
     error: [
@@ -341,7 +341,7 @@ export const Save = HttpApiEndpoint.post(
   .annotate(OpenApi.Summary, "Write the document to the host's store")
   .annotate(
     OpenApi.Description,
-    "Writes the document as currently applied, after which `saved_etag`\nequals `etag`. The client sends an empty request body because the\nhost already holds the state. A host that persists every change as\nit applies it need not offer this operation. A client shows a save control\nwhen the notebook lists it, and reads whether anything is unsaved\nfrom the two etags either way.\n\nThe response is an edit response, because a host may rewrite code\nas it saves, for example to format it. Such changes reach the\nstream like any other and the response carries the new etags.\n`If-Match` makes the document etag the client last read a\nprecondition, and the host answers `precondition-failed` when the\ndocument has moved on. If the store has changed since the host\nlast read or wrote it, the host answers `decision-required`,\noffering to overwrite the store or to reload from it, and the\nclient repeats the request with its decision and a new key.\n",
+    "On success, `saved_etag` identifies the revision written to storage.\nIf the document changes during the write, its current `etag` may differ.\nThe client sends an empty request body because the host already holds the state. A host that persists every change as\nit applies it need not offer this operation. A client shows a save control\nwhen the notebook lists it, and reads whether anything is unsaved\nfrom the two etags either way.\n\nThe response is an edit response, because a host may rewrite code\nas it saves, for example to format it. Such changes reach the\nstream like any other and the response carries the new etags.\n`If-Match` makes the document etag the client last read a\nprecondition, and the host answers `precondition-failed` when the\ndocument has moved on. If the store has changed since the host\nlast read or wrote it, the host answers `decision-required`,\noffering to overwrite the store or to reload from it, and the\nclient repeats the request with its decision and a new key.\n",
   );
 
 export const Update = HttpApiEndpoint.patch(
