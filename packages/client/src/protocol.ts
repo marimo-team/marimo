@@ -172,14 +172,14 @@ export const Notebook = zod
       .describe(
         "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
       ),
-    updated_at: zod
+    modified_at: zod
       .union([Timestamp, zod.null()])
       .describe(
         "When the file was last modified, as of the host's last look at it. Null when the host does not know.",
       ),
   })
   .describe(
-    "A notebook is a document and its results as the host knows them,\nusually backed by a file. Its kernel, when it has one, is a\nseparate object, the runtime. A host sends at most one `notebook`\nevent per second for the same notebook, since `updated_at`\nchanges on every save.\n",
+    "A notebook is a document and its results as the host knows them,\nusually backed by a file. Its kernel, when it has one, is a\nseparate object, the runtime. A host sends at most one `notebook`\nevent per second for the same notebook, since `modified_at`\nchanges on every save.\n",
   );
 
 export type Notebook = zod.input<typeof Notebook>;

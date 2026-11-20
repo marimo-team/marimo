@@ -50,7 +50,7 @@ export function emptySnapshot(notebookId: string): StaticNotebookSnapshot {
       project_id: notebookId,
       path: null,
       name: "",
-      updated_at: null,
+      modified_at: null,
     },
     document: {
       notebook_id: notebookId,

@@ -229,7 +229,7 @@ export const MockExecutions = {
       path: null,
       name: "Notebook",
       operations: [],
-      updated_at: null,
+      modified_at: null,
     };
   },
 

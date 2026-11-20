@@ -28,7 +28,9 @@ describe("catalog reducer", () => {
     });
     const live = snapshot.slice(ready).reduce(reducer.reduce, partial);
     expect(live.phase).toBe("live");
-    expect(live.resources.notebooks[0].updated_at).toBe("2026-10-01T09:21:02Z");
+    expect(live.resources.notebooks[0].modified_at).toBe(
+      "2026-10-01T09:21:02Z",
+    );
     expect(live.resources.projects).toBe(partial.resources.projects);
     const reset = fixtureEvents("events-reset.sse") as CatalogEvent[];
     expect(reducer.reduce(live, reset[0])).toBe(reducer.initial);

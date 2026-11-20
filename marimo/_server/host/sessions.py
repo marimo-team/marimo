@@ -47,7 +47,7 @@ class AppSessionNotebooks:
                 project_id=self._project_id,
                 path=None,
                 name=Path(path).stem if path else "app",
-                updated_at=None,
+                modified_at=None,
                 operations=(),
             ),
             self._initialize,

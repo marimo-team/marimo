@@ -99,7 +99,7 @@ class WorkspaceIndex:
             loaded = self._host.peek_notebook(notebook.id)
             if loaded is not None and loaded.live_runtime is not None:
                 self._host.update_notebook(
-                    replace(notebook, path=None, updated_at=None)
+                    replace(notebook, path=None, modified_at=None)
                 )
             else:
                 self.forget(notebook.id)
@@ -163,7 +163,7 @@ class WorkspaceIndex:
                     "notebook.delete",
                 }
             ),
-            updated_at=None,
+            modified_at=None,
         )
         self._open_files[record.id] = file
         if notebook_id in self._host.notebooks:
@@ -192,7 +192,7 @@ class WorkspaceIndex:
                 for op in OPERATIONS
                 if op == "notebook.edit" or op.startswith("runtime.")
             ),
-            updated_at=None,
+            modified_at=None,
         )
         self._untitled[record.id] = key
         self._host.add_notebook(record, self._initialize)
@@ -316,7 +316,7 @@ class WorkspaceIndex:
             operations=tuple(
                 op for op in OPERATIONS if op != "notebook.create"
             ),
-            updated_at=None
+            modified_at=None
             if modified is None
             else datetime.fromtimestamp(modified, tz=UTC),
         )

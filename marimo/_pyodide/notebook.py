@@ -422,7 +422,7 @@ class PyodideNotebook:
                 project_id=project_id,
                 name=Path(filename).name if filename else "Untitled",
                 path=None,
-                updated_at=None,
+                modified_at=None,
                 operations=_OPERATIONS
                 if session.mode is SessionMode.EDIT
                 else (),

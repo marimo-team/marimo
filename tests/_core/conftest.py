@@ -134,7 +134,7 @@ def record(
         path=path,
         name=path.removesuffix(".py"),
         operations=("runtime.start", "runtime.run"),
-        updated_at=None,
+        modified_at=None,
     )
 
 

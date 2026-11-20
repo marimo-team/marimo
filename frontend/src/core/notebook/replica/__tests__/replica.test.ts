@@ -95,7 +95,7 @@ const notebook = {
   path: null,
   name: "Notebook",
   operations: ["notebook.edit"],
-  updated_at: null,
+  modified_at: null,
 };
 
 describe("NotebookReplica lifetime", () => {

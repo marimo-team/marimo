@@ -1320,6 +1320,15 @@ class InputMessage(Struct, frozen=True):
 
 class Notebook(Struct, frozen=True):
     id: NotebookId
+    modified_at: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the file was last modified, as of the host's last look at it. Null when the host does not know."
+            ),
+        ]
+        | None
+    )
     name: Annotated[
         str,
         Meta(
@@ -1342,15 +1351,6 @@ class Notebook(Struct, frozen=True):
         | None
     )
     project_id: ProjectId
-    updated_at: (
-        Annotated[
-            Timestamp,
-            Meta(
-                description="When the file was last modified, as of the host's last look at it. Null when the host does not know."
-            ),
-        ]
-        | None
-    )
 
 
 class NotebookMessage(Struct, frozen=True):

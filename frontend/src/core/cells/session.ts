@@ -377,7 +377,7 @@ export function readExport({
         project_id: EMBEDDED,
         path: filename,
         name: filename ?? EMPTY_STRING,
-        updated_at: null,
+        modified_at: null,
       },
       document: {
         notebook_id: EMBEDDED,
