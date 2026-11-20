@@ -2081,7 +2081,7 @@ class ConsoleMessage(Struct, frozen=True):
 
 
 class Execution(Struct, frozen=True):
-    caused_by: (
+    caused_by_id: (
         Annotated[
             ExecutionId,
             Meta(

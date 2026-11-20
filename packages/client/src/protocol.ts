@@ -1058,7 +1058,7 @@ export const Execution = zod
       .describe(
         "The runtime that produced this execution. Live while that runtime is the notebook's and has not ended. Null when the producer is unknown.",
       ),
-    caused_by: zod
+    caused_by_id: zod
       .union([ExecutionId, zod.null()])
       .describe(
         "The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one.",

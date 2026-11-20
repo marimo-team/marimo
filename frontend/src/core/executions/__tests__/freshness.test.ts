@@ -61,7 +61,7 @@ function record(
   return {
     run_id: "run-1",
     runtime_id: "r1",
-    caused_by: null,
+    caused_by_id: null,
     created_at: null,
     state: completed(),
     ...fields,

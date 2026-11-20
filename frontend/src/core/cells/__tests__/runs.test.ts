@@ -17,7 +17,7 @@ const queued = {
   id: "e1",
   run_id: "r1",
   runtime_id: "runtime",
-  caused_by: null,
+  caused_by_id: null,
   cell_id: "cell",
   code_fingerprint: "fp",
   created_at: "2026-10-01T09:20:00Z",

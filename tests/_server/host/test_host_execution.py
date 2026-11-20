@@ -174,7 +174,7 @@ async def test_scratch_outcomes_from_the_kernel(
     assert accepted.json()["origin"] == {"kind": "code", "code": code}
     assert execution["code_fingerprint"]
     assert execution["runtime_id"] is not None
-    assert execution["caused_by"] is None
+    assert execution["caused_by_id"] is None
     if kind == "value":
         assert outcome == {"kind": "succeeded"}
         assert shown(events) == (
@@ -1108,7 +1108,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
     assert all(
         e["run_id"] == accepted.json()["id"]
         and e["cell_id"] is not None
-        and e["caused_by"] == root["id"]
+        and e["caused_by_id"] == root["id"]
         for e in downstream
     )
     assert downstream[-1]["state"]["outcome"]["kind"] == (
@@ -1262,7 +1262,7 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
     assert root["state"]["outcome"]["kind"] == "succeeded"
     assert "42" in shown(events, root["id"])["data"]
     children = [e for e in executions if e["cell_id"] is not None]
-    assert all(e["caused_by"] == root["id"] for e in children)
+    assert all(e["caused_by_id"] == root["id"] for e in children)
     assert {
         e["code_fingerprint"]: e["state"]["outcome"]["kind"] for e in children
     } == {
@@ -1423,8 +1423,8 @@ async def test_awaited_commands_join_the_enclosing_run(
         and r["data"]["execution"]["state"]["status"] == "completed"
     ]
     assert len(executions) == (3 if nested_scratch else 2)
-    [root] = [e for e in executions if e["caused_by"] is None]
-    children = [e for e in executions if e["caused_by"] == root["id"]]
+    [root] = [e for e in executions if e["caused_by_id"] is None]
+    children = [e for e in executions if e["caused_by_id"] == root["id"]]
     assert len(children) == len(executions) - 1
     child = children[0]
     assert root["state"]["outcome"]["kind"] == "succeeded"

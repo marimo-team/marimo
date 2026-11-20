@@ -347,7 +347,7 @@ def retained_execution(
             id=execution_id,
             run_id=None if run_id is None else protocol.RunId(run_id),
             runtime_id=None,
-            caused_by=None,
+            caused_by_id=None,
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
             code_fingerprint=code_fingerprint("42"),
             created_at=None,

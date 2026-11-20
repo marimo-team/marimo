@@ -123,7 +123,7 @@ def _result(cell: DocumentCell, stored: Cell) -> CellExecution | None:
             id=execution_id,
             run_id=None,
             runtime_id=None,
-            caused_by=None,
+            caused_by_id=None,
             cell_id=cell.id,
             code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
             created_at=None,

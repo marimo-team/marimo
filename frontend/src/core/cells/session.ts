@@ -263,7 +263,7 @@ function resultRecord(
       id,
       run_id: `${EMBEDDED}:run`,
       runtime_id: EMBEDDED,
-      caused_by: null,
+      caused_by_id: null,
       cell_id: cell.id,
       code_fingerprint: cell.code_fingerprint,
       created_at: null,

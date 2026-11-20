@@ -192,7 +192,7 @@ class PlannedExecution:
     id: protocol.ExecutionId
     cell_id: str | None
     code_fingerprint: str
-    caused_by: protocol.ExecutionId | None = None
+    caused_by_id: protocol.ExecutionId | None = None
 
 
 @dataclass(frozen=True)

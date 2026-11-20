@@ -177,7 +177,7 @@ class RunTranslator:
                     if execution.cell_id == SCRATCH_CELL_ID
                     else execution.cell_id,
                     notification.code_fingerprint,
-                    caused_by=parent.id if parent is not None else None,
+                    caused_by_id=parent.id if parent is not None else None,
                 ),
             ),
         )

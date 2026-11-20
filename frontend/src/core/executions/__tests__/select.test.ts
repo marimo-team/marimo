@@ -29,7 +29,7 @@ function record(
   return {
     run_id: "run-1",
     runtime_id: "r1",
-    caused_by: null,
+    caused_by_id: null,
     cell_id: "c1",
     code_fingerprint: "0f71456db2ea83f4",
     created_at: null,

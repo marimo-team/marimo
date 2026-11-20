@@ -714,7 +714,7 @@ class TestRun:
                     ),
                 ),
                 Execution(
-                    caused_by=None,
+                    caused_by_id=None,
                     cell_id=None,
                     code_fingerprint="9f",
                     id=ExecutionId("e7"),

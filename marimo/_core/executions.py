@@ -605,7 +605,7 @@ class Executions:
                         id=entry.id,
                         run_id=run_id,
                         runtime_id=runtime.id,
-                        caused_by=entry.caused_by,
+                        caused_by_id=entry.caused_by_id,
                         cell_id=protocol.CellId(entry.cell_id)
                         if entry.cell_id is not None
                         else None,
