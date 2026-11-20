@@ -230,12 +230,7 @@ class Produced:
     each prompt is produced once, and the host owns its later status changes.
     """
 
-    item: (
-        protocol.Console
-        | protocol.Display
-        | protocol.Variable
-        | protocol.Input
-    )
+    item: protocol.Console | protocol.Variable | protocol.Input
 
 
 @dataclass(frozen=True)

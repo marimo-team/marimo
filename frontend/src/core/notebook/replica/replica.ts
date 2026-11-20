@@ -49,7 +49,6 @@ export const EDITOR_EVENT_TYPES = [
   "run",
   "execution",
   "console",
-  "display",
   "input",
   "output",
   "variable",
@@ -412,7 +411,7 @@ export function createNotebookReplica(
           }
           if (onItem) {
             for (const item of execution.items.values()) {
-              if (item.kind === "display") {
+              if (item.kind === "console" && item.content.kind === "media") {
                 onItem(execution.record, item, false);
               }
             }
@@ -454,14 +453,9 @@ export function createNotebookReplica(
           return;
         }
         case "console":
-        case "display":
         case "input": {
           const item =
-            event.event === "console"
-              ? event.data.console
-              : event.event === "display"
-                ? event.data.display
-                : event.data.input;
+            event.event === "console" ? event.data.console : event.data.input;
           const execution = executions.get(item.execution_id);
           if (execution && onItem) {
             const received = execution.items.get(item.id);

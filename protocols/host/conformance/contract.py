@@ -33,7 +33,6 @@ KINDS = (
     "execution",
     "output",
     "console",
-    "display",
     "input",
     "variable",
 )

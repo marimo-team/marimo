@@ -87,7 +87,7 @@ describe("createEditorBackend", () => {
     const executionKinds = [
       "execution",
       "console",
-      "display",
+      "output",
       "input",
       "marimo",
     ];

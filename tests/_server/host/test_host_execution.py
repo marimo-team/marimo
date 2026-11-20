@@ -182,7 +182,7 @@ async def test_scratch_outcomes_from_the_kernel(
         )
         if value is not None:
             assert "hello\n" == "".join(
-                r["data"]["console"]["text"]
+                r["data"]["console"]["content"]["text"]
                 for r in events.records
                 if r.get("event") == "console"
             )
@@ -864,7 +864,9 @@ mo.Thread(target=worker).start()
         for r in events.records
         if r.get("event") == "console"
     ]
-    assert not any("late output" in item["text"] for item in console)
+    assert not any(
+        "late output" in item["content"]["text"] for item in console
+    )
 
 
 async def test_queued_cancellation_never_executes_the_code(
@@ -1120,7 +1122,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
         consoles = [
             r["data"]["console"] for r in records if r["event"] == "console"
         ]
-        assert "".join(c["text"] for c in consoles) == "30\n"
+        assert "".join(c["content"]["text"] for c in consoles) == "30\n"
         assert {c["execution_id"] for c in consoles} == {downstream[-1]["id"]}
 
 
@@ -1173,14 +1175,22 @@ async def test_detached_reactivity_starts_a_new_run(
     await wait_for(
         events,
         lambda response: any(
-            "30\n" in r.get("data", {}).get("console", {}).get("text", "")
+            "30\n"
+            in r.get("data", {})
+            .get("console", {})
+            .get("content", {})
+            .get("text", "")
             for r in response.records
         ),
     )
     printed = next(
         r["data"]["console"]
         for r in events.records
-        if "30\n" in r.get("data", {}).get("console", {}).get("text", "")
+        if "30\n"
+        in r.get("data", {})
+        .get("console", {})
+        .get("content", {})
+        .get("text", "")
     )
     execution = next(
         r["data"]["execution"]

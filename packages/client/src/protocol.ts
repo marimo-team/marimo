@@ -1031,7 +1031,7 @@ export const ItemId = zod
   .string()
   .min(1)
   .describe(
-    "Identifies an output, console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
+    "Identifies an output, console, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
   );
 
 export type ItemId = zod.input<typeof ItemId>;
@@ -1087,6 +1087,32 @@ export const OutputEvent = zod
 export type OutputEvent = zod.input<typeof OutputEvent>;
 export type OutputEventOutput = zod.output<typeof OutputEvent>;
 
+export const ConsoleText = zod.object({
+  kind: zod.enum(["text"]),
+  stream: zod
+    .enum(["stdout", "stderr"])
+    .describe("Which stream the text went to."),
+  text: zod.string().describe("The text, exactly as written."),
+});
+
+export type ConsoleText = zod.input<typeof ConsoleText>;
+export type ConsoleTextOutput = zod.output<typeof ConsoleText>;
+
+export const ConsoleMedia = zod.object({
+  kind: zod.enum(["media"]),
+  media: DisplayData.describe(
+    "Something rendered into the console, such as a figure from `plt.show()` or a formatted traceback.",
+  ),
+});
+
+export type ConsoleMedia = zod.input<typeof ConsoleMedia>;
+export type ConsoleMediaOutput = zod.output<typeof ConsoleMedia>;
+
+export const ConsoleContent = zod.union([ConsoleText, ConsoleMedia]);
+
+export type ConsoleContent = zod.input<typeof ConsoleContent>;
+export type ConsoleContentOutput = zod.output<typeof ConsoleContent>;
+
 export const consoleSeqMin = 0;
 
 export const Console = zod
@@ -1097,15 +1123,12 @@ export const Console = zod
       .int()
       .min(consoleSeqMin)
       .describe(
-        "Position among the execution's items, increasing in the order they were produced.",
+        "Position among the execution's console and input items, increasing in the order they were produced.",
       ),
-    name: zod
-      .enum(["stdout", "stderr"])
-      .describe("Which stream the text went to."),
-    text: zod.string().describe("The text, exactly as written."),
+    content: ConsoleContent.describe("What was written, tagged on `kind`."),
   })
   .describe(
-    "Text an execution wrote to stdout or stderr. Items are ordinary\nobjects: a producer replaces one by sending it again with the\nsame id, and items are removed with their execution.\n",
+    "One entry in an execution's console, which is text written to\nstdout or stderr, or media rendered among it. A producer replaces\nan entry by sending it again with the same id, and entries are\nremoved with their execution.\n",
   );
 
 export type Console = zod.input<typeof Console>;
@@ -1144,60 +1167,6 @@ export const ConsoleEvent = zod
 export type ConsoleEvent = zod.input<typeof ConsoleEvent>;
 export type ConsoleEventOutput = zod.output<typeof ConsoleEvent>;
 
-export const displaySeqMin = 0;
-
-export const Display = zod
-  .object({
-    id: ItemId,
-    execution_id: ExecutionId,
-    seq: zod
-      .int()
-      .min(displaySeqMin)
-      .describe(
-        "Position among the execution's items, increasing in the order they were produced.",
-      ),
-    content: DisplayData.describe("The rendered value."),
-  })
-  .describe(
-    "A value an execution showed as a side effect, such as a figure\nfrom `plt.show()`. A producer replaces one by sending it again\nwith the same id, which is how a progress bar updates in place.\n",
-  );
-
-export type Display = zod.input<typeof Display>;
-export type DisplayOutput = zod.output<typeof Display>;
-
-export const DisplayMessage = zod
-  .object({
-    request_id: zod
-      .string()
-      .optional()
-      .describe(
-        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
-      ),
-    time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-    ),
-    display: Display,
-  })
-  .describe("The data of the `display` event. The display as it now is.");
-
-export type DisplayMessage = zod.input<typeof DisplayMessage>;
-export type DisplayMessageOutput = zod.output<typeof DisplayMessage>;
-
-export const DisplayEvent = zod
-  .object({
-    event: zod.enum(["display"]),
-    id: zod
-      .string()
-      .min(1)
-      .optional()
-      .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: DisplayMessage,
-  })
-  .describe("The `display` event, carried by the notebook stream.");
-
-export type DisplayEvent = zod.input<typeof DisplayEvent>;
-export type DisplayEventOutput = zod.output<typeof DisplayEvent>;
-
 export const InputStatus = zod
   .enum(["pending", "answered", "cancelled"])
   .describe(
@@ -1219,7 +1188,7 @@ export const Input = zod
       .int()
       .min(inputSeqMin)
       .describe(
-        "Position among the execution's console, display, and input items, increasing in production order.",
+        "Position among the execution's console and input items, increasing in production order.",
       ),
     prompt: zod.string().describe("The prompt to display, which may be empty."),
     password: zod
@@ -1614,21 +1583,6 @@ export const ConsoleRemovedEvent = zod
 export type ConsoleRemovedEvent = zod.input<typeof ConsoleRemovedEvent>;
 export type ConsoleRemovedEventOutput = zod.output<typeof ConsoleRemovedEvent>;
 
-export const DisplayRemovedEvent = zod
-  .object({
-    event: zod.enum(["display.removed"]),
-    id: zod
-      .string()
-      .min(1)
-      .optional()
-      .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
-  })
-  .describe("The `display.removed` event, carried by the notebook stream.");
-
-export type DisplayRemovedEvent = zod.input<typeof DisplayRemovedEvent>;
-export type DisplayRemovedEventOutput = zod.output<typeof DisplayRemovedEvent>;
-
 export const VariableRemovedEvent = zod
   .object({
     event: zod.enum(["variable.removed"]),
@@ -1688,7 +1642,6 @@ export const Event = zod
     ExecutionEvent,
     OutputEvent,
     ConsoleEvent,
-    DisplayEvent,
     InputEvent,
     VariableEvent,
     AnalysisEvent,
@@ -1702,7 +1655,6 @@ export const Event = zod
     ExecutionRemovedEvent,
     OutputRemovedEvent,
     ConsoleRemovedEvent,
-    DisplayRemovedEvent,
     VariableRemovedEvent,
     ResetEvent,
     ReadyEvent,
@@ -1727,14 +1679,13 @@ export const ObjectType = zod
     "execution",
     "output",
     "console",
-    "display",
     "input",
     "variable",
     "analysis",
     "custom",
   ])
   .describe(
-    "The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, display, input, variable, analysis, and custom. Custom events describe occurrences rather than object state.",
+    "The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, input, variable, analysis, and custom. Custom events describe occurrences rather than object state.",
   );
 
 export type ObjectType = zod.input<typeof ObjectType>;

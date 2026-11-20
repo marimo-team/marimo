@@ -28,7 +28,7 @@ class CellExecution:
     """
 
     execution: protocol.Execution
-    outputs: tuple[protocol.Console | protocol.Display, ...] = ()
+    outputs: tuple[protocol.Console, ...] = ()
     variables: tuple[protocol.Variable, ...] = ()
     output: protocol.Output | None = None
 
@@ -50,8 +50,8 @@ class _Result:
     """A current execution and its items."""
 
     execution: protocol.Execution
-    outputs: dict[protocol.ItemId, protocol.Console | protocol.Display] = (
-        field(default_factory=dict)
+    outputs: dict[protocol.ItemId, protocol.Console] = field(
+        default_factory=dict
     )
     variables: dict[protocol.ItemId, protocol.Variable] = field(
         default_factory=dict
@@ -61,7 +61,7 @@ class _Result:
 
     def items(
         self,
-    ) -> list[protocol.Output | protocol.Console | protocol.Display]:
+    ) -> list[protocol.Output | protocol.Console]:
         own = [] if self.output is None else [self.output]
         return [*own, *self.outputs.values()]
 
@@ -74,7 +74,6 @@ class Removed:
         protocol.Execution
         | protocol.Output
         | protocol.Console
-        | protocol.Display
         | protocol.Variable
     ]
     id: str
@@ -104,7 +103,6 @@ Record = (
     | protocol.Execution
     | protocol.Output
     | protocol.Console
-    | protocol.Display
     | protocol.Variable
     | protocol.Input
 )
@@ -201,7 +199,9 @@ class Executions:
                     f"result for cell {cell_id} not in the document"
                 )
             outputs = sorted(retained.outputs, key=lambda item: item.seq)
-            items = [
+            items: list[
+                protocol.Output | protocol.Console | protocol.Variable
+            ] = [
                 *([] if retained.output is None else [retained.output]),
                 *outputs,
                 *retained.variables,

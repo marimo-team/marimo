@@ -223,7 +223,8 @@ def test_editor_starts_and_runs_through_the_host_socket(
                 retained = socket_snapshot(observer)
             assert any(
                 event["event"] == "console"
-                and "host socket" in event["data"]["console"]["text"]
+                and "host socket"
+                in event["data"]["console"]["content"]["text"]
                 for event in retained
             )
             assert not any(
@@ -253,7 +254,7 @@ def test_editor_starts_and_runs_through_the_host_socket(
         )
         assert sum(
             event["event"] == "console"
-            and "host socket" in event["data"]["console"]["text"]
+            and "host socket" in event["data"]["console"]["content"]["text"]
             for event in messages
         ) == (types is None or "console" in types)
 
@@ -313,7 +314,7 @@ def test_widget_callback_console_is_routed_to_its_defining_cell(
             if completed(frame, response.json()["id"]):
                 break
             if frame["event"] == "console":
-                stdout.append(frame["data"]["console"]["text"])
+                stdout.append(frame["data"]["console"]["content"]["text"])
                 last_seq = frame["data"]["console"]["seq"]
         widget_id = "".join(stdout).strip()
         assert widget_id
@@ -334,7 +335,10 @@ def test_widget_callback_console_is_routed_to_its_defining_cell(
         assert "".join(live).splitlines() == ["before", "changed 7", "after"]
         while (frame := socket.receive_json())["event"] != "console":
             pass
-        assert frame["data"]["console"]["text"] == "from original execution\n"
+        assert (
+            frame["data"]["console"]["content"]["text"]
+            == "from original execution\n"
+        )
         assert frame["data"]["console"]["seq"] > last_seq
         session = get_session_manager(client).get_session(SessionId("s1"))
         assert session is not None
@@ -363,13 +367,13 @@ def test_widget_callback_console_is_routed_to_its_defining_cell(
             for frame in frames
             if frame["event"] == "console"
         ]
-        assert [item["text"] for item in console] == [
+        assert [item["content"]["text"] for item in console] == [
             *stdout,
             "from original execution\n",
         ]
         assert not any(
             frame["event"] == "console"
-            and "changed 7" in frame["data"]["console"]["text"]
+            and "changed 7" in frame["data"]["console"]["content"]["text"]
             for frame in frames
         )
         replay = receive_notification(socket, "callback-output")
@@ -497,7 +501,7 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
             f["data"]["console"]
             for f in retained
             if f["event"] == "console"
-            and "retained output" in f["data"]["console"]["text"]
+            and "retained output" in f["data"]["console"]["content"]["text"]
         ]
         assert any(
             f["event"] == "execution"
@@ -514,7 +518,7 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
             f["data"]["console"]
             for f in retained
             if f["event"] == "console"
-            and "retained output" in f["data"]["console"]["text"]
+            and "retained output" in f["data"]["console"]["content"]["text"]
         ]
         assert any(
             f["event"] == "execution"

@@ -194,18 +194,25 @@ Notebook
     └── Cell execution · another dependent cell
 ```
 
-An execution's results include its outcome, its **output**, **console**
-output, **display** items, **inputs**, and the **variables** a cell bound. Results can remain
-available after the runtime stops or be restored from storage. Hosts choose
-how long to retain results and SHOULD keep ephemeral results briefly after
-completion to allow reconnection.
+An execution's results include its outcome, its **output**, its **console**,
+**inputs**, and the **variables** a cell bound. Results can remain available
+after the runtime stops or be restored from storage. Hosts choose how long to
+retain results and SHOULD keep ephemeral results briefly after completion to
+allow reconnection.
 
-Console, display, and input items share a `seq` ordering within their
-execution, so a client can place prompts among the outputs that surround them.
-Background work may continue producing console and display items after the
-execution completes, as long as its results remain retained. Input requires a
-running execution, because the host must still be able to accept an answer or
-interrupt the work that is waiting for it.
+The **console** is the ordered log of what an execution wrote. Each entry is
+text written to stdout or stderr, or media rendered among it, such as a figure
+from `plt.show()`.
+
+    Console { id, execution_id, seq, content }
+    content { kind: "text", stream, text } | { kind: "media", media }
+
+Console entries and inputs share a `seq` ordering within their execution, so a
+client can place prompts among the entries that surround them. Background work
+may continue producing console entries after the execution completes, as long
+as its results remain retained. Input requires a running execution, because
+the host must still be able to accept an answer or interrupt the work that is
+waiting for it.
 
 An execution's **output** is what its code shows as its result, such as the
 value of a cell's last expression. It is an item of its own, so the execution

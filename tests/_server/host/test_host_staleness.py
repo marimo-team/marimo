@@ -550,10 +550,10 @@ async def test_a_ui_update_outdates_lazy_readers(tmp_path: Path) -> None:
         start = len(c.events.records)
         await c.run(code="print(slider._id)")
         [object_id] = [
-            r["data"]["console"]["text"].strip()
+            r["data"]["console"]["content"]["text"].strip()
             for r in c.events.records[start:]
             if r.get("event") == "console"
-            and r["data"]["console"]["text"].strip()
+            and r["data"]["console"]["content"]["text"].strip()
         ]
         expected = replace(
             slider, preview="5", revision=replace(slider.revision, update=1)
@@ -786,7 +786,7 @@ async def test_outputs_restored_from_the_session_cache_are_current_results(
         # No run of this notebook's runtime produced it.
         assert (restored.run_id, restored.runtime_id) == (None, None)
         assert [
-            r["data"]["console"]["text"]
+            r["data"]["console"]["content"]["text"]
             for r in c.events.records
             if r.get("event") == "console"
         ] == ["hello\n"]

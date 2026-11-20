@@ -118,19 +118,21 @@ describe("executions resource", () => {
       id: "o9",
       execution_id: "e12",
       seq: 0,
-      name: "stdout",
-      text: "late\n",
+      content: { kind: "text", stream: "stdout", text: "late\n" },
     };
     const shown = {
       id: "d1",
       execution_id: "e12",
       seq: 1,
-      content: { mimetype: "text/plain", data: "figure" },
+      content: {
+        kind: "media",
+        media: { mimetype: "text/plain", data: "figure" },
+      },
     };
     const added = replay(
       [
         event({ event: "console", id: "111", data: { console: late } }),
-        event({ event: "display", id: "112", data: { display: shown } }),
+        event({ event: "console", id: "112", data: { console: shown } }),
       ],
       done,
     );
@@ -138,7 +140,7 @@ describe("executions resource", () => {
 
     const cleared = replay(
       [
-        removed("display", "d1", "113"),
+        removed("console", "d1", "113"),
         removed("console", "o9", "114"),
         removed("variable", "e12-x", "115"),
       ],
@@ -184,8 +186,7 @@ describe("executions resource", () => {
             id: "o-orphan",
             execution_id: "nope",
             seq: 0,
-            name: "stdout",
-            text: "",
+            content: { kind: "text", stream: "stdout", text: "" },
           },
         },
       }),

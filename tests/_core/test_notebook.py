@@ -28,10 +28,11 @@ from marimo._core.protocol import (
     AttachmentMessage,
     CellId,
     Console,
+    ConsoleMedia,
     ConsoleMessage,
+    ConsoleText,
     Custom,
     CustomMessage,
-    Display,
     DisplayData,
     Error,
     ErrorOutcome,
@@ -504,8 +505,7 @@ def console(
         id=ItemId(item_id),
         execution_id=ExecutionId(execution_id),
         seq=seq,
-        name="stdout",
-        text=text,
+        content=ConsoleText(stream="stdout", text=text),
     )
 
 
@@ -679,9 +679,8 @@ class TestRun:
                 Console(
                     execution_id=ExecutionId("e7"),
                     id=ItemId("o3"),
-                    name="stdout",
                     seq=0,
-                    text="2\n",
+                    content=ConsoleText(stream="stdout", text="2\n"),
                 ),
             ]
         )
@@ -756,7 +755,7 @@ class TestRun:
         ]
         assert len(items) == 1
         assert isinstance(items[0], Console)
-        assert items[0].text == "0\n1\n"
+        assert items[0].content == ConsoleText(stream="stdout", text="0\n1\n")
 
     def test_messages_about_unknown_runs_are_ignored(
         self,
@@ -1001,8 +1000,7 @@ class TestCellResults:
             id=ItemId("o1"),
             execution_id=old,
             seq=0,
-            name="stdout",
-            text="old output",
+            content=ConsoleText(stream="stdout", text="old output"),
         )
         notebook.observe(be.Produced(item))
         if same_run:
@@ -1165,25 +1163,35 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     second = plan(
         notebook, run, "second", "b" if cleanup != "expire" else None
     )
-    first_console = Console(first, ItemId("first-console"), "stdout", 0, "a")
-    first_display = Display(
+    first_console = Console(
+        id=ItemId("first-console"),
+        execution_id=first,
+        seq=0,
+        content=ConsoleText(stream="stdout", text="a"),
+    )
+    first_display = Console(
         execution_id=first,
         id=ItemId("first-display"),
         seq=1,
-        content=DisplayData(mimetype="text/plain", data="b"),
+        content=ConsoleMedia(DisplayData(mimetype="text/plain", data="b")),
     )
     second_console = Console(
-        second, ItemId("second-console"), "stdout", 0, "c"
+        id=ItemId("second-console"),
+        execution_id=second,
+        seq=0,
+        content=ConsoleText(stream="stdout", text="c"),
     )
-    second_display = Display(
+    second_display = Console(
         execution_id=second,
         id=ItemId("second-display"),
         seq=1,
-        content=DisplayData(mimetype="text/plain", data="d"),
+        content=ConsoleMedia(DisplayData(mimetype="text/plain", data="d")),
     )
     for item in (second_console, first_console, second_display, first_display):
         notebook.observe(be.Produced(item))
-    first_console = replace(first_console, text="updated")
+    first_console = replace(
+        first_console, content=ConsoleText(stream="stdout", text="updated")
+    )
     notebook.observe(be.Produced(first_console))
     finish(notebook, first)
     finish(notebook, second)
@@ -1192,9 +1200,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     assert [
         protocol_events.body(event.event)
         for event in initial
-        if isinstance(
-            event.event, (protocol.ConsoleEvent, protocol.DisplayEvent)
-        )
+        if isinstance(event.event, protocol.ConsoleEvent)
     ] == [first_console, first_display, second_console, second_display]
 
     live: list[RoutedEvent] = []
@@ -1207,7 +1213,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     host.subscribe(
         updated,
         notebook_id=notebook.id,
-        types={"run", "execution", "console", "display"},
+        types={"run", "execution", "console"},
     )
     if cleanup == "expire":
         clock.now = 10
@@ -1226,14 +1232,14 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
         if isinstance(event.event, protocol_events.RemovalEvent)
     ] == [
         ("console.removed", first_console.id),
-        ("display.removed", first_display.id),
+        ("console.removed", first_display.id),
         ("execution.removed", first),
         *(
             []
             if cleanup == "replace"
             else [
                 ("console.removed", second_console.id),
-                ("display.removed", second_display.id),
+                ("console.removed", second_display.id),
                 ("execution.removed", second),
                 ("run.removed", run.id),
             ]
@@ -1293,7 +1299,14 @@ async def test_current_cell_results_can_seed_another_notebook() -> None:
     run = notebook.run("code", request_id="request", request=None)
     execution = plan(notebook, run, "cell", "c1")
     notebook.observe(
-        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "x"))
+        be.Produced(
+            Console(
+                id=ItemId("out"),
+                execution_id=execution,
+                seq=0,
+                content=ConsoleText(stream="stdout", text="x"),
+            )
+        )
     )
     finish(notebook, execution)
     notebook.observe(be.Done(run.id, "succeeded"))
@@ -1346,12 +1359,14 @@ def test_restoration_preserves_revisions_and_outputs(
         seed.execution,
         (
             *seed.outputs,
-            Display(
+            Console(
                 execution_id=seed.execution.id,
                 id=ItemId("display"),
                 seq=1,
-                content=DisplayData(
-                    mimetype="application/json", data='{"values": [1, 2]}'
+                content=ConsoleMedia(
+                    DisplayData(
+                        mimetype="application/json", data='{"values": [1, 2]}'
+                    )
                 ),
             ),
             replace(seed.outputs[0], id=ItemId("last"), seq=2),
@@ -1383,7 +1398,7 @@ def test_restoration_preserves_revisions_and_outputs(
     outputs = [
         protocol_events.body(e.event)
         for e in notebook._snapshot()
-        if isinstance(e.event, (protocol.ConsoleEvent, protocol.DisplayEvent))
+        if isinstance(e.event, protocol.ConsoleEvent)
     ]
     assert [output.seq for output in outputs] == [0, 1, 2]
     # Restoration copies the supplied records.
@@ -1437,7 +1452,14 @@ async def test_restoration_excludes_live_work_and_cleans_up_deleted_active_cells
     run = notebook.run("code", request_id="request", request=None)
     execution = plan(notebook, run, "active", "c1")
     notebook.observe(
-        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "x"))
+        be.Produced(
+            Console(
+                id=ItemId("out"),
+                execution_id=execution,
+                seq=0,
+                content=ConsoleText(stream="stdout", text="x"),
+            )
+        )
     )
     assert notebook.executions.current(CellId("c1")) is None
     document = Document.restore(*published(notebook))
@@ -1473,7 +1495,14 @@ async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
     run = notebook.run("42", request_id="run", request=None)
     execution = plan(notebook, run, "result", "c1")
     notebook.observe(
-        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "hello"))
+        be.Produced(
+            Console(
+                id=ItemId("out"),
+                execution_id=execution,
+                seq=0,
+                content=ConsoleText(stream="stdout", text="hello"),
+            )
+        )
     )
     finish(notebook, execution)
     notebook.observe(be.Done(run.id, "succeeded"))
@@ -1505,7 +1534,14 @@ async def test_deleting_an_active_cell_releases_its_result_when_the_run_ends() -
     execution = plan(notebook, run, "result", "c1")
     notebook.replace([], {})
     notebook.observe(
-        be.Produced(Console(execution, ItemId("out"), "stdout", 0, "hello"))
+        be.Produced(
+            Console(
+                id=ItemId("out"),
+                execution_id=execution,
+                seq=0,
+                content=ConsoleText(stream="stdout", text="hello"),
+            )
+        )
     )
     finish(notebook, execution)
     notebook.observe(be.Done(run.id, "succeeded"))

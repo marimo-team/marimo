@@ -49,7 +49,7 @@ export const ExecutionId = Schema.String.check(Schema.isMinCodePoints(1))
 export const ItemId = Schema.String.check(Schema.isMinCodePoints(1))
   .annotate({
     description:
-      "Identifies an output, console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
+      "Identifies an output, console, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
   })
   .pipe(Schema.brand("ItemId"))
   .annotate({ identifier: "ItemId" });

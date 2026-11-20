@@ -367,7 +367,7 @@ async def test_run(host, scratch, code, outcome, kind):
         assert executions[-1]["state"]["outcome"]["kind"] == kind
         if kind == "succeeded":
             assert "conformance" in "".join(
-                item["text"] for item in objects(events, "console")
+                item["content"]["text"] for item in objects(events, "console")
             )
         replay = accepted(
             await host.request(

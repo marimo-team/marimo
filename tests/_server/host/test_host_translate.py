@@ -25,6 +25,8 @@ from marimo._core.document import Document, DocumentCell
 from marimo._core.protocol import (
     CellId,
     Console,
+    ConsoleMedia,
+    ConsoleText,
     DisplayData,
     Error,
     ErrorOutcome,
@@ -165,9 +167,8 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                 item=Console(
                     execution_id=ExecutionId("scratch"),
                     id=IsStr(),
-                    name="stdout",
                     seq=0,
-                    text="2\n",
+                    content=ConsoleText(stream="stdout", text="2\n"),
                 )
             ),
             Displayed(
@@ -221,11 +222,11 @@ def test_structured_displays_preserve_message_encoding(
     if console:
         assert t.feed(scratch(console=output)) == [
             Produced(
-                protocol.Display(
+                Console(
                     id=protocol.ItemId("scratch-0"),
                     execution_id=ExecutionId("scratch"),
                     seq=0,
-                    content=display,
+                    content=ConsoleMedia(display),
                 )
             )
         ]
@@ -342,25 +343,26 @@ def test_console_items_keep_literal_text_in_order() -> None:
                 item=Console(
                     execution_id=ExecutionId("scratch"),
                     id=IsStr(),
-                    name="stdout",
                     seq=0,
-                    text="a",
+                    content=ConsoleText(stream="stdout", text="a"),
                 )
             ),
             Produced(
                 item=Console(
                     execution_id=ExecutionId("scratch"),
                     id=IsStr(),
-                    name="stderr",
                     seq=1,
-                    text='<span class="codehilite">&lt;b&gt;</span>',
+                    content=ConsoleText(
+                        stream="stderr",
+                        text='<span class="codehilite">&lt;b&gt;</span>',
+                    ),
                 )
             ),
         ]
     )
 
 
-def test_media_written_to_the_console_is_a_display_among_the_text() -> None:
+def test_media_written_to_the_console_is_an_entry_among_the_text() -> None:
     # A figure shown with `plt.show()` arrives on the console, between
     # whatever the cell printed before and after it.
     t = RunTranslator(RunId("r1"), "3 * 3")
@@ -381,20 +383,20 @@ def test_media_written_to_the_console_is_a_display_among_the_text() -> None:
     )
 
     items = [m.item for m in out if isinstance(m, Produced)]
-    assert [(type(item), item.seq) for item in items] == [
-        (Console, 0),
-        (protocol.Display, 1),
-        (Console, 2),
+    assert [(type(item.content), item.seq) for item in items] == [
+        (ConsoleText, 0),
+        (ConsoleMedia, 1),
+        (ConsoleText, 2),
     ]
     assert len({item.id for item in items}) == 3
-    figure = items[1]
-    assert isinstance(figure, protocol.Display)
-    assert figure.content == protocol.DisplayData(
-        mimetype="image/png", data="data:image/png;base64,AAAA"
+    assert items[1].content == ConsoleMedia(
+        protocol.DisplayData(
+            mimetype="image/png", data="data:image/png;base64,AAAA"
+        )
     )
 
 
-def test_a_rendered_traceback_is_a_display_and_a_plain_one_is_text() -> None:
+def test_a_rendered_traceback_is_media_and_a_plain_one_is_text() -> None:
     highlighted = '<span class="codehilite">Traceback</span>'
     t = RunTranslator(RunId("r1"), "3 * 3")
     t.feed(attempt("planned"))
@@ -418,14 +420,13 @@ def test_a_rendered_traceback_is_a_display_and_a_plain_one_is_text() -> None:
     )
 
     rendered, text = (m.item for m in out if isinstance(m, Produced))
-    assert isinstance(rendered, protocol.Display)
-    assert rendered.content == protocol.DisplayData(
-        mimetype="application/vnd.marimo+traceback", data=highlighted
+    assert rendered.content == ConsoleMedia(
+        protocol.DisplayData(
+            mimetype="application/vnd.marimo+traceback", data=highlighted
+        )
     )
-    assert isinstance(text, Console)
-    assert (text.name, text.text) == (
-        "stderr",
-        "Traceback (most recent call last)",
+    assert text.content == ConsoleText(
+        stream="stderr", text="Traceback (most recent call last)"
     )
     assert (rendered.seq, text.seq) == (0, 1)
 

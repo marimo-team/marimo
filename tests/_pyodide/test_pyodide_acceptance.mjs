@@ -181,7 +181,8 @@ async function testHostInputs(notebook, notebookId, frames) {
   const values = { first: "one", second: "two" };
   for (const prompt of Object.keys(values)) {
     await waitForFrame(frames, (frame) =>
-      frame.event === "console" && frame.data.console.text.includes(`${prompt} reader started`),
+      frame.event === "console" && frame.data.console.content.kind === "text" &&
+      frame.data.console.content.text.includes(`${prompt} reader started`),
     );
   }
   const isConcurrentInput = (frame) => frame.event === "input" &&

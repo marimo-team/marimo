@@ -212,13 +212,17 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         const entry = frame.data.console;
         const cellId = cells.get(entry.execution_id);
         // Snapshot rows have no cursor. Only live writes belong in the logs.
-        if (frame.id !== undefined && cellId !== undefined) {
+        if (
+          frame.id !== undefined &&
+          cellId !== undefined &&
+          entry.content.kind === "text"
+        ) {
           const logs = getCellLogsForMessage({
             cell_id: cellId,
             console: {
-              channel: entry.name,
+              channel: entry.content.stream,
               mimetype: "text/plain",
-              data: entry.text,
+              data: entry.content.text,
               timestamp: frame.data.time
                 ? Date.parse(frame.data.time) / 1000
                 : Date.now() / 1000,

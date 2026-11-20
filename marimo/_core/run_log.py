@@ -99,10 +99,6 @@ class RunLog:
                 data=protocol.ConsoleMessage(console=item)
             ):
                 self._record_output(event, item)
-            case protocol.DisplayEvent(
-                data=protocol.DisplayMessage(display=item)
-            ):
-                self._record_output(event, item)
             case protocol.InputEvent(data=protocol.InputMessage(input=item)):
                 self._record_output(event, item)
             case protocol.ExecutionRemovedEvent(
@@ -176,10 +172,7 @@ class RunLog:
     def _record_output(
         self,
         event: RoutedEvent,
-        item: protocol.Output
-        | protocol.Console
-        | protocol.Display
-        | protocol.Input,
+        item: protocol.Output | protocol.Console | protocol.Input,
     ) -> None:
         entry = self._entry(event)
         if entry is None:
@@ -197,12 +190,7 @@ class RunLog:
                 if isinstance(output.event, protocol.InputEvent):
                     continue  # Inputs leave with their execution.
                 assert isinstance(
-                    output.event,
-                    (
-                        protocol.OutputEvent,
-                        protocol.ConsoleEvent,
-                        protocol.DisplayEvent,
-                    ),
+                    output.event, (protocol.OutputEvent, protocol.ConsoleEvent)
                 )
                 body = protocol_events.body(output.event)
                 events.append(self._removal(entry, type(body), body.id))

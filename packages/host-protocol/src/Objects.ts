@@ -6,7 +6,7 @@ import type { Schema } from "effect";
 import { Host, Notebook, Project } from "./model/Catalog.ts";
 import { Cell, Document } from "./model/Document.ts";
 import { Execution, Run } from "./model/Execution.ts";
-import { Console, Display, Input, Output, Variable } from "./model/Items.ts";
+import { Console, Input, Output, Variable } from "./model/Items.ts";
 import { Attachment, Runtime } from "./model/Runtime.ts";
 
 /** The catalog stream is `/events`. A notebook stream is `/notebooks/{notebook_id}/events`. */
@@ -37,7 +37,6 @@ export const objects = [
   { kind: "execution", schema: Execution, streams: notebook, removable: true },
   { kind: "output", schema: Output, streams: notebook, removable: true },
   { kind: "console", schema: Console, streams: notebook, removable: true },
-  { kind: "display", schema: Display, streams: notebook, removable: true },
   { kind: "input", schema: Input, streams: notebook, removable: false },
   { kind: "variable", schema: Variable, streams: notebook, removable: true },
 ] as const satisfies ReadonlyArray<ObjectKind>;

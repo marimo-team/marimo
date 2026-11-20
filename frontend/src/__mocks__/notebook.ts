@@ -167,13 +167,16 @@ export const MockNotebook = {
         return record;
       }
       const traceback: Item = {
-        kind: "display",
+        kind: "console",
         id: `traceback-${record.id}`,
         execution_id: record.id,
         seq: 0,
         content: {
-          mimetype: "application/vnd.marimo+traceback",
-          data: consoleTraceback,
+          kind: "media",
+          media: {
+            mimetype: "application/vnd.marimo+traceback",
+            data: consoleTraceback,
+          },
         },
       };
       return { ...record, items: [traceback] };

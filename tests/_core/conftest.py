@@ -321,7 +321,6 @@ def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
                 protocol.ExecutionEvent,
                 protocol.OutputEvent,
                 protocol.ConsoleEvent,
-                protocol.DisplayEvent,
             ),
         ):
             body = protocol_events.body(event)
@@ -333,7 +332,6 @@ def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
                 protocol.ExecutionRemovedEvent,
                 protocol.OutputRemovedEvent,
                 protocol.ConsoleRemovedEvent,
-                protocol.DisplayRemovedEvent,
             ),
         ):
             state.pop(
@@ -365,11 +363,10 @@ def retained_execution(
         ),
         (
             protocol.Console(
-                execution_id,
-                protocol.ItemId("restored-output"),
-                "stdout",
-                0,
-                "hello",
+                id=protocol.ItemId("restored-output"),
+                execution_id=execution_id,
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="hello"),
             ),
         ),
     )

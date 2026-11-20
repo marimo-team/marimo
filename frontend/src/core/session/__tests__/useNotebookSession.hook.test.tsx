@@ -517,8 +517,7 @@ it.each(["", "latest"])(
               id: "second-line",
               execution_id: scratch.id,
               seq: 0,
-              name: "stdout",
-              text,
+              content: { kind: "text", stream: "stdout", text },
             },
           },
         });
@@ -593,8 +592,7 @@ it("keeps a browser-cleared console hidden when the running execution is replaye
           id: "new-line",
           execution_id: "e7",
           seq: 1,
-          name: "stdout",
-          text: "after the clear",
+          content: { kind: "text", stream: "stdout", text: "after the clear" },
         },
       },
     }),
@@ -753,8 +751,7 @@ it.each(["live", "replay"])(
           id: `line-${seq}`,
           execution_id: execution.id,
           seq,
-          name: "stdout",
-          text,
+          content: { kind: "text", stream: "stdout", text },
         },
       },
     });
@@ -815,8 +812,7 @@ it("replays execution, debugger, and callback output independently", async () =>
     id: "line",
     execution_id: execution.id,
     seq: 0,
-    name: "stdout",
-    text: "before pdb",
+    content: { kind: "text", stream: "stdout", text: "before pdb" },
   };
   const input = {
     id: "request",
@@ -906,7 +902,9 @@ it("replays execution, debugger, and callback output independently", async () =>
   act(() =>
     conn.receive({
       event: "console",
-      data: { console: { ...line, text: "replaced" } },
+      data: {
+        console: { ...line, content: { ...line.content, text: "replaced" } },
+      },
     }),
   );
   expect(runtime().consoleOutputs.map((v) => v.data)).toEqual([
@@ -948,8 +946,7 @@ it.each([
           id: "old-line",
           execution_id: execution.id,
           seq: 0,
-          name: "stdout",
-          text: "previous run",
+          content: { kind: "text", stream: "stdout", text: "previous run" },
         },
       },
     });

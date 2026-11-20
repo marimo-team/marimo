@@ -10,10 +10,9 @@ import {
 } from "./results";
 import { shown, startedAt } from "../execution-state";
 
-/** A console line, display, or input an execution produced, tagged by kind. */
+/** A console entry or input an execution produced, tagged by kind. */
 type ProducedItem =
   | (Protocol.Console & { readonly kind: "console" })
-  | (Protocol.Display & { readonly kind: "display" })
   | (Protocol.Input & { readonly kind: "input" });
 
 /** Time the host published the item, when included in a live event. */
@@ -54,7 +53,6 @@ type Kind =
   | "execution"
   | "output"
   | "console"
-  | "display"
   | "input"
   | "variable";
 
@@ -315,9 +313,6 @@ export const executions: NotebookResource<Executions, Kind> = {
     console: (state, { data }) =>
       attach(state, { ...data.console, kind: "console", time: data.time }),
     "console.removed": (state, { data }) => detach(state, data.id),
-    display: (state, { data }) =>
-      attach(state, { ...data.display, kind: "display", time: data.time }),
-    "display.removed": (state, { data }) => detach(state, data.id),
     input: (state, { data }) =>
       attach(state, { ...data.input, kind: "input", time: data.time }),
     variable: (state, { data }) => bind(state, data.variable),

@@ -314,13 +314,15 @@ class RunTranslator:
             ):
                 out.append(
                     be.Produced(
-                        protocol.Display(
+                        protocol.Console(
                             id=protocol.ItemId(
                                 f"{execution.id}-{execution.seq}"
                             ),
                             execution_id=execution.id,
                             seq=execution.seq,
-                            content=displayed(entry.mimetype, entry.data),
+                            content=protocol.ConsoleMedia(
+                                displayed(entry.mimetype, entry.data)
+                            ),
                         )
                     )
                 )
@@ -337,10 +339,12 @@ class RunTranslator:
                         id=protocol.ItemId(f"{execution.id}-{execution.seq}"),
                         execution_id=execution.id,
                         seq=execution.seq,
-                        name="stdout"
-                        if entry.channel == CellChannel.STDOUT
-                        else "stderr",
-                        text=str(entry.data),
+                        content=protocol.ConsoleText(
+                            stream="stdout"
+                            if entry.channel == CellChannel.STDOUT
+                            else "stderr",
+                            text=str(entry.data),
+                        ),
                     )
                 )
             )

@@ -8,7 +8,7 @@ data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_fingerp
 
 id: 122
 event: console
-data: {"console":{"id":"o4","execution_id":"e8","seq":0,"name":"stderr","text":"dividing\n"},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
+data: {"console":{"id":"o4","execution_id":"e8","seq":0,"content":{"kind":"text","stream":"stderr","text":"dividing\n"}},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
 
 id: 123
 event: execution
