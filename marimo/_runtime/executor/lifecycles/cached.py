@@ -89,6 +89,7 @@ import time
 from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._runtime.exceptions import MarimoRescheduleError
 from marimo._runtime.executor.lifecycles import Skip
 from marimo._runtime.runner.result import RunResult
@@ -143,6 +144,10 @@ class CachedLifecycle:
 
     def setup(self, cell: CellImpl, glbls: MutableGlobals) -> Skip | None:
         cell_id = cell.cell_id
+        if cell_id == SETUP_CELL_NAME:
+            # The setup cell configures the process (imports, library
+            # settings), and a restore would skip those side effects.
+            return None
 
         attempt = cache_attempt_from_hash(
             cell.mod,
