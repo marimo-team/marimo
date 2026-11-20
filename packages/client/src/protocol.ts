@@ -175,11 +175,11 @@ export const Notebook = zod
     modified_at: zod
       .union([Timestamp, zod.null()])
       .describe(
-        "When the file was last modified, as of the host's last look at it. Null when the host does not know.",
+        "A hint of when the file was last modified, for display and ordering. It can lag, since a host need not send the notebook again when only this value changes. Null when the host does not know.",
       ),
   })
   .describe(
-    "A notebook is a document and its results as the host knows them,\nusually backed by a file. Its kernel, when it has one, is a\nseparate object, the runtime. A host sends at most one `notebook`\nevent per second for the same notebook, since `modified_at`\nchanges on every save.\n",
+    "A notebook is a document and its results as the host knows them,\nusually backed by a file. Its kernel, when it has one, is a\nseparate object, the runtime.\n",
   );
 
 export type Notebook = zod.input<typeof Notebook>;

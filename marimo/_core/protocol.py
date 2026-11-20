@@ -1326,7 +1326,7 @@ class Notebook(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the file was last modified, as of the host's last look at it. Null when the host does not know."
+                description="A hint of when the file was last modified, for display and ordering. It can lag, since a host need not send the notebook again when only this value changes. Null when the host does not know."
             ),
         ]
         | None
