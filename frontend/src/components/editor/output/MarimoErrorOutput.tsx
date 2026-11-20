@@ -35,6 +35,7 @@ import { openPackageManager } from "../chrome/panels/packages-utils";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
+import { ReportMarimoBugButton } from "../errors/report-marimo-bug-button";
 import { SendErrorReportButton } from "../errors/send-error-report-button";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
@@ -775,11 +776,18 @@ export const MarimoErrorOutput = ({
       {title}
       <div className="flex flex-col gap-4">{renderMessages()}</div>
       {cellId && kernelErrors.length > 0 && (
-        <SendErrorReportButton
-          getContent={() =>
-            buildErrorReport(cellId, { code, errors: kernelErrors })
-          }
-        />
+        <div className="flex flex-wrap gap-2 empty:hidden">
+          <ReportMarimoBugButton
+            cellId={cellId}
+            errors={kernelErrors}
+            code={code}
+          />
+          <SendErrorReportButton
+            getContent={() =>
+              buildErrorReport(cellId, { code, errors: kernelErrors })
+            }
+          />
+        </div>
       )}
     </Alert>
   );

@@ -115,12 +115,16 @@ function raisingCell(error: Protocol.Error): CellId | null {
 export function cellError(error: Protocol.Error): CellError {
   switch (error.kind) {
     case "exception":
+    case "marimo-bug":
       return {
         type: "exception",
         exception_type: error.name ?? "Exception",
         msg: error.message,
         raising_cell: raisingCell(error),
         traceback: error.traceback?.data ?? null,
+        ...(error.kind === "marimo-bug" && error.source === "marimo"
+          ? { is_marimo_bug: true }
+          : {}),
       };
     case "invalid-syntax":
       return {

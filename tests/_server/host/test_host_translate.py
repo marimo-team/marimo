@@ -299,6 +299,44 @@ ZeroDivisionError: division by zero
     )
 
 
+@pytest.mark.parametrize("is_marimo_bug", [False, True])
+def test_exception_classification_survives_host_translation(
+    is_marimo_bug: bool,
+) -> None:
+    t = RunTranslator(RunId("r1"), "failed()")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    error = MarimoExceptionRaisedError(
+        msg="broken invariant",
+        exception_type="MarimoBugError",
+        raising_cell=None,
+        traceback="MarimoBugError: broken invariant",
+        is_marimo_bug=is_marimo_bug,
+    )
+    t.feed(scratch(output=CellOutput.errors([error])))
+    assert t.finish() == [
+        Completed(
+            execution_id=ExecutionId("scratch"),
+            outcome=ErrorOutcome(
+                error=Error(
+                    kind="marimo-bug" if is_marimo_bug else "exception",
+                    source="marimo",
+                    severity="error",
+                    range=None,
+                    related=(),
+                    message="broken invariant",
+                    name="MarimoBugError",
+                    traceback=DisplayData(
+                        mimetype="text/plain",
+                        data="MarimoBugError: broken invariant",
+                    ),
+                )
+            ),
+        ),
+        Done(run_id=RunId("r1"), outcome="failed"),
+    ]
+
+
 @pytest.mark.parametrize("interrupted_by", ["kernel", "client"])
 def test_an_interruption_ends_the_run_interrupted(
     interrupted_by: str,

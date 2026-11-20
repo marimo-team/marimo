@@ -1208,7 +1208,7 @@ class Error(Struct, frozen=True):
     kind: Annotated[
         str,
         Meta(
-            description="The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors."
+            description="The producer's identifier, scoped by source. Open; this protocol defines `exception`, `marimo-bug` (an exception caused by a bug in marimo), `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors."
         ),
     ]
     message: Annotated[
@@ -1218,7 +1218,7 @@ class Error(Struct, frozen=True):
         Annotated[
             str,
             Meta(
-                description="The exception class, such as `ZeroDivisionError`. Set when kind is exception, null otherwise."
+                description="The exception class, such as `ZeroDivisionError`. Set when kind is exception or marimo-bug, null otherwise."
             ),
         ]
         | None

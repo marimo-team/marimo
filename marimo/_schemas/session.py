@@ -50,6 +50,7 @@ class ErrorOutput(BaseDict):
     evalue: str
     traceback: list[str]
     code: NotRequired[str]
+    is_marimo_bug: NotRequired[bool]
 
 
 class DataOutput(BaseDict):

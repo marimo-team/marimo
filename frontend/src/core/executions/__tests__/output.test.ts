@@ -225,6 +225,26 @@ describe("cellOutputView", () => {
 });
 
 describe("cellError", () => {
+  it.each([
+    { kind: "exception", source: "marimo", isMarimoBug: false },
+    { kind: "marimo-bug", source: "marimo", isMarimoBug: true },
+    { kind: "marimo-bug", source: "other", isMarimoBug: false },
+  ])(
+    "preserves internal classification for $kind from $source",
+    ({ kind, source, isMarimoBug }) => {
+      expect(
+        cellError(hostError({ kind, source, name: "MarimoBugError" })),
+      ).toEqual({
+        type: "exception",
+        exception_type: "MarimoBugError",
+        msg: "boom",
+        raising_cell: null,
+        traceback: null,
+        ...(isMarimoBug ? { is_marimo_bug: true } : {}),
+      });
+    },
+  );
+
   it("keeps a syntax error's line and an internal error's name", () => {
     expect(
       cellError(

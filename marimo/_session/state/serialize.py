@@ -95,13 +95,16 @@ def _references_virtual_file_inner(data: Any, seen: set[int]) -> bool:
 def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
     """Normalize error to consistent format."""
     if isinstance(error, dict):
-        return ErrorOutput(
+        result = ErrorOutput(
             type="error",
             ename=error.get("exception_type")
             or error.get("type", "UnknownError"),
             evalue=error.get("msg", ""),
             traceback=as_list(error.get("traceback")),
         )
+        if error.get("is_marimo_bug") is True:
+            result["is_marimo_bug"] = True
+        return result
     else:
         if isinstance(error, MarimoExceptionRaisedError):
             ename = error.exception_type
@@ -112,12 +115,18 @@ def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
             # For msgspec structs with tagged unions, the type is in the serialized form
             ename = asdict(error).get("type", "UnknownError")
 
-        return ErrorOutput(
+        result = ErrorOutput(
             type="error",
             ename=ename,
             evalue=error.describe(),
             traceback=as_list(getattr(error, "traceback", None)),
         )
+        if (
+            isinstance(error, MarimoExceptionRaisedError)
+            and error.is_marimo_bug
+        ):
+            result["is_marimo_bug"] = True
+        return result
 
 
 def restore_traceback(traceback: str | list[str] | None) -> str | None:
@@ -282,6 +291,9 @@ def deserialize_session(
                         [
                             MarimoExceptionRaisedError(
                                 exception_type=output["ename"],
+                                is_marimo_bug=output.get(
+                                    "is_marimo_bug", False
+                                ),
                                 msg=output["evalue"],
                                 raising_cell=None,
                                 traceback=restore_traceback(

@@ -604,7 +604,7 @@ def _describe(
                 ),
             )
         return diagnostics.error(
-            "exception",
+            diagnostics.exception_kind(is_marimo_bug=error.is_marimo_bug),
             error.msg,
             name=error.exception_type,
             traceback=traceback,

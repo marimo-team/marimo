@@ -9,6 +9,10 @@ if TYPE_CHECKING:
     from marimo._core import protocol
 
 
+class MarimoBugError(RuntimeError):
+    """A bug in marimo itself, which users should report to the marimo team."""
+
+
 class HostError(Exception):
     """Base exception for host and notebook commands."""
 

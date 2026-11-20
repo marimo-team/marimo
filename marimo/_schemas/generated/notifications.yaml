@@ -1258,6 +1258,9 @@ components:
       properties:
         exception_type:
           type: string
+        is_marimo_bug:
+          default: false
+          type: boolean
         msg:
           type: string
         raising_cell:

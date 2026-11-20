@@ -185,11 +185,15 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
             ),
         )
     traceback = restore_traceback(stored.get("traceback"))
+    kernel_kind = _KINDS.get(name)
     return protocol.ErrorOutcome(
         diagnostics.error(
-            _KINDS.get(name, "exception"),
+            kernel_kind
+            or diagnostics.exception_kind(
+                is_marimo_bug=stored.get("is_marimo_bug", False)
+            ),
             message,
-            name=None if name in _KINDS else name,
+            name=None if kernel_kind else name,
             traceback=None
             if traceback is None
             else displayed(

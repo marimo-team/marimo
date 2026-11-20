@@ -38,6 +38,10 @@ def error(
     )
 
 
+def exception_kind(*, is_marimo_bug: bool) -> str:
+    return "marimo-bug" if is_marimo_bug else "exception"
+
+
 def utf16(code: str, line: int, column: int) -> int:
     """Convert a source column to UTF-16 code units."""
     lines = code.split("\n")
