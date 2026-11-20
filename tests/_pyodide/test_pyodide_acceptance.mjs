@@ -144,9 +144,9 @@ async function testHostInputs(notebook, notebookId, frames) {
   const assertSucceeded = async (runId) => {
     const completed = await waitForFrame(frames, (frame) =>
       frame.event === "run" && frame.data.run.id === runId &&
-      frame.data.run.status === "completed",
+      frame.data.run.state.status === "completed",
     );
-    assert.equal(completed.data.run.outcome, "succeeded");
+    assert.equal(completed.data.run.state.outcome, "succeeded");
   };
 
   const run = await call("runtime.execute", "wasm-input-run", { code: [
@@ -217,9 +217,9 @@ async function testIdleInterrupt(pyodide, notebook, notebookId, frames) {
     assert.equal(run.status, 202);
     const completed = await waitForFrame(frames, (frame) =>
       frame.event === "run" && frame.data.run.id === run.body.id &&
-      frame.data.run.status === "completed",
+      frame.data.run.state.status === "completed",
     );
-    assert.equal(completed.data.run.outcome, "succeeded");
+    assert.equal(completed.data.run.state.outcome, "succeeded");
   } finally {
     pyodide.setInterruptBuffer(undefined);
   }
