@@ -1402,7 +1402,7 @@ class NotebookMessage(Struct, frozen=True):
 Outcome: TypeAlias = Annotated[
     ValueOutcome | ErrorOutcome | InterruptedOutcome | SkippedOutcome,
     Meta(
-        description="How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n"
+        description="How an execution ended, tagged on `kind`. A `value` carries the\nlast rendered display. Background work can replace or clear that\ndisplay while the completed execution is retained. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n"
     ),
 ]
 
@@ -1885,7 +1885,7 @@ class ExecutionCompleted(
         Annotated[
             Timestamp,
             Meta(
-                description="When the code started executing. Null if the execution completed before starting."
+                description="When the code started executing. Null if the execution never started or the start time of a restored result is unknown."
             ),
         ]
         | None

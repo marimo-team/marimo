@@ -247,7 +247,7 @@ export const Outcome = Schema.Union([
   SkippedOutcome,
 ]).annotate({
   description:
-    "How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
+    "How an execution ended, tagged on `kind`. A `value` carries the\nlast rendered display. Background work can replace or clear that\ndisplay while the completed execution is retained. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
   identifier: "Outcome",
 });
 
@@ -270,7 +270,7 @@ export const ExecutionCompleted = Schema.Struct({
   status: Schema.Literal("completed"),
   started_at: Schema.NullOr(Timestamp).annotateKey({
     description:
-      "When the code started executing. Null if the execution completed before starting.",
+      "When the code started executing. Null if the execution never started or the start time of a restored result is unknown.",
   }),
   completed_at: Schema.NullOr(Timestamp).annotateKey({
     description:
