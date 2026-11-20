@@ -313,7 +313,7 @@ else:
 Lifecycle: TypeAlias = Annotated[
     Literal["queued", "running", "completed"],
     Meta(
-        description="Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. A run is `queued` until its first\nexecution starts, `running` until its cycle has settled or been cut\nshort, and `completed` once no more work can join it. How either\nended is its `outcome`.\n"
+        description="Where an execution is in its lifecycle. An execution is `queued`\nuntil it starts, `running` while code executes, and `completed`\nonce it has ended. How it ended is its `outcome`.\n"
     ),
 ]
 
@@ -587,6 +587,10 @@ RunOutcome: TypeAlias = Annotated[
         description="How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution's\ncode raised or the host could not finish the cycle. An execution\nskipped because of another cell does not fail its run. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n"
     ),
 ]
+
+
+class RunQueued(Struct, frozen=True, tag_field="status", tag="queued"):
+    pass
 
 
 class RunRequest(Struct, frozen=True, forbid_unknown_fields=True):
@@ -1529,6 +1533,25 @@ class RemovedMessage(Struct, frozen=True):
     ) = UNSET
 
 
+class RunCompleted(Struct, frozen=True, tag_field="status", tag="completed"):
+    completed_at: Annotated[Timestamp, Meta(description="When the run ended.")]
+    outcome: Annotated[
+        RunOutcome,
+        Meta(
+            description="An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested."
+        ),
+    ]
+    started_at: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the first execution started. Null if none started."
+            ),
+        ]
+        | None
+    )
+
+
 RunOrigin: TypeAlias = Annotated[
     RunCellsOrigin | RunCodeOrigin | RunRuntimeOrigin,
     Meta(
@@ -1551,6 +1574,20 @@ class RunRemovedEvent(
         ]
         | UnsetType
     ) = UNSET
+
+
+class RunRunning(Struct, frozen=True, tag_field="status", tag="running"):
+    started_at: Annotated[
+        Timestamp, Meta(description="When the first execution started.")
+    ]
+
+
+RunState: TypeAlias = Annotated[
+    RunQueued | RunRunning | RunCompleted,
+    Meta(
+        description="Where a run is in its lifecycle, tagged on `status`. A run is\n`queued` until its first execution starts and `running` until the\ncycle has settled or been terminated. It is `completed` once all\nmember executions are terminal and no more can be scheduled in this\nrun, and that state is final. A run can complete with no executions.\n"
+    ),
+]
 
 
 class Runtime(Struct, frozen=True):
@@ -2052,45 +2089,13 @@ class ProjectRemovedEvent(
 
 
 class Run(Struct, frozen=True):
-    completed_at: (
-        Annotated[
-            Timestamp,
-            Meta(
-                description="When the run ended. Null until the run is `completed`."
-            ),
-        ]
-        | None
-    )
     id: RunId
     notebook_id: NotebookId
     origin: RunOrigin
-    outcome: (
-        Annotated[
-            RunOutcome,
-            Meta(
-                description="Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested."
-            ),
-        ]
-        | None
-    )
     runtime_id: Annotated[
         RuntimeId, Meta(description="The runtime that produced this run.")
     ]
-    started_at: (
-        Annotated[
-            Timestamp,
-            Meta(
-                description="When the first execution started. Null if none has started."
-            ),
-        ]
-        | None
-    )
-    status: Annotated[
-        Lifecycle,
-        Meta(
-            description="Queued until the first execution starts, running until the cycle has settled or been terminated, and completed once all member executions are terminal and no more can be scheduled in this run. A run can complete with no executions."
-        ),
-    ]
+    state: RunState
 
 
 class RunMessage(Struct, frozen=True):

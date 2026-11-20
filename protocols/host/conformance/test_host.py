@@ -320,7 +320,7 @@ async def finish_run(watch, run, key, outcome):
         lambda f: (
             f.event == "run"
             and f.message()["run"]["id"] == run["id"]
-            and f.message()["run"]["status"] == "completed"
+            and f.message()["run"]["state"]["status"] == "completed"
         )
     )
     executions = {}
@@ -335,7 +335,7 @@ async def finish_run(watch, run, key, outcome):
         e["status"] == "completed" and e["outcome"] is not None
         for e in executions.values()
     ), "run completed before its executions"
-    assert live(events[-1], key)["run"]["outcome"] == outcome
+    assert live(events[-1], key)["run"]["state"]["outcome"] == outcome
     return events, list(executions.values())
 
 
@@ -360,7 +360,7 @@ async def test_run(host, scratch, code, outcome, kind):
             202,
             "Run",
         )
-        assert run["status"] in ("queued", "running")
+        assert run["state"]["status"] in ("queued", "running")
         assert run["id"] != key
         events, executions = await finish_run(watch, run, key, outcome)
         assert run["origin"] == {"kind": "code", "code": code}
@@ -378,7 +378,7 @@ async def test_run(host, scratch, code, outcome, kind):
             "Run",
         )
         assert replay["id"] == run["id"]
-        assert replay["status"] == "completed"
+        assert replay["state"]["status"] == "completed"
 
 
 async def test_runtime_lifecycle(host, scratch):
@@ -526,7 +526,7 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
             "Run",
         )
         assert queued["id"] != run["id"]
-        assert queued["status"] == "queued"
+        assert queued["state"] == {"status": "queued"}
         if operation == "interrupt":
             method, endpoint, schema = (
                 "POST",
@@ -551,14 +551,14 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
         def both_completed(frame):
             if frame.event == "run":
                 record = frame.message()["run"]
-                if record["status"] == "completed":
+                if record["state"]["status"] == "completed":
                     completed[record["id"]] = record
             return run["id"] in completed and queued["id"] in completed
 
         # Either run may publish its terminal event first.
         events = await watch.until(both_completed)
-        assert completed[run["id"]]["outcome"] == "interrupted"
-        assert completed[queued["id"]]["outcome"] == (
+        assert completed[run["id"]]["state"]["outcome"] == "interrupted"
+        assert completed[queued["id"]]["state"]["outcome"] == (
             "interrupted" if operation == "interrupt" else "succeeded"
         )
         executions = objects(events, "execution")
@@ -632,7 +632,7 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             202,
             "Run",
         )
-        assert queued["status"] == successor["status"] == "queued"
+        assert queued["state"] == successor["state"] == {"status": "queued"}
         endpoint = path + "/runtime/runs/" + quote(queued["id"], safe="")
         assert (
             accepted(await host.request("DELETE", endpoint), 202, "Run")["id"]
@@ -642,10 +642,10 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             lambda f: (
                 f.event == "run"
                 and f.message()["run"]["id"] == queued["id"]
-                and f.message()["run"]["status"] == "completed"
+                and f.message()["run"]["state"]["status"] == "completed"
             )
         )
-        assert events[-1].message()["run"]["outcome"] == "interrupted"
+        assert events[-1].message()["run"]["state"]["outcome"] == "interrupted"
         # The queued run may leave an execution, but it never started.
         assert not any(
             e["run_id"] == queued["id"] and e["started_at"] is not None
@@ -653,7 +653,7 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
         )
         assert not any(
             r["id"] in (active["id"], successor["id"])
-            and r["status"] == "completed"
+            and r["state"]["status"] == "completed"
             for r in objects(events, "run")
         )
         problem(await host.request("DELETE", endpoint), 409, "conflict")

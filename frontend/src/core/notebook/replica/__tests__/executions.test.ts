@@ -46,12 +46,14 @@ describe("executions resource", () => {
     expect(itemsInOrder(scratch!).map((item) => item.kind)).toEqual([
       "console",
     ]);
-    expect(opening.runs.get("run-scratch")?.status).toBe("running");
+    expect(opening.runs.get("run-scratch")?.state.status).toBe("running");
     expect(opening.latest.size).toBe(0);
 
     const done = resource(replay(snapshot));
     expect(done.executions.get("e7")?.record.status).toBe("completed");
-    expect(done.runs.get("run-scratch")?.outcome).toBe("succeeded");
+    expect(done.runs.get("run-scratch")?.state).toMatchObject({
+      outcome: "succeeded",
+    });
     const released = reducer.reduce(
       replay(snapshot),
       removed("run", "run-scratch", "98"),
@@ -65,7 +67,7 @@ describe("executions resource", () => {
     expect(running.latest.get("c3")).toBe("e12");
     expect(running.executions.get("e12")?.record.status).toBe("running");
     expect(running.latest.get("k7f2")).toBe("e13");
-    expect(running.runs.get("run-cells")?.status).toBe("running");
+    expect(running.runs.get("run-cells")?.state.status).toBe("running");
 
     const done = replay(runCells, start);
     const e12 = resource(done).executions.get("e12");
@@ -74,7 +76,9 @@ describe("executions resource", () => {
     expect(resource(done).executions.get("e13")?.record.depends_on).toEqual({
       x: { execution: "e12", update: 0 },
     });
-    expect(resource(done).runs.get("run-cells")?.outcome).toBe("succeeded");
+    expect(resource(done).runs.get("run-cells")?.state).toMatchObject({
+      outcome: "succeeded",
+    });
 
     const retired = replay(retire("e12", "e12-x"), done);
     expect(resource(retired).executions.has("e12")).toBe(false);
@@ -163,7 +167,9 @@ describe("executions resource", () => {
     expect(prompted.latest.size).toBe(0);
     const gone = resource(replay(inputs, start));
     expect(gone.executions.has("e-input")).toBe(false);
-    expect(gone.runs.get("run-input")?.outcome).toBe("interrupted");
+    expect(gone.runs.get("run-input")?.state).toMatchObject({
+      outcome: "interrupted",
+    });
 
     const orphan = reducer.reduce(
       start,

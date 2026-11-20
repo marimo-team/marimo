@@ -490,7 +490,7 @@ class TestAdoption:
             for event in host.events(notebook_id=notebook.id)
             if isinstance(event.event.data, RunMessage)
         ]
-        assert run.status == "completed"
+        assert isinstance(run.state, protocol.RunCompleted)
 
 
 def console(
@@ -560,7 +560,7 @@ class TestRun:
         key = "7c1e9a3f"
 
         run = notebook.run("3 * 3", request_id=key, request=None)
-        assert run.started_at is None
+        assert run.state == protocol.RunQueued()
 
         notebook.observe(
             be.Planned(
@@ -606,10 +606,10 @@ class TestRun:
             for event in log
             if isinstance(data := event.event.data, ConsoleMessage)
         ]
-        assert [run.status for run in runs] == [
-            "queued",
-            "running",
-            "completed",
+        assert [type(run.state) for run in runs] == [
+            protocol.RunQueued,
+            protocol.RunRunning,
+            protocol.RunCompleted,
         ]
         assert [(e.status, e.outcome) for e in executions] == [
             ("queued", None),
@@ -638,13 +638,14 @@ class TestRun:
             [
                 Run(
                     origin=protocol.RunCodeOrigin(code="3 * 3"),
-                    completed_at=IsDatetime(),
                     id=run.id,
                     notebook_id=NotebookId("n1"),
                     runtime_id=runtime_id_of(notebook),
-                    outcome="succeeded",
-                    started_at=IsDatetime(),
-                    status="completed",
+                    state=protocol.RunCompleted(
+                        started_at=IsDatetime(),
+                        completed_at=IsDatetime(),
+                        outcome="succeeded",
+                    ),
                 ),
                 Execution(
                     caused_by=None,
@@ -703,7 +704,7 @@ class TestRun:
         second = notebook.run("2", request_id="second", request=None)
 
         assert second.id != first.id
-        assert (first.status, second.status) == ("queued", "queued")
+        assert first.state == second.state == protocol.RunQueued()
         assert backend.calls == [
             ("run", first.id, "1"),
             ("run", second.id, "2"),
@@ -718,14 +719,15 @@ class TestRun:
             for event in log
             if isinstance(event.event.data, RunMessage)
         ]
-        assert [(run.id, run.status) for run in runs] == [
-            (first.id, "queued"),
-            (second.id, "queued"),
-            (first.id, "completed"),
-            (second.id, "completed"),
+        assert [(run.id, type(run.state)) for run in runs] == [
+            (first.id, protocol.RunQueued),
+            (second.id, protocol.RunQueued),
+            (first.id, protocol.RunCompleted),
+            (second.id, protocol.RunCompleted),
         ]
-        assert runs[2].started_at is None
-        assert runs[2].completed_at is not None
+        assert runs[2].state == protocol.RunCompleted(
+            started_at=None, completed_at=IsDatetime(), outcome="succeeded"
+        )
         assert request_ids(log) == ["first", "second", "first", "second"]
 
     def test_an_item_replaces_itself_by_id(
@@ -800,7 +802,7 @@ class TestRunCompletion:
     ) -> None:
         running(notebook, backend)
         run = notebook.run("pass", request_id="never-started", request=None)
-        assert run.outcome is None
+        assert run.state == protocol.RunQueued()
         notebook.observe(be.Done(run.id, outcome))
         final = next(
             event.event.data
@@ -808,10 +810,9 @@ class TestRunCompletion:
             if isinstance(event.event.data, RunMessage)
         )
         assert isinstance(final, RunMessage)
-        assert final.run.status == "completed"
-        assert final.run.outcome == outcome
-        assert final.run.started_at is None
-        assert final.run.completed_at is not None
+        assert final.run.state == protocol.RunCompleted(
+            started_at=None, completed_at=IsDatetime(), outcome=outcome
+        )
 
     @pytest.mark.parametrize("outcome", ["failed", "interrupted"])
     def test_downstream_work_outlives_the_root_execution(
@@ -861,8 +862,7 @@ class TestRunCompletion:
         # Even an empty execution queue is not an authoritative end to scheduling.
         current = notebook.executions.run(run.id)
         assert current is not None
-        assert current.status == "running"
-        assert current.outcome is None
+        assert isinstance(current.state, protocol.RunRunning)
         with pytest.raises(ValueError, match="successful"):
             notebook.observe(be.Done(run.id, "succeeded"))
         notebook.observe(be.Done(run.id, outcome))
@@ -872,8 +872,8 @@ class TestRunCompletion:
             if isinstance(event.event.data, RunMessage)
         )
         assert isinstance(final, RunMessage)
-        assert final.run.outcome == outcome
-        assert final.run.status == "completed"
+        assert isinstance(final.run.state, protocol.RunCompleted)
+        assert final.run.state.outcome == outcome
         log.clear()
         # Released scratch records cannot reopen or acquire more output.
         notebook.observe(be.Started(ExecutionId("e1")))
@@ -1519,7 +1519,7 @@ async def test_running_cells_hands_the_backend_the_document() -> None:
         request=None,
     )
 
-    assert run.status == "queued"
+    assert run.state == protocol.RunQueued()
     assert notebook.backend.calls[-1] == (  # type: ignore[attr-defined]
         "run_cells",
         run.id,

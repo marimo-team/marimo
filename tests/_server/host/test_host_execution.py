@@ -90,7 +90,8 @@ async def test_move_preserves_the_running_notebook(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
     )
@@ -142,7 +143,8 @@ async def test_scratch_outcomes_from_the_kernel(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
     )
@@ -200,7 +202,7 @@ async def test_cell_runs_preserve_order_with_later_deletions(
             lambda stream: any(
                 r.get("data", {}).get("run", {}).get("id")
                 == response.json()["id"]
-                and r["data"]["run"]["status"] == "completed"
+                and r["data"]["run"]["state"]["status"] == "completed"
                 for r in stream.records
             ),
         )
@@ -241,7 +243,7 @@ async def test_cell_runs_preserve_order_with_later_deletions(
     await completed(checked)
     assert (
         next(
-            r["data"]["run"]["outcome"]
+            r["data"]["run"]["state"]["outcome"]
             for r in reversed(events.records)
             if r.get("data", {}).get("run", {}).get("id")
             == checked.json()["id"]
@@ -304,7 +306,7 @@ async def test_first_startup_preserves_host_order(tmp_path: Path) -> None:
             lambda response: any(
                 r.get("data", {}).get("run", {}).get("id")
                 == accepted.json()["id"]
-                and r["data"]["run"]["status"] == "completed"
+                and r["data"]["run"]["state"]["status"] == "completed"
                 for r in response.records
             ),
         )
@@ -409,7 +411,7 @@ async def test_repeated_startup_preserves_host_edits(
             events,
             lambda response: any(
                 r.get("data", {}).get("run", {}).get("id") == run_id
-                and r["data"]["run"]["status"] == "completed"
+                and r["data"]["run"]["state"]["status"] == "completed"
                 for r in response.records
             ),
         )
@@ -417,9 +419,9 @@ async def test_repeated_startup_preserves_host_edits(
             r["data"]["run"]
             for r in events.records
             if r.get("data", {}).get("run", {}).get("id") == run_id
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
         ]
-        assert completed["outcome"] == "succeeded"
+        assert completed["state"]["outcome"] == "succeeded"
         assert (notebook.document.etag, [c.id for c in notebook.document]) == (
             revision,
             order,
@@ -475,7 +477,10 @@ async def test_startup_markdown_has_a_retained_result_and_its_own_completed_run(
                 {
                     r["data"]["run"]["id"]
                     for r in response.records
-                    if r.get("data", {}).get("run", {}).get("status")
+                    if r.get("data", {})
+                    .get("run", {})
+                    .get("state", {})
+                    .get("status")
                     == "completed"
                 }
             )
@@ -483,9 +488,10 @@ async def test_startup_markdown_has_a_retained_result_and_its_own_completed_run(
         ),
     )
     completed = {
-        r["data"]["run"]["id"]: r["data"]["run"]["outcome"]
+        r["data"]["run"]["id"]: r["data"]["run"]["state"]["outcome"]
         for r in events.records
-        if r.get("data", {}).get("run", {}).get("status") == "completed"
+        if r.get("data", {}).get("run", {}).get("state", {}).get("status")
+        == "completed"
     }
     result = notebook.executions.current(markdown.id)
     assert result is not None
@@ -611,7 +617,7 @@ async def gated_host(
 
 def run_transitions(stream: Response, *run_ids: str) -> list[tuple[str, str]]:
     return [
-        (r["data"]["run"]["id"], r["data"]["run"]["status"])
+        (r["data"]["run"]["id"], r["data"]["run"]["state"]["status"])
         for r in stream.records
         if r.get("data", {}).get("run", {}).get("id") in run_ids
     ]
@@ -620,10 +626,10 @@ def run_transitions(stream: Response, *run_ids: str) -> list[tuple[str, str]]:
 def run_outcome(stream: Response, run_id: str) -> str | None:
     return next(
         (
-            r["data"]["run"]["outcome"]
+            r["data"]["run"]["state"]["outcome"]
             for r in reversed(stream.records)
             if r.get("data", {}).get("run", {}).get("id") == run_id
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
         ),
         None,
     )
@@ -657,8 +663,7 @@ async def test_runs_accepted_while_busy_start_in_order(
     )
     assert second.status == 202, second.body
     second_id = second.json()["id"]
-    assert second.json()["status"] == "queued"
-    assert second.json()["started_at"] is None
+    assert second.json()["state"] == {"status": "queued"}
     await wait_for(
         events,
         lambda s: (second_id, "queued") in run_transitions(s, second_id),
@@ -760,7 +765,7 @@ async def test_host_cell_input_fails_without_waiting_for_stdin(
         events,
         lambda stream: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in stream.records
         ),
     )
@@ -806,7 +811,7 @@ mo.Thread(target=worker).start()
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == first.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -826,13 +831,13 @@ mo.Thread(target=worker).start()
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == second.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
     assert (
         next(
-            r["data"]["run"]["outcome"]
+            r["data"]["run"]["state"]["outcome"]
             for r in reversed(events.records)
             if r.get("data", {}).get("run", {}).get("id")
             == second.json()["id"]
@@ -878,7 +883,8 @@ async def test_queued_cancellation_never_executes_the_code(
         await wait_for(
             events,
             lambda response: any(
-                r.get("data", {}).get("run", {}).get("status") == "completed"
+                r.get("data", {}).get("run", {}).get("state", {}).get("status")
+                == "completed"
                 for r in response.records
             ),
         )
@@ -897,7 +903,7 @@ async def test_queued_cancellation_never_executes_the_code(
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id")
             == following.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -926,14 +932,16 @@ async def test_run_retries_return_the_result_even_after_restart(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
     )
     [completed] = [
         r["data"]["run"]
         for r in events.records
-        if r.get("data", {}).get("run", {}).get("status") == "completed"
+        if r.get("data", {}).get("run", {}).get("state", {}).get("status")
+        == "completed"
     ]
     replayed = await finished(
         app, "POST", runs, headers=key("once"), body=body
@@ -1014,7 +1022,8 @@ async def initialize_cascade(app: Starlette, events: Response) -> None:
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
         # Initial widget imports and construction can be slow on CI.
@@ -1023,7 +1032,7 @@ async def initialize_cascade(app: Starlette, events: Response) -> None:
     runs = [
         r["data"]["run"] for r in events.records if r.get("event") == "run"
     ]
-    assert runs[-1]["outcome"] == "succeeded", [
+    assert runs[-1]["state"]["outcome"] == "succeeded", [
         r["data"]["execution"]["outcome"]
         for r in events.records
         if r.get("event") == "execution"
@@ -1058,7 +1067,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -1068,7 +1077,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
         if r.get("data", {}).get("request_id") == "cascade"
     ]
     assert records[-1]["event"] == "run"
-    assert records[-1]["data"]["run"]["outcome"] == outcome
+    assert records[-1]["data"]["run"]["state"]["outcome"] == outcome
     executions = [
         r["data"]["execution"]
         for r in records
@@ -1138,7 +1147,7 @@ async def test_detached_reactivity_starts_a_new_run(
             events,
             lambda response, run_id=run_id: any(
                 r.get("data", {}).get("run", {}).get("id") == run_id
-                and r["data"]["run"]["status"] == "completed"
+                and r["data"]["run"]["state"]["status"] == "completed"
                 for r in response.records
             ),
         )
@@ -1165,7 +1174,7 @@ async def test_detached_reactivity_starts_a_new_run(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == execution["run_id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -1174,8 +1183,12 @@ async def test_detached_reactivity_starts_a_new_run(
         for r in events.records
         if r.get("data", {}).get("run", {}).get("id") == submitted["origin"]
     ]
-    assert [r["status"] for r in origin] == ["queued", "running", "completed"]
-    assert origin[-1]["outcome"] == "succeeded"
+    assert [r["state"]["status"] for r in origin] == [
+        "queued",
+        "running",
+        "completed",
+    ]
+    assert origin[-1]["state"]["outcome"] == "succeeded"
 
 
 async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
@@ -1203,7 +1216,7 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -1212,7 +1225,7 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
         for r in events.records
         if r.get("data", {}).get("request_id") == "nested"
     ]
-    assert records[-1]["data"]["run"]["outcome"] == "failed"
+    assert records[-1]["data"]["run"]["state"]["outcome"] == "failed"
     executions = [
         r["data"]["execution"]
         for r in records
@@ -1254,7 +1267,7 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -1276,7 +1289,7 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         for r in events.records
         if r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
     ]
-    assert runs[-1]["outcome"] == "failed"
+    assert runs[-1]["state"]["outcome"] == "failed"
 
 
 async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
@@ -1308,7 +1321,7 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -1325,7 +1338,7 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
         for r in events.records
         if r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
     ]
-    assert runs[-1]["outcome"] == "succeeded"
+    assert runs[-1]["state"]["outcome"] == "succeeded"
 
 
 @pytest.mark.parametrize("nested_scratch", [False, True])
@@ -1364,14 +1377,14 @@ async def test_awaited_commands_join_the_enclosing_run(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
     records = events.records[before:]
     runs = [r["data"]["run"] for r in records if r.get("event") == "run"]
     assert {r["id"] for r in runs} == {accepted.json()["id"]}
-    assert runs[-1]["outcome"] == "failed"
+    assert runs[-1]["state"]["outcome"] == "failed"
     executions = [
         r["data"]["execution"]
         for r in records
@@ -1409,7 +1422,8 @@ async def test_rename_reactivity_completes_its_run(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
     )
@@ -1425,7 +1439,8 @@ async def test_rename_reactivity_completes_its_run(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records[before:]
         ),
     )
@@ -1434,7 +1449,7 @@ async def test_rename_reactivity_completes_its_run(
         for r in events.records[before:]
         if r.get("event") == "run"
     ]
-    assert runs[-1]["outcome"] == "succeeded"
+    assert runs[-1]["state"]["outcome"] == "succeeded"
     accepted = await finished(
         app,
         "POST",

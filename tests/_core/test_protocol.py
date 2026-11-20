@@ -420,26 +420,29 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
         if kind == "run":
             run = data["run"]
             previous = runs.get(run["id"])
-            assert previous is None or previous["status"] != "completed"
+            assert (
+                previous is None or previous["state"]["status"] != "completed"
+            )
             assert run["id"] != data["request_id"]
             request_ids[run["id"]] = data["request_id"]
             runs[run["id"]] = run
-            assert sum(r["status"] != "completed" for r in runs.values()) <= 1
-            if run["status"] == "completed":
+            assert (
+                sum(r["state"]["status"] != "completed" for r in runs.values())
+                <= 1
+            )
+            if run["state"]["status"] == "completed":
                 members = [
                     e for e in executions.values() if e["run_id"] == run["id"]
                 ]
                 assert all(e["status"] == "completed" for e in members)
-                assert run["outcome"] == outcome
+                assert run["state"]["outcome"] == outcome
             else:
-                assert run["outcome"] is None
-            assert (run["completed_at"] is not None) == (
-                run["status"] == "completed"
-            )
+                assert "outcome" not in run["state"]
+                assert "completed_at" not in run["state"]
         elif kind == "execution":
             execution = data["execution"]
             run = runs[execution["run_id"]]
-            assert run["status"] != "completed"
+            assert run["state"]["status"] != "completed"
             assert data["request_id"] == request_ids[run["id"]]
             assert execution["runtime_id"] == "r1"
             previous = executions.get(execution["id"])
@@ -490,7 +493,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                     == variable["execution_id"]
                 )
     assert runs
-    assert all(r["status"] == "completed" for r in runs.values())
+    assert all(r["state"]["status"] == "completed" for r in runs.values())
 
 
 def test_cell_run_request_and_results() -> None:

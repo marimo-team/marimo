@@ -39,10 +39,7 @@ def run(run_id: str) -> protocol.Run:
         notebook_id=NOTEBOOK,
         runtime_id=RUNTIME.id,
         origin=protocol.RunRuntimeOrigin(),
-        status="queued",
-        outcome=None,
-        started_at=None,
-        completed_at=None,
+        state=protocol.RunQueued(),
     )
 
 
@@ -306,7 +303,10 @@ def test_a_run_completes_only_after_its_executions_and_reports_failures() -> (
         executions.observe(be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME)
     done = executions.observe(be.Done(protocol.RunId("r1"), "failed"), RUNTIME)
     assert [
-        change.outcome for change in done if isinstance(change, protocol.Run)
+        change.state.outcome
+        for change in done
+        if isinstance(change, protocol.Run)
+        and isinstance(change.state, protocol.RunCompleted)
     ] == ["failed"]
 
 
@@ -330,7 +330,10 @@ def test_a_run_with_skipped_cells_succeeds() -> None:
         be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME
     )
     assert [
-        change.outcome for change in done if isinstance(change, protocol.Run)
+        change.state.outcome
+        for change in done
+        if isinstance(change, protocol.Run)
+        and isinstance(change.state, protocol.RunCompleted)
     ] == ["succeeded"]
     assert executions.current(protocol.CellId("b")) is not None
 

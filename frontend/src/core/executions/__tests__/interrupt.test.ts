@@ -29,10 +29,17 @@ function run(
     notebook_id: "n1",
     runtime_id: runtimeId,
     origin: { kind: "code", code: "pass" },
-    status,
-    outcome: status === "completed" ? "succeeded" : null,
-    started_at: status === "queued" ? null : MockExecutions.T0,
-    completed_at: status === "completed" ? MockExecutions.T1 : null,
+    state:
+      status === "completed"
+        ? {
+            status,
+            started_at: MockExecutions.T0,
+            completed_at: MockExecutions.T1,
+            outcome: "succeeded",
+          }
+        : status === "running"
+          ? { status, started_at: MockExecutions.T0 }
+          : { status },
   };
 }
 

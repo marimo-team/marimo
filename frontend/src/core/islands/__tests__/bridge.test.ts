@@ -819,10 +819,7 @@ describe("IslandsPyodideBridge", () => {
           notebook_id: "n1",
           runtime_id: "r1",
           origin: { kind: "cells", cell_ids: ["c1"] },
-          status: "queued",
-          outcome: null,
-          started_at: null,
-          completed_at: null,
+          state: { status: "queued" },
         },
       });
 
