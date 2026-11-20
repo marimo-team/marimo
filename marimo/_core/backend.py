@@ -71,7 +71,7 @@ class Backend(Protocol):
         """
 
     def stop(self, runtime_id: protocol.RuntimeId) -> None:
-        """Stop the runtime's kernel and report `Exited` once it has."""
+        """Stop the runtime's kernel and report `Stopped` once it has."""
 
     def run(
         self,
@@ -159,14 +159,21 @@ class Running:
 
 
 @dataclass(frozen=True)
+class Stopped:
+    """The kernel was deliberately stopped by the host or a client."""
+
+    runtime_id: protocol.RuntimeId
+
+
+@dataclass(frozen=True)
 class Exited:
-    """The kernel stopped or exited unexpectedly."""
+    """The kernel exited, with a reason if the backend knows it."""
 
     runtime_id: protocol.RuntimeId
     reason: str | None = None
 
 
-RuntimeReport = Starting | Running | Exited
+RuntimeReport = Starting | Running | Stopped | Exited
 
 
 # Runs
@@ -268,9 +275,7 @@ class Done:
 
 
 Message = (
-    Starting
-    | Running
-    | Exited
+    RuntimeReport
     | Scheduled
     | Planned
     | Started

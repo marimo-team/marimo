@@ -527,6 +527,26 @@ class TestAdoption:
         assert isinstance(run.state, protocol.RunCompleted)
         assert run.state.outcome == protocol.RunFailedOutcome(message="killed")
 
+    def test_subscriber_sees_the_ended_runtime_when_a_scratch_run_fails(
+        self, host: Host, notebook: Notebook, backend: ScriptedBackend
+    ) -> None:
+        runtime = running(notebook, backend)
+        run = notebook.run("1", request_id="queued", request=None)
+        observed: list[tuple[protocol.RunOutcome, Runtime | None]] = []
+
+        def on_run(event: RoutedEvent) -> None:
+            if isinstance(event.event, protocol.RunEvent):
+                state = event.event.data.run.state
+                if isinstance(state, protocol.RunCompleted):
+                    observed.append((state.outcome, notebook.live_runtime))
+
+        host.subscribe(on_run, notebook_id=notebook.id, run_id=run.id)
+        notebook.observe(be.Exited(runtime.id))
+
+        assert observed == [
+            (protocol.RunFailedOutcome(message="The kernel exited."), None)
+        ]
+
 
 def console(
     item_id: str, execution_id: str, text: str, seq: int = 0

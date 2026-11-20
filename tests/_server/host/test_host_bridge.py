@@ -202,8 +202,11 @@ async def test_an_editor_rejoins_its_untitled_notebook_by_session_key(
     await bridge.open()
     notebook_id, session = await untitled(manager, bridge)
     notebook = await bridge.host.notebook(notebook_id)
-    notebook.stop()
-    assert (session.closed, notebook.live_runtime) == (True, None)
+    manager.close_session("browser")
+    assert session.closed
+    assert notebook.runtime is not None
+    assert isinstance(notebook.runtime.state, protocol.RuntimeEnded)
+    assert notebook.runtime.state.outcome == protocol.RuntimeStoppedOutcome()
 
     rejoined = FakeSession(path=None)
     await manager.event_bus.emit_session_created(rejoined)  # type: ignore[arg-type]

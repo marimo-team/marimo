@@ -506,15 +506,19 @@ class SessionBackend(SessionConsumer):
         session = kernel.session
         if self._session_detached is not None:
             self._session_detached(session)
-        reason = None
+        report: be.Stopped | be.Exited
         if session.kernel_state() is KernelState.STOPPED:
             info = session.kernel_exit_info()
             reason = info.message if info is not None else "The kernel died"
+            report = be.Exited(kernel.runtime_id, reason)
+        else:
+            # Session.close detaches consumers before terminating the kernel.
+            report = be.Stopped(kernel.runtime_id)
         for run in list(self._runs.values()):
             if run.task is not None:
                 run.task.cancel()
         self._translators.clear()
-        self._observe(be.Exited(kernel.runtime_id, reason))
+        self._observe(report)
 
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
