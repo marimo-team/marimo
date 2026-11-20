@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, assert_never
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     FilterCondition,
@@ -9,7 +9,9 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Transform,
     TransformType,
 )
-from marimo._utils.assert_never import assert_never
+from marimo._plugins.ui._impl.tables.table_manager import regex_literal
+
+POLARS_EXPLICIT_EXPLODE_MIN_VERSION = "1.36.0"
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -49,13 +51,13 @@ def python_print_pandas(
         elif operator in [">", ">=", "<", "<="]:
             result = f"{col} {operator} {_as_literal(value)}"
         elif operator == "contains":
-            result = f"{col}.str.contains({_as_literal(value)}, regex=False)"
+            result = f'{col}.fillna("").str.contains({_as_literal(value)}, regex=False)'
         elif operator == "regex":
-            result = f"{col}.str.contains({_as_literal(value)}, regex=True)"
+            result = f'{col}.fillna("").str.contains({_as_literal(value)}, regex=True)'
         elif operator == "starts_with":
-            result = f"{col}.str.startswith({_as_literal(value)})"
+            result = f'{col}.fillna("").str.startswith({_as_literal(value)})'
         elif operator == "ends_with":
-            result = f"{col}.str.endswith({_as_literal(value)})"
+            result = f'{col}.fillna("").str.endswith({_as_literal(value)})'
         elif operator == "in" or operator == "not_in":
             expr = f"{col}.isin({_list_of_strings(value)})"
             result = expr if operator == "in" else f"~{expr}"
@@ -81,6 +83,8 @@ def python_print_pandas(
 
         if where.negate:
             result = f"~({result})"
+            if operator in {"contains", "regex", "starts_with", "ends_with"}:
+                result = f"({result} & {col}.notna())"
 
         return result
 
@@ -317,13 +321,15 @@ def python_print_polars(
         elif operator in [">", ">=", "<", "<="]:
             result = f"{col} {operator} {_as_literal(value)}"
         elif operator == "contains":
-            result = f"{col}.str.contains({_as_literal(value)}, literal=True)"
+            result = f'{col}.fill_null("").str.contains({_as_literal(value)}, literal=True)'
         elif operator == "regex":
-            result = f"{col}.str.contains({_as_literal(value)}, literal=False)"
+            result = f'{col}.fill_null("").str.contains({_as_literal(value)}, literal=False)'
         elif operator == "starts_with":
-            result = f"{col}.str.starts_with({_as_literal(value)})"
+            result = (
+                f'{col}.fill_null("").str.starts_with({_as_literal(value)})'
+            )
         elif operator == "ends_with":
-            result = f"{col}.str.ends_with({_as_literal(value)})"
+            result = f'{col}.fill_null("").str.ends_with({_as_literal(value)})'
         elif operator == "in" or operator == "not_in":
             expr = f"{col}.is_in({_list_of_strings(value)})"
             result = expr if operator == "in" else f"~{expr}"
@@ -349,11 +355,34 @@ def python_print_polars(
 
         if where.negate:
             result = f"~({result})"
+            if operator in {"contains", "regex", "starts_with", "ends_with"}:
+                result = f"({result} & {col}.is_not_null())"
 
         return result
 
     if transform.type == TransformType.COLUMN_CONVERSION:
         column_id, data_type = transform.column_id, transform.data_type
+        temporal_parsers = {
+            "date": ("Date", "to_date"),
+            "datetime64": ("Datetime", "to_datetime"),
+        }
+        temporal_parser = temporal_parsers.get(
+            data_type.replace("_", "").lower()
+        )
+        if temporal_parser is not None:
+            dtype, parser = temporal_parser
+            column = repr(column_id)
+            selector = repr(f"^{regex_literal(column_id)}$")
+            strict = transform.errors == "raise"
+            return "\n".join(
+                [
+                    df_name,
+                    f"if {df_name}.collect_schema()[{column}] == pl.String:",
+                    f"    {df_name} = {df_name}.with_columns(pl.col({selector}).str.{parser}(strict={strict}))",
+                    "else:",
+                    f"    {df_name} = {df_name}.cast({{{column}: pl.{dtype}}}, strict={strict})",
+                ]
+            )
         try:
             import polars.datatypes as pl_datatypes
 
@@ -465,7 +494,19 @@ def python_print_polars(
 
     elif transform.type == TransformType.EXPLODE_COLUMNS:
         column_ids = transform.column_ids
-        return f"{df_name}.explode({_list_of_strings(column_ids)})"
+        explode_columns = _list_of_strings(column_ids)
+        explode_min_version = tuple(
+            map(int, POLARS_EXPLICIT_EXPLODE_MIN_VERSION.split(".")[:2])
+        )
+        return "\n".join(
+            [
+                df_name,
+                f'if tuple(map(int, pl.__version__.split(".")[:2])) >= {explode_min_version}:',
+                f"    {df_name} = {df_name}.explode({explode_columns}, empty_as_null=True, keep_nulls=True)",
+                "else:",
+                f"    {df_name} = {df_name}.explode({explode_columns})",
+            ]
+        )
 
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = _as_literal(transform.column_id)
@@ -521,7 +562,7 @@ def python_print_polars(
             else ""
         )
         lambda_code = (
-            f'lambda col,replacements=replacements: f"{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}"'
+            f'lambda col,replacements=replacements: {_as_literal(transform.value_column_ids[0])} + f"_{{col.translate(replacements)}}_{transform.aggregation}"'
             if len(transform.value_column_ids) == 1
             else f"lambda col, replacements=replacements: f'{{col.translate(replacements)}}_{transform.aggregation}'"
         ) + f" if col not in {index_column_ids} else col"
@@ -554,13 +595,13 @@ def python_print_ibis(
         elif operator in [">", ">=", "<", "<="]:
             result = f"({col} {operator} {_as_literal(value)})"
         elif operator == "contains":
-            result = f"({col}.contains({_as_literal(value)}))"
+            result = f'({col}.fill_null("").contains({_as_literal(value)}))'
         elif operator == "regex":
-            result = f"({col}.re_search({_as_literal(value)}))"
+            result = f'({col}.fill_null("").re_search({_as_literal(value)}))'
         elif operator == "starts_with":
-            result = f"({col}.startswith({_as_literal(value)}))"
+            result = f'({col}.fill_null("").startswith({_as_literal(value)}))'
         elif operator == "ends_with":
-            result = f"({col}.endswith({_as_literal(value)}))"
+            result = f'({col}.fill_null("").endswith({_as_literal(value)}))'
         elif operator == "in" or operator == "not_in":
             expr = f"({col}.isin({_list_of_strings(value)}))"
             result = expr if operator == "in" else f"~{expr}"
@@ -586,6 +627,8 @@ def python_print_ibis(
 
         if where.negate:
             result = f"~({result})"
+            if operator in {"contains", "regex", "starts_with", "ends_with"}:
+                result = f"({result} & {col}.notnull())"
 
         return result
 
@@ -642,7 +685,7 @@ def python_print_ibis(
             for column_id in transform.column_ids:
                 name = f"{column_id}_{agg_func}"
                 agg_dict.append(
-                    f"'{name}' : {df_name}['{column_id}'].{agg_func}()"
+                    f"{_as_literal(name)} : {df_name}[{_as_literal(column_id)}].{agg_func}()"
                 )
         return f"{df_name}.agg(**{{{','.join(agg_dict)}}})"
 
@@ -654,7 +697,7 @@ def python_print_ibis(
         for column_id in aggregation_columns:
             agg_alias = f"{column_id}_{aggregation}"
             aggs.append(
-                f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()'
+                f"{_as_literal(agg_alias)} : {df_name}[{_as_literal(column_id)}].{aggregation}()"
             )
         return f"{df_name}.group_by({_list_of_strings(column_ids)}).aggregate(**{{{','.join(aggs)}}})"
 

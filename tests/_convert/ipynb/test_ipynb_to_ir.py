@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import ast
 import json
+import shutil
 from textwrap import dedent
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -21,6 +23,9 @@ from marimo._convert.ipynb.to_ir import (
     transform_magic_commands,
     transform_remove_duplicate_imports,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def dd(sources: list[str]) -> list[str]:
@@ -296,6 +301,27 @@ def test_complex_exclamation_mark():
     assert result.needs_subprocess is False
 
 
+@pytest.mark.skipif(shutil.which("uv") is None, reason="requires uv")
+def test_exclamation_mark_pip_resolve_does_not_build(tmp_path: Path) -> None:
+    """Resolving `!pip install` doesn't run setup"""
+    pkg_dir = tmp_path / "unexpected"
+    pkg_dir.mkdir()
+    marker = tmp_path / "ran"
+    (pkg_dir / "setup.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text('ran')\n"
+        "from setuptools import setup\n"
+        "setup(name='unexpected', version='0')\n"
+    )
+
+    result = transform_exclamation_mark([f"!pip install {pkg_dir}"])
+
+    assert not marker.exists()
+    # Fallback keeps the spec (normalized); the point is that nothing ran
+    assert len(result.pip_packages) == 1
+    assert result.needs_subprocess is False
+
+
 def test_transform_duplicate_definitions():
     sources = [
         "a = 1",
@@ -405,6 +431,25 @@ def test_transform_magic_commands_complex():
         "import os\nos.environ['MY_VAR'] = 'value'",
     ]
     assert result == expected
+
+
+def test_transform_magic_env_strips_quotes_and_spacing():
+    sources = [
+        '%env VAR="hello world"',
+        "%env PATH",
+        "%env FOO=bar",
+        "%env VAR = value",
+    ]
+    result = transform_magic_commands(sources)
+    assert result == [
+        "import os\nos.environ['VAR'] = 'hello world'",
+        (
+            "# magic command not supported in marimo; please file an issue to add support\n"
+            "# %env PATH"
+        ),
+        "import os\nos.environ['FOO'] = 'bar'",
+        "import os\nos.environ['VAR'] = 'value'",
+    ]
 
 
 def test_transform_exclamation_mark_complex():

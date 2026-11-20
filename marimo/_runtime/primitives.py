@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import inspect
 import numbers
+import types
 import weakref
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -76,28 +77,38 @@ def is_data_primitive(value: Any) -> bool:
     if is_instance_by_name(value, "torch.Tensor"):
         return str(value.device) == "cpu"
 
-    # Series follow the same numeric-schema policy as dataframes.
-    if is_instance_by_name(value, "polars.series.series.Series"):
-        return bool(value.dtype.is_numeric())
+    # Arrow tables and arrays expose `__array__` without a `dtype`. Only
+    # numeric columns convert to an array that can be hashed as bytes.
+    if type(value).__module__.startswith("pyarrow"):
+        import pyarrow as pa
 
+        schema = getattr(value, "schema", None)
+        types = schema.types if schema is not None else [value.type]
+        return all(
+            pa.types.is_integer(dtype) or pa.types.is_floating(dtype)
+            for dtype in types
+        )
+
+    is_polars = type(value).__module__.startswith("polars.")
     # If a numpy like array, ensure that it's not an object array.
-    if hasattr(value, "dtype"):
+    if hasattr(value, "dtype") and not is_polars:
         return not (
             value.dtype is None
             or (hasattr(value.dtype, "hasobject") and value.dtype.hasobject)
         )
-    elif hasattr(value, "dtypes"):
+    elif hasattr(value, "dtypes") or is_polars:
         # Bit of discrepancy between objects like polars and pandas, so use
         # narwhals to normalize the dataframe.
         import narwhals.stable.v2 as nw
 
         try:
+            frame = nw.from_native(value, allow_series=True)
+            if isinstance(frame, nw.Series):
+                frame = frame.to_frame()
             return bool(
                 all(
                     dtype.is_numeric()
-                    for dtype in nw.from_native(value)
-                    .collect_schema()
-                    .dtypes()
+                    for dtype in frame.collect_schema().dtypes()
                 )
             )
         except Exception:
@@ -160,12 +171,23 @@ def from_unclonable_module(obj: object) -> bool:
     )
 
 
+# NB. inspect.ismodule does not recognize Python 3.15 lazy import proxies.
+_LAZY_IMPORT_TYPES: tuple[type, ...] = (
+    (types.LazyImportType,) if hasattr(types, "LazyImportType") else ()
+)
+
+
+def is_module(value: Any) -> bool:
+    """Whether `value` is a module or a lazy import proxy for one."""
+    return inspect.ismodule(value) or isinstance(value, _LAZY_IMPORT_TYPES)
+
+
 def is_pure_scope(
     ref: Name,
     defs: dict[str, Any],
     cache: FN_CACHE_TYPE = None,
 ) -> bool:
-    return inspect.ismodule(defs[ref]) or is_pure_function(
+    return is_module(defs[ref]) or is_pure_function(
         ref, defs[ref], defs, cache
     )
 
@@ -238,7 +260,7 @@ def is_pure_function(
         if ref in defs:
             # Recursion allows for effective DFS
             if not (
-                inspect.ismodule(defs[ref])
+                is_module(defs[ref])
                 or is_pure_function(ref, defs[ref], defs, cache, graph)
             ):
                 cache[value] = False
@@ -306,7 +328,7 @@ def build_ref_predicate_for_primitives(
     def check_ref(ref: Name) -> bool:
         return ref in glbls and (
             inspect.isfunction(glbls[ref])
-            or inspect.ismodule(glbls[ref])
+            or is_module(glbls[ref])
             or inspect.isclass(glbls[ref])
             or callable(glbls[ref])
         )

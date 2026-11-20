@@ -1,0 +1,528 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+/** What a backend's stream has confirmed about a notebook, kept in atoms. */
+
+import { Logger } from "@/utils/Logger";
+import {
+  createNotebookReducer,
+  type NotebookEvent,
+  NotebookEvents,
+  StreamStopped,
+} from "@marimo-team/client";
+import type {
+  Attachment,
+  Execution as HostExecution,
+  Output as HostOutput,
+  NotebookOutput,
+  Runtime,
+} from "@marimo-team/client/protocol";
+import { type Atom, atom, type createStore } from "jotai/vanilla";
+import { z } from "zod";
+import type { NotebookBackend } from "./backend";
+import {
+  ConnectionClosedReason,
+  ConnectionState,
+  type ConnectionStatus,
+} from "./connection";
+import { attachments } from "./resources/attachments";
+import { type Document, document } from "./resources/document";
+import {
+  type Item,
+  type Executions,
+  executions,
+  resumeResults,
+} from "./resources/executions";
+import type { Results } from "./resources/results";
+import { runtime } from "./resources/runtime";
+
+/**
+ * The kinds the editor reads, with marimo's own notifications.
+ *
+ * Execution items provide the console, side-effect displays and input prompts.
+ */
+export const EDITOR_EVENT_TYPES = [
+  "notebook",
+  "cell",
+  "document",
+  "attachment",
+  "runtime",
+  "run",
+  "execution",
+  "console",
+  "display",
+  "input",
+  "output",
+  "variable",
+  "marimo",
+] as const;
+
+type EditorEvent = NotebookEvent<(typeof EDITOR_EVENT_TYPES)[number]>;
+
+/** A native marimo notification, passed through without interpretation. */
+const MarimoMessage = z.object({ marimo: z.unknown() });
+
+/** A notebook as its backend's stream reports it, kept current while connected. */
+export interface NotebookReplica {
+  /** Connection status, independent of application session readiness. */
+  readonly connectionAtom: Atom<ConnectionStatus>;
+  /** Local generation of the open stream. Opening or resetting a stream starts a new one. */
+  readonly generationAtom: Atom<number>;
+  /** Identity and capabilities, available while the stream is connected and ready. */
+  readonly notebookAtom: Atom<NotebookOutput | null>;
+  /**
+   * The document the current stream has confirmed.
+   *
+   * Null until a snapshot is complete, after reset or removal, and on
+   * connections without host document events. A temporary disconnection
+   * retains the last document. Partial updates are not exposed. Edits
+   * submit against this one.
+   */
+  readonly documentAtom: Atom<Document | null>;
+  /**
+   * The document on show: `documentAtom`, or through a reset, the one it
+   * replaced until the snapshot that follows is complete.
+   *
+   * For display only. Nothing confirms it still describes the host.
+   */
+  readonly shownDocumentAtom: Atom<Document | null>;
+  /**
+   * The backend this replica follows, or null while not connected.
+   *
+   * Its commands reach the host that confirmed `documentAtom`. A temporary
+   * disconnection keeps it. Connecting again or disconnecting replaces it.
+   */
+  readonly backendAtom: Atom<NotebookBackend | null>;
+  /** Live attachments, empty until the stream is ready or while disconnected. */
+  readonly attachmentsAtom: Atom<readonly Attachment[]>;
+  /** The notebook's runtime, null while it has none or the stream is not ready. */
+  readonly runtimeAtom: Atom<Runtime | null>;
+  /**
+   * Runs and executions as the stream reports them.
+   *
+   * Visible as events arrive, including during a snapshot, so a consumer
+   * joins with `shownDocumentAtom`, which is null until the snapshot is
+   * ready. Kept across a temporary disconnection and shown through a
+   * reset, like the document, and cleared on removal.
+   */
+  readonly executionsAtom: Atom<Executions>;
+  /**
+   * Each document cell's last completed execution record, kept while it
+   * runs again and shown through a reset.
+   */
+  readonly resultsAtom: Atom<Results>;
+  /**
+   * Follow a backend, replacing any current connection.
+   *
+   * The returned function ends this connection and clears the replica.
+   * It does nothing once another connection has replaced this one.
+   */
+  connect(
+    backend: NotebookBackend,
+    options: {
+      /** Handle a native marimo notification. Its payload has not been validated. */
+      onNotification: (notification: unknown) => void;
+      /** Observe an item for live logs and virtual files in an export. */
+      onItem?: (record: HostExecution, item: Item, live: boolean) => void;
+      /** Observe restored executions and live status changes for execution history. */
+      onExecution?: (record: HostExecution, lifecycleChanged: boolean) => void;
+      /** Observe outputs as they arrive, including retained ones on reconnect. */
+      onOutput?: (output: HostOutput, execution: HostExecution) => void;
+    },
+  ): () => void;
+  /** Restore the current connection after its stream closed, if the host is healthy. */
+  reconnect(): Promise<void>;
+}
+
+const disconnected = {
+  state: ConnectionState.CLOSED,
+  code: ConnectionClosedReason.KERNEL_DISCONNECTED,
+  reason: "kernel not found",
+} satisfies ConnectionStatus;
+
+const malformed = {
+  ...disconnected,
+  reason: "Failed to decode notebook message",
+} satisfies ConnectionStatus;
+
+function isStatus(value: unknown): value is ConnectionStatus {
+  return typeof value === "object" && value !== null && "state" in value;
+}
+
+/**
+ * The status to show after the stream stopped.
+ *
+ * A transport says which status its stop means. An event the protocol
+ * rejects is malformed. Anything else means the host was not reached.
+ */
+function statusAfter(error: unknown): ConnectionStatus {
+  if (error instanceof StreamStopped && isStatus(error.cause)) {
+    return error.cause;
+  }
+  if (error instanceof StreamStopped && error.cause instanceof z.ZodError) {
+    return malformed;
+  }
+  return disconnected;
+}
+
+/** Create a replica without connecting it. */
+export function createNotebookReplica(
+  store: ReturnType<typeof createStore>,
+): NotebookReplica {
+  // `useNotebookSession` copies this into the editor's shared `connectionAtom`,
+  // which gates features until MO-8051 derives availability separately.
+  const connectionAtom = atom<ConnectionStatus>({
+    state: ConnectionState.NOT_STARTED,
+  });
+  const generationAtom = atom(0);
+  // One atom holds the whole stream, which resource atoms derive from.
+  const reducer = createNotebookReducer({
+    document,
+    attachments,
+    runtime,
+    executions,
+  });
+  type Stream = typeof reducer.initial;
+  /**
+   * The stream as the host reports it, and what it showed before it
+   * restarted, until the snapshot that replaces it is complete.
+   *
+   * A host resets a stream it cannot resume, and a transport restarts one
+   * whose session changed. Showing the new snapshot as it arrives would
+   * empty every view for as long as that takes.
+   */
+  const followedAtom = atom<{ stream: Stream; retained: Stream | null }>({
+    stream: reducer.initial,
+    retained: null,
+  });
+  const streamAtom = atom((get) => get(followedAtom).stream);
+  const shownAtom = atom((get) => {
+    const { stream, retained } = get(followedAtom);
+    return retained ?? stream;
+  });
+  const presentAtom = atom(
+    (get) =>
+      get(streamAtom).phase === "live" &&
+      get(connectionAtom).state === ConnectionState.OPEN,
+  );
+  const notebookAtom = atom((get) =>
+    get(presentAtom) ? get(streamAtom).notebook : null,
+  );
+  const documentAtom = atom(
+    (get) => get(streamAtom).resources.document.current,
+  );
+  const shownDocumentAtom = atom(
+    (get) => get(shownAtom).resources.document.current,
+  );
+  const attachmentsAtom = atom((get) =>
+    get(presentAtom)
+      ? get(streamAtom).resources.attachments
+      : attachments.initial,
+  );
+  const runtimeAtom = atom((get) =>
+    get(presentAtom) ? get(streamAtom).resources.runtime : null,
+  );
+  const executionsAtom = atom((get) => get(shownAtom).resources.executions);
+  const resultsAtom = atom((get) => get(executionsAtom).results);
+  const backendAtom = atom<NotebookBackend | null>(null);
+  /** The connection this replica follows. Connecting again ends it. */
+  let current: { end(): void; reconnect(): Promise<void> } | undefined;
+
+  /** Retain what a restart replaces until its snapshot is complete. */
+  function setStream(next: Stream) {
+    store.set(followedAtom, (followed) => {
+      const { stream, retained } = followed;
+      if (next === stream) {
+        return followed;
+      }
+      if (next.phase !== "snapshot") {
+        if (retained !== null && retained.notebook?.id === next.notebook?.id) {
+          next = {
+            ...next,
+            resources: {
+              ...next.resources,
+              executions: resumeResults(
+                next.resources.executions,
+                retained.resources.executions,
+                next.resources.runtime?.id,
+              ),
+            },
+          };
+        }
+        return { stream: next, retained: null };
+      }
+      return {
+        stream: next,
+        retained: stream.phase === "snapshot" ? retained : stream,
+      };
+    });
+  }
+
+  function setStatus(status: ConnectionStatus) {
+    if (status.state === ConnectionState.CONNECTING) {
+      setStream(reducer.resume(store.get(streamAtom)));
+    }
+    store.set(connectionAtom, status);
+  }
+
+  /** Drop what the stream reported and show `status`. */
+  function clear(status: ConnectionStatus) {
+    store.set(followedAtom, { stream: reducer.initial, retained: null });
+    setStatus(status);
+  }
+
+  return {
+    connectionAtom,
+    generationAtom,
+    notebookAtom,
+    documentAtom,
+    shownDocumentAtom,
+    backendAtom,
+    attachmentsAtom,
+    runtimeAtom,
+    executionsAtom,
+    resultsAtom,
+    connect,
+    reconnect: async () => current?.reconnect(),
+  };
+
+  function connect(
+    connected: NotebookBackend,
+    {
+      onNotification,
+      onExecution,
+      onItem,
+      onOutput,
+    }: Parameters<NotebookReplica["connect"]>[1],
+  ) {
+    current?.end();
+    const lifetime = new AbortController();
+    const { signal } = lifetime;
+    const checkHealth = connected.checkHealth ?? (async () => true);
+    store.set(backendAtom, connected);
+    const { transport } = connected;
+    let events: NotebookEvents<(typeof EDITOR_EVENT_TYPES)[number]> | undefined;
+    let checkingHealth = false;
+    let pendingNotifications: unknown[] = [];
+    /** Mirror one stream into the atoms until it closes. */
+    function follow(cursor?: string) {
+      if (cursor === undefined) {
+        pendingNotifications = [];
+        setStream(reducer.initial);
+      }
+      const current = new NotebookEvents(transport, {
+        types: EDITOR_EVENT_TYPES,
+        cursor,
+        signal,
+        // TODO(MO-8051): Gate editing and running on the notebook's operations
+        // and request results instead. The stream's status would then only
+        // mark the view as stale.
+        onStatus: (status) => {
+          if (status === "connecting") {
+            setStatus({ state: ConnectionState.CONNECTING });
+          } else if (status === "connected") {
+            store.set(generationAtom, (generation) => generation + 1);
+            setStatus({ state: ConnectionState.OPEN });
+          }
+        },
+      });
+      current.subscribe(
+        (event) => apply(current, event),
+        (error) => {
+          if (!signal.aborted && current === events) {
+            Logger.warn("Notebook stream stopped", error);
+            const status = statusAfter(error);
+            if (status === malformed) {
+              stopMalformed(current);
+            } else {
+              setStatus(status);
+            }
+          }
+        },
+      );
+      events = current;
+    }
+
+    function stopMalformed(source: NotebookEvents<string>) {
+      source.close();
+      pendingNotifications = [];
+      // The cursor can already include an event the replica rejected.
+      clear(malformed);
+    }
+
+    function observeExecution(
+      record: HostExecution,
+      lifecycleChanged: boolean,
+    ) {
+      try {
+        onExecution?.(record, lifecycleChanged);
+      } catch (error) {
+        Logger.error("Failed to handle execution update", error);
+      }
+    }
+
+    function observeOutput(output: HostOutput, record: HostExecution) {
+      try {
+        onOutput?.(output, record);
+      } catch (error) {
+        Logger.error("Failed to handle output update", error);
+      }
+    }
+
+    function apply(source: NotebookEvents<string>, event: EditorEvent) {
+      if (event.event === "marimo") {
+        const message = MarimoMessage.safeParse(event.data);
+        if (message.success) {
+          const stream = store.get(streamAtom);
+          if (stream.phase === "snapshot" && stream.notebook !== null) {
+            pendingNotifications.push(message.data.marimo);
+          } else {
+            onNotification(message.data.marimo);
+          }
+        } else {
+          Logger.error("Failed to decode notebook message", event);
+          stopMalformed(source);
+        }
+        return;
+      }
+      if (event.event === "reset" || event.event === "notebook.removed") {
+        pendingNotifications = [];
+      }
+      const before = store.get(streamAtom);
+      const previous =
+        event.event === "execution"
+          ? before.resources.executions.executions.get(event.data.execution.id)
+          : undefined;
+      try {
+        setStream(reducer.reduce(before, event));
+        if (event.event === "reset") {
+          store.set(generationAtom, (generation) => generation + 1);
+        }
+      } catch (error) {
+        // An event the replica cannot apply, such as another notebook's.
+        Logger.error("Failed to apply notebook event", error);
+        stopMalformed(source);
+        return;
+      }
+      const after = store.get(streamAtom);
+      if (event.event === "ready" && before.phase === "snapshot") {
+        for (const execution of after.resources.executions.executions.values()) {
+          observeExecution(execution.record, true);
+          if (execution.output) {
+            observeOutput(execution.output, execution.record);
+          }
+          if (onItem) {
+            for (const item of execution.items.values()) {
+              if (item.kind === "display") {
+                onItem(execution.record, item, false);
+              }
+            }
+          }
+        }
+        const notifications = pendingNotifications;
+        pendingNotifications = [];
+        for (const notification of notifications) {
+          if (signal.aborted) {
+            break;
+          }
+          try {
+            onNotification(notification);
+          } catch (error) {
+            queueMicrotask(() => {
+              throw error;
+            });
+          }
+        }
+        return;
+      }
+      if (after.phase !== "live") {
+        return;
+      }
+      const executions = after.resources.executions.executions;
+      switch (event.event) {
+        case "execution": {
+          const record = event.data.execution;
+          const changed = previous?.record.state.status !== record.state.status;
+          observeExecution(record, changed);
+          return;
+        }
+        case "output": {
+          const { output } = event.data;
+          const execution = executions.get(output.execution_id);
+          if (execution) {
+            observeOutput(output, execution.record);
+          }
+          return;
+        }
+        case "console":
+        case "display":
+        case "input": {
+          const item =
+            event.event === "console"
+              ? event.data.console
+              : event.event === "display"
+                ? event.data.display
+                : event.data.input;
+          const execution = executions.get(item.execution_id);
+          if (execution && onItem) {
+            const received = execution.items.get(item.id);
+            if (received) {
+              const live = !before.resources.executions.executions
+                .get(item.execution_id)
+                ?.items.has(item.id);
+              onItem(execution.record, received, live);
+            }
+          }
+        }
+      }
+    }
+
+    const reconnect = async () => {
+      if (signal.aborted || checkingHealth || events?.status !== "closed") {
+        return;
+      }
+      checkingHealth = true;
+      setStatus({ state: ConnectionState.CONNECTING });
+      try {
+        const healthy = await checkHealth();
+        if (signal.aborted) {
+          return;
+        }
+        if (!healthy) {
+          setStatus(disconnected);
+          return;
+        }
+        follow(
+          store.get(streamAtom).phase === "snapshot"
+            ? undefined
+            : (events.cursor ?? undefined),
+        );
+      } catch (error) {
+        if (!signal.aborted) {
+          Logger.error("Notebook health check failed", error);
+          setStatus(disconnected);
+        }
+      } finally {
+        checkingHealth = false;
+      }
+    };
+
+    const connection = {
+      end: () => {
+        if (signal.aborted) {
+          return;
+        }
+        lifetime.abort();
+        if (current === connection) {
+          current = undefined;
+          store.set(backendAtom, null);
+        }
+        clear({ state: ConnectionState.NOT_STARTED });
+      },
+      reconnect,
+    };
+    current = connection;
+    setStatus({ state: ConnectionState.CONNECTING });
+    follow();
+    return connection.end;
+  }
+}

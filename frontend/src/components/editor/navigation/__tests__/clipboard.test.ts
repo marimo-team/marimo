@@ -5,15 +5,18 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { asMock, MockModules, Mocks, SetupMocks } from "@/__mocks__/common";
 import { cellId } from "@/__tests__/branded";
-import type { CellActions, NotebookState } from "@/core/cells/cells";
+import type { CellActions } from "@/core/cells/actions";
+import type { NotebookState } from "@/core/cells/cells";
 import { useCellClipboard } from "../clipboard";
 
 // Mock dependencies
 vi.mock("@/components/ui/use-toast", () => MockModules.toast());
 
+vi.mock("@/core/cells/actions", () => ({
+  useCellActions: vi.fn(),
+}));
 vi.mock("@/core/cells/cells", () => ({
   getNotebook: vi.fn(),
-  useCellActions: vi.fn(),
 }));
 
 vi.mock("@/utils/Logger", () => ({
@@ -33,14 +36,15 @@ vi.mock("@/core/cells/pending-cut-service", () => ({
 
 import { MockNotebook } from "@/__mocks__/notebook";
 import { toast } from "@/components/ui/use-toast";
-import { getNotebook, useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
+import { getNotebook } from "@/core/cells/cells";
 import { Logger } from "@/utils/Logger";
 
 describe("useCellClipboard", () => {
   const [mockCellId1, mockCellId2] = MockNotebook.cellIds();
   const mockCellCode1 = "print('hello world')";
   const mockCellCode2 = "x = 42";
-  const mockCreateNewCell = vi.fn();
+  const mockCreateCell = vi.fn();
 
   const mockClipboard = Mocks.clipboard();
 
@@ -70,7 +74,7 @@ describe("useCellClipboard", () => {
     } as NotebookState);
 
     asMock(useCellActions).mockReturnValue({
-      createNewCell: mockCreateNewCell,
+      createCell: mockCreateCell,
     } as unknown as CellActions);
   });
 
@@ -330,11 +334,40 @@ describe("useCellClipboard", () => {
         await result.current.pasteAtCell(mockCellId1);
       });
 
-      expect(mockCreateNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId1,
-        before: false,
+      expect(mockCreateCell).toHaveBeenCalledWith({
+        after: mockCellId1,
         code: "x = 42",
-        autoFocus: true,
+        config: {},
+      });
+    });
+
+    it("drops the copied column so the cell joins the column it is pasted into", async () => {
+      const clipboardData = {
+        cells: [{ code: "x = 42", config: { column: 1, hide_code: true } }],
+        version: "1.0",
+      };
+
+      const mockItem = {
+        types: ["web application/x-marimo-cell"],
+        getType: vi.fn().mockResolvedValue(
+          new Blob([JSON.stringify(clipboardData)], {
+            type: "web application/x-marimo-cell",
+          }),
+        ),
+      };
+
+      mockClipboard.read.mockResolvedValue([mockItem]);
+
+      const { result } = renderHook(() => useCellClipboard());
+
+      await act(async () => {
+        await result.current.pasteAtCell(mockCellId1);
+      });
+
+      expect(mockCreateCell).toHaveBeenCalledWith({
+        after: mockCellId1,
+        code: "x = 42",
+        config: { hide_code: true },
       });
     });
 
@@ -365,24 +398,21 @@ describe("useCellClipboard", () => {
         await result.current.pasteAtCell(mockCellId1);
       });
 
-      expect(mockCreateNewCell).toHaveBeenCalledTimes(3);
-      expect(mockCreateNewCell).toHaveBeenNthCalledWith(3, {
-        cellId: mockCellId1,
-        before: false,
+      expect(mockCreateCell).toHaveBeenCalledTimes(3);
+      expect(mockCreateCell).toHaveBeenNthCalledWith(3, {
+        after: mockCellId1,
         code: "x = 42",
-        autoFocus: true,
+        config: {},
       });
-      expect(mockCreateNewCell).toHaveBeenNthCalledWith(2, {
-        cellId: mockCellId1,
-        before: false,
+      expect(mockCreateCell).toHaveBeenNthCalledWith(2, {
+        after: mockCellId1,
         code: "y = x * 2",
-        autoFocus: true,
+        config: {},
       });
-      expect(mockCreateNewCell).toHaveBeenNthCalledWith(1, {
-        cellId: mockCellId1,
-        before: false,
+      expect(mockCreateCell).toHaveBeenNthCalledWith(1, {
+        after: mockCellId1,
         code: "print(y)",
-        autoFocus: true,
+        config: {},
       });
     });
 
@@ -401,11 +431,9 @@ describe("useCellClipboard", () => {
         await result.current.pasteAtCell(mockCellId1);
       });
 
-      expect(mockCreateNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId1,
-        before: false,
+      expect(mockCreateCell).toHaveBeenCalledWith({
+        after: mockCellId1,
         code: "plain text code",
-        autoFocus: true,
       });
     });
 
@@ -432,11 +460,9 @@ describe("useCellClipboard", () => {
         "Failed to parse clipboard cell data",
         expect.any(Error),
       );
-      expect(mockCreateNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId1,
-        before: false,
+      expect(mockCreateCell).toHaveBeenCalledWith({
+        after: mockCellId1,
         code: "fallback text",
-        autoFocus: true,
       });
     });
 
@@ -522,11 +548,9 @@ describe("useCellClipboard", () => {
         "Failed to parse clipboard cell data",
         expect.any(Error),
       );
-      expect(mockCreateNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId1,
-        before: false,
+      expect(mockCreateCell).toHaveBeenCalledWith({
+        after: mockCellId1,
         code: "fallback text",
-        autoFocus: true,
       });
     });
 
@@ -554,11 +578,9 @@ describe("useCellClipboard", () => {
         await result.current.pasteAtCell(mockCellId1);
       });
 
-      expect(mockCreateNewCell).toHaveBeenCalledWith({
-        cellId: mockCellId1,
-        before: false,
+      expect(mockCreateCell).toHaveBeenCalledWith({
+        after: mockCellId1,
         code: "fallback text",
-        autoFocus: true,
       });
     });
   });

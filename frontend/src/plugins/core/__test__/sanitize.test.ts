@@ -68,6 +68,14 @@ describe("sanitizeHtml", () => {
     );
   });
 
+  test("preserves supported custom URI schemes in anchors", () => {
+    const html =
+      '<a href="zotero://open-pdf/library/items/IDT2EG5W?page=1">PDF</a>';
+    expect(sanitizeHtml(html)).toMatchInlineSnapshot(
+      `"<a href="zotero://open-pdf/library/items/IDT2EG5W?page=1" target="_self">PDF</a>"`,
+    );
+  });
+
   test("adds target=_self to anchor without target", () => {
     const html = '<a href="https://example.com">Link</a>';
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
@@ -117,6 +125,33 @@ describe("sanitizeHtml", () => {
       `"<marimo-slider value="50"></marimo-slider>"`,
     );
   });
+
+  describe.each(["marimo-slider", "marimo-custom-element", "iconify-icon"])(
+    "%s attributes",
+    (tag) => {
+      test.each([
+        "onclick",
+        "onerror",
+        "onload",
+        "onfocus",
+        "onanimationstart",
+        "ontransitionend",
+        "onpointerover",
+        "ONCLICK",
+        "onAnimationStart",
+        "onfutureevent",
+      ])("removes %s", (attribute) => {
+        expect(
+          sanitizeHtml(`<${tag} ${attribute}="alert(1)">Text</${tag}>`),
+        ).toBe(`<${tag}>Text</${tag}>`);
+      });
+
+      test("preserves widget and presentation attributes", () => {
+        const html = `<${tag} value="50" data-value="50" aria-label="Example" class="widget" style="color: blue;" icon="lucide:leaf" flip="horizontal"></${tag}>`;
+        expect(sanitizeHtml(html)).toBe(html);
+      });
+    },
+  );
 
   test("preserves marimo elements with valid naming", () => {
     const html = "<marimo-custom-element></marimo-custom-element>";

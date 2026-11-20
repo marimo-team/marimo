@@ -6,15 +6,14 @@ import type React from "react";
 import { Spinner } from "@/components/icons/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
-import { useConnectToRuntime, useRuntimeManager } from "@/core/runtime/config";
+import { useRuntimeManager } from "@/core/runtime/config";
 import { store } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
 import {
-  isAppClosing,
   isAppConnected,
   isAppConnecting,
   isAppNotStarted,
-} from "@/core/websocket/connection-utils";
+} from "@/core/session/connection-utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { Strings } from "@/utils/strings";
@@ -36,13 +35,14 @@ export function getConnectionStatus(): ConnectionStatus {
 export const BackendConnectionStatus: React.FC = () => {
   const connection = useAtomValue(connectionAtom).state;
   const runtime = useRuntimeManager();
-  const connectToRuntime = useConnectToRuntime();
   const setConnectionStatus = useSetAtom(connectionStatusAtom);
 
   const { isFetching, error, data, refetch } = useAsyncData(async () => {
     // If the connection is not connected, return
     if (!isAppConnected(connection)) {
-      setConnectionStatus("disconnected");
+      setConnectionStatus(
+        isAppConnecting(connection) ? "connecting" : "disconnected",
+      );
       return;
     }
 
@@ -101,10 +101,6 @@ export const BackendConnectionStatus: React.FC = () => {
       return <Spinner size="small" />;
     }
 
-    if (isAppClosing(connection)) {
-      return <Spinner className="text-destructive" size="small" />;
-    }
-
     if (isAppConnected(connection)) {
       if (data?.isHealthy) {
         return <CheckCircle2Icon className="w-4 h-4 text-(--green-9)" />;
@@ -119,14 +115,6 @@ export const BackendConnectionStatus: React.FC = () => {
     }
 
     return <PowerOffIcon className="w-4 h-4 text-red-500" />;
-  };
-
-  const handleClick = () => {
-    if (isAppNotStarted(connection)) {
-      void connectToRuntime();
-    } else {
-      refetch();
-    }
   };
 
   return (
@@ -145,7 +133,7 @@ export const BackendConnectionStatus: React.FC = () => {
     >
       <button
         type="button"
-        onClick={handleClick}
+        onClick={refetch}
         className="p-1 hover:bg-accent rounded flex items-center gap-1.5 text-xs text-muted-foreground"
         data-testid="backend-status"
       >

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+from asyncio import CancelledError
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -41,6 +42,14 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     validate_operator_for_dtype,
 )
+from marimo._plugins.ui._impl.tables.geometry_export import (
+    ExportMetadata,
+    GeometryExportError,
+    GeometryExportErrorCode,
+    get_export_metadata,
+    has_geometry_columns,
+)
+from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
     add_selection_column,
@@ -55,6 +64,9 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import (
+    DelimitedOptions,
+    DownloadOptions,
+    JsonOptions,
     ListOrTuple,
     TableData,
     download_as,
@@ -92,8 +104,52 @@ class TableSearchError(Exception):
 
 
 @dataclass
+class DownloadAsOptions:
+    """Per-request export options chosen in the export dialog.
+
+    Every field is optional. A `None` field keeps the widget's default for
+    that setting.
+
+    Args:
+        separator (str, optional): Field separator for CSV output.
+        encoding (str, optional): Text encoding for CSV and TSV output.
+        ensure_ascii (bool, optional): Whether JSON output escapes
+            non-ASCII characters.
+    """
+
+    separator: str | None = None
+    encoding: str | None = None
+    ensure_ascii: bool | None = None
+
+    def resolve(self, defaults: DownloadOptions) -> DownloadOptions:
+        """Layer the request options over the widget defaults."""
+        return DownloadOptions(
+            delimited=DelimitedOptions(
+                encoding=self.encoding or defaults.delimited.encoding,
+                separator=self.separator or defaults.delimited.separator,
+            ),
+            json=JsonOptions(
+                ensure_ascii=(
+                    defaults.json.ensure_ascii
+                    if self.ensure_ascii is None
+                    else self.ensure_ascii
+                )
+            ),
+        )
+
+
+@dataclass
 class DownloadAsArgs:
     format: Literal["csv", "tsv", "json", "parquet"]
+    options: DownloadAsOptions | None = None
+    geometry_column: str | None = None
+
+
+@dataclass
+class DownloadGeoJSONArgs:
+    format: Literal["geojson"]
+    options: DownloadAsOptions | None = None
+    geometry_column: str | None = None
 
 
 @dataclass
@@ -105,6 +161,8 @@ class DownloadAsResponse:
     # ColumnPreview so the frontend can reuse its install-prompt flow.
     error: str | None = None
     missing_packages: list[str] | None = None
+    code: GeometryExportErrorCode | None = None
+    column: str | None = None
 
 
 @dataclass
@@ -196,6 +254,13 @@ class SearchTableResponse:
     # Unformatted data mirroring the same shape/page as `data`,
     # provided when format_mapping is applied.
     raw_data: str | None = None
+    has_next_page: bool | None = None
+
+
+@dataclass(frozen=True)
+class _TablePage:
+    manager: TableManager[Any]
+    has_next_page: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -239,7 +304,7 @@ def get_default_table_page_size() -> int:
     except ContextNotInitializedError:
         return 10
     else:
-        return ctx.marimo_config["display"]["default_table_page_size"]
+        return ctx.marimo_config.display.default_table_page_size
 
 
 def get_default_table_max_columns() -> int:
@@ -249,7 +314,7 @@ def get_default_table_max_columns() -> int:
     except ContextNotInitializedError:
         return DEFAULT_MAX_COLUMNS
     else:
-        return ctx.marimo_config["display"]["default_table_max_columns"]
+        return ctx.marimo_config.display.default_table_max_columns
 
 
 _DATATYPE_TO_CATEGORY: dict[str, str] = {
@@ -550,9 +615,10 @@ class table(
         Create a table from a lazy dataframe (e.g., Polars LazyFrame, Ibis Table, DuckDB Relation).
 
         This won't load the data into memory until requested by the user.
-        Once requested, only the first 10 rows will be loaded.
+        Pagination is supported; selection is not.
 
-        Pagination and selection are not supported for lazy tables.
+        Pages are queried independently. For consistent results, sort by a unique
+        key and keep the source unchanged.
 
         Args:
             data (IntoLazyFrame): The data to display.
@@ -572,7 +638,7 @@ class table(
 
         return table(
             data=data,
-            pagination=False,
+            pagination=True,
             selection=None,
             initial_selection=None,
             page_size=page_size,
@@ -929,6 +995,16 @@ class table(
                     function=self._download_as,
                 ),
                 Function(
+                    name="download_geojson",
+                    arg_cls=DownloadGeoJSONArgs,
+                    function=self._download_geojson,
+                ),
+                Function(
+                    name="get_export_metadata",
+                    arg_cls=EmptyArgs,
+                    function=self._get_export_metadata,
+                ),
+                Function(
                     name="get_column_summaries",
                     arg_cls=ColumnSummariesArgs,
                     function=self._get_column_summaries,
@@ -978,7 +1054,7 @@ class table(
 
     def _get_banner_text(self) -> str:
         if self._lazy:
-            return f"Previewing only the first {self._page_size} rows."
+            return ""
 
         total_columns = self._manager.get_num_columns()
         if self._max_columns is not None and total_columns > self._max_columns:
@@ -1020,7 +1096,21 @@ class table(
         manager = self._searched_manager or self._manager
         return GetSizeBytesResponse(size_bytes=manager.estimate_size_bytes())
 
+    def _get_export_metadata(self, args: EmptyArgs) -> ExportMetadata:
+        del args
+        return get_export_metadata(self._manager)
+
     def _download_as(self, args: DownloadAsArgs) -> DownloadAsResponse:
+        return self._download(args)
+
+    def _download_geojson(
+        self, args: DownloadGeoJSONArgs
+    ) -> DownloadAsResponse:
+        return self._download(args)
+
+    def _download(
+        self, args: DownloadAsArgs | DownloadGeoJSONArgs
+    ) -> DownloadAsResponse:
         """Download the table data in the specified format.
 
         For cell-selection modes ("single-cell"/"multi-cell"), selection is
@@ -1036,8 +1126,8 @@ class table(
         user to install the dependency and retry.
 
         Args:
-            args (DownloadAsArgs): The requested download format. Must be
-                one of `'csv'`, `'tsv'`, `'json'`, or `'parquet'`.
+            args (DownloadAsArgs | DownloadGeoJSONArgs): The requested
+                format and optional per-request export options.
 
         Returns:
             DownloadAsResponse: Either a success response with `url` and
@@ -1050,8 +1140,10 @@ class table(
                 something other than a `TableManager` (e.g., a raw list
                 of `TableCell` from cell-selection modes).
         """
-        # Short-circuit Parquet when no parquet-capable lib is importable.
-        if args.format == "parquet":
+        # Short-circuit ordinary Parquet when no parquet-capable lib is importable.
+        if args.format == "parquet" and not has_geometry_columns(
+            self._manager
+        ):
             has_polars = DependencyManager.polars.has()
             has_pandas = DependencyManager.pandas.has()
             has_pyarrow = DependencyManager.pyarrow.has()
@@ -1094,12 +1186,38 @@ class table(
         if isinstance(manager_candidate, TableManager):
             bound_filename = get_bound_name(self._id)
 
-            url, filename = download_as(
-                manager_candidate,
-                args.format,
-                drop_marimo_index=True,
-                filename=bound_filename,
+            options = (args.options or DownloadAsOptions()).resolve(
+                DownloadOptions()
             )
+            try:
+                url, filename = download_as(
+                    manager_candidate,
+                    args.format,
+                    drop_marimo_index=True,
+                    options=options,
+                    filename=bound_filename,
+                    geometry_column=args.geometry_column,
+                )
+            except GeometryExportError as e:
+                return DownloadAsResponse(
+                    error=str(e),
+                    code=e.code,
+                    column=e.column,
+                    missing_packages=e.missing_packages,
+                )
+            except BaseException as error:
+                if isinstance(
+                    error,
+                    (
+                        KeyboardInterrupt,
+                        SystemExit,
+                        GeneratorExit,
+                        CancelledError,
+                    ),
+                ):
+                    raise
+                LOGGER.exception("Table download failed")
+                return DownloadAsResponse(error=str(error))
             return DownloadAsResponse(url=url, filename=filename)
         else:
             raise NotImplementedError(
@@ -1361,8 +1479,13 @@ class table(
             return data_url, "csv"
         except (ValueError, NotImplementedError):
             LOGGER.debug("CSV export failed, falling back to JSON.")
-        except Exception as e:
-            LOGGER.error("Unexpected error exporting CSV: %s", e)
+        except BaseException as error:
+            if isinstance(
+                error,
+                (KeyboardInterrupt, SystemExit, GeneratorExit, CancelledError),
+            ):
+                raise
+            LOGGER.exception("Unexpected error exporting CSV")
 
         # Fallback to JSON
         try:
@@ -1669,6 +1792,38 @@ class table(
             result[row_str] = row_hovers
         return result
 
+    def _clamp_columns(
+        self, manager: TableManager[Any], max_columns: int | None
+    ) -> TableManager[Any]:
+        column_names = manager.get_column_names()
+        if max_columns is None or len(column_names) <= max_columns:
+            return manager
+
+        columns_to_select = column_names[:max_columns]
+        # Selection needs stable row IDs even when columns are clamped.
+        if self._has_stable_row_id:
+            columns_to_select = [INDEX_COLUMN_NAME] + columns_to_select
+        return manager.select_columns(columns_to_select)
+
+    def _prepare_page(
+        self, manager: TableManager[Any], page_size: int
+    ) -> _TablePage:
+        if not self._lazy or not isinstance(manager, NarwhalsTableManager):
+            return _TablePage(manager)
+
+        frame = manager.as_frame()
+        return _TablePage(
+            manager=get_table_manager(frame.head(page_size).to_native()),
+            has_next_page=frame.shape[0] > page_size,
+        )
+
+    def _serialize_page(
+        self, manager: TableManager[Any]
+    ) -> tuple[str, str | None]:
+        formatted = manager.to_json_str(self._format_mapping)
+        raw = manager.to_json_str() if self._format_mapping else None
+        return formatted, raw
+
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
 
@@ -1701,75 +1856,38 @@ class table(
         self._current_filters = args.filters
         self._current_query = args.query
 
-        def clamp_rows_and_columns(
-            manager: TableManager[Any],
-        ) -> tuple[str, str | None]:
-            # Limit to page and column clamping for the frontend
-            data = manager.take(args.page_size, offset)
-            column_names = data.get_column_names()
-
-            # Do not clamp if max_columns is None
-            if max_columns is not None and len(column_names) > max_columns:
-                columns_to_select = column_names[:max_columns]
-                # Always include _marimo_row_id so the frontend can use
-                # stable row IDs for selection, even when columns are clamped.
-                # Without this, filtering + selecting returns wrong rows.
-                if self._has_stable_row_id:
-                    columns_to_select = [INDEX_COLUMN_NAME] + columns_to_select
-                data = data.select_columns(columns_to_select)
-
-            try:
-                formatted = data.to_json_str(self._format_mapping)
-                raw = data.to_json_str() if self._format_mapping else None
-                return formatted, raw
-            except BaseException as e:
-                # Catch and re-raise the error as a non-BaseException
-                # to avoid crashing the kernel
-                raise TableSearchError(str(e)) from e
-
-        # If no query or sort, return nothing
-        # The frontend will just show the original data
-        total_rows: int | Literal["too_many"]
         if not args.query and not args.sort and not args.filters:
-            self._searched_manager = self._manager
-            if self._lazy:
-                total_rows = "too_many"
-            else:
-                total_rows = self._manager.get_num_rows(force=True) or 0
-
-            formatted_data, raw_data = clamp_rows_and_columns(self._manager)
-            return SearchTableResponse(
-                data=formatted_data,
-                total_rows=total_rows,
-                cell_styles=self._style_cells(
-                    offset, args.page_size, total_rows
-                ),
-                cell_hover_texts=self._hover_cells(
-                    offset, args.page_size, total_rows
-                ),
-                raw_data=raw_data,
+            result = self._manager
+        else:
+            filter_function = (
+                self._apply_filters_query_sort_cached
+                if is_hashable(args.filters, args.query, args.sort)
+                else self._apply_filters_query_sort
             )
-
-        filter_function = (
-            self._apply_filters_query_sort_cached
-            if is_hashable(args.filters, args.query, args.sort)
-            else self._apply_filters_query_sort
-        )
-        result = filter_function(
-            args.filters,
-            args.query,
-            tuple(args.sort) if args.sort else None,  # type: ignore
-        )
+            result = filter_function(
+                args.filters,
+                args.query,
+                tuple(args.sort) if args.sort else None,  # type: ignore
+            )
 
         # Save the manager to be used for selection
         self._searched_manager = result
 
+        total_rows: int | Literal["too_many"]
         if self._lazy:
             total_rows = "too_many"
         else:
             total_rows = result.get_num_rows(force=True) or 0
 
-        formatted_data, raw_data = clamp_rows_and_columns(result)
+        count = args.page_size + 1 if self._lazy else args.page_size
+        data = self._clamp_columns(result.take(count, offset), max_columns)
+        try:
+            page = self._prepare_page(data, args.page_size)
+            formatted_data, raw_data = self._serialize_page(page.manager)
+        except BaseException as e:
+            # Translate native panics so they do not crash the kernel.
+            raise TableSearchError(str(e)) from e
+
         return SearchTableResponse(
             data=formatted_data,
             total_rows=total_rows,
@@ -1778,6 +1896,7 @@ class table(
                 offset, args.page_size, total_rows
             ),
             raw_data=raw_data,
+            has_next_page=page.has_next_page,
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

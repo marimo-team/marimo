@@ -13,7 +13,6 @@ def _(mo):
     print('Hello from Remote Markdown!')
     ```
     """)
-    return
 
 
 if __name__ == "__main__":

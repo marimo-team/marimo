@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -11,28 +10,23 @@ from marimo._ast import load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
-from marimo._environments.script_metadata import (
-    with_python_version_requirement,
-)
 from marimo._messaging.notebook.changes import (
     Transaction,
 )
+from marimo._messaging.notebook.document import NotebookCell
 from marimo._runtime.layout.layout import (
     LayoutConfig,
     read_layout_config,
     save_layout_config,
 )
-from marimo._schemas.serialization import Header, NotebookSerializationV1
+from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._server.app_defaults import AppDefaults
-from marimo._session.notebook.serializer import get_notebook_serializer
 from marimo._session.notebook.storage import (
     FilesystemStorage,
     StorageInterface,
 )
+from marimo._session.notebook.writer import NotebookWriter, cells_to_ir
 from marimo._types.ids import CellId_t
-from marimo._utils.generated_with import (
-    contents_differ_excluding_generated_with,
-)
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
 
@@ -41,10 +35,10 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from marimo._messaging.notebook.document import NotebookCell
+    from marimo._ast.type_inference import TypeInferenceMode
+    from marimo._config.manager import MarimoConfigManager
     from marimo._server.models.models import (
         CopyNotebookRequest,
-        SaveNotebookRequest,
     )
 
 
@@ -74,22 +68,51 @@ class AppFileManager:
         self._filename = _maybe_path(filename)
 
         self.storage: StorageInterface = storage or FilesystemStorage()
+        self.writer = NotebookWriter(self.storage)
 
         # Configuration defaults
         self._defaults = defaults or AppDefaults()
 
+        self.config_reader: MarimoConfigManager | None = None
+
         # Load the app
         self.app = self._load_app(self.path)
 
-        # Track the last saved content to avoid reloading our own writes
-        self._last_saved_content: str | None = None
+        # TODO(MO-7927): The host follows the editor's writes through these
+        # hooks until the notebook owns persistence and no second writer
+        # remains to follow.
+        self.on_persisted: (
+            Callable[[Sequence[NotebookCell], dict[str, Any]], None] | None
+        ) = None
+        """Called with the cells and app config a save wrote, on its thread.
 
-        # Serializes concurrent writers. Reentrant so public entry points
-        # can wrap the full "mutate app + _save_file" sequence while
-        # ``_save_file`` re-acquires for any direct caller.
-        self._save_lock = threading.RLock()
+        The cells are the snapshot the save was given, not the live
+        document, which another thread may have changed meanwhile.
+        """
+        self.on_config_changed: Callable[[], None] | None = None
+        """Called after the app config changes, on the changing thread."""
+
+        # Serializes concurrent writers. Public entry points wrap the full
+        # "mutate app + _save_file" sequence and the writer re-acquires.
+        self._save_lock = self.writer.lock
         # Foreground writes supersede queued autosaves.
         self._autosave_generation = 0
+
+    @property
+    def infer_types(self) -> TypeInferenceMode:
+        """Read the configured inference backend."""
+        if self.config_reader is None:
+            return "off"
+        formatting = self.config_reader.get_config().formatting
+        return formatting.infer_types
+
+    @property
+    def line_length(self) -> int:
+        """Read the configured annotation line length."""
+        if self.config_reader is None:
+            return 79
+        formatting = self.config_reader.get_config().formatting
+        return int(formatting.line_length)
 
     @property
     def filename(self) -> str | None:
@@ -120,7 +143,7 @@ class AppFileManager:
         """
         manager = AppFileManager(None)
         # Snapshot to an absolute path at assignment time so a later
-        # ``chdir`` cannot change which file ``self.path`` resolves to.
+        # `chdir` cannot change which file `self.path` resolves to.
         manager.filename = (
             os.path.abspath(str(filename)) if filename is not None else None
         )
@@ -218,54 +241,18 @@ class AppFileManager:
         Returns:
             Serialized notebook contents
         """
-        LOGGER.debug("Saving app to %s", path)
-
         with self._save_lock:
-            # Get the header in case it was modified by the user (e.g. package installation)
-            handler = get_notebook_serializer(path)
-            header: str | None = None
-            if previous_path and previous_path.exists():
-                header = handler.extract_header(previous_path)
-            elif path.exists():
-                header = handler.extract_header(path)
-
-            # For new .py files in sandbox mode, generate header with marimo
-            if header is None and str(path).endswith(".py"):
-                from marimo._config.settings import GLOBAL_SETTINGS
-
-                if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
-                    from marimo._environments import script_metadata
-
-                    header = script_metadata.dumps(
-                        with_python_version_requirement(
-                            {
-                                "dependencies": ["marimo"],
-                            }
-                        )
-                    )
-
-            # Rewrap with header if relevant and set filename.
-            notebook = NotebookSerializationV1(
-                app=notebook.app,
-                header=Header(value=header) if header else notebook.header,
-                cells=notebook.cells,
-                violations=notebook.violations,
-                valid=notebook.valid,
-                filename=str(path),
+            contents = self.writer.write_ir(
+                path,
+                notebook=notebook,
+                persist=persist,
+                previous_path=previous_path,
+                infer_types=self.infer_types,
+                line_length=self.line_length,
             )
-            contents = handler.serialize(notebook)
-
-            if persist:
-                if self.content_matches_last_save(contents):
-                    return self._last_saved_content or contents
-                self.storage.write(path, contents)
-                # Record the last saved content to avoid reloading our own writes
-                self._mark_content_as_last_save(contents)
-
             # If this is a new unnamed notebook, update the filename
             if self._is_unnamed():
                 self._filename = path
-
             return contents
 
     def _load_app(self, path: str | None) -> InternalApp:
@@ -405,83 +392,62 @@ class AppFileManager:
             Serialized notebook content
         """
         with self._save_lock:
-            self.app.update_config(config)
+            self._update_config(config)
             if self._filename is not None:
                 self._invalidate_autosaves()
-                return self._save_file(
+                contents = self._save_file(
                     self._filename,
                     notebook=self.app.to_ir(),
                     persist=True,
                 )
+                self._persisted(
+                    [
+                        NotebookCell(
+                            id=data.cell_id,
+                            code=data.code,
+                            name=data.name,
+                            config=data.config,
+                        )
+                        for data in self.app.cell_manager.cell_data()
+                    ]
+                )
+                return contents
             return ""
 
-    def save(
-        self,
-        request: SaveNotebookRequest,
-        *,
-        on_document_transaction: Callable[[Transaction], None] | None = None,
-    ) -> str:
-        """Save the notebook.
+    def _update_config(self, config: dict[str, Any]) -> None:
+        before = self.app.config.asdict()
+        self.app.update_config(config)
+        callback = self.on_config_changed
+        if callback is not None and self.app.config.asdict() != before:
+            callback()
 
-        Args:
-            request: Save request with cell data and options
-            on_document_transaction: Called with the applied in-memory
-                document transaction before the file is persisted.
-
-        Returns:
-            Serialized notebook content
+    def save_layout(self, layout: dict[str, Any] | None) -> None:
+        """Write the layout file beside the notebook and point the app config
+        at it, or clear the config when `layout` is None.
 
         Raises:
-            HTTPException: If save fails or tries to rename
+            HTTPException: If the notebook has no file to sit beside.
         """
-        cell_ids, codes, configs, names, filename, layout = (
-            request.cell_ids,
-            request.codes,
-            request.configs,
-            request.names,
-            request.filename,
-            request.layout,
-        )
-
-        filename_path = Path(canonicalize_filename(filename))
-
         with self._save_lock:
-            if self.is_notebook_named and not self._is_same_path(
-                filename_path
-            ):
+            if self._filename is None:
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
-                    detail="Save handler cannot rename files.",
+                    detail="Save the notebook before saving its layout.",
                 )
-
-            transaction = self.app.apply_data(
-                cell_ids=cell_ids,
-                codes=codes,
-                names=names,
-                configs=configs,
+            if layout is None:
+                self._update_config({"layout_file": None})
+                return
+            layout_filename = save_layout_config(
+                self._filename.parent,
+                self._filename.name,
+                LayoutConfig(**layout),
             )
-            if on_document_transaction is not None and transaction.changes:
-                on_document_transaction(transaction)
+            self._update_config({"layout_file": layout_filename})
 
-            # Save layout if provided
-            if layout is not None:
-                app_dir = filename_path.parent
-                app_name = filename_path.name
-                layout_filename = save_layout_config(
-                    app_dir, app_name, LayoutConfig(**layout)
-                )
-                self.app.update_config({"layout_file": layout_filename})
-            else:
-                # Remove the layout from the config
-                self.app.update_config({"layout_file": None})
-
-            if request.persist:
-                self._invalidate_autosaves()
-            return self._save_file(
-                filename_path,
-                notebook=self.app.to_ir(),
-                persist=request.persist,
-            )
+    def _persisted(self, cells: Sequence[NotebookCell]) -> None:
+        callback = self.on_persisted
+        if callback is not None:
+            callback(cells, self.app.config.asdict_difference())
 
     def capture_autosave_target(self) -> tuple[Path | None, int]:
         with self._save_lock:
@@ -494,12 +460,12 @@ class AppFileManager:
         expected_filename: Path | None = None,
         expected_generation: int | None = None,
     ) -> str:
-        """Persist the notebook from a snapshot of document cells.
+        """Persist a snapshot of document cells with the app's config.
 
         Used by the server-side auto-save path for `code_mode`
-        mutations. Unlike `save()`, this takes cells directly — the
-        caller is responsible for snapshotting `session.document.cells`
-        on a thread where the document is quiescent.
+        mutations and by the host. Unlike `save()`, this changes nothing
+        in memory: the cells are written as given, and a document that
+        has moved on since they were taken keeps its newer state.
 
         Raises:
             HTTPException: If the notebook is unnamed or the write fails
@@ -520,17 +486,17 @@ class AppFileManager:
                 ):
                     return ""
 
-            self.app.with_data(
-                cell_ids=[cell.id for cell in cells],
-                codes=[cell.code for cell in cells],
-                names=[cell.name for cell in cells],
-                configs=[cell.config for cell in cells],
-            )
-            return self._save_file(
+            contents = self._save_file(
                 self._filename,
-                notebook=self.app.to_ir(),
+                notebook=cells_to_ir(
+                    cells,
+                    self.app.config.asdict(),
+                    header=self.app._app._header,
+                ),
                 persist=True,
             )
+            self._persisted(cells)
+            return contents
 
     def _invalidate_autosaves(self) -> None:
         self._autosave_generation += 1
@@ -582,7 +548,9 @@ class AppFileManager:
         """
         from marimo._convert.converters import MarimoConvert
 
-        return MarimoConvert.from_ir(self.app.to_ir()).to_py()
+        return MarimoConvert.from_ir(self.app.to_ir()).to_py(
+            infer_types=self.infer_types, line_length=self.line_length
+        )
 
     def _is_unnamed(self) -> bool:
         """Check if notebook is unnamed.
@@ -618,29 +586,23 @@ class AppFileManager:
         return self.storage.read(self._filename)
 
     def _mark_content_as_last_save(self, content: str) -> None:
-        self._last_saved_content = content.strip()
+        self.writer.remember(content)
 
     def content_matches_last_save(self, content: str) -> bool:
         """Check if the given content matches the last save.
 
         Used to avoid reloading the file when we detect our own writes.
-        Prefer this over :meth:`file_content_matches_last_save` when the
+        Prefer this over `file_content_matches_last_save` when the
         caller already has the file contents in hand.
         """
-        if self._last_saved_content is None:
-            return False
-        if content.strip() == self._last_saved_content:
-            return True
-        return not contents_differ_excluding_generated_with(
-            content, self._last_saved_content
-        )
+        return self.writer.content_matches_last_save(content)
 
     def file_content_matches_last_save(self) -> bool:
         """Check if current file content matches the last save.
 
         Used to avoid reloading the file when we detect our own writes.
         """
-        if self._filename is None or self._last_saved_content is None:
+        if self._filename is None or self.writer.last_content is None:
             return False
         try:
             return self.content_matches_last_save(
@@ -657,7 +619,8 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
     """Read the contents of a CSS file.
 
     Args:
-        css_file: The path to the CSS file.
+        css_file: The path to the CSS file. Supports `~` for the home
+            directory and relative paths resolved from the notebook directory.
         filename: The filename of the notebook.
 
     Returns:
@@ -666,7 +629,11 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
     if not css_file:
         return None
 
-    filepath = Path(css_file)
+    try:
+        filepath = Path(css_file).expanduser()
+    except RuntimeError as e:
+        LOGGER.warning("Failed to resolve custom CSS file %s: %s", css_file, e)
+        return None
 
     # If not an absolute path, make it absolute using the filename
     if not filepath.is_absolute():
@@ -683,7 +650,7 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
         LOGGER.warning(
             "Failed to open custom CSS file %s for reading: %s",
             filepath,
-            str(e),
+            e,
         )
         return None
 
@@ -714,7 +681,7 @@ def read_html_head_file(
         LOGGER.warning(
             "Failed to open HTML head file %s for reading: %s",
             filepath,
-            str(e),
+            e,
         )
         return None
 

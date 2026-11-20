@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -13,6 +12,15 @@ from marimo._runtime.state import State
 from marimo._save.cache import (
     CACHE_PREFIX,
     Cache,
+)
+from marimo._save.cache_dirs import (
+    LAZY_ENTRY_SUFFIX,
+    PARTIAL_WRITE_INFIX,
+    block_dir_name,
+    entry_hash,
+    has_marker,
+    is_entry_key,
+    is_partial_write,
 )
 from marimo._save.stores import DEFAULT_STORE, Store
 
@@ -207,6 +215,22 @@ class Loader(ABC):
         # Default implementation: no-op for loaders that don't support clearing
         return
 
+    def storage_dirs(self) -> list[Path]:
+        """Cache directories this loader writes its block into.
+
+        Empty when the cache keeps nothing on the local filesystem, so there
+        is no disk usage to attribute to it.
+        """
+        return []
+
+    def clearable_paths(self) -> list[Path]:
+        """Files and directories on disk that `clear()` removes."""
+        return []
+
+    def clearable_bytes(self) -> int:
+        """Bytes on disk that `clear()` frees."""
+        return 0
+
 
 class BasePersistenceLoader(Loader):
     """Abstract base for cache written to disk."""
@@ -227,8 +251,7 @@ class BasePersistenceLoader(Loader):
             except ContextNotInitializedError:
                 self.store = DEFAULT_STORE()
 
-        # Limited character set for path for windows compatibility
-        self.name = re.sub(r"[^a-zA-Z0-9 _-]", "_", self.name)
+        self.name = block_dir_name(self.name)
         self.suffix = suffix
 
     def build_path(self, key: HashKey) -> Path:
@@ -265,22 +288,77 @@ class BasePersistenceLoader(Loader):
         except FileNotFoundError as e:
             raise LoaderError("Unexpected cache miss.") from e
 
+    def storage_dirs(self) -> list[Path]:
+        return self.store.local_dirs()
+
+    def _clearable_paths(self, root: Path) -> list[Path]:
+        """Paths under `root` that `clear()` removes."""
+        block = root / self.name
+        if block.is_symlink():
+            return []
+        try:
+            children = list(block.iterdir())
+        except OSError:
+            return []
+        paths = [
+            child
+            for child in children
+            if not child.is_dir() and self._is_own_entry(child.name)
+        ]
+        # Only a lazy marker names a directory of blobs, and blobs are
+        # shared by hash, so a surviving marker keeps them alive.
+        hashes = {
+            entry_hash(path.name)
+            for path in paths
+            if path.name.endswith(LAZY_ENTRY_SUFFIX)
+        }
+        hashes -= {
+            entry_hash(marker.name)
+            for marker in children
+            if marker.name.endswith(LAZY_ENTRY_SUFFIX)
+            and is_entry_key(marker.name.partition(".")[0])
+            and marker not in paths
+        }
+        paths.extend(
+            child
+            for child in children
+            if child.name in hashes
+            and child.is_dir()
+            and not child.is_symlink()
+        )
+        return paths
+
+    def _is_own_entry(self, name: str) -> bool:
+        """Whether `name` is an entry this loader wrote, or a killed write's."""
+        # The leftovers of an interrupted write hold no value anyone can read,
+        # so clearing the block is the last chance to reclaim their bytes.
+        if is_partial_write(name):
+            name = name.rpartition(PARTIAL_WRITE_INFIX)[0]
+        key, dot, suffix = name.partition(".")
+        return bool(dot) and suffix == self.suffix and is_entry_key(key)
+
     def clear(self) -> None:
         """Clear all cached items for this loader."""
-        # Clear all files in the loader's directory
-        import glob
-
-        from marimo._save.stores.file import FileStore
-
-        # Only FileStore has save_path, so we need to check
-        if not isinstance(self.store, FileStore):
+        root = self.store.clearable_root()
+        if root is None:
             return
+        for cache_file in self._clearable_paths(root):
+            # A writer can write a new marker for these blobs after the
+            # listing, so the marker is checked again here.
+            if cache_file.is_dir() and has_marker(
+                cache_file.parent, cache_file.name
+            ):
+                continue
+            self.store.clear(str(cache_file.relative_to(root)))
 
-        pattern = str(Path(self.name) / f"*.{self.suffix}")
-        # Get all matching cache files through the store's base path
-        for cache_file in glob.glob(str(self.store.save_path / pattern)):
-            key = str(Path(cache_file).relative_to(self.store.save_path))
-            self.store.clear(key)
+    def clearable_paths(self) -> list[Path]:
+        root = self.store.clearable_root()
+        return [] if root is None else self._clearable_paths(root)
+
+    def clearable_bytes(self) -> int:
+        from marimo._save.cache_dirs import entry_bytes
+
+        return sum(entry_bytes(path) for path in self.clearable_paths())
 
     @abstractmethod
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:

@@ -85,13 +85,13 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
 
   // oxlint-disable-next-line react/hook-use-state
   const [initial] = useState(() => {
-    const elements = elementsBuilder.createElements(
+    const elements = elementsBuilder.createElements({
       cellIds,
       cellAtoms,
       variables,
-      settings.hidePureMarkdown,
-      settings.hideReusableFunctions,
-    );
+      hidePureMarkdown: settings.hidePureMarkdown,
+      hideReusableFunctions: settings.hideReusableFunctions,
+    });
     return layoutElements({
       nodes: withExpansion(elements.nodes, expandedIds),
       edges: elements.edges,
@@ -163,13 +163,13 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
 
   // Rebuild + re-layout when the graph inputs or the expand/collapse set change.
   useEffect(() => {
-    const elements = elementsBuilder.createElements(
+    const elements = elementsBuilder.createElements({
       cellIds,
       cellAtoms,
       variables,
-      settings.hidePureMarkdown,
-      settings.hideReusableFunctions,
-    );
+      hidePureMarkdown: settings.hidePureMarkdown,
+      hideReusableFunctions: settings.hideReusableFunctions,
+    });
     syncChanges({
       nodes: withExpansion(elements.nodes, expandedIds),
       edges: elements.edges,

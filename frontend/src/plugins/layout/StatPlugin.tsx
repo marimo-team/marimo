@@ -25,9 +25,9 @@ interface Data {
 }
 
 export class StatPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-stat";
+  public tagName = "marimo-stat";
 
-  validator = z.object({
+  public validator = z.object({
     value: z.union([z.string(), z.number(), z.boolean()]).optional(),
     label: z.string().optional(),
     caption: z.string().optional(),
@@ -37,7 +37,7 @@ export class StatPlugin implements IStatelessPlugin<Data> {
     slot: z.any().optional(),
   });
 
-  render({ data }: IStatelessPluginProps<Data>): JSX.Element {
+  public render({ data }: IStatelessPluginProps<Data>): JSX.Element {
     return <StatComponent {...data} />;
   }
 }

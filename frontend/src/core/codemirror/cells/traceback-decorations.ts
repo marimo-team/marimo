@@ -91,9 +91,12 @@ function unfoldErrorLines(view: EditorView, errors: TracebackInfos) {
  */
 class ErrorHighlighter implements PluginValue {
   private unsubscribe: () => void;
-  decorations: DecorationSet;
+  public decorations: DecorationSet;
 
-  constructor(view: EditorView, errorsObservable: Observable<TracebackInfos>) {
+  public constructor(
+    view: EditorView,
+    errorsObservable: Observable<TracebackInfos>,
+  ) {
     const errors = errorsObservable.get();
     this.decorations = createErrorDecorations(view.state, errors);
     unfoldErrorLines(view, errors);
@@ -113,11 +116,11 @@ class ErrorHighlighter implements PluginValue {
     });
   }
 
-  update(update: ViewUpdate) {
+  public update(update: ViewUpdate) {
     this.decorations = this.decorations.map(update.changes);
   }
 
-  destroy() {
+  public destroy() {
     this.unsubscribe();
   }
 }

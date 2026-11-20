@@ -27,12 +27,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { CellRuntimeView, RuntimeCell } from "@/core/cells/types";
 import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses } from "@/core/constants";
-import { kernelStateAtom } from "@/core/kernel/state";
+import {
+  runtimeStatusAtom,
+  useCellPresentation,
+  useCellOutput,
+} from "@/core/executions";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import {
@@ -73,7 +77,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
-  const kernelState = useAtomValue(kernelStateAtom);
+  const runtimeStatus = useAtomValue(runtimeStatusAtom);
   const [userConfig] = useResolvedMarimoConfig();
   const showCodeInRunModePreference = useAtomValue(showCodeInRunModeAtom);
 
@@ -81,7 +85,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     getInitialShowCode({ showCodeInRunModePreference, kioskMode }),
   );
 
-  const canShowCode = useNotebookCodeAvailable(cells);
+  const canShowCode = useNotebookCodeAvailable();
 
   const handleToggleShowCode = () => {
     setShowCode((currentShowCode) => {
@@ -91,24 +95,17 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     });
   };
 
-  const renderCell = (cell: CellRuntimeState & CellData) => {
+  const renderCell = (cell: RuntimeCell) => {
     return (
       <VerticalCell
         key={cell.id}
         cellId={cell.id}
-        output={cell.output}
         consoleOutputs={cell.consoleOutputs}
-        status={cell.status}
         code={cell.code}
         config={cell.config}
         cellOutputArea={userConfig.display.cell_output}
-        stopped={cell.stopped}
         showCode={showCode && canShowCode}
-        errored={cell.errored}
         mode={mode}
-        runStartTimestamp={cell.runStartTimestamp}
-        interrupted={cell.interrupted}
-        staleInputs={cell.staleInputs}
         name={cell.name}
         kiosk={kioskMode}
         showErrorTracebacks={userConfig.runtime.show_tracebacks ?? false}
@@ -134,8 +131,9 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     }
 
     if (cells.length === 0 && !invisible) {
-      // If kernel is not yet instantiated, show loading state
-      if (!kernelState.isInstantiated) {
+      // Until the host reports the runtime running, show loading state.
+      // A static notebook has no runtime to wait for.
+      if (runtimeStatus !== "running" && !isStaticNotebook()) {
         return (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
             <Loader2Icon className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -302,17 +300,7 @@ const ActionButtons: React.FC<{
   );
 };
 
-interface VerticalCellProps extends Pick<
-  CellRuntimeState,
-  | "output"
-  | "consoleOutputs"
-  | "status"
-  | "stopped"
-  | "errored"
-  | "interrupted"
-  | "staleInputs"
-  | "runStartTimestamp"
-> {
+interface VerticalCellProps extends Pick<CellRuntimeView, "consoleOutputs"> {
   cellOutputArea: "above" | "below";
   cellId: CellId;
   config: CellConfig;
@@ -326,17 +314,10 @@ interface VerticalCellProps extends Pick<
 
 const VerticalCell = memo(
   ({
-    output,
     consoleOutputs,
     cellOutputArea,
     cellId,
-    status,
-    stopped,
-    errored,
     config,
-    interrupted,
-    staleInputs,
-    runStartTimestamp,
     code,
     showCode,
     mode,
@@ -345,18 +326,13 @@ const VerticalCell = memo(
     showErrorTracebacks,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
+    const output = useCellOutput(cellId);
+    const { execution, freshness } = useCellPresentation(cellId);
+    const errored = execution.outcome === "error";
+    const stopped = execution.outcome === "skipped";
 
-    const outputStale = outputIsStale(
-      {
-        status,
-        output,
-        interrupted,
-        runStartTimestamp,
-        staleInputs,
-      },
-      false,
-    );
-    const loading = outputIsLoading(status);
+    const outputStale = outputIsStale(execution, freshness, false);
+    const loading = outputIsLoading(execution.status);
 
     // Kiosk and not presenting
     const kioskFull = kiosk && mode !== "present";
@@ -414,11 +390,9 @@ const VerticalCell = memo(
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}
-            interrupted={interrupted}
             cellName={name}
             onSubmitDebugger={() => null}
             cellId={cellId}
-            debuggerActive={false}
           />
         </div>
       );
@@ -428,7 +402,7 @@ const VerticalCell = memo(
     // instead of hiding them
     const hidden = shouldHidePublishedCell({
       errored,
-      interrupted,
+      interrupted: execution.outcome === "interrupted",
       stopped,
       output,
       showErrorTracebacks,

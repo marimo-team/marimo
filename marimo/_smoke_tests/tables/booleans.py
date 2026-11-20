@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
     import marimo as mo
     import pandas as pd
     import polars as pl
+
     return mo, pd, pl
 
 
@@ -34,13 +35,12 @@ def _(pd):
 
 
 @app.cell
-def _(data, pl):
+def _(data: dict, pl):
     pl.DataFrame(data)
-    return
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict, mo):
     t = mo.ui.table(data)
     t
     return (t,)
@@ -49,7 +49,6 @@ def _(data, mo):
 @app.cell
 def _(t):
     t.value
-    return
 
 
 if __name__ == "__main__":

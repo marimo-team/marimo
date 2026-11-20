@@ -8,6 +8,7 @@ import math
 import pickle
 import queue
 import threading
+from contextlib import contextmanager
 from enum import Enum, auto
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
@@ -27,6 +28,7 @@ from marimo._save.cache import (
     Cache,
     CacheState,
 )
+from marimo._save.cache_dirs import partial_write_name
 from marimo._save.encode import common_container_to_bytes, data_to_buffer
 from marimo._save.hash import DEFAULT_HASH, HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
@@ -41,10 +43,16 @@ from marimo._save.signing import (
     normalize_fingerprints,
     normalize_verification,
 )
-from marimo._save.stores import DEFAULT_STORE, FileStore, Store
+from marimo._save.stores import (
+    DEFAULT_STORE,
+    FileStore,
+    Store,
+    TieredStore,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
+    from contextlib import AbstractContextManager
 from marimo._save.stubs import (
     ClassStub,
     FunctionStub,
@@ -99,6 +107,10 @@ class _BlobStatus(Enum):
 # signature to this purpose and format version independent of payload shape.
 _MANIFEST_SIG_CONTEXT = b"marimo-cache-manifest:v1:"
 
+# The stem is not a Python identifier, so no def blob (`{var}.{loader}`)
+# can take this key.
+_UI_BLOB = "ui-elements.pickle"
+
 
 def _signable_bytes(schema: CacheSchema) -> bytes:
     """Return the canonical bytes to sign or verify for a cache manifest.
@@ -124,28 +136,14 @@ def _is_local_file_store(store: Store) -> bool:
     `FileStore`, so unwrap to the inner store. Shared/remote backends
     (Redis, REST) and the WASM HTTP store (`DictStore` inner) return
     `False` — their entries can't be verified by a key only this machine
-    holds.
+    holds. A `TieredStore` is local when every tier is, since its writes
+    land only on this machine.
     """
     if isinstance(store, LazyStore):
-        return isinstance(store._inner, FileStore)
+        return _is_local_file_store(store._inner)
+    if isinstance(store, TieredStore):
+        return all(_is_local_file_store(tier) for tier in store.stores)
     return isinstance(store, FileStore)
-
-
-def _is_wasm_same_origin_store(store: Store) -> bool:
-    """True when a store's blobs share the notebook's own origin."""
-    # NB. WebAssembly blobs are fetched from the notebook location, so swapping
-    # them requires control of the notebook code served from that origin.
-    # Verification adds nothing there, which is why it is the only store
-    # exempted while signing is available.
-    return isinstance(store, WasmLazyStore)
-
-
-def _is_trusted_origin_store(store: Store) -> bool:
-    """True when a store's bytes are reachable only by controlling the code."""
-    # NB. a local cache directory sits behind the same filesystem access as the
-    # notebook file. Shared and remote stores are what signing protects, so
-    # they never qualify.
-    return _is_wasm_same_origin_store(store) or _is_local_file_store(store)
 
 
 def _verify_signed_blob(
@@ -320,7 +318,7 @@ def to_item(
             type_hint=type_hint,
         )
     if loader == "ui":
-        return Item(reference=(path / "ui.pickle").as_posix())
+        return Item(reference=(path / _UI_BLOB).as_posix())
     if isinstance(value, FunctionStub):
         return Item(function=value.dump())
     if isinstance(value, ClassStub):
@@ -433,15 +431,11 @@ def dump_cache_manifests(manifest_name: str) -> None:
     keys = LazyLoader.export_keys()
     seen: set[Path] = set()
     for loader in loaders:
-        store = loader.store
-        inner = store._inner if isinstance(store, LazyStore) else None
-        if not isinstance(inner, FileStore):
-            continue
-        cache_dir = inner.save_path
-        if cache_dir in seen:
-            continue
-        seen.add(cache_dir)
-        _write_export_manifest(cache_dir, manifest_name, keys)
+        for cache_dir in loader.store.local_dirs():
+            if cache_dir in seen:
+                continue
+            seen.add(cache_dir)
+            _write_export_manifest(cache_dir, manifest_name, keys)
 
 
 def _write_export_manifest(
@@ -461,6 +455,21 @@ def _write_export_manifest(
         os.replace(tmp, cache_dir / manifest_name)
     except OSError as e:
         LOGGER.warning("Failed to write cache export manifest: %s", e)
+
+
+def _posix_key(key: str) -> str:
+    return key.replace("\\", "/")
+
+
+def _file_stores(store: Store) -> list[FileStore]:
+    """The file stores that `store` writes through, however it wraps them."""
+    if isinstance(store, FileStore):
+        return [store]
+    if isinstance(store, TieredStore):
+        return [tier for inner in store.stores for tier in _file_stores(inner)]
+    if isinstance(store, LazyStore):
+        return _file_stores(store._inner)
+    return []
 
 
 class LazyStore(Store):
@@ -483,6 +492,12 @@ class LazyStore(Store):
             self._touched_keys.add(key)
         return result
 
+    def read(self, key: str) -> bytes | None:
+        result = self._inner.read(key)
+        if result is not None:
+            self._touched_keys.add(key)
+        return result
+
     def put(self, key: str, value: bytes) -> bool:
         self._written_keys.add(key)
         return self._inner.put(key, value)
@@ -496,10 +511,32 @@ class LazyStore(Store):
     def clear(self, key: str) -> bool:
         self._written_keys.discard(key)
         self._touched_keys.discard(key)
-        return self._inner.clear(key)
+        if not self._inner.clear(key):
+            return False
+        # Blob keys use POSIX paths even when the caller uses Windows paths.
+        posix = _posix_key(key)
+        prefix = f"{posix}/"
+        for tracked in (self._written_keys, self._touched_keys):
+            # Loaders sharing this store add keys from their writer threads
+            # meanwhile, so iteration uses a copy.
+            under = {
+                k
+                for k in list(tracked)
+                if (p := _posix_key(k)) == posix or p.startswith(prefix)
+            }
+            tracked.difference_update(
+                k for k in under if not self._inner.hit(k)
+            )
+        return True
 
     def export_keys(self) -> list[str]:
         return sorted(self._written_keys | self._touched_keys)
+
+    def local_dirs(self) -> list[Path]:
+        return self._inner.local_dirs()
+
+    def clearable_root(self) -> Path | None:
+        return self._inner.clearable_root()
 
 
 class WasmLazyStore(LazyStore):
@@ -519,6 +556,12 @@ class WasmLazyStore(LazyStore):
         if key not in _cache_state().poisoned_keys:
             return self._http_get(key)
         return None
+
+    def read(self, key: str) -> bytes | None:
+        result = super().read(key)
+        if result is None and key not in _cache_state().poisoned_keys:
+            return self._http_get(key, strict=True)
+        return result
 
     def get_batch(
         self, keys: Iterable[str]
@@ -553,15 +596,30 @@ class WasmLazyStore(LazyStore):
             raise ValueError(f"Invalid cache key: {key}")
         return key
 
-    def _http_get(self, key: str) -> bytes | None:
+    def _http_get(self, key: str, *, strict: bool = False) -> bytes | None:
         """Single sync fetch via pyodide_http-patched urllib."""
+        import urllib.error
         import urllib.request
 
         url = f"{self._base_url()}/{self._sanitize_key(key)}"
         try:
             with urllib.request.urlopen(url) as resp:
+                if strict and resp.status not in (200, 404):
+                    raise urllib.error.HTTPError(
+                        url,
+                        resp.status,
+                        "Unexpected status",
+                        resp.headers,
+                        None,
+                    )
                 data = resp.read() if resp.status == 200 else None
+        except urllib.error.HTTPError as e:
+            if strict and e.code != 404:
+                raise
+            return None
         except Exception:
+            if strict:
+                raise
             return None
         if data is not None:
             self._inner.put(key, data)
@@ -609,14 +667,14 @@ class WasmLazyStore(LazyStore):
 
 
 class LazyLoader(BasePersistenceLoader):
-    _store_cls: type[Store] = LazyStore
+    _store_cls: type[LazyStore] = LazyStore
 
     def __init__(
         self,
         name: str,
         store: Store | None = None,
-        signer: CacheSigner | None | _Unset = _SIGNER_UNSET,
-        trusted_signers: Iterable[str] | None | _Unset = _TRUSTED_UNSET,
+        signer: CacheSigner | _Unset | None = _SIGNER_UNSET,
+        trusted_signers: Iterable[str] | _Unset | None = _TRUSTED_UNSET,
         verification: str | _Unset = _VERIFICATION_UNSET,
     ) -> None:
         """Create a LazyLoader.
@@ -641,15 +699,16 @@ class LazyLoader(BasePersistenceLoader):
                 machine-local key in `marimo_state_dir()/cache_signing_key.pem`
                 is loaded or generated for local file stores only — shared/remote
                 stores use only an explicitly configured key, since an auto key
-                is unverifiable elsewhere.  Resolves to `None` (unsigned) when
-                the `cryptography` package is not installed.
+                is unverifiable elsewhere. Resolves to `None` when the
+                `cryptography` package is not installed, so verified caching
+                remains unavailable.
             trusted_signers: Fingerprint strings (`"SHA256:<base64>"` from
                 :func:`~marimo._save.signing.fingerprint`) that this loader
                 trusts, in addition to its own signer (always trusted for its
                 own writes).  An entry verifies when it is signed directly by a
                 trusted fingerprint's key.  Padded or urlsafe fingerprints are
                 normalized to canonical form.
-            verification: Posture — `"off"`, `"on"` (default), or `"strict"`.
+            verification: Posture — `"off"` (default), `"on"`, or `"strict"`.
                 `off` neither signs nor verifies (legacy opt-out).  `on` signs
                 on write and, on read, serves only entries that verify against
                 a trusted key; an unverifiable entry misses and is recomputed
@@ -660,9 +719,8 @@ class LazyLoader(BasePersistenceLoader):
                 capability exists (no `cryptography`, or neither a signer nor
                 `trusted_signers`), `on` keeps verifying — every read misses
                 and every write is skipped, with a one-time warning — rather
-                than serving unsigned data.  Two stores are exempt: WebAssembly
-                blobs served from the notebook's own origin, and, when
-                `cryptography` is not installed at all, a local file store.
+                than serving unsigned data. This also applies to local and
+                same-origin WebAssembly stores.
         """
         state = _cache_state()
         # An unset arg falls back to the session's config-derived policy (trust
@@ -697,12 +755,24 @@ class LazyLoader(BasePersistenceLoader):
             )
         loaders = state.active_lazy_loaders
         if store is None:
-            # Reuse the store across recreations of a named loader (State GC,
-            # partial reconstruction) so cached data survives.
-            prev = loaders.get(name)
-            store = prev.store if prev is not None else self._store_cls()
+            ctx = safe_get_context()
+            if (
+                verification == "off"
+                and ctx is not None
+                and ctx.cache.store_from_untrusted_origin
+            ):
+                store = self._store_cls()
+            else:
+                # Reuse the store across recreations of a named loader (State GC,
+                # partial reconstruction) so cached data survives.
+                prev = loaders.get(name)
+                store = (
+                    prev.store if prev is not None else self._default_store()
+                )
         super().__init__(name, "jsonl", store)
         self._pending: list[threading.Thread] = []
+        self._pending_writes: dict[str, threading.Event] = {}
+        self._pending_write_lock = threading.Lock()
         self._trusted_fingerprints = normalize_fingerprints(trusted_signers)
         self._verification = verification
         self._degrade_warned = False
@@ -721,6 +791,25 @@ class LazyLoader(BasePersistenceLoader):
         # same-named lookup).
         self._effective_verification()
         loaders[name] = self
+
+    def _default_store(self) -> Store:
+        """The session's configured `cache.store`, wrapped for key tracking.
+
+        Every other persistent loader reads `get_context().cache.store`, so a
+        configured tiered or remote store must reach the default lazy loader
+        too. Outside a kernel, fall back to the plain file-backed store.
+        """
+        ctx = safe_get_context()
+        if ctx is None:
+            return self._store_cls()
+        configured = ctx.cache.store
+        if isinstance(configured, LazyStore):
+            return configured
+        return self._store_cls(configured)
+
+    def clear(self) -> None:
+        self.flush()
+        super().clear()
 
     def _resolve_unset_signer(self) -> CacheSigner | None:
         """Auto-resolve the signer for an unset value, matching __init__.
@@ -747,15 +836,17 @@ class LazyLoader(BasePersistenceLoader):
         # window exists, so full resolution including env is safe.
         return _get_default_signer(auto_generate=auto_generate)
 
-    def _effective_verification(self) -> str:
-        """Resolve the verification posture after capability checks.
+    def _can_verify(self) -> bool:
+        from marimo._dependencies.dependencies import DependencyManager
 
-        With nothing to verify with, `strict` raises. `on` keeps verifying —
-        every read misses, every write is skipped — instead of serving unsigned
-        bytes, except for the stores named at each branch below. Recomputed each
-        call (not cached) so a `setattr` reconfigure that applies kwargs in
-        caller order is always honored.
-        """
+        return DependencyManager.cryptography.has() and bool(
+            self.signer is not None or self._trusted_fingerprints
+        )
+
+    def _effective_verification(self) -> str:
+        """Check verification capability without weakening the requested policy."""
+        # Recompute on each call so reconfiguration through setattr honors
+        # the current signer and verification settings in any caller order.
         if self._verification == "off":
             return "off"
 
@@ -765,17 +856,12 @@ class LazyLoader(BasePersistenceLoader):
             if self._verification == "strict":
                 raise ValueError(
                     "verification='strict' cache signing requires the "
-                    "'cryptography' "
-                    "package, which is not installed."
+                    "'cryptography' package, which is not installed."
                 )
-            # NB. nothing in this install can verify, so keeping `on` turns
-            # off the cache outright. Degrade for a store whose bytes are
-            # already gated on control of the notebook code.
-            return self._degrade_or_keep_on(
-                "the 'cryptography' package is not installed",
-                degradable=_is_trusted_origin_store(self.store),
+            self._warn_no_trust_anchor(
+                "the 'cryptography' package is not installed"
             )
-        if self.signer is None and not self._trusted_fingerprints:
+        elif self.signer is None and not self._trusted_fingerprints:
             if self._verification == "strict":
                 raise ValueError(
                     "verification='strict' requires a signer or trusted_signers to "
@@ -783,32 +869,10 @@ class LazyLoader(BasePersistenceLoader):
                     "signer=CacheSigner.from_public_key_pem(...) or "
                     "trusted_signers={fingerprint, ...}."
                 )
-            # NB. signing works here, and a local file store auto-mints its
-            # own key, so reaching this branch means the caller asked for
-            # verification and passed `signer=None`. A local cache directory
-            # travels with a cloned repository, so it keeps verifying.
-            return self._degrade_or_keep_on(
-                "no signer or trusted_signers is set",
-                degradable=_is_wasm_same_origin_store(self.store),
-            )
+            # A local directory can arrive with a cloned repository, and a
+            # same-origin store does not establish trust in its signing key.
+            self._warn_no_trust_anchor("no signer or trusted_signers is set")
         return self._verification
-
-    def _degrade_or_keep_on(self, reason: str, *, degradable: bool) -> str:
-        if degradable:
-            self._warn_degraded(reason)
-            return "off"
-        self._warn_no_trust_anchor(reason)
-        return "on"
-
-    def _warn_degraded(self, reason: str) -> None:
-        if not self._degrade_warned:
-            self._degrade_warned = True
-            LOGGER.warning(
-                "LazyLoader verification=%r degraded to 'off' because %s; cache "
-                "entries are neither signed nor verified.",
-                self._verification,
-                reason,
-            )
 
     def _warn_no_trust_anchor(self, reason: str) -> None:
         """One-time warning: the loader currently cannot verify anything.
@@ -847,7 +911,7 @@ class LazyLoader(BasePersistenceLoader):
         return self._signer
 
     @signer.setter
-    def signer(self, value: CacheSigner | None | _Unset) -> None:
+    def signer(self, value: CacheSigner | _Unset | None) -> None:
         # Validate up front (mirrors __init__) so a bad reconfigure fails here
         # rather than as an AttributeError mid-save.
         if not isinstance(value, (_Unset, CacheSigner)) and value is not None:
@@ -888,6 +952,8 @@ class LazyLoader(BasePersistenceLoader):
         for t in self._pending:
             t.join()
         self._pending.clear()
+        with self._pending_write_lock:
+            self._pending_writes.clear()
 
     @classmethod
     def flush_all(cls) -> None:
@@ -914,6 +980,41 @@ class LazyLoader(BasePersistenceLoader):
         """Loaders the current session has created (for flush/export)."""
         return list(_cache_state().active_lazy_loaders.values())
 
+    def _write_context(
+        self, manifest_key: str
+    ) -> AbstractContextManager[None]:
+        """Register a write and order it after earlier writes to the same key."""
+        done = threading.Event()
+        with self._pending_write_lock:
+            previous = self._pending_writes.get(manifest_key)
+            self._pending_writes[manifest_key] = done
+
+        @contextmanager
+        def write() -> Iterator[None]:
+            try:
+                if previous is not None:
+                    previous.wait()
+                yield
+            finally:
+                done.set()
+
+        return write()
+
+    def _await_write(self, manifest_key: str) -> None:
+        """Wait for this loader's pending write of the manifest."""
+        with self._pending_write_lock:
+            done = self._pending_writes.get(manifest_key)
+        if done is None:
+            return
+        done.wait()
+        with self._pending_write_lock:
+            if self._pending_writes.get(manifest_key) is done:
+                del self._pending_writes[manifest_key]
+
+    def cache_hit(self, key: HashKey) -> bool:
+        self._await_write(str(self.build_path(key)))
+        return super().cache_hit(key)
+
     def mark_stale(self, manifest_key: str) -> None:
         """Force this manifest to miss for the rest of the session."""
         _cache_state().stale_keys.add(manifest_key)
@@ -928,10 +1029,13 @@ class LazyLoader(BasePersistenceLoader):
         # configuration surfaces as a ValueError rather than being swallowed
         # as a generic miss by the except clause below.
         verification = self._effective_verification()
+        if verification != "off" and not self._can_verify():
+            return None
         manifest_key = str(self.build_path(key))
         # Invalidated for re-execution this session.
         if manifest_key in _cache_state().stale_keys:
             return None
+        self._await_write(manifest_key)
         blob: bytes | None = None
         try:
             blob = self.store.get(manifest_key)
@@ -1021,6 +1125,10 @@ class LazyLoader(BasePersistenceLoader):
         """
         if verification == "off":
             return None
+        if not self._can_verify():
+            raise CacheSignatureError(
+                "Cache verification capability is unavailable."
+            )
 
         sig = cache_data.meta.signature
         if sig is None:
@@ -1099,7 +1207,6 @@ class LazyLoader(BasePersistenceLoader):
             cache_data, verification
         )
 
-        base = Path(self.name) / cache_data.hash
         blob_hash_map = cache_data.meta.blob_hashes  # {} for unsigned entries
 
         # Collect references to load
@@ -1114,8 +1221,8 @@ class LazyLoader(BasePersistenceLoader):
         # type_hint so the `UnhashableStub` can name what it stood in for.
         unresolvable: dict[str, str | None] = {}
         for var_name, item in cache_data.defs.items():
-            if var_name in cache_data.ui_defs:
-                ref_vars[var_name] = (base / "ui.pickle").as_posix()
+            if item.reference is not None and var_name in cache_data.ui_defs:
+                ref_vars[var_name] = item.reference
             elif item.reference is not None:
                 if item.type_hint and item.type_hint.startswith("__main__."):
                     deferred[var_name] = (
@@ -1400,7 +1507,10 @@ class LazyLoader(BasePersistenceLoader):
         # Sign only when verifying: 'off' writes unsigned (legacy), and a
         # signer without a private key can't sign at all.
         signing = (
-            verification != "off" and signer is not None and signer.can_sign
+            verification != "off"
+            and self._can_verify()
+            and signer is not None
+            and signer.can_sign
         )
 
         if verification != "off" and not signing:
@@ -1478,7 +1588,7 @@ class LazyLoader(BasePersistenceLoader):
         def _put_or_mark_unserializable(
             key: str,
             value: Any,
-            serialize: Callable[[Any], bytes],
+            loader: str,
             items: list[Item],
             var_name: str = "",
         ) -> bool:
@@ -1489,8 +1599,25 @@ class LazyLoader(BasePersistenceLoader):
             marked unserializable. Records the blob digest for the signed
             manifest when the loader is signing.
             """
+            # Serializer defaults can fail, so fall back to pickle in those cases.
+            serializers: dict[str, Callable[[Any], bytes]] = {
+                loader: BLOB_SERIALIZERS.get(loader, pickle.dumps),
+                "pickle": pickle.dumps,
+            }
             try:
-                data = serialize(value)
+                for suffix, serialize in serializers.items():
+                    try:
+                        data = serialize(value)
+                    except Exception as e:
+                        error = e
+                        continue
+                    if suffix != loader:
+                        key = Path(key).with_suffix(f".{suffix}").as_posix()
+                        for item in items:
+                            item.reference = key
+                    break
+                else:
+                    raise error
                 store.put(key, data)
                 if signing:
                     blob_hashes[key] = _sha256hex(data)
@@ -1512,59 +1639,79 @@ class LazyLoader(BasePersistenceLoader):
                 return False
             return True
 
+        write_context = self._write_context(manifest_key)
+
         def _serialize_and_write() -> None:
-            """Serialize and write all blobs + manifest in background."""
-            try:
-                if return_ref:
-                    serialize = BLOB_SERIALIZERS.get(
-                        return_loader, pickle.dumps
-                    )
-                    _put_or_mark_unserializable(
-                        return_ref,
-                        return_value,
-                        serialize,
-                        [return_item],
-                        "return",
-                    )
-                if ui_vars:
-                    ui_key = (path / "ui.pickle").as_posix()
-                    ui_ok = _put_or_mark_unserializable(
-                        ui_key,
-                        ui_vars,
-                        pickle.dumps,
-                        [defs_dict[v] for v in ui_defs_list],
-                        "ui",
-                    )
-                    if not ui_ok:
-                        # UI defs restore via `ui_defs` → `ui.pickle`,
-                        # bypassing the per-Item marks. Drop them from
-                        # `ui_defs` so restore routes through the now-marked
-                        # Items instead, and clear any stale blob lingering
-                        # from a prior run at this same hash path (which would
-                        # otherwise load as a phantom hit).
-                        ui_defs_list.clear()
+            """Serialize and write blobs, then the manifest."""
+            with write_context:
+                try:
+                    # An empty partial marker claims the blob directory until
+                    # the manifest lands, so a prune that runs meanwhile
+                    # leaves the blobs alone. A writer that dies leaves the
+                    # claim behind, and `marimo cache prune --force` sweeps
+                    # it with the blobs. Only the local file stores hold a
+                    # claim, because only they are pruned.
+                    claim = partial_write_name(manifest_key)
+                    for local in _file_stores(store):
+                        # A tier that cannot be written is skipped, as the
+                        # tiered store skips it for the blobs.
                         try:
-                            store.clear(ui_key)
-                        except Exception:
-                            LOGGER.warning(
-                                "Failed to clear stale ui blob %s", ui_key
-                            )
-                for loader, vars_dict in format_vars.items():
-                    serialize = BLOB_SERIALIZERS.get(loader, pickle.dumps)
-                    for var, obj in vars_dict.items():
+                            local.put(claim, b"")
+                        except Exception as e:
+                            LOGGER.warning("Could not claim %s: %s", path, e)
+                    if return_ref:
                         _put_or_mark_unserializable(
-                            (path / f"{var}.{loader}").as_posix(),
-                            obj,
-                            serialize,
-                            [defs_dict[var]],
-                            var,
+                            return_ref,
+                            return_value,
+                            return_loader,
+                            [return_item],
+                            "return",
                         )
-                # Manifest last — readers check for it to detect complete
-                # writes, and it now carries any unserializable marks set above
-                # plus (when signing) the signed blob hashes and signature.
-                store.put(manifest_key, _encode_manifest())
-            except Exception:
-                LOGGER.exception("Failed to write cache blobs for %s", path)
+                    if ui_vars:
+                        ui_key = (path / _UI_BLOB).as_posix()
+                        ui_ok = _put_or_mark_unserializable(
+                            ui_key,
+                            ui_vars,
+                            "pickle",
+                            [defs_dict[v] for v in ui_defs_list],
+                            "ui",
+                        )
+                        if not ui_ok:
+                            # UI defs restore from the UI blob through `ui_defs`,
+                            # bypassing the per-Item marks. Drop them from
+                            # `ui_defs` so restore routes through the now-marked
+                            # Items instead, and clear any stale blob lingering
+                            # from a prior run at this same hash path (which would
+                            # otherwise load as a phantom hit).
+                            ui_defs_list.clear()
+                            try:
+                                store.clear(ui_key)
+                            except Exception:
+                                LOGGER.warning(
+                                    "Failed to clear stale ui blob %s", ui_key
+                                )
+                    for loader, vars_dict in format_vars.items():
+                        for var, obj in vars_dict.items():
+                            _put_or_mark_unserializable(
+                                (path / f"{var}.{loader}").as_posix(),
+                                obj,
+                                loader,
+                                [defs_dict[var]],
+                                var,
+                            )
+                    # Manifest last — readers check for it to detect complete
+                    # writes, and it now carries any unserializable marks set above
+                    # plus (when signing) the signed blob hashes and signature.
+                    store.put(manifest_key, _encode_manifest())
+                    for local in _file_stores(store):
+                        try:
+                            local.clear(claim)
+                        except Exception as e:
+                            LOGGER.warning("Could not release %s: %s", path, e)
+                except Exception:
+                    LOGGER.exception(
+                        "Failed to write cache blobs for %s", path
+                    )
 
         self._dispatch_write(_serialize_and_write)
         return True
@@ -1586,6 +1733,11 @@ class WasmLazyLoader(LazyLoader):
     registry (so the environment is never re-checked below)."""
 
     _store_cls = WasmLazyStore
+
+    def _default_store(self) -> Store:
+        # The browser session's shared dict store, not a configured
+        # `cache.store`: WASM blobs are served from the notebook's own origin.
+        return self._store_cls()
 
     def _read_blobs(
         self,

@@ -13,10 +13,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
+from marimo._messaging.input import InputReply
+
 if TYPE_CHECKING:
     import asyncio
     import threading
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
@@ -34,7 +36,7 @@ if TYPE_CHECKING:
     from marimo._session.queue import ProcessLike, QueueType
     from marimo._session.room import Room
     from marimo._session.state.session_view import SessionView
-    from marimo._types.ids import ConsumerId
+    from marimo._types.ids import ConsumerId, StableSessionId
     from marimo._utils.typed_connection import TypedConnection
 
 
@@ -44,7 +46,7 @@ class QueueManager(Protocol):
     control_queue: QueueType[commands.CommandMessage]
     set_ui_element_queue: QueueType[commands.BatchableCommand]
     completion_queue: QueueType[commands.OutOfBandCommand]
-    input_queue: QueueType[str]
+    input_queue: QueueType[InputReply]
     stream_queue: QueueType[KernelMessage | None] | None
     win32_interrupt_queue: QueueType[bool] | None
 
@@ -56,10 +58,6 @@ class QueueManager(Protocol):
         """Put a control request in the control queue."""
         ...
 
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
-        ...
-
 
 class KernelManager(Protocol):
     """Protocol for kernel management."""
@@ -67,7 +65,7 @@ class KernelManager(Protocol):
     kernel_task: ProcessLike | threading.Thread | None
     mode: SessionMode
 
-    def start_kernel(self) -> None:
+    async def start_kernel(self) -> None:
         """Start the kernel process or thread."""
         ...
 
@@ -139,8 +137,23 @@ class Session(Protocol):
     config_manager: MarimoConfigManager
     session_view: SessionView
     ttl_seconds: int
+    connection_generation: int
     scratchpad_lock: asyncio.Lock
     room: Room
+
+    @property
+    def stable_id(self) -> StableSessionId:
+        """Opaque, server-generated identity for this session instance.
+
+        Remains unchanged across consumer disconnects, browser resumes, and
+        notebook renames. Each new session gets a fresh ID, even for the same
+        notebook; IDs are not persisted across server restarts.
+
+        This is separate from the browser-supplied `SessionId`, which can
+        change on resume, and `initialization_id`, the notebook's creation
+        key. Internal only: not used for routing or exposed to clients.
+        """
+        ...
 
     @property
     def notebook_sandbox(self) -> NotebookSandbox | None:
@@ -183,8 +196,8 @@ class Session(Protocol):
         """Put a control request in the control queue."""
         ...
 
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
+    def reply_input(self, reply: InputReply) -> None:
+        """Deliver an answer to a specific prompt, or raise on failure."""
         ...
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
@@ -218,6 +231,8 @@ class Session(Protocol):
         request: Any,
         *,
         http_request: commands.HTTPRequest | None,
+        execution_requests: Sequence[commands.ExecuteCellCommand]
+        | None = None,
     ) -> None:
         """Instantiate the app."""
         ...

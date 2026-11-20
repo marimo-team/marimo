@@ -19,7 +19,7 @@ import {
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { ColumnVisibilityDropdown } from "./column-visibility-dropdown";
-import { type ExportActionProps, ExportMenu } from "./export-actions";
+import { type ExportActionProps, ExportActions } from "./export-actions";
 
 const NOOP_ON_SEARCH = () => {
   /** no-op*/
@@ -54,6 +54,8 @@ export const TableTopBar = <TData,>({
   togglePanel,
   isAnyPanelOpen,
   downloadAs,
+  getExportMetadata,
+  metadataSource,
   sizeBytes,
   sizeBytesIsLoading,
 }: TableTopBarProps<TData>) => {
@@ -74,6 +76,7 @@ export const TableTopBar = <TData,>({
           <input
             ref={inputRef}
             type="text"
+            aria-label="Search table"
             className="h-6 border-none bg-transparent focus:outline-hidden text-sm w-full min-w-0"
             value={internalValue}
             onKeyDown={(e) => {
@@ -88,6 +91,7 @@ export const TableTopBar = <TData,>({
           {reloading && <Spinner size="small" />}
           {internalValue && (
             <Button
+              aria-label="Clear table search"
               variant="text"
               size="xs"
               className="h-5 w-5 p-0 shrink-0"
@@ -130,8 +134,10 @@ export const TableTopBar = <TData,>({
           </Button>
         )}
         {downloadAs && (
-          <ExportMenu
+          <ExportActions
             downloadAs={downloadAs}
+            getExportMetadata={getExportMetadata}
+            metadataSource={metadataSource}
             sizeBytes={sizeBytes}
             sizeBytesIsLoading={sizeBytesIsLoading}
           />

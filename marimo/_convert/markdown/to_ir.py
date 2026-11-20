@@ -31,7 +31,7 @@ from pymdownx.superfences import (  # type: ignore
 )
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig
+from marimo._ast.cell import CellConfig, CellConfigBooleanKeys
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.common.format import markdown_to_marimo, sql_to_marimo
 from marimo._convert.markdown.flavor import (
@@ -169,13 +169,13 @@ def get_source_from_tag(tag: Element) -> str:
 
 
 def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
-    # Known boolean attributes.
+    # Boolean attributes are serialized as "true"/"false".
     extracted_attrs: dict[str, bool | int] = {
         **defaults,
         **{
             k: v == "true"
             for k, v in tag.attrib.items()
-            if k in ["hide_code", "disabled"]
+            if k in CellConfigBooleanKeys
         },
     }
     # "Column" is not a boolean attribute.
@@ -490,9 +490,12 @@ class ExpandAndClassifyProcessor(BlockProcessor):
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
         assert isinstance(self.parser.md, MarimoMdParser)
+        # Lists are kept too, for options like `auto_download: [html]`.
+        # The root is only read back via `app_config_from_root`, never
+        # serialized, so non-string attribute values are safe here.
         for key, value in self.parser.md.meta.items():
-            if isinstance(value, str):
-                parent.set(key, value)
+            if isinstance(value, (str, list)):
+                parent.set(key, value)  # type: ignore[arg-type]
 
         text: list[str] = []
 

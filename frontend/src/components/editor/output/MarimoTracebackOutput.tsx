@@ -22,6 +22,7 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getCellEditorView } from "@/core/cells/cells";
+import { buildErrorReport } from "@/core/cells/error-report";
 import type { CellId } from "@/core/cells/ids";
 import { SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { toggleBreakpoint } from "@/core/codemirror/cells/debugger-state";
@@ -34,6 +35,7 @@ import { isWasm } from "@/core/wasm/utils";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { sanitizeHtml } from "@/plugins/core/sanitize-html";
 import { copyToClipboard } from "@/utils/copy";
+import { parseHtmlContent } from "@/utils/dom";
 import {
   containsMangledLocal,
   splitMangledLocals,
@@ -46,33 +48,45 @@ import {
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
 import { AIFixButton, buildFixInChatPrompt } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
+import { SendErrorReportButton } from "../errors/send-error-report-button";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
 
 interface Props {
   cellId: CellId | undefined;
   traceback: string;
+  tracebackFormat?: "html" | "text";
+  code?: string;
   onRefactorWithAI?: OnRefactorWithAI;
 }
 
-/**
- * List of errors due to violations of Marimo semantics.
- */
+/** Render a traceback and actions for its captured execution. */
 export const MarimoTracebackOutput = ({
   onRefactorWithAI,
   traceback,
+  tracebackFormat = "html",
   cellId,
+  code,
 }: Props): JSX.Element => {
-  const htmlTraceback = renderHTML({
-    html: traceback,
-    additionalReplacements: [
-      replaceTracebackFilenames,
-      replaceTracebackPrefix,
-      replaceMangledLocal,
-    ],
-  });
+  const htmlTraceback =
+    tracebackFormat === "text" ? (
+      <pre>{traceback}</pre>
+    ) : (
+      renderHTML({
+        html: traceback,
+        additionalReplacements: [
+          replaceTracebackFilenames,
+          replaceTracebackPrefix,
+          replaceMangledLocal,
+        ],
+      })
+    );
 
-  const lastTracebackLine = lastLine(traceback);
+  const textTraceback =
+    tracebackFormat === "html"
+      ? parseHtmlContent(sanitizeHtml(traceback))
+      : traceback;
+  const lastTracebackLine = lastLine(textTraceback);
   const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
   const openAiAssistant = useOpenAiAssistant();
 
@@ -131,6 +145,13 @@ export const MarimoTracebackOutput = ({
         </div>
       )}
       <div className="flex gap-2">
+        {cellId && lastTracebackLine && (
+          <SendErrorReportButton
+            getContent={() =>
+              buildErrorReport(cellId, { code, traceback, tracebackFormat })
+            }
+          />
+        )}
         {showAIFix && (
           <AIFixButton
             tooltip="Fix with AI"
@@ -177,7 +198,7 @@ export const MarimoTracebackOutput = ({
                 <a
                   target="_blank"
                   href="https://marimo.io/discord?ref=notebook"
-                  rel="noopener"
+                  rel="noreferrer"
                 >
                   <MessageCircleIcon className="h-4 w-4 mr-2" />
                   Ask in Discord
@@ -186,11 +207,7 @@ export const MarimoTracebackOutput = ({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  // Strip HTML from the traceback (sanitize first to prevent XSS)
-                  const div = document.createElement("div");
-                  div.innerHTML = sanitizeHtml(traceback);
-                  const textContent = div.textContent || "";
-                  copyToClipboard(textContent);
+                  copyToClipboard(textTraceback);
                 }}
               >
                 <CopyIcon className="h-4 w-4 mr-2" />
@@ -205,9 +222,7 @@ export const MarimoTracebackOutput = ({
 };
 
 function lastLine(text: string): string {
-  const el = document.createElement("div");
-  el.innerHTML = sanitizeHtml(text);
-  const lines = el.textContent?.split("\n").filter(Boolean);
+  const lines = text.split("\n").filter(Boolean);
   return lines?.at(-1) || "";
 }
 
@@ -233,21 +248,22 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
             <Tooltip content={tooltipContent}>
               <button
                 type="button"
-                className="ml-1 p-1 rounded-sm hover:bg-muted transition-all inline"
+                aria-label={
+                  debuggerEnabled ? "Toggle breakpoint" : "Insert breakpoint"
+                }
+                className="ml-1 p-1 rounded-sm hover:bg-muted transition-colors inline"
+                onClick={() => {
+                  if (debuggerEnabled && !isStaticNotebook()) {
+                    toggleBreakpoint(info.cellId, info.lineNumber);
+                    return;
+                  }
+                  const view = getCellEditorView(info.cellId);
+                  if (view) {
+                    insertDebuggerAtLine(view, info.lineNumber);
+                  }
+                }}
               >
-                <BugPlayIcon
-                  onClick={() => {
-                    if (debuggerEnabled && !isStaticNotebook()) {
-                      toggleBreakpoint(info.cellId, info.lineNumber);
-                      return;
-                    }
-                    const view = getCellEditorView(info.cellId);
-                    if (view) {
-                      insertDebuggerAtLine(view, info.lineNumber);
-                    }
-                  }}
-                  className="h-3 w-3"
-                />
+                <BugPlayIcon className="h-3 w-3" />
               </button>
             </Tooltip>
           )}
@@ -257,9 +273,10 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
   }
   if (info?.kind === "file") {
     return (
-      <div
+      <button
+        type="button"
         className="inline-block cursor-pointer text-destructive hover:underline"
-        onClick={(_) => {
+        onClick={() => {
           getRequestClient().openFile({
             path: info.filePath,
             lineNumber: info.lineNumber,
@@ -267,7 +284,7 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
         }}
       >
         <span className="nb">"{info.filePath}"</span>
-      </div>
+      </button>
     );
   }
 };

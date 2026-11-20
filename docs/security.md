@@ -21,7 +21,7 @@ Being a responsible notebook user means running code from sources you trust, and
 
 ### Static loading
 
-Although marimo notebook are just python files, opening a notebook through `marimo edit` does not execute it as a module.
+Although marimo notebooks are just Python files, opening a notebook through `marimo edit` does not execute it as a module.
 marimo notebooks are statically loaded, meaning they are parsed but not executed as Python modules when opened.
 This prevents arbitrary code execution at load time.
 Code only runs when you explicitly execute cells.
@@ -45,6 +45,22 @@ marimo behaves differently depending on how you run it:
 
 This distinction reflects the different threat models: editing is exploratory and may involve untrusted notebooks; deployed apps are intentional publications.
 
+Use `--untrusted` with either command to open one local or remote notebook in a container. Docker is the default. Use `--container-engine` to select `podman`, `nerdctl`, `finch`, Apple `container`, or another Docker-compatible executable.
+
+For a local notebook, marimo mounts a temporary copy. To keep edits, save and download the notebook source before closing the session.
+
+The engine uses its own certificates to pull images. Notebook and package downloads use the certificates inside the container.
+
+### Project files
+
+marimo reads configuration settings from three sources: your user config, the nearest `pyproject.toml`, and the notebook's inline script metadata (PEP 723).
+Configuration is merged in order of precedence, as explained in the [configuration guide](guides/configuration/index.md).
+For security reasons marimo applies priority to these settings as follows:
+
+- **Script metadata** or [notebook level settings](guides/configuration/index.md#script-metadata-configuration) strips several settings for security. Since notebooks can be opened from remote sources, marimo intentionally removes certain settings from script metadata to prevent malicious configuration.
+- **In `pyproject.toml` and `.marimo.toml` files most configuration options are respected**. You should only open a notebook from a project you trust. Projects can install arbitrary code, and other settings (including marimo's) may be configured maliciously.
+- **User config** (XDG config) options are always trusted. These configs are stored in your personal directories and only you can modify them.
+
 ### Authentication
 
 marimo provides token-based authentication:
@@ -61,6 +77,7 @@ See the [Authentication guide](guides/deploying/authentication.md) for more deta
 
 - Auto-running cells is disabled on notebook load (you can disable this during your session)
 - Custom head tags are disabled
+- Notebook script metadata is stripped as described under [Project files](#project-files)
 
 These restrictions prevent code execution without explicit user consent.
 

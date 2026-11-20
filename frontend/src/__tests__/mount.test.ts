@@ -4,10 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSerializedLayout } from "@/core/layout/layout";
 import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom } from "@/core/mode";
-import { connectionAtom } from "@/core/network/connection";
+import { runtimeConfigAtom } from "@/core/runtime/config";
+import { RuntimeManager } from "@/core/runtime/runtime";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
-import { WebSocketState } from "@/core/websocket/types";
+import { pairConfigAtom } from "@/core/config/pair";
+import { PAIR_CONFIG } from "./fixtures/pair-config";
 import { mount, visibleForTesting } from "../mount";
 
 // Mock React DOM
@@ -56,8 +58,7 @@ describe("mount", () => {
     vi.mocked(isStaticNotebook).mockReturnValue(false);
     store.set(layoutStateAtom, initialLayoutState());
     store.set(kioskModeAtom, false);
-    // Reset connection atom to initial state
-    store.set(connectionAtom, { state: WebSocketState.NOT_STARTED });
+    vi.spyOn(RuntimeManager.prototype, "init").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -82,63 +83,39 @@ describe("mount", () => {
       mockElement,
     );
 
-  describe("connection state initialization", () => {
-    it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {
-      mount(
-        {
-          ...baseOptions,
-          runtimeConfig: [{ url: "http://localhost:8080", lazy: false }],
-        },
-        mockElement,
-      );
+  it("hydrates the server's Pair configuration", () => {
+    const error = mountRead({ pairConfig: PAIR_CONFIG });
 
-      const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(WebSocketState.CONNECTING);
-    });
+    expect(error).toBeUndefined();
+    expect(store.get(pairConfigAtom)).toEqual(PAIR_CONFIG);
+  });
 
-    it("should keep connection as NOT_STARTED when runtimeConfig has lazy=true", () => {
-      mount(
-        {
-          ...baseOptions,
-          runtimeConfig: [{ url: "http://localhost:8080", lazy: true }],
-        },
-        mockElement,
-      );
+  it("clears Pair configuration when the server omits it", () => {
+    store.set(pairConfigAtom, PAIR_CONFIG);
 
-      const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(WebSocketState.NOT_STARTED);
-    });
+    const error = mountRead();
 
-    it("should keep connection as NOT_STARTED when no runtimeConfig is provided", () => {
-      mount(
-        {
-          ...baseOptions,
-          runtimeConfig: [],
-        },
-        mockElement,
-      );
+    expect(error).toBeUndefined();
+    expect(store.get(pairConfigAtom)).toBeUndefined();
+  });
 
-      const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(WebSocketState.NOT_STARTED);
-    });
+  it("starts looking for the page's runtime", () => {
+    mountRead();
 
-    it("should keep connection as NOT_STARTED for static notebooks even with lazy=false", () => {
-      vi.mocked(isStaticNotebook).mockReturnValue(true);
+    expect(RuntimeManager.prototype.init).toHaveBeenCalledOnce();
+  });
 
-      // Reset mount state to allow another mount
-      visibleForTesting.reset();
+  it("accepts a runtime config that still carries `lazy`", () => {
+    const error = mount(
+      {
+        ...baseOptions,
+        runtimeConfig: [{ url: "http://localhost:8080", lazy: true }],
+      },
+      mockElement,
+    );
 
-      mount(
-        {
-          ...baseOptions,
-          runtimeConfig: [{ url: "http://localhost:8080", lazy: false }],
-        },
-        mockElement,
-      );
-
-      const connection = store.get(connectionAtom);
-      expect(connection.state).toBe(WebSocketState.NOT_STARTED);
-    });
+    expect(error).toBeUndefined();
+    expect(store.get(runtimeConfigAtom).url).toBe("http://localhost:8080");
   });
 
   it("hydrates the layout embedded in the mount config", () => {

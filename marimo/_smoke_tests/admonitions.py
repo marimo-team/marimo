@@ -8,13 +8,14 @@
 
 import marimo
 
-__generated_with = "0.19.6"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -50,7 +51,6 @@ def _(mo):
 
 
     mo.vstack([create(kind) for kind in kinds])
-    return
 
 
 @app.cell
@@ -58,7 +58,6 @@ def _(mo):
     mo.md("""
     # Misc
     """)
-    return
 
 
 @app.cell
@@ -68,7 +67,6 @@ def _(mo):
     This is an admonition box without a title.
     ///
     """)
-    return
 
 
 @app.cell
@@ -86,7 +84,6 @@ def _(mo):
     em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
     ///
     """)
-    return
 
 
 if __name__ == "__main__":

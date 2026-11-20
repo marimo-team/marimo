@@ -353,7 +353,9 @@ describe("generateDatabaseCode", () => {
     ];
 
     it.each(testCases)("%s", (_name, connection, orm) => {
-      expect(generateDatabaseCode(connection, orm)).toMatchSnapshot();
+      expect(generateDatabaseCode(connection, orm)).toMatchSnapshot(
+        "generated code",
+      );
     });
   });
 
@@ -458,7 +460,7 @@ describe("generateDatabaseCode", () => {
     ])("%s", (_name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
-      ).toMatchSnapshot();
+      ).toMatchSnapshot("generated code");
     });
   });
 
@@ -703,7 +705,7 @@ describe("generateDatabaseCode", () => {
     it.each(testCases)("%s", (_name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
-      ).toMatchSnapshot();
+      ).toMatchSnapshot("generated code");
     });
   });
 
@@ -745,8 +747,12 @@ describe("generateDatabaseCode", () => {
         },
       ],
     ])("%s", (_name, connection) => {
-      expect(generateDatabaseCode(connection, "sqlmodel")).toMatchSnapshot();
-      expect(generateDatabaseCode(connection, "sqlalchemy")).toMatchSnapshot();
+      expect(generateDatabaseCode(connection, "sqlmodel")).toMatchSnapshot(
+        "sqlmodel",
+      );
+      expect(generateDatabaseCode(connection, "sqlalchemy")).toMatchSnapshot(
+        "sqlalchemy",
+      );
     });
   });
 

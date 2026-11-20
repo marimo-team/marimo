@@ -20,16 +20,17 @@ import { SaveComponent } from "@/core/saving/save-component";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import { WebSocketState } from "@/core/websocket/types";
+} from "@/core/session/connection-utils";
+import { ConnectionState } from "@/core/session/types";
 import { cn } from "@/utils/cn";
+import { useShowChangedInputs } from "@/core/executions";
 import { Functions } from "@/utils/functions";
 import {
   canUndoDeletesAtom,
-  needsRunAtom,
+  runReasonAtom,
   undoLabelAtom,
-  useCellActions,
 } from "../../../core/cells/cells";
+import { useCellActions } from "../../../core/cells/actions";
 import { ConfigButton } from "../../app-config/app-config-button";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { Tooltip } from "../../ui/tooltip";
@@ -43,7 +44,7 @@ interface ControlsProps {
   onTogglePresenting: () => void;
   onInterrupt: () => void;
   onRun: () => void;
-  connectionState: WebSocketState;
+  connectionState: ConnectionState;
   running: boolean;
   appConfig: AppConfig;
 }
@@ -58,9 +59,11 @@ export const Controls = ({
 }: ControlsProps): JSX.Element => {
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
   const undoLabel = useAtomValue(undoLabelAtom);
-  const needsRun = useAtomValue(needsRunAtom);
+  const reason = useAtomValue(runReasonAtom);
+  const showInputs = useShowChangedInputs(reason === "inputs");
+  const needsRun = reason === "inputs" ? showInputs : reason !== null;
   const { undoDeleteCell } = useCellActions();
-  const closed = connectionState === WebSocketState.CLOSED;
+  const closed = connectionState === ConnectionState.CLOSED;
 
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {
@@ -111,7 +114,7 @@ export const Controls = ({
         className={cn(bottomRightControls)}
       >
         <HideInKioskMode>
-          <SaveComponent kioskMode={false} />
+          <SaveComponent />
         </HideInKioskMode>
 
         <Tooltip content={renderShortcut("global.hideCode")}>

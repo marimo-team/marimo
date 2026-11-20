@@ -25,6 +25,14 @@ export function useFocusFirstEditor() {
           return;
         }
 
+        // A user may have focused an input while initial rendering was pending.
+        if (
+          document.activeElement &&
+          document.activeElement !== document.body
+        ) {
+          return;
+        }
+
         // Check if the URL contains a scrollTo parameter
         const hash = window.location.hash;
         const cellName = extractCellNameFromHash(hash);
@@ -52,7 +60,7 @@ function focusFirstEditor() {
   const { cellIds, cellData, cellHandles } = getNotebook();
 
   // Focus on the first cell if it's been mounted and is not hidden
-  for (const cellId of cellIds.iterateTopLevelIds) {
+  for (const cellId of cellIds) {
     const handle = cellHandles[cellId];
     const hidden = cellData[cellId]?.config.hide_code;
     if (!hidden && handle?.current?.editorView) {

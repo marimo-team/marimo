@@ -2,7 +2,8 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import { MultiColumn } from "@/utils/id-tree";
+import type { CellId } from "@/core/cells/ids";
+import type { CellColumnId, Layout } from "@/core/cells/layout";
 import type { CellSelectionState } from "../selection";
 import { exportedForTesting } from "../selection";
 
@@ -15,6 +16,14 @@ const CellIds = {
   d: cellId("d"),
   e: cellId("e"),
 };
+
+/** A one-column page of `ids`, with `hidden` folded away under the cell before them. */
+function page(ids: CellId[], hidden: CellId[] = []): Layout {
+  const visible = ids.filter((id) => !hidden.includes(id));
+  return {
+    columns: [{ id: "column" as CellColumnId, ids, visible, folds: new Map() }],
+  };
+}
 
 describe("cell selection reducer", () => {
   let state: CellSelectionState;
@@ -57,15 +66,13 @@ describe("cell selection reducer", () => {
   });
 
   it("should extend selection forward", () => {
-    const allCellIds = MultiColumn.from([
-      [CellIds.a, CellIds.b, CellIds.c, CellIds.d],
-    ]);
+    const layout = page([CellIds.a, CellIds.b, CellIds.c, CellIds.d]);
 
     // First select cell a
     actions.select({ cellId: CellIds.a });
 
     // Then extend to cell c
-    actions.extend({ cellId: CellIds.c, allCellIds });
+    actions.extend({ cellId: CellIds.c, layout });
 
     expect(state).toEqual({
       selectionStart: CellIds.a,
@@ -75,15 +82,13 @@ describe("cell selection reducer", () => {
   });
 
   it("should extend selection backward", () => {
-    const allCellIds = MultiColumn.from([
-      [CellIds.a, CellIds.b, CellIds.c, CellIds.d],
-    ]);
+    const layout = page([CellIds.a, CellIds.b, CellIds.c, CellIds.d]);
 
     // First select cell c
     actions.select({ cellId: CellIds.c });
 
     // Then extend to cell a (backward)
-    actions.extend({ cellId: CellIds.a, allCellIds });
+    actions.extend({ cellId: CellIds.a, layout });
 
     expect(state).toEqual({
       selectionStart: CellIds.c,
@@ -93,13 +98,13 @@ describe("cell selection reducer", () => {
   });
 
   it("should extend selection to same cell", () => {
-    const allCellIds = MultiColumn.from([[CellIds.a, CellIds.b, CellIds.c]]);
+    const layout = page([CellIds.a, CellIds.b, CellIds.c]);
 
     // First select cell b
     actions.select({ cellId: CellIds.b });
 
     // Then extend to same cell
-    actions.extend({ cellId: CellIds.b, allCellIds });
+    actions.extend({ cellId: CellIds.b, layout });
 
     expect(state).toEqual({
       selectionStart: CellIds.b,
@@ -109,10 +114,10 @@ describe("cell selection reducer", () => {
   });
 
   it("should fallback to single select when extending without selectionStart", () => {
-    const allCellIds = MultiColumn.from([[CellIds.a, CellIds.b, CellIds.c]]);
+    const layout = page([CellIds.a, CellIds.b, CellIds.c]);
 
     // Try to extend without any previous selection
-    actions.extend({ cellId: CellIds.b, allCellIds });
+    actions.extend({ cellId: CellIds.b, layout });
 
     expect(state).toEqual({
       selectionStart: CellIds.b,
@@ -122,11 +127,11 @@ describe("cell selection reducer", () => {
   });
 
   it("should fallback to single select when extending with invalid cell ids", () => {
-    const allCellIds = MultiColumn.from([[CellIds.a, CellIds.b, CellIds.c]]);
+    const layout = page([CellIds.a, CellIds.b, CellIds.c]);
 
-    // Create a state with invalid selection start (not in allCellIds)
+    // Create a state with invalid selection start (not on the page)
     const invalidState = {
-      selectionStart: CellIds.d, // not in allCellIds
+      selectionStart: CellIds.d, // not on the page
       selectionEnd: CellIds.d,
       selected: new Set([CellIds.d]),
     };
@@ -134,7 +139,7 @@ describe("cell selection reducer", () => {
     // Test reducer directly since we need to start with custom state
     const result = reducer(invalidState, {
       type: "extend",
-      payload: { cellId: CellIds.b, allCellIds },
+      payload: { cellId: CellIds.b, layout },
     });
 
     expect(result).toEqual({
@@ -142,6 +147,19 @@ describe("cell selection reducer", () => {
       selectionEnd: CellIds.b,
       selected: new Set([CellIds.b]),
     });
+  });
+
+  it("steps over the cells a fold hides", () => {
+    const layout = page(
+      [CellIds.a, CellIds.b, CellIds.c, CellIds.d, CellIds.e],
+      [CellIds.b, CellIds.c],
+    );
+
+    actions.select({ cellId: CellIds.a });
+    actions.extend({ cellId: CellIds.d, layout });
+
+    expect(state.selected).toEqual(new Set([CellIds.a, CellIds.d]));
+    expect(state.selectionEnd).toBe(CellIds.d);
   });
 
   it("should clear selection", () => {
@@ -171,19 +189,23 @@ describe("cell selection reducer", () => {
   });
 
   it("should handle complex selection scenarios", () => {
-    const allCellIds = MultiColumn.from([
-      [CellIds.a, CellIds.b, CellIds.c, CellIds.d, CellIds.e],
+    const layout = page([
+      CellIds.a,
+      CellIds.b,
+      CellIds.c,
+      CellIds.d,
+      CellIds.e,
     ]);
 
     // Select middle cell
     actions.select({ cellId: CellIds.c });
 
     // Extend to end
-    actions.extend({ cellId: CellIds.e, allCellIds });
+    actions.extend({ cellId: CellIds.e, layout });
     expect(state.selected).toEqual(new Set([CellIds.c, CellIds.d, CellIds.e]));
 
     // Extend to beginning (should reverse)
-    actions.extend({ cellId: CellIds.a, allCellIds });
+    actions.extend({ cellId: CellIds.a, layout });
     expect(state.selected).toEqual(new Set([CellIds.a, CellIds.b, CellIds.c]));
     expect(state.selectionStart).toBe(CellIds.c);
     expect(state.selectionEnd).toBe(CellIds.a);

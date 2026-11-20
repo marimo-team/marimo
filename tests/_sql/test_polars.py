@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import os
+from decimal import Decimal
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,19 +12,169 @@ from marimo._sql.engines.polars import PolarsEngine
 from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
 from marimo._sql.sql import sql
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 @pytest.mark.requires("polars", "sqlglot")
 class TestPolarsEngine:
     """Test Polars SQL execution, reference discovery, and output formats."""
 
-    @pytest.mark.parametrize("quote", ["", '"', "`"])
+    def test_rejects_polars_one(self) -> None:
+        """Require the supported major version even in existing environments."""
+        with patch(
+            "marimo._dependencies.dependencies.Dependency.get_version",
+            return_value="1.37.1",
+        ):
+            with pytest.raises(RuntimeError, match=r"expected >=2\.0\.0"):
+                PolarsEngine({}).execute("SELECT 1")
+
     @pytest.mark.parametrize(
-        ("cte_name", "expected_amount"), [("orders", 1), ("Orders", 99)]
+        ("query", "expected"),
+        [
+            (
+                (
+                    "SELECT amount FROM orders WHERE EXISTS "
+                    "(SELECT 1 FROM customers WHERE customers.id = orders.id) "
+                    "ORDER BY amount"
+                ),
+                {"amount": [20]},
+            ),
+            (
+                (
+                    "SELECT id, amount FROM orders QUALIFY "
+                    "ROW_NUMBER() OVER (PARTITION BY id ORDER BY amount DESC) = 1 "
+                    "ORDER BY id"
+                ),
+                {"id": [1, 2], "amount": [30, 20]},
+            ),
+            (
+                (
+                    "SELECT id FROM orders UNION BY NAME "
+                    "SELECT id FROM customers ORDER BY id"
+                ),
+                {"id": [1, 2]},
+            ),
+            (
+                (
+                    "SELECT amount, SUM(amount) OVER (ORDER BY amount "
+                    "ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS running "
+                    "FROM orders ORDER BY amount"
+                ),
+                {"amount": [10, 20, 30], "running": [10, 30, 50]},
+            ),
+        ],
     )
-    def test_cte_names_match_polars_case_sensitive_resolution(
-        self, quote: str, cte_name: str, expected_amount: int
+    def test_polars_two_sql_dialect(
+        self, query: str, expected: dict[str, list[int]]
     ) -> None:
-        """Register frames that are not shadowed by an exactly matching CTE."""
+        """Pass advanced SQL through to Polars without DuckDB transpilation."""
+        import polars as pl
+
+        engine = PolarsEngine(
+            {
+                "orders": pl.LazyFrame(
+                    {"id": [1, 2, 1], "amount": [10, 20, 30]}
+                ),
+                "customers": pl.DataFrame({"id": [2]}),
+            }
+        )
+        result = engine.execute(query)
+
+        assert isinstance(result, pl.LazyFrame)
+        assert result.collect().to_dict(as_series=False) == expected
+
+    def test_read_csv_table_function(self, tmp_path: Path) -> None:
+        """Allow native table functions without treating them as Python refs."""
+        import polars as pl
+
+        path = tmp_path / "orders.csv"
+        pl.DataFrame({"amount": [1, 2]}).write_csv(path)
+        result = PolarsEngine({}).execute(
+            f"SELECT SUM(amount) AS total FROM read_csv('{path.as_posix()}')"
+        )
+
+        assert result.collect().to_dict(as_series=False) == {"total": [3]}
+
+    def test_sql_numeric_semantics(self) -> None:
+        """Preserve Polars 2 exact literals and truncating SQL remainder."""
+        result = PolarsEngine({}).execute(
+            "SELECT 1.25 AS exact, -5 % 2 AS remainder"
+        )
+
+        assert result.collect().to_dict(as_series=False) == {
+            "exact": [Decimal("1.25")],
+            "remainder": [-1],
+        }
+
+    @pytest.mark.parametrize(
+        ("query", "expected"),
+        [
+            (
+                (
+                    "WITH RECURSIVE nums(n) AS (SELECT n FROM seed UNION ALL "
+                    "SELECT n + 1 FROM nums WHERE n < 3) "
+                    "SELECT n FROM nums ORDER BY n"
+                ),
+                {"n": [1, 2, 3]},
+            ),
+            (
+                (
+                    "SELECT seed.n, other.n AS matched FROM seed ASOF JOIN other "
+                    "MATCH_CONDITION (seed.n >= other.n) ORDER BY seed.n"
+                ),
+                {"n": [1], "matched": [1]},
+            ),
+        ],
+    )
+    def test_polars_two_one_sql_dialect(
+        self, query: str, expected: dict[str, list[int]]
+    ) -> None:
+        """Support newer syntax when the installed Polars version provides it."""
+        import polars as pl
+
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.polars.has_at_version(min_version="2.1.0"):
+            pytest.skip("Requires Polars 2.1")
+        result = PolarsEngine(
+            {
+                "seed": pl.DataFrame({"n": [1]}),
+                "other": pl.DataFrame({"n": [1]}),
+            }
+        ).execute(query)
+
+        assert result.collect().to_dict(as_series=False) == expected
+
+    @pytest.mark.parametrize(
+        ("query", "error"),
+        [
+            ("SELECT * FROM missing", "SQLInterfaceError"),
+            ("SELECT missing FROM orders", "ColumnNotFoundError"),
+        ],
+    )
+    def test_lazy_sql_errors_are_deferred(
+        self, query: str, error: str
+    ) -> None:
+        """Preserve Polars 2 error timing without resolving lazy plans early."""
+        import polars as pl
+
+        with patch(
+            "marimo._sql.sql._namespace_for_polars",
+            return_value={"orders": pl.LazyFrame({"amount": [1]})},
+        ):
+            result = sql(query, engine="polars", output=False)
+
+        assert isinstance(result, pl.LazyFrame)
+        with pytest.raises(getattr(pl.exceptions, error)):
+            result.collect()
+
+    @pytest.mark.parametrize("quote", ["", '"', "`"])
+    @pytest.mark.parametrize("cte_name", ["orders", "Orders"])
+    def test_cte_names_match_polars_case_insensitive_resolution(
+        self, quote: str, cte_name: str
+    ) -> None:
+        """Resolve CTE names using Polars 2 case-insensitive semantics."""
         import polars as pl
 
         engine = PolarsEngine({"orders": pl.DataFrame({"amount": [99]})})
@@ -31,9 +183,7 @@ class TestPolarsEngine:
             f"SELECT * FROM {quote}orders{quote}"
         )
 
-        assert result.collect().to_dict(as_series=False) == {
-            "amount": [expected_amount]
-        }
+        assert result.collect().to_dict(as_series=False) == {"amount": [1]}
 
     def test_dataframe_and_lazyframe_inputs(self) -> None:
         import polars as pl
@@ -142,26 +292,38 @@ class TestPolarsEngine:
     def test_missing_or_incompatible_relation_uses_sql_error_path(
         self, relation: object
     ) -> None:
+        """Report missing tables immediately when eager output is selected."""
         namespace = {} if relation is None else {"orders": relation}
 
         with pytest.raises(MarimoSQLException) as exc_info:
-            with patch(
-                "marimo._sql.sql._namespace_for_polars",
-                return_value=namespace,
+            with (
+                patch(
+                    "marimo._sql.sql._namespace_for_polars",
+                    return_value=namespace,
+                ),
+                patch.object(
+                    PolarsEngine, "sql_output_format", return_value="polars"
+                ),
             ):
                 sql("SELECT * FROM orders", engine="polars", output=False)
 
         assert is_sql_parse_error(exc_info.value.__cause__)
 
     def test_polars_errors_use_sql_error_path(self) -> None:
+        """Wrap eager SQL planning errors with their query context."""
         import polars as pl
 
         namespace = {"orders": pl.DataFrame({"amount": [1]})}
 
         with pytest.raises(MarimoSQLException) as exc_info:
-            with patch(
-                "marimo._sql.sql._namespace_for_polars",
-                return_value=namespace,
+            with (
+                patch(
+                    "marimo._sql.sql._namespace_for_polars",
+                    return_value=namespace,
+                ),
+                patch.object(
+                    PolarsEngine, "sql_output_format", return_value="polars"
+                ),
             ):
                 sql(
                     "SELECT missing_column FROM orders",

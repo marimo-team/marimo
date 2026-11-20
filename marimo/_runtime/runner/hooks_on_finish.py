@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from marimo import _loggers
 from marimo._messaging.errors import (
+    ANCESTOR_RAISED,
     Error,
     MarimoAncestorPreventedError,
     MarimoAncestorStoppedError,
@@ -33,6 +34,8 @@ def _send_interrupt_errors(ctx: OnFinishHookContext) -> None:
                 # reflect a previous run and should be cleared
                 clear_console=True,
                 cell_id=cid,
+                execution_id=ctx.execution_ids.get(cid),
+                code=ctx.graph.cells[cid].code,
             )
 
 
@@ -73,7 +76,7 @@ def _send_cancellation_errors(ctx: OnFinishHookContext) -> None:
                     msg=(
                         f"An ancestor raised an exception ({exception_type}): "
                     ),
-                    exception_type="Ancestor raised",
+                    exception_type=ANCESTOR_RAISED,
                     raising_cell=raising_cell,
                 )
             CellNotificationUtils.broadcast_error(
@@ -83,10 +86,29 @@ def _send_cancellation_errors(ctx: OnFinishHookContext) -> None:
                 # reflect a previous run and should be cleared
                 clear_console=True,
                 cell_id=cid,
+                execution_id=ctx.execution_ids.get(cid),
+                code=cell.code,
             )
+
+
+@kernel_tracer.start_as_current_span("flush_cache_manifests")
+def _flush_cache_manifests(ctx: OnFinishHookContext) -> None:
+    """Write out the cache entries this run recorded.
+
+    Once per run rather than once per entry. A manifest names every key the
+    notebook produced, and is rewritten whole.
+    """
+    del ctx
+    from marimo._runtime.context import safe_get_context
+    from marimo._save.manifest import flush_dirty_manifests
+
+    context = safe_get_context()
+    if context is not None:
+        flush_dirty_manifests(context)
 
 
 ON_FINISH_HOOKS: list[OnFinishHook] = [
     _send_interrupt_errors,
     _send_cancellation_errors,
+    _flush_cache_manifests,
 ]

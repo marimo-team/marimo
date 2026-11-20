@@ -1,19 +1,177 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
 from collections.abc import Awaitable
+from pathlib import Path
 
 import pytest
 
-from marimo import _loggers
+from marimo import notebook_dir
 from marimo._ast.app import App
 from marimo._ast.cell import CellConfig
+from marimo._runtime.context import runtime_context_installed
+from marimo._runtime.context.filename import notebook_filename
+from marimo._runtime.exceptions import MarimoRuntimeException
 
 
 class TestCellRun:
+    @staticmethod
+    @pytest.mark.parametrize("relative", [False, True])
+    def test_cell_location_after_chdir(
+        tmp_path, monkeypatch, relative
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        directory = tmp_path / "notebooks with spaces"
+        directory.mkdir()
+        filename = directory / "notebook.py"
+        app = App(
+            _filename=str(
+                filename.relative_to(tmp_path) if relative else filename
+            )
+        )
+
+        @app.cell
+        def location():
+            import os
+
+            import marimo as mo
+
+            os.chdir("notebooks with spaces")
+            paths = (__file__, mo.notebook_dir(), mo.notebook_location())
+            return (paths,)
+
+        _, defs = location.run()
+        assert defs["paths"] == (str(filename), directory, directory)
+
+    @staticmethod
+    @pytest.mark.parametrize("fail", [False, True])
+    def test_nested_cell_locations(tmp_path, fail) -> None:
+        outer_dir = tmp_path / "outer"
+        inner_dir = tmp_path / "inner"
+        outer_dir.mkdir()
+        inner_dir.mkdir()
+        outer_app = App(_filename=str(outer_dir / "notebook.py"))
+        inner_app = App(_filename=str(inner_dir / "notebook.py"))
+
+        @inner_app.cell
+        def inner(fail):
+            import marimo as mo
+
+            directory = mo.notebook_dir()
+            if fail:
+                raise ValueError("inner cell failed")
+            return (directory,)
+
+        @outer_app.cell
+        def outer(fail, inner):
+            import marimo as mo
+
+            before = mo.notebook_dir()
+            try:
+                _, inner_defs = inner.run(fail=fail)
+                inside = inner_defs["directory"]
+            except ValueError:
+                inside = None
+            paths = (before, inside, mo.notebook_dir())
+            return (paths,)
+
+        _, defs = outer.run(fail=fail, inner=inner)
+        assert defs["paths"] == (
+            outer_dir,
+            None if fail else inner_dir,
+            outer_dir,
+        )
+        assert notebook_dir() == Path.cwd()
+
+    @staticmethod
+    async def test_concurrent_cell_locations(tmp_path) -> None:
+        release = asyncio.Event()
+        entered = [asyncio.Event(), asyncio.Event()]
+
+        async def location(entered, release):
+            import marimo as mo
+
+            before = mo.notebook_dir()
+            entered.set()
+            await release.wait()
+            paths = (before, mo.notebook_dir())
+            return (paths,)
+
+        directories = [tmp_path / "first", tmp_path / "second"]
+        tasks = []
+        for directory, ready in zip(directories, entered, strict=True):
+            directory.mkdir()
+            app = App(_filename=str(directory / "notebook.py"))
+            cell = app.cell(location)
+            tasks.append(
+                asyncio.create_task(cell.run(entered=ready, release=release))
+            )
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*(event.wait() for event in entered)), timeout=5
+            )
+        finally:
+            release.set()
+        results = await asyncio.gather(*tasks)
+        assert [defs["paths"] for _, defs in results] == [
+            (directory, directory) for directory in directories
+        ]
+
+    @staticmethod
+    async def test_cancelled_cell_restores_location(tmp_path) -> None:
+        app = App()
+
+        @app.cell
+        async def location():
+            import asyncio
+
+            await asyncio.sleep(0)
+            raise asyncio.CancelledError
+
+        with notebook_filename(str(tmp_path / "outer.py")):
+            with pytest.raises(asyncio.CancelledError):
+                await location.run()
+            assert notebook_dir() == tmp_path
+        assert notebook_dir() == Path.cwd()
+
+    @staticmethod
+    @pytest.mark.parametrize("fail", [False, True])
+    async def test_async_cell_notebook_location(fail: bool) -> None:
+        app = App()
+        main_module = sys.modules["__main__"]
+
+        @app.cell
+        async def location(fail):
+            import asyncio
+
+            import marimo as mo
+
+            await asyncio.sleep(0)
+            paths = (__file__, mo.notebook_dir(), mo.notebook_location())
+            if fail:
+                raise ValueError("cell failed")
+            return (paths,)
+
+        result = location.run(fail=fail)
+        assert isinstance(result, Awaitable)
+        if fail:
+            with pytest.raises(MarimoRuntimeException) as exc_info:
+                await result
+            assert isinstance(exc_info.value.__cause__, ValueError)
+        else:
+            _, defs = await result
+            assert defs["paths"] == (
+                __file__,
+                Path(__file__).parent,
+                Path(__file__).parent,
+            )
+        assert not runtime_context_installed()
+        assert sys.modules["__main__"] is main_module
+
     @staticmethod
     def test_cell_basic() -> None:
         def f() -> tuple[int]:
@@ -255,12 +413,10 @@ class TestCellRun:
         @app.cell
         def basic(lots, of_, incorrect, args):  # noqa: ARG001
             1  # noqa: B018
-            return
 
         assert basic.run() == (1, {})
         assert len(caplog.records) == 0
         with caplog.at_level(logging.WARNING):
-            _loggers.marimo_logger().propagate = True
             assert basic() == 1
         assert len(caplog.records) == 1
         assert "signature" in caplog.text
@@ -276,7 +432,6 @@ class TestCellRun:
             else:
                 b = a
             b  # noqa: B018
-            return
 
         assert cyclic.run() == (1, {"a": 1, "b": 1})
         assert cyclic() == 1
@@ -298,7 +453,6 @@ class TestReusableCell:
             # non transitive
             x = y - z
             x  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -327,7 +481,6 @@ class TestReusableCell:
         def uses_setup(y):
             z = y - x
             z  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -363,7 +516,6 @@ class TestReusableCell:
         def uses_setup(y):
             z = 0 * something_normally_scoped_for_a() + y - x
             z  # noqa: B018
-            return
 
         output, defs = uses_setup.run()
         assert output == 0
@@ -464,7 +616,6 @@ def help_smoke() -> None:
     @app.cell
     async def f(x) -> None:
         await x
-        return
 
     @app.cell
     def g() -> None:

@@ -1,20 +1,22 @@
 from __future__ import annotations
 
+import html
 import json
 import shutil
 import tempfile
 import unittest
+from copy import deepcopy
+from functools import partial
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from unittest.mock import patch
+
+import pytest
 
 import marimo._templates as templates
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import (
-    MarimoConfig,
-    PartialMarimoConfig,
-    merge_default_config,
-)
+from marimo._config.config import PartialMarimoConfig, merge_default_config
+from marimo._config.config_schema import MarimoConfig, MCPConfig
 from marimo._schemas.notebook import (
     NotebookCell,
     NotebookCellConfig,
@@ -32,16 +34,191 @@ from marimo._schemas.session import (
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._utils.code import hash_code
-from tests._server.templates.utils import normalize_index_html
+from tests._server.templates.utils import (
+    normalize_index_html,
+    parse_mount_config,
+)
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
 default_config = merge_default_config({})
+default_config.package_management.manager = "uv"
 
 
 def _assert_no_leftover_replacements(result: str) -> None:
     has_replacement = "{{" in result and "}}" in result
     assert not has_replacement, f"Found {{}} in {result}"
+
+
+@pytest.mark.parametrize(
+    ("page", "mode"),
+    [
+        ("notebook", SessionMode.EDIT),
+        ("notebook", SessionMode.RUN),
+        ("home", SessionMode.EDIT),
+        ("home", SessionMode.RUN),
+        ("wasm", SessionMode.EDIT),
+        ("wasm", SessionMode.RUN),
+        ("static", SessionMode.RUN),
+    ],
+)
+@pytest.mark.parametrize("with_overrides", [False, True])
+def test_page_config_by_mode(
+    mode: SessionMode, page: str, with_overrides: bool
+) -> None:
+    config = merge_default_config(
+        {
+            "display": {"theme": "dark", "locale": "français <>&\"'"},
+            "runtime": {"show_tracebacks": True},
+            "server": {"transport": "sse"},
+            "completion": {
+                "codeium_api_key": "completion-codeium-marker",
+                "api_key": "completion-custom-marker",
+            },
+            "ai": {
+                "open_ai": {
+                    "api_key": "ai-key-marker",
+                    "extra_headers": {"Authorization": "ai-header-marker"},
+                },
+                "custom_providers": {
+                    "custom": {
+                        "extra_headers": {"X-Token": "custom-header-marker"}
+                    }
+                },
+            },
+        }
+    )
+    config.mcp = MCPConfig.from_dict(
+        {
+            "mcpServers": {
+                "local": {
+                    "command": "example",
+                    "env": {"TOKEN": "mcp-env-marker"},
+                },
+                "remote": {
+                    "url": "https://example.com/mcp",
+                    "headers": {"Authorization": "mcp-header-marker"},
+                },
+            }
+        }
+    )
+    original_config = deepcopy(config)
+    template = (Path(__file__).parent / "data" / "index.html").read_text()
+    template += (
+        '<marimo-user-config data-config="{{ user_config }}">'
+        "<marimo-version>{{ version }}</marimo-version>"
+        "<marimo-server-token>{{ server_token }}</marimo-server-token>"
+    )
+    overrides = cast(
+        PartialMarimoConfig,
+        {
+            "display": {"locale": "français <>&\"'"},
+            "ai": {"rules": "override-ai-marker"},
+            "completion": {},
+            "mcp": {"mcpServers": {}},
+        }
+        if with_overrides
+        else {},
+    )
+    original_overrides = deepcopy(overrides)
+    if page == "home":
+        render = partial(
+            templates.home_page_template,
+            base_url="",
+            server_token=SkewProtectionToken("token"),
+            mode=mode,
+        )
+    elif page == "wasm":
+        render = partial(
+            templates.wasm_notebook_template,
+            version="1.0.0",
+            filename="notebook.py",
+            app_config=_AppConfig(),
+            mode="run" if mode == SessionMode.RUN else "edit",
+            code="",
+            show_code=False,
+        )
+    elif page == "static":
+        render = partial(
+            templates.static_notebook_template,
+            server_token=SkewProtectionToken("token"),
+            app_config=_AppConfig(),
+            filepath=None,
+            code="",
+            code_hash="",
+            session_snapshot=NotebookSessionV1(
+                version=VERSION,
+                metadata=NotebookSessionMetadata(marimo_version="1.0.0"),
+                cells=[],
+            ),
+            notebook_snapshot=NotebookV1(
+                version=VERSION,
+                metadata=NotebookMetadata(marimo_version="1.0.0"),
+                cells=[],
+            ),
+            files={},
+        )
+    else:
+        render = partial(
+            templates.notebook_page_template,
+            base_url="",
+            server_token=SkewProtectionToken("token"),
+            app_config=_AppConfig(),
+            filename=None,
+            mode=mode,
+        )
+    result = render(
+        html=template, user_config=config, config_overrides=overrides
+    )
+
+    mount_config = parse_mount_config(result)
+    expected = original_config.to_dict()
+    expected_overrides = dict(original_overrides)
+    if mode == SessionMode.RUN:
+        for key in ("ai", "completion", "mcp"):
+            del expected[key]
+            expected_overrides.pop(key, None)
+        assert "-marker" not in result
+
+    assert mount_config["config"] == expected
+    assert mount_config["configOverrides"] == expected_overrides
+    legacy_config = result.split('data-config="', 1)[1].split('"', 1)[0]
+    assert json.loads(html.unescape(legacy_config)) == expected
+    assert (
+        f"<marimo-version>{mount_config['version']}</marimo-version>" in result
+    )
+    assert (
+        f"<marimo-server-token>{mount_config['serverToken']}</marimo-server-token>"
+        in result
+    )
+    _assert_no_leftover_replacements(result)
+    assert config == original_config
+    assert overrides == original_overrides
+
+
+@pytest.mark.parametrize("mode", ["edit", "home", "read", "gallery"])
+@pytest.mark.parametrize("legacy", [False, True])
+def test_page_config_empty(
+    mode: Literal["edit", "home", "read", "gallery"], legacy: bool
+) -> None:
+    template = (
+        "{{ user_config }}" if legacy else templates.MOUNT_CONFIG_TEMPLATE
+    )
+    result = templates._render_page_config(
+        template,
+        filename=None,
+        mode=mode,
+        user_config={},
+        config_overrides={},
+        server_token=SkewProtectionToken("token"),
+        app_config=None,
+    )
+    if legacy:
+        assert result == "{}"
+    else:
+        config = json.loads(result)
+        assert config["config"] == {}
+        assert config["configOverrides"] == {}
 
 
 class TestNotebookPageTemplate(unittest.TestCase):
@@ -314,7 +491,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         # Update config with custom CSS paths
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = ["custom1.css", "custom2.css"]
+        config.display.custom_css = ["custom1.css", "custom2.css"]
 
         result = templates.notebook_page_template(
             html=self.html,
@@ -340,7 +517,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         # Update config with absolute CSS path
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = [str(css_file)]
+        config.display.custom_css = [str(css_file)]
 
         result = templates.notebook_page_template(
             html=self.html,
@@ -387,7 +564,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
     def test_notebook_page_template_with_nonexistent_custom_css(self) -> None:
         # Update config with nonexistent CSS path
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = ["nonexistent.css"]
+        config.display.custom_css = ["nonexistent.css"]
 
         result = templates.notebook_page_template(
             html=self.html,
@@ -593,7 +770,7 @@ class TestHomePageTemplate(unittest.TestCase):
 
         assert self.base_url not in result
         assert str(self.server_token) in result
-        assert json.dumps(self.user_config, sort_keys=True) in result
+        assert json.dumps(self.user_config.to_dict(), sort_keys=True) in result
         assert "marimo" in result
         assert json.dumps({}) in result
         assert "" in result
@@ -636,6 +813,12 @@ class TestHomePageTemplate(unittest.TestCase):
 
 class TestStaticNotebookTemplate(unittest.TestCase):
     def setUp(self) -> None:
+        editable = patch(
+            "marimo._cli.pair.prompts.is_editable", return_value=True
+        )
+        editable.start()
+        self.addCleanup(editable.stop)
+
         tmp_path = Path(tempfile.mkdtemp())
         self.tmp_path = tmp_path
         root = Path(__file__).parent / "data"
@@ -886,7 +1069,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         # Update config with custom CSS paths
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = ["custom1.css", "custom2.css"]
+        config.display.custom_css = ["custom1.css", "custom2.css"]
 
         # Create empty snapshots
         empty_session = NotebookSessionV1(
@@ -930,7 +1113,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         # Update config with absolute CSS path
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = [str(css_file)]
+        config.display.custom_css = [str(css_file)]
 
         # Create empty snapshots
         empty_session = NotebookSessionV1(
@@ -967,7 +1150,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
     ) -> None:
         # Update config with nonexistent CSS path
         config = merge_default_config(self.user_config)
-        config["display"]["custom_css"] = ["nonexistent.css"]
+        config.display.custom_css = ["nonexistent.css"]
 
         # Create empty snapshots
         empty_session = NotebookSessionV1(
@@ -1201,7 +1384,9 @@ class TestWasmNotebookTemplate(unittest.TestCase):
 
         assert self.filename.name in result
         assert self.mode in result
-        assert json.dumps(self.user_config, sort_keys=True) in result
+        config = parse_mount_config(result)["config"]
+        assert config["display"] == self.user_config.display.to_dict()
+        assert {"ai", "completion", "mcp"}.isdisjoint(config)
         assert '<marimo-wasm hidden="">' in result
         assert "__MARIMO_EXPORT_CONTEXT__" in result
         assert '<marimo-code hidden="">' in result
@@ -1308,6 +1493,27 @@ class TestReplaceAssetUrls(unittest.TestCase):
         expected = f"""<link crossorigin="anonymous" href="https://cdn.example.com/v{__version__}/assets/style.css" rel="stylesheet">"""
         assert result == expected
 
+    def test_replace_asset_urls_preserves_crossorigin(self) -> None:
+        html = """<script type="module" crossorigin src="./assets/app.js"></script>
+<link href='./assets/style.css' rel='stylesheet' crossorigin='use-credentials'>
+<script src="./assets/other.js" CROSSORIGIN="anonymous"></script>"""
+
+        result = templates._replace_asset_urls(html, "https://cdn.example.com")
+
+        assert result == html.replace(
+            "./assets/", "https://cdn.example.com/assets/"
+        )
+
+    def test_replace_asset_urls_crossorigin_in_attribute_value(self) -> None:
+        html = """<link title="preload > crossorigin='use-credentials'" href='./assets/style.css'>"""
+
+        result = templates._replace_asset_urls(html, "https://cdn.example.com")
+
+        assert (
+            result
+            == """<link title="preload > crossorigin='use-credentials'" crossorigin='anonymous' href='https://cdn.example.com/assets/style.css'>"""
+        )
+
     def test_replace_asset_urls_double_quotes(self) -> None:
         """Test asset URL replacement with double quotes."""
         html = '<link href="./assets/style.css" rel="stylesheet">'
@@ -1318,3 +1524,24 @@ class TestReplaceAssetUrls(unittest.TestCase):
             result
             == '<link crossorigin="anonymous" href="https://cdn.example.com/assets/style.css" rel="stylesheet">'
         )
+
+
+@pytest.mark.parametrize(
+    ("editable", "command"),
+    [(True, "uv run marimo"), (False, "uvx marimo@latest")],
+)
+def test_pair_modal_command(editable: bool, command: str) -> None:
+    template = (Path(__file__).parent / "data" / "index.html").read_text()
+    with patch("marimo._cli.pair.prompts.is_editable", return_value=editable):
+        result = templates.notebook_page_template(
+            html=template,
+            base_url="",
+            server_token=SkewProtectionToken("token"),
+            app_config=_AppConfig(),
+            filename=None,
+            mode=SessionMode.EDIT,
+            user_config=default_config,
+            config_overrides={},
+        )
+    config = parse_mount_config(result)["pairConfig"]
+    assert config["command"] == command

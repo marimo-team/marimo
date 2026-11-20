@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -37,7 +37,6 @@ def _(mo):
     )
     ```
     """)
-    return
 
 
 @app.cell
@@ -57,7 +56,6 @@ def _(mo):
     a Python f-string; do this by checking the `f` box in the bottom-right corner of the
     markdown editor, or with `mo.md(f"...")` in the Python view.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -74,7 +72,6 @@ def _(mo):
     Supported kinds include Note, Tip, Hint, Important, Warning, and Danger.
     ///
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -107,7 +104,6 @@ def _(mo):
     f: \mathbf{R} \to \mathbf{R}.
     $$
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -117,7 +113,6 @@ def _(mo):
     Use `r''` strings to remove the need to escape backslashes when writing LaTeX.
     ///
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -130,7 +125,6 @@ def _(mo):
     https://katex.org/docs/support_table
     ///
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -144,7 +138,6 @@ def _(mo):
 
     Here are some examples.
     """)
-    return
 
 
 @app.cell
@@ -169,7 +162,6 @@ def _(mo, np, plt):
         {mo.as_html(_sine_plot())}
         """
     )
-    return
 
 
 @app.cell
@@ -200,7 +192,6 @@ def _(leaves, mo):
     mo.md(f"""
     Your leaves: {"🍃" * leaves.value}
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -213,7 +204,6 @@ def _(mo):
             """
         }
     )
-    return
 
 
 @app.cell
@@ -243,7 +233,6 @@ def _(mo, np):
         {mo.as_html(make_dataframe())}
         """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -257,7 +246,6 @@ def _(mo):
             """
         }
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -269,7 +257,6 @@ def _(mo):
     everything we've learned: rendering markdown with LaTeX that depends on
     the values of Python objects.
     """)
-    return
 
 
 @app.cell
@@ -305,7 +292,6 @@ def _(amplitude, mo, period):
     - {amplitude}
     - {period}
     """)
-    return
 
 
 @app.cell
@@ -320,7 +306,6 @@ def _(amplitude, mo, period, plotsin):
     with $x$ ranging from $0$ to $2\pi$.
     {mo.as_html(plotsin(amplitude.value, period.value))}
     """)
-    return
 
 
 @app.cell(hide_code=True)

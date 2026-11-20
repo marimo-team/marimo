@@ -1,25 +1,26 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# hello""")
-    return
+    mo.md(r"""
+    # hello
+    """)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""This is `inline code`""")
-    return
+    mo.md(r"""
+    This is `inline code`
+    """)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ```python
     def fibonacci(n):
         if n <= 0:
@@ -35,9 +36,7 @@ def _(mo):
 
         return fib_sequence
     ```
-    """
-    )
-    return
+    """)
 
 
 @app.cell(hide_code=True)
@@ -53,7 +52,6 @@ def _(code_block, mo):
     {code_block}
     """
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -70,6 +68,7 @@ def _(mo):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

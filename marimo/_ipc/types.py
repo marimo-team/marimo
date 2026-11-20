@@ -5,7 +5,8 @@ import msgspec
 import msgspec.json
 
 from marimo._ast.cell import CellConfig
-from marimo._config.config import MarimoConfig
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.provenance import ConfigPath
 from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._runtime.commands import AppMetadata
 from marimo._runtime.virtual_file.storage import VirtualFileStorageType
@@ -29,7 +30,7 @@ class KernelArgs(msgspec.Struct):
 
     configs: dict[CellId_t, CellConfig]
     app_metadata: AppMetadata
-    user_config: MarimoConfig
+    user_config: PartialMarimoConfig
     log_level: int
     profile_path: str | None
     connection_info: ConnectionInfo
@@ -42,6 +43,8 @@ class KernelArgs(msgspec.Struct):
     # (e.g. marimo-lsp). A server-managed kernel passes "shared_memory".
     # Unknown to older kernels, which ignore it and behave as None.
     virtual_file_storage: VirtualFileStorageType | None = None
+
+    config_overrides: tuple[ConfigPath, ...] = ()
 
     def encode_json(self) -> bytes:
         return encode_json_bytes(self)

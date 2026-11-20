@@ -20,7 +20,7 @@ env:
 jobs:
   publish_release:
     name: 📤 Publish release
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     environment: pypi
     permissions:
       contents: read
@@ -57,7 +57,7 @@ jobs:
       - name: 📦 Build marimo-base
         run: uv build
 
-      - name: 📦 Validate wheel under 2mb
+      - name: 📦 Validate base wheel size
         run: ./scripts/validate_base_wheel_size.sh
 
       - name: 📤 Upload to PyPI

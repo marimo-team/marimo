@@ -106,7 +106,8 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
 
 class _TokenExtractor:
     def __init__(self, sql_statement: str, tokens: list[Any]) -> None:
-        self.sql_statement = sql_statement
+        # DuckDB token positions are UTF-8 byte offsets.
+        self.sql_statement = sql_statement.encode("utf-8")
         self.tokens = tokens
 
     def token_str(self, i: int) -> str:
@@ -115,16 +116,16 @@ class _TokenExtractor:
         start = token[0]
 
         # If it starts with a quote, find the matching end quote
-        if sql_statement[start] == '"':
-            end = sql_statement.find('"', start + 1) + 1
-        elif sql_statement[start] == "'":
-            end = sql_statement.find("'", start + 1) + 1
-        elif sql_statement[start:].startswith("e'"):
+        if sql_statement.startswith(b'"', start):
+            end = sql_statement.find(b'"', start + 1) + 1
+        elif sql_statement.startswith(b"'", start):
+            end = sql_statement.find(b"'", start + 1) + 1
+        elif sql_statement.startswith(b"e'", start):
             start += 1
-            end = sql_statement.find("'", start + 1) + 1
+            end = sql_statement.find(b"'", start + 1) + 1
         else:
             # For non-quoted tokens, find until space or comment
-            maybe_end = re.search(r"[\s\-/]", sql_statement[start:])
+            maybe_end = re.search(rb"[\s\-/]", sql_statement[start:])
             end = (
                 start + maybe_end.start() if maybe_end else len(sql_statement)
             )
@@ -133,7 +134,7 @@ class _TokenExtractor:
                 # in (select * from x);;
                 end = min(end, tokens[i + 1][0])
 
-        return sql_statement[start:end]
+        return sql_statement[start:end].decode("utf-8")
 
     def is_keyword(self, i: int, match: str) -> bool:
         import duckdb
@@ -184,6 +185,10 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     import duckdb
 
     tokens = duckdb.tokenize(sql_statement)
+    # DuckDB 2 emits comments as tokens; definition matching needs only syntax.
+    comment_type = getattr(duckdb.token_type, "comment", None)
+    if comment_type is not None:
+        tokens = [token for token in tokens if token[1] != comment_type]
     token_extractor = _TokenExtractor(
         sql_statement=sql_statement, tokens=tokens
     )
@@ -217,6 +222,14 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                 or token_extractor.is_keyword(i, "temp")
             ):
                 i += 1  # Skip 'TEMPORARY' or 'TEMP'
+
+            # DuckDB 1.x tokenizes SECURE as an identifier.
+            if (
+                i + 1 < len(tokens)
+                and token_extractor.token_str(i).lower() == "secure"
+                and token_extractor.is_keyword(i + 1, "view")
+            ):
+                i += 1
 
             is_table = False
             is_view = False
@@ -498,9 +511,28 @@ def _fallback_sql_tokens(sql_statement: str) -> list[_FallbackSQLToken]:
             i = len(sql_statement) if newline == -1 else newline + 1
             continue
         if sql_statement.startswith("/*", i):
-            comment_end = sql_statement.find("*/", i + 2)
-            i = len(sql_statement) if comment_end == -1 else comment_end + 2
+            nesting = 1
+            i += 2
+            while i < len(sql_statement) and nesting:
+                if sql_statement.startswith("/*", i):
+                    nesting += 1
+                    i += 2
+                elif sql_statement.startswith("*/", i):
+                    nesting -= 1
+                    i += 2
+                else:
+                    i += 1
             continue
+        if char == "$":
+            delimiter = re.match(
+                r"\$(?:[A-Za-z_][A-Za-z_0-9]*)?\$", sql_statement[i:]
+            )
+            if delimiter is not None:
+                marker = delimiter.group()
+                end = sql_statement.find(marker, i + len(marker))
+                i = len(sql_statement) if end == -1 else end + len(marker)
+                tokens.append(_FallbackSQLToken("", quoted=True))
+                continue
         if char in ('"', "`", "'"):
             quote = char
             i += 1
@@ -547,9 +579,9 @@ def _fallback_parentheses(
     pairs: dict[int, int] = {}
     stack: list[int] = []
     for index, token in enumerate(tokens):
-        if token.value == "(":
+        if not token.quoted and token.value == "(":
             stack.append(index)
-        elif token.value == ")" and stack:
+        elif not token.quoted and token.value == ")" and stack:
             pairs[stack.pop()] = index
     return pairs
 
@@ -559,16 +591,15 @@ def _fallback_cte_scopes(
 ) -> list[tuple[str, int, int]]:
     """Return CTE names and their visibility ranges.
 
-    Polars resolves both quoted and unquoted relation names case-sensitively.
-    Preserve their spelling so a differently cased CTE cannot hide a frame.
+    Polars 2 resolves both quoted and unquoted CTE names case-insensitively.
     """
     scopes: list[tuple[str, int, int]] = []
     enclosing: list[int] = []
     for index, token in enumerate(tokens):
-        if token.value == "(":
+        if not token.quoted and token.value == "(":
             enclosing.append(pairs.get(index, len(tokens)))
             continue
-        if token.value == ")":
+        if not token.quoted and token.value == ")":
             if enclosing:
                 enclosing.pop()
             continue
@@ -618,7 +649,7 @@ def _fallback_cte_scopes(
             # inside its own definition. Earlier CTEs are visible to later
             # definitions because their visibility starts after their body.
             visibility_start = index if recursive else body_end + 1
-            scopes.append((name.value, visibility_start, scope_end))
+            scopes.append((name.value.lower(), visibility_start, scope_end))
             cursor = body_end + 1
             if cursor >= scope_end or tokens[cursor].value != ",":
                 break
@@ -660,7 +691,7 @@ def find_unqualified_sql_refs_fallback(sql_statement: str) -> set[SQLRef]:
     while index < len(tokens):
         token = tokens[index]
         keyword = None if token.quoted else token.value.casefold()
-        if token.value == "(":
+        if not token.quoted and token.value == "(":
             entering_relation_group = bool(expect_relation.get(depth))
             if entering_relation_group:
                 expect_relation[depth] = False
@@ -674,6 +705,7 @@ def find_unqualified_sql_refs_fallback(sql_statement: str) -> set[SQLRef]:
                     "select",
                     "values",
                     "with",
+                    "from",
                 )
             )
             if starts_query:
@@ -686,7 +718,7 @@ def find_unqualified_sql_refs_fallback(sql_statement: str) -> set[SQLRef]:
                 expect_relation[depth] = True
             index += 1
             continue
-        if token.value == ")":
+        if not token.quoted and token.value == ")":
             from_active.pop(depth, None)
             expect_relation.pop(depth, None)
             query_depths.discard(depth)
@@ -706,7 +738,7 @@ def find_unqualified_sql_refs_fallback(sql_statement: str) -> set[SQLRef]:
             expect_relation[depth] = False
             index += 1
             continue
-        if token.value == "," and from_active.get(depth):
+        if not token.quoted and token.value == "," and from_active.get(depth):
             expect_relation[depth] = True
             index += 1
             continue
@@ -736,7 +768,7 @@ def find_unqualified_sql_refs_fallback(sql_statement: str) -> set[SQLRef]:
         ):
             table = parts[0]
             is_cte = any(
-                name == table and start <= index < end
+                name == table.lower() and start <= index < end
                 for name, start, end in cte_scopes
             )
             if not is_cte:
@@ -753,16 +785,19 @@ def find_polars_sql_refs(sql_statement: str) -> set[SQLRef]:
         # covers Polars syntax that its DuckDB dialect rejects (for example,
         # backticks and SEMI/ANTI joins). The fallback is query-scope aware, so
         # merging avoids dropping relations from either supported syntax.
-        refs.update(find_sql_refs(sql_statement))
+        refs.update(find_sql_refs(sql_statement, case_insensitive=True))
     return {ref for ref in refs if ref.schema is None and ref.catalog is None}
 
 
-def find_sql_refs(sql_statement: str) -> set[SQLRef]:
+def find_sql_refs(
+    sql_statement: str, *, case_insensitive: bool = False
+) -> set[SQLRef]:
     """
     Find table and schema references in a SQL statement.
 
     Args:
         sql_statement: The SQL statement to parse.
+        case_insensitive: Resolve CTEs and aliases case-insensitively.
 
     Returns:
         A set of unique SQLRefs, one for each table reference in the statement.
@@ -790,7 +825,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     def get_ref_from_table(table: exp.Table) -> SQLRef | None:
         # The variables might be empty strings, if they are, we set them to None
         try:
-            table_name = table.name or None
+            table_name = table.meta.get("original_name", table.name) or None
         except AttributeError:
             # sqlglot may return Table nodes with this=None (e.g. DROP SCHEMA)
             return None
@@ -820,42 +855,58 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
 
     refs: set[SQLRef] = set()
 
+    def is_cte_reference(table: exp.Table) -> bool:
+        if table.db or table.catalog:
+            return False
+
+        target = (
+            table.parent if isinstance(table.parent, exp.Schema) else table
+        )
+        if (
+            isinstance(target.parent, (exp.Insert, exp.Update, exp.Delete))
+            and target.parent.this is target
+        ):
+            return False
+
+        table_name = table.name.lower()
+        node: exp.Expr = table
+        while parent := node.parent:
+            with_clause = (
+                parent
+                if isinstance(parent, exp.With)
+                else parent.args.get("with_")
+            )
+            if isinstance(with_clause, exp.With) and node is not with_clause:
+                for cte in with_clause.expressions:
+                    if cte is node and not with_clause.args.get("recursive"):
+                        break
+                    if cte.alias.lower() == table_name:
+                        return True
+                    if cte is node:
+                        break
+            node = parent
+        return False
+
     def _collect_table_refs_excluding_ctes(expression: exp.Expression) -> None:
-        """Walk all Table nodes, filtering out unqualified CTE references.
-
-        find_all(exp.Table) doesn't understand CTE scope, so bare
-        references to CTE names would be misidentified as real tables.
-
-        We only collect CTEs from the statement-level WITH clause
-        rather than nested subqueries, because a subquery's CTE is
-        scoped to that subquery and must not mask a real table with the
-        same name in the outer query. We identify statement-level CTEs
-        by checking that the CTE's grandparent (With -> Expression) is
-        the top-level expression. Schema-qualified refs (e.g. schema.foo)
-        are always real tables even if a CTE shares the same base name.
-        """
-        cte_names: set[str] = set()
-        for cte in expression.find_all(exp.CTE):
-            with_node = cte.parent
-            if with_node and with_node.parent is expression:
-                alias = cte.alias
-                if alias:
-                    cte_names.add(alias.lower())
         for table in expression.find_all(exp.Table):
-            if ref := get_ref_from_table(table):
-                is_unqualified_cte = (
-                    ref.table.lower() in cte_names
-                    and ref.schema is None
-                    and ref.catalog is None
-                )
-                if not is_unqualified_cte:
+            if not is_cte_reference(table):
+                if ref := get_ref_from_table(table):
                     refs.add(ref)
 
     for expression in expression_list:
         if expression is None:
             continue
 
-        if bool(
+        if case_insensitive:
+            from sqlglot.optimizer.normalize_identifiers import (
+                normalize_identifiers,
+            )
+
+            for table in expression.find_all(exp.Table):
+                table.meta["original_name"] = table.name
+            normalize_identifiers(expression, dialect="duckdb")
+
+        requires_table_scan = bool(
             expression.find(
                 exp.Update,
                 exp.Insert,
@@ -868,7 +919,8 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                 exp.TruncateTable,
                 exp.Copy,
             )
-        ):
+        )
+        if requires_table_scan:
             _collect_table_refs_excluding_ctes(expression)  # type: ignore[arg-type]
 
         # build_scope only works for select statements.
@@ -879,7 +931,12 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             if root := build_scope(expression):
                 for scope in root.traverse():  # type: ignore
                     for _node, source in scope.selected_sources.values():
+                        # SQLGlot can expose DML CTE references as plain tables.
                         if isinstance(source, exp.Table):
+                            if requires_table_scan and is_cte_reference(
+                                source
+                            ):
+                                continue
                             if ref := get_ref_from_table(source):
                                 refs.add(ref)
         except OptimizeError:

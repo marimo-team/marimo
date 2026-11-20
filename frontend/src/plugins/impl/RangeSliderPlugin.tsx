@@ -5,7 +5,10 @@ import { type JSX, useEffect, useId, useState } from "react";
 import { useLocale } from "react-aria";
 import { z } from "zod";
 import { cn } from "@/utils/cn";
-import { prettyScientificNumber } from "@/utils/numbers";
+import {
+  fractionDigitsForSlider,
+  prettyScientificNumber,
+} from "@/utils/numbers";
 import { RangeSlider } from "../../components/ui/range-slider";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
@@ -26,9 +29,9 @@ interface Data {
 }
 
 export class RangeSliderPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-range-slider";
+  public tagName = "marimo-range-slider";
 
-  validator = z.object({
+  public validator = z.object({
     initialValue: z.array(z.number()),
     label: z.string().nullable(),
     start: z.number(),
@@ -42,7 +45,7 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
     disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     const valueMap = (sliderValue: number): number => {
       if (props.data.steps && props.data.steps.length > 0) {
         return props.data.steps[sliderValue];
@@ -87,16 +90,24 @@ const RangeSliderComponent = ({
 
   // Hold internal value
   const [internalValue, setInternalValue] = useState(value);
+  const fractionDigits = fractionDigitsForSlider(
+    step,
+    steps,
+    start,
+    internalValue.map(valueMap),
+  );
 
   // Update internal value on prop change
   useEffect(() => {
+    // TODO: Replace this synchronization with a controlled-state primitive.
+    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the editable buffer when the controlled value changes.
     setInternalValue(value);
   }, [value]);
 
   const sliderElement = (
     <Labeled
       label={label}
-      id={id}
+      controlId={id}
       align={orientation === "horizontal" ? "left" : "top"}
       className={cn(fullWidth && "my-1 w-full")}
       fullWidth={fullWidth}
@@ -120,6 +131,7 @@ const RangeSliderComponent = ({
           min={start}
           max={stop}
           step={step}
+          steps={steps ?? undefined}
           orientation={orientation}
           disabled={disabled}
           // Triggered on all value changes
@@ -153,8 +165,12 @@ const RangeSliderComponent = ({
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
             {`${prettyScientificNumber(valueMap(internalValue[0]), {
+              maximumFractionDigits: fractionDigits,
               locale,
-            })}, ${prettyScientificNumber(valueMap(internalValue[1]), { locale })}`}
+            })}, ${prettyScientificNumber(valueMap(internalValue[1]), {
+              maximumFractionDigits: fractionDigits,
+              locale,
+            })}`}
           </div>
         )}
       </div>

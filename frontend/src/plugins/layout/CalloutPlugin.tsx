@@ -25,15 +25,15 @@ interface Data {
 }
 
 export class CalloutPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-callout-output";
+  public tagName = "marimo-callout-output";
 
-  validator = z.object({
+  public validator = z.object({
     html: z.string(),
     kind: zodIntent,
     title: z.string().optional(),
   });
 
-  render({ data }: IStatelessPluginProps<Data>): JSX.Element {
+  public render({ data }: IStatelessPluginProps<Data>): JSX.Element {
     return (
       <CalloutOutput html={data.html} kind={data.kind} title={data.title} />
     );

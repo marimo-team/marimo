@@ -1,25 +1,20 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import json
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import click
 
-from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export._common import (
-    SandboxTarget,
-    SandboxVenvPool,
     collect_notebooks,
-    is_multi_target,
     run_python_subprocess,
 )
+from marimo._cli.help_formatter import SandboxCommand
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green, red, yellow
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._cli.sandbox import resolve_sandbox
 from marimo._export._session_cache import (
     is_session_snapshot_stale,
     serialize_session_snapshot,
@@ -37,37 +32,22 @@ from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
-    from marimo._cli.sandbox import SandboxMode
+    from marimo._environments.sandbox import Backend
+
 
 _sandbox_message = (
-    "Run the command in an isolated virtual environment using "
-    "`uv run --isolated`. Requires `uv`."
+    "Execute each notebook in an isolated environment with its inline "
+    "dependencies. Use --sandbox (uv), --sandbox=uv, or --sandbox=pixi."
 )
-
-
-def _resolve_session_sandbox_mode(
-    *,
-    sandbox: bool | None,
-    path_targets: list[Path],
-    first_target: str,
-) -> SandboxMode | None:
-    from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
-
-    if is_multi_target(path_targets):
-        if sandbox is None:
-            return None
-        return SandboxMode.MULTI if sandbox else None
-
-    return resolve_sandbox_mode(sandbox=sandbox, name=first_target)
 
 
 async def _export_session_snapshot(
     marimo_path: MarimoPath,
     *,
     notebook_args: tuple[str, ...],
-    sandbox: SandboxTarget | None = None,
+    sandbox: Backend | None = None,
 ) -> tuple[NotebookSessionV1, bool]:
-    if sandbox is None:
+    if not sandbox:
         cli_args = parse_args(notebook_args) if notebook_args else {}
 
         file_manager = load_notebook(marimo_path.absolute_name)
@@ -94,15 +74,12 @@ async def _export_session_snapshot(
         "path": marimo_path.absolute_name,
         "args": list(notebook_args),
     }
-    return await asyncio.to_thread(
-        _export_session_snapshot_in_subprocess,
-        sandbox,
-        payload,
-    )
+    return await _export_session_snapshot_in_subprocess(payload, sandbox)
 
 
-def _export_session_snapshot_in_subprocess(
-    sandbox: SandboxTarget, payload: dict[str, Any]
+async def _export_session_snapshot_in_subprocess(
+    payload: dict[str, Any],
+    backend: Backend,
 ) -> tuple[NotebookSessionV1, bool]:
     script = r"""
 import asyncio
@@ -155,8 +132,9 @@ sys.stdout.write(
 )
 """
 
-    output = run_python_subprocess(
-        sandbox=sandbox,
+    output = await run_python_subprocess(
+        notebook_path=payload["path"],
+        backend=backend,
         script=script,
         payload=payload,
         action="export session",
@@ -185,18 +163,12 @@ async def _export_session_for_notebook(
     *,
     force_overwrite: bool,
     notebook_args: tuple[str, ...],
-    sandbox_pool: SandboxVenvPool | None,
+    sandbox: Backend | None,
 ) -> None:
-    output = get_session_cache_file(notebook.path)
     if _maybe_skip_fresh_snapshot(notebook, force_overwrite=force_overwrite):
         return
 
     echo(f"Running {notebook.short_name}...")
-    sandbox = (
-        sandbox_pool.get_target(str(notebook.path))
-        if sandbox_pool is not None
-        else None
-    )
 
     session_snapshot, did_error = await _export_session_snapshot(
         notebook,
@@ -239,41 +211,23 @@ async def _export_sessions(
     force_overwrite: bool,
     notebook_args: tuple[str, ...],
     continue_on_error: bool,
-    sandbox_mode: SandboxMode | None,
+    sandbox: Backend | None,
 ) -> None:
-    from marimo._cli.sandbox import SandboxMode
-
     failures: list[tuple[MarimoPath, Exception]] = []
-    use_per_notebook_sandbox = sandbox_mode is SandboxMode.MULTI
 
-    if use_per_notebook_sandbox and not DependencyManager.which("uv"):
-        raise MarimoCLIMissingDependencyError(
-            "uv is required for --sandbox session export.",
-            "uv",
-            additional_tip="Install uv from https://github.com/astral-sh/uv",
-        )
-
-    sandbox_pool: SandboxVenvPool | None = (
-        SandboxVenvPool() if use_per_notebook_sandbox else None
-    )
-
-    try:
-        for notebook in notebooks:
-            try:
-                await _export_session_for_notebook(
-                    notebook,
-                    force_overwrite=force_overwrite,
-                    notebook_args=notebook_args,
-                    sandbox_pool=sandbox_pool,
-                )
-            except Exception as error:
-                failures.append((notebook, error))
-                echo(red("error") + f": {notebook.short_name}: {error}")
-                if not continue_on_error:
-                    raise
-    finally:
-        if sandbox_pool is not None:
-            sandbox_pool.close()
+    for notebook in notebooks:
+        try:
+            await _export_session_for_notebook(
+                notebook,
+                force_overwrite=force_overwrite,
+                notebook_args=notebook_args,
+                sandbox=sandbox,
+            )
+        except Exception as error:
+            failures.append((notebook, error))
+            echo(red("error") + f": {notebook.short_name}: {error}")
+            if not continue_on_error:
+                raise
 
     if failures:
         raise click.ClickException(
@@ -283,6 +237,7 @@ async def _export_sessions(
 
 @click.command(
     "session",
+    cls=SandboxCommand,
     help=(
         "Execute a notebook or directory of notebooks and export session snapshots."
     ),
@@ -294,11 +249,16 @@ async def _export_sessions(
     ),
 )
 @click.option(
-    "--sandbox/--no-sandbox",
-    is_flag=True,
+    "--sandbox",
     default=None,
-    type=bool,
+    type=click.Choice(["uv", "pixi"]),
     help=_sandbox_message,
+)
+@click.option(
+    "--no-sandbox",
+    is_flag=True,
+    default=False,
+    help="Never run in a sandbox, and never prompt to.",
 )
 @click.option(
     "--force-overwrite/--no-force-overwrite",
@@ -316,7 +276,8 @@ async def _export_sessions(
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def session(
     name: Path,
-    sandbox: bool | None,
+    sandbox: str | None,
+    no_sandbox: bool,
     force_overwrite: bool,
     continue_on_error: bool,
     args: tuple[str, ...],
@@ -327,28 +288,12 @@ def session(
     if not notebooks:
         raise click.ClickException("No marimo notebooks found.")
 
-    sandbox_mode = _resolve_session_sandbox_mode(
-        sandbox=sandbox,
-        path_targets=path_targets,
-        first_target=str(name),
-    )
-
-    from marimo._cli.sandbox import SandboxMode, run_in_sandbox
-
-    if sandbox_mode is SandboxMode.SINGLE:
-        notebook = notebooks[0]
-        if _maybe_skip_fresh_snapshot(
-            notebook, force_overwrite=force_overwrite
-        ):
-            return
-        sys.exit(run_in_sandbox(sys.argv[1:], name=str(name)))
-
     asyncio_run(
         _export_sessions(
             notebooks=notebooks,
             force_overwrite=force_overwrite,
             notebook_args=args,
             continue_on_error=continue_on_error,
-            sandbox_mode=sandbox_mode,
+            sandbox=resolve_sandbox(sandbox, no_sandbox, str(name)),
         )
     )

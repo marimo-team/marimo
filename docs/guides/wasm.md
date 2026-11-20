@@ -11,7 +11,7 @@ for short.
 
 !!! tip "Check for WebAssembly compatibility"
     Not all notebooks are compatible with WebAssembly. If you use coding agents
-    like Claude Code, you can use our [official skills](generate_with_ai/customize_your_agent.md#official-marimo-skills)
+    like Claude Code, you can use our [official skills](generate_with_ai/skills.md)
     to automatically check for WebAssembly compatibility of your notebooks.
 
 !!! tip "Sharing interactive previews of GitHub notebooks"
@@ -73,7 +73,7 @@ unlike molab, notebooks created at the playground are not saved.
     notebooks, create them with `marimo edit --sandbox notebook.py`. This
     inlines your package dependencies into the notebook file, ensuring they
     are seamlessly installed in our WebAssembly environment. See
-    [package management](editor_features/package_management.md) for more details.
+    [package management](package_management/sandboxes.md) for more details.
 
 !!! tip "Rendering performance"
 
@@ -146,7 +146,7 @@ deps marked `sys_platform != 'emscripten'` are not flagged for WASM).
 
 uv and pip evaluate markers when installing with `--sandbox`, so the same
 metadata works for local sandboxes and WASM exports. See also
-[Inlining dependencies](package_management/inlining_dependencies.md#platform-specific-dependencies-pep-508).
+[Inlining dependencies](package_management/sandboxes.md#platform-specific-dependencies-pep-508).
 
 ## Including data
 

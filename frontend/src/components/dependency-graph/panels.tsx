@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import React, { memo, useId } from "react";
 import { type Edge, Panel } from "reactflow";
-import { getCellEditorView, useCellActions } from "@/core/cells/cells";
+import { getCellEditorView } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 import type { Variable, Variables } from "@/core/variables/types";
@@ -216,11 +217,12 @@ export const GraphSelectionPanel: React.FC<{
               </Button>
             </Tooltip>
             <ConnectionCellActionsDropdown cellId={selection.id}>
-              <Button variant="ghost" size="icon">
+              <Button aria-label="Cell actions" variant="ghost" size="icon">
                 <MoreVerticalIcon className="w-4 h-4" />
               </Button>
             </ConnectionCellActionsDropdown>
             <Button
+              aria-label="Close cell details"
               variant="text"
               size="icon"
               onClick={() => {

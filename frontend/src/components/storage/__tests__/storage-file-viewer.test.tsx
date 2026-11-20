@@ -2,6 +2,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DownloadStorage } from "@/core/storage/request-registry";
 import { StorageFileViewer } from "../storage-file-viewer";
@@ -41,7 +42,7 @@ describe("StorageFileViewer", () => {
 
   it("renders TOML from generic storage metadata as read-only TOML", async () => {
     const request = vi.spyOn(DownloadStorage, "request").mockResolvedValue({
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       url: "https://example.com/pyproject.toml?signature=secret",
     });
     vi.stubGlobal(

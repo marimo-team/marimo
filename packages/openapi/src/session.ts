@@ -20,6 +20,7 @@ export interface components {
       )[];
     };
     DataOutput: {
+      code?: string;
       data: {
         [key: string]: unknown;
       };
@@ -27,6 +28,7 @@ export interface components {
       type: "data";
     };
     ErrorOutput: {
+      code?: string;
       ename: string;
       evalue: string;
       traceback: string[];
@@ -43,6 +45,7 @@ export interface components {
       version: string;
     };
     StreamMediaOutput: {
+      code?: string;
       data: string;
       /** @enum {string} */
       mimetype:
@@ -73,9 +76,12 @@ export interface components {
       /** @enum {string} */
       name: "media";
       /** @enum {string} */
+      traceback_format?: "text" | "html";
+      /** @enum {string} */
       type: "streamMedia";
     };
     StreamOutput: {
+      code?: string;
       /** @enum {string|null} */
       mimetype:
         | "application/json"
@@ -106,6 +112,8 @@ export interface components {
       /** @enum {string} */
       name: "stdout" | "stderr";
       text: string;
+      /** @enum {string} */
+      traceback_format?: "text" | "html";
       /** @enum {string} */
       type: "stream";
     };

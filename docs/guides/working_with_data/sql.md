@@ -82,12 +82,15 @@ interact with the query result.
 The SQL statement itself is an f-string, letting you
 interpolate Python values into the query with `{}`. In particular, this means
 your SQL queries can depend on the values of UI elements or other Python values,
-and they are fit into marimo's reactive dataflow graph.
+and they are fit into marimo's reactive dataflow graph. The values become part
+of the SQL text, so read the section on [avoiding SQL injection](#avoiding-sql-injection)
+before interpolating input that other people can control.
 
 ### Using the Polars engine
 
 Choose **Polars** from the SQL cell's engine selector to execute a query with
 [`polars.SQLContext`](https://docs.pola.rs/api/python/stable/reference/sql/python_api.html).
+This engine requires **Polars 2.0 or newer** (`pip install 'polars>=2.0.0'`).
 Polars SQL cells can reference `polars.DataFrame` and `polars.LazyFrame`
 variables from other cells:
 
@@ -118,6 +121,25 @@ remain lazy. Only referenced Polars DataFrames and LazyFrames are registered.
 Other dataframe types are not supported by this engine. Polars supports a
 different SQL dialect and feature set from DuckDB, so a query accepted by one
 engine may not be accepted by the other.
+
+Queries are passed directly to Polars, so SQL features follow the installed
+Polars version. Polars 2.0 supports correlated subqueries, `QUALIFY`, window
+frames, and `UNION BY NAME`; Polars 2.1 adds recursive CTEs,
+`ASOF JOIN ... MATCH_CONDITION`, and additional table functions. Native
+`read_*` table functions can read files directly without a Python frame.
+Use the exact Python variable name when referencing a notebook frame; CTE
+names resolve case-insensitively, including quoted names.
+
+Polars 2 uses the streaming engine by default. Add `ORDER BY` when result
+order matters, especially after joins, grouping, or set operations. Lazy SQL
+queries also defer table and column resolution errors until schema resolution
+or collection. Selecting eager `polars` or `pandas` output reports those errors
+in the SQL cell immediately.
+
+Each SQL cell uses a fresh context. Tables created with SQL are not retained
+for subsequent cells, and attached catalogs and custom SQLContext registrations
+are not shared. Return a frame and reference its Python variable in another
+cell to build a reactive pipeline.
 
 ## SQL Output Types
 
@@ -228,16 +250,90 @@ SELECT * FROM my_table
 
 ### Other UI elements
 
-SQL queries can interpolate any Python value, so dropdowns, sliders, text inputs, and other UI elements already trigger re-queries when their values change. See the [`parametrizing_sql_queries.py` example](https://github.com/marimo-team/marimo/blob/main/examples/sql/parametrizing_sql_queries.py) on GitHub.
+SQL queries can interpolate any Python value, so dropdowns, sliders, text inputs, and other UI elements already trigger re-queries when their values change. See the [`parametrizing_sql_queries.py` example](https://github.com/marimo-team/marimo/blob/main/examples/sql/parametrizing_sql_queries.py) on GitHub. If other people can type into a text input, bind its value as a parameter instead; see the section on [avoiding SQL injection](#avoiding-sql-injection).
 
 ## Escaping SQL brackets
 
-Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
+Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which lets you interpolate Python values into SQL like `SELECT * from table where value < {min}`.
 
-To escape real `{`/`}` that you don't want parameterized, use double `{{...}}`:
+To escape real `{`/`}` that you don't want interpolated, use double `{{...}}`:
 
 ```sql
 SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
+```
+
+## Avoiding SQL injection
+
+Using `{}` inserts a Python value into the SQL text before the query runs. It is string formatting, not parameter binding, so the query can include any Python value that can be coerced into a string. This approach works well for values your *own* code sets.
+
+However, if someone else can supply the value, they can change the query, so don't interpolate it directly. Examples include a [`mo.ui.text`][marimo.ui.text] in a shared app, [`mo.query_params()`][marimo.query_params], and data from files or APIs you don't control.
+
+!!! warning "Unsafe: interpolating untrusted input"
+
+    ```sql
+    SELECT * FROM df WHERE species = '{species.value}'
+    ```
+
+    If `species` is a text input, typing `setosa' OR '1'='1` makes this query
+    return every row. Other inputs can end the statement and run new ones, for
+    example to create or drop tables.
+
+### Bind values with parameters
+
+To use an untrusted value, pass it to the database separately from the SQL
+text with parameter binding. The database never parses the value as SQL.
+marimo's SQL cells don't accept parameters, so you'll need to use a Python cell instead. With DuckDB, use `?`
+placeholders and a list:
+
+```python
+import duckdb
+
+result = duckdb.sql(
+    "SELECT * FROM df WHERE species = ?",
+    params=[species.value],
+).pl()
+```
+
+or named `$name` placeholders and a dictionary:
+
+```python
+result = duckdb.sql(
+    "SELECT * FROM df WHERE species = $species",
+    params={"species": species.value},
+).pl()
+```
+
+Typing `setosa' OR '1'='1` now matches no rows, because it is compared with
+`species` as an ordinary string. See DuckDB's
+[prepared statements](https://duckdb.org/docs/stable/sql/query_syntax/prepared_statements)
+documentation for more. For other databases, use the parameter binding of your
+database's Python library; placeholder syntax varies between libraries.
+
+!!! tip "Keep the query as the only positional argument"
+
+    marimo reads the query to find the dataframes and tables it uses, like `df`
+    above, so the cell reruns when they change. For `duckdb.sql` and
+    `duckdb.execute`, it does this only when the query is a string literal and
+    the only positional argument. Write the query inline and pass parameters by
+    keyword: `params=` for `duckdb.sql`, `parameters=` for `duckdb.execute`.
+
+### Use an allowlist for table and column names
+
+Parameters can't stand in for identifiers such as table or column names. To let users of a marimo app choose an identifier safely, offer them a fixed set of choices, for example with a [`mo.ui.dropdown`][marimo.ui.dropdown]:
+
+```python
+sort_column = mo.ui.dropdown(
+    options=["species", "petal_length"],
+    value="species",
+    label="Sort by",
+)
+sort_column
+```
+
+and interpolate its value in a SQL cell:
+
+```sql
+SELECT * FROM df ORDER BY {sort_column.value}
 ```
 
 ## Connecting to a custom database
@@ -278,6 +374,9 @@ Click a suggestion to insert a ready-to-run cell.
 | MySQL | `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_DATABASE`, and `MYSQL_PASSWORD`/`MYSQL_PWD` (plus `MYSQL_TCP_PORT`) |
 | Trino | `TRINO_HOST`, `TRINO_USER`, `TRINO_CATALOG` (plus `TRINO_PORT`, `TRINO_PASSWORD`, `TRINO_SCHEMA`) |
 | Databricks SQL warehouse | `DATABRICKS_SQL_WAREHOUSE_ID` (plus `DATABRICKS_CONFIG_PROFILE`) |
+| DuckDB | `DUCKDB_PATH` or a local `DUCKDB_DATABASE` (plus `DUCKDB_READ_ONLY`) |
+| MotherDuck | `MOTHERDUCK_DATABASE`, an `md:` URL in `DUCKDB_DATABASE`, or `MOTHERDUCK_TOKEN` / `DUCKDB_MOTHERDUCK_TOKEN` / `motherduck_token` |
+| Quack | A `quack:` URI in `QUACK_DATABASE` or `DUCKDB_DATABASE` (plus `QUACK_TOKEN` / `QUACK_API_KEY`) |
 | PySpark (Spark Connect) | `SPARK_REMOTE` |
 | PyIceberg catalogs | `PYICEBERG_CATALOG__<name>__*` environment variables, or catalogs resolved from a `.pyiceberg.yaml` file |
 

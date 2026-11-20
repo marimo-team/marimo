@@ -9,14 +9,14 @@ import { getImageDataUrlForCell } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { ProgressState } from "@/utils/progress";
-import { cellsRuntimeAtom } from "../cells/cells";
 import type { CellId } from "../cells/ids";
+import { cellOutputsAtom } from "../executions";
 import { getExportLayout } from "./layout";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
 import type { UpdateCellOutputsRequest } from "../network/types";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 
 const DELAY = 5000; // 5 seconds;
 
@@ -28,7 +28,7 @@ export function useAutoExport() {
   const htmlEnabled = appConfig.auto_download.includes("html");
   const ipynbEnabled = appConfig.auto_download.includes("ipynb");
 
-  const isConnected = state === WebSocketState.OPEN;
+  const isConnected = state === ConnectionState.OPEN;
   const markdownDisabled = !markdownEnabled || !isConnected;
   const htmlDisabled = !htmlEnabled || !isConnected;
   const ipynbDisabled = !ipynbEnabled || !isConnected;
@@ -122,16 +122,15 @@ interface UseEnrichCellOutputsOptions {
 export function useEnrichCellOutputs(): (
   opts: UseEnrichCellOutputsOptions,
 ) => Promise<ScreenshotResults> {
-  const cellRuntimes = useAtomValue(cellsRuntimeAtom);
+  const outputs = useAtomValue(cellOutputsAtom);
 
   return async (
     opts: UseEnrichCellOutputsOptions,
   ): Promise<ScreenshotResults> => {
     const { progress } = opts;
 
-    // Prune tracked state for cells that no longer exist
-    const currentCellIds = new Set(Objects.keys(cellRuntimes));
-    captureTracker.prune(currentCellIds);
+    // Prune tracked state for cells that no longer show anything
+    captureTracker.prune(new Set(outputs.keys()));
 
     const cellsToCaptureScreenshot: [CellId, unknown][] = [];
     const inFlightWaiters: {
@@ -139,11 +138,10 @@ export function useEnrichCellOutputs(): (
       promise: Promise<ScreenshotResult | undefined>;
     }[] = [];
 
-    for (const [cellId, runtime] of Objects.entries(cellRuntimes)) {
-      const outputData = runtime.output?.data;
+    for (const [cellId, output] of outputs) {
+      const outputData = output.data;
       if (
-        runtime.output?.mimetype &&
-        MIME_TYPES_TO_CAPTURE_SCREENSHOTS.has(runtime.output.mimetype) &&
+        MIME_TYPES_TO_CAPTURE_SCREENSHOTS.has(output.mimetype) &&
         outputData
       ) {
         if (captureTracker.needsCapture(cellId, outputData)) {

@@ -3,7 +3,7 @@ This is the summary.
 
 # Examples
 ```python
-print('Hello, world!')
+print("Hello, world!")
 print(foo, bar)
 ```
 

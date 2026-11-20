@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +24,6 @@ def _(a, np, px):
 @app.cell
 def _(a):
     a
-    return
 
 
 @app.cell
@@ -36,7 +35,6 @@ def _(mo, px, x, y):
 @app.cell
 def _(plot):
     plot.value
-    return
 
 
 @app.cell
@@ -44,6 +42,7 @@ def _():
     import plotly.express as px
     import marimo as mo
     import numpy as np
+
     return mo, np, px
 
 

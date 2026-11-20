@@ -13,12 +13,15 @@ permissions:
   contents: read
 
 env:
-  MARIMO_SKIP_UPDATE_CHECK: 1
+  MARIMO_SERVER_SKIP_UPDATE_CHECK: 1
   UV_EXCLUDE_NEWER: "7 days"
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       docs: ${{ steps.filter.outputs.docs }}
@@ -27,11 +30,14 @@ jobs:
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
+          token: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.token || '' }}
           filters: |
             backend:
               - 'marimo/**'
               - 'tests/**'
               - 'pyproject.toml'
+              - 'scripts/check_python_safe_path.py'
+              - '.github/workflows/test_be.yaml'
             docs:
               - 'docs/**'
 
@@ -39,10 +45,12 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.docs == 'true' }}
     name: Test docs
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     steps:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
 
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
@@ -63,7 +71,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
     name: Test lint and typecheck
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     steps:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -74,6 +82,9 @@ jobs:
       - name: 🧹 Lint
         id: lint
         run: uv run ruff check --fix --output-format=github
+
+      - name: Check Python helper safe paths
+        run: uv run python scripts/check_python_safe_path.py
 
       - name: 📋 Register mypy problem matcher
         run: echo "::add-matcher::.github/problemMatchers/mypy.json"
@@ -98,6 +109,28 @@ jobs:
           check-name: "typecheck"
           command: "uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/"
 
+  test_polars_sql:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    name: Polars SQL / ${{ matrix.polars }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        polars: ["==2.0.0", ">=2.0.0"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+      - name: Install SQL test dependencies
+        run: |
+          uv sync --group test --extra sql
+          uv pip install 'polars${{ matrix.polars }}' pandas altair
+      - name: Test Polars SQL execution and reactivity
+        run: |
+          uv run --no-sync pytest tests/_sql/test_polars.py tests/_ast/test_visitor.py tests/_runtime/test_runtime.py \
+            -k 'PolarsEngine or polars_sql or polars_two'
+
   # For PRs, we only run the tests for the changed files.
   # If there is a `test-all` label, we run the tests across unchanged files as well.
   #
@@ -108,30 +141,29 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
     name: ubuntu-latest / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     timeout-minutes: 25
     strategy:
+      # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
         dependencies: ["core", "core,optional"]
         include:
-          - python-version: "3.10"
-            dependencies: "minimal"
           - python-version: "3.11"
-            dependencies: "core"
+            dependencies: "minimal"
           - python-version: "3.12"
             dependencies: "core"
           - python-version: "3.13"
             dependencies: "core"
           - python-version: "3.14"
             dependencies: "core"
-          - python-version: "3.11"
-            dependencies: "core,optional"
+          - python-version: "3.15"
+            dependencies: "core"
           - python-version: "3.12"
             dependencies: "core,optional"
           - python-version: "3.13"
             dependencies: "core,optional"
-          # TODO: Add in 3.14 optional once there is broader wheel support
+          # TODO: Add in 3.14 and 3.15 optional once there is broader wheel support
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -146,10 +178,11 @@ jobs:
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
     name: macos-latest / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
     runs-on: macos-latest
-    timeout-minutes: 25
+    timeout-minutes: 35 # 2026-11-16 core,optional takes 22-25m on broad backend changes
     strategy:
+      # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
         dependencies: ["core", "core,optional"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -164,11 +197,12 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
     name: windows-latest / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
-    runs-on: windows-latest
+    runs-on: "${{ vars.CI_RUNNER_WINDOWS || 'windows-latest' }}"
     timeout-minutes: 25
     strategy:
+      # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
         dependencies: ["core", "core,optional"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -184,7 +218,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     name: Test coverage
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     timeout-minutes: 35
     permissions:
       contents: read

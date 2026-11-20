@@ -34,11 +34,47 @@ describe("sqlCode", () => {
     name: "email" as const,
   } as DataTableColumn;
 
+  it.each([
+    {
+      path: ["finance", "reports"],
+      expected: '"memory"."finance"."reports"."users"',
+    },
+    { path: ["finance.reports"], expected: '"finance.reports"."users"' },
+    {
+      path: ['fi"nance', "reports"],
+      expected: '"memory"."fi""nance"."reports"."users"',
+    },
+    {
+      path: ["main", "reports"],
+      expected: '"memory"."main"."reports"."users"',
+    },
+  ])("preserves schema path $path in generated SQL", ({ path, expected }) => {
+    const result = sqlCode({
+      table: mockTable,
+      columnName: "*",
+      sqlTableContext: {
+        engine: DUCKDB_ENGINE,
+        dialect: "duckdb",
+        database: "memory",
+        defaultDatabase: "memory",
+        defaultSchema: "main",
+        schema: path.at(-1)!,
+        schemaPath: path,
+      },
+    });
+    expect(result).toContain(`FROM ${expected}`);
+  });
+
   describe("basic SQL generation", () => {
+    it("selects all columns without a table context", () => {
+      expect(sqlCode({ table: mockTable, columnName: "*" })).toBe(
+        `_df = mo.sql(f'SELECT * FROM "users" LIMIT 100')`,
+      );
+    });
     it("should generate basic SQL without sqlTableContext", () => {
       const result = sqlCode({ table: mockTable, columnName: mockColumn.name });
       expect(result).toBe(
-        "_df = mo.sql(f'SELECT \"email\" FROM users LIMIT 100')",
+        '_df = mo.sql(f\'SELECT "email" FROM "users" LIMIT 100\')',
       );
     });
 
@@ -426,6 +462,60 @@ describe("sqlCode", () => {
     });
   });
 
+  describe("names with braces and quotes", () => {
+    const named = (name: string): DataTable => ({ ...mockTable, name });
+
+    it("keeps quoted table, schema and column names as text", () => {
+      const result = sqlCode({
+        table: named('t{"a"}'),
+        columnName: "c}{",
+        sqlTableContext: {
+          engine: DUCKDB_ENGINE,
+          schema: "s{1}",
+          defaultSchema: "main",
+          defaultDatabase: "memory",
+          database: "memory",
+          dialect: "duckdb",
+        },
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f"""
+SELECT "c}}{{" FROM "s{{1}}"."t{{""a""}}" LIMIT 100
+""")`,
+      );
+    });
+
+    it("quotes SQLite identifiers before escaping the Python boundary", () => {
+      const result = sqlCode({
+        table: named(String.raw`x\"""y"""`),
+        columnName: "*",
+        sqlTableContext: {
+          engine: "conn",
+          schema: "{s}",
+          defaultSchema: "main",
+          defaultDatabase: "db",
+          database: "db",
+          dialect: "sqlite",
+        },
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f"""
+SELECT * FROM "{{s}}"."x\\\"\"\"\"\"\"y\"\"\"\"\"\"\" LIMIT 100
+""", engine=conn)`,
+      );
+    });
+
+    it("escapes names without a table context", () => {
+      const result = sqlCode({
+        table: named("t{1+1}\n"),
+        columnName: `it's"`,
+      });
+      expect(result).toBe(
+        String.raw`_df = mo.sql(f'SELECT "it\'s\"\"\" FROM "t{{1+1}}\n" LIMIT 100')`,
+      );
+    });
+  });
+
   describe("fallback behavior", () => {
     it("should use default formatter for unknown dialect", () => {
       const sqlTableContext: SQLTableContext = {
@@ -484,7 +574,7 @@ describe("tableUniqueId", () => {
 
   it("uses database + schema for flat engines", () => {
     expect(tableUniqueId(ctx({ database: "db", schema: "public" }), "t")).toBe(
-      "db.public.t",
+      '["db","public","t"]',
     );
   });
 
@@ -495,7 +585,7 @@ describe("tableUniqueId", () => {
         ctx({ database: "top", schema: "nested", schemaPath: ["nested"] }),
         "t",
       ),
-    ).toBe("top.nested.t");
+    ).toBe('["top","nested","t"]');
   });
 
   it("includes the full schema path for deeply nested namespaces", () => {
@@ -508,7 +598,7 @@ describe("tableUniqueId", () => {
         }),
         "t",
       ),
-    ).toBe("top.nested.deep.t");
+    ).toBe('["top","nested","deep","t"]');
   });
 
   it("falls back to the flat schema when schemaPath is empty", () => {
@@ -517,16 +607,36 @@ describe("tableUniqueId", () => {
         ctx({ database: "db", schema: "public", schemaPath: [] }),
         "t",
       ),
-    ).toBe("db.public.t");
+    ).toBe('["db","public","t"]');
   });
 
   it("does not emit a double dot for schemaless tables", () => {
     expect(
       tableUniqueId(ctx({ database: "db", schema: "", schemaPath: [] }), "t"),
-    ).toBe("db.t");
+    ).toBe('["db","t"]');
     expect(tableUniqueId(ctx({ database: "db", schema: "" }), "t")).toBe(
-      "db.t",
+      '["db","t"]',
     );
+  });
+
+  it("keeps literal-dot and nested schemas distinct", () => {
+    const nested = tableUniqueId(
+      ctx({
+        database: "memory",
+        schema: "reports",
+        schemaPath: ["finance", "reports"],
+      }),
+      "sales",
+    );
+    const literal = tableUniqueId(
+      ctx({
+        database: "memory",
+        schema: "finance.reports",
+        schemaPath: ["finance.reports"],
+      }),
+      "sales",
+    );
+    expect(nested).not.toBe(literal);
   });
 });
 

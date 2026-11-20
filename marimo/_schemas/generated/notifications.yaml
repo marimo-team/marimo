@@ -2,9 +2,9 @@
 components:
   schemas:
     AlertNotification:
-      description: "User-facing alert message.\n\n    Attributes:\n        title:\
-        \ Alert title.\n        description: Alert body (may contain HTML).\n    \
-        \    variant: Visual variant (e.g., \"danger\")."
+      description: "User-facing alert message.\n\nAttributes:\n    title: Alert title.\n\
+        \    description: Alert body (may contain HTML).\n    variant: Visual variant\
+        \ (e.g., \"danger\")."
       properties:
         description:
           type: string
@@ -26,10 +26,10 @@ components:
       title: AlertNotification
       type: object
     BannerNotification:
-      description: "Persistent banner message at top of notebook.\n\n    Attributes:\n\
-        \        title: Banner title.\n        description: Banner body (may contain\
-        \ HTML).\n        variant: Visual variant (e.g., \"danger\").\n        action:\
-        \ Optional user action (e.g., \"restart\")."
+      description: "Persistent banner message at top of notebook.\n\nAttributes:\n\
+        \    title: Banner title.\n    description: Banner body (may contain HTML).\n\
+        \    variant: Visual variant (e.g., \"danger\").\n    action: Optional user\
+        \ action (e.g., \"restart\")."
       properties:
         action:
           anyOf:
@@ -56,8 +56,25 @@ components:
       - description
       title: BannerNotification
       type: object
+    BreakpointsNotification:
+      description: The session's complete breakpoint set, restored on connection.
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        op:
+          enum:
+          - breakpoints
+      required:
+      - op
+      - breakpoints
+      title: BreakpointsNotification
+      type: object
     CacheClearedNotification:
-      description: "Execution cache cleared result.\n\n    Attributes:\n        bytes_freed:\
+      description: "Execution cache cleared result.\n\nAttributes:\n    bytes_freed:\
         \ Bytes freed by clearing cache."
       properties:
         bytes_freed:
@@ -71,10 +88,10 @@ components:
       title: CacheClearedNotification
       type: object
     CacheInfoNotification:
-      description: "Execution cache statistics.\n\n    Attributes:\n        hits:\
-        \ Cache hits.\n        misses: Cache misses.\n        time: Time spent on\
-        \ cache operations (seconds).\n        disk_to_free: Disk space that could\
-        \ be freed (bytes).\n        disk_total: Total disk space used (bytes)."
+      description: "Execution cache statistics.\n\nAttributes:\n    hits: Cache hits.\n\
+        \    misses: Cache misses.\n    time: Time spent on cache operations (seconds).\n\
+        \    disk_to_free: Disk space that could be freed (bytes).\n    disk_total:\
+        \ Total disk space used (bytes)."
       properties:
         disk_to_free:
           type: integer
@@ -98,6 +115,41 @@ components:
       - disk_total
       title: CacheInfoNotification
       type: object
+    CallbackOutputNotification:
+      description: 'Show a widget callback or registered function''s output in its
+        defining cell.
+
+
+        Append live entries. When `replace` is true, replace the callback
+
+        transcript for this cell with the supplied entries. The editor''s
+
+        `after_seq` gives the preceding execution item sequence for each entry,
+
+        or -1 before the first item.'
+      properties:
+        after_seq:
+          items:
+            type: integer
+          type: array
+        cell_id:
+          type: string
+        entries:
+          items:
+            $ref: '#/components/schemas/CellOutput'
+          type: array
+        op:
+          enum:
+          - callback-output
+        replace:
+          default: false
+          type: boolean
+      required:
+      - op
+      - cell_id
+      - entries
+      title: CallbackOutputNotification
+      type: object
     CellChannel:
       description: The channel of a cell's output.
       enum:
@@ -109,90 +161,14 @@ components:
       - stdin
       - stdout
       title: CellChannel
-    CellConfig:
-      description: 'Internal representation of a cell''s configuration.
-
-        This is not part of the public API.'
-      properties:
-        column:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          default: null
-        disabled:
-          default: false
-          type: boolean
-        hide_code:
-          default: false
-          type: boolean
-      required: []
-      title: CellConfig
-      type: object
-    CellNotification:
-      description: "Updates a cell's state in the frontend.\n\n    Only fields that\
-        \ are set (not None) will update the cell state.\n    Omitting a field leaves\
-        \ that aspect unchanged.\n\n    Attributes:\n        cell_id: Unique identifier\
-        \ of the cell being updated.\n        output: Cell's output. Use CellOutput.empty()\
-        \ to clear.\n        console: Console messages. Single/list appends, [] clears,\
-        \ None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
-        \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
-        \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
-        \      serialization: Serialization status (TopLevelHints).\n        timestamp:\
-        \ Creation timestamp, auto-set."
-      properties:
-        cell_id:
-          type: string
-        console:
-          anyOf:
-          - items:
-              $ref: '#/components/schemas/CellOutput'
-            type: array
-          - type: 'null'
-          - $ref: '#/components/schemas/CellOutput'
-          default: null
-        op:
-          enum:
-          - cell-op
-        output:
-          anyOf:
-          - type: 'null'
-          - $ref: '#/components/schemas/CellOutput'
-          default: null
-        run_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
-        serialization:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
-        stale_inputs:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          default: null
-        status:
-          anyOf:
-          - enum:
-            - disabled-transitively
-            - idle
-            - queued
-            - running
-          - type: 'null'
-          default: null
-        timestamp:
-          type: number
-      required:
-      - op
-      - cell_id
-      title: CellNotification
-      type: object
     CellOutput:
       properties:
         channel:
           $ref: '#/components/schemas/CellChannel'
+        code:
+          type: string
+        command_id:
+          type: string
         data:
           anyOf:
           - type: string
@@ -202,6 +178,7 @@ components:
               - $ref: '#/components/schemas/CycleError'
               - $ref: '#/components/schemas/MultipleDefinitionError'
               - $ref: '#/components/schemas/ImportStarError'
+              - $ref: '#/components/schemas/LazyImportError'
               - $ref: '#/components/schemas/MarimoAncestorStoppedError'
               - $ref: '#/components/schemas/MarimoAncestorPreventedError'
               - $ref: '#/components/schemas/MarimoExceptionRaisedError'
@@ -220,6 +197,7 @@ components:
                   import-star: '#/components/schemas/ImportStarError'
                   internal: '#/components/schemas/MarimoInternalError'
                   interruption: '#/components/schemas/MarimoInterruptionError'
+                  lazy-import: '#/components/schemas/LazyImportError'
                   multiple-defs: '#/components/schemas/MultipleDefinitionError'
                   setup-refs: '#/components/schemas/SetupRootError'
                   sql-error: '#/components/schemas/MarimoSQLError'
@@ -229,6 +207,8 @@ components:
                 propertyName: type
             type: array
           - type: object
+        input_id:
+          type: string
         mimetype:
           enum:
           - application/json
@@ -257,6 +237,10 @@ components:
           - video/mpeg
         timestamp:
           type: number
+        traceback_format:
+          enum:
+          - html
+          - text
       required:
       - channel
       - mimetype
@@ -340,16 +324,22 @@ components:
       title: ColumnStats
       type: object
     CompletedRunNotification:
-      description: "Run of submitted cells and descendants completed.\n\n    Attributes:\n\
-        \        run_id: Correlation ID echoed from the command that triggered\n \
-        \           this completion. ``None`` for handlers that don't take a\n   \
-        \         ``run_id`` (everything except ``handle_execute_scratchpad``\n  \
-        \          today). Consumers that want to wait for a specific command's\n\
-        \            completion filter on this field."
+      description: The command's reactive cycle ended, after its console was flushed.
       properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         op:
           enum:
           - completed-run
+        outcome:
+          default: succeeded
+          enum:
+          - failed
+          - interrupted
+          - succeeded
         run_id:
           anyOf:
           - type: string
@@ -376,9 +366,9 @@ components:
       title: CompletionOption
       type: object
     CompletionResultNotification:
-      description: "Code completion result from language server.\n\n    Attributes:\n\
-        \        completion_id: Request ID this responds to.\n        prefix_length:\
-        \ Length of prefix to replace.\n        options: Completion options to display."
+      description: "Code completion result from language server.\n\nAttributes:\n\
+        \    completion_id: Request ID this responds to.\n    prefix_length: Length\
+        \ of prefix to replace.\n    options: Completion options to display."
       properties:
         completion_id:
           type: string
@@ -397,6 +387,48 @@ components:
       - prefix_length
       - options
       title: CompletionResultNotification
+      type: object
+    ConsoleInputsClearedNotification:
+      description: The settled input rows hidden by clear_console() in this execution.
+      properties:
+        cell_id:
+          type: string
+        execution_id:
+          type: string
+        input_ids:
+          items:
+            type: string
+          type: array
+        op:
+          enum:
+          - console-inputs-cleared
+      required:
+      - op
+      - cell_id
+      - execution_id
+      - input_ids
+      title: ConsoleInputsClearedNotification
+      type: object
+    ConsumerCapabilities:
+      description: "Per-consumer access capabilities for a session connection.\n\n\
+        - editor: `{edit: True, interact: True}`\n- interactor: `{edit: False, interact:\
+        \ True}` (default for a secondary\n  connection: drives UI state but cannot\
+        \ edit the notebook)\n- read-only viewer: `{edit: False, interact: False}`\
+        \ (opt-in, set by a\n  deployment's capability provider)\n\nThe server enforces\
+        \ these: control requests are gated against the issuing\nconsumer's stored\
+        \ capabilities at the control-request chokepoint (the\nauthority) and mirrored\
+        \ as an advisory HTTP 403 at the request handlers.\nCommands classified as\
+        \ `read` in `marimo._session.capabilities` (such as\ncompletions and previews)\
+        \ are always permitted."
+      properties:
+        edit:
+          type: boolean
+        interact:
+          type: boolean
+      required:
+      - edit
+      - interact
+      title: ConsumerCapabilities
       type: object
     CycleError:
       properties:
@@ -422,9 +454,9 @@ components:
       title: CycleError
       type: object
     DataColumnPreviewNotification:
-      description: "Data column preview with stats and visualization.\n\n    Inherits\
-        \ all ColumnPreview attributes.\n\n    Attributes:\n        table_name: Table\
-        \ containing the column.\n        column_name: Column being previewed."
+      description: "Data column preview with stats and visualization.\n\nInherits\
+        \ all ColumnPreview attributes.\n\nAttributes:\n    table_name: Table containing\
+        \ the column.\n    column_name: Column being previewed."
       properties:
         chart_code:
           anyOf:
@@ -455,8 +487,8 @@ components:
           - data-column-preview
         stats:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ColumnStats'
+          - type: 'null'
           default: null
         table_name:
           type: string
@@ -508,8 +540,8 @@ components:
       title: DataSourceConnection
       type: object
     DataSourceConnectionsNotification:
-      description: "Available data source connections for SQL cells.\n\n    Attributes:\n\
-        \        connections: Available data source connections."
+      description: "Available data source connections for SQL cells.\n\nAttributes:\n\
+        \    connections: Available data source connections."
       properties:
         connections:
           items:
@@ -634,6 +666,7 @@ components:
           - boolean
           - date
           - datetime
+          - geometry
           - integer
           - number
           - string
@@ -649,7 +682,9 @@ components:
     Database:
       description: "Represents a collection of schemas.\n\nAttributes:\n    name (str):\
         \ The name of the database\n    dialect (str): The dialect of the database\n\
-        \    schemas (List[Schema]): List of schemas in the database\n    engine (Optional[VariableName]):\
+        \    schemas (List[Schema]): List of schemas in the database.\n    schemas_resolved\
+        \ (bool): True when `schemas` has been enumerated.\n        False when schema\
+        \ discovery was deferred. Defaults to True\n    engine (Optional[VariableName]):\
         \ Database engine or connection handler, if any."
       properties:
         dialect:
@@ -665,6 +700,9 @@ components:
           items:
             $ref: '#/components/schemas/Schema'
           type: array
+        schemas_resolved:
+          default: true
+          type: boolean
       required:
       - name
       - dialect
@@ -672,9 +710,9 @@ components:
       title: Database
       type: object
     DatasetsNotification:
-      description: "Available datasets for data explorer.\n\n    Attributes:\n   \
-        \     tables: Available data tables/datasets.\n        clear_channel: If set,\
-        \ clears tables from this channel first."
+      description: "Available datasets for data explorer.\n\nAttributes:\n    tables:\
+        \ Available data tables/datasets.\n    clear_channel: If set, clears tables\
+        \ from this channel first."
       properties:
         clear_channel:
           anyOf:
@@ -793,6 +831,186 @@ components:
       - substrings
       title: DialectHidesWhen
       type: object
+    EditorCellNotification:
+      description: 'A cell enters the blocked set with `disabled-transitively` and
+        leaves with `idle`.
+
+
+        An omitted serialization hint is unchanged. A null hint clears reusability.'
+      properties:
+        cell_id:
+          type: string
+        op:
+          enum:
+          - cell-op
+        serialization:
+          anyOf:
+          - type: string
+          - type: 'null'
+        status:
+          anyOf:
+          - enum:
+            - disabled-transitively
+            - idle
+          - type: 'null'
+          default: null
+      required:
+      - op
+      - cell_id
+      title: EditorCellNotification
+      type: object
+    EnvironmentOperation:
+      description: Current progress and logs for one execution of environment work.
+      properties:
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
+        logs:
+          additionalProperties:
+            type: string
+          type: object
+        operation_id:
+          type: string
+        packages:
+          additionalProperties:
+            enum:
+            - failed
+            - queued
+            - restart-required
+            - running
+            - succeeded
+          type: object
+        source:
+          enum:
+          - kernel
+          - server
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/OperationRunning'
+          - $ref: '#/components/schemas/OperationSucceeded'
+          - $ref: '#/components/schemas/OperationRestartRequired'
+          - $ref: '#/components/schemas/OperationFailed'
+          - $ref: '#/components/schemas/OperationCancelled'
+          discriminator:
+            mapping:
+              cancelled: '#/components/schemas/OperationCancelled'
+              failed: '#/components/schemas/OperationFailed'
+              restart-required: '#/components/schemas/OperationRestartRequired'
+              running: '#/components/schemas/OperationRunning'
+              succeeded: '#/components/schemas/OperationSucceeded'
+            propertyName: kind
+      required:
+      - operation_id
+      - action
+      - status
+      - packages
+      - logs
+      - source
+      title: EnvironmentOperation
+      type: object
+    EnvironmentOperationNotification:
+      description: 'Current operation progress and changes to its named log streams.
+
+
+        Package statuses replace the previous map. Log chunks append to a stream,
+
+        or replace it when `log_mode` is `replace`. The operation status determines
+
+        completion independently of its packages and output streams.'
+      properties:
+        action:
+          enum:
+          - install
+          - prepare
+          - remove
+          - sync
+        log_mode:
+          enum:
+          - append
+          - replace
+        logs:
+          additionalProperties:
+            type: string
+          type: object
+        op:
+          enum:
+          - environment-operation
+        operation_id:
+          type: string
+        packages:
+          additionalProperties:
+            enum:
+            - failed
+            - queued
+            - restart-required
+            - running
+            - succeeded
+          type: object
+        source:
+          enum:
+          - kernel
+          - server
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/OperationRunning'
+          - $ref: '#/components/schemas/OperationSucceeded'
+          - $ref: '#/components/schemas/OperationRestartRequired'
+          - $ref: '#/components/schemas/OperationFailed'
+          - $ref: '#/components/schemas/OperationCancelled'
+          discriminator:
+            mapping:
+              cancelled: '#/components/schemas/OperationCancelled'
+              failed: '#/components/schemas/OperationFailed'
+              restart-required: '#/components/schemas/OperationRestartRequired'
+              running: '#/components/schemas/OperationRunning'
+              succeeded: '#/components/schemas/OperationSucceeded'
+            propertyName: kind
+      required:
+      - op
+      - operation_id
+      - action
+      - status
+      - source
+      - packages
+      - logs
+      - log_mode
+      title: EnvironmentOperationNotification
+      type: object
+    EnvironmentState:
+      description: Preparation, active operations, the latest mutation, and restarts.
+      properties:
+        operations:
+          items:
+            $ref: '#/components/schemas/EnvironmentOperation'
+          type: array
+        restart_required:
+          type: boolean
+      required:
+      - restart_required
+      - operations
+      title: EnvironmentState
+      type: object
+    EnvironmentStateNotification:
+      description: Replace the current state for one environment on connection.
+      properties:
+        op:
+          enum:
+          - environment-state
+        source:
+          enum:
+          - kernel
+          - server
+        state:
+          $ref: '#/components/schemas/EnvironmentState'
+      required:
+      - op
+      - source
+      - state
+      title: EnvironmentStateNotification
+      type: object
     EnvironmentVariableDiscoveryValue:
       description: A reference to an environment variable, never its value.
       properties:
@@ -807,8 +1025,8 @@ components:
       title: EnvironmentVariableDiscoveryValue
       type: object
     FocusCellNotification:
-      description: "Focuses a cell (kiosk mode).\n\n    Attributes:\n        cell_id:\
-        \ Cell to focus."
+      description: "Focuses a cell (kiosk mode).\n\nAttributes:\n    cell_id: Cell\
+        \ to focus."
       properties:
         cell_id:
           type: string
@@ -821,15 +1039,14 @@ components:
       title: FocusCellNotification
       type: object
     FunctionCallResultNotification:
-      description: "Result of a frontend-initiated function call.\n\n    Attributes:\n\
-        \        function_call_id: ID matching the original request.\n        return_value:\
-        \ Function return value as JSON.\n        status: Human-readable success/failure\
-        \ status.\n        found: Whether the requested function was located in the\
-        \ registry.\n            False signals a transient registry desync, so the\
-        \ request is safe\n            to retry. True means no retry will help: a\
-        \ non-ok status then\n            reflects a failure unrelated to lookup,\
-        \ such as the function\n            raising during execution or not being\
-        \ associated with a cell."
+      description: "Result of a frontend-initiated function call.\n\nAttributes:\n\
+        \    function_call_id: ID matching the original request.\n    return_value:\
+        \ Function return value as JSON.\n    status: Human-readable success/failure\
+        \ status.\n    found: Whether the requested function was located in the registry.\n\
+        \        False signals a transient registry desync, so the request is safe\n\
+        \        to retry. True means no retry will help: a non-ok status then\n \
+        \       reflects a failure unrelated to lookup, such as the function\n   \
+        \     raising during execution or not being associated with a cell."
       properties:
         found:
           type: boolean
@@ -850,9 +1067,9 @@ components:
       title: FunctionCallResultNotification
       type: object
     HumanReadableStatus:
-      description: "Human-readable status for operation results.\n\n    Attributes:\n\
-        \        code: Status code (\"ok\" or \"error\").\n        title: Optional\
-        \ short title.\n        message: Optional detailed description."
+      description: "Human-readable status for operation results.\n\nAttributes:\n\
+        \    code: Status code (\"ok\" or \"error\").\n    title: Optional short title.\n\
+        \    message: Optional detailed description."
       properties:
         code:
           enum:
@@ -889,68 +1106,26 @@ components:
       - msg
       title: ImportStarError
       type: object
-    InstallingPackageAlertNotification:
-      description: "Package installation progress with streaming logs.\n\n    Attributes:\n\
-        \        packages: Package name to status (queued/installing/installed/failed).\n\
-        \        logs: Optional streaming logs per package.\n        log_status: Log\
-        \ stream status (append/start/done).\n        source: Which Python environment\
-        \ packages are installed into.\n                \"kernel\" (default) installs\
-        \ in the kernel's venv; \"server\"\n                installs in the server's\
-        \ own Python env."
-      properties:
-        log_status:
-          anyOf:
-          - enum:
-            - append
-            - done
-            - start
-          - type: 'null'
-          default: null
-        logs:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-          default: null
-        op:
-          enum:
-          - installing-package-alert
-        packages:
-          additionalProperties:
-            enum:
-            - failed
-            - installed
-            - installing
-            - queued
-            - restart-required
-          type: object
-        source:
-          default: kernel
-          enum:
-          - kernel
-          - server
-      required:
-      - op
-      - packages
-      title: InstallingPackageAlertNotification
-      type: object
     InterruptedNotification:
       description: Kernel was interrupted by user (SIGINT/Ctrl+C).
       properties:
         op:
           enum:
           - interrupted
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
       - op
       title: InterruptedNotification
       type: object
     KernelCapabilitiesNotification:
-      description: "Kernel capabilities detected at startup.\n\n    All fields auto-detected\
-        \ in __post_init__.\n\n    Attributes:\n        terminal: Terminal access\
-        \ (unavailable on Windows/Pyodide).\n        pylsp: Python Language Server\
-        \ Protocol installed.\n        ty: ty type checker installed.\n        basedpyright:\
-        \ basedpyright type checker installed."
+      description: "Kernel capabilities detected at startup.\n\nAll fields auto-detected\
+        \ in __post_init__.\n\nAttributes:\n    terminal: Terminal access (unavailable\
+        \ on Windows/Pyodide).\n    pylsp: Python Language Server Protocol installed.\n\
+        \    ty: ty type checker installed.\n    basedpyright: basedpyright type checker\
+        \ installed."
       properties:
         basedpyright:
           default: false
@@ -972,81 +1147,48 @@ components:
       type: object
     KernelReadyNotification:
       description: "Kernel ready for execution. First notification sent at startup.\n\
-        \n    Attributes:\n        cell_ids: Cell IDs in order.\n        codes: Source\
-        \ code for each cell.\n        names: Cell names/titles.\n        layout:\
-        \ Notebook layout config.\n        configs: Per-cell configuration.\n    \
-        \    resumed: Whether resumed from previous session.\n        ui_values: Previous\
-        \ UI element values if resumed.\n        last_executed_code: Last executed\
-        \ code per cell if resumed.\n        last_execution_time: Last execution time\
-        \ per cell if resumed.\n        app_config: Application configuration.\n \
-        \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
-        \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
-        \ (run mode)."
+        \nAttributes:\n    layout: Notebook layout config.\n    resumed: Whether resumed\
+        \ from previous session.\n    ui_values: Previous UI element values if resumed.\n\
+        \    app_config: Application configuration.\n    kiosk: Whether running in\
+        \ kiosk mode.\n    capabilities: Available kernel capabilities.\n    stable_session_id:\
+        \ Server-owned Session identity that survives\n        browser reconnects.\
+        \ None where no server Session exists."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
-        auto_instantiated:
-          default: false
-          type: boolean
         capabilities:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
-        cell_ids:
-          items:
-            type: string
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        configs:
-          items:
-            $ref: '#/components/schemas/CellConfig'
-          type: array
+        consumer_capabilities:
+          $ref: '#/components/schemas/ConsumerCapabilities'
         kiosk:
           type: boolean
-        last_executed_code:
-          anyOf:
-          - additionalProperties:
-              type: string
-            type: object
-          - type: 'null'
-        last_execution_time:
-          anyOf:
-          - additionalProperties:
-              type: number
-            type: object
-          - type: 'null'
         layout:
           anyOf:
           - $ref: '#/components/schemas/LayoutConfig'
           - type: 'null'
-        names:
-          items:
-            type: string
-          type: array
         op:
           enum:
           - kernel-ready
         resumed:
           type: boolean
+        stable_session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         ui_values:
           anyOf:
           - type: object
           - type: 'null'
       required:
       - op
-      - cell_ids
-      - codes
-      - names
       - layout
-      - configs
       - resumed
       - ui_values
-      - last_executed_code
-      - last_execution_time
       - app_config
       - kiosk
       - capabilities
+      - consumer_capabilities
       title: KernelReadyNotification
       type: object
     LayoutConfig:
@@ -1059,6 +1201,23 @@ components:
       - type
       - data
       title: LayoutConfig
+      type: object
+    LazyImportError:
+      properties:
+        lineno:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        msg:
+          type: string
+        type:
+          enum:
+          - lazy-import
+      required:
+      - type
+      - msg
+      title: LazyImportError
       type: object
     MarimoAncestorPreventedError:
       properties:
@@ -1227,12 +1386,12 @@ components:
       title: MarimoSyntaxError
       type: object
     MissingPackageAlertNotification:
-      description: "Alert for missing packages with install option.\n\n    Attributes:\n\
-        \        packages: Missing package names.\n        isolated: Whether auto-install\
-        \ is possible in this environment.\n        source: Which Python environment\
-        \ to install into. \"kernel\" (default)\n                installs in the kernel's\
-        \ venv; \"server\" installs in the\n                server's own Python env\
-        \ (e.g. for formatter tools like ruff)."
+      description: "Alert for missing packages with install option.\n\nAttributes:\n\
+        \    packages: Missing package names.\n    isolated: Whether auto-install\
+        \ is possible in this environment.\n    source: Which Python environment to\
+        \ install into. \"kernel\" (default)\n            installs in the kernel's\
+        \ venv; \"server\" installs in the\n            server's own Python env (e.g.\
+        \ for formatter tools like ruff)."
       properties:
         isolated:
           type: boolean
@@ -1271,9 +1430,121 @@ components:
       - cells
       title: MultipleDefinitionError
       type: object
+    OperationCancelled:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - cancelled
+      required:
+      - kind
+      title: OperationCancelled
+      type: object
+    OperationFailed:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        kind:
+          enum:
+          - failed
+      required:
+      - kind
+      - error
+      title: OperationFailed
+      type: object
+    OperationRestartRequired:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - restart-required
+        reason:
+          type: string
+      required:
+      - kind
+      - reason
+      title: OperationRestartRequired
+      type: object
+    OperationRunning:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - running
+      required:
+      - kind
+      title: OperationRunning
+      type: object
+    OperationSucceeded:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+          - succeeded
+      required:
+      - kind
+      title: OperationSucceeded
+      type: object
+    PdbInputNotification:
+      description: 'Identify the debugger prompt waiting for a command in a failed
+        cell.
+
+
+        A null input ID closes the prompt.'
+      properties:
+        cell_id:
+          type: string
+        input_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+        op:
+          enum:
+          - pdb-input
+      required:
+      - op
+      - cell_id
+      - input_id
+      title: PdbInputNotification
+      type: object
+    PdbOutputNotification:
+      description: 'Show debugger output in the cell that failed.
+
+
+        Append live entries. When `replace` is true, replace the debugger''s
+
+        transcript for this cell with the supplied entries. The editor''s
+
+        `after_seq` gives the preceding execution item sequence for each entry,
+
+        or -1 before the first item.'
+      properties:
+        after_seq:
+          items:
+            type: integer
+          type: array
+        cell_id:
+          type: string
+        entries:
+          items:
+            $ref: '#/components/schemas/CellOutput'
+          type: array
+        op:
+          enum:
+          - pdb-output
+        replace:
+          default: false
+          type: boolean
+      required:
+      - op
+      - cell_id
+      - entries
+      title: PdbOutputNotification
+      type: object
     QueryParamsAppendNotification:
-      description: "Appends value to URL query parameter.\n\n    Attributes:\n   \
-        \     key: Query parameter key.\n        value: Value to append."
+      description: "Appends value to URL query parameter.\n\nAttributes:\n    key:\
+        \ Query parameter key.\n    value: Value to append."
       properties:
         key:
           type: string
@@ -1299,9 +1570,9 @@ components:
       title: QueryParamsClearNotification
       type: object
     QueryParamsDeleteNotification:
-      description: "Deletes URL query parameter values.\n\n    Attributes:\n     \
-        \   key: Query parameter key.\n        value: Specific value to delete. If\
-        \ None, deletes all values for key."
+      description: "Deletes URL query parameter values.\n\nAttributes:\n    key: Query\
+        \ parameter key.\n    value: Specific value to delete. If None, deletes all\
+        \ values for key."
       properties:
         key:
           type: string
@@ -1319,8 +1590,8 @@ components:
       title: QueryParamsDeleteNotification
       type: object
     QueryParamsSetNotification:
-      description: "Sets URL query parameter, replacing existing values.\n\n    Attributes:\n\
-        \        key: Query parameter key.\n        value: Value(s) to set."
+      description: "Sets URL query parameter, replacing existing values.\n\nAttributes:\n\
+        \    key: Query parameter key.\n    value: Value(s) to set."
       properties:
         key:
           type: string
@@ -1339,16 +1610,6 @@ components:
       - value
       title: QueryParamsSetNotification
       type: object
-    ReconnectedNotification:
-      description: WebSocket reconnection confirmed.
-      properties:
-        op:
-          enum:
-          - reconnected
-      required:
-      - op
-      title: ReconnectedNotification
-      type: object
     ReloadNotification:
       description: Instructs frontend to reload the page.
       properties:
@@ -1360,9 +1621,9 @@ components:
       title: ReloadNotification
       type: object
     RemoveUIElementsNotification:
-      description: "Removes UI elements associated with a cell.\n\n    Sent when cell\
-        \ is re-executed or deleted.\n\n    Attributes:\n        cell_id: Cell whose\
-        \ UI elements should be removed."
+      description: "Removes UI elements associated with a cell.\n\nSent when cell\
+        \ is re-executed or deleted.\n\nAttributes:\n    cell_id: Cell whose UI elements\
+        \ should be removed."
       properties:
         cell_id:
           type: string
@@ -1374,23 +1635,46 @@ components:
       - cell_id
       title: RemoveUIElementsNotification
       type: object
+    Revision:
+      properties:
+        execution:
+          description: Identifies an execution. Unique within the host.
+          minLength: 1
+          type: string
+        update:
+          description: How many times the value has been updated since it was produced.
+            Zero at binding.
+          minimum: 0
+          type: integer
+      required:
+      - execution
+      - update
+      title: Revision
+      type: object
     SQLDatabaseMetadata:
-      description: "SQL database metadata.\n\n    Attributes:\n        connection:\
-        \ Connection identifier.\n        database: Database name."
+      description: "SQL database metadata.\n\nAttributes:\n    connection: Connection\
+        \ identifier.\n    database: Database name.\n    schema_path: Parent schema\
+        \ path the schemas belong under. Empty for\n        the database's top level."
       properties:
         connection:
           type: string
         database:
           type: string
+        schema_path:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - connection
       - database
       title: SQLDatabaseMetadata
       type: object
     SQLMetadata:
-      description: "SQL database and schema metadata.\n\n    Attributes:\n       \
-        \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name."
+      description: "SQL database and schema metadata.\n\nAttributes:\n    connection:\
+        \ Connection identifier.\n    database: Database name.\n    schema: Schema\
+        \ name.\n    schema_path: Path of nested schemas (relative to `database`).\
+        \ Empty\n        for the top level."
       properties:
         connection:
           type: string
@@ -1398,6 +1682,11 @@ components:
           type: string
         schema:
           type: string
+        schema_path:
+          default: []
+          items:
+            type: string
+          type: array
         type:
           enum:
           - sql-metadata
@@ -1409,10 +1698,9 @@ components:
       title: SQLMetadata
       type: object
     SQLSchemaListPreviewNotification:
-      description: "List of SQL schemas in a database.\n\n    Attributes:\n      \
-        \  request_id: Request ID this responds to.\n        metadata: Database and\
-        \ schema metadata.\n        schemas: Schemas in database.\n        error:\
-        \ Error message if failed."
+      description: "List of SQL schemas in a database.\n\nAttributes:\n    request_id:\
+        \ Request ID this responds to.\n    metadata: Database and schema metadata.\n\
+        \    schemas: Schemas in database.\n    error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -1438,9 +1726,9 @@ components:
       title: SQLSchemaListPreviewNotification
       type: object
     SQLTableListPreviewNotification:
-      description: "List of SQL tables in a schema.\n\n    Attributes:\n        request_id:\
-        \ Request ID this responds to.\n        metadata: Database and schema metadata.\n\
-        \        tables: Tables in schema.\n        error: Error message if failed."
+      description: "List of SQL tables in a schema.\n\nAttributes:\n    request_id:\
+        \ Request ID this responds to.\n    metadata: Database and schema metadata.\n\
+        \    tables: Tables in schema.\n    error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -1466,10 +1754,9 @@ components:
       title: SQLTableListPreviewNotification
       type: object
     SQLTablePreviewNotification:
-      description: "SQL table preview.\n\n    Attributes:\n        request_id: Request\
-        \ ID this responds to.\n        metadata: Database and schema metadata.\n\
-        \        table: Table data (None if error).\n        error: Error message\
-        \ if failed."
+      description: "SQL table preview.\n\nAttributes:\n    request_id: Request ID\
+        \ this responds to.\n    metadata: Database and schema metadata.\n    table:\
+        \ Table data (None if error).\n    error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -1485,8 +1772,8 @@ components:
           type: string
         table:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/DataTable'
+          - type: 'null'
       required:
       - op
       - request_id
@@ -1508,22 +1795,42 @@ components:
       title: SafeLiteralDiscoveryValue
       type: object
     Schema:
+      description: "Represents a database schema and its tables.\n\nA schema may itself\
+        \ contain nested child schemas, e.g. for catalogs with\nhierarchical namespaces\
+        \ such as Iceberg (`top.nested.deep`).\n\nAttributes:\n    name (str): The\
+        \ name of the schema.\n    tables (List[DataTable]): Tables in this schema.\n\
+        \    tables_resolved (bool): True when `tables` has been enumerated\n    \
+        \    False when table discovery was deferred. Defaults to True\n    child_schemas\
+        \ (List[Schema]): Nested child schemas (sub-namespaces).\n    child_schemas_resolved\
+        \ (bool): True when `child_schemas` has been\n        enumerated. False when\
+        \ discovery was deferred. Defaults to True"
       properties:
+        child_schemas:
+          default: []
+          items:
+            $ref: '#/components/schemas/Schema'
+          type: array
+        child_schemas_resolved:
+          default: true
+          type: boolean
         name:
           type: string
         tables:
           items:
             $ref: '#/components/schemas/DataTable'
           type: array
+        tables_resolved:
+          default: true
+          type: boolean
       required:
       - name
       - tables
       title: Schema
       type: object
     SecretKeysResultNotification:
-      description: "Available secret keys from secret providers.\n\n    Attributes:\n\
-        \        request_id: Request ID this responds to.\n        secrets: Secret\
-        \ keys with provider info."
+      description: "Available secret keys from secret providers.\n\nAttributes:\n\
+        \    request_id: Request ID this responds to.\n    secrets: Secret keys with\
+        \ provider info."
       properties:
         op:
           enum:
@@ -1636,8 +1943,8 @@ components:
       title: SqlParseResult
       type: object
     StartupLogsNotification:
-      description: "Streaming kernel startup logs.\n\n    Attributes:\n        content:\
-        \ Log content to display.\n        status: Stream status (start/append/done)."
+      description: "Streaming kernel startup logs.\n\nAttributes:\n    content: Log\
+        \ content to display.\n    status: Stream status (start/append/done)."
       properties:
         content:
           type: string
@@ -1676,9 +1983,9 @@ components:
       title: StorageHidesWhen
       type: object
     UIElementMessageNotification:
-      description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
-        \       ui_element: UI element identifier.\n        message: Message payload\
-        \ as dictionary.\n        buffers: Optional binary buffers for large data."
+      description: "Sends a message to a UI element/widget.\n\nAttributes:\n    ui_element:\
+        \ UI element identifier.\n    message: Message payload as dictionary.\n  \
+        \  buffers: Optional binary buffers for large data."
       properties:
         buffers:
           anyOf:
@@ -1719,10 +2026,9 @@ components:
       title: UnknownError
       type: object
     ValidateSQLResultNotification:
-      description: "SQL query validation result.\n\n    Attributes:\n        request_id:\
-        \ Request ID this responds to.\n        parse_result: SQL parsing result.\n\
-        \        validate_result: Catalog validation result.\n        error: Error\
-        \ message if failed."
+      description: "SQL query validation result.\n\nAttributes:\n    request_id: Request\
+        \ ID this responds to.\n    parse_result: SQL parsing result.\n    validate_result:\
+        \ Catalog validation result.\n    error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -1734,15 +2040,15 @@ components:
           - validate-sql-result
         parse_result:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/SqlParseResult'
+          - type: 'null'
           default: null
         request_id:
           type: string
         validate_result:
           anyOf:
-          - type: 'null'
           - $ref: '#/components/schemas/SqlCatalogCheckResult'
+          - type: 'null'
           default: null
       required:
       - op
@@ -1750,9 +2056,9 @@ components:
       title: ValidateSQLResultNotification
       type: object
     VariableDeclarationNotification:
-      description: "Variable declaration and usage for dataflow graph.\n\n    Attributes:\n\
-        \        name: Variable name.\n        declared_by: Cell IDs that define this\
-        \ variable.\n        used_by: Cell IDs that use this variable."
+      description: "Variable declaration and usage for dataflow graph.\n\nAttributes:\n\
+        \    name: Variable name.\n    declared_by: Cell IDs that define this variable.\n\
+        \    used_by: Cell IDs that use this variable."
       properties:
         declared_by:
           items:
@@ -1770,17 +2076,39 @@ components:
       - used_by
       title: VariableDeclarationNotification
       type: object
+    VariableRemoval:
+      description: A binding removed from the runtime's namespace.
+      properties:
+        execution_id:
+          type: string
+        name:
+          type: string
+      required:
+      - name
+      - execution_id
+      title: VariableRemoval
+      type: object
     VariableValue:
-      description: "Variable value and type for variables panel.\n\n    Attributes:\n\
-        \        name: Variable name.\n        value: String representation of value.\n\
-        \        datatype: Data type as string."
+      description: "Variable value and type for variables panel.\n\nAttributes:\n\
+        \    name: Variable name.\n    value: String representation of value.\n  \
+        \  datatype: Data type as string."
       properties:
         datatype:
           anyOf:
           - type: string
           - type: 'null'
+        execution_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         name:
           type: string
+        revision:
+          anyOf:
+          - $ref: '#/components/schemas/Revision'
+          - type: 'null'
+          default: null
         value:
           anyOf:
           - type: string
@@ -1792,12 +2120,18 @@ components:
       title: VariableValue
       type: object
     VariableValuesNotification:
-      description: "Current variable values.\n\n    Attributes:\n        variables:\
-        \ Variables with current values and types."
+      description: "Current variable values.\n\nAttributes:\n    variables: Variables\
+        \ with current values and types.\n    removed: Bindings that no longer exist,\
+        \ identified by their producer."
       properties:
         op:
           enum:
           - variable-values
+        removed:
+          default: []
+          items:
+            $ref: '#/components/schemas/VariableRemoval'
+          type: array
         variables:
           items:
             $ref: '#/components/schemas/VariableValue'
@@ -1808,8 +2142,8 @@ components:
       title: VariableValuesNotification
       type: object
     VariablesNotification:
-      description: "Variable dataflow graph.\n\n    Attributes:\n        variables:\
-        \ Variable declarations and usage."
+      description: "Variable dataflow graph.\n\nAttributes:\n    variables: Variable\
+        \ declarations and usage."
       properties:
         op:
           enum:
@@ -1824,8 +2158,12 @@ components:
       title: VariablesNotification
       type: object
     _AppConfig:
-      description: "Program-specific configuration.\n\n    Configuration for frontends\
-        \ or runtimes that is specific to\n    a single marimo program."
+      description: 'Program-specific configuration.
+
+
+        Configuration for frontends or runtimes that is specific to
+
+        a single marimo program.'
       properties:
         app_title:
           anyOf:

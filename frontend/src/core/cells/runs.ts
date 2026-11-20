@@ -1,16 +1,24 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { TypedString } from "@/utils/typed";
-import type { CellMessage } from "../kernel/messages";
+import type { Execution } from "@marimo-team/client/protocol";
+import { completedAt, startedAt } from "@/core/notebook/replica";
 import type { CellId } from "./ids";
 export type RunId = TypedString<"RunId">;
 
 export interface CellRun {
   cellId: CellId;
+  executionId: Execution["id"];
   code: string;
   elapsedTime?: number;
   startTime: number;
-  status: "success" | "error" | "queued" | "running";
+  status:
+    | "queued"
+    | "running"
+    | "success"
+    | "error"
+    | "skipped"
+    | "interrupted";
 }
 
 export interface Run {
@@ -34,136 +42,72 @@ function initialState(): RunsState {
 export const MAX_RUNS = 50;
 export const MAX_CODE_LENGTH = 200;
 
+function traceStatus(record: Execution): CellRun["status"] {
+  if (record.state.status !== "completed") {
+    return record.state.status;
+  }
+  const outcome = record.state.outcome.kind;
+  return outcome === "succeeded" ? "success" : outcome;
+}
+
 const {
   reducer,
   createActions,
   valueAtom: runsAtom,
   useActions: useRunsActions,
 } = createReducerAndAtoms(initialState, {
-  addCellNotification: (
+  addExecution: (
     state: RunsState,
-    opts: { cellNotification: CellMessage; code: string },
+    {
+      record,
+      code,
+      receivedAt,
+    }: { record: Execution; code: string | undefined; receivedAt: number },
   ): RunsState => {
-    const { cellNotification, code } = opts;
-    const timestamp = cellNotification.timestamp ?? 0;
-    const runId = cellNotification.run_id as RunId | undefined;
-    if (!runId) {
+    if (record.run_id === null || record.cell_id === null) {
       return state;
     }
-
-    const existingRun = state.runMap.get(runId);
-    // If it is a brand new run and the cell code is "pure markdown",
-    // we don't want to show the trace since it's not helpful.
-    // This spams the tracing because we re-render pure markdown on keystrokes.
-    if (!existingRun && isPureMarkdown(code)) {
+    const runId = record.run_id as RunId;
+    const cellId = record.cell_id as CellId;
+    const previous = state.runMap.get(runId);
+    if (previous === undefined && code !== undefined && isPureMarkdown(code)) {
       return state;
     }
-
-    // We determine if the cell operation errored by looking at the output
-    const erroredOutput =
-      cellNotification.output &&
-      (cellNotification.output.channel === "marimo-error" ||
-        cellNotification.output.channel === "stderr");
-
-    let status: CellRun["status"] = erroredOutput
-      ? "error"
-      : cellNotification.status === "queued"
-        ? "queued"
-        : cellNotification.status === "running"
-          ? "running"
-          : "success";
-
-    // Create new run if needed
-    if (!existingRun) {
-      const newRun: Run = {
-        runId,
-        cellRuns: new Map([
-          [
-            cellNotification.cell_id,
-            {
-              cellId: cellNotification.cell_id,
-              code: code.slice(0, MAX_CODE_LENGTH),
-              elapsedTime: 0,
-              status: status,
-              startTime: timestamp,
-            },
-          ],
-        ]),
-        runStartTime: timestamp,
-      };
-
-      // Manage run history size
-      const runIds = [runId, ...state.runIds];
-      const nextRunMap = new Map(state.runMap);
-      if (runIds.length > MAX_RUNS) {
-        const oldestRunId = runIds.pop();
-        if (oldestRunId) {
-          nextRunMap.delete(oldestRunId);
-        }
-      }
-
-      nextRunMap.set(runId, newRun);
-      return {
-        runIds,
-        runMap: nextRunMap,
-      };
-    }
-
-    // Update existing run
-    const nextCellRuns = new Map(existingRun.cellRuns);
-    const existingCellRun = nextCellRuns.get(cellNotification.cell_id);
-
-    // Early return if nothing changed
-    if (
-      existingCellRun &&
-      !erroredOutput &&
-      cellNotification.status === "queued"
-    ) {
-      return state;
-    }
-
-    if (existingCellRun) {
-      const hasErroredPreviously = existingCellRun.status === "error";
-
-      // Compute new status and timing
-      status = hasErroredPreviously || erroredOutput ? "error" : status;
-
-      const startTime =
-        cellNotification.status === "running"
-          ? timestamp
-          : existingCellRun.startTime;
-
-      const elapsedTime =
-        status === "success" || status === "error"
-          ? timestamp - existingCellRun.startTime
-          : undefined;
-
-      nextCellRuns.set(cellNotification.cell_id, {
-        ...existingCellRun,
-        startTime,
-        elapsedTime,
-        status,
-      });
-    } else {
-      nextCellRuns.set(cellNotification.cell_id, {
-        cellId: cellNotification.cell_id,
-        code: code.slice(0, MAX_CODE_LENGTH),
-        elapsedTime: 0,
-        status: status,
-        startTime: timestamp,
-      });
-    }
-
-    const nextRunMap = new Map(state.runMap);
-    nextRunMap.set(runId, {
-      ...existingRun,
-      cellRuns: nextCellRuns,
+    const cellRuns = new Map(previous?.cellRuns);
+    const prior = cellRuns.get(cellId);
+    const sameExecution = prior?.executionId === record.id ? prior : undefined;
+    const end = completedAt(record);
+    const start = startedAt(record);
+    const ended = end === null ? undefined : Date.parse(end) / 1000;
+    const startTime =
+      start === null
+        ? (sameExecution?.startTime ?? ended ?? receivedAt)
+        : Date.parse(start) / 1000;
+    cellRuns.set(cellId, {
+      cellId,
+      executionId: record.id,
+      code: code?.slice(0, MAX_CODE_LENGTH) ?? sameExecution?.code ?? "",
+      startTime,
+      status: traceStatus(record),
+      elapsedTime: ended === undefined ? undefined : ended - startTime,
     });
-
-    return {
-      ...state,
-      runMap: nextRunMap,
-    };
+    const runMap = new Map(state.runMap);
+    runMap.set(runId, {
+      runId,
+      cellRuns,
+      runStartTime: previous?.runStartTime ?? startTime,
+    });
+    if (previous !== undefined) {
+      return { ...state, runMap };
+    }
+    const runIds = [runId, ...state.runIds];
+    if (runIds.length > MAX_RUNS) {
+      const oldest = runIds.pop();
+      if (oldest !== undefined) {
+        runMap.delete(oldest);
+      }
+    }
+    return { runIds, runMap };
   },
   clearRuns: (state: RunsState): RunsState => ({
     ...state,

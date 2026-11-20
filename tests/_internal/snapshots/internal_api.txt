@@ -8,6 +8,7 @@ commands
   DebugCellCommand
   DeleteCellCommand
   DiscoverDataSourcesCommand
+  EditCellsCommand
   ExecuteCellCommand
   ExecuteCellsCommand
   ExecuteScratchpadCommand
@@ -69,10 +70,11 @@ notifications
   DataColumnPreviewNotification
   DataSourceConnectionsNotification
   DatasetsNotification
+  EnvironmentOperationNotification
+  EnvironmentStateNotification
   FocusCellNotification
   FunctionCallResultNotification
   HumanReadableStatus
-  InstallingPackageAlertNotification
   InterruptedNotification
   KernelCapabilitiesNotification
   KernelReadyNotification
@@ -85,7 +87,6 @@ notifications
   QueryParamsClearNotification
   QueryParamsDeleteNotification
   QueryParamsSetNotification
-  ReconnectedNotification
   ReloadNotification
   RemoveUIElementsNotification
   SQLMetadata

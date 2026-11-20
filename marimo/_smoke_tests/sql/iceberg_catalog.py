@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -19,6 +19,7 @@ def _():
     import marimo as mo
     import pyarrow as pa
     from pyiceberg.catalog import load_catalog
+
     return load_catalog, pa
 
 
@@ -68,9 +69,8 @@ def _(catalog, pa):
 
 
 @app.cell
-def _(catalog, test_table):
+def _(catalog, test_table: tuple[str, str]):
     catalog.load_table(test_table).to_polars().collect()
-    return
 
 
 if __name__ == "__main__":

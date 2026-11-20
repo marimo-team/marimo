@@ -17,7 +17,6 @@ def _(X_1, nearest_partition, plt):
     for i_1 in range(X_1.shape[0]):
         for j in nearest_partition[i_1, :_K + 1]:
             plt.plot(*zip(X_1[j], X_1[i_1]), color='black')
-    return
 
 
 if __name__ == "__main__":

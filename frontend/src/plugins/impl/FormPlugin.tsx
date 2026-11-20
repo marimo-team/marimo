@@ -212,13 +212,15 @@ const Form = ({
   // wrapped plugin; this buffered value is in contrast to the actual
   // value of the plugin, which is the value of the wrapped plugin when
   // the submit button was last clicked/activated.
-  const [internalValue, setInternalValue] = useState<T>(
+  const [internalValue, setInternalValue] = useState<T>(() =>
     UI_ELEMENT_REGISTRY.lookupValue(elementId),
   );
 
   // The Form may be rendered before the child plugin is, so after mount
   // we lookup the plugin once again.
   useEffect(() => {
+    // TODO: Replace the post-mount registry lookup with reactive initialization.
+    // oxlint-disable-next-line react/no-deriving-state-in-effects -- The child registry entry may not exist until after the parent mounts.
     setInternalValue(UI_ELEMENT_REGISTRY.lookupValue(elementId));
   }, [elementId]);
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -9,7 +9,6 @@ def _(mo):
     mo.md("""
     # Signal Decomposition
     """)
-    return
 
 
 @app.cell
@@ -19,7 +18,6 @@ def _(mo):
     age-old problem about breaking down a complex signal, also known as a
     time series, into the sum of simpler interpretable ones.
     """)
-    return
 
 
 @app.cell
@@ -32,7 +30,6 @@ def _(mo):
     1. How many components do we want?
     2. What kinds of components, or "component classes", do we want?
     """)
-    return
 
 
 @app.cell
@@ -63,7 +60,7 @@ def _(complib, mo):
 
 
 @app.cell
-def _(component_options, get_component_radio_tracker):
+def _(component_options: list[str], get_component_radio_tracker):
     def user_tried_all_components():
         return len(get_component_radio_tracker()) == len(component_options)
 
@@ -116,11 +113,10 @@ def _(get_show_third_component, mo):
         {_three_component_text} component.
         """
     )
-    return
 
 
 @app.cell
-def _(get_show_third_component, intro, mo, radios):
+def _(get_show_third_component, intro, mo, radios: list):
     # Show radios
     (
         mo.hstack(
@@ -137,11 +133,10 @@ def _(get_show_third_component, intro, mo, radios):
         if not get_show_third_component()
         else mo.hstack(radios, justify="space-around")
     )
-    return
 
 
 @app.cell
-def _(get_show_third_component, intro, mo, radios):
+def _(get_show_third_component, intro, mo, radios: list):
     # Plot 3-component decomposition
     (
         None
@@ -157,18 +152,16 @@ def _(get_show_third_component, intro, mo, radios):
             ]
         )
     )
-    return
 
 
 @app.cell
-def _(explainer, get_show_third_component, mo, radios):
+def _(explainer, get_show_third_component, mo, radios: list):
     # Component explainer callout
     (
         mo.md(explainer.explainer(radios[0].value)).callout(kind="neutral")
         if not get_show_third_component() and radios[0].value is not None
         else None
     )
-    return
 
 
 @app.cell
@@ -215,7 +208,6 @@ def _(
         and not solved.now
         else None
     )
-    return
 
 
 @app.cell
@@ -236,7 +228,7 @@ def _():
 
 
 @app.cell
-def _(complib, radios, solved_ever):
+def _(complib, radios: list, solved_ever):
     _chosen_components = set([r.value for r in radios])
 
 
@@ -283,7 +275,6 @@ def _(get_show_third_component, mo, solved):
         if get_show_third_component() and solved.now
         else None
     )
-    return
 
 
 @app.cell
@@ -304,7 +295,6 @@ def _(mo, solved):
         if solved.ever
         else None
     )
-    return
 
 
 @app.cell
@@ -333,7 +323,6 @@ def _(
         and not solved.now
         else None
     )
-    return
 
 
 @app.cell
@@ -341,7 +330,6 @@ def _(mo):
     mo.md("""
     ## Part 2: More Decompositions
     """)
-    return
 
 
 @app.cell
@@ -385,7 +373,6 @@ def _(mo, selected_problem, solved):
             """
         ).callout(kind="alert")
     )
-    return
 
 
 @app.cell
@@ -449,7 +436,6 @@ def _(data_uploader, mo, problems, selected_problem, show_csv_parameters):
         {show_csv_parameters()}
         """
     ).callout()
-    return
 
 
 @app.cell
@@ -565,7 +551,6 @@ def _(mo, problem):
     mo.stop(problem is None)
 
     mo.md(f"### {problem.name()}")
-    return
 
 
 @app.cell
@@ -573,7 +558,6 @@ def _(mo, problem):
     mo.stop(problem is None)
 
     problem.description()
-    return
 
 
 @app.cell
@@ -585,7 +569,6 @@ def _(add_button, mo, problem, remove_button):
         ## {mo.md(f"{add_button} {remove_button}").center()}
         """
     )
-    return
 
 
 @app.cell
@@ -593,7 +576,6 @@ def _(component_array, component_params, mo, problem):
     mo.stop(problem is None)
 
     mo.hstack([component_array, component_params])
-    return
 
 
 @app.cell
@@ -697,7 +679,7 @@ def _(component_array):
 
 
 @app.cell
-def _(component_array, noise_component_selected, problem):
+def _(component_array, noise_component_selected: None, problem):
     should_compute_decomposition = (
         noise_component_selected
         and sum(1 for v in component_array.value if v is not None) >= 2
@@ -709,10 +691,10 @@ def _(component_array, noise_component_selected, problem):
 def _(
     component_array,
     mo,
-    noise_component_selected,
+    noise_component_selected: None,
     problem,
-    rolled_up_params,
-    should_compute_decomposition,
+    rolled_up_params: tuple,
+    should_compute_decomposition: None,
 ):
     mo.stop(problem is None)
 
@@ -739,7 +721,6 @@ def _(
             )
 
     _feedback()
-    return
 
 
 @app.cell
@@ -777,8 +758,8 @@ def _(
     mo,
     plt,
     problem,
-    rolled_up_params,
-    should_compute_decomposition,
+    rolled_up_params: tuple,
+    should_compute_decomposition: None,
 ):
     mo.stop(not should_compute_decomposition)
 
@@ -795,7 +776,6 @@ def _(
 
 
     _do_decomposition()
-    return
 
 
 @app.cell
@@ -815,7 +795,6 @@ def _(explainer_choice, mo, solved):
         Tell me more about the {explainer_choice} component class.
         """
     )
-    return
 
 
 @app.cell
@@ -823,7 +802,6 @@ def _(explainer, explainer_choice, mo):
     mo.md(
         explainer.explainer(explainer_choice.value)
     ).callout() if explainer_choice.value is not None else ""
-    return
 
 
 @app.cell
@@ -843,7 +821,6 @@ def _(mo, solved):
         and fun.
         """
     )
-    return
 
 
 @app.cell

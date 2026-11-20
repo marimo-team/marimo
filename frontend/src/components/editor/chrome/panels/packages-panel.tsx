@@ -20,25 +20,23 @@ import {
 } from "@/components/ui/table";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { useResolvedMarimoConfig } from "@/core/config/config";
-import { useRequestClient } from "@/core/network/requests";
+import { isConnectedAtom } from "@/core/network/connection";
 import type {
   DependencyTreeNode,
   DependencyTreeResponse,
 } from "@/core/network/types";
+import { sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
-import {
-  showPackageRestartToast,
-  showRemovePackageToast,
-  showUpgradePackageToast,
-} from "@/core/packages/toast-components";
+import { usePackageAction } from "@/core/packages/usePackageAction";
+import { usePackageDependencies } from "@/core/packages/usePackageDependencies";
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { isWasm } from "@/core/wasm/utils";
-import { useAsyncData } from "@/hooks/useAsyncData";
+import { useStateForKey } from "@/hooks/useStateForKey";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
+import { RuntimeDetails } from "./runtime-panel";
 import { PanelEmptyState } from "./empty-state";
 import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
@@ -71,40 +69,28 @@ const PackageActionButton: React.FC<{
 };
 
 const PackagesPanel: React.FC = () => {
-  const [config] = useResolvedMarimoConfig();
-  const packageManager = config.package_management.manager;
-  const { getDependencyTree, getPackageList } = useRequestClient();
+  const connected = useAtomValue(isConnectedAtom);
+  return (
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <RuntimeDetails />
+      {connected && <PackageContents />}
+    </div>
+  );
+};
 
+const PackageContents: React.FC = () => {
+  const syncing = useAtomValue(sandboxSyncAtom).kind === "running";
   const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
-  const {
-    data: dependencies,
-    error,
-    refetch,
-    isPending,
-  } = useAsyncData(async () => {
-    // A sandbox's list and tree both inspect the same environment. Wait for
-    // the context before issuing the list request so sandboxes do that work
-    // only once; non-sandbox managers still need both views.
-    const dependencyTreeResponse = await getDependencyTree();
-    if (dependencyTreeResponse.context.kind === "sandbox") {
-      return {
-        list: [],
-        context: dependencyTreeResponse.context,
-        tree: dependencyTreeResponse.tree,
-      };
-    }
-
-    const listPackagesResponse = await getPackageList();
-    return {
-      list: listPackagesResponse.packages,
-      context: dependencyTreeResponse.context,
-      tree: dependencyTreeResponse.tree,
-    };
-  }, [packageManager]);
+  const { data: dependencies, error, isPending } = usePackageDependencies();
 
   // Only show on the first load
   if (isPending) {
-    return <Spinner size="medium" centered={true} />;
+    return (
+      <output className="flex flex-1 items-center justify-center gap-2 text-xs text-muted-foreground">
+        <Spinner className="size-4" />
+        Loading installed packages…
+      </output>
+    );
   }
 
   if (error) {
@@ -122,58 +108,49 @@ const PackagesPanel: React.FC = () => {
   const viewMode = isSandbox
     ? "tree"
     : resolveViewMode(userViewMode, isTreeSupported);
-  const scopeLabel = sandboxBackend
-    ? `${sandboxBackend} sandbox`
-    : name && name !== "<root>"
-      ? "project"
-      : "environment";
-  const scopeTitle = sandboxBackend
-    ? `Dependencies are managed by the ${sandboxBackend} sandbox selected when marimo started.`
-    : scopeLabel;
+  const scopeLabel = name && name !== "<root>" ? "project" : "environment";
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <InstallPackageForm context={dependencies.context} onSuccess={refetch} />
-      {(isTreeSupported || isSandbox) && (
+      <fieldset disabled={syncing} className="contents">
+        <InstallPackageForm context={dependencies.context} />
+      </fieldset>
+      {isTreeSupported && !isSandbox && (
         <div className="flex items-center justify-between px-2 py-1 border-b">
-          {isTreeSupported && !isSandbox ? (
-            <div className="flex gap-1">
-              <button
-                type="button"
-                className={cn(
-                  "px-2 py-1 text-xs rounded",
-                  viewMode === "list"
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setUserViewMode("list")}
-              >
-                List
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "px-2 py-1 text-xs rounded",
-                  viewMode === "tree"
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setUserViewMode("tree")}
-              >
-                Tree
-              </button>
-            </div>
-          ) : (
-            <div />
-          )}
+          <div className="flex gap-1">
+            <button
+              type="button"
+              className={cn(
+                "px-2 py-1 text-xs rounded",
+                viewMode === "list"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setUserViewMode("list")}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "px-2 py-1 text-xs rounded",
+                viewMode === "tree"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setUserViewMode("tree")}
+            >
+              Tree
+            </button>
+          </div>
           <div className="flex items-center gap-2">
             <div
               className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
-              title={scopeTitle}
+              title={scopeLabel}
             >
               {scopeLabel}
             </div>
-            {name && !isSandbox && (
+            {name && (
               <span className="text-xs text-muted-foreground">
                 {name}
                 {version && ` v${version}`}
@@ -182,16 +159,26 @@ const PackagesPanel: React.FC = () => {
           </div>
         </div>
       )}
-      {viewMode === "list" ? (
-        <PackagesList packages={dependencies.list} onSuccess={refetch} />
-      ) : (
-        <DependencyTree
-          tree={dependencies.tree}
-          error={error}
-          sandboxBackend={sandboxBackend}
-          onSuccess={refetch}
-        />
-      )}
+      <fieldset
+        disabled={syncing}
+        className="flex flex-col flex-1 min-h-0"
+        aria-busy={syncing}
+      >
+        {syncing && (
+          <p className="px-3 py-2 text-xs text-muted-foreground">
+            Showing packages from the last sync.
+          </p>
+        )}
+        {viewMode === "list" ? (
+          <PackagesList packages={dependencies.list} />
+        ) : (
+          <DependencyTree
+            tree={dependencies.tree}
+            error={error}
+            sandboxBackend={sandboxBackend}
+          />
+        )}
+      </fieldset>
     </div>
   );
 };
@@ -200,8 +187,7 @@ export default PackagesPanel;
 
 const InstallPackageForm: React.FC<{
   context: PackageInstallationContext;
-  onSuccess: () => void;
-}> = ({ onSuccess, context }) => {
+}> = ({ context }) => {
   const [input, setInput] = React.useState("");
   const { handleClick: openSettings } = useOpenSettingsToTab();
   const isSandbox = context.kind === "sandbox";
@@ -222,7 +208,6 @@ const InstallPackageForm: React.FC<{
 
   const { loading, handleInstallPackages } = useInstallPackages();
   const onSuccessInstallPackages = () => {
-    onSuccess();
     setInput("");
   };
 
@@ -363,9 +348,8 @@ const InstallPackageForm: React.FC<{
 };
 
 const PackagesList: React.FC<{
-  onSuccess: () => void;
   packages: { name: string; version: string }[];
-}> = ({ onSuccess, packages }) => {
+}> = ({ packages }) => {
   // Sort case-insensitively so packages are strictly alphabetical
   // regardless of capitalization (package managers sort inconsistently).
   const sortedPackages = React.useMemo(
@@ -410,8 +394,8 @@ const PackagesList: React.FC<{
             <TableCell>{item.name}</TableCell>
             <TableCell>{item.version}</TableCell>
             <TableCell className="flex justify-end">
-              <UpgradeButton packageName={item.name} onSuccess={onSuccess} />
-              <RemoveButton packageName={item.name} onSuccess={onSuccess} />
+              <UpgradeButton packageName={item.name} />
+              <RemoveButton packageName={item.name} />
             </TableCell>
           </TableRow>
         ))}
@@ -423,40 +407,14 @@ const PackagesList: React.FC<{
 const UpgradeButton: React.FC<{
   packageName: string;
   tags?: { kind: string; value: string }[];
-  onSuccess: () => void;
-}> = ({ packageName, tags, onSuccess }) => {
-  const [loading, setLoading] = React.useState(false);
-  const { addPackage } = useRequestClient();
-
-  // Hide upgrade button in WASM
+}> = ({ packageName, tags }) => {
+  const { loading, run } = usePackageAction("upgrade", packageName, tags);
   if (isWasm()) {
     return null;
   }
 
-  const handleUpgradePackage = async () => {
-    try {
-      setLoading(true);
-      const group = tags?.find((tag) => tag.kind === "group")?.value;
-      const response = await addPackage({
-        package: packageName,
-        upgrade: true,
-        group,
-      });
-      if (response.restartRequired) {
-        showPackageRestartToast();
-      } else if (response.success) {
-        onSuccess();
-        showUpgradePackageToast(packageName);
-      } else {
-        showUpgradePackageToast(packageName, response.error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <PackageActionButton onClick={handleUpgradePackage} loading={loading}>
+    <PackageActionButton onClick={run} loading={loading}>
       Upgrade
     </PackageActionButton>
   );
@@ -465,34 +423,14 @@ const UpgradeButton: React.FC<{
 const RemoveButton: React.FC<{
   packageName: string;
   tags?: { kind: string; value: string }[];
-  onSuccess: () => void;
-}> = ({ packageName, tags, onSuccess }) => {
-  const [loading, setLoading] = React.useState(false);
-  const { removePackage } = useRequestClient();
-
-  const handleRemovePackage = async () => {
-    try {
-      setLoading(true);
-      const group = tags?.find((tag) => tag.kind === "group")?.value;
-      const response = await removePackage({
-        package: packageName,
-        group,
-      });
-      if (response.restartRequired) {
-        showPackageRestartToast();
-      } else if (response.success) {
-        onSuccess();
-        showRemovePackageToast(packageName);
-      } else {
-        showRemovePackageToast(packageName, response.error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+}> = ({ packageName, tags }) => {
+  const { loading, run } = usePackageAction("remove", packageName, tags);
+  if (packageName.toLowerCase() === "marimo") {
+    return null;
+  }
 
   return (
-    <PackageActionButton onClick={handleRemovePackage} loading={loading}>
+    <PackageActionButton onClick={run} loading={loading}>
       Remove
     </PackageActionButton>
   );
@@ -502,16 +440,11 @@ const DependencyTree: React.FC<{
   tree: DependencyTreeNode | null;
   error?: Error | null;
   sandboxBackend: "uv" | "pixi" | null;
-  onSuccess: () => void;
-}> = ({ tree, error, sandboxBackend, onSuccess }) => {
-  const [expandedNodes, setExpandedNodes] = React.useState<Set<string>>(
-    new Set(),
+}> = ({ tree, error, sandboxBackend }) => {
+  const [expandedNodes, setExpandedNodes] = useStateForKey(
+    tree,
+    () => new Set<string>(),
   );
-
-  // Reset tree to collapsed state when tree data changes (including refetches)
-  React.useEffect(() => {
-    setExpandedNodes(new Set());
-  }, [tree]);
 
   if (error) {
     return <ErrorBanner error={error} />;
@@ -570,7 +503,6 @@ const DependencyTree: React.FC<{
               isTopLevel={true}
               expandedNodes={expandedNodes}
               onToggle={toggleNode}
-              onSuccess={onSuccess}
             />
           </div>
         ))}
@@ -586,16 +518,7 @@ const DependencyTreeNode: React.FC<{
   isTopLevel?: boolean;
   expandedNodes: Set<string>;
   onToggle: (nodeId: string) => void;
-  onSuccess: () => void;
-}> = ({
-  nodeId,
-  node,
-  level,
-  isTopLevel = false,
-  expandedNodes,
-  onToggle,
-  onSuccess,
-}) => {
+}> = ({ nodeId, node, level, isTopLevel = false, expandedNodes, onToggle }) => {
   const hasChildren = node.dependencies.length > 0;
   const isExpanded = expandedNodes.has(nodeId);
   const indent = isTopLevel ? 0 : 16 + level * 16; // Top-level uses CSS padding, children use calculated indent
@@ -709,17 +632,9 @@ const DependencyTreeNode: React.FC<{
         {/* Actions for top-level packages */}
         {isTopLevel && (
           <div className="flex gap-1 invisible group-hover:visible">
-            <UpgradeButton
-              packageName={node.name}
-              tags={node.tags}
-              onSuccess={onSuccess}
-            />
+            <UpgradeButton packageName={node.name} tags={node.tags} />
 
-            <RemoveButton
-              packageName={node.name}
-              tags={node.tags}
-              onSuccess={onSuccess}
-            />
+            <RemoveButton packageName={node.name} tags={node.tags} />
           </div>
         )}
       </div>
@@ -736,7 +651,6 @@ const DependencyTreeNode: React.FC<{
               isTopLevel={false}
               expandedNodes={expandedNodes}
               onToggle={onToggle}
-              onSuccess={onSuccess}
             />
           ))}
         </div>

@@ -210,7 +210,18 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             def convert_to_polars() -> pl.DataFrame:
                 import polars as pl
 
-                return pl.DataFrame(rows)
+                try:
+                    return pl.DataFrame(rows)
+                except pl.exceptions.ComputeError as e:
+                    if "infer_schema_length" not in str(e):
+                        raise
+                    # Only scan all rows when sampled inference fails. Reuse
+                    # the fetched rows so SQL with side effects runs just once.
+                    try:
+                        return pl.DataFrame(rows, infer_schema_length=None)
+                    except pl.exceptions.SchemaError as retry_error:
+                        # Preserve auto's pandas fallback for incompatible types.
+                        raise e from retry_error
 
             def convert_to_pandas() -> pd.DataFrame:
                 import pandas as pd

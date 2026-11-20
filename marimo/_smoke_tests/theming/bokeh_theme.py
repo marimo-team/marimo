@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -15,6 +15,7 @@ app = marimo.App(width="medium")
 def _():
     from bokeh.plotting import figure, show
     from bokeh.io import curdoc
+
     return curdoc, figure
 
 
@@ -37,7 +38,7 @@ def _(curdoc, figure):
 
 
 @app.cell
-def _(counts, curdoc, figure, fruits):
+def _(counts: list[int], curdoc, figure, fruits: list[str]):
     curdoc().theme = "light_minimal"
 
     p3 = figure(x_range=fruits, height=350, title="Fruit Counts",
@@ -48,11 +49,10 @@ def _(counts, curdoc, figure, fruits):
     p3.xgrid.grid_line_color = None
     p3.y_range.start = 0
     p3
-    return
 
 
 @app.cell
-def _(counts, curdoc, figure, fruits):
+def _(counts: list[int], curdoc, figure, fruits: list[str]):
     curdoc().theme = "dark_minimal"
 
     p2 = figure(x_range=fruits, height=350, title="Fruit Counts",
@@ -63,7 +63,6 @@ def _(counts, curdoc, figure, fruits):
     p2.xgrid.grid_line_color = None
     p2.y_range.start = 0
     p2
-    return
 
 
 if __name__ == "__main__":

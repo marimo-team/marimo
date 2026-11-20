@@ -29,7 +29,7 @@ const VARIANT_CLASSES = {
   default:
     "bg-background border forced-colors:border-[CanvasText] forced-colors:bg-[Canvas] forced-colors:text-[CanvasText]",
   danger:
-    "group destructive text-error border-destructive bg-(--red-1) shadow-md-solid shadow-error forced-colors:border-[CanvasText] forced-colors:bg-[Canvas] forced-colors:text-[CanvasText]",
+    "group destructive text-(--red-11) border-destructive bg-(--red-1) shadow-md-solid shadow-error forced-colors:border-[CanvasText] forced-colors:bg-[Canvas] forced-colors:text-[CanvasText]",
 } as const satisfies Record<string, string>;
 
 type ToastVariant = keyof typeof VARIANT_CLASSES;

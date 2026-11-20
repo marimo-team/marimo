@@ -7,6 +7,7 @@ from pdb import Pdb, Restart as pdbRestart
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._messaging.streams import PdbInput
 from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
@@ -18,7 +19,10 @@ LOGGER = _loggers.marimo_logger()
 
 
 def try_restart() -> bool:
-    from marimo._runtime.commands import ExecuteCellsCommand
+    from marimo._runtime.commands import (
+        ExecuteCellCommand,
+        ExecuteCellsCommand,
+    )
     from marimo._runtime.context import (
         ContextNotInitializedError,
         get_context,
@@ -39,8 +43,11 @@ def try_restart() -> bool:
         # This runs the request and queues the cell for execution
         ctx._kernel.enqueue_control_request(
             ExecuteCellsCommand(
-                cell_ids=[ctx.cell_id],
-                codes=[graph.cells[ctx.cell_id].code],
+                execution_requests=[
+                    ExecuteCellCommand(
+                        cell_id=ctx.cell_id, code=graph.cells[ctx.cell_id].code
+                    )
+                ]
             )
         )
     except ContextNotInitializedError:
@@ -101,6 +108,10 @@ class MarimoPdb(Pdb):
         """Override to gracefully handle restarts."""
         try:
             super().cmdloop(intro)
+        except KeyboardInterrupt:
+            # Returning lets pdb finish the interaction and release its frames.
+            if not isinstance(self.stdin, PdbInput):
+                raise
         except pdbRestart:
             if not try_restart():
                 LOGGER.warning("Unable to restart cell.")
@@ -112,8 +123,16 @@ class MarimoPdb(Pdb):
 
     do_restart = do_run
 
-    def post_mortem_by_cell_id(self, cell_id: CellId_t) -> None:
-        return self.post_mortem(t=self._last_tracebacks.get(cell_id))
+    def post_mortem_by_cell_id(
+        self, cell_id: CellId_t, *, stdin: PdbInput | None = None
+    ) -> None:
+        previous = self.stdin
+        try:
+            if stdin is not None:
+                self.stdin = stdin
+            self.post_mortem(t=self._last_tracebacks.get(cell_id))
+        finally:
+            self.stdin = previous
 
     def post_mortem(self, t: TracebackType | None = None) -> None:
         if t is None:

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="columns")
 
 
@@ -9,13 +9,13 @@ def _():
     import marimo as mo
     import altair as alt
     from vega_datasets import data
+
     return alt, data, mo
 
 
 @app.cell
 def _(dataset, mo, plot, x, y):
     mo.vstack([dataset, x, y, plot])
-    return
 
 
 @app.cell
@@ -31,7 +31,6 @@ def _(plot_type, x, y):
         x=x.value,
         y=y.value,
     ).interactive().properties(width="container")
-    return
 
 
 @app.cell

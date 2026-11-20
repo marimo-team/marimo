@@ -160,7 +160,7 @@ def test_condition_between_range_value_passthrough() -> None:
 
 
 def test_condition_between_missing_min() -> None:
-    with pytest.raises(ValueError, match="min.*max"):
+    with pytest.raises(ValueError, match=r"min.*max"):
         FilterCondition(
             type="condition",
             column_id="x",
@@ -170,7 +170,7 @@ def test_condition_between_missing_min() -> None:
 
 
 def test_condition_between_missing_max() -> None:
-    with pytest.raises(ValueError, match="min.*max"):
+    with pytest.raises(ValueError, match=r"min.*max"):
         FilterCondition(
             type="condition",
             column_id="x",

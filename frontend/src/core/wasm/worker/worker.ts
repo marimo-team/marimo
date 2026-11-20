@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { unstable_NotebookCall } from "@marimo-team/client";
+import { EDITOR_EVENT_TYPES } from "@/core/notebook/replica";
 import type { PyodideInterface } from "pyodide";
 import {
   createRPC,
@@ -7,34 +9,32 @@ import {
   createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
+import { parseAppConfig } from "@/core/config/config-schema";
 import type { SqlOutputType, UserConfig } from "@/core/config/config-schema";
-import type { NotificationPayload } from "@/core/kernel/messages";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
-  SaveNotebookRequest,
+  SaveLayoutRequest,
 } from "@/core/network/types";
-import type { JsonString } from "@/utils/json/base64";
-import { once } from "@/utils/once";
 import { decodeUtf8 } from "@/utils/strings";
 import { Deferred } from "../../../utils/Deferred";
 import { prettyError } from "../../../utils/errors";
 import { invariant } from "../../../utils/invariant";
 import { Logger } from "../../../utils/Logger";
 import type { ParentSchema } from "../rpc";
+import type { WasmRuntimeConfig } from "../runtime-config";
 import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
 import { getPyodideVersion } from "./getPyodideVersion";
-import { MessageBuffer } from "./message-buffer";
 import { t } from "./tracer";
 import type {
   BridgePayload,
   RawBridge,
-  SerializedBridge,
+  WasmSession,
   WasmController,
 } from "./types";
-import { prependSQLPackageImports } from "../utils";
+import { getNotebookSQLOutput, prependSQLPackageImports } from "../utils";
 
 /**
  * Web worker responsible for running the notebook.
@@ -47,18 +47,20 @@ declare const self: Window & {
 
 const workerInitSpan = t.startSpan("worker:init");
 
+const runtimeConfig = new Deferred<WasmRuntimeConfig>();
+
 // Initialize pyodide
 async function loadPyodideAndPackages() {
   try {
-    const marimoVersion = getMarimoVersion();
-    const pyodideVersion = getPyodideVersion(marimoVersion);
-    const controller = await t.wrapAsync(getController)(marimoVersion);
+    const config = await runtimeConfig.promise;
+    const pyodideVersion = getPyodideVersion(config.version);
+    const controller = await t.wrapAsync(getController)(config.version);
     self.controller = controller;
     rpc.send.initializingMessage({
       message: "Loading marimo...",
     });
     self.pyodide = await t.wrapAsync(controller.bootstrap.bind(controller))({
-      version: marimoVersion,
+      ...config,
       pyodideVersion: pyodideVersion,
     });
   } catch (error) {
@@ -69,16 +71,86 @@ async function loadPyodideAndPackages() {
   }
 }
 
-const messageBuffer = new MessageBuffer(
-  (message: JsonString<NotificationPayload>) => {
-    rpc.send.kernelMessage({ message });
-  },
-);
-const bridgeReady = new Deferred<SerializedBridge>();
+const sessionReady = new Deferred<WasmSession>();
 let started = false;
+let sqlOutput: SqlOutputType = "auto";
 
 // Handle RPC requests
+const notebookSubscriptions = new Map<
+  string,
+  { promise: Promise<void>; cancel(): void }
+>();
+async function getNotebook() {
+  const session = await sessionReady.promise;
+  return session.bridge.notebook;
+}
+
+/** Load the packages `code` imports, with marimo's SQL heuristics. */
+async function loadPackagesForCode(code: string) {
+  const span = t.startSpan("loadPackages");
+  await pyodideReadyPromise; // Make sure loading is done
+
+  code = prependSQLPackageImports(code, { sqlOutput });
+
+  await self.pyodide.loadPackagesFromImports(code, {
+    messageCallback: Logger.log,
+    errorCallback: Logger.error,
+  });
+  span.end();
+}
+
 const requestHandler = createRPCRequestHandler({
+  notebookSubscribe: (request: { id: string; cursor: string | null }) => {
+    let canceled = false;
+    const subscribing = (async () => {
+      const session = await sessionReady.promise;
+      const notebook = session.bridge.notebook;
+      try {
+        await notebook.subscribe(
+          request.id,
+          request.cursor,
+          (event) => {
+            rpc.send.notebookEvent({ id: request.id, event });
+          },
+          EDITOR_EVENT_TYPES.join(","),
+        );
+        if (!canceled) {
+          void session.start().catch((error: unknown) => {
+            rpc.send.initializedError({ error: prettyError(error) });
+          });
+        }
+      } finally {
+        notebook.destroy();
+      }
+    })();
+    notebookSubscriptions.set(request.id, {
+      promise: subscribing,
+      cancel: () => {
+        canceled = true;
+      },
+    });
+    return subscribing.finally(() => notebookSubscriptions.delete(request.id));
+  },
+  notebookUnsubscribe: async (id: string) => {
+    // An RPC timeout can close a reader while its subscription is still opening.
+    const pending = notebookSubscriptions.get(id);
+    pending?.cancel();
+    await pending?.promise.catch(() => undefined);
+    const notebook = await getNotebook();
+    try {
+      notebook.unsubscribe(id);
+    } finally {
+      notebook.destroy();
+    }
+  },
+  notebookCall: async (call: unstable_NotebookCall): Promise<unknown> => {
+    const notebook = await getNotebook();
+    try {
+      return JSON.parse(await notebook.call(JSON.stringify(call)));
+    } finally {
+      notebook.destroy();
+    }
+  },
   /**
    * Start the session
    */
@@ -95,6 +167,10 @@ const requestHandler = createRPCRequestHandler({
       return;
     }
 
+    sqlOutput = getNotebookSQLOutput(
+      opts.code,
+      opts.userConfig.runtime.default_sql_output,
+    );
     started = true;
     try {
       invariant(self.controller, "Controller not loaded");
@@ -102,29 +178,38 @@ const requestHandler = createRPCRequestHandler({
         code: opts.code,
         filename: opts.filename,
       });
-      const startSession = t.wrapAsync(
-        self.controller.startSession.bind(self.controller),
+      const prepareSession = t.wrapAsync(
+        self.controller.prepareSession.bind(self.controller),
       );
-      const initializeOnce = once(() => {
-        rpc.send.initializingMessage({
-          message: "Initializing notebook...",
-        });
-        rpc.send.initialized({});
-      });
       rpc.send.initializingMessage({
         message: "Loading notebook and dependencies...",
       });
-      const bridge = await startSession({
+      const session = await prepareSession({
         code: opts.code,
         filename: opts.filename,
         queryParameters: opts.queryParameters,
         userConfig: opts.userConfig,
-        onMessage: (msg) => {
-          initializeOnce();
-          messageBuffer.push(msg);
-        },
       });
-      bridgeReady.resolve(bridge);
+      const notebook = session.bridge.notebook;
+      try {
+        notebook.set_persistence(async (contents, filename) => {
+          // Keep file operations in the execution worker from syncing stale source.
+          self.pyodide.FS.writeFile(filename, contents);
+          self.pyodide.FS.writeFile(WasmFileSystem.NOTEBOOK_FILENAME, contents);
+          await rpc.proxy.request.persistNotebook({ filename, contents });
+        });
+        // Host runs name cells, so the worker loads their imports itself.
+        notebook.set_package_loader(loadPackagesForCode);
+        // This worker serves the editor, whose user can answer a prompt.
+        notebook.allow_input(true);
+      } finally {
+        notebook.destroy();
+      }
+      sessionReady.resolve(session);
+      rpc.send.initializingMessage({
+        message: "Initializing notebook...",
+      });
+      rpc.send.initialized({});
       workerInitSpan.end("ok");
     } catch (error) {
       rpc.send.initializedError({
@@ -135,21 +220,9 @@ const requestHandler = createRPCRequestHandler({
     return;
   },
 
-  /**
-   * Load packages
-   */
-  loadPackages: async (opts: { code: string; sqlOutput: SqlOutputType }) => {
-    const span = t.startSpan("loadPackages");
-    await pyodideReadyPromise; // Make sure loading is done
-    const code = prependSQLPackageImports(opts.code, {
-      sqlOutput: opts.sqlOutput,
-    });
-
-    await self.pyodide.loadPackagesFromImports(code, {
-      messageCallback: Logger.log,
-      errorCallback: Logger.error,
-    });
-    span.end();
+  loadPackages: (opts: { code: string; sqlOutput: SqlOutputType }) => {
+    sqlOutput = opts.sqlOutput;
+    return loadPackagesForCode(opts.code);
   },
 
   /**
@@ -235,13 +308,13 @@ const requestHandler = createRPCRequestHandler({
     };
   },
 
-  /**
-   * Save the notebook
-   */
-  saveNotebook: async (opts: SaveNotebookRequest) => {
-    await pyodideReadyPromise; // Make sure loading is done
-    const bridge = await bridgeReady.promise;
-    await bridge.save(JSON.stringify(opts));
+  setNotebookLayout: async (layout: SaveLayoutRequest["layout"]) => {
+    const notebook = await getNotebook();
+    try {
+      await notebook.set_layout(JSON.stringify(layout));
+    } finally {
+      notebook.destroy();
+    }
   },
 
   /**
@@ -257,6 +330,14 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
 
     const { functionName, payload } = opts;
+    if (
+      functionName === "save_app_config" &&
+      payload &&
+      typeof payload === "object" &&
+      "config" in payload
+    ) {
+      sqlOutput = parseAppConfig(payload.config).sql_output;
+    }
 
     // Special case to lazily install black on format
     // Don't return early; still need to ask the pyodide kernel to run
@@ -288,7 +369,7 @@ const requestHandler = createRPCRequestHandler({
     }
 
     // Perform the function call to the Python bridge
-    const bridge = await bridgeReady.promise;
+    const { bridge } = await sessionReady.promise;
 
     // Serialize the payload
     const payloadString =
@@ -321,10 +402,9 @@ const requestHandler = createRPCRequestHandler({
 export type WorkerSchema = RPCSchema<
   {
     messages: {
+      notebookEvent: { id: string; event: string };
       // Emitted when the worker is ready
       ready: {};
-      // Emitted when the kernel sends a message
-      kernelMessage: { message: JsonString<NotificationPayload> };
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide is initializing, with new messages
@@ -341,20 +421,15 @@ const rpc = createRPC<WorkerSchema, ParentSchema>({
     transportId: TRANSPORT_ID,
   }),
   requestHandler,
+  // Persistence can include bootstrapping the storage worker.
+  maxRequestTime: Infinity,
 });
+
+rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
 
 rpc.send("ready", {});
 
-/// Listeners
-// When the consumer is ready, start the message buffer
-rpc.addMessageListener("consumerReady", async () => {
-  await pyodideReadyPromise; // Make sure loading is done
-  messageBuffer.start();
-});
-
 const namesThatRequireSync = new Set<keyof RawBridge>([
-  "save",
-  "save_app_config",
   "rename_file",
   "create_file_or_directory",
   "delete_file_or_directory",
@@ -362,10 +437,5 @@ const namesThatRequireSync = new Set<keyof RawBridge>([
   "move_file_or_directory",
   "update_file",
 ]);
-
-function getMarimoVersion() {
-  // Worker name is "<version>" or "<version>::<capability>" — see bridge.ts.
-  return self.name.split("::")[0];
-}
 
 const pyodideReadyPromise = t.wrapAsync(loadPyodideAndPackages)();

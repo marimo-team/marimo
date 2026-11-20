@@ -102,7 +102,7 @@ def test_wasm_pool_context_and_submodule_factories() -> None:
 
             with pytest.raises(
                 UnsupportedWasmConcurrencyError,
-                match="multiprocessing.pool.ThreadPool",
+                match=r"multiprocessing\.pool\.ThreadPool",
             ):
                 pool_module.ThreadPool(1)
         finally:

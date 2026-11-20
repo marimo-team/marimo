@@ -101,8 +101,9 @@ export const API = {
         return response.text() as unknown as RESP;
       })
       .catch((error) => {
-        // Catch and rethrow
-        Logger.error(`Error requesting ${fullUrl}`, error);
+        if (error?.name !== "AbortError") {
+          Logger.error(`Error requesting ${fullUrl}`, error);
+        }
         throw error;
       });
   },

@@ -34,9 +34,9 @@ interface Data {
 type T = [string, string][];
 
 export class FileUploadPlugin implements IPlugin<T, Data> {
-  tagName = "marimo-file";
+  public tagName = "marimo-file";
 
-  validator = z.object({
+  public validator = z.object({
     filetypes: z.array(z.string()),
     multiple: z.boolean(),
     kind: z.enum(["button", "area"]),
@@ -44,7 +44,7 @@ export class FileUploadPlugin implements IPlugin<T, Data> {
     max_size: z.number(),
   });
 
-  render(props: IPluginProps<T, Data>): JSX.Element {
+  public render(props: IPluginProps<T, Data>): JSX.Element {
     return (
       <FileUpload
         label={props.data.label}

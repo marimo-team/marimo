@@ -1,9 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import type { CreateNewCellAction } from "@/core/cells/cells";
+import type { CreateCell } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
-import type { ExecuteCellsRequest } from "@/core/network/types";
 import type { JotaiStore } from "@/core/state/jotai";
 import type { Edit } from "../staged-cells";
 import type { CopilotMode } from "./registry";
@@ -20,23 +19,32 @@ export type StatusValue = "success" | "error" | "warning";
  * @example
  * throw new ToolExecutionError(
  *   "Failed to fetch data",
- *   "FETCH_ERROR",
- *   true,
- *   "Check your network connection"
+ *   {
+ *     code: "FETCH_ERROR",
+ *     isRetryable: true,
+ *     suggestedFix: "Check your network connection",
+ *   }
  * );
  */
 export class ToolExecutionError extends Error {
-  readonly code: string;
-  readonly isRetryable: boolean;
-  readonly suggestedFix?: string;
-  readonly meta?: Record<string, unknown>;
+  public readonly code: string;
+  public readonly isRetryable: boolean;
+  public readonly suggestedFix?: string;
+  public readonly meta?: Record<string, unknown>;
 
-  constructor(
+  public constructor(
     message: string,
-    code = "TOOL_ERROR",
-    isRetryable = false,
-    suggestedFix?: string,
-    meta?: Record<string, unknown>,
+    {
+      code = "TOOL_ERROR",
+      isRetryable = false,
+      suggestedFix,
+      meta,
+    }: {
+      code?: string;
+      isRetryable?: boolean;
+      suggestedFix?: string;
+      meta?: Record<string, unknown>;
+    } = {},
   ) {
     super(message);
     this.name = "ToolExecutionError";
@@ -46,7 +54,7 @@ export class ToolExecutionError extends Error {
     this.meta = meta;
   }
 
-  toStructuredString(): string {
+  public toStructuredString(): string {
     const stringError = JSON.stringify({
       message: this.message,
       code: this.code,
@@ -57,9 +65,6 @@ export class ToolExecutionError extends Error {
     return `Error invoking tool ${this.name}: ${stringError}`;
   }
 }
-
-// Can be any input
-export type EmptyToolInput = unknown;
 
 /**
  * Base interface for tool output responses.
@@ -104,9 +109,7 @@ export interface ToolDescription {
 export interface ToolNotebookContext {
   store: JotaiStore;
   addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
-  createNewCell: (payload: CreateNewCellAction) => void;
-  prepareForRun: (payload: { cellId: CellId }) => void;
-  sendRun: (request: ExecuteCellsRequest) => Promise<null>;
+  createCell: CreateCell;
 }
 
 export interface AiTool<TIn, TOut> {

@@ -124,6 +124,28 @@ def test_markdown_frontmatter() -> None:
     assert app.cell_manager.cell_data_at(ids[1]).config.hide_code is False
 
 
+def test_markdown_frontmatter_list_values() -> None:
+    script = dedent(
+        """\
+        ---
+        title: My Title
+        auto_download: [html, markdown]
+        ---
+
+        ```python {.marimo}
+        print("Hello, World!")
+        ```
+        """
+    )
+
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    assert notebook_ir.app.options["app_title"] == "My Title"
+    assert notebook_ir.app.options["auto_download"] == ["html", "markdown"]
+
+    app = InternalApp(load_notebook_ir(notebook_ir))
+    assert app.config.auto_download == ["html", "markdown"]
+
+
 def test_mystmd_marimo_directives() -> None:
     script = dedent(
         remove_empty_lines(
@@ -434,6 +456,27 @@ def test_markdown_code_cell_attributes_are_unescaped() -> None:
     )
 
     assert 'name="a&quot;b &amp; &lt;c&gt;"' in markdown
+
+
+def test_markdown_cell_config_round_trips() -> None:
+    script_lines = (
+        '```python {.marimo expand_output="true" disabled="true"}',
+        "x = 1",
+        "```",
+    )
+
+    notebook_ir = convert_from_md_to_marimo_ir("\n".join(script_lines))
+
+    assert len(notebook_ir.cells) == 1
+    assert notebook_ir.cells[0].options["expand_output"] is True
+    assert notebook_ir.cells[0].options["disabled"] is True
+
+    markdown = convert_from_ir_to_markdown(
+        notebook_ir, filename="notebook.md", flavor="pymdown"
+    )
+
+    assert 'expand_output="true"' in markdown
+    assert 'disabled="true"' in markdown
 
 
 def test_no_frontmatter() -> None:

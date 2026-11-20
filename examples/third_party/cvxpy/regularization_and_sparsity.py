@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -19,7 +19,6 @@ def _(mo):
     mo.md("""
     # Regularization and Sparsity
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -55,7 +54,6 @@ def _(mo):
     \|x\|_2 = \sqrt{x_1^2 + x_2^2 + \cdots + x_n^2}.
     \]
     """)
-    return
 
 
 @app.cell
@@ -66,7 +64,7 @@ def _():
 
 
 @app.cell
-def _(m, n, np):
+def _(m: int, n: int, np):
     np.random.seed(0)
     A = np.random.randn(m, n)
     b = np.random.randn(m)
@@ -97,7 +95,6 @@ def _(mo):
     mo.md("""
     ## Parameter selection
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -111,7 +108,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
+def _(mo, n: int, number_of_zeros, sparsity_parameter, x_l1: None, x_l2: None):
     (
         mo.md(
             """
@@ -136,17 +133,15 @@ def _(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
             """
         )
     )
-    return
 
 
 @app.cell
-def _(cdf, plt, x_l1, x_l2):
+def _(cdf, plt, x_l1: None, x_l2: None):
     cdf_figure, cdf_axs = plt.subplots(2, 1, sharex=True)
     cdf(x_l1, cdf_axs[0]).set_title("$p=1$")
     cdf(x_l2, cdf_axs[1]).set_title("$p=2$")
     plt.tight_layout()
     cdf_figure
-    return
 
 
 @app.cell
@@ -162,7 +157,6 @@ def _(mo):
     of $x$ is $0$, then the corresponding feature or measurement
     must not be important in making predictions.
     """)
-    return
 
 
 @app.cell
@@ -174,7 +168,7 @@ def _(np):
 
 
 @app.cell
-def _(np, x_min_max):
+def _(np, x_min_max: list[float]):
     def cdf(x, ax):
         heights = np.arange(1, x.size+1) / x.size
         xs = np.sort(x)

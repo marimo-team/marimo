@@ -1,15 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
-import { useAtomValue } from "jotai";
-import { Spinner } from "@/components/icons/spinner";
-import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { HTTPError, NoKernelConnectedError, prettyError } from "@/utils/errors";
+import { HTTPError, prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
-import { useConnectToRuntime } from "../runtime/config";
-import { store } from "../state/jotai";
-import { isConnectingAtom } from "./connection";
 import type { EditRequests, RequestKey, RunRequests } from "./types";
 
 export function createErrorToastingRequests(
@@ -18,24 +12,17 @@ export function createErrorToastingRequests(
   const MESSAGES: Record<RequestKey, string> = {
     sendComponentValues: "Failed update value",
     sendModelValue: "Failed to update model value",
-    sendInstantiate: "Failed to instantiate",
     sendFunctionRequest: "Failed to send function request",
     sendRestart: "Failed to restart",
-    sendDocumentTransaction: "Failed to sync document transaction",
-    sendRun: "Failed to run",
     sendRunScratchpad: "Failed to run scratchpad",
     sendRename: "Failed to rename",
-    sendSave: "Failed to save",
+    saveLayout: "", // The save reports it
     sendCopy: "Failed to copy",
-    sendInterrupt: "Failed to interrupt",
     sendShutdown: "Failed to shutdown",
     sendFormat: "Failed to format",
-    sendDeleteCell: "Failed to delete cell",
     sendCodeCompletionRequest: "Failed to complete code",
     saveUserConfig: "Failed to save user config",
     saveAppConfig: "Failed to save app config",
-    saveCellConfig: "Failed to save cell config",
-    sendStdin: "Failed to send stdin",
     readCode: "Failed to read code",
     readSnippets: "Failed to fetch snippets",
     previewDatasetColumn: "Failed to fetch data sources",
@@ -51,6 +38,7 @@ export function createErrorToastingRequests(
     getFileRoots: "", // RequestingTree surfaces this error
     sendListFiles: "Failed to list files",
     sendSearchFiles: "", // Search callers handle errors
+    sendPdbReply: "Failed to send debugger command",
     sendPdb: "Failed to start debug session",
     sendSetBreakpoints: "", // No toast
     sendCreateFileOrFolder: "Failed to create file or folder",
@@ -79,6 +67,9 @@ export function createErrorToastingRequests(
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",
+    getSandbox: "",
+    updateManifest: "",
+    syncSandbox: "",
     getDependencyTree: "Failed to get dependency tree",
     listSecretKeys: "Failed to fetch secrets",
     writeSecret: "Failed to write secret",
@@ -96,26 +87,6 @@ export function createErrorToastingRequests(
       try {
         return await handler(...args);
       } catch (error) {
-        // Special handling for NoKernelConnectedError error
-        if (error instanceof NoKernelConnectedError) {
-          // If we are connecting to a kernel, don't show the toast
-          const isConnecting = store.get(isConnectingAtom);
-          if (isConnecting) {
-            return;
-          }
-
-          const toastId = toast({
-            title: "Kernel Not Connected",
-            description:
-              "You need to connect to a kernel to perform this action.",
-            variant: "default",
-            action: <ConnectButton onConnect={() => toastId.dismiss()} />,
-          });
-          Logger.error(`Failed to handle request: ${key}`, error);
-          // Rethrow the error so that the caller can handle it
-          throw error;
-        }
-
         // A capability 403: the connection is read-only for this action. The
         // live capability notification already moved the UI to viewer state,
         // so don't alarm the user with an error toast.
@@ -142,25 +113,3 @@ export function createErrorToastingRequests(
 
   return handlers;
 }
-
-export const ConnectButton: React.FC<{ onConnect: () => void }> = ({
-  onConnect,
-}) => {
-  const connectToRuntime = useConnectToRuntime();
-  const isConnecting = useAtomValue(isConnectingAtom);
-  return (
-    <Button
-      size="xs"
-      onClick={() => {
-        connectToRuntime();
-        setTimeout(() => {
-          onConnect();
-        }, 800);
-      }}
-      disabled={isConnecting}
-    >
-      {isConnecting && <Spinner size="small" className="mr-1" />}
-      Connect
-    </Button>
-  );
-};

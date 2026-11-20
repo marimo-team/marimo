@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
@@ -17,13 +17,13 @@ def _(pd):
 @app.cell
 def _(mo, renamed):
     mo.ui.table(renamed)
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
     import pandas as pd
+
     return mo, pd
 
 

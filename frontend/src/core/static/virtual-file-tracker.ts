@@ -1,7 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { CellId } from "../cells/ids";
-import type { CellMessage } from "../kernel/messages";
+import type { Execution, Output } from "@marimo-team/client/protocol";
+import { type CellId, SCRATCH_CELL_ID } from "../cells/ids";
+import type {
+  OutputMessage,
+  NotificationMessageData,
+} from "../kernel/messages";
 
 // Virtual files are of the form /@file/<file-name>.<extension>
 const VIRTUAL_FILE_REGEX = /\/@file\/([^\s"&'/]+)\.([\dA-Za-z]+)/g;
@@ -13,7 +17,7 @@ export class VirtualFileTracker {
   /**
    * Shared instance of VirtualFileTracker since this must be a singleton.
    */
-  static get INSTANCE(): VirtualFileTracker {
+  public static get INSTANCE(): VirtualFileTracker {
     const KEY = "_marimo_private_VirtualFileTracker";
     if (!window[KEY]) {
       window[KEY] = new VirtualFileTracker();
@@ -21,26 +25,49 @@ export class VirtualFileTracker {
     return window[KEY] as VirtualFileTracker;
   }
 
-  virtualFiles = new Map<CellId, Set<string>>();
+  public virtualFiles = new Map<CellId, Set<string>>();
+  private callbackFiles = new Map<CellId, Set<string>>();
 
   private constructor() {
     // Private
   }
 
-  track(message: Pick<CellMessage, "cell_id" | "output">): void {
-    const output = message.output;
-    const cellId = message.cell_id;
-    if (!output) {
-      return;
-    }
+  public track(message: { cell_id: CellId; output: OutputMessage }): void {
+    this.trackValue(message.cell_id, message.output);
+  }
 
+  public trackOutput(output: Output, execution: Execution): void {
+    if (output.media) {
+      this.trackValue(
+        (execution.cell_id as CellId | null) ?? SCRATCH_CELL_ID,
+        output.media,
+      );
+    }
+  }
+
+  public trackCallbackOutput(
+    message: NotificationMessageData<"callback-output">,
+  ): void {
+    if (message.replace || message.entries.length === 0) {
+      this.callbackFiles.delete(message.cell_id);
+    }
+    for (const entry of message.entries) {
+      this.trackValue(message.cell_id, entry, this.callbackFiles);
+    }
+  }
+
+  private trackValue(
+    cellId: CellId,
+    output: { mimetype: string; data: unknown },
+    files = this.virtualFiles,
+  ): void {
     switch (output.mimetype) {
       case "application/json":
       case "text/html": {
-        const prev = this.virtualFiles.get(cellId);
+        const prev = files.get(cellId);
         const matches = findVirtualFiles(output.data);
         prev?.forEach((file) => matches.add(file));
-        this.virtualFiles.set(cellId, matches);
+        files.set(cellId, matches);
         return;
       }
       default:
@@ -48,17 +75,21 @@ export class VirtualFileTracker {
     }
   }
 
-  filenames(): string[] {
+  public filenames(): string[] {
     const set = new Set<string>();
-    for (const files of this.virtualFiles.values()) {
+    for (const files of [
+      ...this.virtualFiles.values(),
+      ...this.callbackFiles.values(),
+    ]) {
       files.forEach((file) => set.add(file));
     }
 
     return [...set];
   }
 
-  removeForCellId(cellId: CellId): void {
+  public removeForCellId(cellId: CellId): void {
     this.virtualFiles.delete(cellId);
+    this.callbackFiles.delete(cellId);
   }
 }
 

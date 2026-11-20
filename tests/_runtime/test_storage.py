@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from marimo._runtime.virtual_file.storage import (
+    DEFAULT_CHUNK_SIZE,
     InMemoryStorage,
     SharedMemoryStorage,
     VirtualFileStorageManager,
@@ -282,6 +283,22 @@ class TestSharedMemoryStorage:
                 storage.read_chunked("marimo_chunk_offset", 5, start=6)
             )
             assert b"".join(chunks) == b"world"
+        finally:
+            storage.shutdown()
+
+    def test_read_chunked_byte_length_past_end(self) -> None:
+        """Chunked reads stop at the end of the buffer."""
+        storage = SharedMemoryStorage()
+        try:
+            storage.store("marimo_chunk_past_end", b"hello world")
+            byte_length = 1000 * DEFAULT_CHUNK_SIZE
+            chunks = list(
+                storage.read_chunked("marimo_chunk_past_end", byte_length)
+            )
+            # The buffer can be padded to a page, so compare with `read`.
+            whole = storage.read("marimo_chunk_past_end", byte_length)
+            assert whole.startswith(b"hello world")
+            assert chunks == [whole]
         finally:
             storage.shutdown()
 

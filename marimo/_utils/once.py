@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 import weakref
-from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
-F = TypeVar("F", bound=Callable[..., Any])
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
-def once(func: F) -> F:
+def once(func: Callable[P, T]) -> Callable[P, T | None]:
     """
     Decorator to ensure a function is called only once.
     For methods, this is once per instance.
@@ -18,12 +21,12 @@ def once(func: F) -> F:
     # For regular functions (no 'self' argument)
     called: bool = False
     # For methods (with 'self' argument) - track per instance
-    instance_called: weakref.WeakKeyDictionary[Any, bool] = (
+    instance_called: weakref.WeakKeyDictionary[object, bool] = (
         weakref.WeakKeyDictionary()
     )
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
         nonlocal called
 
         # Check if this is a method call (has self as first argument)
@@ -42,4 +45,6 @@ def once(func: F) -> F:
                 called = True
                 return func(*args, **kwargs)
 
-    return cast(F, wrapper)
+        return None
+
+    return wrapper

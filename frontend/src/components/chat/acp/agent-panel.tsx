@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { PendingAICells } from "@/components/editor/chrome/wrapper/pending-ai-cells";
 import { useAtom } from "jotai";
 import {
   BotMessageSquareIcon,
@@ -16,7 +17,7 @@ import {
 import {
   type AdditionalCompletions,
   PromptInput,
-} from "@/components/editor/ai/add-cell-with-ai";
+} from "@/components/editor/ai/prompt-input";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import {
 } from "./state";
 import { AgentThread } from "./thread";
 import "./agent-panel.css";
+import "../chat-typography.css";
 import type { Completion } from "@codemirror/autocomplete";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import type {
@@ -441,7 +443,7 @@ const ModeSelector = memo<ModeSelectorProps>(
 
     return (
       <Select value={currentModeId} onValueChange={onModeChange}>
-        <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+        <SelectTrigger className="chat-control chat-selector h-6 text-xs border-border py-0 px-2 gap-1 capitalize">
           {currentMode?.label ?? currentModeId}
         </SelectTrigger>
         <SelectContent>
@@ -718,13 +720,28 @@ const AgentPanel: React.FC = () => {
     clearNotifications,
   } = acpClient;
 
+  const isConnected = connectionState.status === "connected";
+  const [initializedConnection, setInitializedConnection] = useState<{
+    agent: NonNullable<typeof agent>;
+    wsUrl: string;
+  } | null>(null);
+  const isAgentReady =
+    isConnected &&
+    agent !== null &&
+    initializedConnection?.agent === agent &&
+    initializedConnection.wsUrl === wsUrl;
+
   useEffect(() => {
-    if (!agent) {
+    setInitializedConnection(null);
+    setActiveSessionId(null);
+    if (!agent || !isConnected) {
       return;
     }
+    let cancelled = false;
+    setError(null);
 
-    const initAndAuth = async () => {
-      const response = await agent.initialize({
+    const initialize = async () => {
+      await agent.initialize({
         protocolVersion: 1,
         clientCapabilities: {
           fs: {
@@ -734,23 +751,26 @@ const AgentPanel: React.FC = () => {
         },
       });
 
-      // We try to authenticate with the agent if it supports it.
-      // The user must then restart the session
-      const authMethods = response?.authMethods;
-      if (authMethods && authMethods.length > 0) {
-        await agent.authenticate({ methodId: authMethods[0].id });
+      // Agents use credentials from their CLI login. Advertised auth methods
+      // describe login options, not whether authentication is required.
+      if (!cancelled) {
+        setInitializedConnection({ agent, wsUrl });
       }
     };
 
-    initAndAuth().catch((error) => {
-      logger.error("Failed to initialize/authenticate agent", { error });
+    initialize().catch((error) => {
+      if (!cancelled) {
+        logger.error("Failed to initialize agent", { error });
+        setError(error instanceof Error ? error : String(error));
+      }
     });
-  }, [agent]);
+    return () => {
+      cancelled = true;
+    };
+  }, [agent, isConnected, wsUrl, setActiveSessionId]);
 
   // Auto-connect to agent when we have an active session, but only once per session
   useEffect(() => {
-    setActiveSessionId(null);
-
     if (wsUrl === NO_WS_SET) {
       return;
     }
@@ -770,7 +790,7 @@ const AgentPanel: React.FC = () => {
   }, [wsUrl]);
 
   const handleNewSession = useEvent(async () => {
-    if (!agent) {
+    if (!agent || !isAgentReady) {
       return;
     }
 
@@ -814,7 +834,7 @@ const AgentPanel: React.FC = () => {
 
   const handleResumeSession = useEvent(
     async (previousSessionId: ExternalAgentSessionId) => {
-      if (!agent) {
+      if (!agent || !isAgentReady) {
         return;
       }
       logger.debug("Resuming agent session", {
@@ -825,6 +845,8 @@ const AgentPanel: React.FC = () => {
       }
       creatingOrResumingSession.current = true;
       try {
+        // Loading replays the agent's history through session notifications.
+        clearNotifications(previousSessionId);
         const loadedSession = await agent.loadSession({
           sessionId: previousSessionId,
           cwd: getCwd(),
@@ -848,12 +870,19 @@ const AgentPanel: React.FC = () => {
     },
   );
 
-  // Create or resume a session when successfully connected
-  const isConnected = connectionState.status === "connected";
+  const handleRestartSession = useEvent(async () => {
+    setError(null);
+    try {
+      await handleNewSession();
+    } catch (error) {
+      setError(error instanceof Error ? error : String(error));
+    }
+  });
+
+  // Create or resume a session once initialization finishes.
   const tabLastActiveSessionId = selectedTab?.externalAgentSessionId;
   useEffect(() => {
-    // No need to do anything if we're not connected, don't have an agent, or don't have a selected tab
-    if (!isConnected || !selectedTab || !agent) {
+    if (!isAgentReady || !selectedTab || !agent) {
       return;
     }
 
@@ -893,12 +922,24 @@ const AgentPanel: React.FC = () => {
 
     createOrResumeSession();
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, agent, tabLastActiveSessionId, activeSessionId]);
+  }, [isAgentReady, agent, tabLastActiveSessionId, activeSessionId]);
 
   // Handler for prompt submission
   const handlePromptSubmit = useEvent(
     async (_e: KeyboardEvent | undefined, prompt: string) => {
-      if (!activeSessionId || !agent || isLoading) {
+      if (!activeSessionId || !agent || !isAgentReady || isLoading) {
+        return;
+      }
+
+      let absoluteFilename: string;
+      try {
+        absoluteFilename = getAbsoluteFilename();
+      } catch {
+        toast({
+          title: "Notebook must be named",
+          description: "Please name the notebook to use the agent",
+          variant: "danger",
+        });
         return;
       }
 
@@ -914,62 +955,51 @@ const AgentPanel: React.FC = () => {
         setSessionState((prev) => updateSessionTitle(prev, prompt));
       }
 
-      let absoluteFilename: string;
       try {
-        absoluteFilename = getAbsoluteFilename();
-      } catch {
-        toast({
-          title: "Notebook must be named",
-          description: "Please name the notebook to use the agent",
-          variant: "danger",
-        });
-        return;
-      }
+        const promptBlocks: ContentBlock[] = [{ type: "text", text: prompt }];
 
-      const promptBlocks: ContentBlock[] = [{ type: "text", text: prompt }];
+        // Parse context from the prompt
+        const { contextBlocks, attachmentBlocks } =
+          await parseContextFromPrompt(prompt);
+        promptBlocks.push(...contextBlocks, ...attachmentBlocks);
 
-      // Parse context from the prompt
-      const { contextBlocks, attachmentBlocks } =
-        await parseContextFromPrompt(prompt);
-      promptBlocks.push(...contextBlocks, ...attachmentBlocks);
+        // Add manually uploaded files as resource links
+        if (files && files.length > 0) {
+          const fileResourceLinks = await convertFilesToResourceLinks(files);
+          promptBlocks.push(...fileResourceLinks);
+        }
 
-      // Add manually uploaded files as resource links
-      if (files && files.length > 0) {
-        const fileResourceLinks = await convertFilesToResourceLinks(files);
-        promptBlocks.push(...fileResourceLinks);
-      }
-
-      const hasGivenRules = notifications.some(
-        (notification) =>
-          notification.type === "session_notification" &&
-          notification.data.update.sessionUpdate === "user_message_chunk",
-      );
-      if (!hasGivenRules) {
-        promptBlocks.push(
-          {
-            type: "resource_link",
-            uri: absoluteFilename,
-            mimeType: "text/x-python",
-            name: absoluteFilename,
-          },
-          {
-            type: "resource",
-            resource: {
-              uri: "marimo_rules.md",
-              mimeType: "text/plain",
-              text: getAgentPrompt(absoluteFilename),
-            },
-          },
+        const hasGivenRules = notifications.some(
+          (notification) =>
+            notification.type === "session_notification" &&
+            notification.data.update.sessionUpdate === "user_message_chunk",
         );
-      }
+        if (!hasGivenRules) {
+          promptBlocks.push(
+            {
+              type: "resource_link",
+              uri: absoluteFilename,
+              mimeType: "text/x-python",
+              name: absoluteFilename,
+            },
+            {
+              type: "resource",
+              resource: {
+                uri: "marimo_rules.md",
+                mimeType: "text/plain",
+                text: getAgentPrompt(absoluteFilename),
+              },
+            },
+          );
+        }
 
-      try {
         await agent.prompt({
           sessionId: activeSessionId,
           prompt: promptBlocks,
         });
       } catch (error) {
         logger.error("Failed to send prompt", { error });
+        setError(error instanceof Error ? error : String(error));
       } finally {
         setIsLoading(false);
       }
@@ -982,7 +1012,7 @@ const AgentPanel: React.FC = () => {
       !activeSessionId ||
       !agent ||
       isLoading ||
-      connectionState.status !== "connected" ||
+      !isAgentReady ||
       !pendingPrompt
     ) {
       return;
@@ -998,7 +1028,7 @@ const AgentPanel: React.FC = () => {
     activeSessionId,
     agent,
     isLoading,
-    connectionState.status,
+    isAgentReady,
     pendingPrompt,
     setPendingPrompt,
     handlePromptSubmit,
@@ -1018,7 +1048,10 @@ const AgentPanel: React.FC = () => {
     logger.debug("Manual connect requested", {
       currentStatus: connectionState.status,
     });
-    connect();
+    setError(null);
+    void connect().catch((error) => {
+      setError(error instanceof Error ? error : String(error));
+    });
   });
 
   // Handler for manual disconnect
@@ -1111,14 +1144,22 @@ const AgentPanel: React.FC = () => {
           className="w-3/4 mx-auto mt-10"
           error={displayError}
           action={
-            isAuthError ? (
+            !isAgentReady ? (
               <Button
                 variant="linkDestructive"
                 size="sm"
                 onClick={() => {
-                  setError(null);
-                  handleNewSession();
+                  disconnect();
+                  handleManualConnect();
                 }}
+              >
+                Retry connection
+              </Button>
+            ) : isAuthError ? (
+              <Button
+                variant="linkDestructive"
+                size="sm"
+                onClick={handleRestartSession}
               >
                 Restart session
               </Button>
@@ -1152,14 +1193,16 @@ const AgentPanel: React.FC = () => {
     }
 
     const isLoadingSession =
-      tabLastActiveSessionId == null && connectionState.status === "connected";
+      isConnected && (!isAgentReady || tabLastActiveSessionId == null);
     if (isLoadingSession) {
       return (
         <DelayMount milliseconds={delay}>
           <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
             <Spinner size="medium" className="text-primary" />
             <span className="text-sm text-muted-foreground">
-              Creating a new session...
+              {isAgentReady
+                ? "Creating a new session..."
+                : "Initializing agent..."}
             </span>
           </div>
         </DelayMount>
@@ -1204,6 +1247,7 @@ const AgentPanel: React.FC = () => {
           </div>
         )}
 
+        {!isLoading && <PendingAICells />}
         <PromptArea
           isLoading={isLoading}
           activeSessionId={activeSessionId}
@@ -1225,13 +1269,13 @@ const AgentPanel: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden mo-agent-panel">
+    <div className="mo-ai-panel flex flex-col flex-1 overflow-hidden mo-agent-panel font-prose text-sm leading-6">
       <AgentPanelHeader
         connectionState={connectionState}
         currentAgentId={selectedTab?.agentId}
         onConnect={handleManualConnect}
         onDisconnect={handleManualDisconnect}
-        onRestartThread={handleNewSession}
+        onRestartThread={isAgentReady ? handleRestartSession : undefined}
         hasActiveSession={true}
         shouldShowConnectionControl={wsUrl !== NO_WS_SET}
       />

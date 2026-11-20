@@ -87,6 +87,59 @@ def test_number_from_dataframe() -> None:
     assert number._args.label == "Custom label"
 
 
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.number, ui.slider, ui.range_slider])
+def test_numeric_from_empty_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([], dtype=float)
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+    element = widget.from_series(series, start=0, stop=100)
+    assert element.start == 0
+    assert element.stop == 100
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.number, ui.slider, ui.range_slider])
+def test_numeric_from_all_null_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([None, None], dtype=float)
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+
+@pytest.mark.parametrize("widget", [ui.number, ui.slider, ui.range_slider])
+@pytest.mark.parametrize(
+    "values", [[float("nan"), float("nan")], [None, float("nan")]]
+)
+def test_numeric_from_pyarrow_nan_series(widget, values) -> None:
+    pa = pytest.importorskip("pyarrow")
+    series = pa.table({"x": values})["x"]
+
+    with pytest.raises(ValueError, match="provide explicit bounds"):
+        widget.from_series(series)
+
+    element = widget.from_series(series, start=0, stop=100)
+    assert element.start == 0
+    assert element.stop == 100
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+@pytest.mark.parametrize("widget", [ui.radio, ui.dropdown, ui.multiselect])
+def test_categorical_from_empty_series(widget) -> None:
+    import pandas as pd
+
+    series = pd.Series([], dtype=object)
+    element = widget.from_series(series)
+    assert element.options == {}
+
+    element = widget.from_series(series, options=["a", "b"])
+    assert element.options == {"a": "a", "b": "b"}
+
+
 def test_slider_init() -> None:
     slider = ui.slider(1, 10)
     assert slider.start == 1
@@ -525,6 +578,24 @@ def test_dropdown_duplicate_option_names_raise() -> None:
     # Explicit dict input is untouched (keys are already unique).
     dd = ui.dropdown(options={"a": 1, "b": 2})
     assert len(dd.options) == 2
+
+
+def test_dropdown_disallow_select_none_infers_value() -> None:
+    dd = ui.dropdown(options=["1", "2", "3"], allow_select_none=False)
+    assert dd.value == "1"
+
+    dd = ui.dropdown(options={"1": "a", "2": "b"}, allow_select_none=False)
+    assert dd.value == "a"
+
+
+def test_dropdown_disallow_select_none_with_empty_options_raises() -> None:
+    msg = "when `allow_select_none` is False, `options` must not be empty"
+
+    with pytest.raises(ValueError, match=msg):
+        ui.dropdown(options={}, allow_select_none=False)
+
+    with pytest.raises(ValueError, match=msg):
+        ui.dropdown(options=[], allow_select_none=False)
 
 
 def test_multiselect_duplicate_option_names_raise() -> None:

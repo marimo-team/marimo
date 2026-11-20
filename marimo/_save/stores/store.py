@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
+    from pathlib import Path
 
 
 class Store(ABC):
@@ -13,18 +14,47 @@ class Store(ABC):
     def get(self, key: str) -> bytes | None:
         """Get the bytes of a cache from the store"""
 
+    def read(self, key: str) -> bytes | None:
+        """Read bytes and return `None` only for missing keys.
+
+        Stores that suppress read errors in `get` must override this method.
+        """
+        return self.get(key)
+
     @abstractmethod
     def put(self, key: str, value: bytes) -> bool:
-        """Put a cache into the store"""
+        """Put a cache into the store."""
 
     @abstractmethod
     def hit(self, key: str) -> bool:
         """Check if the cache is in the store"""
 
     def clear(self, key: str) -> bool:
-        """Check if the cache is in the store"""
+        """Remove what is held under `key`, and return whether anything was.
+
+        The default removes nothing.
+        """
         del key
         return False
+
+    def clearable_root(self) -> Path | None:
+        """The directory under which every key of the store is a path, or
+        `None`.
+
+        Every path below it is a key the store can remove, so a caller can
+        clear the store by walking the directory. A store that removes
+        nothing, or keeps entries where a caller cannot walk, returns `None`.
+        """
+        return None
+
+    def local_dirs(self) -> list[Path]:
+        """Every local directory this store keeps its entries in.
+
+        Lets a caller find the disk a cache occupies without knowing which
+        store it writes through. One `put` can write to several directories,
+        and a remote store writes to none. Defaults to none.
+        """
+        return []
 
     def get_batch(
         self, keys: Iterable[str]

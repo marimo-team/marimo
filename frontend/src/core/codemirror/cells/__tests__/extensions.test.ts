@@ -8,7 +8,6 @@ import {
 } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { formattingChangeEffect } from "../../format";
-import { loroSyncAnnotation } from "../../rtc/loro/sync";
 import { exportedForTesting } from "../extensions";
 
 const { shouldAutorunMarkdownUpdate } = exportedForTesting;
@@ -50,13 +49,10 @@ describe("shouldAutorunMarkdownUpdate", () => {
     ).toBe(false);
   });
 
-  it("ignores RTC sync transactions", () => {
+  it("ignores remote transactions while focused", () => {
     const transaction = createTransaction({
       changes: { from: 0, insert: "#" },
-      annotations: [
-        Transaction.userEvent.of("input.type"),
-        loroSyncAnnotation.of(true),
-      ],
+      annotations: [Transaction.remote.of(true)],
     });
 
     expect(

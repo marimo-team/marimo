@@ -280,6 +280,28 @@ async def run_threading_and_queue_cases():
     assert slot_local.value == "worker"
     record("threading.local_subclass_descriptors", "api-compatible")
 
+    import dataclasses as imported_dataclasses
+
+    @imported_dataclasses.dataclass
+    class DataclassLocal(threading.local):
+        value: str
+
+    dataclass_local = DataclassLocal("default")
+    dataclass_local.value = "main"
+    dataclass_records = []
+
+    def dataclass_local_worker():
+        dataclass_records.append(dataclass_local.value)
+        dataclass_local.value = "worker"
+        dataclass_records.append(dataclass_local.value)
+
+    dataclass_thread = threading.Thread(target=dataclass_local_worker)
+    dataclass_thread.start()
+    dataclass_thread.join(1)
+    assert dataclass_records == ["default", "worker"]
+    assert dataclass_local.value == "main"
+    record("threading.local_subclass_dataclass", "api-compatible")
+
     hook_records = []
     old_hook = threading.excepthook
 

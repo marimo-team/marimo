@@ -166,11 +166,105 @@ export function dateToLocalISOTime(d: Date): string {
 }
 
 /**
+ * Parse a time string into a Date anchored at the Unix epoch day. Supports
+ * the backend's wire format (`HH:MM:SS`, as produced by `dateToLocalISOTime`)
+ * as well as looser pasted text: optional seconds, optional milliseconds,
+ * and an optional `am`/`pm` suffix (e.g. `"14:30"`, `"2:30 PM"`,
+ * `"14:30:00.123"`).
+ */
+export function parseTimeToDate(value: string): Date | undefined {
+  const match = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.(\d+))?\s*(am|pm)?$/i.exec(
+    value.trim(),
+  );
+  if (!match) {
+    return undefined;
+  }
+  const [, hStr, mStr, sStr, msStr, ampm] = match;
+  let hour = Number.parseInt(hStr, 10);
+  const minute = Number.parseInt(mStr, 10);
+  const second = sStr ? Number.parseInt(sStr, 10) : 0;
+  const ms = msStr ? Number.parseInt(msStr.padEnd(3, "0").slice(0, 3), 10) : 0;
+  if (minute > 59 || second > 59) {
+    return undefined;
+  }
+  if (ampm) {
+    if (hour < 1 || hour > 12) {
+      return undefined;
+    }
+    const isPm = ampm.toLowerCase() === "pm";
+    if (hour === 12) {
+      hour = isPm ? 12 : 0;
+    } else if (isPm) {
+      hour += 12;
+    }
+  } else if (hour > 23) {
+    return undefined;
+  }
+  return new Date(1970, 0, 1, hour, minute, second, ms);
+}
+
+/**
  * Format a Date as `YYYY-MM-DDTHH:MM:SS` (no timezone suffix) using local
  * fields. See `dateToLocalISODate` for the rationale on local vs UTC.
  */
 export function dateToLocalISODateTime(d: Date): string {
   return `${dateToLocalISODate(d)}T${dateToLocalISOTime(d)}`;
+}
+
+/**
+ * Parse a `YYYY-MM-DD` string into a Date anchored at local midnight.
+ *
+ * Unlike `new Date("YYYY-MM-DD")`, which the spec parses as UTC midnight,
+ * this treats the string as a calendar date in the viewer's own timezone.
+ * Returns undefined if the string doesn't match, or encodes a calendar
+ * date that doesn't exist (e.g. month 13, Feb 30), since `Date` would
+ * otherwise silently roll those over into a different date.
+ */
+export function parseLocalISODate(value: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+  const [, yStr, mStr, dStr] = match;
+  const year = Number.parseInt(yStr, 10);
+  const month = Number.parseInt(mStr, 10);
+  const day = Number.parseInt(dStr, 10);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return undefined;
+  }
+  return date;
+}
+
+/**
+ * Parse an ISO-ish `YYYY-MM-DD[T ]HH:MM[:SS[.sss]][Z|+HH:MM]` datetime string
+ * as wall-clock local time, ignoring any trailing `Z` or UTC offset.
+ *
+ * This keeps pasted datetimes consistent with the date/time pickers' local-
+ * time basis: pasting `2024-01-15T08:30:00Z` displays `08:30` instead of
+ * being shifted by the viewer's timezone.
+ */
+export function parseLocalISODateTime(value: string): Date | undefined {
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/.exec(
+      value.trim(),
+    );
+  if (!match) {
+    return undefined;
+  }
+  const [, yStr, moStr, dStr, hStr, miStr, sStr] = match;
+  return new Date(
+    Number.parseInt(yStr, 10),
+    Number.parseInt(moStr, 10) - 1,
+    Number.parseInt(dStr, 10),
+    Number.parseInt(hStr, 10),
+    Number.parseInt(miStr, 10),
+    sStr ? Number.parseInt(sStr, 10) : 0,
+  );
 }
 
 export const supportedDateFormats = ["yyyy", "yyyy-MM", "yyyy-MM-dd"] as const;

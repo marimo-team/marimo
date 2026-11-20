@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -48,15 +48,14 @@ def _(mo):
     P(E) = P(E \cap H) + P(E \cap \neg H).
     \]
     """)
-    return
 
 
 @app.cell(hide_code=True)
 def _(
-    bayes_result,
+    bayes_result: int | float,
     construct_probability_plot,
     mo,
-    p_e,
+    p_e: int | float,
     p_e_given_h,
     p_e_given_not_h,
     p_h,
@@ -98,7 +97,6 @@ def _(
         align="start",
         widths=[0.33, 0.5],
     )
-    return
 
 
 @app.cell(hide_code=True)

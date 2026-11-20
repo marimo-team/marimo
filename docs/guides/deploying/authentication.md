@@ -4,11 +4,18 @@ marimo provides a simple way to add token/password protection to your marimo ser
 
 ## Enabling Basic Authentication
 
-Authentication is enabled by default when running `marimo edit/tutorial/new`. To disable authentication, you may pass `--no-token` to your `marimo edit/run/new` command from the Terminal. The auth token will be randomly generated when in `Edit mode` and deterministically generated in `Run mode` (based on the code of the notebook). However, you can also pass your own token/password using the `--token-password` flag.
+Authentication is enabled by default when running `marimo edit/tutorial/new`. To disable authentication, you may pass `--no-token` to your `marimo edit/run/new` command from the Terminal. The auth token will be randomly generated when in `Edit mode` and deterministically generated in `Run mode` (based on the code of the notebook). However, you can also pass your own token/password using the `--token-password` flag, or `--token-password-file` to read it from a file or stdin.
 
 ```bash
 marimo run my_notebook.py --token --token-password="sup3rs3cr3t"
 ```
+
+!!! warning "The startup URL includes the token"
+    marimo prints a clickable URL at startup, such as `http://localhost:2718?access_token=sup3rs3cr3t`. The URL includes the token whether marimo generates it, you pass it with `--token-password`, or you read it from a file or stdin with `--token-password-file`. If marimo runs as a service, the journal or container log records that line. Pass `-q` (`--quiet`) before the subcommand to suppress the startup banner:
+
+    ```bash
+    marimo -q run my_notebook.py --token --token-password-file /run/secrets/marimo-token
+    ```
 
 ### Ways to Authenticate
 
@@ -29,6 +36,49 @@ For convenience, when running locally, marimo will automatically open the URL wi
 To authenticate using the `Authorization` header, you must pass the token as a password in the `Authorization` header using the [Basic authentication scheme](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). For example, to authenticate with the token `sup3rs3cr3t`, you would pass the header `Authorization Basic base64("any_username:sup3rs3cr3t")`.
 
 This is not necessary when using a browser, as the marimo server will redirect you to a minimal login page where you can enter the token.
+
+### Cross-site session cookies
+
+When you embed marimo in an iframe on another site, authentication can fail inside
+the embed. For example, a notebook inside your docs or dashboard can lose access
+to its session cookie because the browser blocks cross-site cookies.
+
+Partitioned cookies ([CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Third-party_cookies/Partitioned_cookies))
+let compatible browsers accept the cookie and store it separately for each
+embedding site.
+
+Enable partitioned cookies in your [configuration file](../configuration/index.md#user-configuration-file):
+
+```toml
+[server]
+session_cookie_partitioned = true
+```
+
+Alternatively, set `MARIMO_SERVER_SESSION_COOKIE_PARTITIONED=true` before you
+start the server. The default is `false`, and the feature requires HTTPS.
+Changes take effect when the server starts.
+
+With partitioned cookies enabled, marimo sets and deletes the session cookie with
+`HttpOnly; SameSite=None; Secure; Partitioned`. Each embedding site gets its own
+session cookie. To authenticate in a separate kernel tab, open the URL with its
+access token. If a browser blocks all cookies, use a client that sends an explicit
+token with each request.
+
+Because these cookies support cross-site requests, marimo checks the origin of
+cookie-authenticated WebSocket connections and state-changing HTTP requests.
+With partitioned cookies enabled, these browser requests must come from the
+kernel's public HTTPS origin.
+
+If marimo runs behind a proxy or tunnel, configure it to expose that origin:
+
+- **TLS proxy:** pass through the public `Host` header, including the port. Forwarded host headers do not affect the cookie origin check.
+- **Tunnel:** set `--allow-origins` to the public kernel origin.
+
+Non-browser clients can omit `Origin` unless Fetch Metadata indicates a cross-origin
+request. Explicit tokens can authenticate HTTP requests independently of cookies.
+
+Browsers without CHIPS support can treat these cookies as ordinary cross-site
+cookies. The origin check still applies.
 
 ## Custom Authentication
 

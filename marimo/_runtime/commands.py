@@ -20,7 +20,9 @@ import msgspec
 
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import MarimoConfig
+from marimo._config.config import PartialMarimoConfig
+from marimo._config.provenance import ConfigPath
+from marimo._core.code import code_fingerprint as source_fingerprint
 from marimo._data.models import DataTableSource
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._messaging.notebook.outputs import CellOutputs
@@ -243,6 +245,7 @@ class SetBreakpointsCommand(Command):
         return f"SetBreakpointsCommand(count={count})"
 
 
+# TODO(MO-8007): Remove when run commands use document revisions.
 class ExecuteCellCommand(Command):
     """Execute a single cell.
 
@@ -252,6 +255,7 @@ class ExecuteCellCommand(Command):
     Attributes:
         cell_id: Cell to execute.
         code: Python code to execute.
+        code_fingerprint: Code fingerprint. Computed from `code` when omitted.
         request: HTTP request context if available.
         timestamp: Unix timestamp when command was created.
     """
@@ -261,6 +265,11 @@ class ExecuteCellCommand(Command):
     # incoming request, e.g. from Starlette or FastAPI
     request: HTTPRequest | None = None
     timestamp: float = msgspec.field(default_factory=time.time)
+    code_fingerprint: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.code_fingerprint:
+            self.code_fingerprint = source_fingerprint(self.code)
 
     def __repr__(self) -> str:
         preview = self.code[:10].replace("\n", " ")
@@ -269,6 +278,7 @@ class ExecuteCellCommand(Command):
         )
 
 
+# TODO(MO-8007): Have the host compute and run stale cells.
 class ExecuteStaleCellsCommand(Command):
     """Execute all stale cells.
 
@@ -282,54 +292,34 @@ class ExecuteStaleCellsCommand(Command):
     request: HTTPRequest | None = None
 
 
+# TODO(MO-8007): Run roots against a document revision.
 class ExecuteCellsCommand(Command):
-    """Execute multiple cells in a batch.
-
-    Executes multiple cells with their corresponding code. The kernel manages
-    dependency tracking and reactive execution.
+    """Execute cells and their reactive dependents in one batch.
 
     Attributes:
-        cell_ids: Cells to execute.
-        codes: Python code for each cell. Must match length of cell_ids.
-        request: HTTP request context if available.
-        timestamp: Unix timestamp when command was created.
+        execution_requests: The cells and source identities to execute.
+        request: HTTP request context for the batch.
+        timestamp: Unix timestamp when the batch was created.
+        run_id: Correlates the run's notifications and completion.
+        allow_stdin: Whether cells may request interactive input.
     """
 
-    # ids of cells to run
-    cell_ids: list[CellId_t]
-    # code to register/run for each cell
-    codes: list[str]
-    # incoming request, e.g. from Starlette or FastAPI
+    execution_requests: list[ExecuteCellCommand]
     request: HTTPRequest | None = None
-    # time at which the request was received
     timestamp: float = msgspec.field(default_factory=time.time)
-
-    def __repr__(self) -> str:
-        return f"ExecuteCellsCommand(cells={len(self.cell_ids)})"
-
-    @property
-    def execution_requests(self) -> list[ExecuteCellCommand]:
-        """Convert to individual cell execution commands.
-
-        Returns:
-            List of ExecuteCellCommand instances, one per cell.
-        """
-        return [
-            ExecuteCellCommand(
-                cell_id=cell_id,
-                code=code,
-                request=self.request,
-                timestamp=self.timestamp,
-            )
-            for cell_id, code in zip(self.cell_ids, self.codes, strict=False)
-        ]
+    run_id: str | None = None
+    allow_stdin: bool = True
 
     def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
+        for cell in self.execution_requests:
+            cell.request = self.request
+            cell.timestamp = self.timestamp
+
+    def __repr__(self) -> str:
+        return f"ExecuteCellsCommand(cells={len(self.execution_requests)})"
 
 
+# TODO(MO-8007): Reconcile the graph as part of a run.
 class SyncGraphCommand(Command):
     """Synchronize the kernel graph with file manager state.
 
@@ -370,6 +360,29 @@ class SyncGraphCommand(Command):
         ]
 
 
+# TODO(MO-8007): Apply the edited revision with a rootless run.
+class EditCellsCommand(Command):
+    """Apply one edit of the notebook's cells to the kernel.
+
+    Sent when the notebook changes without a run, as a host edit does.
+    The kernel replaces code it holds for cells that have not run yet;
+    a cell that has run takes new code from its next run. Deletions and
+    configs take effect together, before any cell runs because of them,
+    so a cell the edit deletes or disables does not run when a cell it
+    depended on goes.
+
+    Attributes:
+        codes: New code for each cell the edit created or changed.
+        configs: New config for each cell the edit created or reconfigured.
+        delete_ids: Cells the edit removed.
+    """
+
+    codes: dict[CellId_t, str]
+    configs: dict[CellId_t, dict[str, Any]]
+    delete_ids: list[CellId_t]
+
+
+# TODO(MO-8007): Run the scratch cell against a document revision.
 class ExecuteScratchpadCommand(Command):
     """Execute code in the scratchpad.
 
@@ -379,6 +392,7 @@ class ExecuteScratchpadCommand(Command):
 
     Attributes:
         code: Python code to execute.
+        code_fingerprint: Code fingerprint. Computed from `code` when omitted.
         request: HTTP request context if available.
         notebook_cells: Snapshot of notebook cells from the session document.
             Used to populate the document ContextVar so code_mode can read
@@ -394,6 +408,8 @@ class ExecuteScratchpadCommand(Command):
             `ScratchCellListener` can filter for *its* completion and
             ignore `CompletedRun` events from unrelated commands on the
             same session.
+        allow_stdin: Whether code may request interactive input. When false,
+            input reads receive EOF for the duration of this command.
     """
 
     code: str
@@ -404,8 +420,15 @@ class ExecuteScratchpadCommand(Command):
     # Output snapshot — set by the execution endpoint from session.session_view.
     cell_outputs: CellOutputs | None = None
     run_id: str | None = None
+    allow_stdin: bool = True
+    code_fingerprint: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.code_fingerprint:
+            self.code_fingerprint = source_fingerprint(self.code)
 
 
+# TODO(MO-8007): Move renaming to the notebook entry.
 class RenameNotebookCommand(Command):
     """Rename or move the notebook file.
 
@@ -528,6 +551,7 @@ class AppMetadata(msgspec.Struct, rename="camel"):
     docstring: str | None = None
 
 
+# TODO(MO-8007): Replace with graph reconciliation against the revision.
 class UpdateCellConfigCommand(Command):
     """Update cell configuration.
 
@@ -548,16 +572,18 @@ class UpdateUserConfigCommand(Command):
     Updates global marimo configuration (runtime settings, display options, editor preferences).
 
     Attributes:
-        config: Complete user configuration.
+        config: User configuration dictionary, which may be a sparse patch.
     """
 
-    # MarimoConfig TypedDict
-    config: MarimoConfig
+    config: PartialMarimoConfig
+    # User-file saves apply only edited fields and retain higher-priority overrides.
+    edited_paths: tuple[ConfigPath, ...] | None = None
 
     def __repr__(self) -> str:
         return "UpdateUserConfigCommand(config=...)"
 
 
+# TODO(MO-8007): Run all cells, or no roots for a lazy start.
 class CreateNotebookCommand(Command):
     """Instantiate and initialize a notebook.
 
@@ -565,7 +591,7 @@ class CreateNotebookCommand(Command):
 
     Attributes:
         execution_requests: ExecuteCellCommand for each notebook cell.
-        cell_ids: Initial cell IDs in the notebook.
+        cell_ids: Ignored; accepted for older callers such as marimo-lsp.
         set_ui_element_value_request: Initial UI element values.
         auto_run: Whether to automatically execute cells on instantiation.
         request: HTTP request context if available.
@@ -578,6 +604,7 @@ class CreateNotebookCommand(Command):
     request: HTTPRequest | None = None
 
 
+# TODO(MO-8007): Replace with graph reconciliation against the revision.
 class DeleteCellCommand(Command):
     """Delete a cell from the notebook.
 
@@ -591,12 +618,26 @@ class DeleteCellCommand(Command):
     cell_id: CellId_t
 
 
+# TODO(MO-8007): Replace with Backend.stop.
 class StopKernelCommand(Command):
     """Stop kernel execution.
 
     Signals the kernel to stop processing and shut down gracefully.
     Used when closing a notebook or terminating a session.
     """
+
+
+# TODO(MO-8007): Fold into Backend.interrupt.
+class CancelRunCommand(Command):
+    """Cancel a run that is still waiting in the control queue.
+
+    The control loop applies it to the run it names before handling that
+    run, and the kernel then completes the run `interrupted` without
+    executing it. A cancellation that arrives after its run has started
+    does nothing.
+    """
+
+    run_id: str
 
 
 class CodeCompletionCommand(Command):
@@ -942,29 +983,15 @@ class GetCacheInfoCommand(Command):
     """
 
 
-CommandMessage = (
-    # Notebook operations
-    CreateNotebookCommand
-    | RenameNotebookCommand
-    | CodeCompletionCommand
-    # Cell execution and management
-    | ExecuteCellsCommand
+ClientCommand = (
+    ExecuteCellsCommand
     | ExecuteScratchpadCommand
-    | ExecuteStaleCellsCommand
-    | DebugCellCommand
-    | SetBreakpointsCommand
     | DeleteCellCommand
-    | SyncGraphCommand
     | UpdateCellConfigCommand
-    # Package management
-    | InstallPackagesCommand
-    # UI element and widget model operations
     | UpdateUIElementCommand
     | ModelCommand
     | InvokeFunctionCommand
-    # User/configuration operations
-    | UpdateUserConfigCommand
-    # Data SQL operations
+    | InstallPackagesCommand
     | PreviewDatasetColumnCommand
     | PreviewSQLTableCommand
     | ListSQLTablesCommand
@@ -972,17 +999,38 @@ CommandMessage = (
     | ValidateSQLCommand
     | ListDataSourceConnectionCommand
     | DiscoverDataSourcesCommand
-    # Storage operations
+    | ListSecretKeysCommand
+)
+"""Kernel commands the frontend can construct and submit directly."""
+
+# TODO(MO-8007): Consolidate into revision-based run, start, and stop.
+NotebookCommand = (
+    CreateNotebookCommand
+    | SyncGraphCommand
+    | EditCellsCommand
+    | ExecuteStaleCellsCommand
+    | RenameNotebookCommand
+    | StopKernelCommand
+    | CancelRunCommand
+)
+"""Commands whose subject is the whole notebook, issued by its owner.
+
+Only the server builds these, from the document it holds. They are the
+kernel side of the core `Backend` interface.
+"""
+CommandMessage = (
+    ClientCommand
+    | NotebookCommand
+    # Requests the server converts to commands
+    | CodeCompletionCommand
+    | DebugCellCommand
+    | SetBreakpointsCommand
+    | UpdateUserConfigCommand
     | StorageListEntriesCommand
     | StorageDownloadCommand
-    # Secrets management
-    | ListSecretKeysCommand
     | RefreshSecretsCommand
-    # Cache management
     | ClearCacheCommand
     | GetCacheInfoCommand
-    # Kernel operations
-    | StopKernelCommand
 )
 """Union of all command messages.
 

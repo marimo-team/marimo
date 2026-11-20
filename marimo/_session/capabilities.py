@@ -46,7 +46,6 @@ _READ_COMMANDS: frozenset[type] = frozenset(
         commands.PreviewSQLTableCommand,
         commands.ListSQLTablesCommand,
         commands.ListSQLSchemasCommand,
-        commands.ValidateSQLCommand,
         commands.ListDataSourceConnectionCommand,
         commands.DiscoverDataSourcesCommand,
         commands.StorageListEntriesCommand,
@@ -71,12 +70,15 @@ _EDIT_COMMANDS: frozenset[type] = frozenset(
         commands.SetBreakpointsCommand,
         commands.DeleteCellCommand,
         commands.SyncGraphCommand,
+        commands.EditCellsCommand,
         commands.UpdateCellConfigCommand,
         commands.InstallPackagesCommand,
+        commands.ValidateSQLCommand,
         commands.UpdateUserConfigCommand,
         commands.RefreshSecretsCommand,
         commands.ClearCacheCommand,
         commands.StopKernelCommand,
+        commands.CancelRunCommand,
     }
 )
 

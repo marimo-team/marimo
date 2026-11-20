@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import wasm from "vite-plugin-wasm";
 import { createViteLogger, reactCompilerConfig } from "../vite.shared.mts";
 import packageJson from "../package.json";
 
@@ -79,13 +78,10 @@ export default defineConfig({
   customLogger: createViteLogger(),
   resolve: {
     tsconfigPaths: true,
-    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+    dedupe: ["react", "react-dom"],
     alias: [
-      // Islands run read-only and never render the slide code editor, so
-      // swap `SlideCellView` for a no-op stub. This keeps CodeMirror, the
-      // Codeium adapter, and `@bufbuild/protobuf` out of the islands bundle
-      // (the latter contains a `process.env.BUF_BIGINT_DISABLE` literal
-      // that `islands/validate.sh` otherwise flags).
+      // Read-only islands never render the slide code editor. Keep its
+      // CodeMirror dependencies out of the islands bundle.
       {
         find: "@/components/slides/slide-cell-view",
         replacement: path.resolve(
@@ -121,7 +117,6 @@ export default defineConfig({
       // React Compiler backed by Oxc (oxc-transform-react)
       compiler: reactCompilerConfig,
     }),
-    wasm(),
   ],
   build: {
     emptyOutDir: true,

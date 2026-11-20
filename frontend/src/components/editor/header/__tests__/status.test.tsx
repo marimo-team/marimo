@@ -10,8 +10,8 @@ import { viewStateAtom } from "@/core/mode";
 import {
   type ConnectionStatus,
   WebSocketClosedReason,
-  WebSocketState,
-} from "@/core/websocket/types";
+  ConnectionState,
+} from "@/core/session/types";
 import { StatusOverlay } from "../status";
 
 function renderOverlay(
@@ -40,7 +40,7 @@ describe("StatusOverlay disconnect indicator", () => {
     const onReconnect = vi.fn();
     const { getByTestId } = renderOverlay(
       {
-        state: WebSocketState.CLOSED,
+        state: ConnectionState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
         reason: "kernel not found",
       },
@@ -55,35 +55,25 @@ describe("StatusOverlay disconnect indicator", () => {
     expect(onReconnect).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a disabled button when no onReconnect is provided", () => {
+  it("keeps the unavailable reconnect button focusable for its tooltip", () => {
     const { getByTestId } = renderOverlay({
-      state: WebSocketState.CLOSED,
+      state: ConnectionState.CLOSED,
       code: WebSocketClosedReason.KERNEL_DISCONNECTED,
       reason: "kernel not found",
     });
 
     const button = getByTestId("disconnected-indicator");
-    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    button.focus();
+    expect(button).toHaveFocus();
   });
 
-  it.each([
-    [
-      WebSocketClosedReason.KERNEL_STARTUP_ERROR,
-      "Failed to start kernel sandbox",
-    ],
-  ])(
-    "renders a disabled button for non-recoverable close reason %s",
-    (code, reason) => {
-      const onReconnect = vi.fn();
-      const { getByTestId } = renderOverlay(
-        { state: WebSocketState.CLOSED, code, reason },
-        onReconnect,
-      );
-
-      const button = getByTestId("disconnected-indicator") as HTMLButtonElement;
-      expect(button.disabled).toBe(true);
-      fireEvent.click(button);
-      expect(onReconnect).not.toHaveBeenCalled();
-    },
-  );
+  it("leaves editor startup failures to the inline notice", () => {
+    const { queryByTestId } = renderOverlay({
+      state: ConnectionState.CLOSED,
+      code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+      reason: "Failed to start kernel sandbox",
+    });
+    expect(queryByTestId("disconnected-indicator")).not.toBeInTheDocument();
+  });
 });

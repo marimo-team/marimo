@@ -320,17 +320,20 @@ def foo():
 // Mock ClipboardEvent and DataTransfer
 class MockDataTransfer {
   private data: Record<string, string> = {};
-  setData(format: string, data: string) {
+  public setData(format: string, data: string) {
     this.data[format] = data;
   }
-  getData(format: string) {
+  public getData(format: string) {
     return this.data[format];
   }
 }
 
 class MockClipboardEvent extends Event {
-  clipboardData: MockDataTransfer;
-  constructor(type: string, init?: { clipboardData?: MockDataTransfer }) {
+  public clipboardData: MockDataTransfer;
+  public constructor(
+    type: string,
+    init?: { clipboardData?: MockDataTransfer },
+  ) {
     super(type);
     this.clipboardData = init?.clipboardData || new MockDataTransfer();
   }
@@ -440,7 +443,9 @@ def _():
     view.dom.onpaste = (evt) => extension[0].domEventHandlers.paste(evt, view);
     view.dom.dispatchEvent(event);
 
-    expect(addOrAppendSetupCell).toHaveBeenCalledWith("import numpy as np");
+    expect(addOrAppendSetupCell).toHaveBeenCalledWith({
+      code: "import numpy as np",
+    });
     expect(createManyBelow).toHaveBeenCalledWith(["x = 1"]);
   });
 });

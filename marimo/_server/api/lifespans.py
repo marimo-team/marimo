@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -112,8 +113,8 @@ async def _cleanup_mcp_task(
 async def mcp(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     session_mgr = state.session_manager
-    user_config = state.config_manager.get_config()
-    mcp_config = user_config.get("mcp")
+    user_config = state.config_manager.get_config(hide_secrets=False)
+    mcp_config = user_config.mcp
 
     # Only start MCP servers in Edit mode
     if session_mgr.mode != SessionMode.EDIT:
@@ -161,12 +162,22 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
     if not state.headless:
         url = _startup_url(state)
         user_config = state.config_manager.get_config()
-        browser = user_config["server"]["browser"]
+        browser = user_config.server.browser
+
+        def open_and_log() -> None:
+            try:
+                open_url_in_browser(browser, url)
+            except Exception as e:
+                LOGGER.warning("Failed to open the browser: %s", e)
+
+        def launch() -> None:
+            # Browser discovery can block for a long time on a stalled
+            # desktop (seen in WSL). Keep it off the event loop.
+            threading.Thread(target=open_and_log, daemon=True).start()
+
         # Wait 20ms for the server to start and then open the browser, but this
         # function must complete
-        asyncio.get_running_loop().call_later(
-            0.02, open_url_in_browser, browser, url
-        )
+        asyncio.get_running_loop().call_later(0.02, launch)
     yield
 
 
@@ -214,16 +225,26 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
     manager = state.session_manager
 
     # Interrupt handler
-    def shutdown() -> None:
-        manager.shutdown()
+    async def shutdown() -> None:
+        await manager.shutdown()
         if state.server:
             close_uvicorn(state.server)
 
-    InterruptHandler(
+    def request_shutdown() -> None:
+        supervised_task(
+            shutdown(), name="server.shutdown", registry=background_tasks
+        )
+
+    handler = InterruptHandler(
         quiet=state.quiet,
-        shutdown=shutdown,
-    ).register()
-    yield
+        shutdown=request_shutdown,
+    )
+    with handler.listen():
+        try:
+            yield
+        finally:
+            handler.begin_shutdown()
+            await manager.shutdown()
 
 
 @contextlib.asynccontextmanager

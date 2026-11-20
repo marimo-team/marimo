@@ -27,7 +27,7 @@ export class DeferredRequestRegistry<REQ, RES> {
     resolveExistingRequests?: () => RES;
   };
 
-  constructor(
+  public constructor(
     operation: string,
     makeRequest: (id: RequestId, req: REQ) => Promise<void>,
     opts: {
@@ -42,7 +42,7 @@ export class DeferredRequestRegistry<REQ, RES> {
     this.opts = opts;
   }
 
-  async request(opts: REQ): Promise<RES> {
+  public async request(opts: REQ): Promise<RES> {
     if (this.opts.resolveExistingRequests) {
       const result = this.opts.resolveExistingRequests();
       for (const deferred of this.requests.values()) {
@@ -63,7 +63,7 @@ export class DeferredRequestRegistry<REQ, RES> {
     return deferred.promise;
   }
 
-  resolve(requestId: RequestId, response: RES) {
+  public resolve(requestId: RequestId, response: RES) {
     const entry = this.requests.get(requestId);
     if (entry === undefined) {
       return;
@@ -73,7 +73,7 @@ export class DeferredRequestRegistry<REQ, RES> {
     this.requests.delete(requestId);
   }
 
-  reject(requestId: RequestId, error: Error) {
+  public reject(requestId: RequestId, error: Error) {
     const entry = this.requests.get(requestId);
     if (entry === undefined) {
       return;

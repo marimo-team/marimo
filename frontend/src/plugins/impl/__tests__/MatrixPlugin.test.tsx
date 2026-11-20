@@ -54,8 +54,8 @@ beforeEach(() => {
   // like clientX. Polyfill it so fireEvent.pointerDown/Move/Up work.
   // oxlint-disable-next-line typescript/no-explicit-any
   (globalThis as any).PointerEvent = class PointerEvent extends MouseEvent {
-    readonly pointerId: number;
-    constructor(type: string, init: PointerEventInit = {}) {
+    public readonly pointerId: number;
+    public constructor(type: string, init: PointerEventInit = {}) {
       super(type, init);
       this.pointerId = init.pointerId ?? 0;
     }

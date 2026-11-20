@@ -1,12 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Milliseconds, Seconds } from "@/utils/time";
-import type { SerializedEditorState } from "../codemirror/types";
+import type { CellOutput } from "../executions";
 import type { OutputMessage } from "../kernel/messages";
-import type { CellConfig, RuntimeState } from "../network/types";
+import type { CellConfig } from "../network/types";
+import type { CommandConsole, CommandOutputMessage } from "./command-console";
 import type { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
-import type { Outline } from "./outline";
 
 /**
  * Create a new cell with default state.
@@ -15,11 +14,7 @@ export function createCell({
   id,
   name = DEFAULT_CELL_NAME,
   code = "",
-  lastCodeRun = null,
-  lastExecutionTime = null,
-  edited = false,
   config,
-  serializedEditorState = null,
 }: Partial<CellData> & { id: CellId }): CellData {
   return {
     id: id,
@@ -27,13 +22,10 @@ export function createCell({
       hide_code: false,
       disabled: false,
       column: null,
+      expand_output: false,
     },
     name: name,
     code: code,
-    edited: edited,
-    lastCodeRun: lastCodeRun,
-    lastExecutionTime: lastExecutionTime,
-    serializedEditorState: serializedEditorState,
   };
 }
 
@@ -42,6 +34,7 @@ export function createCellConfig(config?: Partial<CellConfig>): CellConfig {
     hide_code: false,
     disabled: false,
     column: null,
+    expand_output: false,
     ...config,
   };
 }
@@ -50,18 +43,7 @@ export function createCellRuntimeState(
   state?: Partial<CellRuntimeState>,
 ): CellRuntimeState {
   return {
-    outline: null,
-    output: null,
-    consoleOutputs: [],
-    status: "idle" as RuntimeState,
-    staleInputs: false,
-    interrupted: false,
-    errored: false,
-    stopped: false,
-    runElapsedTimeMs: null,
-    runStartTimestamp: null,
-    lastRunStartTimestamp: null,
-    debuggerActive: false,
+    embeddedConsole: [],
     ...state,
   };
 }
@@ -75,56 +57,58 @@ export interface CellData {
   name: string;
   /** current contents of the editor */
   code: string;
-  /** whether this cell has been modified since its last run */
-  edited: boolean;
-  /** snapshot of code that was last run */
-  lastCodeRun: string | null;
-  /** execution time on session start / resume */
-  lastExecutionTime: number | null;
   /** cell configuration */
   config: CellConfig;
-  /** serialized state of the underlying editor */
-  serializedEditorState: SerializedEditorState | null;
 }
 
+/** Console presentation and editor-session hints for a cell. */
 export interface CellRuntimeState {
-  /** a message encoding the cell's output */
-  output: OutputMessage | null;
-  /** TOC outline */
-  outline: Outline | null;
-  /** messages encoding the cell's console outputs. */
-  consoleOutputs: WithResponse<OutputMessage>[];
-  /** current status of the cell */
-  status: RuntimeState;
-  /** whether the cell has stale inputs*/
-  staleInputs: boolean;
-  /** whether this cell has been interrupted since its last run */
-  interrupted: boolean;
-  /** whether this cell was stopped with mo.stop */
-  stopped: boolean;
-  /**
-   * whether marimo encountered an error when trying to register or run
-   * this cell (such as a multiple definition error)
-   */
-  errored: boolean;
-  /** run start time, as seconds since epoch */
-  runStartTimestamp: Seconds | null;
-  /** run elapsed time, in milliseconds */
-  runElapsedTimeMs: Milliseconds | null;
-  /** last run timestamp, as seconds since epoch */
-  lastRunStartTimestamp: Seconds | null;
-  /** debugger active */
-  debuggerActive: boolean;
-  /** serialization message */
+  /** Embedded console output until the notebook reports an execution. */
+  embeddedConsole: ConsoleOutputMessage[];
+  commandConsole?: CommandConsole;
+  /** Last write hidden by this browser for each command transcript. */
+  clearedCommandIds?: Partial<Record<CommandOutputMessage["op"], string>>;
+  /** Settled input IDs hidden by this execution’s clear_console(). */
+  clearedConsoleInputs?: { executionId: string; ids: ReadonlySet<string> };
+  /** Only the browser that answered a prompt knows its non-secret reply. */
+  answers?: ReadonlyMap<string, string>;
+  /** Rows this browser hid, except prompts that were still pending. */
+  clearedConsole?: {
+    executionId: string;
+    seq: number;
+    prompts: ReadonlySet<string>;
+  };
+  /** serialization message. TODO(MO-8414) */
   serialization?: string | null;
 }
 
-export type RuntimeCell = CellRuntimeState & CellData;
+/** The cell runtime fields available to renderers. */
+export interface CellRuntimeView extends Pick<
+  CellRuntimeState,
+  "serialization"
+> {
+  consoleOutputs: ConsoleOutputMessage[];
+}
+
+/** A cell as the layout renderers take it, with what it shows from the host. */
+export type RuntimeCell = CellData &
+  CellRuntimeView & {
+    output: CellOutput | null;
+  };
 
 export type WithResponse<T> = T & {
   /**
-   * This is not saved to the server, but we update this field
-   * after sending the message to the kernel.
+   * The locally accepted reply. Undefined means the prompt is pending.
+   * Null closes the prompt when its answer is unavailable or secret.
    */
-  response?: string;
+  response?: string | null;
+};
+
+/**
+ * A console output as held by the frontend. The id is assigned when the
+ * output arrives and never changes, so it can identify the output while
+ * neighboring outputs collapse, truncate, or receive a stdin response.
+ */
+export type ConsoleOutputMessage = WithResponse<OutputMessage> & {
+  id?: number;
 };

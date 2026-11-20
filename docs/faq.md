@@ -49,9 +49,9 @@ consistent, eliminating hidden state and making your notebook reproducible.
 marimo achieves this by intelligently analyzing your code and understanding the
 relationships between cells, and automatically re-running cells as needed.
 
-In addition, marimo notebooks can serialize package requirements inline;
-marimo runs these "sandboxed" notebooks in temporary virtual environments,
-making them [reproducible down to the packages](guides/editor_features/package_management.md).
+In addition, marimo notebooks can [carry their package requirements](guides/package_management/sandboxes.md)
+inside the notebook file. marimo runs these notebooks in separate environments,
+and script lockfiles can record resolved dependency versions for sharing.
 
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
@@ -447,13 +447,15 @@ This is necessary because [in Python, closures are late-binding](https://docs.py
 
 ### Why aren't my SQL brackets working?
 
-Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
+Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which lets you interpolate Python values into SQL like `SELECT * from table where value < {min}`.
 
-To escape real `{` / `}` that you don't want parameterized, use double `\{\{...\}\}`:
+To escape real `{` / `}` that you don't want interpolated, use double `\{\{...\}\}`:
 
 ```sql
 SELECT unnest([\{\{'a': 42, 'b': 84\}\}, \{\{'a': 100, 'b': NULL\}\}]);
 ```
+
+Interpolation inserts values into the SQL text; it isn't parameter binding. To use input that other people control in a query, see the section on [avoiding SQL injection](guides/working_with_data/sql.md#avoiding-sql-injection).
 
 <a name="faq-annotations"></a>
 
@@ -509,7 +511,13 @@ code completion.
 
 ### How do I use marimo on a remote server?
 
-> We recorded a video tutorial on how to use marimo on a remote server. Check it out [here](https://youtu.be/pam9Hw8rbaA).
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/pam9Hw8rbaA"
+  title="YouTube video player" loading="lazy" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
 
 Use SSH port-forwarding to run marimo on a remote server
 and connect to it from a browser on your local machine. Make sure

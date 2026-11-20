@@ -7,7 +7,11 @@ import { applyEditorEdits } from "../editor-state";
 describe("applyEditorEdits", () => {
   it("replays edits against an empty table", () => {
     const result = applyEditorEdits(
-      { data: [], columnFields: new Map([["value", "unknown"]]) },
+      {
+        data: [],
+        columnFields: new Map([["value", "unknown"]]),
+        columnTypes: new Map(),
+      },
       [{ rowIdx: 0, columnId: "value", value: "first" }],
     );
 
@@ -22,6 +26,7 @@ describe("applyEditorEdits", () => {
           ["A", "number"],
           ["B", "string"],
         ]) as FieldTypes,
+        columnTypes: new Map(),
       },
       [
         { rowIdx: 0, type: "remove" },
@@ -41,6 +46,7 @@ describe("applyEditorEdits", () => {
           ["A", "string"],
           ["B", "string"],
         ]) as FieldTypes,
+        columnTypes: new Map(),
       },
       [
         { columnIdx: 0, type: "remove" },
@@ -52,6 +58,27 @@ describe("applyEditorEdits", () => {
     expect([...result.columnFields]).toEqual([["D", "string"]]);
   });
 
+  it("preserves categorical configuration on rename and deletes it on removal", () => {
+    const state = {
+      data: [{ status: "open", other: "x" }],
+      columnFields: new Map([
+        ["status", "string"],
+        ["other", "string"],
+      ]) as FieldTypes,
+      columnTypes: new Map([["status", ["open", "closed"]]]),
+    };
+
+    const renamed = applyEditorEdits(state, [
+      { columnIdx: 0, type: "rename", newName: "state" },
+    ]);
+    expect([...renamed.columnTypes]).toEqual([["state", ["open", "closed"]]]);
+
+    const removed = applyEditorEdits(renamed, [
+      { columnIdx: 0, type: "remove" },
+    ]);
+    expect([...removed.columnTypes]).toEqual([]);
+  });
+
   it("preserves inserted column order through later edits", () => {
     const result = applyEditorEdits(
       {
@@ -60,6 +87,7 @@ describe("applyEditorEdits", () => {
           ["A", "string"],
           ["C", "string"],
         ]) as FieldTypes,
+        columnTypes: new Map(),
       },
       [
         {
@@ -81,10 +109,32 @@ describe("applyEditorEdits", () => {
     ]);
   });
 
+  it("preserves boolean configuration on rename and deletes it on removal", () => {
+    const state = {
+      data: [{ A: true, B: "b" }],
+      columnFields: new Map([
+        ["A", "boolean"],
+        ["B", "string"],
+      ]) as FieldTypes,
+      columnTypes: new Map([["A", "boolean" as const]]),
+    };
+
+    const renamed = applyEditorEdits(state, [
+      { columnIdx: 0, type: "rename", newName: "C" },
+    ]);
+    expect([...renamed.columnTypes]).toEqual([["C", "boolean"]]);
+
+    const removed = applyEditorEdits(renamed, [
+      { columnIdx: 0, type: "remove" },
+    ]);
+    expect([...removed.columnTypes]).toEqual([]);
+  });
+
   it("does not mutate the previous state", () => {
     const state = {
       data: [{ A: "before" }],
       columnFields: new Map([["A", "string"]]) as FieldTypes,
+      columnTypes: new Map(),
     };
 
     const result = applyEditorEdits(state, [
@@ -101,6 +151,7 @@ describe("applyEditorEdits", () => {
     const state = {
       data: [{ A: "unchanged" }],
       columnFields: new Map([["A", "string"]]) as FieldTypes,
+      columnTypes: new Map(),
     };
 
     expect(

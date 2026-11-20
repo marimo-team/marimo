@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 
+from marimo._session.startup import SessionStartup
+
 
 @pytest.mark.requires("zmq")
 class TestAppHostCommands:
@@ -26,7 +28,7 @@ class TestAppHostCommands:
             cli_args={},
             app_config={},  # type: ignore[arg-type]
         )
-        user_config = DEFAULT_CONFIG
+        user_config = DEFAULT_CONFIG.to_dict()
 
         # Test commands
         commands = [
@@ -35,6 +37,7 @@ class TestAppHostCommands:
                 configs={},
                 app_metadata=app_metadata,
                 user_config=user_config,
+                config_overrides=(("runtime", "sql_default_limit"),),
                 virtual_file_storage="shared_memory",
                 redirect_console_to_browser=True,
                 log_level=10,
@@ -333,7 +336,7 @@ class TestAppHostQueueManager:
 
 @pytest.mark.requires("zmq")
 class TestAppHostMultipleClients:
-    def test_create_session_uses_per_client_session_id(self) -> None:
+    async def test_create_session_uses_per_client_session_id(self) -> None:
         """SessionImpl.create() must pass the per-client session_id — not
         the shared initialization_id (file_key) — to the AppHost managers.
 
@@ -361,7 +364,8 @@ class TestAppHostMultipleClients:
             "AppHostKernelManager.start_kernel"
         ):
             for sid in ("session-1", "session-2"):
-                SessionImpl.create(
+                await SessionImpl.create(
+                    startup=SessionStartup(),
                     initialization_id=file_key,
                     session_consumer=Mock(),
                     mode=SessionMode.RUN,
@@ -373,7 +377,7 @@ class TestAppHostMultipleClients:
                         ),
                     ),
                     config_manager=Mock(
-                        with_overrides=Mock(
+                        with_partial=Mock(
                             return_value=Mock(
                                 get_config=Mock(return_value=DEFAULT_CONFIG)
                             )

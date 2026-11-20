@@ -93,7 +93,7 @@ export class AiModelRegistry {
     this.buildMaps();
   }
 
-  static getProviderInfo(providerId: ProviderId) {
+  public static getProviderInfo(providerId: ProviderId) {
     const { providerMap } = getProviderMap();
     return providerMap.get(providerId);
   }
@@ -104,7 +104,10 @@ export class AiModelRegistry {
    *
    * Models should be in the format of `provider_id/short_model_id`.
    */
-  static create(opts: { customModels?: string[]; displayedModels?: string[] }) {
+  public static create(opts: {
+    customModels?: string[];
+    displayedModels?: string[];
+  }) {
     const { customModels = [], displayedModels = [] } = opts;
     return new AiModelRegistry(
       customModels.map((model) => AiModelId.parse(model).id),
@@ -196,23 +199,23 @@ export class AiModelRegistry {
     return { modelsByProviderMap, modelsMap };
   }
 
-  getDisplayedModels() {
+  public getDisplayedModels() {
     return this.displayedModels;
   }
 
-  getCustomModels() {
+  public getCustomModels() {
     return this.customModels;
   }
 
-  getModelsByProvider(provider: ProviderId) {
+  public getModelsByProvider(provider: ProviderId) {
     return this.modelsByProviderMap.get(provider) || [];
   }
 
-  getGroupedModelsByProvider() {
+  public getGroupedModelsByProvider() {
     return this.modelsByProviderMap;
   }
 
-  getListModelsByProvider(): [ProviderId, AiModel[]][] {
+  public getListModelsByProvider(): [ProviderId, AiModel[]][] {
     const modelsByProvider = this.getGroupedModelsByProvider();
     const arrayModels = [...modelsByProvider.entries()];
     const providerToOrderIdx = getProviderMap().providerToOrderIdx;
@@ -227,11 +230,11 @@ export class AiModelRegistry {
     return arrayModels;
   }
 
-  getModelsMap() {
+  public getModelsMap() {
     return this.modelsMap;
   }
 
-  getModel(qualifiedModelId: QualifiedModelId) {
+  public getModel(qualifiedModelId: QualifiedModelId) {
     return this.modelsMap.get(qualifiedModelId);
   }
 }

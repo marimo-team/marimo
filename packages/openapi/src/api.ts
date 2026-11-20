@@ -284,6 +284,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/models/{provider_name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description List models for a supported provider without modifying configuration. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description Provider identifier, such as `openrouter` or a custom-provider name. */
+          provider_name: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Available models for the provider. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ProviderModelsResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/cache/clear": {
     parameters: {
       query?: never;
@@ -596,47 +635,6 @@ export interface paths {
       };
       responses: {
         /** @description Preview a list of tables in an SQL schema */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/document/transaction": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["NotebookDocumentTransactionRequest"];
-        };
-      };
-      responses: {
-        /** @description Apply a document transaction */
         200: {
           headers: {
             [name: string]: unknown;
@@ -1975,47 +1973,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/delete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["DeleteCellRequest"];
-        };
-      };
-      responses: {
-        /** @description Delete a cell */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/focus_cell": {
     parameters: {
       query?: never;
@@ -2178,84 +2135,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/instantiate": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["InstantiateNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Instantiate a component. Only allowed in edit mode; in run mode, instantiation happens server-side automatically. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/interrupt": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Interrupt the kernel's execution */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/pdb/breakpoints": {
     parameters: {
       query?: never;
@@ -2321,7 +2200,7 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Run a post mortem on the most recent failed cell. */
+        /** @description Open the debugger for a failed cell. */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2329,6 +2208,54 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/pdb/reply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PdbInputReplyRequest"];
+        };
+      };
+      responses: {
+        /** @description Accepted the command for the pending debugger prompt. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description This debugger prompt is no longer pending. */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
@@ -2467,88 +2394,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/kernel/run": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["ExecuteCellsRequest"];
-        };
-      };
-      responses: {
-        /** @description Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/save": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["SaveNotebookRequest"];
-        };
-      };
-      responses: {
-        /** @description Save the current app */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "text/plain": string;
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/kernel/save_app_config": {
     parameters: {
       query?: never;
@@ -2580,6 +2425,47 @@ export interface paths {
           };
           content: {
             "text/plain": string;
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/save_layout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SaveLayoutRequest"];
+        };
+      };
+      responses: {
+        /** @description Write the notebook's layout file and point its app config at it */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
           };
         };
       };
@@ -2656,47 +2542,6 @@ export interface paths {
       };
       responses: {
         /** @description Run the scratchpad */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/set_cell_config": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["UpdateCellConfigRequest"];
-        };
-      };
-      responses: {
-        /** @description Set the configuration of a cell */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2863,47 +2708,6 @@ export interface paths {
     };
     put?: never;
     post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/kernel/stdin": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header: {
-          "Marimo-Session-Id": string;
-        };
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": components["schemas"]["StdinRequest"];
-        };
-      };
-      responses: {
-        /** @description Send input to the stdin stream */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["SuccessResponse"];
-          };
-        };
-      };
-    };
     delete?: never;
     options?: never;
     head?: never;
@@ -3097,6 +2901,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/packages/manifest": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateManifestRequest"];
+        };
+      };
+      responses: {
+        /** @description Save notebook metadata without changing its cells */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SandboxResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/packages/remove": {
     parameters: {
       query?: never;
@@ -3126,6 +2971,88 @@ export interface paths {
           };
           content: {
             "application/json": components["schemas"]["PackageOperationResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/sandbox": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["SandboxRequest"];
+        };
+      };
+      responses: {
+        /** @description Sandbox manifest, available before kernel startup */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SandboxResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/sync": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["SandboxRequest"];
+        };
+      };
+      responses: {
+        /** @description Apply the saved manifest, or reconnect to retry startup */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SyncSandboxResponse"];
           };
         };
       };
@@ -3687,13 +3614,13 @@ export interface components {
      * ActiveLineNotification
      * @description Reports the line a cell's frame watcher is currently executing.
      *
-     *         Emitted on a timed heartbeat while a cell runs (only when the line
-     *         changed), so the editor can highlight the live line. A `None` line
-     *         clears the highlight (e.g. when the cell finishes).
+     *     Emitted on a timed heartbeat while a cell runs (only when the line
+     *     changed), so the editor can highlight the live line. A `None` line
+     *     clears the highlight (e.g. when the cell finishes).
      *
-     *         Attributes:
-     *             cell_id: Cell whose frame is being watched.
-     *             line: 1-based line within the cell, or `None` to clear.
+     *     Attributes:
+     *         cell_id: Cell whose frame is being watched.
+     *         line: 1-based line within the cell, or `None` to clear.
      */
     ActiveLineNotification: {
       cell_id: components["schemas"]["CellId"];
@@ -3739,7 +3666,9 @@ export interface components {
     AiCompletionRequest: {
       code: string;
       /** @default null */
-      context?: null | components["schemas"]["AiCompletionContext"];
+      context?: components["schemas"]["AiCompletionContext"] | null;
+      /** @default null */
+      id?: string | null;
       includeOtherCode: string;
       /**
        * @default python
@@ -3755,51 +3684,69 @@ export interface components {
     /**
      * AiConfig
      * @description Configuration options for AI.
-     *
-     *         **Keys.**
-     *
-     *         - `enabled`: if `False`, hide AI actions and panels in the marimo UI
-     *         - `rules`: custom rules to include in all AI completion prompts
-     *         - `max_tokens`: the maximum number of tokens to use in AI completions
-     *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
-     *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
-     *         - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
-     *         - `models`: the models to use for AI completions
-     *         - `open_ai`: the OpenAI config
-     *         - `anthropic`: the Anthropic config
-     *         - `google`: the Google AI config
-     *         - `bedrock`: the Bedrock config
-     *         - `azure`: the Azure config
-     *         - `ollama`: the Ollama config
-     *         - `github`: the GitHub Copilot config
-     *         - `openrouter`: the OpenRouter config
-     *         - `wandb`: the Weights & Biases config
-     *         - `opencode_go`: the OpenCode Go config
-     *         - `custom_providers`: a dict of custom OpenAI-compatible providers
-     *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
     AiConfig: {
-      allow_provider_config?: boolean;
+      /**
+       * @description if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
+       * @default true
+       */
+      allow_provider_config: boolean;
+      /** @description the Anthropic config */
       anthropic?: components["schemas"]["AnthropicConfig"];
+      /** @description the Azure config */
       azure?: components["schemas"]["OpenAiConfig"];
+      /** @description the Bedrock config */
       bedrock?: components["schemas"]["BedrockConfig"];
-      custom_providers?: {
+      /**
+       * @description a dict of custom OpenAI-compatible providers
+       * @default {}
+       */
+      custom_providers: {
         [key: string]: components["schemas"]["OpenAiConfig"];
       };
-      enabled?: boolean;
+      /**
+       * @description if `False`, hide AI actions and panels in the marimo UI
+       * @default true
+       */
+      enabled: boolean;
+      /** @description the GitHub Copilot config */
       github?: components["schemas"]["GitHubConfig"];
+      /** @description the Google AI config */
       google?: components["schemas"]["GoogleAiConfig"];
+      /** @description if `True`, enable inline AI tooltip suggestions */
       inline_tooltip?: boolean;
-      max_tokens?: number;
-      /** @enum {unknown} */
-      mode?: "agent" | "ask" | "code_mode" | "manual";
-      models?: components["schemas"]["AiModelConfig"];
+      /**
+       * @description the maximum number of tokens to use in AI completions
+       * @default null
+       */
+      max_tokens: number | null;
+      /**
+       * @description notebook access for the built-in assistant: `"ask"` (read only), `"agent"` (suggest edits), or `"code_mode"` (full access). Defaults to `"ask"`.
+       * @default ask
+       * @enum {unknown}
+       */
+      mode: "agent" | "ask" | "code_mode" | "manual";
+      /** @description the models to use for AI completions */
+      models: components["schemas"]["AiModelConfig"];
+      /** @description the Ollama config */
       ollama?: components["schemas"]["OpenAiConfig"];
+      /** @description the OpenAI config */
       open_ai?: components["schemas"]["OpenAiConfig"];
+      /**
+       * @deprecated
+       * @description the OpenAI-compatible config (deprecated, use custom_providers)
+       */
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];
+      /** @description the OpenCode Go config */
       opencode_go?: components["schemas"]["OpenAiConfig"];
+      /** @description the OpenRouter config */
       openrouter?: components["schemas"]["OpenAiConfig"];
-      rules?: string;
+      /**
+       * @description custom rules to include in all AI completion prompts
+       * @default
+       */
+      rules: string;
+      /** @description the Weights & Biases config */
       wandb?: components["schemas"]["OpenAiConfig"];
     };
     /** AiInlineCompletionRequest */
@@ -3815,30 +3762,42 @@ export interface components {
     /**
      * AiModelConfig
      * @description Configuration options for an AI model.
-     *
-     *         **Keys.**
-     *
-     *         - `chat_model`: the model to use for chat completions
-     *         - `edit_model`: the model to use for edit completions
-     *         - `autocomplete_model`: the model to use for code completion/autocomplete
-     *         - `displayed_models`: a list of models to display in the UI
-     *         - `custom_models`: a list of custom models to use that are not from the default list
      */
     AiModelConfig: {
-      autocomplete_model?: string;
-      chat_model?: string;
+      /**
+       * @description the model to use for code completion/autocomplete
+       * @default null
+       */
+      autocomplete_model: string | null;
+      /**
+       * @description the model to use for chat completions
+       * @default null
+       */
+      chat_model: string | null;
+      /**
+       * @description a list of custom models to use that are not from the default list
+       * @default []
+       */
       custom_models: string[];
+      /**
+       * @description a list of models to display in the UI
+       * @default []
+       */
       displayed_models: string[];
-      edit_model?: string;
+      /**
+       * @description the model to use for edit completions
+       * @default null
+       */
+      edit_model: string | null;
     };
     /**
      * AlertNotification
      * @description User-facing alert message.
      *
-     *         Attributes:
-     *             title: Alert title.
-     *             description: Alert body (may contain HTML).
-     *             variant: Visual variant (e.g., "danger").
+     *     Attributes:
+     *         title: Alert title.
+     *         description: Alert body (may contain HTML).
+     *         variant: Visual variant (e.g., "danger").
      */
     AlertNotification: {
       description: string;
@@ -3851,12 +3810,9 @@ export interface components {
     /**
      * AnthropicConfig
      * @description Configuration options for Anthropic.
-     *
-     *         **Keys.**
-     *
-     *         - `api_key`: the Anthropic API key or an `env:` reference
      */
     AnthropicConfig: {
+      /** @description the Anthropic API key or an `env:` reference */
       api_key?: string;
     };
     /** AutoExportAsIPYNBRequest */
@@ -3871,11 +3827,11 @@ export interface components {
      * BannerNotification
      * @description Persistent banner message at top of notebook.
      *
-     *         Attributes:
-     *             title: Banner title.
-     *             description: Banner body (may contain HTML).
-     *             variant: Visual variant (e.g., "danger").
-     *             action: Optional user action (e.g., "restart").
+     *     Attributes:
+     *         title: Banner title.
+     *         description: Banner body (may contain HTML).
+     *         variant: Visual variant (e.g., "danger").
+     *         action: Optional user action (e.g., "restart").
      */
     BannerNotification: {
       /** @default null */
@@ -3901,31 +3857,40 @@ export interface components {
      *     but we only use it for diagnostics.
      */
     BasedpyrightServerConfig: {
+      /** @description Enable this language server. */
       enabled?: boolean;
     };
     /**
      * BedrockConfig
      * @description Configuration options for Bedrock.
-     *
-     *         **Keys.**
-     *
-     *         - `profile_name`: the AWS profile to use
-     *         - `region_name`: the AWS region to use
-     *         - `aws_access_key_id`: the AWS access key ID
-     *         - `aws_secret_access_key`: the AWS secret access key
      */
     BedrockConfig: {
+      /** @description the AWS access key ID */
       aws_access_key_id?: string;
+      /** @description the AWS secret access key */
       aws_secret_access_key?: string;
+      /** @description the AWS profile to use */
       profile_name?: string;
+      /** @description the AWS region to use */
       region_name?: string;
+    };
+    /**
+     * BreakpointsNotification
+     * @description The session's complete breakpoint set, restored on connection.
+     */
+    BreakpointsNotification: {
+      breakpoints: {
+        [key: string]: number[];
+      };
+      /** @enum {unknown} */
+      op: "breakpoints";
     };
     /**
      * CacheClearedNotification
      * @description Execution cache cleared result.
      *
-     *         Attributes:
-     *             bytes_freed: Bytes freed by clearing cache.
+     *     Attributes:
+     *         bytes_freed: Bytes freed by clearing cache.
      */
     CacheClearedNotification: {
       bytes_freed: number;
@@ -3935,27 +3900,38 @@ export interface components {
     /**
      * CacheConfig
      * @description Configuration for caching.
-     *
-     *         `verification` is the signature-checking posture; `store` is the backing
-     *         store, or a list of stores composed into a `TieredStore`.
      */
     CacheConfig: {
-      store?:
+      /**
+       * @description Default loader for mo.persistent_cache.
+       * @default lazy
+       */
+      loader: ("json" | "lazy" | "pickle") | string;
+      /**
+       * @description Backing cache store, or a list of stores composed into a tiered store.
+       * @default null
+       */
+      store:
         | components["schemas"]["StoreConfig"][]
-        | components["schemas"]["StoreConfig"];
-      /** @enum {unknown} */
-      verification?: "off" | "on" | "strict";
+        | components["schemas"]["StoreConfig"]
+        | null;
+      /**
+       * @description Cache signature verification posture: off, on, or strict.
+       * @default off
+       * @enum {unknown}
+       */
+      verification: "off" | "on" | "strict";
     };
     /**
      * CacheInfoNotification
      * @description Execution cache statistics.
      *
-     *         Attributes:
-     *             hits: Cache hits.
-     *             misses: Cache misses.
-     *             time: Time spent on cache operations (seconds).
-     *             disk_to_free: Disk space that could be freed (bytes).
-     *             disk_total: Total disk space used (bytes).
+     *     Attributes:
+     *         hits: Cache hits.
+     *         misses: Cache misses.
+     *         time: Time spent on cache operations (seconds).
+     *         disk_to_free: Disk space that could be freed (bytes).
+     *         disk_total: Total disk space used (bytes).
      */
     CacheInfoNotification: {
       disk_to_free: number;
@@ -3965,6 +3941,24 @@ export interface components {
       /** @enum {unknown} */
       op: "cache-info";
       time: number;
+    };
+    /**
+     * CallbackOutputNotification
+     * @description Show a widget callback or registered function's output in its defining cell.
+     *
+     *     Append live entries. When `replace` is true, replace the callback
+     *     transcript for this cell with the supplied entries. The editor's
+     *     `after_seq` gives the preceding execution item sequence for each entry,
+     *     or -1 before the first item.
+     */
+    CallbackOutputNotification: {
+      after_seq?: number[];
+      cell_id: components["schemas"]["CellId"];
+      entries: components["schemas"]["CellOutput"][];
+      /** @enum {unknown} */
+      op: "callback-output";
+      /** @default false */
+      replace?: boolean;
     };
     /**
      * CellChannel
@@ -3990,52 +3984,17 @@ export interface components {
       /** @default false */
       disabled?: boolean;
       /** @default false */
+      expand_output?: boolean;
+      /** @default false */
       hide_code?: boolean;
     };
     /** Format: cell-id */
     CellId: TypedString<"CellId">;
-    /**
-     * CellNotification
-     * @description Updates a cell's state in the frontend.
-     *
-     *         This is a partial update: each field carries its own "unchanged" semantics,
-     *         documented per field below. Most fields treat None as "unchanged"; fields
-     *         that need to distinguish "unchanged" from "clear" use msgspec.UNSET for the
-     *         former and None for the latter.
-     *
-     *         Attributes:
-     *             cell_id: Unique identifier of the cell being updated.
-     *             output: Cell's output. Use CellOutput.empty() to clear.
-     *             console: Console messages. Single/list appends, [] clears, None unchanged.
-     *             status: Execution status (idle/running/stale/queued/disabled-transitively).
-     *             stale_inputs: Whether cell has stale inputs from changed dependencies.
-     *             run_id: Execution run ID for tracing. Auto-set from context.
-     *             serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
-     *             timestamp: Creation timestamp, auto-set.
-     */
-    CellNotification: {
-      cell_id: components["schemas"]["CellId"];
-      /** @default null */
-      console?:
-        | components["schemas"]["CellOutput"][]
-        | null
-        | components["schemas"]["CellOutput"];
-      /** @enum {unknown} */
-      op: "cell-op";
-      /** @default null */
-      output?: null | components["schemas"]["CellOutput"];
-      /** @default null */
-      run_id?: string | null;
-      serialization?: string | null;
-      /** @default null */
-      stale_inputs?: boolean | null;
-      /** @default null */
-      status?: ("disabled-transitively" | "idle" | "queued" | "running") | null;
-      timestamp?: number;
-    };
     /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
+      code?: string;
+      command_id?: string;
       data:
         | string
         | (
@@ -4043,6 +4002,7 @@ export interface components {
             | components["schemas"]["CycleError"]
             | components["schemas"]["MultipleDefinitionError"]
             | components["schemas"]["ImportStarError"]
+            | components["schemas"]["LazyImportError"]
             | components["schemas"]["MarimoAncestorStoppedError"]
             | components["schemas"]["MarimoAncestorPreventedError"]
             | components["schemas"]["MarimoExceptionRaisedError"]
@@ -4054,6 +4014,7 @@ export interface components {
             | components["schemas"]["UnknownError"]
           )[]
         | Record<string, any>;
+      input_id?: string;
       /** @enum {unknown} */
       mimetype:
         | "application/json"
@@ -4081,16 +4042,18 @@ export interface components {
         | "video/mp4"
         | "video/mpeg";
       timestamp?: number;
+      /** @enum {unknown} */
+      traceback_format?: "html" | "text";
     };
     /**
      * CellOutputs
      * @description Per-cell output snapshot delivered alongside the document snapshot.
      *
-     *         `output` carries the cell's last main (rich display) output;
-     *         `console_outputs` carries the buffered stdout/stderr stream from
-     *         its last execution.  Both are keyed by cell id; missing keys mean
-     *         "no output captured" (the cell never ran, or produced nothing on
-     *         that channel).
+     *     `output` carries the cell's last main (rich display) output;
+     *     `console_outputs` carries the buffered stdout/stderr stream from
+     *     its last execution and subsequent callbacks. Both are keyed by cell id; missing keys mean
+     *     "no output captured" (the cell never ran, or produced nothing on
+     *     that channel).
      */
     CellOutputs: {
       console_outputs: {
@@ -4139,7 +4102,8 @@ export interface components {
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     ChatRequest: {
-      includeOtherCode: string;
+      /** @default null */
+      id?: string | null;
       /** @default null */
       model?: string | null;
       options?: components["schemas"]["ChatOptions"];
@@ -4149,38 +4113,25 @@ export interface components {
       /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
-    /**
-     * ClearCacheCommand
-     * @description Clear all cached data.
-     *
-     *         Clears all cache contexts, freeing memory and disk space.
-     *         Affects all cells using the @cache decorator.
-     */
-    ClearCacheCommand: {
-      /** @enum {unknown} */
-      type: "clear-cache";
-    };
     /** ClearCacheRequest */
     ClearCacheRequest: Record<string, any>;
-    /**
-     * CodeCompletionCommand
-     * @description Request code completion suggestions.
-     *
-     *         Sent when the user requests autocomplete. Provides code context up to
-     *         the cursor position for the language server.
-     *
-     *         Attributes:
-     *             id: Unique identifier for this request.
-     *             document: Source code up to the cursor position.
-     *             cell_id: Cell where completion is requested.
-     */
-    CodeCompletionCommand: {
-      cellId: components["schemas"]["CellId"];
-      document: string;
-      id: components["schemas"]["RequestId"];
-      /** @enum {unknown} */
-      type: "code-completion";
-    };
+    ClientCommand:
+      | components["schemas"]["ExecuteCellsCommand"]
+      | components["schemas"]["ExecuteScratchpadCommand"]
+      | components["schemas"]["DeleteCellCommand"]
+      | components["schemas"]["UpdateCellConfigCommand"]
+      | components["schemas"]["UpdateUIElementCommand"]
+      | components["schemas"]["ModelCommand"]
+      | components["schemas"]["InvokeFunctionCommand"]
+      | components["schemas"]["InstallPackagesCommand"]
+      | components["schemas"]["PreviewDatasetColumnCommand"]
+      | components["schemas"]["PreviewSQLTableCommand"]
+      | components["schemas"]["ListSQLTablesCommand"]
+      | components["schemas"]["ListSQLSchemasCommand"]
+      | components["schemas"]["ValidateSQLCommand"]
+      | components["schemas"]["ListDataSourceConnectionCommand"]
+      | components["schemas"]["DiscoverDataSourcesCommand"]
+      | components["schemas"]["ListSecretKeysCommand"];
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
       cellId: components["schemas"]["CellId"];
@@ -4223,18 +4174,18 @@ export interface components {
     };
     /**
      * CompletedRunNotification
-     * @description Run of submitted cells and descendants completed.
-     *
-     *         Attributes:
-     *             run_id: Correlation ID echoed from the command that triggered
-     *                 this completion. `None` for handlers that don't take a
-     *                 `run_id` (everything except `handle_execute_scratchpad`
-     *                 today). Consumers that want to wait for a specific command's
-     *                 completion filter on this field.
+     * @description The command's reactive cycle ended, after its console was flushed.
      */
     CompletedRunNotification: {
+      /** @default null */
+      error?: string | null;
       /** @enum {unknown} */
       op: "completed-run";
+      /**
+       * @default succeeded
+       * @enum {unknown}
+       */
+      outcome?: "failed" | "interrupted" | "succeeded";
       /** @default null */
       run_id?: string | null;
     };
@@ -4242,27 +4193,43 @@ export interface components {
      * CompletionConfig
      * @description Configuration for code completion.
      *
-     *         A dict with key/value pairs configuring code completion in the marimo
-     *         editor.
-     *
-     *         **Keys.**
-     *
-     *         - `activate_on_typing`: if `False`, completion won't activate
-     *         until the completion hotkey is entered
-     *         - `signature_hint_on_typing`: if `False`, signature hint won't be shown when typing
-     *         - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
-     *         - `codeium_api_key`: the Codeium API key
-     *         - `auto_close_pairs`: if `False`, typing an opening bracket, parenthesis,
-     *         or quote will not automatically insert the closing character
+     *     Settings for code completion in the marimo editor.
      */
     CompletionConfig: {
+      /**
+       * @description if `False`, completion won't activate until the completion hotkey is entered
+       * @default true
+       */
       activate_on_typing: boolean;
+      /**
+       * @deprecated
+       * @description Deprecated completion API key. Use an AI provider configuration instead.
+       */
       api_key?: string | null;
-      auto_close_pairs?: boolean;
+      /**
+       * @description if `False`, typing an opening bracket, parenthesis, or quote will not automatically insert the closing character
+       * @default true
+       */
+      auto_close_pairs: boolean;
+      /**
+       * @deprecated
+       * @description Deprecated completion API endpoint. Use an AI provider configuration instead.
+       */
       base_url?: string | null;
-      codeium_api_key?: string | null;
-      copilot: boolean | ("codeium" | "custom" | "github");
+      /**
+       * @description one of `"github"` or `"custom"`
+       * @default false
+       */
+      copilot: boolean | ("custom" | "github");
+      /**
+       * @deprecated
+       * @description Deprecated completion model. Use ai.models.autocomplete_model instead.
+       */
       model?: string | null;
+      /**
+       * @description if `False`, signature hint won't be shown when typing
+       * @default false
+       */
       signature_hint_on_typing: boolean;
     };
     /** CompletionOption */
@@ -4275,10 +4242,10 @@ export interface components {
      * CompletionResultNotification
      * @description Code completion result from language server.
      *
-     *         Attributes:
-     *             completion_id: Request ID this responds to.
-     *             prefix_length: Length of prefix to replace.
-     *             options: Completion options to display.
+     *     Attributes:
+     *         completion_id: Request ID this responds to.
+     *         prefix_length: Length of prefix to replace.
+     *         options: Completion options to display.
      */
     CompletionResultNotification: {
       completion_id: components["schemas"]["RequestId"];
@@ -4288,20 +4255,31 @@ export interface components {
       prefix_length: number;
     };
     /**
+     * ConsoleInputsClearedNotification
+     * @description The settled input rows hidden by clear_console() in this execution.
+     */
+    ConsoleInputsClearedNotification: {
+      cell_id: components["schemas"]["CellId"];
+      execution_id: string;
+      input_ids: string[];
+      /** @enum {unknown} */
+      op: "console-inputs-cleared";
+    };
+    /**
      * ConsumerCapabilities
      * @description Per-consumer access capabilities for a session connection.
      *
-     *         - editor: `{edit: True, interact: True}`
-     *         - interactor: `{edit: False, interact: True}` (default for a secondary
-     *           connection: drives UI state but cannot edit the notebook)
-     *         - read-only viewer: `{edit: False, interact: False}` (opt-in, set by a
-     *           deployment's capability provider)
+     *     - editor: `{edit: True, interact: True}`
+     *     - interactor: `{edit: False, interact: True}` (default for a secondary
+     *       connection: drives UI state but cannot edit the notebook)
+     *     - read-only viewer: `{edit: False, interact: False}` (opt-in, set by a
+     *       deployment's capability provider)
      *
-     *         The server enforces these: control requests are gated against the issuing
-     *         consumer's stored capabilities at the control-request chokepoint (the
-     *         authority) and mirrored as an advisory HTTP 403 at the request handlers.
-     *         Commands classified as `read` in `marimo._session.capabilities` (such as
-     *         completions and previews) are always permitted.
+     *     The server enforces these: control requests are gated against the issuing
+     *     consumer's stored capabilities at the control-request chokepoint (the
+     *     authority) and mirrored as an advisory HTTP 403 at the request handlers.
+     *     Commands classified as `read` in `marimo._session.capabilities` (such as
+     *     completions and previews) are always permitted.
      */
     ConsumerCapabilities: {
       edit: boolean;
@@ -4337,29 +4315,6 @@ export interface components {
       /** @enum {unknown} */
       type: "create-cell";
     };
-    /**
-     * CreateNotebookCommand
-     * @description Instantiate and initialize a notebook.
-     *
-     *         Sent when a notebook is first loaded. Contains all cells and initial UI element values.
-     *
-     *         Attributes:
-     *             execution_requests: ExecuteCellCommand for each notebook cell.
-     *             cell_ids: Initial cell IDs in the notebook.
-     *             set_ui_element_value_request: Initial UI element values.
-     *             auto_run: Whether to automatically execute cells on instantiation.
-     *             request: HTTP request context if available.
-     */
-    CreateNotebookCommand: {
-      autoRun: boolean;
-      cellIds: string[];
-      executionRequests: components["schemas"]["ExecuteCellCommand"][];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      setUiElementValueRequest: components["schemas"]["UpdateUIElementCommand"];
-      /** @enum {unknown} */
-      type: "create-notebook";
-    };
     /** CreateSecretRequest */
     CreateSecretRequest: {
       key: string;
@@ -4378,11 +4333,11 @@ export interface components {
      * DataColumnPreviewNotification
      * @description Data column preview with stats and visualization.
      *
-     *         Inherits all ColumnPreview attributes.
+     *     Inherits all ColumnPreview attributes.
      *
-     *         Attributes:
-     *             table_name: Table containing the column.
-     *             column_name: Column being previewed.
+     *     Attributes:
+     *         table_name: Table containing the column.
+     *         column_name: Column being previewed.
      */
     DataColumnPreviewNotification: {
       /** @default null */
@@ -4397,7 +4352,7 @@ export interface components {
       /** @enum {unknown} */
       op: "data-column-preview";
       /** @default null */
-      stats?: null | components["schemas"]["ColumnStats"];
+      stats?: components["schemas"]["ColumnStats"] | null;
       table_name: string;
     };
     /**
@@ -4428,8 +4383,8 @@ export interface components {
      * DataSourceConnectionsNotification
      * @description Available data source connections for SQL cells.
      *
-     *         Attributes:
-     *             connections: Available data source connections.
+     *     Attributes:
+     *         connections: Available data source connections.
      */
     DataSourceConnectionsNotification: {
       connections: components["schemas"]["DataSourceConnection"][];
@@ -4440,14 +4395,14 @@ export interface components {
      * DataSourceDiscoveryResultNotification
      * @description High-confidence datasource connections discovered by the kernel.
      *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             sources: Detected datasource connection configurations.
+     *     Attributes:
+     *         request_id: Request ID this responds to.
+     *         sources: Detected datasource connection configurations.
      */
     DataSourceDiscoveryResultNotification: {
       /** @enum {unknown} */
       op: "data-source-discovery-result";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       sources: components["schemas"]["DetectedDataSource"][];
     };
     /**
@@ -4514,6 +4469,17 @@ export interface components {
         | "time"
         | "unknown";
     };
+    /** @enum {unknown} */
+    DataType:
+      | "boolean"
+      | "date"
+      | "datetime"
+      | "geometry"
+      | "integer"
+      | "number"
+      | "string"
+      | "time"
+      | "unknown";
     /**
      * Database
      * @description Represents a collection of schemas.
@@ -4539,9 +4505,9 @@ export interface components {
      * DatasetsNotification
      * @description Available datasets for data explorer.
      *
-     *         Attributes:
-     *             tables: Available data tables/datasets.
-     *             clear_channel: If set, clears tables from this channel first.
+     *     Attributes:
+     *         tables: Available data tables/datasets.
+     *         clear_channel: If set, clears tables from this channel first.
      */
     DatasetsNotification: {
       /** @default null */
@@ -4553,34 +4519,14 @@ export interface components {
     /**
      * DatasourcesConfig
      * @description Configuration for datasources panel.
-     *
-     *         **Keys.**
-     *
-     *         - `auto_discover_schemas`: if `True`, include schemas in the datasource
-     *         - `auto_discover_tables`: if `True`, include tables in the datasource
-     *         - `auto_discover_columns`: if `True`, include columns & table metadata in the datasource
      */
     DatasourcesConfig: {
+      /** @description if `True`, include columns & table metadata in the datasource */
       auto_discover_columns?: boolean | "auto";
+      /** @description if `True`, include schemas in the datasource */
       auto_discover_schemas?: boolean | "auto";
+      /** @description if `True`, include tables in the datasource */
       auto_discover_tables?: boolean | "auto";
-    };
-    /**
-     * DebugCellCommand
-     * @description Enter debugger mode for a cell.
-     *
-     *         Starts the Python debugger (pdb) for the specified cell.
-     *
-     *         Attributes:
-     *             cell_id: Cell to debug.
-     *             request: HTTP request context if available.
-     */
-    DebugCellCommand: {
-      cellId: components["schemas"]["CellId"];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      /** @enum {unknown} */
-      type: "debug-cell";
     };
     /** DebugCellRequest */
     DebugCellRequest: {
@@ -4601,20 +4547,16 @@ export interface components {
      * DeleteCellCommand
      * @description Delete a cell from the notebook.
      *
-     *         Removes cell from the dependency graph and cleans up its variables.
-     *         Dependent cells may become stale.
+     *     Removes cell from the dependency graph and cleans up its variables.
+     *     Dependent cells may become stale.
      *
-     *         Attributes:
-     *             cell_id: Cell to delete.
+     *     Attributes:
+     *         cell_id: Cell to delete.
      */
     DeleteCellCommand: {
       cellId: components["schemas"]["CellId"];
       /** @enum {unknown} */
       type: "delete-cell";
-    };
-    /** DeleteCellRequest */
-    DeleteCellRequest: {
-      cellId: components["schemas"]["CellId"];
     };
     /** DeleteSecretRequest */
     DeleteSecretRequest: {
@@ -4637,7 +4579,7 @@ export interface components {
       context:
         | components["schemas"]["SandboxPackageContext"]
         | components["schemas"]["PackageManagerContext"];
-      tree: null | components["schemas"]["DependencyTreeNode"];
+      tree: components["schemas"]["DependencyTreeNode"] | null;
     };
     /**
      * DetectedDataSource
@@ -4674,15 +4616,15 @@ export interface components {
     /**
      * DiagnosticsConfig
      * @description Configuration options for diagnostics.
-     *
-     *         **Keys.**
-     *
-     *         - `enabled`: if `True`, diagnostics will be shown in the editor
-     *         - `sql_linter`: if `True`, SQL cells will have linting enabled
      */
     DiagnosticsConfig: {
+      /** @description if `True`, diagnostics will be shown in the editor */
       enabled?: boolean;
-      sql_linter?: boolean;
+      /**
+       * @description if `True`, SQL cells will have linting enabled
+       * @default true
+       */
+      sql_linter: boolean;
     };
     /**
      * DialectHidesWhen
@@ -4697,8 +4639,8 @@ export interface components {
      * DiscoverDataSourcesCommand
      * @description Discover datasource connections from the live kernel environment and configuration.
      *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
+     *     Attributes:
+     *         request_id: Unique identifier for this request.
      */
     DiscoverDataSourcesCommand: {
       requestId: components["schemas"]["RequestId"];
@@ -4712,37 +4654,158 @@ export interface components {
     /**
      * DisplayConfig
      * @description Configuration for display.
-     *
-     *         **Keys.**
-     *
-     *         - `theme`: `"light"`, `"dark"`, or `"system"`
-     *         - `code_editor_font_size`: font size for the code editor
-     *         - `cell_output`: `"above"` or `"below"`
-     *         - `dataframes`: `"rich"` or `"plain"`
-     *         - `custom_css`: list of paths to custom CSS files
-     *         - `default_table_page_size`: default number of rows to display in tables
-     *         - `default_table_max_columns`: default maximum number of columns to display in tables
-     *         - `reference_highlighting`: if `True`, highlight reactive variable references
-     *         - `code_lens`: if `True`, show inline icons in cell editors linking
-     *           datasources, storage buckets, and caches to their panels
-     *         - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
      */
     DisplayConfig: {
-      /** @enum {unknown} */
+      /**
+       * @description `"above"` or `"below"`
+       * @default below
+       * @enum {unknown}
+       */
       cell_output: "above" | "below";
+      /**
+       * @description font size for the code editor
+       * @default 14
+       */
       code_editor_font_size: number;
-      code_lens?: boolean;
+      /**
+       * @description if `True`, show inline icons in cell editors linking datasources, storage buckets, and caches to their panels
+       * @default true
+       */
+      code_lens: boolean;
+      /** @description list of paths to custom CSS files */
       custom_css?: string[];
-      /** @enum {unknown} */
+      /**
+       * @description `"rich"` or `"plain"`
+       * @default rich
+       * @enum {unknown}
+       */
       dataframes: "plain" | "rich";
+      /**
+       * @description default maximum number of columns to display in tables
+       * @default 50
+       */
       default_table_max_columns: number;
+      /**
+       * @description default number of rows to display in tables
+       * @default 10
+       */
       default_table_page_size: number;
-      /** @enum {unknown} */
+      /**
+       * @description Default notebook width.
+       * @default medium
+       * @enum {unknown}
+       */
       default_width: "columns" | "compact" | "full" | "medium" | "normal";
+      /** @description locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE") */
       locale?: string | null;
-      reference_highlighting?: boolean;
-      /** @enum {unknown} */
+      /**
+       * @description if `True`, highlight reactive variable references
+       * @default true
+       */
+      reference_highlighting: boolean;
+      /**
+       * @description `"light"`, `"dark"`, or `"system"`
+       * @default light
+       * @enum {unknown}
+       */
       theme: "dark" | "light" | "system";
+    };
+    /**
+     * EditorCellNotification
+     * @description A cell enters the blocked set with `disabled-transitively` and leaves with `idle`.
+     *
+     *     An omitted serialization hint is unchanged. A null hint clears reusability.
+     */
+    EditorCellNotification: {
+      cell_id: components["schemas"]["CellId"];
+      /** @enum {unknown} */
+      op: "cell-op";
+      serialization?: string | null;
+      /** @default null */
+      status?: ("disabled-transitively" | "idle") | null;
+    };
+    /**
+     * EnvironmentOperation
+     * @description Current progress and logs for one execution of environment work.
+     */
+    EnvironmentOperation: {
+      /** @enum {unknown} */
+      action: "install" | "prepare" | "remove" | "sync";
+      logs: {
+        [key: string]: string;
+      };
+      operation_id: string;
+      packages: {
+        [key: string]:
+          | "failed"
+          | "queued"
+          | "restart-required"
+          | "running"
+          | "succeeded";
+      };
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
+    };
+    /**
+     * EnvironmentOperationNotification
+     * @description Current operation progress and changes to its named log streams.
+     *
+     *     Package statuses replace the previous map. Log chunks append to a stream,
+     *     or replace it when `log_mode` is `replace`. The operation status determines
+     *     completion independently of its packages and output streams.
+     */
+    EnvironmentOperationNotification: {
+      /** @enum {unknown} */
+      action: "install" | "prepare" | "remove" | "sync";
+      /** @enum {unknown} */
+      log_mode: "append" | "replace";
+      logs: {
+        [key: string]: string;
+      };
+      /** @enum {unknown} */
+      op: "environment-operation";
+      operation_id: string;
+      packages: {
+        [key: string]:
+          | "failed"
+          | "queued"
+          | "restart-required"
+          | "running"
+          | "succeeded";
+      };
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      status:
+        | components["schemas"]["OperationRunning"]
+        | components["schemas"]["OperationSucceeded"]
+        | components["schemas"]["OperationRestartRequired"]
+        | components["schemas"]["OperationFailed"]
+        | components["schemas"]["OperationCancelled"];
+    };
+    /**
+     * EnvironmentState
+     * @description Preparation, active operations, the latest mutation, and restarts.
+     */
+    EnvironmentState: {
+      operations: components["schemas"]["EnvironmentOperation"][];
+      restart_required: boolean;
+    };
+    /**
+     * EnvironmentStateNotification
+     * @description Replace the current state for one environment on connection.
+     */
+    EnvironmentStateNotification: {
+      /** @enum {unknown} */
+      op: "environment-state";
+      /** @enum {unknown} */
+      source: "kernel" | "server";
+      state: components["schemas"]["EnvironmentState"];
     };
     /**
      * EnvironmentVariableDiscoveryValue
@@ -4757,15 +4820,15 @@ export interface components {
      * EsmSpec
      * @description Where the frontend imports a widget's ESM from, and which version.
      *
-     *         Specs travel only on kernel-authored notifications, never in model
-     *         state: state is client-writable and echoed to peers, so executing
-     *         code from it would let one client run code on another.
+     *     Specs travel only on kernel-authored notifications, never in model
+     *     state: state is client-writable and echoed to peers, so executing
+     *     code from it would let one client run code on another.
      *
-     *         Attributes:
-     *             url: URL to import the ESM from. A virtual file for inline
-     *                 source; an external URL when `_esm` is itself a URL.
-     *             hash: Hash of the `_esm` string. Keys the frontend module cache
-     *                 and signals code changes (hot reload).
+     *     Attributes:
+     *         url: URL to import the ESM from. A virtual file for inline
+     *             source; an external URL when `_esm` is itself a URL.
+     *         hash: Hash of the `_esm` string. Keys the frontend module cache
+     *             and signals code changes (hot reload).
      */
     EsmSpec: {
       hash: string;
@@ -4775,18 +4838,21 @@ export interface components {
      * ExecuteCellCommand
      * @description Execute a single cell.
      *
-     *         Executes a cell with the provided code. Dependent cells may be
-     *         re-executed based on the reactive execution mode.
+     *     Executes a cell with the provided code. Dependent cells may be
+     *     re-executed based on the reactive execution mode.
      *
-     *         Attributes:
-     *             cell_id: Cell to execute.
-     *             code: Python code to execute.
-     *             request: HTTP request context if available.
-     *             timestamp: Unix timestamp when command was created.
+     *     Attributes:
+     *         cell_id: Cell to execute.
+     *         code: Python code to execute.
+     *         code_fingerprint: Code fingerprint. Computed from `code` when omitted.
+     *         request: HTTP request context if available.
+     *         timestamp: Unix timestamp when command was created.
      */
     ExecuteCellCommand: {
       cellId: components["schemas"]["CellId"];
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       timestamp?: number;
@@ -4795,63 +4861,64 @@ export interface components {
     };
     /**
      * ExecuteCellsCommand
-     * @description Execute multiple cells in a batch.
+     * @description Execute cells and their reactive dependents in one batch.
      *
-     *         Executes multiple cells with their corresponding code. The kernel manages
-     *         dependency tracking and reactive execution.
-     *
-     *         Attributes:
-     *             cell_ids: Cells to execute.
-     *             codes: Python code for each cell. Must match length of cell_ids.
-     *             request: HTTP request context if available.
-     *             timestamp: Unix timestamp when command was created.
+     *     Attributes:
+     *         execution_requests: The cells and source identities to execute.
+     *         request: HTTP request context for the batch.
+     *         timestamp: Unix timestamp when the batch was created.
+     *         run_id: Correlates the run's notifications and completion.
+     *         allow_stdin: Whether cells may request interactive input.
      */
     ExecuteCellsCommand: {
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
+      /** @default true */
+      allowStdin?: boolean;
+      executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
+      /** @default null */
+      runId?: string | null;
       timestamp?: number;
       /** @enum {unknown} */
       type: "execute-cells";
-    };
-    /** ExecuteCellsRequest */
-    ExecuteCellsRequest: {
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
     };
     /**
      * ExecuteScratchpadCommand
      * @description Execute code in the scratchpad.
      *
-     *         The scratchpad is a temporary execution environment that doesn't affect
-     *         the notebook's cells or dependencies. Runs in an isolated cell with a copy
-     *         of the global namespace, useful for experimentation.
+     *     The scratchpad is a temporary execution environment that doesn't affect
+     *     the notebook's cells or dependencies. Runs in an isolated cell with a copy
+     *     of the global namespace, useful for experimentation.
      *
-     *         Attributes:
-     *             code: Python code to execute.
-     *             request: HTTP request context if available.
-     *             notebook_cells: Snapshot of notebook cells from the session document.
-     *                 Used to populate the document ContextVar so code_mode can read
-     *                 cell ordering, code, names, and configs.
-     *             cell_outputs: Snapshot of per-cell outputs (main + console) from the
-     *                 session view. Populates a parallel ContextVar so code_mode can
-     *                 expose `cell.output` and `cell.console_outputs`. Frozen at
-     *                 scratchpad start — not refreshed when `ctx.run_cell` produces
-     *                 new outputs in the same batch.
-     *             run_id: Optional correlation ID. When set, the
-     *                 `CompletedRunNotification` emitted at the end of this command
-     *                 carries the same `run_id` so a caller holding a
-     *                 `ScratchCellListener` can filter for *its* completion and
-     *                 ignore `CompletedRun` events from unrelated commands on the
-     *                 same session.
+     *     Attributes:
+     *         code: Python code to execute.
+     *         code_fingerprint: Code fingerprint. Computed from `code` when omitted.
+     *         request: HTTP request context if available.
+     *         notebook_cells: Snapshot of notebook cells from the session document.
+     *             Used to populate the document ContextVar so code_mode can read
+     *             cell ordering, code, names, and configs.
+     *         cell_outputs: Snapshot of per-cell outputs (main + console) from the
+     *             session view. Populates a parallel ContextVar so code_mode can
+     *             expose `cell.output` and `cell.console_outputs`. Frozen at
+     *             scratchpad start — not refreshed when `ctx.run_cell` produces
+     *             new outputs in the same batch.
+     *         run_id: Optional correlation ID. When set, the
+     *             `CompletedRunNotification` emitted at the end of this command
+     *             carries the same `run_id` so a caller holding a
+     *             `ScratchCellListener` can filter for *its* completion and
+     *             ignore `CompletedRun` events from unrelated commands on the
+     *             same session.
+     *         allow_stdin: Whether code may request interactive input. When false,
+     *             input reads receive EOF for the duration of this command.
      */
     ExecuteScratchpadCommand: {
+      /** @default true */
+      allowStdin?: boolean;
       /** @default null */
-      cellOutputs?: null | components["schemas"]["CellOutputs"];
+      cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -4863,9 +4930,13 @@ export interface components {
     };
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
+      /** @default true */
+      allowStdin?: boolean;
       /** @default null */
-      cellOutputs?: null | components["schemas"]["CellOutputs"];
+      cellOutputs?: components["schemas"]["CellOutputs"] | null;
       code: string;
+      /** @default  */
+      codeFingerprint?: string;
       /** @default null */
       notebookCells?: components["schemas"]["NotebookCell"][] | null;
       /** @default null */
@@ -4874,28 +4945,52 @@ export interface components {
       runId?: string | null;
     };
     /**
-     * ExecuteStaleCellsCommand
-     * @description Execute all stale cells.
+     * ExperimentalConfig
+     * @description Configuration for experimental features.
      *
-     *         Cells become stale when their dependencies change but haven't been
-     *         re-executed yet. Brings the notebook to a consistent state.
-     *
-     *         Attributes:
-     *             request: HTTP request context if available.
+     *     Features exposed on the frontend must match the frontend config.
      */
-    ExecuteStaleCellsCommand: {
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      /** @enum {unknown} */
-      type: "execute-stale-cells";
+    ExperimentalConfig: {
+      /**
+       * @description Enable live debugging with gutter breakpoints and pdb.
+       * @default false
+       */
+      debugger: boolean;
+      /**
+       * @description Experimental cell declaration handling: relaxed or strict.
+       * @default relaxed
+       * @enum {unknown}
+       */
+      execution_type: "relaxed" | "strict";
+      /**
+       * @deprecated
+       * @description Deprecated; prefer marimo pair. Enable external agents such as Claude Code and Codex.
+       */
+      external_agents?: boolean;
+      /**
+       * @description Run applications in separate processes.
+       * @default false
+       */
+      isolate_apps: boolean;
+      /**
+       * @description Highlight the active line and show per-line execution timing.
+       * @default false
+       */
+      line_timing: boolean;
+      /** @description Enable experimental Markdown notebook features. */
+      markdown?: boolean;
+      /** @description Enable experimental layouts in WebAssembly notebooks. */
+      wasm_layouts?: boolean;
+    } & {
+      [key: string]: unknown;
     };
     /**
      * ExportAsHTMLRequest
      * @description Request a static HTML export.
      *
-     *         `layout` carries the current client layout. An omitted field reads the
-     *         saved layout file, `null` selects the vertical layout, and an object uses
-     *         that serialized layout for this export.
+     *     `layout` carries the current client layout. An omitted field reads the
+     *     saved layout file, `null` selects the vertical layout, and an object uses
+     *     that serialized layout for this export.
      */
     ExportAsHTMLRequest: {
       /** @default null */
@@ -4962,13 +5057,13 @@ export interface components {
     /**
      * FileBrowserConfig
      * @description Configuration for the file browser panel.
-     *
-     *         **Keys.**
-     *
-     *         - `folders`: additional absolute folders to show in the file browser
      */
     FileBrowserConfig: {
-      folders?: components["schemas"]["FolderConfig"][];
+      /**
+       * @description additional absolute folders to show in the file browser
+       * @default []
+       */
+      folders: components["schemas"]["FolderConfig"][];
     };
     /** FileCopyRequest */
     FileCopyRequest: {
@@ -4978,7 +5073,7 @@ export interface components {
     /** FileCopyResponse */
     FileCopyResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -4987,10 +5082,10 @@ export interface components {
      * FileCreateMultipartRequest
      * @description multipart/form-data body for POST /api/files/create.
      *
-     *         Schema-only: this struct exists to describe the multipart shape in
-     *         OpenAPI. At runtime, the endpoint reads the string fields from
-     *         `MultipartRequest.body` and the uploaded bytes from
-     *         `MultipartRequest.files["file"]` — `body.file` is never populated.
+     *     Schema-only: this struct exists to describe the multipart shape in
+     *     OpenAPI. At runtime, the endpoint reads the string fields from
+     *     `MultipartRequest.body` and the uploaded bytes from
+     *     `MultipartRequest.files["file"]` — `body.file` is never populated.
      */
     FileCreateMultipartRequest: {
       /**
@@ -5015,7 +5110,7 @@ export interface components {
     /** FileCreateResponse */
     FileCreateResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5059,7 +5154,7 @@ export interface components {
       lastModified?: number | null;
       name: string;
       /** @default null */
-      opengraph?: null | components["schemas"]["OpenGraphMetadata"];
+      opengraph?: components["schemas"]["OpenGraphMetadata"] | null;
       path: string;
       /** @default null */
       size?: number | null;
@@ -5082,7 +5177,7 @@ export interface components {
     /** FileMoveResponse */
     FileMoveResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5133,7 +5228,7 @@ export interface components {
     /** FileUpdateResponse */
     FileUpdateResponse: {
       /** @default null */
-      info?: null | components["schemas"]["FileInfo"];
+      info?: components["schemas"]["FileInfo"] | null;
       /** @default null */
       message?: string | null;
       success: boolean;
@@ -5142,8 +5237,8 @@ export interface components {
      * FocusCellNotification
      * @description Focuses a cell (kiosk mode).
      *
-     *         Attributes:
-     *             cell_id: Cell to focus.
+     *     Attributes:
+     *         cell_id: Cell to focus.
      */
     FocusCellNotification: {
       cell_id: components["schemas"]["CellId"];
@@ -5157,14 +5252,14 @@ export interface components {
     /**
      * FolderConfig
      * @description Configuration for an additional file browser root.
-     *
-     *         **Keys.**
-     *
-     *         - `path`: the absolute path to the folder
-     *         - `name`: an optional display name for the folder
      */
     FolderConfig: {
-      name?: string;
+      /**
+       * @description an optional display name for the folder
+       * @default null
+       */
+      name: string | null;
+      /** @description the absolute path to the folder */
       path: string;
     };
     /** FormatCellsRequest */
@@ -5183,27 +5278,33 @@ export interface components {
     /**
      * FormattingConfig
      * @description Configuration for code formatting.
-     *
-     *         **Keys.**
-     *
-     *         - `line_length`: max line length
      */
     FormattingConfig: {
+      /**
+       * @description infer type annotations for cell parameters on save
+       * @default off
+       * @enum {unknown}
+       */
+      infer_types: "jedi" | "off";
+      /**
+       * @description max line length
+       * @default 79
+       */
       line_length: number;
     };
     /**
      * FunctionCallResultNotification
      * @description Result of a frontend-initiated function call.
      *
-     *         Attributes:
-     *             function_call_id: ID matching the original request.
-     *             return_value: Function return value as JSON.
-     *             status: Human-readable success/failure status.
-     *             found: Whether the requested function was located in the registry.
-     *                 False signals a transient registry desync, so the request is safe
-     *                 to retry. True means no retry will help: a non-ok status then
-     *                 reflects a failure unrelated to lookup, such as the function
-     *                 raising during execution or not being associated with a cell.
+     *     Attributes:
+     *         function_call_id: ID matching the original request.
+     *         return_value: Function return value as JSON.
+     *         status: Human-readable success/failure status.
+     *         found: Whether the requested function was located in the registry.
+     *             False signals a transient registry desync, so the request is safe
+     *             to retry. True means no retry will help: a non-ok status then
+     *             reflects a failure unrelated to lookup, such as the function
+     *             raising during execution or not being associated with a cell.
      */
     FunctionCallResultNotification: {
       found: boolean;
@@ -5213,62 +5314,44 @@ export interface components {
       return_value: unknown;
       status: components["schemas"]["HumanReadableStatus"];
     };
-    /**
-     * GetCacheInfoCommand
-     * @description Retrieve cache statistics.
-     *
-     *         Collects cache usage info across all contexts (hit/miss rates, time saved, disk usage).
-     */
-    GetCacheInfoCommand: {
-      /** @enum {unknown} */
-      type: "get-cache-info";
-    };
     /** GetCacheInfoRequest */
     GetCacheInfoRequest: Record<string, any>;
     /**
      * GitHubConfig
      * @description Configuration options for GitHub Copilot.
-     *
-     *         **Keys.**
-     *
-     *         - `api_key`: a GitHub Copilot token or an `env:` reference
-     *         - `base_url`: the base URL for the GitHub Copilot API
-     *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
-     *             Supports settings like `http` (proxy configuration), `telemetry`,
-     *             and `github-enterprise` (enterprise URI).
      */
     GitHubConfig: {
+      /** @description a GitHub Copilot token or an `env:` reference */
       api_key?: string;
+      /** @description the base URL for the GitHub Copilot API */
       base_url?: string;
+      /** @description configuration settings for GitHub Copilot LSP. Supports settings like `http` (proxy configuration), `telemetry`, and `github-enterprise` (enterprise URI). */
       copilot_settings?: Record<string, any>;
     };
     /**
      * GoogleAiConfig
      * @description Configuration options for Google AI.
-     *
-     *         **Keys.**
-     *
-     *         - `api_key`: the Google AI API key or an `env:` reference
      */
     GoogleAiConfig: {
+      /** @description the Google AI API key or an `env:` reference */
       api_key?: string;
     };
     /**
      * HTTPRequest
      * @description Serializable HTTP request representation.
      *
-     *         Mimics Starlette/FastAPI Request but is pickle-able and contains only a safe
-     *         subset of data. Excludes session and auth to prevent exposing sensitive data.
+     *     Mimics Starlette/FastAPI Request but is pickle-able and contains only a safe
+     *     subset of data. Excludes session and auth to prevent exposing sensitive data.
      *
-     *         Attributes:
-     *             url: Serialized URL with path, port, scheme, netloc, query, hostname.
-     *             base_url: Serialized base URL.
-     *             headers: Request headers (marimo-specific headers excluded).
-     *             query_params: Query parameters mapped to lists of values.
-     *             path_params: Path parameters from the URL route.
-     *             cookies: Request cookies.
-     *             meta: User-defined storage for custom data.
-     *             user: User info from authentication middleware (e.g., is_authenticated, username).
+     *     Attributes:
+     *         url: Serialized URL with path, port, scheme, netloc, query, hostname.
+     *         base_url: Serialized base URL.
+     *         headers: Request headers (marimo-specific headers excluded).
+     *         query_params: Query parameters mapped to lists of values.
+     *         path_params: Path parameters from the URL route.
+     *         cookies: Request cookies.
+     *         meta: User-defined storage for custom data.
+     *         user: User info from authentication middleware (e.g., is_authenticated, username).
      */
     HTTPRequest: {
       base_url: Record<string, any>;
@@ -5290,10 +5373,10 @@ export interface components {
      * HumanReadableStatus
      * @description Human-readable status for operation results.
      *
-     *         Attributes:
-     *             code: Status code ("ok" or "error").
-     *             title: Optional short title.
-     *             message: Optional detailed description.
+     *     Attributes:
+     *         code: Status code ("ok" or "error").
+     *         title: Optional short title.
+     *         message: Optional detailed description.
      */
     HumanReadableStatus: {
       /** @enum {unknown} */
@@ -5320,20 +5403,20 @@ export interface components {
      * InstallPackagesCommand
      * @description Install Python packages.
      *
-     *         Installs missing packages using the specified package manager. Triggered
-     *         automatically on import errors or manually by the user.
+     *     Installs missing packages using the specified package manager. Triggered
+     *     automatically on import errors or manually by the user.
      *
-     *         Attributes:
-     *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
-     *             versions: Package names mapped to version specifiers. Empty version
-     *                       means install latest.
-     *             index_urls: Alternative package index URLs. Primary index first,
-     *                         then extras. Honored by backends that support custom
-     *                         indexes (currently micropip); other backends ignore it.
-     *             source: Where to install. "kernel" (default) dispatches to the kernel
-     *                     subprocess; "server" installs directly into the server's Python
-     *                     environment (sys.executable), used when the server itself needs
-     *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
+     *     Attributes:
+     *         manager: Package manager to use ('pip', 'conda', 'uv', etc.).
+     *         versions: Package names mapped to version specifiers. Empty version
+     *                   means install latest.
+     *         index_urls: Alternative package index URLs. Primary index first,
+     *                     then extras. Honored by backends that support custom
+     *                     indexes (currently micropip); other backends ignore it.
+     *         source: Where to install. "kernel" (default) dispatches to the kernel
+     *                 subprocess; "server" installs directly into the server's Python
+     *                 environment (sys.executable), used when the server itself needs
+     *                 a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
       /** @default [] */
@@ -5365,58 +5448,13 @@ export interface components {
       };
     };
     /**
-     * InstallingPackageAlertNotification
-     * @description Package installation progress with streaming logs.
-     *
-     *         Attributes:
-     *             packages: Package name to status (queued/installing/installed/failed).
-     *             logs: Optional streaming logs per package.
-     *             log_status: Log stream status (append/start/done).
-     *             source: Which Python environment packages are installed into.
-     *                     "kernel" (default) installs in the kernel's venv; "server"
-     *                     installs in the server's own Python env.
-     */
-    InstallingPackageAlertNotification: {
-      /** @default null */
-      log_status?: ("append" | "done" | "start") | null;
-      /** @default null */
-      logs?: {
-        [key: string]: string;
-      } | null;
-      /** @enum {unknown} */
-      op: "installing-package-alert";
-      packages: {
-        [key: string]:
-          | "failed"
-          | "installed"
-          | "installing"
-          | "queued"
-          | "restart-required";
-      };
-      /**
-       * @default kernel
-       * @enum {unknown}
-       */
-      source?: "kernel" | "server";
-    };
-    /** InstantiateNotebookRequest */
-    InstantiateNotebookRequest: {
-      /** @default true */
-      autoRun?: boolean;
-      /** @default null */
-      codes?: {
-        [key: string]: string;
-      } | null;
-      objectIds: components["schemas"]["UIElementId"][];
-      values: unknown[];
-    };
-    /**
      * InterruptedNotification
      * @description Kernel was interrupted by user (SIGINT/Ctrl+C).
      */
     InterruptedNotification: {
       /** @enum {unknown} */
       op: "interrupted";
+      run_id?: string | null;
     };
     /** InvokeAiToolRequest */
     InvokeAiToolRequest: {
@@ -5435,13 +5473,13 @@ export interface components {
      * InvokeFunctionCommand
      * @description Invoke a function from a UI element.
      *
-     *         Called when a UI element needs to invoke a Python function.
+     *     Called when a UI element needs to invoke a Python function.
      *
-     *         Attributes:
-     *             function_call_id: Unique identifier for this call.
-     *             namespace: Namespace where the function is registered.
-     *             function_name: Function to invoke.
-     *             args: Keyword arguments for the function.
+     *     Attributes:
+     *         function_call_id: Unique identifier for this call.
+     *         namespace: Namespace where the function is registered.
+     *         function_name: Function to invoke.
+     *         args: Keyword arguments for the function.
      */
     InvokeFunctionCommand: {
       args: Record<string, any>;
@@ -5462,13 +5500,13 @@ export interface components {
      * KernelCapabilitiesNotification
      * @description Kernel capabilities detected at startup.
      *
-     *         All fields auto-detected in __post_init__.
+     *     All fields auto-detected in __post_init__.
      *
-     *         Attributes:
-     *             terminal: Terminal access (unavailable on Windows/Pyodide).
-     *             pylsp: Python Language Server Protocol installed.
-     *             ty: ty type checker installed.
-     *             basedpyright: basedpyright type checker installed.
+     *     Attributes:
+     *         terminal: Terminal access (unavailable on Windows/Pyodide).
+     *         pylsp: Python Language Server Protocol installed.
+     *         ty: ty type checker installed.
+     *         basedpyright: basedpyright type checker installed.
      */
     KernelCapabilitiesNotification: {
       /** @default false */
@@ -5486,50 +5524,35 @@ export interface components {
      * KernelReadyNotification
      * @description Kernel ready for execution. First notification sent at startup.
      *
-     *         Attributes:
-     *             cell_ids: Cell IDs in order.
-     *             codes: Source code for each cell.
-     *             names: Cell names/titles.
-     *             layout: Notebook layout config.
-     *             configs: Per-cell configuration.
-     *             resumed: Whether resumed from previous session.
-     *             ui_values: Previous UI element values if resumed.
-     *             last_executed_code: Last executed code per cell if resumed.
-     *             last_execution_time: Last execution time per cell if resumed.
-     *             app_config: Application configuration.
-     *             kiosk: Whether running in kiosk mode.
-     *             capabilities: Available kernel capabilities.
-     *             auto_instantiated: Whether cells already executed (run mode).
+     *     Attributes:
+     *         layout: Notebook layout config.
+     *         resumed: Whether resumed from previous session.
+     *         ui_values: Previous UI element values if resumed.
+     *         app_config: Application configuration.
+     *         kiosk: Whether running in kiosk mode.
+     *         capabilities: Available kernel capabilities.
+     *         stable_session_id: Server-owned Session identity that survives
+     *             browser reconnects. None where no server Session exists.
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
-      /** @default false */
-      auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
-      cell_ids: components["schemas"]["CellId"][];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
       consumer_capabilities: components["schemas"]["ConsumerCapabilities"];
       kiosk: boolean;
-      last_executed_code: {
-        [key: string]: string;
-      } | null;
-      last_execution_time: {
-        [key: string]: number;
-      } | null;
       layout: components["schemas"]["LayoutConfig"] | null;
-      names: string[];
       /** @enum {unknown} */
       op: "kernel-ready";
       resumed: boolean;
+      /** @default null */
+      stable_session_id?: string | null;
       ui_values: Record<string, any> | null;
     };
     /**
      * KernelStartupErrorNotification
      * @description Kernel failed to start.
      *
-     *         Attributes:
-     *             error: Error message describing failure.
+     *     Attributes:
+     *         error: Error message describing failure.
      */
     KernelStartupErrorNotification: {
       error: string;
@@ -5544,139 +5567,49 @@ export interface components {
     /**
      * KeymapConfig
      * @description Configuration for keymaps.
-     *
-     *         **Keys.**
-     *
-     *         - `preset`: one of `"default"` or `"vim"`
-     *         - `overrides`: a dict of keymap actions to their keymap override
-     *         - `vimrc`: path to a vimrc file to load keymaps from
-     *         - `destructive_delete`: if `True`, allows deleting cells with content.
      */
     KeymapConfig: {
+      /** @description if `True`, allows deleting cells with content. */
       destructive_delete?: boolean;
-      overrides?: {
+      /**
+       * @description a dict of keymap actions to their keymap override
+       * @default {}
+       */
+      overrides: {
         [key: string]: string;
       };
-      /** @enum {unknown} */
+      /**
+       * @description one of `"default"` or `"vim"`
+       * @default default
+       * @enum {unknown}
+       */
       preset: "default" | "vim";
+      /** @description path to a vimrc file to load keymaps from */
       vimrc?: string | null;
     };
-    /** KnownUnions */
+    /**
+     * KnownUnions
+     * @deprecated
+     * @description Use the named NotificationMessage, ClientCommand, MarimoError, and DataType schemas directly.
+     */
     KnownUnions: {
-      command:
-        | components["schemas"]["CreateNotebookCommand"]
-        | components["schemas"]["RenameNotebookCommand"]
-        | components["schemas"]["CodeCompletionCommand"]
-        | components["schemas"]["ExecuteCellsCommand"]
-        | components["schemas"]["ExecuteScratchpadCommand"]
-        | components["schemas"]["ExecuteStaleCellsCommand"]
-        | components["schemas"]["DebugCellCommand"]
-        | components["schemas"]["SetBreakpointsCommand"]
-        | components["schemas"]["DeleteCellCommand"]
-        | components["schemas"]["SyncGraphCommand"]
-        | components["schemas"]["UpdateCellConfigCommand"]
-        | components["schemas"]["InstallPackagesCommand"]
-        | components["schemas"]["UpdateUIElementCommand"]
-        | components["schemas"]["ModelCommand"]
-        | components["schemas"]["InvokeFunctionCommand"]
-        | components["schemas"]["UpdateUserConfigCommand"]
-        | components["schemas"]["PreviewDatasetColumnCommand"]
-        | components["schemas"]["PreviewSQLTableCommand"]
-        | components["schemas"]["ListSQLTablesCommand"]
-        | components["schemas"]["ListSQLSchemasCommand"]
-        | components["schemas"]["ValidateSQLCommand"]
-        | components["schemas"]["ListDataSourceConnectionCommand"]
-        | components["schemas"]["DiscoverDataSourcesCommand"]
-        | components["schemas"]["StorageListEntriesCommand"]
-        | components["schemas"]["StorageDownloadCommand"]
-        | components["schemas"]["ListSecretKeysCommand"]
-        | components["schemas"]["RefreshSecretsCommand"]
-        | components["schemas"]["ClearCacheCommand"]
-        | components["schemas"]["GetCacheInfoCommand"]
-        | components["schemas"]["StopKernelCommand"];
-      /** @enum {unknown} */
-      data_type:
-        | "boolean"
-        | "date"
-        | "datetime"
-        | "geometry"
-        | "integer"
-        | "number"
-        | "string"
-        | "time"
-        | "unknown";
-      error:
-        | components["schemas"]["SetupRootError"]
-        | components["schemas"]["CycleError"]
-        | components["schemas"]["MultipleDefinitionError"]
-        | components["schemas"]["ImportStarError"]
-        | components["schemas"]["MarimoAncestorStoppedError"]
-        | components["schemas"]["MarimoAncestorPreventedError"]
-        | components["schemas"]["MarimoExceptionRaisedError"]
-        | components["schemas"]["MarimoStrictExecutionError"]
-        | components["schemas"]["MarimoInterruptionError"]
-        | components["schemas"]["MarimoSyntaxError"]
-        | components["schemas"]["MarimoInternalError"]
-        | components["schemas"]["MarimoSQLError"]
-        | components["schemas"]["UnknownError"];
-      notification:
-        | components["schemas"]["CellNotification"]
-        | components["schemas"]["FunctionCallResultNotification"]
-        | components["schemas"]["UIElementMessageNotification"]
-        | components["schemas"]["ModelLifecycleNotification"]
-        | components["schemas"]["RemoveUIElementsNotification"]
-        | components["schemas"]["ReloadNotification"]
-        | components["schemas"]["ReconnectedNotification"]
-        | components["schemas"]["InterruptedNotification"]
-        | components["schemas"]["CompletedRunNotification"]
-        | components["schemas"]["KernelReadyNotification"]
-        | components["schemas"]["CompletionResultNotification"]
-        | components["schemas"]["AlertNotification"]
-        | components["schemas"]["BannerNotification"]
-        | components["schemas"]["MissingPackageAlertNotification"]
-        | components["schemas"]["InstallingPackageAlertNotification"]
-        | components["schemas"]["StartupLogsNotification"]
-        | components["schemas"]["KernelStartupErrorNotification"]
-        | components["schemas"]["VariablesNotification"]
-        | components["schemas"]["VariableValuesNotification"]
-        | components["schemas"]["QueryParamsSetNotification"]
-        | components["schemas"]["QueryParamsAppendNotification"]
-        | components["schemas"]["QueryParamsDeleteNotification"]
-        | components["schemas"]["QueryParamsClearNotification"]
-        | components["schemas"]["DatasetsNotification"]
-        | components["schemas"]["DataColumnPreviewNotification"]
-        | components["schemas"]["SQLTablePreviewNotification"]
-        | components["schemas"]["SQLTableListPreviewNotification"]
-        | components["schemas"]["SQLSchemaListPreviewNotification"]
-        | components["schemas"]["DataSourceConnectionsNotification"]
-        | components["schemas"]["DataSourceDiscoveryResultNotification"]
-        | components["schemas"]["ValidateSQLResultNotification"]
-        | components["schemas"]["StorageNamespacesNotification"]
-        | components["schemas"]["StorageEntriesNotification"]
-        | components["schemas"]["StorageDownloadReadyNotification"]
-        | components["schemas"]["SecretKeysResultNotification"]
-        | components["schemas"]["CacheClearedNotification"]
-        | components["schemas"]["CacheInfoNotification"]
-        | components["schemas"]["FocusCellNotification"]
-        | components["schemas"]["ActiveLineNotification"]
-        | components["schemas"]["NotebookDocumentTransactionNotification"]
-        | components["schemas"]["ConsumerCapabilitiesNotification"];
+      command: components["schemas"]["ClientCommand"];
+      data_type: components["schemas"]["DataType"];
+      error: components["schemas"]["MarimoError"];
+      notification: components["schemas"]["NotificationMessage"];
     };
     /**
      * LanguageServersConfig
      * @description Configuration options for language servers.
-     *
-     *         **Keys.**
-     *
-     *         - `pylsp`: the pylsp config
-     *         - `basedpyright`: the basedpyright config
-     *         - `ty`: the ty config
-     *         - `pyrefly`: the pyrefly config
      */
     LanguageServersConfig: {
+      /** @description the basedpyright config */
       basedpyright?: components["schemas"]["BasedpyrightServerConfig"];
-      pylsp?: components["schemas"]["PythonLanguageServerConfig"];
+      /** @description the pylsp config */
+      pylsp: components["schemas"]["PythonLanguageServerConfig"];
+      /** @description the pyrefly config */
       pyrefly?: components["schemas"]["PyreflyLanguageServerConfig"];
+      /** @description the ty config */
       ty?: components["schemas"]["TyLanguageServerConfig"];
     };
     /** LayoutConfig */
@@ -5684,33 +5617,41 @@ export interface components {
       data: Record<string, any>;
       type: string;
     };
+    /** LazyImportError */
+    LazyImportError: {
+      /** @default null */
+      lineno?: number | null;
+      msg: string;
+      /** @enum {unknown} */
+      type: "lazy-import";
+    };
     /**
      * LintConfig
      * @description Configuration for lint rule selection.
      *
-     *         Follows ruff-inspired semantics for selecting which rules to run
-     *         during `marimo check`.
-     *
-     *         **Keys.**
-     *
-     *         - `select`: list of rule code prefixes that replaces the default
-     *           enabled set. Use `"ALL"` to select all rules.
-     *           Example: `["MB", "MR001"]`
-     *         - `ignore`: list of rule code prefixes to remove from the
-     *           enabled set.
+     *     Follows ruff-inspired semantics for selecting which rules to run
+     *     during `marimo check`.
      */
     LintConfig: {
-      ignore?: string[];
-      select?: string[];
+      /**
+       * @description list of rule code prefixes to remove from the enabled set.
+       * @default []
+       */
+      ignore: string[];
+      /**
+       * @description list of rule code prefixes that replaces the default enabled set. Use `"ALL"` to select all rules. Example: `["MB", "MR001"]`
+       * @default []
+       */
+      select: string[];
     };
     /**
      * ListDataSourceConnectionCommand
      * @description List data source schemas.
      *
-     *         Retrieves available schemas for a data source engine.
+     *     Retrieves available schemas for a data source engine.
      *
-     *         Attributes:
-     *             engine: Data source engine identifier.
+     *     Attributes:
+     *         engine: Data source engine identifier.
      */
     ListDataSourceConnectionCommand: {
       engine: string;
@@ -5729,15 +5670,15 @@ export interface components {
      * ListSQLSchemasCommand
      * @description List schemas in an SQL database.
      *
-     *         Retrieves names of all schemas in a database. Used by the SQL editor for
-     *         schema selection.
+     *     Retrieves names of all schemas in a database. Used by the SQL editor for
+     *     schema selection.
      *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
-     *             database: Database to query.
-     *             schema_path: Parent schema path whose child schemas to list.
-     *                 Empty lists the database's top-level schemas.
+     *     Attributes:
+     *         request_id: Unique identifier for this request.
+     *         engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *         database: Database to query.
+     *         schema_path: Parent schema path whose child schemas to list.
+     *             Empty lists the database's top-level schemas.
      */
     ListSQLSchemasCommand: {
       database: string;
@@ -5760,16 +5701,16 @@ export interface components {
      * ListSQLTablesCommand
      * @description List tables in an SQL schema.
      *
-     *         Retrieves names of all tables and views in a schema. Used by the SQL
-     *         editor for table selection.
+     *     Retrieves names of all tables and views in a schema. Used by the SQL
+     *     editor for table selection.
      *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
-     *             database: Database to query.
-     *             schema: Schema to list tables from.
-     *             schema_path: Path of nested schemas (relative to `database`) for
-     *                 catalogs with nested schemas. Empty for the top level.
+     *     Attributes:
+     *         request_id: Unique identifier for this request.
+     *         engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *         database: Database to query.
+     *         schema: Schema to list tables from.
+     *         schema_path: Path of nested schemas (relative to `database`) for
+     *             catalogs with nested schemas. Empty for the top level.
      */
     ListSQLTablesCommand: {
       database: string;
@@ -5794,10 +5735,10 @@ export interface components {
      * ListSecretKeysCommand
      * @description List available secret keys.
      *
-     *         Retrieves secret names without exposing values.
+     *     Retrieves secret names without exposing values.
      *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
+     *     Attributes:
+     *         request_id: Unique identifier for this request.
      */
     ListSecretKeysCommand: {
       requestId: components["schemas"]["RequestId"];
@@ -5845,12 +5786,12 @@ export interface components {
      * LspServerHealth
      * @description Health status for a single LSP server.
      *
-     *         Status meanings:
-     *         - starting: process launched, initializing
-     *         - running: healthy and responsive to pings
-     *         - stopped: not running (never started or cleanly stopped)
-     *         - crashed: exited with non-zero code
-     *         - unresponsive: process alive but not responding to pings
+     *     Status meanings:
+     *     - starting: process launched, initializing
+     *     - running: healthy and responsive to pings
+     *     - stopped: not running (never started or cleanly stopped)
+     *     - crashed: exited with non-zero code
+     *     - unresponsive: process alive but not responding to pings
      */
     LspServerHealth: {
       /** @default null */
@@ -5872,10 +5813,20 @@ export interface components {
      *     config conventions used by popular AI applications (e.g. Cursor, Claude Desktop, etc.)
      */
     MCPConfig: {
+      /**
+       * @description Named MCP server configurations.
+       * @default {}
+       */
       mcpServers: {
-        [key: string]: Record<string, any>;
+        [key: string]:
+          | components["schemas"]["MCPServerStdioConfig"]
+          | components["schemas"]["MCPServerStreamableHttpConfig"];
       };
-      presets?: ("context7" | "marimo")[];
+      /**
+       * @description Built-in MCP server presets to enable.
+       * @default []
+       */
+      presets: ("context7" | "marimo")[];
     };
     /** MCPRefreshResponse */
     MCPRefreshResponse: {
@@ -5886,6 +5837,42 @@ export interface components {
         [key: string]: boolean;
       };
       success: boolean;
+    };
+    /**
+     * MCPServerStdioConfig
+     * @description Configuration for STDIO transport MCP servers
+     */
+    MCPServerStdioConfig: {
+      /** @description Arguments passed to the MCP server command. */
+      args?: string[] | null;
+      /** @description Command used to launch the MCP server. */
+      command: string;
+      /** @description Disable this MCP server. */
+      disabled?: boolean | null;
+      /** @description Environment variables supplied to the MCP server. */
+      env?: {
+        [key: string]: string;
+      } | null;
+    };
+    /**
+     * MCPServerStreamableHttpConfig
+     * @description Configuration for Streamable HTTP transport MCP servers
+     */
+    MCPServerStreamableHttpConfig: {
+      /** @description Disable this MCP server. */
+      disabled?: boolean | null;
+      /** @description Environment variables used by the MCP server configuration. */
+      env?: {
+        [key: string]: string;
+      } | null;
+      /** @description HTTP headers sent to the MCP server. */
+      headers?: {
+        [key: string]: string;
+      } | null;
+      /** @description Timeout in seconds for MCP server requests. */
+      timeout?: number | null;
+      /** @description URL of the streamable HTTP MCP server. */
+      url: string;
     };
     /** MCPStatusResponse */
     MCPStatusResponse: {
@@ -5918,28 +5905,70 @@ export interface components {
      * @description Configuration for the marimo editor
      */
     MarimoConfig: {
-      ai?: components["schemas"]["AiConfig"];
-      cache?: components["schemas"]["CacheConfig"];
+      /** @description Configuration options for AI. */
+      ai: components["schemas"]["AiConfig"];
+      /** @description Configuration for caching. */
+      cache: components["schemas"]["CacheConfig"];
+      /** @description Configuration for code completion. */
       completion: components["schemas"]["CompletionConfig"];
-      datasources?: components["schemas"]["DatasourcesConfig"];
-      diagnostics?: components["schemas"]["DiagnosticsConfig"];
+      /** @description Configuration for datasources panel. */
+      datasources: components["schemas"]["DatasourcesConfig"];
+      /** @description Configuration options for diagnostics. */
+      diagnostics: components["schemas"]["DiagnosticsConfig"];
+      /** @description Configuration for display. */
       display: components["schemas"]["DisplayConfig"];
-      experimental?: Record<string, any>;
-      file_browser?: components["schemas"]["FileBrowserConfig"];
+      /** @description Configuration for experimental features. */
+      experimental: components["schemas"]["ExperimentalConfig"];
+      /**
+       * @description Configuration for the file browser panel.
+       * @default null
+       */
+      file_browser: components["schemas"]["FileBrowserConfig"] | null;
+      /** @description Configuration for code formatting. */
       formatting: components["schemas"]["FormattingConfig"];
+      /** @description Configuration for keymaps. */
       keymap: components["schemas"]["KeymapConfig"];
-      language_servers?: components["schemas"]["LanguageServersConfig"];
-      lint?: components["schemas"]["LintConfig"];
-      mcp?: components["schemas"]["MCPConfig"];
+      /** @description Configuration options for language servers. */
+      language_servers: components["schemas"]["LanguageServersConfig"];
+      /** @description Configuration for lint rule selection. */
+      lint: components["schemas"]["LintConfig"];
+      /** @description Configuration for MCP servers */
+      mcp: components["schemas"]["MCPConfig"];
+      /** @description Configuration options for package management. */
       package_management: components["schemas"]["PackageManagementConfig"];
+      /** @description Configuration for runtime. */
       runtime: components["schemas"]["RuntimeConfig"];
+      /** @description Configuration for saving. */
       save: components["schemas"]["SaveConfig"];
+      /** @description Configuration for the server. */
       server: components["schemas"]["ServerConfig"];
-      sharing?: components["schemas"]["SharingConfig"];
-      signing?: components["schemas"]["SigningConfig"];
-      snippets?: components["schemas"]["SnippetsConfig"];
-      venv?: components["schemas"]["VenvConfig"];
+      /**
+       * @description Configuration for sharing features.
+       * @default null
+       */
+      sharing: components["schemas"]["SharingConfig"] | null;
+      /** @description Cache-signing trust and identity. */
+      signing: components["schemas"]["SigningConfig"];
+      /** @description Configuration for snippets. */
+      snippets: components["schemas"]["SnippetsConfig"];
+      /** @description Configuration for an external Python environment in edit mode. */
+      venv: components["schemas"]["VenvConfig"];
     };
+    MarimoError:
+      | components["schemas"]["SetupRootError"]
+      | components["schemas"]["CycleError"]
+      | components["schemas"]["MultipleDefinitionError"]
+      | components["schemas"]["ImportStarError"]
+      | components["schemas"]["LazyImportError"]
+      | components["schemas"]["MarimoAncestorStoppedError"]
+      | components["schemas"]["MarimoAncestorPreventedError"]
+      | components["schemas"]["MarimoExceptionRaisedError"]
+      | components["schemas"]["MarimoStrictExecutionError"]
+      | components["schemas"]["MarimoInterruptionError"]
+      | components["schemas"]["MarimoSyntaxError"]
+      | components["schemas"]["MarimoInternalError"]
+      | components["schemas"]["MarimoSQLError"]
+      | components["schemas"]["UnknownError"];
     /** MarimoExceptionRaisedError */
     MarimoExceptionRaisedError: {
       exception_type: string;
@@ -6021,12 +6050,12 @@ export interface components {
      * MissingPackageAlertNotification
      * @description Alert for missing packages with install option.
      *
-     *         Attributes:
-     *             packages: Missing package names.
-     *             isolated: Whether auto-install is possible in this environment.
-     *             source: Which Python environment to install into. "kernel" (default)
-     *                     installs in the kernel's venv; "server" installs in the
-     *                     server's own Python env (e.g. for formatter tools like ruff).
+     *     Attributes:
+     *         packages: Missing package names.
+     *         isolated: Whether auto-install is possible in this environment.
+     *         source: Which Python environment to install into. "kernel" (default)
+     *                 installs in the kernel's venv; "server" installs in the
+     *                 server's own Python env (e.g. for formatter tools like ruff).
      */
     MissingPackageAlertNotification: {
       isolated: boolean;
@@ -6051,13 +6080,13 @@ export interface components {
      * ModelCommand
      * @description Widget model message command.
      *
-     *         Handles widget model communication between frontend and backend.
+     *     Handles widget model communication between frontend and backend.
      *
-     *         Attributes:
-     *             model_id: Widget model identifier.
-     *             message: Model message (update or custom).
-     *             buffers: Base64-encoded binary buffers.
-     *             token: Unique identifier for deduplication across dual queues.
+     *     Attributes:
+     *         model_id: Widget model identifier.
+     *         message: Model message (update or custom).
+     *         buffers: Base64-encoded binary buffers.
+     *         token: Unique identifier for deduplication across dual queues.
      */
     ModelCommand: {
       buffers: components["schemas"]["Base64String"][];
@@ -6083,8 +6112,8 @@ export interface components {
      * ModelCustomMessage
      * @description Custom widget message.
      *
-     *         Attributes:
-     *             content: Arbitrary content for the custom message.
+     *     Attributes:
+     *         content: Arbitrary content for the custom message.
      */
     ModelCustomMessage: {
       content: unknown;
@@ -6095,11 +6124,11 @@ export interface components {
      * ModelLifecycleNotification
      * @description Widget model lifecycle message.
      *
-     *         Mirrors the Jupyter widget comm protocol with open/update/custom/close.
+     *     Mirrors the Jupyter widget comm protocol with open/update/custom/close.
      *
-     *         Attributes:
-     *             model_id: Widget model identifier.
-     *             message: The lifecycle message (open/update/custom/close).
+     *     Attributes:
+     *         model_id: Widget model identifier.
+     *         message: The lifecycle message (open/update/custom/close).
      */
     ModelLifecycleNotification: {
       message:
@@ -6107,7 +6136,7 @@ export interface components {
         | components["schemas"]["ModelUpdate"]
         | components["schemas"]["ModelCustom"]
         | components["schemas"]["ModelClose"];
-      model_id: string;
+      model_id: components["schemas"]["WidgetModelId"];
       /** @enum {unknown} */
       op: "model-lifecycle";
     };
@@ -6115,22 +6144,22 @@ export interface components {
      * ModelOpen
      * @description Initial widget state on creation.
      *
-     *         For anywidgets, the widget's ESM does not travel in `state`: the
-     *         comm strips `_esm` and sends an `EsmSpec` instead. `None` for
-     *         models with no ESM (e.g. traditional ipywidgets).
+     *     For anywidgets, the widget's ESM does not travel in `state`: the
+     *     comm strips `_esm` and sends an `EsmSpec` instead. `None` for
+     *     models with no ESM (e.g. traditional ipywidgets).
      *
-     *         Attributes:
-     *             state: Initial trait values, minus `_esm`.
-     *             buffer_paths: Paths into `state` whose binary values were
-     *                 extracted into `buffers`.
-     *             buffers: Binary payloads, parallel to `buffer_paths`.
-     *             esm_spec: Where to import this widget's ESM from.
+     *     Attributes:
+     *         state: Initial trait values, minus `_esm`.
+     *         buffer_paths: Paths into `state` whose binary values were
+     *             extracted into `buffers`.
+     *         buffers: Binary payloads, parallel to `buffer_paths`.
+     *         esm_spec: Where to import this widget's ESM from.
      */
     ModelOpen: {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
       /** @default null */
-      esm_spec?: null | components["schemas"]["EsmSpec"];
+      esm_spec?: components["schemas"]["EsmSpec"] | null;
       /** @enum {unknown} */
       method: "open";
       state: Record<string, any>;
@@ -6148,21 +6177,21 @@ export interface components {
      * ModelUpdate
      * @description State sync - changed traits only.
      *
-     *         Attributes:
-     *             state: Changed trait values, minus `_esm` (see `ModelOpen`).
-     *             buffer_paths: Paths into `state` whose binary values were
-     *                 extracted into `buffers`.
-     *             buffers: Binary payloads, parallel to `buffer_paths`.
-     *             esm_spec: Present only when the widget's `_esm` changed on a
-     *                 live model (hot reload, edit mode only). A spec whose
-     *                 `hash` differs from the current one tells the frontend the
-     *                 widget's code changed and views must be rebuilt.
+     *     Attributes:
+     *         state: Changed trait values, minus `_esm` (see `ModelOpen`).
+     *         buffer_paths: Paths into `state` whose binary values were
+     *             extracted into `buffers`.
+     *         buffers: Binary payloads, parallel to `buffer_paths`.
+     *         esm_spec: Present only when the widget's `_esm` changed on a
+     *             live model (hot reload, edit mode only). A spec whose
+     *             `hash` differs from the current one tells the frontend the
+     *             widget's code changed and views must be rebuilt.
      */
     ModelUpdate: {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
       /** @default null */
-      esm_spec?: null | components["schemas"]["EsmSpec"];
+      esm_spec?: components["schemas"]["EsmSpec"] | null;
       /** @enum {unknown} */
       method: "update";
       state: Record<string, any>;
@@ -6171,9 +6200,9 @@ export interface components {
      * ModelUpdateMessage
      * @description Widget model state update message.
      *
-     *         Attributes:
-     *             state: Model state updates.
-     *             buffer_paths: Paths within state dict pointing to binary buffers.
+     *     Attributes:
+     *         state: Model state updates.
+     *         buffer_paths: Paths within state dict pointing to binary buffers.
      */
     ModelUpdateMessage: {
       bufferPaths: (string | number)[][];
@@ -6205,8 +6234,8 @@ export interface components {
      * NotebookCell
      * @description A single cell in the document. Mutable — owned by the document.
      *
-     *         `version` increments on each `SetCode` that actually changes
-     *         `code`. Other property changes don't bump it.
+     *     `version` increments on each `SetCode` that actually changes
+     *     `code`. Other property changes don't bump it.
      */
     NotebookCell: {
       code: string;
@@ -6220,59 +6249,96 @@ export interface components {
      * NotebookDocumentTransactionNotification
      * @description Broadcasts an applied transaction to the frontend.
      *
-     *         Sent by the session when the document changes (from any source).
-     *         The frontend applies the ops to update its local state.
+     *     Sent by the session when the document changes (from any source).
+     *     The frontend applies the ops to update its local state.
      */
     NotebookDocumentTransactionNotification: {
       /** @enum {unknown} */
       op: "notebook-document-transaction";
       transaction: components["schemas"]["Transaction"];
     };
-    /** NotebookDocumentTransactionRequest */
-    NotebookDocumentTransactionRequest: {
-      changes: (
-        | components["schemas"]["CreateCell"]
-        | components["schemas"]["DeleteCell"]
-        | components["schemas"]["MoveCell"]
-        | components["schemas"]["ReorderCells"]
-        | components["schemas"]["SetCode"]
-        | components["schemas"]["SetName"]
-        | components["schemas"]["SetConfig"]
-      )[];
-    };
+    NotificationMessage:
+      | components["schemas"]["FunctionCallResultNotification"]
+      | components["schemas"]["UIElementMessageNotification"]
+      | components["schemas"]["ModelLifecycleNotification"]
+      | components["schemas"]["RemoveUIElementsNotification"]
+      | components["schemas"]["ReloadNotification"]
+      | components["schemas"]["InterruptedNotification"]
+      | components["schemas"]["CompletedRunNotification"]
+      | components["schemas"]["KernelReadyNotification"]
+      | components["schemas"]["CompletionResultNotification"]
+      | components["schemas"]["AlertNotification"]
+      | components["schemas"]["BannerNotification"]
+      | components["schemas"]["MissingPackageAlertNotification"]
+      | components["schemas"]["EnvironmentOperationNotification"]
+      | components["schemas"]["EnvironmentStateNotification"]
+      | components["schemas"]["StartupLogsNotification"]
+      | components["schemas"]["StartupProgressNotification"]
+      | components["schemas"]["KernelStartupErrorNotification"]
+      | components["schemas"]["VariablesNotification"]
+      | components["schemas"]["VariableValuesNotification"]
+      | components["schemas"]["QueryParamsSetNotification"]
+      | components["schemas"]["QueryParamsAppendNotification"]
+      | components["schemas"]["QueryParamsDeleteNotification"]
+      | components["schemas"]["QueryParamsClearNotification"]
+      | components["schemas"]["DatasetsNotification"]
+      | components["schemas"]["DataColumnPreviewNotification"]
+      | components["schemas"]["SQLTablePreviewNotification"]
+      | components["schemas"]["SQLTableListPreviewNotification"]
+      | components["schemas"]["SQLSchemaListPreviewNotification"]
+      | components["schemas"]["DataSourceConnectionsNotification"]
+      | components["schemas"]["DataSourceDiscoveryResultNotification"]
+      | components["schemas"]["ValidateSQLResultNotification"]
+      | components["schemas"]["StorageNamespacesNotification"]
+      | components["schemas"]["StorageEntriesNotification"]
+      | components["schemas"]["StorageDownloadReadyNotification"]
+      | components["schemas"]["SecretKeysResultNotification"]
+      | components["schemas"]["CacheClearedNotification"]
+      | components["schemas"]["CacheInfoNotification"]
+      | components["schemas"]["FocusCellNotification"]
+      | components["schemas"]["CallbackOutputNotification"]
+      | components["schemas"]["PdbOutputNotification"]
+      | components["schemas"]["ConsoleInputsClearedNotification"]
+      | components["schemas"]["PdbInputNotification"]
+      | components["schemas"]["BreakpointsNotification"]
+      | components["schemas"]["ActiveLineNotification"]
+      | components["schemas"]["NotebookDocumentTransactionNotification"]
+      | components["schemas"]["ConsumerCapabilitiesNotification"]
+      | components["schemas"]["EditorCellNotification"];
     /**
      * OpenAiConfig
      * @description Configuration options for OpenAI or OpenAI-compatible services.
-     *
-     *         **Keys.**
-     *
-     *         - `api_key`: the OpenAI API key or an `env:` reference
-     *         - `base_url`: the base URL for the API
-     *         - `project`: the project ID for the OpenAI API
-     *         - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
-     *         - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
-     *         - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
-     *         - `extra_headers`: extra headers to be passed to the OpenAI client
      */
     OpenAiConfig: {
+      /** @description the OpenAI API key or an `env:` reference */
       api_key?: string;
+      /** @description the base URL for the API */
       base_url?: string;
+      /** @description custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client */
       ca_bundle_path?: string;
+      /** @description Path to a client PEM certificate for authenticating API requests. */
       client_pem?: string;
+      /** @description extra headers to be passed to the OpenAI client */
       extra_headers?: {
         [key: string]: string;
       };
+      /**
+       * @deprecated
+       * @description Deprecated chat model. Use ai.models.chat_model instead.
+       */
       model?: string;
+      /** @description the project ID for the OpenAI API */
       project?: string;
+      /** @description Whether to verify TLS certificates for the API client. */
       ssl_verify?: boolean;
     };
     /**
      * OpenGraphMetadata
      * @description OpenGraph-style metadata for a notebook.
      *
-     *         The `image` field may be either:
-     *         - a relative path (typically under `__marimo__/`), or
-     *         - an absolute HTTPS URL.
+     *     The `image` field may be either:
+     *     - a relative path (typically under `__marimo__/`), or
+     *     - an absolute HTTPS URL.
      */
     OpenGraphMetadata: {
       /** @default null */
@@ -6299,6 +6365,33 @@ export interface components {
           )
         | "markdown-format";
     };
+    /** OperationCancelled */
+    OperationCancelled: {
+      /** @enum {unknown} */
+      kind: "cancelled";
+    };
+    /** OperationFailed */
+    OperationFailed: {
+      error: string;
+      /** @enum {unknown} */
+      kind: "failed";
+    };
+    /** OperationRestartRequired */
+    OperationRestartRequired: {
+      /** @enum {unknown} */
+      kind: "restart-required";
+      reason: string;
+    };
+    /** OperationRunning */
+    OperationRunning: {
+      /** @enum {unknown} */
+      kind: "running";
+    };
+    /** OperationSucceeded */
+    OperationSucceeded: {
+      /** @enum {unknown} */
+      kind: "succeeded";
+    };
     /** PackageDescription */
     PackageDescription: {
       name: string;
@@ -6307,13 +6400,12 @@ export interface components {
     /**
      * PackageManagementConfig
      * @description Configuration options for package management.
-     *
-     *         **Keys.**
-     *
-     *         - `manager`: the package manager to use
      */
     PackageManagementConfig: {
-      /** @enum {unknown} */
+      /**
+       * @description the package manager to use
+       * @enum {unknown}
+       */
       manager: "pip" | "pixi" | "poetry" | "rye" | "uv";
     };
     /** PackageManagerContext */
@@ -6331,18 +6423,54 @@ export interface components {
       success: boolean;
     };
     /**
+     * PdbInputNotification
+     * @description Identify the debugger prompt waiting for a command in a failed cell.
+     *
+     *     A null input ID closes the prompt.
+     */
+    PdbInputNotification: {
+      cell_id: components["schemas"]["CellId"];
+      input_id: string | null;
+      /** @enum {unknown} */
+      op: "pdb-input";
+    };
+    /** PdbInputReplyRequest */
+    PdbInputReplyRequest: {
+      cellId: components["schemas"]["CellId"];
+      inputId: string;
+      value: string;
+    };
+    /**
+     * PdbOutputNotification
+     * @description Show debugger output in the cell that failed.
+     *
+     *     Append live entries. When `replace` is true, replace the debugger's
+     *     transcript for this cell with the supplied entries. The editor's
+     *     `after_seq` gives the preceding execution item sequence for each entry,
+     *     or -1 before the first item.
+     */
+    PdbOutputNotification: {
+      after_seq?: number[];
+      cell_id: components["schemas"]["CellId"];
+      entries: components["schemas"]["CellOutput"][];
+      /** @enum {unknown} */
+      op: "pdb-output";
+      /** @default false */
+      replace?: boolean;
+    };
+    /**
      * PreviewDatasetColumnCommand
      * @description Preview a dataset column.
      *
-     *         Retrieves and displays data from a single column (dataframe or SQL table).
-     *         Used by the data explorer UI.
+     *     Retrieves and displays data from a single column (dataframe or SQL table).
+     *     Used by the data explorer UI.
      *
-     *         Attributes:
-     *             source_type: Data source type ('dataframe', 'sql', etc.).
-     *             source: Source identifier (connection string or variable name).
-     *             table_name: Table or dataframe variable name.
-     *             column_name: Column to preview.
-     *             fully_qualified_table_name: Full database.schema.table name for SQL.
+     *     Attributes:
+     *         source_type: Data source type ('dataframe', 'sql', etc.).
+     *         source: Source identifier (connection string or variable name).
+     *         table_name: Table or dataframe variable name.
+     *         column_name: Column to preview.
+     *         fully_qualified_table_name: Full database.schema.table name for SQL.
      */
     PreviewDatasetColumnCommand: {
       columnName: string;
@@ -6369,17 +6497,17 @@ export interface components {
      * PreviewSQLTableCommand
      * @description Preview SQL table details.
      *
-     *         Retrieves metadata and sample data for a table. Used by the SQL editor
-     *         and data explorer.
+     *     Retrieves metadata and sample data for a table. Used by the SQL editor
+     *     and data explorer.
      *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
-     *             database: Database containing the table.
-     *             schema: Schema containing the table.
-     *             table_name: Table to preview.
-     *             schema_path: Path of nested schemas (relative to `database`) for
-     *                 catalogs with nested schemas. Empty for the top level.
+     *     Attributes:
+     *         request_id: Unique identifier for this request.
+     *         engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *         database: Database containing the table.
+     *         schema: Schema containing the table.
+     *         table_name: Table to preview.
+     *         schema_path: Path of nested schemas (relative to `database`) for
+     *             catalogs with nested schemas. Empty for the top level.
      */
     PreviewSQLTableCommand: {
       database: string;
@@ -6402,6 +6530,15 @@ export interface components {
       schemaPath?: string[];
       tableName: string;
     };
+    /** ProviderModel */
+    ProviderModel: {
+      id: string;
+      name: string;
+    };
+    /** ProviderModelsResponse */
+    ProviderModelsResponse: {
+      models: components["schemas"]["ProviderModel"][];
+    };
     /**
      * PyreflyLanguageServerConfig
      * @description Configuration options for Pyrefly Language Server.
@@ -6409,6 +6546,7 @@ export interface components {
      *     Pyrefly handles completion, hover, go-to-definition, and diagnostics.
      */
     PyreflyLanguageServerConfig: {
+      /** @description Enable this language server. */
       enabled?: boolean;
     };
     /**
@@ -6418,21 +6556,49 @@ export interface components {
      *     pylsp handles completion, hover, go-to-definition, and diagnostics.
      */
     PythonLanguageServerConfig: {
-      enable_flake8?: boolean;
-      enable_mypy?: boolean;
-      enable_pydocstyle?: boolean;
-      enable_pyflakes?: boolean;
-      enable_pylint?: boolean;
-      enable_ruff?: boolean;
-      enabled?: boolean;
+      /**
+       * @description Enable flake8 diagnostics in pylsp.
+       * @default false
+       */
+      enable_flake8: boolean;
+      /**
+       * @description Enable mypy diagnostics in pylsp.
+       * @default true
+       */
+      enable_mypy: boolean;
+      /**
+       * @description Enable pydocstyle diagnostics in pylsp.
+       * @default false
+       */
+      enable_pydocstyle: boolean;
+      /**
+       * @description Enable pyflakes diagnostics in pylsp.
+       * @default false
+       */
+      enable_pyflakes: boolean;
+      /**
+       * @description Enable pylint diagnostics in pylsp.
+       * @default false
+       */
+      enable_pylint: boolean;
+      /**
+       * @description Enable ruff diagnostics in pylsp.
+       * @default true
+       */
+      enable_ruff: boolean;
+      /**
+       * @description Enable this language server.
+       * @default false
+       */
+      enabled: boolean;
     };
     /**
      * QueryParamsAppendNotification
      * @description Appends value to URL query parameter.
      *
-     *         Attributes:
-     *             key: Query parameter key.
-     *             value: Value to append.
+     *     Attributes:
+     *         key: Query parameter key.
+     *         value: Value to append.
      */
     QueryParamsAppendNotification: {
       key: string;
@@ -6452,9 +6618,9 @@ export interface components {
      * QueryParamsDeleteNotification
      * @description Deletes URL query parameter values.
      *
-     *         Attributes:
-     *             key: Query parameter key.
-     *             value: Specific value to delete. If None, deletes all values for key.
+     *     Attributes:
+     *         key: Query parameter key.
+     *         value: Specific value to delete. If None, deletes all values for key.
      */
     QueryParamsDeleteNotification: {
       key: string;
@@ -6466,9 +6632,9 @@ export interface components {
      * QueryParamsSetNotification
      * @description Sets URL query parameter, replacing existing values.
      *
-     *         Attributes:
-     *             key: Query parameter key.
-     *             value: Value(s) to set.
+     *     Attributes:
+     *         key: Query parameter key.
+     *         value: Value(s) to set.
      */
     QueryParamsSetNotification: {
       key: string;
@@ -6483,24 +6649,6 @@ export interface components {
     /** RecentFilesResponse */
     RecentFilesResponse: {
       files: components["schemas"]["MarimoFile"][];
-    };
-    /**
-     * ReconnectedNotification
-     * @description WebSocket reconnection confirmed.
-     */
-    ReconnectedNotification: {
-      /** @enum {unknown} */
-      op: "reconnected";
-    };
-    /**
-     * RefreshSecretsCommand
-     * @description Refresh secrets from the secrets store.
-     *
-     *         Reloads secrets from the provider without restarting the kernel.
-     */
-    RefreshSecretsCommand: {
-      /** @enum {unknown} */
-      type: "refresh-secrets";
     };
     /**
      * ReloadNotification
@@ -6520,29 +6668,15 @@ export interface components {
      * RemoveUIElementsNotification
      * @description Removes UI elements associated with a cell.
      *
-     *         Sent when cell is re-executed or deleted.
+     *     Sent when cell is re-executed or deleted.
      *
-     *         Attributes:
-     *             cell_id: Cell whose UI elements should be removed.
+     *     Attributes:
+     *         cell_id: Cell whose UI elements should be removed.
      */
     RemoveUIElementsNotification: {
       cell_id: components["schemas"]["CellId"];
       /** @enum {unknown} */
       op: "remove-ui-elements";
-    };
-    /**
-     * RenameNotebookCommand
-     * @description Rename or move the notebook file.
-     *
-     *         Updates the notebook's filename in the kernel metadata.
-     *
-     *         Attributes:
-     *             filename: New filename or path for the notebook.
-     */
-    RenameNotebookCommand: {
-      filename: string;
-      /** @enum {unknown} */
-      type: "rename-notebook";
     };
     /** RenameNotebookRequest */
     RenameNotebookRequest: {
@@ -6552,8 +6686,8 @@ export interface components {
      * ReorderCells
      * @description Replace the full cell ordering.
      *
-     *         Cell IDs present in the document but missing from `cell_ids`
-     *         are appended at the end. IDs not in the document are ignored.
+     *     Cell IDs present in the document but missing from `cell_ids`
+     *     are appended at the end. IDs not in the document are ignored.
      */
     ReorderCells: {
       cellIds: components["schemas"]["CellId"][];
@@ -6562,6 +6696,13 @@ export interface components {
     };
     /** Format: request-id */
     RequestId: TypedString<"RequestId">;
+    /** Revision */
+    Revision: {
+      /** @description Identifies an execution. Unique within the host. */
+      execution: string;
+      /** @description How many times the value has been updated since it was produced. Zero at binding. */
+      update: number;
+    };
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -6569,85 +6710,111 @@ export interface components {
     /**
      * RuntimeConfig
      * @description Configuration for runtime.
-     *
-     *         **Keys.**
-     *
-     *         - `auto_instantiate`: if `False`, cells won't automatically
-     *             run on startup. This only applies when editing a notebook,
-     *             and not when running as an application.
-     *             The default is `True`.
-     *         - `auto_reload`: if `lazy`, cells importing modified modules will marked
-     *           as stale; if `autorun`, affected cells will be automatically run. similar
-     *           to IPython's %autoreload extension but with more code intelligence.
-     *         - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
-     *           execution.
-     *         - `on_cell_change`: if `lazy`, cells will be marked stale when their
-     *           ancestors run but won't autorun; if `autorun`, cells will automatically
-     *           run when their ancestors run.
-     *         - `execution_type`: if `relaxed`, marimo will not clone cell declarations;
-     *           if `strict` marimo will clone cell declarations by default, avoiding
-     *           hidden potential state build up.
-     *         - `watcher_on_save`: how to handle file changes when saving. `"lazy"` marks
-     *             affected cells as stale, `"autorun"` automatically runs affected cells.
-     *         - `output_max_bytes`: the maximum size in bytes of cell outputs; larger
-     *             values may affect frontend performance
-     *         - `serve_cached_sessions_in_apps`: if `True`, initialize applications with session cache.
-     *             The default is `False`.
-     *         - `std_stream_max_bytes`: the maximum size in bytes of console outputs;
-     *           larger values may affect frontend performance
-     *         - `pythonpath`: a list of directories to add to the Python search path.
-     *             Directories will be added to the head of sys.path. Similar to the
-     *             `PYTHONPATH` environment variable, the directories will be included in
-     *             where Python will look for imported modules.
-     *         - `dotenv`: a list of paths to `.env` files to load.
-     *             If the file does not exist, it will be silently ignored.
-     *             The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
-     *         - `default_sql_output`: the default output format for SQL queries. Can be one of:
-     *             `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
-     *             The default is `"auto"`.
-     *         - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
-     *            `html`, `markdown`, `ipynb`.
-     *            The default is None.
-     *         - `default_csv_encoding`: the default encoding for CSV exports.
-     *             The default is `"utf-8"`.
-     *         - `show_tracebacks`: if `True`, show detailed error tracebacks in run mode.
-     *             When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
-     *             The default is `False`.
      */
     RuntimeConfig: {
+      /**
+       * @description if `False`, cells won't automatically run on startup. This only applies when editing a notebook, and not when running as an application.
+       * @default false
+       */
       auto_instantiate: boolean;
-      /** @enum {unknown} */
+      /**
+       * @description If `lazy`, mark cells importing modified modules as stale; if `autorun`, automatically run affected cells. Similar to IPython's %autoreload extension, with dependency-aware execution.
+       * @default off
+       * @enum {unknown}
+       */
       auto_reload: "autorun" | "lazy" | "off";
-      default_auto_download?: ("html" | "ipynb" | "markdown")[];
-      default_csv_encoding?: string;
-      /** @enum {unknown} */
+      /**
+       * @description Enable experimental automatic cell caching.
+       * @default false
+       */
+      cache_cells: boolean;
+      /**
+       * @description an Optional list of export types to automatically snapshot your notebook as: `html`, `markdown`, `ipynb`.
+       * @default []
+       */
+      default_auto_download: ("html" | "ipynb" | "markdown")[];
+      /**
+       * @description the default encoding for CSV exports.
+       * @default utf-8
+       */
+      default_csv_encoding: string;
+      /**
+       * @description the default output format for SQL queries. Can be one of: `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
+       * @default auto
+       * @enum {unknown}
+       */
       default_sql_output:
         | "auto"
         | "lazy-polars"
         | "native"
         | "pandas"
         | "polars";
+      /** @description Override .env discovery with a list of files to load. Use an empty list to skip .env loading entirely. In project settings and script metadata, paths are relative to the project folder, or the notebook's folder if there is no project. In user settings, paths must be absolute. */
       dotenv?: string[];
-      /** @enum {unknown} */
+      /**
+       * @description Cell declaration handling: relaxed or strict.
+       * @enum {unknown}
+       */
+      execution_type?: "relaxed" | "strict";
+      /**
+       * @description if `lazy`, cells will be marked stale when their ancestors run but won't autorun; if `autorun`, cells will automatically run when their ancestors run.
+       * @default autorun
+       * @enum {unknown}
+       */
       on_cell_change: "autorun" | "lazy";
+      /**
+       * @description the maximum size in bytes of cell outputs; larger values may affect frontend performance
+       * @default 8000000
+       */
       output_max_bytes: number;
-      pythonpath?: string[];
+      /**
+       * @description Pin imported modules when caching cells.
+       * @default true
+       */
+      pin_modules: boolean;
+      /**
+       * @description a list of directories to add to the Python search path. Directories will be added to the head of sys.path. Similar to the `PYTHONPATH` environment variable, the directories will be included in where Python will look for imported modules.
+       * @default []
+       */
+      pythonpath: string[];
+      /**
+       * @description If `True`, automatically run pytest on cells containing only test functions and test classes.
+       * @default true
+       */
       reactive_tests: boolean;
-      serve_cached_sessions_in_apps?: boolean;
-      show_tracebacks?: boolean;
+      /**
+       * @description if `True`, initialize applications with session cache.
+       * @default false
+       */
+      serve_cached_sessions_in_apps: boolean;
+      /**
+       * @description if `True`, show detailed error tracebacks in run mode. When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
+       * @default false
+       */
+      show_tracebacks: boolean;
+      /** @description Default maximum number of SQL result rows when a query has no LIMIT. Must be non-negative; None means no limit. */
+      sql_default_limit?: number | null;
+      /**
+       * @description the maximum size in bytes of console outputs; larger values may affect frontend performance
+       * @default 1000000
+       */
       std_stream_max_bytes: number;
-      /** @enum {unknown} */
+      /**
+       * @description how to handle file changes when saving. `"lazy"` marks affected cells as stale, `"autorun"` automatically runs affected cells.
+       * @default lazy
+       * @enum {unknown}
+       */
       watcher_on_save: "autorun" | "lazy";
     };
     /**
      * SQLDatabaseMetadata
      * @description SQL database metadata.
      *
-     *         Attributes:
-     *             connection: Connection identifier.
-     *             database: Database name.
-     *             schema_path: Parent schema path the schemas belong under. Empty for
-     *                 the database's top level.
+     *     Attributes:
+     *         connection: Connection identifier.
+     *         database: Database name.
+     *         schema_path: Parent schema path the schemas belong under. Empty for
+     *             the database's top level.
      */
     SQLDatabaseMetadata: {
       connection: string;
@@ -6659,12 +6826,12 @@ export interface components {
      * SQLMetadata
      * @description SQL database and schema metadata.
      *
-     *         Attributes:
-     *             connection: Connection identifier.
-     *             database: Database name.
-     *             schema: Schema name.
-     *             schema_path: Path of nested schemas (relative to `database`). Empty
-     *                 for the top level.
+     *     Attributes:
+     *         connection: Connection identifier.
+     *         database: Database name.
+     *         schema: Schema name.
+     *         schema_path: Path of nested schemas (relative to `database`). Empty
+     *             for the top level.
      */
     SQLMetadata: {
       connection: string;
@@ -6679,11 +6846,11 @@ export interface components {
      * SQLSchemaListPreviewNotification
      * @description List of SQL schemas in a database.
      *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             metadata: Database and schema metadata.
-     *             schemas: Schemas in database.
-     *             error: Error message if failed.
+     *     Attributes:
+     *         request_id: Request ID this responds to.
+     *         metadata: Database and schema metadata.
+     *         schemas: Schemas in database.
+     *         error: Error message if failed.
      */
     SQLSchemaListPreviewNotification: {
       /** @default null */
@@ -6699,11 +6866,11 @@ export interface components {
      * SQLTableListPreviewNotification
      * @description List of SQL tables in a schema.
      *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             metadata: Database and schema metadata.
-     *             tables: Tables in schema.
-     *             error: Error message if failed.
+     *     Attributes:
+     *         request_id: Request ID this responds to.
+     *         metadata: Database and schema metadata.
+     *         tables: Tables in schema.
+     *         error: Error message if failed.
      */
     SQLTableListPreviewNotification: {
       /** @default null */
@@ -6719,11 +6886,11 @@ export interface components {
      * SQLTablePreviewNotification
      * @description SQL table preview.
      *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             metadata: Database and schema metadata.
-     *             table: Table data (None if error).
-     *             error: Error message if failed.
+     *     Attributes:
+     *         request_id: Request ID this responds to.
+     *         metadata: Database and schema metadata.
+     *         table: Table data (None if error).
+     *         error: Error message if failed.
      */
     SQLTablePreviewNotification: {
       /** @default null */
@@ -6732,7 +6899,7 @@ export interface components {
       /** @enum {unknown} */
       op: "sql-table-preview";
       request_id: components["schemas"]["RequestId"];
-      table: null | components["schemas"]["DataTable"];
+      table: components["schemas"]["DataTable"] | null;
     };
     /**
      * SafeLiteralDiscoveryValue
@@ -6750,6 +6917,17 @@ export interface components {
       /** @enum {unknown} */
       kind: "sandbox";
     };
+    /** SandboxRequest */
+    SandboxRequest: {
+      /** @default null */
+      fileKey?: string | null;
+    };
+    /** SandboxResponse */
+    SandboxResponse: {
+      backend: ("pixi" | "uv") | null;
+      filename: string | null;
+      manifest: string | null;
+    };
     /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {
       config: Record<string, any>;
@@ -6757,30 +6935,32 @@ export interface components {
     /**
      * SaveConfig
      * @description Configuration for saving.
-     *
-     *         **Keys.**
-     *
-     *         - `autosave`: one of `"off"` or `"after_delay"`
-     *         - `delay`: number of milliseconds to wait before autosaving
-     *         - `format_on_save`: if `True`, format the code on save
      */
     SaveConfig: {
-      /** @enum {unknown} */
+      /**
+       * @description one of `"off"` or `"after_delay"`
+       * @default after_delay
+       * @enum {unknown}
+       */
       autosave: "after_delay" | "off";
+      /**
+       * @description Delay in milliseconds before automatically saving.
+       * @default 1000
+       */
       autosave_delay: number;
+      /**
+       * @description if `True`, format the code on save
+       * @default false
+       */
       format_on_save: boolean;
     };
-    /** SaveNotebookRequest */
-    SaveNotebookRequest: {
-      cellIds: components["schemas"]["CellId"][];
-      codes: string[];
-      configs: components["schemas"]["CellConfig"][];
-      filename: string;
+    /**
+     * SaveLayoutRequest
+     * @description The notebook's layout, written beside it; `None` removes it.
+     */
+    SaveLayoutRequest: {
       /** @default null */
       layout?: Record<string, any> | null;
-      names: string[];
-      /** @default true */
-      persist?: boolean;
     };
     /** SaveUserConfigurationRequest */
     SaveUserConfigurationRequest: {
@@ -6827,9 +7007,9 @@ export interface components {
      * SecretKeysResultNotification
      * @description Available secret keys from secret providers.
      *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             secrets: Secret keys with provider info.
+     *     Attributes:
+     *         request_id: Request ID this responds to.
+     *         secrets: Secret keys with provider info.
      */
     SecretKeysResultNotification: {
       /** @enum {unknown} */
@@ -6847,54 +7027,120 @@ export interface components {
     /**
      * ServerConfig
      * @description Configuration for the server.
-     *
-     *         **Keys.**
-     *
-     *         - `browser`: the web browser to use. `"default"` or a browser registered
-     *             with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
-     *         - `follow_symlink`: if true, the server will follow symlinks it finds
-     *             inside its static assets directory.
-     *         - `disable_file_downloads`: if true, the file download button will be
-     *             hidden in the file explorer.
-     *         - `transport`: experimental. The transport used to stream kernel
-     *             messages to the frontend, typically set with the
-     *             `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
-     *             (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
-     *             server-sent events over HTTP, for deployments behind proxies or
-     *             services that do not support WebSockets. Terminal, LSP, and
-     *             real-time collaboration still require WebSockets; RTC is disabled
-     *             when using `"sse"`.
      */
     ServerConfig: {
+      /**
+       * @description Allowed origins for HTTP and WebSocket connections.
+       * @default []
+       */
+      allow_origins: string[];
+      /**
+       * @description Base URL for the server, starting with / and without a trailing slash.
+       * @default
+       */
+      base_url: string;
+      /**
+       * @description the web browser to use. `"default"` or a browser registered with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
+       * @default default
+       */
       browser: "default" | string;
-      disable_file_downloads?: boolean;
+      /**
+       * @description if true, the file download button will be hidden in the file explorer.
+       * @default false
+       */
+      disable_file_downloads: boolean;
+      /**
+       * @description if true, the server will follow symlinks it finds inside its static assets directory.
+       * @default false
+       */
       follow_symlink: boolean;
-      /** @enum {unknown} */
+      /**
+       * @description Do not launch a browser.
+       * @default false
+       */
+      headless: boolean;
+      /**
+       * @description Host to bind to.
+       * @default 127.0.0.1
+       */
+      host: string;
+      /**
+       * @description Send notebook source code to clients in run mode. Edit mode always includes code.
+       * @default false
+       */
+      include_code: boolean;
+      /**
+       * @description Port to bind to (0-65535). If unset or 0, find an available port.
+       * @default null
+       */
+      port: number | null;
+      /**
+       * @description Address of the reverse proxy.
+       * @default null
+       */
+      proxy: string | null;
+      /**
+       * @description Redirect console output to the browser. This option only applies to run mode. Edit mode always redirects output to the browser.
+       * @default false
+       */
+      redirect_console_to_browser: boolean;
+      /**
+       * @description Use partitioned cookies for cross-site HTTPS embeds. Implies SameSite=None and Secure.
+       * @default false
+       */
+      session_cookie_partitioned: boolean;
+      /**
+       * @description Only send session cookies over HTTPS. Enable when serving behind TLS.
+       * @default false
+       */
+      session_cookie_secure: boolean;
+      /**
+       * @description Secret used to sign session cookies and to derive the default `marimo run` auth token. Set a stable value to preserve sessions and tokens across restarts or replicas; otherwise a random secret is generated per process.
+       * @default null
+       */
+      session_secret: string | null;
+      /** @description Seconds before closing a disconnected session. Defaults to unlimited in edit mode and 120 in run mode; null means unlimited. */
+      session_ttl?: number | null;
+      /**
+       * @description Enable protection against frontend and server version mismatches.
+       * @default true
+       */
+      skew_protection: boolean;
+      /**
+       * @description Skip checking for marimo updates when starting the editor.
+       * @default false
+       */
+      skip_update_check: boolean;
+      /**
+       * @description Shut down after this many minutes without a connection.
+       * @default null
+       */
+      timeout: number | null;
+      /** @description Enable token authentication. Defaults to true in edit mode and false in run mode. */
+      token?: boolean;
+      /**
+       * @description Password used for token authentication. Mutually exclusive with token_password_file.
+       * @default null
+       */
+      token_password: string | null;
+      /**
+       * @description File containing the token password, or - to read from stdin. Mutually exclusive with token_password.
+       * @default null
+       */
+      token_password_file: string | null;
+      /**
+       * @description experimental. The transport used to stream kernel messages to the frontend, typically set with the `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"` (default) uses the `/ws` WebSocket endpoint; `"sse"` uses server-sent events over HTTP, for deployments behind proxies or services that do not support WebSockets. The terminal and LSP still require WebSockets.
+       * @enum {unknown}
+       */
       transport?: "sse" | "websocket";
+      /**
+       * @description Watch notebook files for changes; reload code in edit mode or the application in run mode.
+       * @default false
+       */
+      watch: boolean;
     };
     /** Format: session-id */
     SessionId: TypedString<"SessionId">;
-    /**
-     * SetBreakpointsCommand
-     * @description Set the live debugger's breakpoints (session-scoped, not persisted).
-     *
-     *         Replaces the full breakpoint set: the frontend always sends the complete
-     *         map of cell id -> 1-based line numbers. Only meaningful when the
-     *         `debugger` experimental feature is enabled.
-     *
-     *         Attributes:
-     *             breakpoints: Map of cell id to lines that have a breakpoint.
-     *             request: HTTP request context if available.
-     */
-    SetBreakpointsCommand: {
-      breakpoints: {
-        [key: string]: number[];
-      };
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      /** @enum {unknown} */
-      type: "set-breakpoints";
-    };
     /** SetBreakpointsRequest */
     SetBreakpointsRequest: {
       breakpoints: {
@@ -6921,6 +7167,7 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       column: number | null;
       disabled: boolean;
+      expandOutput: boolean;
       hideCode: boolean;
       /** @enum {unknown} */
       type: "set-config";
@@ -6944,16 +7191,13 @@ export interface components {
     /**
      * SharingConfig
      * @description Configuration for sharing features.
-     *
-     *         **Keys.**
-     *
-     *         - `html`: if `False`, HTML sharing options will be hidden from the UI
-     *         - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
-     *         - `molab`: if `False`, molab sharing options will be hidden from the UI
      */
     SharingConfig: {
+      /** @description if `False`, HTML sharing options will be hidden from the UI */
       html?: boolean;
+      /** @description if `False`, molab sharing options will be hidden from the UI */
       molab?: boolean;
+      /** @description if `False`, WebAssembly sharing options will be hidden from the UI */
       wasm?: boolean;
     };
     /** ShutdownSessionRequest */
@@ -6963,16 +7207,18 @@ export interface components {
     /**
      * SigningConfig
      * @description Cache-signing trust and identity.
-     *
-     *         `trusted_signers` maps a key fingerprint (`"SHA256:<base64>"`) to an
-     *         advisory label. Trusting a key allows arbitrary code execution from its
-     *         holder on this machine — a cache restore is `pickle.loads` — so there is no
-     *         lesser cache-only grant. `private_key_path` is this machine's signing
-     *         identity; it is never serialized to the frontend.
      */
     SigningConfig: {
-      private_key_path?: string;
-      trusted_signers?: {
+      /**
+       * @description Absolute path to this machine's private signing key. Not exposed to the frontend.
+       * @default null
+       */
+      private_key_path: string | null;
+      /**
+       * @description Trusted key fingerprints (SHA256:<base64>) mapped to advisory labels. Trust permits code execution when restoring cached Python objects.
+       * @default {}
+       */
+      trusted_signers: {
         [key: string]: string;
       };
     };
@@ -6996,14 +7242,18 @@ export interface components {
     /**
      * SnippetsConfig
      * @description Configuration for snippets.
-     *
-     *         **Keys.**
-     *
-     *         - `custom_path`: the path to the custom snippets directory
      */
     SnippetsConfig: {
-      custom_paths?: string[];
-      include_default_snippets?: boolean;
+      /**
+       * @description Paths to directories containing custom snippets.
+       * @default []
+       */
+      custom_paths: string[];
+      /**
+       * @description Include the built-in snippets.
+       * @default true
+       */
+      include_default_snippets: boolean;
     };
     /**
      * SqlCatalogCheckResult
@@ -7046,9 +7296,9 @@ export interface components {
      * StartupLogsNotification
      * @description Streaming kernel startup logs.
      *
-     *         Attributes:
-     *             content: Log content to display.
-     *             status: Stream status (start/append/done).
+     *     Attributes:
+     *         content: Log content to display.
+     *         status: Stream status (start/append/done).
      */
     StartupLogsNotification: {
       content: string;
@@ -7057,56 +7307,34 @@ export interface components {
       /** @enum {unknown} */
       status: "append" | "done" | "start";
     };
-    /** StdinRequest */
-    StdinRequest: {
-      text: string;
-    };
     /**
-     * StopKernelCommand
-     * @description Stop kernel execution.
+     * StartupProgressNotification
+     * @description Current startup phase and its output before the kernel is ready.
      *
-     *         Signals the kernel to stop processing and shut down gracefully.
-     *         Used when closing a notebook or terminating a session.
+     *     Output appends within a phase. Snapshots replace it, and changing phases
+     *     starts a new stream. Environment preparation logs belong to its operation.
      */
-    StopKernelCommand: {
+    StartupProgressNotification: {
       /** @enum {unknown} */
-      type: "stop-kernel";
-    };
-    /**
-     * StorageDownloadCommand
-     * @description Download a storage entry.
-     *
-     *         Obtains a pre-signed URL or downloads the file locally and returns a virtual file URL
-     *         so the frontend can fetch the contents.
-     *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             namespace: Variable name identifying the storage backend.
-     *             path: Full path of the entry to download.
-     *             preview: If true, a local preview of the file is returned.
-     *                 This is useful if you need to bypass CORS.
-     */
-    StorageDownloadCommand: {
-      namespace: string;
-      path: string;
-      /** @default false */
-      preview?: boolean;
-      requestId: string;
+      log_mode: "append" | "replace";
+      logs: string;
       /** @enum {unknown} */
-      type: "storage-download";
+      op: "startup-progress";
+      /** @enum {unknown} */
+      phase: "preparing-environment" | "starting-kernel";
     };
     /**
      * StorageDownloadReadyNotification
      * @description Signals that a storage file download is ready.
      *
-     *         The url may be a signed cloud URL (preferred) or a virtual file URL
-     *         (fallback for backends that don't support signing).
+     *     The url may be a signed cloud URL (preferred) or a virtual file URL
+     *     (fallback for backends that don't support signing).
      *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             url: Signed or virtual-file URL to download from.
-     *             filename: Suggested filename for the download.
-     *             error: Error message if the download failed.
+     *     Attributes:
+     *         request_id: Request ID this responds to.
+     *         url: Signed or virtual-file URL to download from.
+     *         filename: Suggested filename for the download.
+     *         error: Error message if the download failed.
      */
     StorageDownloadReadyNotification: {
       /** @default null */
@@ -7115,7 +7343,7 @@ export interface components {
       filename?: string | null;
       /** @enum {unknown} */
       op: "storage-download-ready";
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
       /** @default null */
       url?: string | null;
     };
@@ -7131,14 +7359,14 @@ export interface components {
      * StorageEntriesNotification
      * @description Result of a storage operation that returns entries.
      *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             entries: Storage entries returned by the operation.
-     *             namespace: Variable name of the storage backend.
-     *             prefix: The prefix that was listed (set by list_entries).
-     *             query: The search query that was used (set by search).
-     *             next_page_token: Token for fetching the next page of entries.
-     *             error: Error message if the operation failed.
+     *     Attributes:
+     *         request_id: Request ID this responds to.
+     *         entries: Storage entries returned by the operation.
+     *         namespace: Variable name of the storage backend.
+     *         prefix: The prefix that was listed (set by list_entries).
+     *         query: The search query that was used (set by search).
+     *         next_page_token: Token for fetching the next page of entries.
+     *         error: Error message if the operation failed.
      */
     StorageEntriesNotification: {
       entries: components["schemas"]["StorageEntry"][];
@@ -7153,19 +7381,19 @@ export interface components {
       prefix?: string | null;
       /** @default null */
       query?: string | null;
-      request_id: string;
+      request_id: components["schemas"]["RequestId"];
     };
     /**
      * StorageEntry
      * @description A storage entry is a file, directory, or object for external storage systems
      *
-     *         Attributes:
-     *             path: The path of the storage entry.
-     *             kind: The kind of the storage entry.
-     *             size: The size of the storage entry.
-     *             last_modified: The last modified time of the storage entry.
-     *             metadata: The metadata of the storage entry.
-     *             mime_type: The MIME type of the storage entry, or None for directories.
+     *     Attributes:
+     *         path: The path of the storage entry.
+     *         kind: The kind of the storage entry.
+     *         size: The size of the storage entry.
+     *         last_modified: The last modified time of the storage entry.
+     *         metadata: The metadata of the storage entry.
+     *         mime_type: The MIME type of the storage entry, or None for directories.
      */
     StorageEntry: {
       /** @enum {unknown} */
@@ -7188,31 +7416,6 @@ export interface components {
       kind: "storage";
       protocols: string[];
     };
-    /**
-     * StorageListEntriesCommand
-     * @description List storage entries at a prefix.
-     *
-     *         Navigates storage like a folder tree using delimiter-based listing.
-     *         Returns entries (files/objects) and virtual directories at one level.
-     *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             namespace: Variable name identifying the storage backend.
-     *             limit: Max entries to return.
-     *             prefix: Path prefix to list (None = root).
-     *             page_token: Token for the next page of entries.
-     */
-    StorageListEntriesCommand: {
-      limit: number;
-      namespace: string;
-      /** @default null */
-      pageToken?: string | null;
-      /** @default null */
-      prefix?: string | null;
-      requestId: string;
-      /** @enum {unknown} */
-      type: "storage-list-entries";
-    };
     /** StorageListEntriesRequest */
     StorageListEntriesRequest: {
       limit: number;
@@ -7227,13 +7430,13 @@ export interface components {
      * StorageNamespace
      * @description Represents external storage systems (filesystems and object storage)
      *
-     *         Attributes:
-     *             name: The variable name of the storage namespace.
-     *             display_name: The display name of the storage namespace.
-     *             protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
-     *             root_path: The root path of the storage namespace.
-     *             backend_type: The type of the storage backend (fsspec or obstore)
-     *             storage_entries: The storage entries in the storage namespace.
+     *     Attributes:
+     *         name: The variable name of the storage namespace.
+     *         display_name: The display name of the storage namespace.
+     *         protocol: The protocol of the storage namespace. E.g. s3, gcs, azure, http, file, in-memory.
+     *         root_path: The root path of the storage namespace.
+     *         backend_type: The type of the storage backend (fsspec or obstore)
+     *         storage_entries: The storage entries in the storage namespace.
      */
     StorageNamespace: {
       /** @enum {unknown} */
@@ -7248,8 +7451,8 @@ export interface components {
      * StorageNamespacesNotification
      * @description Available storage namespaces for storage inspector.
      *
-     *         Attributes:
-     *             namespaces: Available storage namespaces.
+     *     Attributes:
+     *         namespaces: Available storage namespaces.
      */
     StorageNamespacesNotification: {
       namespaces: components["schemas"]["StorageNamespace"][];
@@ -7261,37 +7464,31 @@ export interface components {
      * @description Configuration for a single cache store.
      */
     StoreConfig: {
-      args?: Record<string, any>;
-      /** @enum {unknown} */
-      type?: "file" | "redis" | "rest" | "tiered";
+      /**
+       * @description Keyword arguments passed to the cache store constructor.
+       * @default {}
+       */
+      args: Record<string, any>;
+      /**
+       * @description Cache store backend or installed entry-point name.
+       * @default file
+       */
+      type: ("file" | "redis" | "rest" | "tiered") | string;
     };
     /** SuccessResponse */
     SuccessResponse: {
       /** @default true */
       success?: boolean;
     };
-    /**
-     * SyncGraphCommand
-     * @description Synchronize the kernel graph with file manager state.
-     *
-     *         Used when the notebook file changes externally (e.g., file reload or version control).
-     *         Updates changed cells, deletes removed cells, and optionally executes modified cells.
-     *
-     *         Attributes:
-     *             cells: All cells known to file manager, mapping cell_id to code.
-     *             run_ids: Cells to execute or update.
-     *             delete_ids: Cells to delete from the graph.
-     *             timestamp: Unix timestamp when command was created.
-     */
-    SyncGraphCommand: {
-      cells: {
-        [key: string]: string;
-      };
-      deleteIds: string[];
-      runIds: string[];
-      timestamp?: number;
-      /** @enum {unknown} */
-      type: "sync-graph";
+    /** SyncSandboxResponse */
+    SyncSandboxResponse: {
+      /** @default null */
+      error?: string | null;
+      /** @default false */
+      reconnect?: boolean;
+      /** @default false */
+      restartRequired?: boolean;
+      success: boolean;
     };
     /**
      * ToolDefinition
@@ -7309,9 +7506,9 @@ export interface components {
      * Transaction
      * @description An atomic batch of changes applied to a NotebookDocument.
      *
-     *         `source` identifies the writer (e.g. `"frontend"`, `"kernel"`).
-     *         `version` is `None` when created and stamped by
-     *         `NotebookDocument.apply()`.
+     *     `source` identifies the writer (e.g. `"frontend"`, `"kernel"`).
+     *     `version` is `None` when created and stamped by
+     *     `NotebookDocument.apply()`.
      */
     Transaction: {
       changes: (
@@ -7329,6 +7526,7 @@ export interface components {
         | "code-mode"
         | "file-watch"
         | "frontend"
+        | "host"
         | "kernel";
       /** @default null */
       version?: number | null;
@@ -7341,6 +7539,7 @@ export interface components {
      *     but we only use it for diagnostics.
      */
     TyLanguageServerConfig: {
+      /** @description Enable this language server. */
       enabled?: boolean;
     };
     /** Format: ui-element-id */
@@ -7349,10 +7548,10 @@ export interface components {
      * UIElementMessageNotification
      * @description Sends a message to a UI element/widget.
      *
-     *         Attributes:
-     *             ui_element: UI element identifier.
-     *             message: Message payload as dictionary.
-     *             buffers: Optional binary buffers for large data.
+     *     Attributes:
+     *         ui_element: UI element identifier.
+     *         message: Message payload as dictionary.
+     *         buffers: Optional binary buffers for large data.
      */
     UIElementMessageNotification: {
       /** @default null */
@@ -7374,11 +7573,11 @@ export interface components {
      * UpdateCellConfigCommand
      * @description Update cell configuration.
      *
-     *         Updates cell-level settings like disabled state, hide code, etc.
+     *     Updates cell-level settings like disabled state, hide code, etc.
      *
-     *         Attributes:
-     *             configs: Cell IDs mapped to their config updates. Each config dict
-     *                      can contain partial updates.
+     *     Attributes:
+     *         configs: Cell IDs mapped to their config updates. Each config dict
+     *                  can contain partial updates.
      */
     UpdateCellConfigCommand: {
       configs: {
@@ -7386,12 +7585,6 @@ export interface components {
       };
       /** @enum {unknown} */
       type: "update-cell-config";
-    };
-    /** UpdateCellConfigRequest */
-    UpdateCellConfigRequest: {
-      configs: {
-        [key: string]: Record<string, any>;
-      };
     };
     /** UpdateCellOutputsRequest */
     UpdateCellOutputsRequest: {
@@ -7427,18 +7620,25 @@ export interface components {
         ];
       };
     };
+    /** UpdateManifestRequest */
+    UpdateManifestRequest: {
+      contents: string;
+      /** @default null */
+      fileKey?: string | null;
+      previous: string;
+    };
     /**
      * UpdateUIElementCommand
      * @description Update UI element values.
      *
-     *         Triggered when users interact with UI elements (sliders, inputs, dropdowns, etc.).
-     *         Updates element values and re-executes dependent cells.
+     *     Triggered when users interact with UI elements (sliders, inputs, dropdowns, etc.).
+     *     Updates element values and re-executes dependent cells.
      *
-     *         Attributes:
-     *             object_ids: UI elements to update.
-     *             values: New values for the elements. Must match length of object_ids.
-     *             request: HTTP request context if available.
-     *             token: Unique request identifier for deduplication.
+     *     Attributes:
+     *         object_ids: UI elements to update.
+     *         values: New values for the elements. Must match length of object_ids.
+     *         request: HTTP request context if available.
+     *         token: Unique request identifier for deduplication.
      */
     UpdateUIElementCommand: {
       objectIds: components["schemas"]["UIElementId"][];
@@ -7462,37 +7662,23 @@ export interface components {
       objectIds: components["schemas"]["UIElementId"][];
       values: unknown[];
     };
-    /**
-     * UpdateUserConfigCommand
-     * @description Update user configuration.
-     *
-     *         Updates global marimo configuration (runtime settings, display options, editor preferences).
-     *
-     *         Attributes:
-     *             config: Complete user configuration.
-     */
-    UpdateUserConfigCommand: {
-      config: components["schemas"]["MarimoConfig"];
-      /** @enum {unknown} */
-      type: "update-user-config";
-    };
     /** UpdateUserConfigRequest */
     UpdateUserConfigRequest: {
-      config: components["schemas"]["MarimoConfig"];
+      config: Record<string, any>;
     };
     /**
      * ValidateSQLCommand
      * @description Validate an SQL query.
      *
-     *         Checks if an SQL query is valid by parsing against a dialect (no DB connection)
-     *         or validating against an actual database.
+     *     Checks if an SQL query is valid by parsing against a dialect (no DB connection)
+     *     or validating against an actual database.
      *
-     *         Attributes:
-     *             request_id: Unique identifier for this request.
-     *             query: SQL query to validate.
-     *             only_parse: If True, only parse using dialect. If False, validate against DB.
-     *             engine: SQL engine (required if only_parse is False).
-     *             dialect: SQL dialect for parsing (required if only_parse is True).
+     *     Attributes:
+     *         request_id: Unique identifier for this request.
+     *         query: SQL query to validate.
+     *         only_parse: If True, only parse using dialect. If False, validate against DB.
+     *         engine: SQL engine (required if only_parse is False).
+     *         dialect: SQL dialect for parsing (required if only_parse is True).
      */
     ValidateSQLCommand: {
       /** @default null */
@@ -7519,11 +7705,11 @@ export interface components {
      * ValidateSQLResultNotification
      * @description SQL query validation result.
      *
-     *         Attributes:
-     *             request_id: Request ID this responds to.
-     *             parse_result: SQL parsing result.
-     *             validate_result: Catalog validation result.
-     *             error: Error message if failed.
+     *     Attributes:
+     *         request_id: Request ID this responds to.
+     *         parse_result: SQL parsing result.
+     *         validate_result: Catalog validation result.
+     *         error: Error message if failed.
      */
     ValidateSQLResultNotification: {
       /** @default null */
@@ -7531,10 +7717,10 @@ export interface components {
       /** @enum {unknown} */
       op: "validate-sql-result";
       /** @default null */
-      parse_result?: null | components["schemas"]["SqlParseResult"];
-      request_id: string;
+      parse_result?: components["schemas"]["SqlParseResult"] | null;
+      request_id: components["schemas"]["RequestId"];
       /** @default null */
-      validate_result?: null | components["schemas"]["SqlCatalogCheckResult"];
+      validate_result?: components["schemas"]["SqlCatalogCheckResult"] | null;
     };
     /** VariableContext */
     VariableContext: {
@@ -7546,10 +7732,10 @@ export interface components {
      * VariableDeclarationNotification
      * @description Variable declaration and usage for dataflow graph.
      *
-     *         Attributes:
-     *             name: Variable name.
-     *             declared_by: Cell IDs that define this variable.
-     *             used_by: Cell IDs that use this variable.
+     *     Attributes:
+     *         name: Variable name.
+     *         declared_by: Cell IDs that define this variable.
+     *         used_by: Cell IDs that use this variable.
      */
     VariableDeclarationNotification: {
       declared_by: components["schemas"]["CellId"][];
@@ -7559,37 +7745,52 @@ export interface components {
     /** Format: variable-name */
     VariableName: TypedString<"VariableName">;
     /**
+     * VariableRemoval
+     * @description A binding removed from the runtime's namespace.
+     */
+    VariableRemoval: {
+      execution_id: string;
+      name: string;
+    };
+    /**
      * VariableValue
      * @description Variable value and type for variables panel.
      *
-     *         Attributes:
-     *             name: Variable name.
-     *             value: String representation of value.
-     *             datatype: Data type as string.
+     *     Attributes:
+     *         name: Variable name.
+     *         value: String representation of value.
+     *         datatype: Data type as string.
      */
     VariableValue: {
       datatype: string | null;
+      /** @default null */
+      execution_id?: string | null;
       name: string;
+      /** @default null */
+      revision?: components["schemas"]["Revision"] | null;
       value: string | null;
     };
     /**
      * VariableValuesNotification
      * @description Current variable values.
      *
-     *         Attributes:
-     *             variables: Variables with current values and types.
+     *     Attributes:
+     *         variables: Variables with current values and types.
+     *         removed: Bindings that no longer exist, identified by their producer.
      */
     VariableValuesNotification: {
       /** @enum {unknown} */
       op: "variable-values";
+      /** @default [] */
+      removed?: components["schemas"]["VariableRemoval"][];
       variables: components["schemas"]["VariableValue"][];
     };
     /**
      * VariablesNotification
      * @description Variable dataflow graph.
      *
-     *         Attributes:
-     *             variables: Variable declarations and usage.
+     *     Attributes:
+     *         variables: Variable declarations and usage.
      */
     VariablesNotification: {
       /** @enum {unknown} */
@@ -7598,21 +7799,22 @@ export interface components {
     };
     /**
      * VenvConfig
-     * @description Configuration for external Python environment in home sandbox mode.
+     * @description Configuration for an external Python environment in edit mode.
      *
-     *         Allows specifying an existing virtualenv to use instead of creating
-     *         ephemeral sandboxes per notebook. Only applies in home sandbox mode.
-     *
-     *         **Keys.**
-     *
-     *         - `path`: path to a virtualenv directory (absolute or relative to
-     *           pyproject.toml)
-     *         - `writable`: if true, marimo will manage script metadata (inline
-     *           dependencies). Defaults to false.
+     *     Launches the notebook kernel in an existing virtualenv. Applies to
+     *     single notebooks and directories when editing without `--sandbox`.
      */
     VenvConfig: {
-      path?: string;
-      writable?: boolean;
+      /**
+       * @description path to a virtualenv directory (absolute or relative to pyproject.toml)
+       * @default null
+       */
+      path: string | null;
+      /**
+       * @description if true, marimo will manage script metadata (inline dependencies). Defaults to false.
+       * @default false
+       */
+      writable: boolean;
     };
     /** Format: widget-model-id */
     WidgetModelId: TypedString<"WidgetModelId">;
@@ -7634,8 +7836,8 @@ export interface components {
      * _AppConfig
      * @description Program-specific configuration.
      *
-     *         Configuration for frontends or runtimes that is specific to
-     *         a single marimo program.
+     *     Configuration for frontends or runtimes that is specific to
+     *     a single marimo program.
      */
     _AppConfig: {
       /** @default null */

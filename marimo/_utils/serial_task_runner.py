@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 
@@ -37,7 +37,7 @@ class SerialTaskRunner:
 
     def __init__(self, *, thread_name_prefix: str = "serial-task") -> None:
         self._thread_name_prefix = thread_name_prefix
-        self._pending: list[asyncio.Future[Any]] = []
+        self._pending: list[asyncio.Future[None]] = []
         self._closed = False
 
     @cached_property
@@ -47,7 +47,7 @@ class SerialTaskRunner:
         )
 
     @property
-    def pending(self) -> list[asyncio.Future[Any]]:
+    def pending(self) -> list[asyncio.Future[None]]:
         """In-flight futures; tests can await these to synchronize."""
         return self._pending
 

@@ -291,14 +291,10 @@ describe("patchVegaLoader - loader.load", () => {
     const loader = createLoader();
     const unpatch = patchVegaLoader(loader, virtualFiles);
 
-    try {
-      const content = await loader.load("file:///path/to/@file/vega-data.json");
-      expect(content).toBe('{"values": [1, 2, 3]}');
-    } catch (error) {
-      // If it falls back to original loader and fails, that's expected for file:// URLs
-      // The important thing is that the virtual file lookup was attempted
-      expect(error).toBeDefined();
-    }
+    const content = await loader
+      .load("file:///path/to/@file/vega-data.json")
+      .catch(() => undefined);
+    expect([undefined, '{"values": [1, 2, 3]}']).toContain(content);
 
     unpatch();
   });
@@ -340,15 +336,10 @@ describe("patchVegaLoader - loader.load", () => {
     }
 
     // Test file:// URL separately since it might fallback
-    try {
-      const content = await loader.load(
-        "file:///local/path/@file/pattern-test.json",
-      );
-      expect(content).toBe('{"pattern": "test"}');
-    } catch (error) {
-      // Expected if it falls back to original loader
-      expect(error).toBeDefined();
-    }
+    const fileUrlContent = await loader
+      .load("file:///local/path/@file/pattern-test.json")
+      .catch(() => undefined);
+    expect([undefined, '{"pattern": "test"}']).toContain(fileUrlContent);
 
     unpatch();
   });
@@ -640,12 +631,9 @@ describe("error handling and edge cases", () => {
     expect(window.fetch).toBe(originalFetch);
 
     // Test that the loader functions are functional (they should work normally)
-    try {
-      await loader.load("http://example.com/test.json");
-    } catch (error) {
-      // Expected to fail for non-existent URLs, but the function should be callable
-      expect(error).toBeDefined();
-    }
+    // A network failure is expected for this non-existent URL. A custom loader
+    // may also handle it, so only verify that the restored method is callable.
+    await loader.load("http://example.com/test.json").catch(() => undefined);
   });
 
   it("should handle Request objects in patchFetch", async () => {
@@ -666,25 +654,47 @@ describe("error handling and edge cases", () => {
     unpatch();
   });
 
-  it("should handle malformed URLs gracefully", async () => {
-    const virtualFiles = {};
-    const unpatch = patchFetch(virtualFiles);
+  it("forwards relative URLs and options to the original fetch", async () => {
+    const response = new Response("relative content");
+    const originalFetch = vi.spyOn(window, "fetch").mockResolvedValue(response);
+    const unpatch = patchFetch({});
+    const options = { headers: { Accept: "text/plain" } };
 
-    // Mock Logger.error to avoid test output
+    try {
+      expect(await window.fetch("relative-file.txt", options)).toBe(response);
+      expect(originalFetch).toHaveBeenCalledExactlyOnceWith(
+        "relative-file.txt",
+        options,
+      );
+    } finally {
+      unpatch();
+      originalFetch.mockRestore();
+    }
+  });
+
+  it("preserves the original fetch rejection for malformed URLs", async () => {
+    const error = new TypeError("Invalid URL");
+    const originalFetch = vi.spyOn(window, "fetch").mockRejectedValue(error);
     const loggerSpy = vi
       .spyOn(console, "error")
       .mockImplementation(Functions.NOOP);
+    const unpatch = patchFetch({});
+    const options = { headers: { Accept: "text/plain" } };
 
-    // This should catch the error and fallback to original fetch
     try {
-      await window.fetch("not-a-valid-url");
-      // If it doesn't throw, that's also fine (fallback behavior)
-    } catch (error) {
-      // Expected behavior - invalid URLs should be handled gracefully
-      expect(error).toBeDefined();
+      await expect(window.fetch("http://[", options)).rejects.toBe(error);
+      expect(originalFetch).toHaveBeenCalledExactlyOnceWith(
+        "http://[",
+        options,
+      );
+      expect(loggerSpy).toHaveBeenCalledWith(
+        "Error parsing URL",
+        expect.any(TypeError),
+      );
+    } finally {
+      unpatch();
+      originalFetch.mockRestore();
+      loggerSpy.mockRestore();
     }
-
-    unpatch();
-    loggerSpy.mockRestore();
   });
 });

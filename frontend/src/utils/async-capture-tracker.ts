@@ -66,7 +66,7 @@ export class AsyncCaptureTracker<K, R = unknown> {
    * - Captured with a different value
    * - In-flight with a different value (will be aborted on {@link startCapture})
    */
-  needsCapture(key: K, inputValue: unknown): boolean {
+  public needsCapture(key: K, inputValue: unknown): boolean {
     if (this.capturedInputs.get(key) === inputValue) {
       return false;
     }
@@ -82,7 +82,10 @@ export class AsyncCaptureTracker<K, R = unknown> {
    * that resolves when the capture completes (with the result, or `undefined`
    * on failure/abort). Returns `null` otherwise.
    */
-  waitForInFlight(key: K, inputValue: unknown): Promise<R | undefined> | null {
+  public waitForInFlight(
+    key: K,
+    inputValue: unknown,
+  ): Promise<R | undefined> | null {
     const flight = this.inFlight.get(key);
     if (flight && flight.inputValue === inputValue) {
       return flight.deferred.promise;
@@ -97,7 +100,7 @@ export class AsyncCaptureTracker<K, R = unknown> {
    *
    * @returns A {@link CaptureHandle} scoped to this attempt.
    */
-  startCapture(key: K, inputValue: unknown): CaptureHandle<R> {
+  public startCapture(key: K, inputValue: unknown): CaptureHandle<R> {
     const prev = this.inFlight.get(key);
     if (prev) {
       this.cancelEntry(prev);
@@ -133,7 +136,7 @@ export class AsyncCaptureTracker<K, R = unknown> {
    * Remove tracking for keys not in the given set.
    * Aborts in-flight captures and resolves their waiters with `undefined`.
    */
-  prune(currentKeys: Set<K>): void {
+  public prune(currentKeys: Set<K>): void {
     for (const key of this.capturedInputs.keys()) {
       if (!currentKeys.has(key)) {
         this.capturedInputs.delete(key);
@@ -148,12 +151,12 @@ export class AsyncCaptureTracker<K, R = unknown> {
   }
 
   /** Whether any captures are currently in-flight. */
-  get isCapturing(): boolean {
+  public get isCapturing(): boolean {
     return this.inFlight.size > 0;
   }
 
   /** Abort all in-flight captures. Resolves all waiters with `undefined`. */
-  abort(): void {
+  public abort(): void {
     for (const entry of this.inFlight.values()) {
       this.cancelEntry(entry);
     }
@@ -161,7 +164,7 @@ export class AsyncCaptureTracker<K, R = unknown> {
   }
 
   /** Reset all state. */
-  reset(): void {
+  public reset(): void {
     this.abort();
     this.capturedInputs.clear();
   }

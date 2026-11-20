@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -10,6 +10,7 @@ def _():
     import pandas as pd
     import polars as pl
     import altair as alt
+
     return alt, mo, pd, pl
 
 
@@ -18,7 +19,6 @@ def _(mo):
     mo.md(r"""
     # Printing Rich Elements
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -146,13 +146,12 @@ def _(alt, mo, pd):
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict, mo):
     mo.vstack([mo.md("## Table"), mo.ui.table(data, page_size=20)])
-    return
 
 
 @app.cell
-def _(data, mo, pd):
+def _(data: dict, mo, pd):
     pandas_rich = pd.DataFrame(data).transpose()
     mo.vstack([mo.md("## Pandas dataframe"), pandas_rich])
     return (pandas_rich,)
@@ -161,11 +160,10 @@ def _(data, mo, pd):
 @app.cell
 def _(mo, pandas_rich):
     mo.vstack([mo.md("## Table containing pandas df"), mo.ui.table(pandas_rich)])
-    return
 
 
 @app.cell
-def _(data, mo, pl):
+def _(data: dict, mo, pl):
     data.pop("arrays", None)
     data.pop("batch", None)
     data.pop("mixed", None)
@@ -180,13 +178,11 @@ def _(mo, password):
     mo.md(f"""
     ### Password value: {password.value}
     """)
-    return
 
 
 @app.cell
 def _(mo, pl_df):
     mo.vstack([mo.md("## Table containing polars dataframe"), mo.ui.table(pl_df)])
-    return
 
 
 @app.cell
@@ -197,7 +193,6 @@ def _(mo):
     `pl.DataFrame(data).transpose()`
     """)
     # pl.DataFrame(data).transpose()
-    return
 
 
 @app.cell
@@ -206,19 +201,16 @@ def _(mo, pd, pl):
 
     pl.DataFrame({"button": mo.ui.button()})
     mo.ui.table({"button": mo.ui.button()})
-    return
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict, mo):
     mo.ui.data_editor(data=data, label="Edit Data")
-    return
 
 
 @app.cell
-def _(data, mo):
+def _(data: dict, mo):
     mo.ui.data_explorer(data)
-    return
 
 
 if __name__ == "__main__":

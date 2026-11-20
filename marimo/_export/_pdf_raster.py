@@ -9,8 +9,9 @@ from html import unescape
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
-from marimo._config.config import DisplayConfig
+from marimo._config.config_schema import DisplayConfig
 from marimo._config.manager import get_default_config_manager
+from marimo._convert.ipynb.from_ir import _convert_marimo_tex_to_latex
 from marimo._export._html_asset_server import HtmlAssetServer
 from marimo._export._raster_mime import (
     TEXT_HTML,
@@ -26,6 +27,7 @@ from marimo._export.requests import (
 from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._schemas.export_options import HTMLExportOptions
 from marimo._types.ids import CellId_t
+from marimo._utils.asyncio_utils import run_on_proactor_loop
 from marimo._utils.paths import marimo_package_path
 
 if TYPE_CHECKING:
@@ -126,13 +128,18 @@ def _load_mimebundle(data: Any) -> dict[str, Any] | None:
     return None
 
 
-def _should_rasterize_output(mimetype: str, data: Any) -> bool:
+def _should_rasterize_output(
+    mimetype: str, data: Any, *, webpdf: bool = False
+) -> bool:
     """Return whether this output is eligible for PNG fallback capture."""
 
     if mimetype in VEGA_MIME_TYPES:
         return True
 
     if mimetype in {TEXT_HTML, TEXT_PLAIN, TEXT_MARKDOWN}:
+        # The LaTeX exporter cannot render HTML, even with native math.
+        if webpdf and mimetype == TEXT_HTML and isinstance(data, (str, list)):
+            data = _convert_marimo_tex_to_latex(data)
         return _contains_marker(data, MARIMO_COMPONENT_MARKERS)
 
     return False
@@ -141,6 +148,8 @@ def _should_rasterize_output(mimetype: str, data: Any) -> bool:
 def _build_target_from_mimebundle(
     cell_id: CellId_t,
     mimebundle: dict[str, Any],
+    *,
+    webpdf: bool = False,
 ) -> _RasterTarget | None:
     """Build capture metadata for a cell emitting a MIME bundle output."""
 
@@ -148,7 +157,7 @@ def _build_target_from_mimebundle(
     expects: list[CaptureExpectation] = []
 
     for mimetype, content in mimebundle.items():
-        if _should_rasterize_output(mimetype, content):
+        if _should_rasterize_output(mimetype, content, webpdf=webpdf):
             should_capture = True
         if _contains_marker(content, ANYWIDGET_COMPONENT_MARKERS):
             expects.append("anywidget")
@@ -171,10 +180,11 @@ def _build_target_from_output(
     *,
     mimetype: str,
     data: Any,
+    webpdf: bool = False,
 ) -> _RasterTarget | None:
     """Build capture metadata for a non-mimebundle output."""
 
-    if not _should_rasterize_output(mimetype, data):
+    if not _should_rasterize_output(mimetype, data, webpdf=webpdf):
         return None
 
     expects: list[CaptureExpectation] = []
@@ -191,7 +201,9 @@ def _build_target_from_output(
     )
 
 
-def _collect_raster_targets(session_view: SessionView) -> list[_RasterTarget]:
+def _collect_raster_targets(
+    session_view: SessionView, *, webpdf: bool = False
+) -> list[_RasterTarget]:
     """Collect capture targets from the current executed session outputs."""
 
     targets: list[_RasterTarget] = []
@@ -205,7 +217,9 @@ def _collect_raster_targets(session_view: SessionView) -> list[_RasterTarget]:
             mimebundle = _load_mimebundle(output.data)
             if mimebundle is None:
                 continue
-            target = _build_target_from_mimebundle(cell_id, mimebundle)
+            target = _build_target_from_mimebundle(
+                cell_id, mimebundle, webpdf=webpdf
+            )
             if target is not None:
                 targets.append(target)
             continue
@@ -214,6 +228,7 @@ def _collect_raster_targets(session_view: SessionView) -> list[_RasterTarget]:
             cell_id,
             mimetype=output.mimetype,
             data=output.data,
+            webpdf=webpdf,
         )
         if target is not None:
             targets.append(target)
@@ -314,7 +329,7 @@ def _to_display_config(filepath: str | None) -> DisplayConfig:
     """Resolve display config for exporter rendering settings."""
 
     config = get_default_config_manager(current_path=filepath).get_config()
-    return cast(DisplayConfig, config["display"])
+    return config.display
 
 
 def _to_data_url(image: bytes) -> str:
@@ -422,7 +437,9 @@ async def collect_pdf_png_fallbacks(
         LOGGER.debug("Raster capture disabled by options.")
         return {}
 
-    targets = _collect_raster_targets(request.session_view)
+    targets = _collect_raster_targets(
+        request.session_view, webpdf=request.webpdf
+    )
     if not targets:
         LOGGER.debug("Raster capture skipped: no eligible outputs found.")
         return {}
@@ -554,6 +571,7 @@ async def _wait_for_target_ready(
         return True
 
 
+@run_on_proactor_loop
 async def _capture_pngs_from_page(
     *,
     page_url: str,
@@ -640,7 +658,10 @@ async def _capture_pngs_from_page(
 
             # In live notebook mode, output wrappers often use `display: contents`,
             # which cannot be directly screenshotted, so we target a concrete child node.
-            locator = page.locator(f"#output-{target.cell_id} > .output").first
+            locator = page.locator(
+                f"#output-{target.cell_id} > .output, "
+                f"#output-{target.cell_id} > .vega-embed"
+            ).first
             if not await _wait_for_target_ready(
                 page=page,
                 target=target,

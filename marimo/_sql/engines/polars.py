@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from marimo._ast.sql_visitor import find_polars_sql_refs
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import QueryEngine
-from marimo._utils.assert_never import log_never
+from marimo._utils.log_never import log_never
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -20,14 +20,17 @@ class PolarsEngine(QueryEngine[dict[str, Any]]):
 
     @property
     def source(self) -> str:
+        """Return the engine's source name."""
         return "polars"
 
     @property
     def dialect(self) -> str:
+        """Return the SQL dialect name."""
         return "polars"
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
+        """Recognize the built-in Polars engine selector."""
         return isinstance(var, str) and var == "polars"
 
     def _referenced_frames(self, query: str) -> dict[str, Any]:
@@ -58,7 +61,10 @@ class PolarsEngine(QueryEngine[dict[str, Any]]):
             ).to_pandas()
 
     def execute(self, query: str) -> Any:
-        DependencyManager.polars.require("to execute SQL with Polars")
+        """Execute native Polars SQL using the configured output format."""
+        DependencyManager.polars.require_at_version(
+            "to execute SQL with Polars", min_version="2.0.0"
+        )
         DependencyManager.sqlglot.require("to find tables referenced by SQL")
 
         import polars as pl

@@ -19,6 +19,103 @@ parse_cell = partial(compiler.compile_cell, cell_id="0")
 HAS_DUCKDB = DependencyManager.duckdb.has()
 
 
+@pytest.mark.parametrize(
+    ("sources", "root_indices", "expected_indices"),
+    [
+        (["x = 1", "y = x + 1", "z = y + 1"], [2], {0, 1}),
+        (["x = 1", "y = x + 1", "z = y + 1"], [0, 2], {1}),
+        (["x = 1", "x = 2", "y = x"], [2], {0, 1}),
+        (["x = 1", "y = x", "del x"], [2], {0, 1}),
+        (["x = y", "y = x"], [0], {1}),
+        (["x = x + 1"], [0], set()),
+        pytest.param(
+            [
+                'mo.sql("CREATE TABLE schema1.t1 (i INTEGER)")',
+                'mo.sql("SELECT * FROM schema1.t1")',
+            ],
+            [1],
+            {0},
+            marks=pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb"),
+        ),
+        pytest.param(
+            ['mo.sql("CREATE TABLE t1 (i INTEGER)")', "print(t1)"],
+            [1],
+            set(),
+            marks=pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb"),
+        ),
+    ],
+)
+@pytest.mark.parametrize("reverse_order", [False, True])
+def test_ancestors_from_compiled_cells(
+    sources: list[str],
+    root_indices: list[int],
+    expected_indices: set[int],
+    reverse_order: bool,
+) -> None:
+    cells = {
+        CellId_t(str(i)): compiler.compile_cell(code, cell_id=CellId_t(str(i)))
+        for i, code in enumerate(sources)
+    }
+    if reverse_order:
+        cells = dict(reversed(cells.items()))
+    roots = {CellId_t(str(i)) for i in root_indices}
+    expected = {CellId_t(str(i)) for i in expected_indices}
+    assert dataflow.get_ancestors_from_cells(cells, roots) == expected
+
+    graph = dataflow.DirectedGraph()
+    for cid, cell in cells.items():
+        graph.register_cell(cid, cell)
+    assert (
+        set().union(*(graph.ancestors(cid) for cid in roots)) - roots
+        == expected
+    )
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="requires duckdb")
+@pytest.mark.parametrize("reverse_order", [False, True])
+def test_ancestor_analysis_preserves_sql_registration_order(
+    reverse_order: bool,
+) -> None:
+    sources = [
+        'mo.sql("CREATE SCHEMA schema1")',
+        'mo.sql("CREATE TABLE schema1.t1 (i INTEGER)")',
+        'mo.sql("SELECT * FROM schema1.t1")',
+    ]
+    cells = {
+        CellId_t(str(i)): compiler.compile_cell(code, cell_id=CellId_t(str(i)))
+        for i, code in enumerate(sources)
+    }
+    if reverse_order:
+        cells = dict(reversed(cells.items()))
+    graph = dataflow.DirectedGraph()
+    for cid, cell in cells.items():
+        graph.register_cell(cid, cell)
+    expected = {"0", "1"} if reverse_order else {"1"}
+    assert graph.ancestors(CellId_t("2")) == expected
+    assert (
+        dataflow.get_ancestors_from_cells(cells, {CellId_t("2")}) == expected
+    )
+
+
+def test_ancestor_analysis_ignores_unknown_roots() -> None:
+    cells = {
+        CellId_t(cid): compiler.compile_cell(code, cell_id=CellId_t(cid))
+        for cid, code in (
+            ("root", "x = 1"),
+            ("target", "y = x + 1"),
+            ("unrelated", "z = 2"),
+        )
+    }
+    assert dataflow.get_ancestors_from_cells(
+        cells, {CellId_t("target"), CellId_t("missing")}
+    ) == {"root"}
+    assert dataflow.get_ancestors_from_cells(cells, set()) == set()
+    assert (
+        dataflow.get_ancestors_from_cells(cells, {CellId_t("missing")})
+        == set()
+    )
+
+
 def test_graph_single_node() -> None:
     code = "x = 0"
     graph = dataflow.DirectedGraph()

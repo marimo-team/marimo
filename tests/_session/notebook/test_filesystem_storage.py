@@ -80,6 +80,21 @@ class TestFilesystemStorage:
         assert new_file.exists()
         assert new_file.read_text(encoding="utf-8") == "content"
 
+    def test_rename_preserves_an_existing_destination(
+        self, tmp_path: Path
+    ) -> None:
+        source, target = tmp_path / "source.py", tmp_path / "target.py"
+        source.write_text("source notebook")
+        target.write_text("destination notebook")
+
+        with pytest.raises(HTTPException):
+            FilesystemStorage().rename(source, target)
+
+        assert (source.read_text(), target.read_text()) == (
+            "source notebook",
+            "destination notebook",
+        )
+
     def test_rename_creates_parent_dirs(self, tmp_path: Path) -> None:
         storage = FilesystemStorage()
         old_file = tmp_path / "old.txt"

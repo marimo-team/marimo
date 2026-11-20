@@ -6,7 +6,7 @@
 
 import type { Table } from "@tanstack/react-table";
 import { Columns3Icon, EyeIcon, EyeOffIcon, ScanEyeIcon } from "lucide-react";
-import React, { useMemo } from "react";
+import React from "react";
 import { ColumnName } from "@/components/datasources/components";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/popover";
 import { type BulkAction, useSelectList } from "@/components/ui/select-core";
 import type { DataType } from "@/core/kernel/messages";
+import { Arrays } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { smartMatchFilter } from "@/utils/smartMatch";
@@ -67,9 +68,8 @@ export const ColumnVisibilityDropdown = <TData,>({
   const hideableIds = userColumns
     .filter((column) => column.getCanHide())
     .map((column) => column.id);
-  const visibleHideableCount = hideableIds.filter(
-    (id) => !hiddenIds.includes(id),
-  ).length;
+  const visibleHideableColumnIds = Arrays.difference(hideableIds, hiddenIds);
+  const visibleHideableCount = visibleHideableColumnIds.length;
 
   const applyHidden = (next: string[] | string | null) => {
     const hidden = new Set(Array.isArray(next) ? next : []);
@@ -106,15 +106,10 @@ export const ColumnVisibilityDropdown = <TData,>({
           .filter((option) => !option.disabled)
           .map((option) => option.value)
       : [];
-  const showOnlyColumnState = useMemo(
-    () => ({
-      visibleHideableColumnIds: hideableIds.filter(
-        (id) => !hiddenIds.includes(id),
-      ),
-      hideableColumnIdSet: new Set(hideableIds),
-    }),
-    [hideableIds, hiddenIds],
-  );
+  const showOnlyColumnState = {
+    visibleHideableColumnIds,
+    hideableColumnIdSet: new Set(hideableIds),
+  };
   const hasSearchBulkActions =
     showOnlyMatchIds.length > 0 || matchingActions.length > 0;
 

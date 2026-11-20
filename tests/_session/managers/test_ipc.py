@@ -1,13 +1,18 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import os
+import subprocess
+import sys
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import msgspec
 import pytest
 
+from marimo._messaging.input import InputReply
 from marimo._session.managers.ipc import construct_kernel_env
 
 
@@ -30,12 +35,17 @@ class TestIPCConnection:
         try:
             # Host sends input to kernel (what happens when user
             # responds to an input() prompt)
-            test_input = "user response"
+            test_input = InputReply("prompt", "user response")
             host_conn.input.queue.put(test_input)
 
             # Kernel receives input
             received = kernel_conn.input.queue.get(timeout=1.0)
             assert received == test_input
+            assert kernel_conn.input.decoder is not None
+            with pytest.raises(msgspec.ValidationError):
+                kernel_conn.input.decoder.decode(
+                    msgspec.msgpack.encode("unaddressed")
+                )
         finally:
             host_conn.close()
             kernel_conn.close()
@@ -63,6 +73,7 @@ class TestIPCKernelManagerImpl:
 
         # Create IPCKernelManagerImpl without starting kernel
         kernel_manager = IPCKernelManagerImpl(
+            sandbox=True,
             queue_manager=queue_manager,
             connection_info=connection_info,
             mode=SessionMode.EDIT,
@@ -294,6 +305,7 @@ def _make_manager(filename: str | None = None) -> object:
     app_metadata = MagicMock()
     app_metadata.filename = filename
     return IPCKernelManagerImpl(
+        sandbox=True,
         queue_manager=IPCQueueManagerImpl(MagicMock()),
         connection_info=MagicMock(),
         mode=SessionMode.EDIT,
@@ -301,49 +313,6 @@ def _make_manager(filename: str | None = None) -> object:
         app_metadata=app_metadata,
         config_manager=MagicMock(),
     )
-
-
-@pytest.mark.parametrize("saved", [False, True])
-def test_single_launch_preserves_manifest_binding_and_precedence(
-    saved: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from marimo._cli.sandbox import SandboxMode
-    from marimo._environments.sandbox import MANIFEST_SOURCE, NotebookSandbox
-    from marimo._session.managers import ipc
-
-    temporary_manifest = tmp_path / "temporary.py"
-    temporary_manifest.write_text(
-        '# /// script\n# dependencies = ["six"]\n# ///\n'
-    )
-    saved_manifest = tmp_path / "saved.py"
-    saved_manifest.write_text(temporary_manifest.read_text())
-    monkeypatch.setenv(MANIFEST_SOURCE, str(temporary_manifest))
-    manager = _make_manager(str(saved_manifest) if saved else None)
-    manager.sandbox_mode = SandboxMode.SINGLE
-    configured_venv = MagicMock(
-        side_effect=AssertionError("SINGLE must retain its sandbox precedence")
-    )
-    monkeypatch.setattr(ipc, "get_configured_venv_python", configured_venv)
-
-    # Stop at the launch boundary: the selected source must be the original
-    # unnamed manifest or the newly saved path, never a fresh empty manifest.
-    class LaunchObserved(Exception):
-        pass
-
-    def observe(
-        sandbox: NotebookSandbox, *_args: object, **_kwargs: object
-    ) -> None:
-        assert sandbox.source == str(
-            saved_manifest if saved else temporary_manifest
-        )
-        assert "six" in Path(sandbox.source).read_text()
-        raise LaunchObserved
-
-    monkeypatch.setattr(NotebookSandbox, "launch", observe)
-    with pytest.raises(LaunchObserved):
-        manager.start_kernel()
-    configured_venv.assert_not_called()
-    assert temporary_manifest.exists()
 
 
 class TestProfilePath:
@@ -386,14 +355,12 @@ class TestCloseKernel:
         return manager
 
     def test_graceful_waits_bounded_for_exit(self) -> None:
-        from marimo._runtime import commands
         from marimo._session.managers.ipc import GRACEFUL_EXIT_TIMEOUT
 
         manager = self._closable_manager()
         manager.close_kernel(graceful=True)
 
-        (request,), _ = manager.queue_manager.put_control_request.call_args
-        assert isinstance(request, commands.StopKernelCommand)
+        manager.queue_manager.request_kernel_stop.assert_called_once_with()
         manager.queue_manager.close_queues.assert_called_once()
         manager._process.wait.assert_called_once_with(
             timeout=GRACEFUL_EXIT_TIMEOUT
@@ -404,6 +371,83 @@ class TestCloseKernel:
         manager.close_kernel()
         manager._process.wait.assert_not_called()
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups")
+    @pytest.mark.parametrize("kernel_pgid", [100, 200])
+    def test_close_before_kernel_creates_process_group(
+        self, monkeypatch: pytest.MonkeyPatch, kernel_pgid: int
+    ) -> None:
+        from marimo._session.managers import ipc
+
+        manager = self._closable_manager()
+        manager._kernel_pid = 123
+        manager.kernel_task = MagicMock()
+        killpg = MagicMock()
+        cleanup = MagicMock()
+        monkeypatch.setattr(os, "getpgrp", lambda: 100)
+        monkeypatch.setattr(os, "getpgid", lambda _pid: kernel_pgid)
+        monkeypatch.setattr(os, "killpg", killpg)
+        monkeypatch.setattr(ipc, "try_kill_process_and_group", cleanup)
+
+        manager.close_kernel()
+
+        if kernel_pgid == 100:
+            killpg.assert_not_called()
+        else:
+            killpg.assert_called_once_with(kernel_pgid, ipc.signal.SIGTERM)
+        cleanup.assert_called_once_with(manager.kernel_task)
+
+    @pytest.mark.requires("zmq")
+    @pytest.mark.parametrize("returncode", [None, 0])
+    def test_close_without_kernel_receiver(
+        self, returncode: int | None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import zmq
+
+        from marimo._ipc.queue_manager import QueueManager
+        from marimo._session.managers.ipc import IPCQueueManagerImpl
+
+        original_send = zmq.Socket.send
+        sent = False
+
+        def send(
+            socket: zmq.Socket[bytes], data: bytes, *, flags: int = 0
+        ) -> None:
+            nonlocal sent
+            # Check before sending so a blocking regression fails, not hangs.
+            assert flags == zmq.DONTWAIT
+            sent = True
+            original_send(socket, data, flags=flags)
+
+        monkeypatch.setattr(zmq.Socket, "send", send)
+        ipc, _ = QueueManager.create()
+        manager = self._closable_manager()
+        manager.queue_manager = IPCQueueManagerImpl(ipc)
+        manager._process.poll.return_value = returncode
+        try:
+            manager.close_kernel()
+            assert ipc.conn.context.closed
+            assert sent == (returncode is None)
+        finally:
+            ipc.close_queues()
+
+    @pytest.mark.requires("zmq")
+    def test_stop_reaches_connected_kernel(self) -> None:
+        import zmq
+
+        from marimo._ipc.queue_manager import QueueManager
+        from marimo._runtime.commands import StopKernelCommand
+        from marimo._session.managers.ipc import IPCQueueManagerImpl
+
+        host, info = QueueManager.create()
+        kernel = QueueManager.connect(info)
+        try:
+            assert host.conn.control.socket.poll(1000, zmq.POLLOUT)
+            IPCQueueManagerImpl(host).request_kernel_stop()
+            assert kernel.control_queue.get(timeout=1) == StopKernelCommand()
+        finally:
+            kernel.close_queues()
+            host.close_queues()
+
     def test_profiling_close_waits_for_flush(self) -> None:
         from marimo._session.managers.ipc import PROFILE_FLUSH_TIMEOUT
 
@@ -413,107 +457,6 @@ class TestCloseKernel:
         manager._process.wait.assert_called_once_with(
             timeout=PROFILE_FLUSH_TIMEOUT
         )
-
-
-class TestFailedStartCleanup:
-    def test_kills_process_and_closes_sandbox(self) -> None:
-        from marimo._session.managers import ipc
-
-        manager = _make_manager("nb.py")
-        manager._process = MagicMock()
-        manager._process.poll.return_value = None
-        manager._notebook_sandbox = MagicMock()
-        sandbox = manager._notebook_sandbox
-
-        with patch.object(ipc, "try_kill_process_and_group") as kill:
-            manager._cleanup_failed_start()
-
-        kill.assert_called_once()
-        sandbox.close.assert_called_once()
-        assert manager.notebook_sandbox is None
-
-
-class TestAwaitHandshakeLine:
-    @staticmethod
-    def _await(manager: object, handshake: object, deadline: float) -> str:
-        from collections import deque
-
-        return manager._await_handshake_line(
-            handshake, deadline, deque(), ["python", "-m", "kernel"]
-        )
-
-    def test_returns_pending_line(self) -> None:
-        import queue
-        import subprocess
-        import sys as _sys
-
-        manager = _make_manager("nb.py")
-        manager._process = subprocess.Popen(
-            [_sys.executable, "-c", "import time; time.sleep(30)"]
-        )
-        try:
-            handshake: queue.Queue[str] = queue.Queue()
-            handshake.put("KERNEL_READY")
-            line = self._await(
-                manager, handshake, deadline=time.monotonic() + 5
-            )
-            assert line == "KERNEL_READY"
-        finally:
-            manager._process.kill()
-            manager._process.wait()
-
-    def test_child_exit_fails_fast_with_exit_code(self) -> None:
-        import queue
-        import subprocess
-        import sys as _sys
-
-        from marimo._session.managers.ipc import KernelStartupError
-
-        manager = _make_manager("nb.py")
-        manager._process = subprocess.Popen(
-            [_sys.executable, "-c", "import sys; sys.exit(3)"]
-        )
-        manager._process.wait()
-        with pytest.raises(KernelStartupError, match="exit code 3"):
-            self._await(manager, queue.Queue(), deadline=time.monotonic() + 30)
-
-    def test_queued_handshake_takes_precedence_over_child_exit(self) -> None:
-        import queue
-        import subprocess
-        import sys as _sys
-
-        manager = _make_manager("nb.py")
-        manager._process = subprocess.Popen([_sys.executable, "-c", "pass"])
-        manager._process.wait()
-        handshake: queue.Queue[str] = queue.Queue()
-        handshake.put("KERNEL_READY")
-        line = self._await(manager, handshake, deadline=time.monotonic() + 5)
-        assert line == "KERNEL_READY"
-
-    def test_hung_child_times_out_and_is_killed(self) -> None:
-        import queue
-        import subprocess
-        import sys as _sys
-
-        from marimo._session.managers.ipc import KernelStartupError
-
-        manager = _make_manager("nb.py")
-        manager._process = subprocess.Popen(
-            [_sys.executable, "-c", "import time; time.sleep(60)"]
-        )
-        try:
-            with pytest.raises(
-                KernelStartupError, match="did not become ready"
-            ):
-                self._await(
-                    manager, queue.Queue(), deadline=time.monotonic() - 1
-                )
-            manager._process.wait(timeout=10)
-            assert manager._process.poll() is not None
-        finally:
-            if manager._process.poll() is None:
-                manager._process.kill()
-                manager._process.wait()
 
 
 class TestParseKernelInfo:
@@ -547,7 +490,7 @@ def test_launch_kernel_handshake_reports_identity() -> None:
         "from unittest.mock import patch, MagicMock\n"
         "import marimo._ipc.launch_kernel as lk\n"
         "with patch.object(\n"
-        "    lk.KernelArgs, 'decode_json', return_value=MagicMock()\n"
+        "    lk.KernelArgs, 'decode_json', return_value=MagicMock(user_config={})\n"
         "), patch.object(lk.QueueManager, 'connect', MagicMock()), \\\n"
         "        patch.object(lk.runtime, 'launch_kernel', MagicMock()):\n"
         "    lk.main()\n"
@@ -566,3 +509,187 @@ def test_launch_kernel_handshake_reports_identity() -> None:
     pid, exe = _parse_kernel_info(lines[1])
     assert pid is not None
     assert exe is not None
+
+
+@pytest.mark.requires("zmq")
+@pytest.mark.parametrize(
+    ("outcome", "configured"),
+    [
+        ("exit", False),
+        ("timeout", False),
+        ("cancel", False),
+        ("cancel", True),
+        ("output", False),
+    ],
+)
+async def test_startup_owns_kernel_process_and_pipes(
+    outcome: str,
+    configured: bool,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from marimo._ast.app_config import _AppConfig
+    from marimo._config.manager import get_default_config_manager
+    from marimo._environments.environment import ProcessPlan
+    from marimo._ipc import QueueManager
+    from marimo._messaging.notification import (
+        NotificationMessage,
+        StartupProgressNotification,
+    )
+    from marimo._runtime.commands import AppMetadata
+    from marimo._session.managers.ipc import (
+        IPCKernelManagerImpl,
+        IPCQueueManagerImpl,
+        KernelStartupError,
+    )
+    from marimo._session.model import SessionMode
+    from marimo._session.startup import SessionStartup
+
+    started = asyncio.Event()
+    output_received = asyncio.Event()
+    event_loop = asyncio.get_running_loop()
+    progress = SessionStartup()
+
+    def notify(notification: NotificationMessage) -> None:
+        assert asyncio.get_running_loop() is event_loop
+        progress.notify(notification)
+        if (
+            isinstance(notification, StartupProgressNotification)
+            and notification.logs
+        ):
+            output_received.set()
+
+    async def ready(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        await reader.read(1)
+        started.set()
+        writer.close()
+        await writer.wait_closed()
+
+    server = await asyncio.start_server(ready, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    code = (
+        "import socket, sys, time, signal; sys.stdin.read(); "
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+        f"socket.create_connection(('127.0.0.1', {port})).send(b'x'); "
+        + ("" if configured else "print('KERNEL_READY', flush=True); ")
+        + (
+            # The launcher exits, but a descendant still holds its pipes.
+            "import subprocess; "
+            "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+            "sys.exit(3)"
+            if outcome == "exit"
+            else "time.sleep(60)"
+        )
+    )
+    output_ready = tmp_path / "output-ready"
+    handshake_ready = tmp_path / "handshake-ready"
+    if outcome == "output":
+        child_code = "import sys; sys.stdout.write('x' * 131072)"
+        code = (
+            "import socket, sys, os, subprocess, time\n"
+            "from pathlib import Path\n"
+            "sys.stdin.read()\n"
+            f"socket.create_connection(('127.0.0.1', {port})).send(b'x')\n"
+            "print('Resolving runtime', file=sys.stderr, flush=True)\n"
+            f"while not Path({str(handshake_ready)!r}).exists(): time.sleep(0.01)\n"
+            "print('KERNEL_READY', flush=True)\n"
+            "print(f'KERNEL_INFO {os.getpid()} {sys.executable}', flush=True)\n"
+            f"while not Path({str(output_ready)!r}).exists(): time.sleep(0.01)\n"
+            "print('Runtime output', file=sys.stderr, flush=True)\n"
+            # Inherit the kernel's stdout and fill more than the pipe buffer.
+            f"result = subprocess.run([sys.executable, '-c', {child_code!r}], stdout=sys.stdout)\n"
+            "sys.exit(result.returncode)\n"
+        )
+    sandbox = MagicMock()
+    sandbox.launch_async = AsyncMock(
+        return_value=ProcessPlan(
+            argv=(sys.executable, "-c", code),
+            env=os.environ.copy(),
+            start_new_session=True,
+        )
+    )
+    monkeypatch.setattr(
+        "marimo._environments.sandbox.NotebookSandbox", lambda *_: sandbox
+    )
+    if configured:
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.get_configured_venv_python",
+            lambda *_args, **_kwargs: sys.executable,
+        )
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.has_marimo_installed",
+            AsyncMock(return_value=True),
+        )
+        popen = subprocess.Popen
+        # Windows cleanup also uses Popen for taskkill; only replace the kernel.
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.subprocess.Popen",
+            lambda cmd, **kwargs: popen(
+                [sys.executable, "-c", code]
+                if cmd
+                == [sys.executable, "-P", "-m", "marimo._ipc.launch_kernel"]
+                else cmd,
+                **kwargs,
+            ),
+        )
+    monkeypatch.setenv(
+        "MARIMO_KERNEL_STARTUP_TIMEOUT", "1" if outcome == "timeout" else "30"
+    )
+    queues, connection_info = QueueManager.create()
+    manager = IPCKernelManagerImpl(
+        sandbox=not configured,
+        queue_manager=IPCQueueManagerImpl.from_ipc(queues),
+        connection_info=connection_info,
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=AppMetadata(
+            query_params={},
+            filename=None,
+            cli_args={},
+            argv=None,
+            app_config=_AppConfig(),
+        ),
+        config_manager=get_default_config_manager(current_path=None),
+        on_notification=notify,
+    )
+    startup = asyncio.create_task(manager.start_kernel())
+    try:
+        await asyncio.wait_for(started.wait(), 5)
+        if outcome == "output":
+            await asyncio.wait_for(output_received.wait(), 5)
+            assert not startup.done()
+            expected_progress = StartupProgressNotification(
+                phase="starting-kernel",
+                logs="Resolving runtime\n",
+                log_mode="replace",
+            )
+            assert progress.view.startup_progress == expected_progress
+            handshake_ready.touch()  # noqa: ASYNC240
+            await asyncio.wait_for(startup, 5)
+            output_ready.touch()  # noqa: ASYNC240
+            assert manager.kernel_task is not None
+            await asyncio.to_thread(manager.kernel_task.join, 5)
+            assert manager.kernel_task.exitcode == 0
+            assert progress.view.startup_progress == expected_progress
+        elif outcome == "cancel":
+            startup.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(startup, 5)
+        else:
+            message = (
+                "exit code 3" if outcome == "exit" else "did not become ready"
+            )
+            with pytest.raises(KernelStartupError, match=message):
+                await asyncio.wait_for(startup, 5)
+        assert not manager.is_alive()
+        if outcome != "output":
+            assert manager.notebook_sandbox is None
+    finally:
+        startup.cancel()
+        await asyncio.gather(startup, return_exceptions=True)
+        await manager._cleanup_failed_start()
+        manager.queue_manager.close_queues()
+        server.close()
+        await server.wait_closed()

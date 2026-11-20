@@ -229,7 +229,7 @@ subprocess.run(["ls", "-l"])
 | %autoreload   | marimo's [module autoreloader](../editor_features/module_autoreloading.md)                     |
 | %matplotlib   | marimo auto-displays plots                                                                     |
 | %pwd          | `os.getcwd()`                                                                                  |
-| %pip          | Use marimo's [built-in package management](../editor_features/package_management.md)           |
+| %pip          | Use marimo's [built-in package management](../package_management/installing_packages.md)           |
 | %who_ls       | `dir()`, `globals()`, [`mo.refs()`][marimo.refs], [`mo.defs()`][marimo.defs]                   |
 | %system       | `subprocess.run()`                                                                             |
 | %%time        | `time.perf_counter()` or Python's timeit module                                                |
@@ -243,7 +243,7 @@ subprocess.run(["ls", "-l"])
 
 Use marimo's package management sidebar panel to install packages to your current
 environment. Learn more in our [package management
-guide](../editor_features/package_management.md).
+guide](../package_management/installing_packages.md).
 
 ## Interactive guide
 

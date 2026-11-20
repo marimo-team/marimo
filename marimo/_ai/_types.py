@@ -253,7 +253,8 @@ class ChatMessage(msgspec.Struct, dict=True):
                     return parse_raw(
                         part, cls=PartType, allow_unknown_keys=True
                     )
-                except Exception:
+                # Each parser is expected to reject incompatible part types.
+                except Exception:  # noqa: S112
                     continue
             return cast(ChatPart, part)
 
@@ -337,7 +338,9 @@ class ChatMessage(msgspec.Struct, dict=True):
                     try:
                         from pydantic import TypeAdapter
 
-                        adapter = TypeAdapter(part_validator_class)
+                        adapter: TypeAdapter[object] = TypeAdapter(
+                            part_validator_class
+                        )
                         validated_parts.append(
                             adapter.validate_python(sanitized_part)
                         )

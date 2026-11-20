@@ -19,7 +19,6 @@ from starlette.responses import (
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
-from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._config.reader import find_nearest_pyproject_toml
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -51,6 +50,7 @@ from marimo._utils.paths import (
 if TYPE_CHECKING:
     from starlette.requests import Request
 
+
 LOGGER = _loggers.marimo_logger()
 
 # Router for serving static assets
@@ -60,13 +60,11 @@ router = APIRouter()
 root = normalize_path(marimo_package_path() / "_static")
 
 server_config = (
-    get_default_config_manager(current_path=None)
-    .get_config()
-    .get("server", {})
+    get_default_config_manager(current_path=None).get_config().server
 )
 
 assets_dir = root / "assets"
-follow_symlinks = server_config.get("follow_symlink", False)
+follow_symlinks = server_config.follow_symlink
 
 
 def _missing_index_html_detail() -> str:
@@ -125,19 +123,23 @@ except RuntimeError:
 
 FILE_QUERY_PARAM_KEY = "file"
 
-# Hardening headers for HTML page responses in edit/home mode. These
-# supplement the token-stripping redirect below by preventing any outbound
-# fetch from the HTML page from leaking a transiently-present access_token
-# via `Referer`, and by disabling MIME sniffing on the HTML response.
+# Image types served as OpenGraph thumbnails. Other files get the placeholder.
+_OG_THUMBNAIL_MEDIA_TYPES: dict[str, str] = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+# Hardening headers for HTML page responses. They supplement the
+# token-stripping redirect below and disable MIME sniffing.
 #
-# Use "same-origin" instead of "no-referrer" to avoid Chrome 147+ on macOS
-# treating localhost pages as private-network requests without a valid
-# referrer, which triggers Local Network Access checks and "Error code 5".
-# "same-origin" still prevents cross-origin referrer leakage while
-# preserving the referrer for same-origin navigations.
-# See: https://github.com/marimo-team/marimo/issues/9455
+# Preserve same-origin referrers. Limit cross-origin referrers to the
+# origin so services that gate on Referer, such as map tile servers, can
+# identify the source without receiving notebook paths or query parameters.
 _HTML_SECURITY_HEADERS: dict[str, str] = {
-    "Referrer-Policy": "same-origin",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Content-Type-Options": "nosniff",
 }
 
@@ -281,13 +283,20 @@ def og_thumbnail(*, request: Request) -> Response:
                 file_path = normalize_path(marimo_dir / Path(*parts[1:]))
             else:
                 file_path = normalize_path(notebook_dir / rel_path)
+            media_type = _OG_THUMBNAIL_MEDIA_TYPES.get(
+                file_path.suffix.lower()
+            )
             # Only allow serving from the notebook's __marimo__ directory.
             try:
-                if file_path.is_file():
+                if media_type and file_path.is_file():
                     validator.validate_inside_directory(marimo_dir, file_path)
                     return FileResponse(
                         file_path,
-                        headers={"Cache-Control": "max-age=3600"},
+                        media_type=media_type,
+                        headers={
+                            "Cache-Control": "max-age=3600",
+                            "X-Content-Type-Options": "nosniff",
+                        },
                     )
             except HTTPException:
                 # Treat invalid paths as a miss; fall back to placeholder.
@@ -390,11 +399,11 @@ async def index(request: Request) -> Response:
         absolute_filepath = app_manager.filename
 
         # Pre-compute notebook snapshot for faster initial render
-        # Only in EDIT + SandboxMode.MULTI where each notebook gets its own IPC
+        # Only in sandboxed edit mode where each notebook gets its own IPC
         # kernel.
         notebook_snapshot = None
         if (
-            app_state.session_manager.sandbox_mode is SandboxMode.MULTI
+            app_state.session_manager.sandbox
             and app_state.mode == SessionMode.EDIT
             and app_manager.filename
         ):

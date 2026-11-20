@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { CheckIcon, Copy } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
@@ -27,11 +27,18 @@ export const CopyClipboardIcon: React.FC<Props> = ({
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
+  useEffect(() => {
+    if (!isCopied) {
+      return;
+    }
+    const timeout = setTimeout(() => setIsCopied(false), 2000);
+    return () => clearTimeout(timeout);
+  }, [isCopied]);
+
   const handleCopy = Events.stopPropagation(async (event: React.MouseEvent) => {
     const valueToCopy = typeof value === "function" ? value(event) : value;
     await copyToClipboard(valueToCopy).then(() => {
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
       if (toastTitle) {
         toast({ title: toastTitle });
       }

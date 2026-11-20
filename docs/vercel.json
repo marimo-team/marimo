@@ -1,4 +1,5 @@
 {
+  "git": { "deploymentEnabled": false },
   "headers": [
     {
       "source": "/(.*)\\.md",
@@ -17,7 +18,27 @@
   "redirects": [
     {
       "source": "/guides/package_reproducibility/",
-      "destination": "/guides/package_management/inlining_dependencies/",
+      "destination": "/guides/package_management/sandboxes/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/package_management/inlining_dependencies.html",
+      "destination": "/guides/package_management/sandboxes/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/package_management/notebooks_in_projects.html",
+      "destination": "/guides/package_management/projects/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/package_management/importing_packages.html",
+      "destination": "/guides/package_management/importing_local_code/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/package_management/using_uv.html",
+      "destination": "/guides/package_management/",
       "permanent": true
     },
     {
@@ -522,7 +543,7 @@
     },
     {
       "source": "/guides/editor_features/package_management.html",
-      "destination": "/guides/editor_features/package_management/",
+      "destination": "/guides/package_management/installing_packages/",
       "permanent": true
     },
     {
@@ -696,18 +717,23 @@
       "permanent": true
     },
     {
-      "source": "/guides/generate_with_ai/prompts/",
-      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "source": "/guides/generate_with_ai/text_to_notebook/",
+      "destination": "/guides/generate_with_ai/",
       "permanent": true
     },
     {
-      "source": "/guides/generate_with_ai/skills/",
-      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "source": "/guides/generate_with_ai/prompts/",
+      "destination": "/guides/generate_with_ai/skills/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/generate_with_ai/customize_your_agent/",
+      "destination": "/guides/generate_with_ai/skills/",
       "permanent": true
     },
     {
       "source": "/guides/generate_with_ai/using_claude_code/",
-      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "destination": "/guides/generate_with_ai/skills/",
       "permanent": true
     },
     {

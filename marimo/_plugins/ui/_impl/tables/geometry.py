@@ -77,12 +77,47 @@ _DUCKDB_2D_TYPES = frozenset(
 )
 
 
+def arrow_storage_field(field: pa.Field[Any]) -> pa.Field[Any]:
+    """Describe a registered geometry extension field as storage plus metadata.
+
+    A registered extension type carries its name and declaration in the field
+    type. An unregistered one carries them in the field metadata. Geometry
+    fields of both kinds become a storage-typed field with the declaration in
+    `ARROW:extension:name` and `ARROW:extension:metadata`. Other fields are
+    returned unchanged.
+
+    Args:
+        field (pa.Field[Any]): A field from an Arrow schema.
+    """
+    import pyarrow as pa
+
+    if not isinstance(field.type, pa.ExtensionType):
+        return field
+    extension = field.type
+    if not (
+        extension.extension_name.startswith(_GEOARROW_PREFIX)
+        or extension.extension_name in _WKB_EXTENSION_NAMES
+    ):
+        return field
+    metadata: dict[bytes | str, bytes | str] = {
+        key: value for key, value in (field.metadata or {}).items()
+    }
+    metadata[b"ARROW:extension:name"] = extension.extension_name.encode()
+    serialized = extension.__arrow_ext_serialize__()
+    if extension.extension_name == "ogc.wkb" and not serialized:
+        metadata.pop(b"ARROW:extension:metadata", None)
+    else:
+        metadata[b"ARROW:extension:metadata"] = serialized
+    return field.with_type(extension.storage_type).with_metadata(metadata)
+
+
 def _pyarrow_geometry_columns(
     native: pa.Table,
 ) -> dict[str, GeometryColumnInfo]:
-    """Detect geometry columns from pyarrow field metadata only."""
+    """Detect geometry columns from pyarrow schema declarations only."""
     infos: dict[str, GeometryColumnInfo] = {}
     for field in native.schema:
+        field = arrow_storage_field(field)
         metadata = field.metadata
         if not metadata:
             continue

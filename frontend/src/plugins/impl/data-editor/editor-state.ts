@@ -9,7 +9,12 @@ import {
   renameColumn,
 } from "./data-utils";
 import { isColumnEdit, isPositionalEdit, isRowEdit } from "./glide-utils";
-import { BulkEdit, type EditorState, type Edits } from "./types";
+import {
+  BulkEdit,
+  type ColumnTypes,
+  type EditorState,
+  type Edits,
+} from "./types";
 
 export function applyEditorEdits(
   state: EditorState,
@@ -17,6 +22,7 @@ export function applyEditorEdits(
 ): EditorState {
   let nextData = [...state.data];
   let nextColumnFields: FieldTypes = new Map(state.columnFields);
+  const nextColumnTypes: ColumnTypes = new Map(state.columnTypes);
 
   for (const edit of edits) {
     if (isPositionalEdit(edit)) {
@@ -63,6 +69,7 @@ export function applyEditorEdits(
           columnIdx: edit.columnIdx,
           type: "remove",
         });
+        nextColumnTypes.delete(columnName);
         break;
       case BulkEdit.Insert:
         if (
@@ -91,6 +98,11 @@ export function applyEditorEdits(
           break;
         }
         nextData = renameColumn(nextData, columnName, edit.newName);
+        const configuredType = nextColumnTypes.get(columnName);
+        nextColumnTypes.delete(columnName);
+        if (configuredType !== undefined) {
+          nextColumnTypes.set(edit.newName, configuredType);
+        }
         nextColumnFields = modifyColumnFields({
           columnFields: nextColumnFields,
           columnIdx: edit.columnIdx,
@@ -104,5 +116,9 @@ export function applyEditorEdits(
     }
   }
 
-  return { data: nextData, columnFields: nextColumnFields };
+  return {
+    data: nextData,
+    columnFields: nextColumnFields,
+    columnTypes: nextColumnTypes,
+  };
 }

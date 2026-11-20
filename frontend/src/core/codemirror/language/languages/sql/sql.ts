@@ -2,7 +2,7 @@
 
 import { acceptCompletion, autocompletion } from "@codemirror/autocomplete";
 import { insertTab } from "@codemirror/commands";
-import { type SQLDialect, type SQLNamespace, sql } from "@codemirror/lang-sql";
+import { type SQLNamespace, sql } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
 import { Compartment } from "@codemirror/state";
 import {
@@ -60,6 +60,7 @@ import {
 } from "./banner-validation-errors";
 import {
   customKeywordCompletionSource,
+  literalSQLCompletions,
   tablesCompletionSource,
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
@@ -112,21 +113,21 @@ function getLatestEngine(): ConnectionName {
  */
 export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMetadata> {
   private parser = new SQLParser();
-  readonly type = "sql";
-  sqlModeEnabled: boolean;
+  public readonly type = "sql";
+  public sqlModeEnabled: boolean;
 
-  constructor() {
+  public constructor() {
     this.sqlModeEnabled = true;
   }
 
-  get defaultMetadata(): SQLLanguageAdapterMetadata {
+  public get defaultMetadata(): SQLLanguageAdapterMetadata {
     return {
       ...this.parser.defaultMetadata,
       engine: getLatestEngine() || DUCKDB_ENGINE,
     };
   }
 
-  get defaultCode(): string {
+  public get defaultCode(): string {
     const engine = getLatestEngine();
     if (engine && engine !== DUCKDB_ENGINE) {
       return `_df = mo.sql(f"""SELECT * FROM """, engine=${toPythonEngine(engine)})`;
@@ -134,9 +135,9 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
     return this.parser.defaultCode;
   }
 
-  static fromQuery = (query: string) => SQLParser.fromQuery(query);
+  public static fromQuery = (query: string) => SQLParser.fromQuery(query);
 
-  transformIn(
+  public transformIn(
     pythonCode: string,
   ): [
     sqlQuery: string,
@@ -159,7 +160,7 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
     return [result.code, result.offset, metadata];
   }
 
-  transformOut(
+  public transformOut(
     code: string,
     metadata: SQLLanguageAdapterMetadata,
   ): [string, number] {
@@ -170,17 +171,19 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
     return [result.code, result.offset];
   }
 
-  isSupported(pythonCode: string): boolean {
+  public isSupported(pythonCode: string): boolean {
     return this.parser.isSupported(pythonCode);
   }
 
-  getExtension(
-    _cellId: CellId,
-    _completionConfig: CompletionConfig,
-    _hotkeys: HotkeyProvider,
-    _placeholderType: PlaceholderType,
-    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
-  ): Extension[] {
+  public getExtension({
+    lspConfig,
+  }: {
+    cellId: CellId;
+    completionConfig: CompletionConfig;
+    hotkeys: HotkeyProvider;
+    placeholderType: PlaceholderType;
+    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig };
+  }): Extension[] {
     const analysis = createSQLAnalysis();
     const extensions = [
       // This can be updated with a dispatch effect
@@ -202,15 +205,15 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
         activateOnTyping: true,
         override: [
           // Completions for schema
-          tablesCompletionSource(),
+          literalSQLCompletions(tablesCompletionSource()),
           // Complete for variables in SQL {} blocks
           variableCompletionSource,
           // Completions for dialect keywords
           customKeywordCompletionSource(),
           // Completions based on the current query
-          analysis.cteCompletionSource,
-          analysis.aliasCompletionSource,
-          analysis.columnCompletionSource,
+          literalSQLCompletions(analysis.cteCompletionSource, "query"),
+          literalSQLCompletions(analysis.aliasCompletionSource, "query"),
+          literalSQLCompletions(analysis.columnCompletionSource, "query"),
         ],
       }),
     ];
@@ -328,19 +331,19 @@ class DialectAwareQueryContextAnalyzer extends QueryContextAnalyzer {
   private readonly analyzers = new Map<ParserDialects, QueryContextAnalyzer>();
   private readonly analysisParser: NodeSqlParser;
 
-  constructor(analysisParser: NodeSqlParser) {
+  public constructor(analysisParser: NodeSqlParser) {
     super(analysisParser);
     this.analysisParser = analysisParser;
   }
 
-  override getContext(
+  public override getContext(
     sql: string,
     opts: { state: EditorState },
   ): ReturnType<QueryContextAnalyzer["getContext"]> {
     return this.getAnalyzer(opts.state).getContext(sql, opts);
   }
 
-  override clearCache(): void {
+  public override clearCache(): void {
     for (const analyzer of this.analyzers.values()) {
       analyzer.clearCache();
     }
@@ -361,25 +364,25 @@ class DialectAwareSqlStructureAnalyzer extends SqlStructureAnalyzer {
   private readonly analyzers = new Map<ParserDialects, SqlStructureAnalyzer>();
   private readonly analysisParser: NodeSqlParser;
 
-  constructor(analysisParser: NodeSqlParser) {
+  public constructor(analysisParser: NodeSqlParser) {
     super(analysisParser);
     this.analysisParser = analysisParser;
   }
 
-  override analyzeDocument(
+  public override analyzeDocument(
     state: EditorState,
   ): ReturnType<SqlStructureAnalyzer["analyzeDocument"]> {
     return this.getAnalyzer(state).analyzeDocument(state);
   }
 
-  override getStatementAtPosition(
+  public override getStatementAtPosition(
     state: EditorState,
     position: number,
   ): ReturnType<SqlStructureAnalyzer["getStatementAtPosition"]> {
     return this.getAnalyzer(state).getStatementAtPosition(state, position);
   }
 
-  override getStatementsInRange(
+  public override getStatementsInRange(
     state: EditorState,
     from: number,
     to: number,
@@ -387,7 +390,7 @@ class DialectAwareSqlStructureAnalyzer extends SqlStructureAnalyzer {
     return this.getAnalyzer(state).getStatementsInRange(state, from, to);
   }
 
-  override clearCache(): void {
+  public override clearCache(): void {
     for (const analyzer of this.analyzers.values()) {
       analyzer.clearCache();
     }
@@ -411,7 +414,7 @@ class CustomSqlParser extends NodeSqlParser {
   private readonly VALIDATION_DELAY_MS = 300; // Wait 300ms after user stops typing
   private isFocused = false; // Only validate if the editor is focused
 
-  setFocusState(focused: boolean) {
+  public setFocusState(focused: boolean) {
     this.isFocused = focused;
   }
 
@@ -463,7 +466,7 @@ class CustomSqlParser extends NodeSqlParser {
     });
   }
 
-  override async validateSql(
+  public override async validateSql(
     sql: string,
     opts: { state: EditorState },
   ): Promise<SqlParseError[]> {
@@ -487,7 +490,7 @@ class CustomSqlParser extends NodeSqlParser {
     );
   }
 
-  override async parse(
+  public override async parse(
     sql: string,
     opts: { state: EditorState },
   ): Promise<NodeSqlParserResult> {
@@ -512,12 +515,12 @@ function isDuckDBConnection(
 }
 
 /**
- * Update the SQL dialect in the editor view.
+ * The effect that reconfigures the SQL language for the connection's dialect.
+ * Callers dispatch it, alone or with the change that selected the connection.
  */
-function updateSQLDialect(view: EditorView, dialect: SQLDialect) {
-  view.dispatch({
-    effects: sqlConfigCompartment.reconfigure(sql({ dialect })),
-  });
+export function sqlDialectEffect(connectionName: ConnectionName) {
+  const dialect = SCHEMA_CACHE.getDialect(connectionName);
+  return sqlConfigCompartment.reconfigure(sql({ dialect }));
 }
 
 // Helper functions to update the SQL dialect
@@ -526,17 +529,7 @@ export function updateSQLDialectFromConnection(
   view: EditorView,
   connectionName: ConnectionName,
 ) {
-  const dialect = SCHEMA_CACHE.getDialect(connectionName);
-  updateSQLDialect(view, dialect);
-}
-
-export function initializeSQLDialect(view: EditorView) {
-  // Get current engine and update dialect
-  const metadata = getSQLMetadata(view.state);
-  const connectionName = metadata.engine;
-  const dialect = SCHEMA_CACHE.getDialect(connectionName);
-
-  updateSQLDialect(view, dialect);
+  view.dispatch({ effects: sqlDialectEffect(connectionName) });
 }
 
 function getSQLMetadata(state: EditorState): SQLLanguageAdapterMetadata {

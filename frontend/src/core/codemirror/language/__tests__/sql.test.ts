@@ -8,6 +8,7 @@ import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { requestId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
@@ -31,6 +32,7 @@ import type { DatasetsState } from "@/core/datasets/types";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import type { PlaceholderType } from "../../config/types";
+import { SQL_IDENTIFIER } from "../languages/sql/completion-builder";
 import { TestSQLCompletionStore } from "../languages/sql/completion-store";
 import * as sqlMode from "../languages/sql/sql-mode";
 import {
@@ -40,17 +42,36 @@ import {
 } from "../languages/sql/sql";
 import { languageMetadataField, updateLanguageMetadata } from "../metadata";
 
+expect.addSnapshotSerializer({
+  test: (value) =>
+    typeof value === "object" && value !== null && SQL_IDENTIFIER in value,
+  // oxlint-disable-next-line marimo/prefer-object-params -- Vitest serializer API
+  serialize: (value, config, indentation, depth, refs, printer) => {
+    if (
+      typeof value !== "object" ||
+      value === null ||
+      !(SQL_IDENTIFIER in value)
+    ) {
+      throw new Error("Expected a metadata completion");
+    }
+    const { [SQL_IDENTIFIER]: _origin, ...completion } = value;
+    return printer(completion, config, indentation, depth, refs);
+  },
+});
+
 const adapter = new SQLLanguageAdapter();
 
 const TEST_ENGINE = "test_engine" as ConnectionName;
 
 const TEST_EXTENSION_ARGS = [
-  {} as CellId,
-  {} as CompletionConfig,
-  {} as HotkeyProvider,
-  {} as PlaceholderType,
-  {} as LSPConfig & {
-    diagnostics: DiagnosticsConfig;
+  {
+    cellId: {} as CellId,
+    completionConfig: {} as CompletionConfig,
+    hotkeys: {} as HotkeyProvider,
+    placeholderType: {} as PlaceholderType,
+    lspConfig: {} as LSPConfig & {
+      diagnostics: DiagnosticsConfig;
+    },
   },
 ] as const;
 
@@ -90,7 +111,7 @@ describe("SQLLanguageAdapter", () => {
     it("should extract inner SQL from triple double-quoted strings", () => {
       const pythonCode = '_df = mo.sql("""SELECT * FROM {df}""")';
       const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("SELECT * FROM {df}");
+      expect(innerCode).toBe("SELECT * FROM {{df}}");
       expect(metadata.dataframeName).toBe("_df");
       expect(offset).toBe(16);
     });
@@ -98,7 +119,7 @@ describe("SQLLanguageAdapter", () => {
     it("should handle single double-quoted strings", () => {
       const pythonCode = 'next_df = mo.sql("SELECT * FROM {df}")';
       const [innerCode, offset, metadata] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("SELECT * FROM {df}");
+      expect(innerCode).toBe("SELECT * FROM {{df}}");
       expect(metadata.dataframeName).toBe("next_df");
       expect(offset).toBe(18);
     });
@@ -106,7 +127,7 @@ describe("SQLLanguageAdapter", () => {
     it("should handle triple single-quoted strings", () => {
       const pythonCode = "next_df = mo.sql('''SELECT * \nFROM {df}''')";
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("SELECT * \nFROM {df}");
+      expect(innerCode).toBe("SELECT * \nFROM {{df}}");
       expect(offset).toBe(20);
     });
 
@@ -127,21 +148,21 @@ describe("SQLLanguageAdapter", () => {
     it("simple sql", () => {
       const pythonCode = 'next_df = mo.sql("SELECT * FROM {df}")';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("SELECT * FROM {df}");
+      expect(innerCode).toBe("SELECT * FROM {{df}}");
       expect(offset).toBe(18);
     });
 
     it("should trim strings with leading and trailing whitespace", () => {
       const pythonCode = 'next_df = mo.sql("""   \nSELECT * FROM {df}\n   """)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("SELECT * FROM {df}");
+      expect(innerCode).toBe("SELECT * FROM {{df}}");
       expect(offset).toBe(20);
     });
 
     it("should handle space around the f-strings", () => {
       const pythonCode = 'next_df = mo.sql(\n\t"""\nSELECT * FROM {df}\n"""\n)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("SELECT * FROM {df}");
+      expect(innerCode).toBe("SELECT * FROM {{df}}");
       expect(offset).toBe(22);
     });
 
@@ -379,13 +400,13 @@ _df = mo.sql(
     it("should preserve Python comments", () => {
       const pythonCode = '# hello\nmy_df = mo.sql("""SELECT * FROM {df}""")';
       const [innerCode, , metadata] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("SELECT * FROM {df}");
+      expect(innerCode).toBe("SELECT * FROM {{df}}");
       const [wrappedCode, offset] = adapter.transformOut(innerCode, metadata);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "# hello
         my_df = mo.sql(
             f"""
-            SELECT * FROM {df}
+            SELECT * FROM {{df}}
             """
         )"
       `);
@@ -628,7 +649,7 @@ _df = mo.sql(
       "preserves the query and output=%s when switching DuckDB and Polars",
       (showOutput) => {
         const query = "SELECT * FROM orders WHERE amount > {minimum}";
-        const pythonCode = `result = mo.sql(f\"\"\"${query}\"\"\"${showOutput ? "" : ", output=False"})`;
+        const pythonCode = `result = mo.sql(f"""${query}"""${showOutput ? "" : ", output=False"})`;
         const [innerCode, , metadata] = adapter.transformIn(pythonCode);
 
         const [polarsCode] = adapter.transformOut(innerCode, {
@@ -986,15 +1007,15 @@ describe("SQL analysis features", () => {
 
   it("reports semantic diagnostics as warnings", async () => {
     const adapter = new SQLLanguageAdapter();
-    const extensions = adapter.getExtension(
-      {} as CellId,
-      {} as CompletionConfig,
-      {} as HotkeyProvider,
-      {} as PlaceholderType,
-      {
+    const extensions = adapter.getExtension({
+      cellId: {} as CellId,
+      completionConfig: {} as CompletionConfig,
+      hotkeys: {} as HotkeyProvider,
+      placeholderType: {} as PlaceholderType,
+      lspConfig: {
         diagnostics: { sql_linter: true },
       } as LSPConfig & { diagnostics: DiagnosticsConfig },
-    );
+    });
     const state = EditorState.create({
       doc: "SELECT missing FROM users",
       extensions: [languageMetadataField.init(() => metadata), ...extensions],
@@ -1019,15 +1040,15 @@ describe("SQL analysis features", () => {
 
   it("does not report unknown tables", async () => {
     const adapter = new SQLLanguageAdapter();
-    const extensions = adapter.getExtension(
-      {} as CellId,
-      {} as CompletionConfig,
-      {} as HotkeyProvider,
-      {} as PlaceholderType,
-      {
+    const extensions = adapter.getExtension({
+      cellId: {} as CellId,
+      completionConfig: {} as CompletionConfig,
+      hotkeys: {} as HotkeyProvider,
+      placeholderType: {} as PlaceholderType,
+      lspConfig: {
         diagnostics: { sql_linter: true },
       } as LSPConfig & { diagnostics: DiagnosticsConfig },
-    );
+    });
     const state = EditorState.create({
       doc: "SELECT missing FROM users; SELECT * FROM unknown_table",
       extensions: [languageMetadataField.init(() => metadata), ...extensions],
@@ -1163,7 +1184,7 @@ describe("CustomSqlParser", () => {
     const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = EditorState.create({
@@ -1207,7 +1228,7 @@ describe("CustomSqlParser", () => {
     vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = EditorState.create({
@@ -1251,7 +1272,7 @@ describe("CustomSqlParser", () => {
     const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
       error: null,
       parse_result: { success: false, errors: [error] },
-      request_id: "request-id",
+      request_id: requestId("request-id"),
       validate_result: null,
     });
     const state = createNamedConnectionState({
@@ -2508,6 +2529,81 @@ describe("tablesCompletionSource", () => {
           const result = await completion!(ctx);
           expect(result).toBeDefined();
           expect(result?.options.length).toBeGreaterThan(0);
+        });
+
+        it("inserts braces in table names as text in an f-string", async () => {
+          const name = "u{x}";
+          const connection: DataSourceConnection = {
+            name: TEST_ENGINE,
+            dialect: "postgres",
+            display_name: "postgres",
+            source: "postgres",
+            databases: [
+              {
+                name: "test_db",
+                dialect: "postgres",
+                schemas: [
+                  {
+                    name: "public",
+                    tables: [
+                      {
+                        name,
+                        source: "postgres",
+                        source_type: "local",
+                        type: "table",
+                        num_columns: 0,
+                        num_rows: 0,
+                        variable_name: null,
+                        columns: [
+                          {
+                            name: "c{y}",
+                            external_type: "string",
+                            type: "string",
+                            sample_values: [],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          };
+          store.set(dataSourceConnectionsAtom, {
+            connectionsMap: new Map([[TEST_ENGINE, connection]]),
+            latestEngineSelected: TEST_ENGINE,
+          });
+          const sources = getCompletionSources(
+            new SQLLanguageAdapter().getExtension(...TEST_EXTENSION_ARGS),
+          );
+          const applied = async (
+            doc: string,
+            quotePrefix: "f" | "",
+            label = name,
+          ) => {
+            const state = createEditorState(doc, {
+              engine: TEST_ENGINE,
+              quotePrefix,
+            });
+            const result = await sources![0](
+              createCompletionContext(state, doc.length),
+            );
+            const option = result?.options.find((o) =>
+              (o.displayLabel ?? o.label).includes(label),
+            );
+            return option?.apply ?? option?.label;
+          };
+
+          const escaped = "u{{x}}";
+          expect(await applied("SELECT * FROM u", "f")).toBe(`"${escaped}"`);
+          expect(await applied('SELECT * FROM "u', "f")).toBe(`"${escaped}"`);
+          expect(await applied("SELECT * FROM u", "")).toBe(`"${name}"`);
+          expect(
+            await applied('SELECT * FROM t AS "a{{b}}" WHERE a', "f", "a{b}"),
+          ).toBe('"a{{b}}"');
+          expect(await applied("SELECT * FROM u WHERE c", "f", "c{")).toBe(
+            '"c{{y}}"',
+          );
         });
 
         it("should include local datasets in completions", async () => {

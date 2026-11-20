@@ -142,7 +142,7 @@ export function resourceExtension(opts: {
 
 function asDom(value: string): TooltipView {
   const tooltip = document.createElement("div");
-  tooltip.innerHTML = value;
+  tooltip.textContent = value;
   return {
     dom: tooltip,
   };

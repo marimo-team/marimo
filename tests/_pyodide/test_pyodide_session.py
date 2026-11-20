@@ -15,7 +15,9 @@ import pytest
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG, merge_config
+from marimo._config.config_schema import FileBrowserConfig
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.input import InputReply
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.pyodide_session import (
     AsyncQueueManager,
@@ -30,6 +32,7 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     DebugCellCommand,
     DeleteCellCommand,
+    ExecuteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     ExecuteStaleCellsCommand,
@@ -122,13 +125,9 @@ def mock_pyodide() -> Generator[MagicMock, None, None]:
 async def pyodide_session(
     pyodide_app_file: Path,
 ) -> AsyncGenerator[PyodideSession, None]:
-    def _on_write(msg: KernelMessage) -> None:
-        pass
-
     session = PyodideSession(
         app=AppFileManager(filename=str(pyodide_app_file)),
         mode=SessionMode.EDIT,
-        on_write=_on_write,
         app_metadata=AppMetadata(
             query_params={},
             cli_args={},
@@ -355,8 +354,9 @@ async def test_pyodide_session_put_control_request(
 ) -> None:
     # Test putting control requests
     execution_request = ExecuteCellsCommand(
-        cell_ids=[CellId_t("test")],
-        codes=["test"],
+        execution_requests=[
+            ExecuteCellCommand(cell_id=CellId_t("test"), code="test")
+        ]
     )
     set_ui_element_request = UpdateUIElementCommand(
         object_ids=[UIElementId("test")], values=["test"]
@@ -410,13 +410,39 @@ async def test_pyodide_session_find_packages_with_script_metadata(
     )
 
     packages = pyodide_session.find_packages(code)
-    assert sorted(packages) == sorted(["foo", "bar", "baz"])
+    # Specifiers are preserved: these go to micropip, which resolves them.
+    assert sorted(packages) == sorted(["foo", "bar==1.0.0", "baz>=2.0.0"])
     mock_pyodide.code.find_imports.assert_not_called()
+
+
+async def test_find_packages_keeps_a_pinned_prerelease(
+    pyodide_session: PyodideSession,
+) -> None:
+    """A pin is the only thing that selects a pre-release.
+
+    Dropping it does not just lose precision -- an unpinned name resolves to
+    the newest *stable* release, so the notebook silently gets a different
+    version than it asked for, and one that may not run in Pyodide at all.
+    """
+    code = dedent(
+        """
+        # /// script
+        # dependencies = ["somepkg==1.0.0.dev2"]
+        # ///
+
+        import somepkg
+        """
+    )
+
+    assert pyodide_session.find_packages(code) == ["somepkg==1.0.0.dev2"]
 
 
 @pytest.mark.parametrize(
     ("python_version", "expected_package"),
-    [("3.12", "older-python"), ("3.13", "newer-python")],
+    [
+        ("3.12", "older-python; python_version < '3.13'"),
+        ("3.13", "newer-python; python_version >= '3.13'"),
+    ],
 )
 async def test_find_packages_from_island_notebook(
     pyodide_session: PyodideSession,
@@ -441,8 +467,8 @@ async def test_find_packages_from_island_notebook(
         "packaging.markers.default_environment", return_value=environment
     ):
         assert pyodide_session.find_packages(code) == [
-            "cowsay",
-            "rich[jupyter]",
+            'cowsay==6.1; sys_platform == "emscripten"',
+            "rich[jupyter]>=13",
             expected_package,
         ]
     mock_pyodide.code.find_imports.assert_not_called()
@@ -471,36 +497,47 @@ async def test_complex_find_packages(pyodide_session: PyodideSession) -> None:
         """
     )
     packages = pyodide_session.find_packages(code)
-    assert sorted(packages) == sorted(["plotly[express]", "polars"])
+    assert sorted(packages) == sorted(
+        ["plotly[express]==6.5.0", "polars==1.36.1"]
+    )
 
 
 async def test_strip_version_resilience(
     pyodide_session: PyodideSession,
 ) -> None:
-    """Test strip_version function handles various PEP 440 version specifiers and edge cases."""
+    """find_packages keeps each requirement as written.
+
+    Specifiers reach micropip, which resolves them. Environment markers are
+    still applied (a non-emscripten requirement drops out), and URL forms are
+    unchanged. `strip_requirement_name` keeps its own tests in
+    tests/_runtime/packages/test_package_utils.py.
+    """
     code_templates = [
         # Basic version specifiers
-        ('dependencies = ["package==1.0.0"]', ["package"]),
-        ('dependencies = ["package>=1.0.0"]', ["package"]),
-        ('dependencies = ["package<=2.0.0"]', ["package"]),
-        ('dependencies = ["package~=1.4"]', ["package"]),
-        ('dependencies = ["package!=1.5.0"]', ["package"]),
-        ('dependencies = ["package>1.0"]', ["package"]),
-        ('dependencies = ["package<2.0"]', ["package"]),
-        ('dependencies = ["package===1.0.0"]', ["package"]),
+        ('dependencies = ["package==1.0.0"]', ["package==1.0.0"]),
+        ('dependencies = ["package>=1.0.0"]', ["package>=1.0.0"]),
+        ('dependencies = ["package<=2.0.0"]', ["package<=2.0.0"]),
+        ('dependencies = ["package~=1.4"]', ["package~=1.4"]),
+        ('dependencies = ["package!=1.5.0"]', ["package!=1.5.0"]),
+        ('dependencies = ["package>1.0"]', ["package>1.0"]),
+        ('dependencies = ["package<2.0"]', ["package<2.0"]),
+        ('dependencies = ["package===1.0.0"]', ["package===1.0.0"]),
         # With extras
-        ('dependencies = ["package[extra]==1.0.0"]', ["package[extra]"]),
+        (
+            'dependencies = ["package[extra]==1.0.0"]',
+            ["package[extra]==1.0.0"],
+        ),
         (
             'dependencies = ["package[extra1,extra2]>=1.0.0"]',
-            ["package[extra1,extra2]"],
+            ["package[extra1,extra2]>=1.0.0"],
         ),
         # With whitespace
-        ('dependencies = ["package >= 1.0.0"]', ["package"]),
-        ('dependencies = ["  package==1.0.0  "]', ["package"]),
+        ('dependencies = ["package >= 1.0.0"]', ["package >= 1.0.0"]),
+        ('dependencies = ["  package==1.0.0  "]', ["package==1.0.0"]),
         # With environment markers
         (
             'dependencies = ["package>=1.0.0; python_version>=\\"3.8\\""]',
-            ["package"],
+            ['package>=1.0.0; python_version>="3.8"'],
         ),
         (
             'dependencies = ["package[extra]>=1.0; sys_platform==\\"linux\\""]',
@@ -508,11 +545,11 @@ async def test_strip_version_resilience(
         ),
         (
             'dependencies = ["native>=1.0; sys_platform!=\\"emscripten\\"", "pure-python>=1.0"]',
-            ["pure-python"],
+            ["pure-python>=1.0"],
         ),
         (
             'dependencies = ["wasm-only; sys_platform==\\"emscripten\\"", "linux-only; sys_platform==\\"linux\\""]',
-            ["wasm-only"],
+            ['wasm-only; sys_platform=="emscripten"'],
         ),
         # URL dependencies - left as-is
         (
@@ -534,7 +571,7 @@ async def test_strip_version_resilience(
         # Multiple packages with various specifiers
         (
             'dependencies = ["foo==1.0", "bar>=2.0", "baz~=3.0", "qux[extra]>=4.0"]',
-            ["foo", "bar", "baz", "qux[extra]"],
+            ["foo==1.0", "bar>=2.0", "baz~=3.0", "qux[extra]>=4.0"],
         ),
         # No version specifier
         ('dependencies = ["package"]', ["package"]),
@@ -556,15 +593,14 @@ async def test_strip_version_resilience(
         )
 
 
-async def test_pyodide_session_put_input(
+async def test_pyodide_session_reply_input(
     pyodide_session: PyodideSession,
 ) -> None:
-    # Test putting input
-    input_text = "test input"
-    pyodide_session.put_input(input_text)
+    reply = InputReply("prompt", "test input")
+    pyodide_session.reply_input(reply)
 
     assert not pyodide_session._queue_manager.input_queue.empty()
-    assert await pyodide_session._queue_manager.input_queue.get() == input_text
+    assert await pyodide_session._queue_manager.input_queue.get() == reply
 
 
 @pytest.mark.parametrize(
@@ -585,11 +621,11 @@ async def test_pyodide_session_put_input(
         ),
         # Cell execution and management
         (
-            '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}',
+            '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "print(1)"}]}',
             ExecuteCellsCommand,
         ),
         (
-            '{"type": "execute-cells", "cellIds": ["cell-1", "cell-2"], "codes": ["x=1", "y=2"]}',
+            '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "x=1"}, {"type": "execute-cell", "cellId": "cell-2", "code": "y=2"}]}',
             ExecuteCellsCommand,
         ),
         (
@@ -724,6 +760,28 @@ async def test_pyodide_session_on_message(
     mock_consumer2.assert_called_once_with(test_msg)
 
 
+async def test_pyodide_session_on_message_isolates_consumers(
+    pyodide_session: PyodideSession,
+) -> None:
+    """A failing or departing consumer does not keep the message from others."""
+    received: list[str] = []
+
+    def failing(_msg: KernelMessage) -> None:
+        raise RuntimeError("receiver is gone")
+
+    def departing(_msg: KernelMessage) -> None:
+        received.append("departing")
+        pyodide_session.consumers.remove(departing)
+
+    pyodide_session.consumers = [
+        failing,
+        departing,
+        lambda _msg: received.append("last"),
+    ]
+    pyodide_session._on_message(b"{}")
+    assert received == ["departing", "last"]
+
+
 async def test_pyodide_session_put_completion_request(
     pyodide_session: PyodideSession,
 ) -> None:
@@ -764,18 +822,10 @@ def test_pyodide_bridge_put_control_request(
     pyodide_bridge: PyodideBridge,
 ) -> None:
     """Test putting control requests through the bridge."""
-    request_json = '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}'
+    request_json = '{"type": "execute-cells", "executionRequests": [{"type": "execute-cell", "cellId": "cell-1", "code": "print(1)"}]}'
     pyodide_bridge.put_control_request(request_json)
 
     assert not pyodide_bridge.session._queue_manager.control_queue.empty()
-
-
-def test_pyodide_bridge_put_input(pyodide_bridge: PyodideBridge) -> None:
-    """Test putting input through the bridge."""
-    test_input = "test input"
-    pyodide_bridge.put_input(test_input)
-
-    assert not pyodide_bridge.session._queue_manager.input_queue.empty()
 
 
 def test_pyodide_bridge_code_complete(pyodide_bridge: PyodideBridge) -> None:
@@ -819,45 +869,39 @@ async def test_pyodide_bridge_format(pyodide_bridge: PyodideBridge) -> None:
     assert "cell-1" in response["codes"]
 
 
-def test_pyodide_bridge_save(
+async def test_pyodide_bridge_document_export(
     pyodide_bridge: PyodideBridge,
-    pyodide_app_file: Path,
 ) -> None:
-    request_json = json.dumps(
-        {
-            "cellIds": ["test"],
-            "codes": ['message = "NEW"'],
-            "names": ["_"],
-            "configs": [{}],
-            "filename": str(pyodide_app_file),
-        }
+    result = json.loads(
+        await pyodide_bridge.notebook.call(
+            json.dumps(
+                {
+                    "operation": "notebook.edit",
+                    "params": {"notebook_id": pyodide_bridge.notebook.id},
+                    "headers": {"idempotency-key": "edit-1"},
+                    "body": {
+                        "changes": [
+                            {
+                                "kind": "put_cell",
+                                "base_etag": None,
+                                "cell": {
+                                    "id": "test",
+                                    "code": 'message = "NEW"',
+                                },
+                            }
+                        ]
+                    },
+                }
+            )
+        )
     )
-
-    pyodide_bridge.save(request_json)
+    assert result["status"] == 200, result
 
     request = json.dumps({"download": False})
     script = json.loads(pyodide_bridge.export_script(request))
     markdown = json.loads(pyodide_bridge.export_markdown(request))
     assert 'message = "NEW"' in script["contents"]
     assert 'message = "NEW"' in markdown["contents"]
-
-
-def test_pyodide_bridge_save_app_config(
-    pyodide_bridge: PyodideBridge,
-    pyodide_app_file: Path,
-) -> None:
-    del pyodide_app_file
-    """Test saving app config through the bridge."""
-    request_json = json.dumps(
-        {
-            "config": {
-                "width": "full",
-            }
-        }
-    )
-
-    # Should not raise
-    pyodide_bridge.save_app_config(request_json)
 
 
 def test_pyodide_bridge_save_user_config(
@@ -941,10 +985,12 @@ def test_pyodide_bridge_file_roots(
     monkeypatch.setattr(
         pyodide_bridge.file_system, "get_root", lambda: str(primary)
     )
-    monkeypatch.setitem(
+    monkeypatch.setattr(
         pyodide_bridge.session._initial_user_config,
         "file_browser",
-        {"folders": [{"path": str(shared), "name": "Shared"}]},
+        FileBrowserConfig.from_dict(
+            {"folders": [{"path": str(shared), "name": "Shared"}]}
+        ),
     )
 
     response = json.loads(pyodide_bridge.file_roots())

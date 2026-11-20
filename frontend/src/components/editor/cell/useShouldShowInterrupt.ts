@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useEffect, useState } from "react";
+import { useDelayElapsed } from "@/hooks/useDelayElapsed";
 
 const DELAY_MS = 200;
 
@@ -10,17 +10,7 @@ const DELAY_MS = 200;
 export function useShouldShowInterrupt(running: boolean) {
   // Start a timer when the run starts.
   // After 200ms, show the interrupt button to avoid flickering.
-  const [hasRunLongEnough, setHasRunLongEnough] = useState(false);
-  useEffect(() => {
-    if (!running) {
-      return;
-    }
-    setHasRunLongEnough(false);
-    const timeout = setTimeout(() => {
-      setHasRunLongEnough(true);
-    }, DELAY_MS);
-    return () => clearTimeout(timeout);
-  }, [running]);
+  const hasRunLongEnough = useDelayElapsed(running ? DELAY_MS : 0);
 
   return running && hasRunLongEnough;
 }

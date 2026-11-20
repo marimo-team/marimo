@@ -55,7 +55,7 @@ export class RequestingTree {
     renameFileOrFolder: EditRequests["sendRenameFileOrFolder"];
   };
 
-  constructor(callbacks: {
+  public constructor(callbacks: {
     getRoots: EditRequests["getFileRoots"];
     listFiles: EditRequests["sendListFiles"];
     createFileOrFolder: EditRequests["sendCreateFileOrFolder"];
@@ -71,7 +71,7 @@ export class RequestingTree {
   private onChange: (data: FileTreeNode[]) => void = Functions.NOOP;
   private path = new PathBuilder("/");
 
-  initialize = async (
+  public initialize = async (
     onChange: (data: FileTreeNode[]) => void,
   ): Promise<void> => {
     this.onChange = onChange;
@@ -102,7 +102,7 @@ export class RequestingTree {
     this.emitChange();
   };
 
-  expand(id: string): Promise<boolean> {
+  public expand(id: string): Promise<boolean> {
     return this.requestDirectory(id);
   }
 
@@ -149,11 +149,11 @@ export class RequestingTree {
     }
   }
 
-  getRoots(): readonly FileRoot[] {
+  public getRoots(): readonly FileRoot[] {
     return this.roots;
   }
 
-  async reveal(node: FileTreeNode): Promise<boolean> {
+  public async reveal(node: FileTreeNode): Promise<boolean> {
     const relative = relativePath(node.path as FilePath, node.rootPath);
     if (relative === null) {
       return false;
@@ -190,7 +190,7 @@ export class RequestingTree {
     return true;
   }
 
-  async copy(id: string, newName: string): Promise<void> {
+  public async copy(id: string, newName: string): Promise<void> {
     const node = this.getMutableNode(id);
     if (!node) {
       return;
@@ -206,7 +206,7 @@ export class RequestingTree {
     }
   }
 
-  async rename(id: string, name: string): Promise<void> {
+  public async rename(id: string, name: string): Promise<void> {
     const node = this.getMutableNode(id);
     if (!node) {
       return;
@@ -222,7 +222,7 @@ export class RequestingTree {
     }
   }
 
-  async move(fromIds: string[], parentId: string | null): Promise<void> {
+  public async move(fromIds: string[], parentId: string | null): Promise<void> {
     const targetParentId = parentId ?? this.getPrimaryRootId();
     const parent = this.delegate.find(targetParentId);
     if (!parent?.data.isDirectory) {
@@ -253,7 +253,7 @@ export class RequestingTree {
     await this.refreshPaths([...refreshPaths]);
   }
 
-  async createFile({
+  public async createFile({
     name,
     parentId,
     type = "file",
@@ -278,7 +278,10 @@ export class RequestingTree {
     }
   }
 
-  async createFolder(name: string, parentId: string | null): Promise<void> {
+  public async createFolder(
+    name: string,
+    parentId: string | null,
+  ): Promise<void> {
     const parent = this.getParentNode(parentId);
     if (!parent) {
       return;
@@ -295,7 +298,7 @@ export class RequestingTree {
     }
   }
 
-  async delete(id: string): Promise<void> {
+  public async delete(id: string): Promise<void> {
     const node = this.getMutableNode(id);
     if (!node) {
       return;
@@ -309,7 +312,7 @@ export class RequestingTree {
     }
   }
 
-  refreshAll = async (ids: string[]): Promise<void> => {
+  public refreshAll = async (ids: string[]): Promise<void> => {
     const paths = [
       ...this.roots.map((root) => root.path),
       ...ids
@@ -325,7 +328,7 @@ export class RequestingTree {
     );
   };
 
-  refreshPath = async (path: FilePath): Promise<void> => {
+  public refreshPath = async (path: FilePath): Promise<void> => {
     await this.refreshPaths([path]);
   };
 

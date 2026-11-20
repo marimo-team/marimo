@@ -32,7 +32,11 @@ with app.setup:
     ]
     OPS_MESSAGES = [
         # Message operations
-        o.CellNotification,
+        o.EditorCellNotification,
+        o.ConsoleInputsClearedNotification,
+        o.CallbackOutputNotification,
+        o.PdbOutputNotification,
+        o.PdbInputNotification,
         o.FunctionCallResultNotification,
         o.RemoveUIElementsNotification,
         o.UIElementMessageNotification,
@@ -42,8 +46,8 @@ with app.setup:
         o.CompletionResultNotification,
         o.AlertNotification,
         o.MissingPackageAlertNotification,
-        o.InstallingPackageAlertNotification,
-        o.ReconnectedNotification,
+        o.EnvironmentOperationNotification,
+        o.EnvironmentStateNotification,
         o.StartupLogsNotification,
         o.BannerNotification,
         o.ReloadNotification,
@@ -62,6 +66,7 @@ with app.setup:
         o.QueryParamsDeleteNotification,
         o.QueryParamsClearNotification,
         o.FocusCellNotification,
+        o.BreakpointsNotification,
         o.SecretKeysResultNotification,
         o.CacheClearedNotification,
         o.CacheInfoNotification,

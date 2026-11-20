@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import html
+import os
 import re
 import sys
 import time
@@ -191,7 +192,7 @@ def _convert_docstring_to_markdown(
             )
 
     # Prefer markdown rendering when math syntax is present.
-    # This ensures ``.. math::`` and markdown delimiters are interpreted by
+    # This ensures `.. math::` and markdown delimiters are interpreted by
     # the same TeX pipeline used elsewhere in marimo output.
     if _contains_math_syntax(raw_docstring):
         return as_md_html(raw_docstring)
@@ -227,7 +228,8 @@ def _param_types_from_signatures(
     for param in params:
         try:
             type_hint = cast(str, param.get_type_hint())
-        except Exception:
+        # Jedi may not be able to resolve every parameter's type hint.
+        except Exception:  # noqa: S112
             continue
         if type_hint:
             param_types[param.name] = type_hint
@@ -333,7 +335,7 @@ def _get_completion_info(completion: jedi.api.classes.BaseName) -> str:
             return _get_type_hint(completion)
         return _get_docstring(completion)
     except Exception as e:
-        LOGGER.debug("jedi failed to get completion info: %s", str(e))
+        LOGGER.debug("jedi failed to get completion info: %s", e)
         return ""
 
 
@@ -343,6 +345,14 @@ def _get_completion_option(
     compute_type: bool = True,
 ) -> CompletionOption:
     name = completion.name
+    # jedi ends directory completions with `os.path.sep`. On Windows that is
+    # a backslash, which escapes the next character inside a normal string
+    # literal and breaks follow-up completions. A forward slash is valid on
+    # Windows too. Windows file names cannot contain a backslash, so a
+    # trailing one is always the separator and no `completion.type` check
+    # is needed. POSIX file names can contain a backslash, so leave those.
+    if os.path.sep == "\\" and name.endswith("\\"):
+        name = name[:-1] + "/"
     # `completion.type` triggers jedi inference and can be surprisingly
     # expensive on cold caches for heavy libraries (pandas, numpy, torch).
     # When callers are already over budget they pass `compute_type=False`, in
@@ -642,7 +652,7 @@ def _get_completions(
         # jedi's static analysis can crash while inferring some code — for
         # example https://github.com/davidhalter/jedi/issues/1990).
         # Fallback to interpreter when it crashes
-        LOGGER.debug("Completion with jedi Script failed: %s", str(e))
+        LOGGER.debug("Completion with jedi Script failed: %s", e)
     return _get_completions_with_interpreter(document, glbls, glbls_lock)
 
 
@@ -675,7 +685,6 @@ def complete(
         docstrings_limit: Limit past which we won't attempt to fetch type hints
             and docstrings
         timeout: Timeout after which we'll stop fetching type hints/docstrings
-        prefer_interpreter_completion: Whether to prefer interpreter completion
     """
     if not request.document.strip():
         _write_no_completions(stream, request.id)

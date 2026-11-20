@@ -60,7 +60,7 @@ export class WidgetRuntime {
   #generationCleanup = Promise.resolve();
   #css = "";
 
-  constructor(key: WidgetModelId, options: WidgetRuntimeOptions) {
+  public constructor(key: WidgetModelId, options: WidgetRuntimeOptions) {
     this.#key = key;
     this.#timeout = options.timeout;
     this.#isEditMode = options.isEditMode;
@@ -68,7 +68,7 @@ export class WidgetRuntime {
     this.#onModelTimeout = options.onModelTimeout;
   }
 
-  getModel(): Promise<Model<ModelState>> {
+  public getModel(): Promise<Model<ModelState>> {
     if (this.#model.status === "pending" && !this.#modelTimeout) {
       this.#modelTimeout = setTimeout(() => {
         if (this.#model.status === "pending") {
@@ -83,18 +83,20 @@ export class WidgetRuntime {
     return this.#model.promise;
   }
 
-  getModelSync(): Model<ModelState> | undefined {
+  public getModelSync(): Model<ModelState> | undefined {
     return this.#model.status === "resolved" ? this.#model.value : undefined;
   }
 
-  createModel(factory: (signal: AbortSignal) => Model<ModelState>): void {
+  public createModel(
+    factory: (signal: AbortSignal) => Model<ModelState>,
+  ): void {
     if (this.#model.status !== "pending") {
       return;
     }
     this.#resolveModel(factory(this.#controller.signal));
   }
 
-  setModel(model: Model<ModelState>): void {
+  public setModel(model: Model<ModelState>): void {
     if (this.#model.status !== "pending") {
       return;
     }
@@ -121,7 +123,7 @@ export class WidgetRuntime {
     );
   }
 
-  setSpec(spec: EsmSpec): void {
+  public setSpec(spec: EsmSpec): void {
     if (!this.#esmSpec) {
       this.#esmSpec = spec;
       return;
@@ -138,7 +140,7 @@ export class WidgetRuntime {
     }
   }
 
-  async getWidget<T = unknown>(): Promise<ResolvedWidget<T>> {
+  public async getWidget<T = unknown>(): Promise<ResolvedWidget<T>> {
     const binding = await this.#getCurrentBinding();
     return {
       exports: binding.exports as T,
@@ -151,7 +153,7 @@ export class WidgetRuntime {
     };
   }
 
-  async createView(options: {
+  public async createView(options: {
     el: HTMLElement;
     signal: AbortSignal;
   }): Promise<void> {
@@ -204,21 +206,33 @@ export class WidgetRuntime {
     controller: AbortController;
   }): Promise<WidgetBinding<ModelState>> {
     const { spec, model, controller } = options;
-    const mod = await WIDGET_DEF_REGISTRY.getModule({
-      jsUrl: spec.url,
-      jsHash: spec.hash,
-      kernelAuthored: true,
-    });
-    const widget = resolveAnyWidget(mod, spec.url);
-    if (!widget) {
-      WIDGET_DEF_REGISTRY.invalidate(spec.hash);
-      throw getInvalidAnyWidgetModuleError(mod, spec.url);
+    const moduleLifetime = new AbortController();
+    let widget: NonNullable<ReturnType<typeof resolveAnyWidget>>;
+    try {
+      const mod = await WIDGET_DEF_REGISTRY.getModule({
+        jsUrl: spec.url,
+        jsHash: spec.hash,
+        kernelAuthored: true,
+        lifetime: moduleLifetime.signal,
+      });
+      const resolved = resolveAnyWidget(mod, spec.url);
+      if (!resolved) {
+        WIDGET_DEF_REGISTRY.invalidate(spec.hash);
+        throw getInvalidAnyWidgetModuleError(mod, spec.url);
+      }
+      widget = resolved;
+    } catch (error) {
+      moduleLifetime.abort();
+      throw error;
     }
+    // From here WidgetBinding owns release, including late cleanup when the
+    // generation is destroyed during initialize.
     return WidgetBinding.create({
       widgetDef: widget,
       model,
       createHost: this.#createHost,
       controller,
+      onDestroy: () => moduleLifetime.abort(),
     });
   }
 
@@ -341,7 +355,7 @@ export class WidgetRuntime {
     view.signal.addEventListener("abort", release, { once: true });
   }
 
-  dispose(): void {
+  public dispose(): void {
     if (this.#controller.signal.aborted) {
       return;
     }

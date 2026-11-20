@@ -167,7 +167,7 @@ class TestSignVerify:
         """Truncated/corrupted base64 in the signature string raises CacheSignatureError."""
         _, verifier = _make_verifier()
         with pytest.raises(
-            CacheSignatureError, match="not readable|corrupted"
+            CacheSignatureError, match=r"not readable|corrupted"
         ):
             verifier.verify(b"data", "not!!valid==base64@@")
 
@@ -386,7 +386,7 @@ class TestGetDefaultSigner:
                 ).public_key_pem()
             )
 
-    def test_corrupt_key_file_regenerates(self, tmp_path: Any) -> None:
+    def test_corrupt_key_file_preserves_identity(self, tmp_path: Any) -> None:
         from marimo._save.signing import _get_default_signer
 
         key_path = tmp_path / "cache_signing_key.pem"
@@ -409,8 +409,5 @@ class TestGetDefaultSigner:
             ),
         ):
             signer = _get_default_signer()
-            assert signer is not None
-            assert signer.can_sign
-            # Should have overwritten the corrupt file
-            assert key_path.exists()
-            assert "PRIVATE KEY" in key_path.read_text()
+            assert signer is None
+            assert key_path.read_text() == "not a valid PEM"

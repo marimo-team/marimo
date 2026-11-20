@@ -6,7 +6,12 @@ import type {
   Role,
   SyncableProviderId,
 } from "../index.ts";
-import type { ModelsDevApi, ModelsDevModel } from "./models-dev.ts";
+import { CAPABILITIES, type ExistingMetadata } from "../metadata.ts";
+import {
+  deriveModelMetadata,
+  type ModelsDevApi,
+  type ModelsDevModel,
+} from "./models-dev.ts";
 
 /**
  * Allowlist of models.dev provider ids → marimo provider ids. Models from
@@ -168,6 +173,47 @@ function deriveCost(source: ModelsDevModel): AiModel["cost"] {
   };
 }
 
+/** Refresh known source fields without erasing omitted values or curated roles. */
+export function deriveMetadataUpdates(
+  source: ModelsDevModel,
+  previous: ExistingMetadata,
+): Partial<Omit<AiModel, "name" | "model" | "description" | "roles">> {
+  const metadata: Partial<
+    Omit<AiModel, "name" | "model" | "description" | "roles">
+  > = deriveModelMetadata(source);
+  if (source.reasoning !== undefined || source.tool_call !== undefined) {
+    const flags = {
+      thinking: source.reasoning,
+      tool_calling: source.tool_call,
+    };
+    metadata.capabilities = CAPABILITIES.filter(
+      (capability) =>
+        flags[capability] ?? previous.capabilities.includes(capability),
+    );
+  }
+  if (source.reasoning === false && previous.reasoning_options !== undefined) {
+    // An explicit non-reasoning flag invalidates previously advertised controls.
+    metadata.reasoning_options = [];
+  }
+  if (source.modalities?.input !== undefined) {
+    metadata.input_types = filterModalities(source.modalities.input);
+  }
+  if (source.modalities?.output !== undefined) {
+    metadata.output_types = filterModalities(source.modalities.output);
+  }
+  if (source.release_date && !Number.isNaN(Date.parse(source.release_date))) {
+    metadata.release_date = parseReleaseDate(source.release_date);
+  }
+  const cost = deriveCost(source);
+  if (cost) {
+    metadata.cost = { ...previous.cost, ...cost };
+  }
+  if (metadata.limits) {
+    metadata.limits = { ...previous.limits, ...metadata.limits };
+  }
+  return metadata;
+}
+
 function buildAiModel(source: ModelsDevModel): AiModel {
   const cost = deriveCost(source);
   return {
@@ -180,6 +226,7 @@ function buildAiModel(source: ModelsDevModel): AiModel {
     output_types: filterModalities(source.modalities?.output),
     release_date: parseReleaseDate(source.release_date),
     ...(cost && { cost }),
+    ...deriveModelMetadata(source),
   };
 }
 

@@ -103,9 +103,9 @@ class HeartbeatExtension(SessionExtension):
                 )
                 # Notify the frontend before closing the WS so the user sees
                 # a persistent banner with the real cause instead of just a
-                # "disconnected" UI. ``notify`` only queues the frame on each
+                # "disconnected" UI. `notify` only queues the frame on each
                 # consumer's send queue; yield to the event loop afterwards
-                # so the WS writer task drains it before ``session.close``
+                # so the WS writer task drains it before `session.close`
                 # detaches the consumers. Inner guard isolates a broadcast
                 # failure from cleanup -- we still want to close the session
                 # and log even if the banner can't be delivered.
@@ -327,9 +327,8 @@ class NotificationListenerExtension(SessionExtension):
     ) -> None:
         """Best-effort persistence of code-mode mutations to disk.
 
-        Only `source="code-mode"` transactions persist; `"kernel"`
-        bookkeeping (e.g. instantiation cell-order broadcasts) is skipped
-        so opening or running a notebook never rewrites it on disk.
+        Only `source="code-mode"` transactions persist, so opening or
+        running a notebook never rewrites it on disk.
         Skipped in run mode and for unnamed notebooks. Failures surface as
         an `AlertNotification` toast; they never raise out of the
         interceptor.
@@ -350,8 +349,8 @@ class NotificationListenerExtension(SessionExtension):
                 self._unnamed_autosave_logged = True
             return
 
-        # Deep-copy on the caller thread. ``NotebookCell`` and
-        # ``CellConfig`` are mutable and owned by the document, so a
+        # Deep-copy on the caller thread. `NotebookCell` and
+        # `CellConfig` are mutable and owned by the document, so a
         # shallow copy would let the event-loop thread mutate fields
         # under the worker thread's feet (torn snapshot).
         cells_snapshot: list[NotebookCell] = copy.deepcopy(
@@ -392,14 +391,31 @@ class NotificationListenerExtension(SessionExtension):
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
-        self.distributor = self._create_distributor(
+        loop = asyncio.get_running_loop()
+        distributor = self._create_distributor(
             kernel_manager=self.kernel_manager,
             queue_manager=self.queue_manager,
         )
-        self.distributor.add_consumer(
-            lambda msg: self._on_kernel_message(session, msg)
-        )
-        self.distributor.start()
+        self.distributor = distributor
+
+        def consume(msg: KernelMessage) -> None:
+            # Queued callbacks can outlive the session that scheduled them.
+            if self.distributor is distributor:
+                self._on_kernel_message(session, msg)
+
+        def enqueue(msg: KernelMessage) -> None:
+            if self.distributor is distributor:
+                # QueueDistributor calls from a worker thread. Both transports
+                # must serialize document/view updates with consumer attachment.
+                try:
+                    loop.call_soon_threadsafe(consume, msg)
+                except RuntimeError:
+                    # Loop teardown can race with the worker's final messages.
+                    if not loop.is_closed():
+                        raise
+
+        distributor.add_consumer(enqueue)
+        distributor.start()
 
     def on_detach(self) -> None:
         if self.distributor is not None:
@@ -464,14 +480,10 @@ class SessionViewExtension(EventAwareExtension):
         if not isinstance(request, commands.CodeCompletionCommand):
             session.session_view.add_control_request(request)
 
-    def on_received_stdin(self, session: Session, stdin: str) -> None:
-        """Called when stdin is received."""
-        session.session_view.add_stdin(stdin)
-
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
-        """Called when a notification is sent."""
+        """Retain a notification before consumers receive it."""
         session.session_view.add_raw_notification(notification)
 
 
@@ -492,11 +504,6 @@ class QueueExtension(EventAwareExtension):
         del session
         del from_consumer_id
         self.queue_manager.put_control_request(request)
-
-    def on_received_stdin(self, session: Session, stdin: str) -> None:
-        """Called when stdin is received."""
-        del session
-        self.queue_manager.put_input(stdin)
 
 
 class ReplayExtension(EventAwareExtension):
@@ -523,7 +530,7 @@ class ReplayExtension(EventAwareExtension):
 
         # Collect cell ids and codes
         if isinstance(request, ExecuteCellsCommand):
-            cell_ids = request.cell_ids
+            cell_ids = [cell.cell_id for cell in request.execution_requests]
         else:
             cell_ids = request.run_ids
 

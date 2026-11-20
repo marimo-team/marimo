@@ -1,15 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type * as Protocol from "@marimo-team/client/protocol";
 import { renderHook } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import type { ReactNode } from "react";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockModules, Mocks } from "@/__mocks__/common";
+import { type ExecutionEntries, MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
-import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
-import type { CellRuntimeState } from "@/core/cells/types";
+import type { CellOutput } from "@/core/executions";
 import { ProgressState } from "@/utils/progress";
 import {
   captureTracker,
@@ -26,19 +27,10 @@ vi.mock("@/utils/Logger", () => ({ Logger: Mocks.quietLogger() }));
 
 vi.mock("@/components/ui/use-toast", () => MockModules.toast());
 
-// Mock cellsRuntimeAtom - must be defined inline in the factory function
-vi.mock("@/core/cells/cells", async () => {
-  const { atom } = await import("jotai");
-  return {
-    cellsRuntimeAtom: atom({}),
-  };
-});
-
 const progress = ProgressState.indeterminate();
 
 import { toPng } from "html-to-image";
 import { toast } from "@/components/ui/use-toast";
-import { cellsRuntimeAtom } from "@/core/cells/cells";
 import { Logger } from "@/utils/Logger";
 
 describe("useEnrichCellOutputs", () => {
@@ -53,31 +45,23 @@ describe("useEnrichCellOutputs", () => {
   const wrapper = ({ children }: { children: ReactNode }) =>
     React.createElement(Provider, { store }, children);
 
-  // Helper to set the mocked atom (cast to any to work around type mismatch)
-  const setCellsRuntime = (value: Record<CellId, CellRuntimeState>) => {
-    // oxlint-disable-next-line typescript/no-explicit-any
-    store.set(cellsRuntimeAtom as any, value);
+  /** Make the host report `records` as the cells' results. */
+  const setCellsRuntime = (records: ExecutionEntries) => {
+    MockExecutions.seed(store, records);
   };
 
+  /** A completed execution per cell that shows its `output`. */
   const createMockCellRuntimes = (
-    cells: Record<string, Partial<CellRuntimeState>>,
-  ): Record<CellId, CellRuntimeState> => {
-    return Object.fromEntries(
-      Object.entries(cells).map(([cellId, cell]) => [
-        cellId,
-        {
-          output: cell.output || null,
-          status: cell.status || "idle",
-          interrupted: false,
-          errored: false,
-          runStartTimestamp: null,
-          runElapsedTimeMs: null,
-          stallTime: null as unknown as number,
-          ...cell,
-        } as CellRuntimeState,
-      ]),
-    ) as Record<CellId, CellRuntimeState>;
-  };
+    cells: Record<string, { output: CellOutput | null }>,
+  ): Array<Protocol.Execution | Protocol.Output> =>
+    Object.entries(cells).flatMap(([cellId, { output }]) =>
+      output === null
+        ? []
+        : MockExecutions.shown(cellId, {
+            mimetype: output.mimetype,
+            data: String(output.data),
+          }),
+    );
 
   it("should return empty object when no cells need screenshots", async () => {
     vi.spyOn(document, "getElementById");
@@ -507,7 +491,7 @@ describe("useEnrichCellOutputs", () => {
           output: null,
         },
         "cell-2": {
-          output: undefined,
+          output: null,
         },
       }),
     );
@@ -552,12 +536,7 @@ describe("useEnrichCellOutputs", () => {
     // Verify the exact return type structure
     expect(output).toHaveProperty(cid);
     const cellOutput = output[cid];
-    expect(cellOutput).toBeDefined();
-    expect(Array.isArray(cellOutput)).toBe(true);
-    if (cellOutput) {
-      expect(cellOutput[0]).toBe("image/png");
-      expect(cellOutput[1]).toBe(mockDataUrl);
-    }
+    expect(cellOutput).toEqual(["image/png", mockDataUrl]);
   });
 });
 

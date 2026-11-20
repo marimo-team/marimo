@@ -65,15 +65,27 @@ class RecentFilesManager:
         if not self.config:
             return
 
-        state = self.config.read_toml(
-            RecentFilesState, fallback=RecentFilesState()
-        )
+        try:
+            state = self.config.read_toml(
+                RecentFilesState, fallback=RecentFilesState()
+            )
+        except Exception as e:
+            LOGGER.error("Failed to read recent notebook at %s", self.LOCATION)
+            LOGGER.error(str(e))
+            state = RecentFilesState()
+
         if old_filename in state.files:
             state.files.remove(old_filename)
             state.files.insert(0, new_filename)
             state.files = state.files[: self.MAX_FILES]
 
-            self.config.write_toml(state)
+            try:
+                self.config.write_toml(state)
+            except Exception as e:
+                LOGGER.error(
+                    "Failed to write recent notebook at %s", self.LOCATION
+                )
+                LOGGER.error(str(e))
 
     def get_recents(
         self, directory: pathlib.Path | None = None
@@ -81,9 +93,15 @@ class RecentFilesManager:
         if not self.config:
             return []
 
-        state = self.config.read_toml(
-            RecentFilesState, fallback=RecentFilesState()
-        )
+        try:
+            state = self.config.read_toml(
+                RecentFilesState, fallback=RecentFilesState()
+            )
+        except Exception as e:
+            LOGGER.error("Failed to read recent notebook at %s", self.LOCATION)
+            LOGGER.error(str(e))
+            return []
+
         files: list[MarimoFile] = []
 
         base_dir = directory or pathlib.Path.cwd()

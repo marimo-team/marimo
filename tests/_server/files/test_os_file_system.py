@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Literal
 from unittest.mock import Mock, patch
@@ -684,14 +685,14 @@ class TestIsMarimoFile:
         py_file.write_text("print(0)".ljust(len(notebook)))
         unchanged_stat = py_file.stat()
         with patch(
-            "marimo._server.files.os_file_system.time.monotonic",
-            return_value=100,
+            "marimo._server.files.os_file_system.time",
         ) as clock:
+            clock.monotonic.return_value = 100
             assert fs._is_marimo_file(str(py_file), unchanged_stat) is False
             py_file.write_text(notebook)
-            clock.return_value = 104
+            clock.monotonic.return_value = 104
             assert fs._is_marimo_file(str(py_file), unchanged_stat) is False
-            clock.return_value = 105
+            clock.monotonic.return_value = 105
             assert fs._is_marimo_file(str(py_file), unchanged_stat) is True
 
     def test_python_marimo_file(
@@ -838,8 +839,9 @@ def test_search_reads_metadata_only_for_selected_matches(
     if disappears:
         entries[-1].stat.side_effect = FileNotFoundError
 
-    with patch("marimo._server.files.os_file_system.os.scandir") as scandir:
-        scandir.return_value.__enter__.return_value = iter(entries)
+    # Keep concurrent directory watchers on the real os.scandir.
+    with patch("marimo._server.files.os_file_system.os", wraps=os) as mock_os:
+        mock_os.scandir.return_value = nullcontext(iter(entries))
         results = fs.search("report", path=str(test_dir), limit=1)
 
     assert [result.name for result in results] == (

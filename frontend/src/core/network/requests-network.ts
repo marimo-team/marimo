@@ -11,6 +11,7 @@ import {
   waitForConnectionOpen,
   waitForConnectionOpenIfNotebook,
 } from "./connection";
+import { withDevAssetUrl } from "./export-asset-url";
 import type { EditRequests, RunRequests } from "./types";
 
 /**
@@ -69,28 +70,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendDocumentTransaction: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/document/transaction", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendRename: (request) => {
       return getClient()
         .POST("/api/kernel/rename", {
           body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendSave: (request) => {
-      return getClient()
-        .POST("/api/kernel/save", {
-          body: request,
-          parseAs: "text",
           params: getParams(),
         })
         .then(handleResponseReturnNull);
@@ -111,48 +94,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
-    sendInterrupt: () => {
-      return getClient()
-        .POST("/api/kernel/interrupt", {
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendShutdown: () => {
       return getClient()
         .POST("/api/kernel/shutdown")
-        .then(handleResponseReturnNull);
-    },
-    sendRun: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/run", {
-          body: request,
-          params: getParams(),
-        })
         .then(handleResponseReturnNull);
     },
     sendRunScratchpad: async (request) => {
       await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/scratchpad/run", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendInstantiate: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/instantiate", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendDeleteCell: (request) => {
-      return getClient()
-        .POST("/api/kernel/delete", {
           body: request,
           params: getParams(),
         })
@@ -174,6 +124,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    saveLayout: (request) => {
+      return getClient()
+        .POST("/api/kernel/save_layout", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     saveAppConfig: (request) => {
       return getClient()
         .POST("/api/kernel/save_app_config", {
@@ -183,25 +141,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    saveCellConfig: (request) => {
-      return getClient()
-        .POST("/api/kernel/set_cell_config", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendFunctionRequest: (request) => {
       return getClient()
         .POST("/api/kernel/function_call", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendStdin: (request) => {
-      return getClient()
-        .POST("/api/kernel/stdin", {
           body: request,
           params: getParams(),
         })
@@ -309,6 +251,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           body: request,
           params: getParams(),
         })
+        .then(handleResponseReturnNull);
+    },
+    sendPdbReply: (request) => {
+      return getClient()
+        .POST("/api/kernel/pdb/reply", { body: request, params: getParams() })
         .then(handleResponseReturnNull);
     },
     sendSetBreakpoints: (request) => {
@@ -430,15 +377,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     exportAsHTML: async (request) => {
-      if (
-        process.env.NODE_ENV === "development" ||
-        process.env.NODE_ENV === "test"
-      ) {
-        request.assetUrl = window.location.origin;
-      }
       return getClient()
         .POST("/api/export/html", {
-          body: request,
+          body: withDevAssetUrl(request),
           parseAs: "text",
           params: getParams(),
         })
@@ -532,6 +473,18 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    getSandbox: (request) =>
+      getClient()
+        .POST("/api/packages/sandbox", { body: request, params: getParams() })
+        .then(handleResponse),
+    updateManifest: (request) =>
+      getClient()
+        .POST("/api/packages/manifest", { body: request, params: getParams() })
+        .then(handleResponse),
+    syncSandbox: (request) =>
+      getClient()
+        .POST("/api/packages/sync", { body: request, params: getParams() })
+        .then(handleResponse),
     addPackage: (request) => {
       return getClient()
         .POST("/api/packages/add", {

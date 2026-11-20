@@ -345,7 +345,7 @@ const ColumnPreview = ({
   const chart = chart_spec && renderChart(chart_spec, theme);
 
   const addDataframeChart = chart_code && (
-    <AddDataframeChart chartCode={chart_code} />
+    <AddDataframeChart chartCode={chart_code} columnName={columnName} />
   );
 
   return (

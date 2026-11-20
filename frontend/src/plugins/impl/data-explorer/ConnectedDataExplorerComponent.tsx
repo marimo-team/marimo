@@ -47,7 +47,7 @@ const ConnectedDataExplorerComponent = (props: DataTableProps): JSX.Element => {
     // Subscribe to the store
     const unsub = store.sub(chartSpecAtom, () => {
       const value = store.get(chartSpecAtom);
-      const { schema, ...withoutSchema } = value;
+      const { schema: _schema, ...withoutSchema } = value;
       props.setValue(withoutSchema);
     });
 

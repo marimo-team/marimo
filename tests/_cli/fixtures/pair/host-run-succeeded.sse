@@ -1,0 +1,26 @@
+event: ready
+data: {}
+
+event: execution
+data: {"execution": {"id": "ex-other", "run_id": "run-other"}}
+
+event: console
+data: {"console": {"execution_id": "ex-other", "name": "stdout", "text": "ignored"}}
+
+event: execution
+data: {"execution": {"id": "ex-one", "run_id": "run-one"}}
+
+event: console
+data: {"console": {"execution_id": "ex-one", "name": "stdout", "text": "hello\n"}}
+
+event: console
+data: {"console": {"execution_id": "ex-one", "name": "stderr", "text": "warning\n"}}
+
+event: execution
+data: {"execution": {"id": "ex-one", "run_id": "run-one", "outcome": {"kind": "value", "display": {"mimetype": "text/plain", "data": "42"}}}}
+
+event: run
+data: {"run": {"id": "run-other", "status": "completed", "outcome": "failed"}}
+
+event: run
+data: {"run": {"id": "run-one", "status": "completed", "outcome": "succeeded"}}

@@ -15,6 +15,20 @@
 }
 
 /* Custom font sizes for better readability */
+
+/* Material scales the root font up at wide viewports, to 137.5% above 1600px
+   and 150% above 2000px, and every rem-based size grows with it. Cap both
+   steps so body text stops at 16px. The factor follows from the 0.75rem size
+   below: 0.75 of a 133.333% root is 16px at the default browser size. One
+   rule covers both steps, because it matches from the lower threshold up and
+   is declared later. Use a percentage rather than px so that a reader's own
+   browser font-size preference still applies. */
+@media screen and (min-width: 100em) {
+  html {
+    font-size: 133.333%;
+  }
+}
+
 .md-typeset {
   font-size: 0.75rem;
   line-height: 1.6;
@@ -22,6 +36,68 @@
 
 .md-typeset h1 {
   font-size: 2em;
+  font-weight: 600;
+}
+
+.md-typeset h2.configuration-category {
+  margin-top: 2.5em;
+  padding-bottom: 0.4em;
+  border-bottom: 2px solid var(--md-default-fg-color--lightest);
+  font-size: 1.75em;
+  font-weight: 600;
+}
+
+.md-typeset .configuration-option {
+  margin-top: 1.8em;
+  padding-top: 1em;
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+  font-size: 1.2em;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.md-typeset .configuration-status {
+  display: inline-block;
+  padding: 0.15em 0.55em;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 0.3em;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  font-family: inherit;
+  font-size: 0.75em;
+  line-height: 1.5;
+}
+
+.configuration-sensitive {
+  color: #2962ff;
+}
+
+.configuration-deprecated {
+  color: #9a5b00;
+}
+
+.configuration-experimental {
+  color: #7e3dbb;
+}
+
+[data-md-color-scheme="slate"] .configuration-sensitive {
+  color: #82b1ff;
+}
+
+[data-md-color-scheme="slate"] .configuration-deprecated {
+  color: #ffb74d;
+}
+
+[data-md-color-scheme="slate"] .configuration-experimental {
+  color: #ce93d8;
+}
+
+/* Keep all categories visible, expanding only the active category's options. */
+.configuration-toc > .md-nav__list > .md-nav__item:not(.configuration-active) > .md-nav {
+  display: none;
+}
+
+.configuration-toc > .md-nav__list > .configuration-active > .md-nav__link {
+  color: var(--md-accent-fg-color);
   font-weight: 600;
 }
 

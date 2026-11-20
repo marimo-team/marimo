@@ -22,7 +22,7 @@ import { Suspense } from "react";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { useRequestClient } from "@/core/network/requests";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
@@ -71,7 +71,11 @@ const SnippetsPanel: React.FC = () => {
                 rootClassName="flex-1 border-r"
               />
               <ContributeSnippetButton>
-                <button className="float-right px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
+                <button
+                  type="button"
+                  aria-label="Contribute snippet"
+                  className="float-right px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
+                >
                   <PlusIcon className="h-4 w-4" />
                 </button>
               </ContributeSnippetButton>
@@ -121,18 +125,16 @@ const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
   onClose,
 }) => {
   const { theme } = useTheme();
-  const { createNewCell } = useCellActions();
+  const { createCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
 
   const handleInsertSnippet = () => {
     // Add below last focused cell in reverse order
     for (const section of snippet.sections.toReversed()) {
       if (section.code) {
-        createNewCell({
+        createCell({
+          after: lastFocusedCellId,
           code: section.code,
-          before: false,
-          cellId: lastFocusedCellId ?? "__end__",
-          // If the code already exists, skip creation
           skipIfCodeExists: true,
         });
       }
@@ -140,11 +142,7 @@ const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
   };
 
   const handleInsertCode = (code: string) => {
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    createCell({ after: lastFocusedCellId, code });
   };
 
   return (

@@ -3,6 +3,7 @@
 import type { createStore } from "jotai";
 import { getCellEditorView } from "@/core/cells/cells";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";
 import { Logger } from "@/utils/Logger";
 
 export function focusCellEditor(
@@ -19,10 +20,10 @@ export function focusCellEditor(
   }
 }
 
-export function focusCell(cellId: CellId): void {
+export function focusCell(cellId: CellId, options?: FocusOptions): void {
   const element = document.getElementById(HTMLCellId.create(cellId));
   if (element) {
-    tryFocus(element);
+    tryFocus(element, options);
   } else {
     Logger.warn(`[CellFocusManager] focusCell: element not found: ${cellId}`);
   }
@@ -39,6 +40,24 @@ export function raf2(callback: () => void): void {
 }
 
 /**
+ * Keep the focused cell in view after a layout shift, such as its code being
+ * hidden again.
+ */
+export function keepFocusedCellInView(): void {
+  raf2(() => {
+    const activeElement = document.activeElement;
+    if (!activeElement) {
+      return;
+    }
+    const focusedCell = HTMLCellId.findElementThroughShadowDOMs(activeElement);
+    if (!focusedCell) {
+      return;
+    }
+    scrollCellIntoView(HTMLCellId.parse(focusedCell.id));
+  });
+}
+
+/**
  * Checks if the cell is focused at the top level.
  */
 export function isAnyCellFocused(): boolean {
@@ -48,9 +67,9 @@ export function isAnyCellFocused(): boolean {
   );
 }
 
-export function tryFocus(dom: HTMLElement) {
+export function tryFocus(dom: HTMLElement, options?: FocusOptions) {
   try {
-    dom.focus();
+    dom.focus(options);
   } catch {
     Logger.warn("[CellFocusManager] element may not be focusable", dom);
   }

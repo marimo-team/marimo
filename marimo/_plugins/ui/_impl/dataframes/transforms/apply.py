@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, TypeVar, assert_never
 
 from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
     NarwhalsTransformHandler,
@@ -15,7 +15,6 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import FieldTypes
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
-from marimo._utils.assert_never import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify, make_lazy
 
 T = TypeVar("T")

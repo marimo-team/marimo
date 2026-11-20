@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBuffer, extractBuffers, MessageSchema } from "../utils";
 
 describe("MessageSchema", () => {
@@ -71,6 +71,44 @@ describe("EventBuffer", () => {
     vi.useFakeTimers();
     processEvents = vi.fn();
     eventBuffer = new EventBuffer(processEvents, 50);
+  });
+
+  afterEach(() => {
+    eventBuffer.dispose();
+    vi.useRealTimers();
+  });
+
+  it("flushes queued events and cancels the pending timer on dispose", () => {
+    eventBuffer.add("event1");
+    eventBuffer.add("event2");
+    expect(vi.getTimerCount()).toBe(1);
+    expect(processEvents).toHaveBeenCalledOnce();
+
+    eventBuffer.dispose();
+    expect(processEvents).toHaveBeenCalledTimes(2);
+    eventBuffer.dispose();
+
+    expect(eventBuffer.size()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(100);
+    expect(processEvents).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not process an empty buffer on dispose", () => {
+    eventBuffer.dispose();
+    expect(processEvents).not.toHaveBeenCalled();
+  });
+
+  it("resets the blocked state when disposed", () => {
+    eventBuffer.add("event1");
+    // Emulate a real processEvents, which drains the buffer
+    eventBuffer.getAndClear();
+    eventBuffer.dispose();
+    eventBuffer.add("event2");
+
+    expect(processEvents).toHaveBeenCalledTimes(2);
+    expect(eventBuffer.getAndClear()).toEqual(["event2"]);
+    expect(vi.getTimerCount()).toBe(1);
   });
 
   it("should add events to buffer", () => {

@@ -12,6 +12,7 @@ from typing import (
     Protocol,
     cast,
 )
+from urllib.parse import quote
 
 if TYPE_CHECKING:
     from typing import TypeAlias
@@ -90,6 +91,21 @@ class ASGIAppBuilder(abc.ABC):
 ValidateCallback: TypeAlias = Callable[[str, "Scope"], Awaitable[bool] | bool]
 
 
+def _slash_redirect_url(scope: Scope) -> str:
+    path = scope["path"]
+    root_path = scope.get("root_path", "").rstrip("/")
+    if (
+        root_path
+        and path != root_path
+        and not path.startswith(root_path + "/")
+    ):
+        path = root_path + path
+    # ASGI paths are decoded; quote delimiters before adding the query string.
+    url = quote("/" + path.lstrip("/").rstrip("/") + "/", safe="/")
+    query = scope.get("query_string", b"").decode("latin-1")
+    return f"{url}?{query}" if query else url
+
+
 class DynamicDirectoryMiddleware:
     def __init__(
         self,
@@ -118,22 +134,11 @@ class DynamicDirectoryMiddleware:
         )
 
     def _redirect_response(self, scope: Scope) -> Response:
-        from starlette.requests import Request
         from starlette.responses import RedirectResponse
 
-        request = Request(scope)
-
-        # Get the path and query string
-        path = request.url.path
-        query_string = request.url.query
-
-        # Build the redirect URL with query params
-        redirect_url = f"{path}/"
-        if query_string:
-            redirect_url = f"{redirect_url}?{query_string}"
-
-        LOGGER.debug(f"Redirecting to: {redirect_url}")
-        return RedirectResponse(url=redirect_url, status_code=307)
+        return RedirectResponse(
+            url=_slash_redirect_url(scope), status_code=307
+        )
 
     def _is_within_directory(self, path: Path) -> bool:
         """Check that `path` resolves to a location within the directory.
@@ -544,6 +549,7 @@ def create_asgi_app(
                     {"runtime": {"show_tracebacks": show_tracebacks}},
                 )
             )
+            config = app_config_reader.get_config(hide_secrets=False)
 
             session_manager = SessionManager(
                 workspace=SingleFileWorkspace.from_path(MarimoPath(file_path)),
@@ -562,13 +568,12 @@ def create_asgi_app(
                 auth_token=auth_token,
                 redirect_console_to_browser=redirect_console_to_browser,
                 ttl_seconds=session_ttl,
-                isolate_apps=config_reader.experimental.get(
-                    "isolate_apps", False
-                ),
+                isolate_apps=config.experimental.isolate_apps,
                 execute_opengraph_generators=execute_opengraph_generators,
             )
             enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(
+                server_config=config.server,
                 base_url="",
                 lifespan=Lifespans(
                     [
@@ -597,14 +602,9 @@ def create_asgi_app(
                 self._mount_configs, key=lambda x: -len(x[0])
             )
 
-            def create_redirect_to_slash(
-                base_url: str,
-            ) -> Callable[[Request], Response]:
-                # Strip leading slash
-                base_url = base_url.lstrip("/")
-                redirect_path = f"{base_url}/"
-                return lambda _: RedirectResponse(
-                    url=redirect_path, status_code=301
+            def redirect_to_slash(request: Request) -> Response:
+                return RedirectResponse(
+                    url=_slash_redirect_url(request.scope), status_code=301
                 )
 
             for path, root, middleware in self._mount_configs:
@@ -625,7 +625,7 @@ def create_asgi_app(
                 if path and not path.endswith("/"):
                     base_app.add_route(
                         path,
-                        create_redirect_to_slash(path),
+                        redirect_to_slash,
                     )
 
             # Add dynamic directory middleware for each directory config

@@ -5,7 +5,6 @@ import { codecovVitePlugin } from "@codecov/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { JSDOM } from "jsdom";
 import { defineConfig, type Plugin } from "vite";
-import wasm from "vite-plugin-wasm";
 import { createViteLogger, reactCompilerConfig } from "./vite.shared.mts";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
@@ -250,14 +249,6 @@ export default defineConfig({
           origin: TARGET,
         },
       },
-      "/ws_sync": {
-        target: `ws://${HOST}:${SERVER_PORT}`,
-        ws: true,
-        changeOrigin: true,
-        headers: {
-          origin: TARGET,
-        },
-      },
       "/lsp": {
         target: `ws://${HOST}:${SERVER_PORT}`,
         ws: true,
@@ -310,8 +301,6 @@ export default defineConfig({
     dedupe: [
       "react",
       "react-dom",
-      "@emotion/react",
-      "@emotion/cache",
       "@codemirror/view",
       "@codemirror/state",
       // Dedupe react-dnd to prevent "Cannot have two HTML5 backends" errors
@@ -334,6 +323,5 @@ export default defineConfig({
       bundleName: "marimo",
       uploadToken: process.env.CODECOV_TOKEN,
     }),
-    wasm(),
   ],
 });

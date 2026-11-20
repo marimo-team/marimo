@@ -4,16 +4,18 @@ from __future__ import annotations
 import os
 import subprocess
 import threading
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import uvicorn
 
+from marimo._cli import cli_validators as validators
 from marimo._cli.print import echo
-from marimo._cli.sandbox import SandboxMode
-from marimo._config.config import PartialMarimoConfig
-from marimo._config.manager import get_default_config_manager
+from marimo._cli.utils import resolve_token
+from marimo._config.manager import MarimoConfigManager
+from marimo._config.schema_utils import default_if_unset
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._environments.sandbox import Backend
 from marimo._mcp.setup import McpType, setup_mcp_server
 from marimo._messaging.notification import StartupLogsNotification
 from marimo._runtime.commands import SerializedCLIArgs
@@ -22,8 +24,8 @@ from marimo._server.api import lifespans
 from marimo._server.config import (
     StarletteServerStateInit,
 )
+from marimo._server.host.lifespan import host as host_lifespan
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
-from marimo._server.main import create_starlette_app
 from marimo._server.registry import LIFESPAN_REGISTRY
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
@@ -188,32 +190,19 @@ def _resolve_proxy(port: int, host: str, proxy: str | None) -> tuple[int, str]:
 def start(
     *,
     workspace: NotebookWorkspace,
+    config_manager: MarimoConfigManager,
     mode: SessionMode,
     development_mode: bool,
     quiet: bool,
-    include_code: bool,
-    ttl_seconds: int | None,
-    headless: bool,
-    port: int | None,
-    host: str,
-    proxy: str | None,
-    watch: bool,
     cli_args: SerializedCLIArgs,
     argv: list[str],
-    base_url: str = "",
-    allow_origins: tuple[str, ...] | None = None,
-    auth_token: AuthToken | None,
-    redirect_console_to_browser: bool,
-    skew_protection: bool,
     remote_url: str | None = None,
     mcp: McpType | None = None,
     mcp_allow_remote: bool = False,
     server_startup_command: str | None = None,
     asset_url: str | None = None,
-    timeout: float | None = None,
-    sandbox_mode: SandboxMode | None = None,
+    sandbox: Backend | None = None,
     startup_tip: CliTip | None = None,
-    show_tracebacks: bool | None = None,
     execute_opengraph_generators: bool = False,
 ) -> None:
     """
@@ -221,8 +210,24 @@ def start(
     """
     import packaging.version
 
-    # In single-file sandbox mode, uv becomes our direct parent. So we
-    # watch the outer CLI's PID, terminating if the CLI terminates.
+    config_reader = config_manager
+    server_config = config_reader.get_config(hide_secrets=False).server
+    is_edit = mode == SessionMode.EDIT
+    host = server_config.host
+    watch = server_config.watch
+    skew_protection = server_config.skew_protection
+    base_url = validators.check_proxy_base_url(
+        server_config.proxy,
+        validators.base_url(None, None, server_config.base_url),
+    )
+    auth_token = resolve_token(
+        default_if_unset(server_config.token, is_edit),
+        token_password=server_config.token_password,
+        token_password_file=server_config.token_password_file,
+    )
+
+    # Sandboxed run commands put a launcher between the CLI and server.
+    # Watch the outer CLI's PID, terminating if the CLI terminates.
     ancestor_pid_env = os.environ.get("MARIMO_ANCESTOR_PID")
     if ancestor_pid_env:
         try:
@@ -247,18 +252,7 @@ def start(
 
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
-    port = port or find_free_port(DEFAULT_PORT, addr=host)
-
-    # This is the path that will be used to read the project configuration
-    start_path: str | None = None
-    if (single_file := workspace.single_file()) is not None:
-        start_path = single_file.path
-    elif (directory := workspace.directory) is not None:
-        start_path = directory
-    else:
-        start_path = os.getcwd()
-
-    config_reader = get_default_config_manager(current_path=start_path)
+    port = server_config.port or find_free_port(DEFAULT_PORT, addr=host)
 
     lsp_composite_server: CompositeLspServer | None = None
     if mode == SessionMode.EDIT:
@@ -282,46 +276,48 @@ def start(
             "trusted directories and authentication controls."
         )
 
+    if sandbox is not None:
+        os.environ["MARIMO_SANDBOX_BACKEND"] = sandbox
+        GLOBAL_SETTINGS.SANDBOX_BACKEND = sandbox
+        if mode == SessionMode.EDIT:
+            os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+            os.environ["MARIMO_SANDBOX_MODE"] = "multi"
+            GLOBAL_SETTINGS.SANDBOX_MODE = "multi"
+
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+        backend = sandbox or GLOBAL_SETTINGS.SANDBOX_BACKEND
+        package_manager: Backend = "pixi" if backend == "pixi" else "uv"
         config_reader = config_reader.with_overrides(
             {
-                # Currently, only uv is supported for managing script metadata
-                # If this changes, instead we should only update the config
-                # if the user's package manager does not support sandboxes.
                 "package_management": {
-                    "manager": "uv",
+                    "manager": package_manager,
                 }
             }
         )
 
     is_multi = workspace.get_unique_file_key() is None
-    isolate_apps = is_multi and config_reader.experimental.get(
-        "isolate_apps", False
+    isolate_apps = (
+        is_multi and config_reader.get_config().experimental.isolate_apps
     )
-
-    # Apply CLI overrides for runtime config if explicitly set
-    if show_tracebacks is not None:
-        config_reader = config_reader.with_overrides(
-            cast(
-                PartialMarimoConfig,
-                {"runtime": {"show_tracebacks": show_tracebacks}},
-            )
-        )
 
     session_manager = SessionManager(
         workspace=workspace,
         mode=mode,
         quiet=quiet,
-        include_code=include_code,
-        ttl_seconds=ttl_seconds,
+        include_code=is_edit or server_config.include_code,
+        ttl_seconds=default_if_unset(
+            server_config.session_ttl, None if is_edit else 120
+        ),
         lsp_server=lsp_composite_server or NoopLspServer(),
         config_manager=config_reader,
         cli_args=cli_args,
         argv=argv,
         auth_token=auth_token,
-        redirect_console_to_browser=redirect_console_to_browser,
+        redirect_console_to_browser=is_edit
+        or server_config.redirect_console_to_browser,
         watch=watch,
-        sandbox_mode=sandbox_mode,
+        sandbox=sandbox is not None,
         isolate_apps=isolate_apps,
         execute_opengraph_generators=execute_opengraph_generators,
     )
@@ -329,33 +325,39 @@ def start(
     log_level = "info" if development_mode else "error"
 
     lifespans_list = [
+        lifespans.signal_handler,
         lifespans.lsp,
         lifespans.mcp,
         lifespans.etc,
-        lifespans.signal_handler,
         lifespans.logging,
         lifespans.open_browser,
         lifespans.tool_manager,
         lifespans.server_registry,
         lifespans.reap_subprocesses,
+        host_lifespan,
         *LIFESPAN_REGISTRY.get_all(),
     ]
 
     mcp_enabled = mcp is not None and mode == SessionMode.EDIT
 
-    (external_port, external_host) = _resolve_proxy(port, host, proxy)
+    (external_port, external_host) = _resolve_proxy(
+        port, host, server_config.proxy
+    )
     enable_auth = not AuthToken.is_empty(session_manager.auth_token)
+    from marimo._server.main import create_starlette_app
+
     app = create_starlette_app(
+        server_config=config_reader.get_config(hide_secrets=False).server,
         base_url=base_url,
         host=external_host,
         lifespan=Lifespans(lifespans_list),
-        allow_origins=allow_origins,
+        allow_origins=tuple(server_config.allow_origins),
         enable_auth=enable_auth,
         lsp_servers=list(lsp_composite_server.servers.values())
         if lsp_composite_server is not None
         else None,
         skew_protection=skew_protection,
-        timeout=timeout,
+        timeout=server_config.timeout,
     )
 
     if mcp_enabled and mcp is not None:
@@ -371,7 +373,7 @@ def start(
         host=external_host,
         base_url=base_url,
         asset_url=asset_url,
-        headless=headless,
+        headless=server_config.headless,
         quiet=quiet,
         session_manager=session_manager,
         config_manager=config_reader,

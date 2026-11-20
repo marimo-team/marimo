@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -9,6 +9,7 @@ def __1():
     import time
     from transformers.utils.notebook import NotebookProgressCallback
     from transformers.training_args import IntervalStrategy
+
     return IntervalStrategy, NotebookProgressCallback, time
 
 
@@ -59,7 +60,6 @@ def _(
 
 
     simulate_transformers_training()
-    return
 
 
 @app.cell
@@ -82,6 +82,7 @@ def _(IntervalStrategy):
     class MockTrainingControl:
         def __init__(self):
             pass
+
     return MockTrainingArgs, MockTrainingControl, MockTrainingState
 
 

@@ -11,6 +11,7 @@ import narwhals.stable.v2 as nw
 
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
@@ -402,6 +403,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return pd.api.types.infer_dtype(self._original_data[column])
 
             def to_arrow_ipc(self) -> bytes:
+                if not DependencyManager.pyarrow.has():
+                    raise NotImplementedError(
+                        "pyarrow is required for Arrow serialization"
+                    )
+
                 import pyarrow as pa
 
                 df = self._original_data

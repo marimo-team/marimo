@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
+import { createRPCRequestHandler } from "rpc-anywhere";
 import { toast } from "@/components/ui/use-toast";
 import { appConfigAtom, userConfigAtom } from "@/core/config/config";
 import { serializeBlob } from "@/utils/blob";
@@ -8,12 +9,17 @@ import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
+import { once } from "@/utils/once";
 import { generateUUID } from "@/utils/uuid";
-import { notebookIsRunningAtom } from "../cells/cells";
-import type { CommandMessage } from "../kernel/messages";
-import { getMarimoVersion } from "../meta/globals";
+import { createModuleWorker } from "@/utils/worker";
+import { notebookIsRunningAtom } from "../executions";
+import { activeNotebookReplicaAtom } from "../session/active-notebook";
+import { flushDocument } from "../cells/document";
+import { createWasmNotebookBackend } from "../transports/wasm";
+import type { ClientCommand } from "../kernel/messages";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
+import { withDevAssetUrl } from "../network/export-asset-url";
 import type {
   EditRequests,
   EnvironmentInfo,
@@ -37,14 +43,16 @@ import type {
 } from "../network/types";
 import { filenameAtom } from "../saving/file-state";
 import { store } from "../state/jotai";
-import { BasicTransport } from "../websocket/transports/basic";
-import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
-import { getWorkerRPC } from "./rpc";
+import { getWorkerRPC, type PersistNotebookRequest } from "./rpc";
+import { getWasmRuntimeConfig } from "./runtime-config";
 import { createShareableLink } from "./share";
 import { wasmInitStateAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
+import saveWorkerUrl from "./worker/save-worker.ts?worker&url";
+import workerUrl from "./worker/worker.ts?worker&url";
+import { CUSTOM_CONTROLLER_SUFFIX } from "./worker/constants";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import type { WorkerSchema } from "./worker/worker";
 
@@ -53,7 +61,7 @@ type SaveWorker = ReturnType<
 >["proxy"]["request"];
 
 export class PyodideBridge implements RunRequests, EditRequests {
-  static get INSTANCE(): PyodideBridge {
+  public static get INSTANCE(): PyodideBridge {
     const KEY = "_marimo_private_PyodideBridge";
     if (!window[KEY]) {
       window[KEY] = new PyodideBridge();
@@ -63,11 +71,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private saveRpc: SaveWorker | undefined;
-  private pendingSessionSave: Promise<unknown> = Promise.resolve();
+  private notebookConsumers = new Map<string, (event: unknown) => void>();
   private interruptBuffer?: Uint8Array;
-  private messageConsumer:
-    | ((message: MessageEvent<string>) => void)
-    | undefined;
+  /** Runs asked to stop before they ran; the buffer is raised once they do. */
+  private pendingInterrupts = new Set<string>();
+
+  // Match the worker mutation receipt window, including requests still in flight.
+  private interruptReceipts = new Map<string, { expiresAt: number }>();
 
   public initialized = new Deferred<void>();
 
@@ -77,23 +87,24 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return {
         readFile: throwNotImplemented,
         readNotebook: async () => (await notebookFileStore.readFile()) ?? "",
-        saveNotebook: throwNotImplemented,
+        writeNotebook: throwNotImplemented,
       };
     }
 
+    const runtimeConfig = getWasmRuntimeConfig();
+
     // Create save worker
-    const saveWorker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/save-worker.ts", import.meta.url),
+    const saveWorker = createModuleWorker(
+      new URL(saveWorkerUrl, import.meta.url),
       {
-        type: "module",
-        // Pass the version (and optional capability suffix) to the worker
-        /* @vite-ignore */
+        // Pass the optional custom-controller capability to the worker.
         name: getWasmWorkerName(),
       },
     );
 
-    return getWorkerRPC<SaveWorkerSchema>(saveWorker).proxy.request;
+    const rpc = getWorkerRPC<SaveWorkerSchema>(saveWorker, undefined, Infinity);
+    rpc.send.bootstrap(runtimeConfig);
+    return rpc.proxy.request;
   }
 
   private constructor() {
@@ -101,20 +112,38 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return;
     }
 
+    const runtimeConfig = getWasmRuntimeConfig();
+
     // Create a worker
-    const worker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/worker.ts", import.meta.url),
-      {
-        type: "module",
-        // Pass the version (and optional capability suffix) to the worker
-        /* @vite-ignore */
-        name: getWasmWorkerName(),
-      },
-    );
+    const worker = createModuleWorker(new URL(workerUrl, import.meta.url), {
+      // Pass the optional custom-controller capability to the worker.
+      name: getWasmWorkerName(),
+    });
 
     // Create the RPC
-    this.rpc = getWorkerRPC<WorkerSchema>(worker);
+    this.rpc = getWorkerRPC<WorkerSchema>(
+      worker,
+      createRPCRequestHandler({
+        persistNotebook: async (snapshot: PersistNotebookRequest) => {
+          if (!this.saveRpc) {
+            throw new Error("Notebook storage is not initialized");
+          }
+          await this.saveRpc.writeNotebook(snapshot);
+          notebookFileStore.saveFile(snapshot.contents);
+          fallbackFileStore.saveFile(snapshot.contents);
+          return null;
+        },
+      }),
+      // Synchronous Python execution can block worker requests indefinitely.
+      Infinity,
+    );
+    this.rpc.send.bootstrap(runtimeConfig);
+
+    this.rpc.addMessageListener("notebookEvent", ({ id, event }) => {
+      const parsed: unknown = JSON.parse(event);
+      this.raisePendingInterrupt(parsed);
+      this.notebookConsumers.get(id)?.(parsed);
+    });
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
@@ -150,9 +179,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
       }
       store.set(wasmInitStateAtom, { kind: "error", message: error });
       this.initialized.reject(new Error(error));
-    });
-    this.rpc.addMessageListener("kernelMessage", ({ message }) => {
-      this.messageConsumer?.(new MessageEvent("message", { data: message }));
     });
   }
 
@@ -205,12 +231,131 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
   }
 
-  attachMessageConsumer(consumer: (message: MessageEvent<string>) => void) {
-    this.messageConsumer = consumer;
-    this.rpc.proxy.send.consumerReady({});
+  public async createNotebookBackend() {
+    await this.initialized.promise;
+    return createWasmNotebookBackend({
+      subscribe: async (cursor, emit, signal) => {
+        signal.throwIfAborted();
+        const id = generateUUID();
+        this.notebookConsumers.set(id, emit);
+        const close = once(() => {
+          signal.removeEventListener("abort", close);
+          this.notebookConsumers.delete(id);
+          void this.rpc.proxy.request
+            .notebookUnsubscribe(id)
+            .catch(Logger.error);
+        });
+        signal.addEventListener("abort", close, { once: true });
+        try {
+          await this.rpc.proxy.request.notebookSubscribe({ id, cursor });
+          return close;
+        } catch (error) {
+          close();
+          throw error;
+        }
+      },
+      call: async (call) => {
+        if (
+          call.operation !== "runtime.interrupt" &&
+          call.operation !== "runtime.cancel"
+        ) {
+          return this.rpc.proxy.request.notebookCall(call);
+        }
+        const now = performance.now();
+        for (const [key, receipt] of this.interruptReceipts) {
+          if (receipt.expiresAt <= now) {
+            this.interruptReceipts.delete(key);
+          }
+        }
+        const key = call.headers["idempotency-key"];
+        if (!key || this.interruptReceipts.has(key)) {
+          return this.rpc.proxy.request.notebookCall(call);
+        }
+        const receipt = { expiresAt: Infinity };
+        this.interruptReceipts.set(key, receipt);
+        // The worker cannot take a call while a cell runs, so the interrupt
+        // is raised on the shared buffer first and the call follows.
+        // A queued run is ended by the worker, unless it starts before the
+        // call arrives. Then it is raised once the run reports running.
+        if (call.operation === "runtime.interrupt") {
+          this.interruptEveryRun();
+        } else if (call.operation === "runtime.cancel") {
+          if (this.isRunning(call.params.run_id)) {
+            this.raiseInterrupt();
+          } else {
+            this.pendingInterrupts.add(call.params.run_id);
+          }
+        }
+        try {
+          const reply = await this.rpc.proxy.request.notebookCall(call);
+          if (
+            typeof reply === "object" &&
+            reply !== null &&
+            "status" in reply &&
+            reply.status !== 202
+          ) {
+            this.interruptReceipts.delete(key);
+          }
+          return reply;
+        } finally {
+          // A lost reply may still have committed; retries must not signal new work.
+          receipt.expiresAt = performance.now() + 300_000;
+        }
+      },
+    });
   }
 
-  sendRename: EditRequests["sendRename"] = async ({ filename }) => {
+  /** Raise the buffer for a pending interrupt whose run has started. */
+  private raisePendingInterrupt(event: unknown): void {
+    if (this.pendingInterrupts.size === 0) {
+      return;
+    }
+    const frame = event as {
+      event?: string;
+      data?: { run?: { id: string; state: { status: string } } };
+    };
+    const run = frame.event === "run" ? frame.data?.run : undefined;
+    if (run === undefined || !this.pendingInterrupts.has(run.id)) {
+      return;
+    }
+    if (run.state.status === "running") {
+      this.pendingInterrupts.delete(run.id);
+      this.raiseInterrupt();
+    } else if (run.state.status === "completed") {
+      this.pendingInterrupts.delete(run.id);
+    }
+  }
+
+  /**
+   * Signal work outside runs too. Python ignores the signal while idle;
+   * the following host call consumes it before acknowledging the interrupt.
+   */
+  private interruptEveryRun(): void {
+    this.raiseInterrupt();
+    const replica = store.get(activeNotebookReplicaAtom);
+    if (replica === null) {
+      return;
+    }
+    for (const run of store.get(replica.executionsAtom).runs.values()) {
+      if (run.state.status === "queued") {
+        this.pendingInterrupts.add(run.id);
+      }
+    }
+  }
+
+  /** Whether the host reports `runId` as running, so a cell is executing. */
+  private isRunning(runId: string): boolean {
+    const replica = store.get(activeNotebookReplicaAtom);
+    if (replica === null) {
+      return false;
+    }
+    return (
+      store.get(replica.executionsAtom).runs.get(runId)?.state.status ===
+      "running"
+    );
+  }
+
+  public sendRename: EditRequests["sendRename"] = async ({ filename }) => {
     if (filename === null) {
       return null;
     }
@@ -225,66 +370,28 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendSave: EditRequests["sendSave"] = async (request) => {
-    if (!this.saveRpc) {
-      Logger.warn("Save RPC not initialized");
-      return null;
-    }
-
-    const durableSave = this.saveRpc.saveNotebook(request);
-    // Generated exports read the session-owned app in the main worker.
-    this.pendingSessionSave = this.pendingSessionSave
-      .catch(() => undefined)
-      .then(async () => {
-        await durableSave;
-        await this.rpc.proxy.request.saveNotebook(request);
-      });
-    void this.pendingSessionSave.catch((error) => {
-      Logger.error(error);
-    });
-
-    await durableSave;
-    const code = await this.readCode();
-    if (code.contents) {
-      notebookFileStore.saveFile(code.contents);
-      fallbackFileStore.saveFile(code.contents);
-    }
+  public saveLayout: EditRequests["saveLayout"] = async ({ layout }) => {
+    await this.rpc.proxy.request.setNotebookLayout(layout ?? null);
     return null;
   };
 
-  sendCopy: EditRequests["sendCopy"] = async () => {
+  public sendCopy: EditRequests["sendCopy"] = async () => {
     throwNotImplemented();
   };
 
-  sendStdin: EditRequests["sendStdin"] = async (request) => {
-    await this.rpc.proxy.request.bridge({
-      functionName: "put_input",
-      payload: request.text,
-    });
-    return null;
-  };
+  public sendPdbReply = throwNotImplemented;
 
-  sendPdb: EditRequests["sendPdb"] = async () => {
+  public sendPdb: EditRequests["sendPdb"] = async () => {
     throwNotImplemented();
   };
 
-  sendSetBreakpoints: EditRequests["sendSetBreakpoints"] = async () => {
+  public sendSetBreakpoints: EditRequests["sendSetBreakpoints"] = async () => {
     throwNotImplemented();
   };
 
-  sendRun: EditRequests["sendRun"] = async (request) => {
-    await this.rpc.proxy.request.loadPackages({
-      code: request.codes.join("\n"),
-      sqlOutput: store.get(appConfigAtom).sql_output,
-    });
-
-    await this.putControlRequest({
-      type: "execute-cells",
-      ...request,
-    });
-    return null;
-  };
-  sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (request) => {
+  public sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (
+    request,
+  ) => {
     await this.rpc.proxy.request.loadPackages({
       code: request.code,
       sqlOutput: store.get(appConfigAtom).sql_output,
@@ -296,18 +403,17 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return null;
   };
-  sendInterrupt: EditRequests["sendInterrupt"] = async () => {
+  private raiseInterrupt(): void {
     if (this.interruptBuffer !== undefined) {
       // 2 sends a SIGINT
       this.interruptBuffer[0] = 2;
     }
-    return null;
-  };
-  sendShutdown: EditRequests["sendShutdown"] = async () => {
+  }
+  public sendShutdown: EditRequests["sendShutdown"] = async () => {
     window.close();
     return null;
   };
-  sendFormat: EditRequests["sendFormat"] = async (request) => {
+  public sendFormat: EditRequests["sendFormat"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "format",
       payload: request,
@@ -315,15 +421,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FormatResponse;
   };
 
-  sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
-    await this.putControlRequest({
-      type: "delete-cell",
-      ...request,
-    });
-    return null;
-  };
-
-  sendInstallMissingPackages: EditRequests["sendInstallMissingPackages"] =
+  public sendInstallMissingPackages: EditRequests["sendInstallMissingPackages"] =
     async (request) => {
       this.putControlRequest({
         type: "install-packages",
@@ -331,23 +429,22 @@ export class PyodideBridge implements RunRequests, EditRequests {
       });
       return null;
     };
-  sendCodeCompletionRequest: EditRequests["sendCodeCompletionRequest"] = async (
-    request,
-  ) => {
-    // Because the Pyodide worker is single-threaded, sending
-    // code completion requests while the kernel is running is useless
-    // and runs the risk of choking the kernel
-    const isRunning = store.get(notebookIsRunningAtom);
-    if (!isRunning) {
-      await this.rpc.proxy.request.bridge({
-        functionName: "code_complete",
-        payload: request,
-      });
-    }
-    return null;
-  };
+  public sendCodeCompletionRequest: EditRequests["sendCodeCompletionRequest"] =
+    async (request) => {
+      // Because the Pyodide worker is single-threaded, sending
+      // code completion requests while the kernel is running is useless
+      // and runs the risk of choking the kernel
+      const isRunning = store.get(notebookIsRunningAtom);
+      if (!isRunning) {
+        await this.rpc.proxy.request.bridge({
+          functionName: "code_complete",
+          payload: request,
+        });
+      }
+      return null;
+    };
 
-  saveUserConfig: EditRequests["saveUserConfig"] = async (request) => {
+  public saveUserConfig: EditRequests["saveUserConfig"] = async (request) => {
     await this.rpc.proxy.request.bridge({
       functionName: "save_user_config",
       payload: request,
@@ -365,7 +462,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
   };
 
-  saveAppConfig: EditRequests["saveAppConfig"] = async (request) => {
+  public saveAppConfig: EditRequests["saveAppConfig"] = async (request) => {
     await this.rpc.proxy.request.bridge({
       functionName: "save_app_config",
       payload: request,
@@ -373,15 +470,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  saveCellConfig: EditRequests["saveCellConfig"] = async (request) => {
-    await this.putControlRequest({
-      type: "update-cell-config",
-      ...request,
-    });
-    return null;
-  };
-
-  sendRestart = async (): Promise<null> => {
+  public sendRestart = async (): Promise<null> => {
     // Save first
     const code = await this.readCode();
     if (code.contents) {
@@ -392,7 +481,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  readCode: EditRequests["readCode"] = async () => {
+  public readCode: EditRequests["readCode"] = async () => {
     if (!this.saveRpc) {
       Logger.warn("Save RPC not initialized");
       return { contents: "" };
@@ -401,7 +490,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return { contents };
   };
 
-  readSnippets: EditRequests["readSnippets"] = async () => {
+  public readSnippets: EditRequests["readSnippets"] = async () => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "read_snippets",
       payload: undefined,
@@ -409,7 +498,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as Snippets;
   };
 
-  openFile: EditRequests["openFile"] = async ({ path }) => {
+  public openFile: EditRequests["openFile"] = async () => {
     const url = createShareableLink({
       code: null,
       baseUrl: window.location.origin,
@@ -418,7 +507,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendListFiles: EditRequests["sendListFiles"] = async (request) => {
+  public sendListFiles: EditRequests["sendListFiles"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "list_files",
       payload: request,
@@ -426,7 +515,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileListResponse;
   };
 
-  getFileRoots: EditRequests["getFileRoots"] = async () => {
+  public getFileRoots: EditRequests["getFileRoots"] = async () => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "file_roots",
       payload: undefined,
@@ -434,7 +523,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileRootsResponse;
   };
 
-  sendSearchFiles: EditRequests["sendSearchFiles"] = async (request) => {
+  public sendSearchFiles: EditRequests["sendSearchFiles"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "search_files",
       payload: request,
@@ -442,7 +531,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileSearchResponse;
   };
 
-  sendComponentValues: RunRequests["sendComponentValues"] = async (request) => {
+  public sendComponentValues: RunRequests["sendComponentValues"] = async (
+    request,
+  ) => {
     await this.putControlRequest({
       type: "update-ui-element",
       ...request,
@@ -451,11 +542,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendInstantiate: RunRequests["sendInstantiate"] = async (request) => {
-    return null;
-  };
-
-  sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (request) => {
+  public sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
+    request,
+  ) => {
     await this.putControlRequest({
       type: "invoke-function",
       ...request,
@@ -463,39 +552,37 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendCreateFileOrFolder: EditRequests["sendCreateFileOrFolder"] = async (
-    request,
-  ) => {
-    // The WASM RPC boundary can only carry JSON, so we base64-encode the
-    // file bytes here. The HTTP transport uses multipart/form-data instead.
-    let contents: string | null = null;
-    if (request.file) {
-      const dataUrl = await serializeBlob(request.file);
-      contents = dataUrl.split(",")[1] ?? "";
-    }
-    const response = await this.rpc.proxy.request.bridge({
-      functionName: "create_file_or_directory",
-      payload: {
-        path: request.path,
-        type: request.type,
-        name: request.name,
-        contents,
-      },
-    });
-    return response as FileCreateResponse;
-  };
+  public sendCreateFileOrFolder: EditRequests["sendCreateFileOrFolder"] =
+    async (request) => {
+      // The WASM RPC boundary can only carry JSON, so we base64-encode the
+      // file bytes here. The HTTP transport uses multipart/form-data instead.
+      let contents: string | null = null;
+      if (request.file) {
+        const dataUrl = await serializeBlob(request.file);
+        contents = dataUrl.split(",")[1] ?? "";
+      }
+      const response = await this.rpc.proxy.request.bridge({
+        functionName: "create_file_or_directory",
+        payload: {
+          path: request.path,
+          type: request.type,
+          name: request.name,
+          contents,
+        },
+      });
+      return response as FileCreateResponse;
+    };
 
-  sendDeleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"] = async (
-    request,
-  ) => {
-    const response = await this.rpc.proxy.request.bridge({
-      functionName: "delete_file_or_directory",
-      payload: request,
-    });
-    return response as FileDeleteResponse;
-  };
+  public sendDeleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"] =
+    async (request) => {
+      const response = await this.rpc.proxy.request.bridge({
+        functionName: "delete_file_or_directory",
+        payload: request,
+      });
+      return response as FileDeleteResponse;
+    };
 
-  sendCopyFileOrFolder: EditRequests["sendCopyFileOrFolder"] = async (
+  public sendCopyFileOrFolder: EditRequests["sendCopyFileOrFolder"] = async (
     request,
   ) => {
     const response = await this.rpc.proxy.request.bridge({
@@ -505,17 +592,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileCopyResponse;
   };
 
-  sendRenameFileOrFolder: EditRequests["sendRenameFileOrFolder"] = async (
-    request,
-  ) => {
-    const response = await this.rpc.proxy.request.bridge({
-      functionName: "move_file_or_directory",
-      payload: request,
-    });
-    return response as FileMoveResponse;
-  };
+  public sendRenameFileOrFolder: EditRequests["sendRenameFileOrFolder"] =
+    async (request) => {
+      const response = await this.rpc.proxy.request.bridge({
+        functionName: "move_file_or_directory",
+        payload: request,
+      });
+      return response as FileMoveResponse;
+    };
 
-  sendUpdateFile: EditRequests["sendUpdateFile"] = async (request) => {
+  public sendUpdateFile: EditRequests["sendUpdateFile"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "update_file",
       payload: request,
@@ -523,7 +609,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileUpdateResponse;
   };
 
-  sendFileDetails: EditRequests["sendFileDetails"] = async (request) => {
+  public sendFileDetails: EditRequests["sendFileDetails"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "file_details",
       payload: request,
@@ -531,27 +617,21 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileDetailsResponse;
   };
 
-  exportAsHTML: EditRequests["exportAsHTML"] = async (
+  public exportAsHTML: EditRequests["exportAsHTML"] = async (
     request: ExportAsHTMLRequest,
   ) => {
-    await this.pendingSessionSave;
-    if (
-      process.env.NODE_ENV === "development" ||
-      process.env.NODE_ENV === "test"
-    ) {
-      request.assetUrl = window.location.origin;
-    }
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_html",
-      payload: request,
+      payload: withDevAssetUrl(request),
     });
     return response as ExportedFile<string>;
   };
 
-  exportAsMarkdown: EditRequests["exportAsMarkdown"] = async (
+  public exportAsMarkdown: EditRequests["exportAsMarkdown"] = async (
     request: ExportAsMarkdownRequest,
   ) => {
-    await this.pendingSessionSave;
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_markdown",
       payload: request,
@@ -559,10 +639,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as ExportedFile<string>;
   };
 
-  exportAsScript: EditRequests["exportAsScript"] = async (
+  public exportAsScript: EditRequests["exportAsScript"] = async (
     request: ExportAsScriptRequest,
   ) => {
-    await this.pendingSessionSave;
+    await flushDocument();
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_script",
       payload: request,
@@ -570,7 +650,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as ExportedFile<string>;
   };
 
-  previewDatasetColumn: EditRequests["previewDatasetColumn"] = async (
+  public previewDatasetColumn: EditRequests["previewDatasetColumn"] = async (
     request,
   ) => {
     await this.putControlRequest({
@@ -580,7 +660,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  previewSQLTable: EditRequests["previewSQLTable"] = async (request) => {
+  public previewSQLTable: EditRequests["previewSQLTable"] = async (request) => {
     await this.putControlRequest({
       type: "preview-sql-table",
       ...request,
@@ -588,7 +668,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  previewSQLTableList: EditRequests["previewSQLTableList"] = async (
+  public previewSQLTableList: EditRequests["previewSQLTableList"] = async (
     request,
   ) => {
     await this.putControlRequest({
@@ -598,7 +678,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  previewSQLSchemaList: EditRequests["previewSQLSchemaList"] = async (
+  public previewSQLSchemaList: EditRequests["previewSQLSchemaList"] = async (
     request,
   ) => {
     await this.putControlRequest({
@@ -608,7 +688,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  previewDataSourceConnection: EditRequests["previewDataSourceConnection"] =
+  public previewDataSourceConnection: EditRequests["previewDataSourceConnection"] =
     async (request) => {
       await this.putControlRequest({
         type: "list-data-source-connection",
@@ -617,7 +697,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return null;
     };
 
-  validateSQL: EditRequests["validateSQL"] = async (request) => {
+  public validateSQL: EditRequests["validateSQL"] = async (request) => {
     await this.putControlRequest({
       type: "validate-sql",
       ...request,
@@ -625,7 +705,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendModelValue: RunRequests["sendModelValue"] = async (request) => {
+  public sendModelValue: RunRequests["sendModelValue"] = async (request) => {
     await this.putControlRequest({
       type: "model",
       ...request,
@@ -633,20 +713,29 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendDocumentTransaction = () => Promise.resolve(null);
-
-  addPackage: EditRequests["addPackage"] = async (request) => {
+  public addPackage: EditRequests["addPackage"] = async (request) => {
     return this.rpc.proxy.request.addPackage(request);
   };
-  removePackage: EditRequests["removePackage"] = async (request) => {
+  public removePackage: EditRequests["removePackage"] = async (request) => {
     return this.rpc.proxy.request.removePackage(request);
   };
-  getPackageList = async () => {
+  public getPackageList = async () => {
     const response = await this.rpc.proxy.request.listPackages();
     return response;
   };
 
-  getDependencyTree: EditRequests["getDependencyTree"] = async () => {
+  public getSandbox: EditRequests["getSandbox"] = async () => ({
+    backend: null,
+    manifest: null,
+    filename: null,
+  });
+  public updateManifest: EditRequests["updateManifest"] = async () => {
+    throw new Error("Sandboxes are not supported in WebAssembly");
+  };
+  public syncSandbox: EditRequests["syncSandbox"] = async () => {
+    throw new Error("Sandboxes are not supported in WebAssembly");
+  };
+  public getDependencyTree: EditRequests["getDependencyTree"] = async () => {
     // WASM doesn't support dependency trees yet
     return {
       tree: {
@@ -659,7 +748,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     };
   };
 
-  listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
+  public listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
     await this.putControlRequest({
       type: "list-secret-keys",
       ...request,
@@ -667,7 +756,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  discoverDataSources: EditRequests["discoverDataSources"] = async (
+  public discoverDataSources: EditRequests["discoverDataSources"] = async (
     request,
   ) => {
     await this.putControlRequest({
@@ -677,35 +766,35 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  getUsageStats = throwNotImplemented;
-  getEnvironmentInfo: EditRequests["getEnvironmentInfo"] = async () => {
+  public getUsageStats = throwNotImplemented;
+  public getEnvironmentInfo: EditRequests["getEnvironmentInfo"] = async () => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "get_environment_info",
       payload: undefined,
     });
     return response as EnvironmentInfo;
   };
-  openTutorial = throwNotImplemented;
-  getRecentFiles = throwNotImplemented;
-  getWorkspaceFiles = throwNotImplemented;
-  getRunningNotebooks = throwNotImplemented;
-  shutdownSession = throwNotImplemented;
-  getExportAvailability = throwNotImplemented;
-  installExportRequirements = throwNotImplemented;
-  exportAsIPYNB = throwNotImplemented;
-  exportAsPDF = throwNotImplemented;
-  autoExportAsHTML = throwNotImplemented;
-  autoExportAsMarkdown = throwNotImplemented;
-  autoExportAsIPYNB = throwNotImplemented;
-  updateCellOutputs = throwNotImplemented;
-  writeSecret = throwNotImplemented;
-  invokeAiTool = throwNotImplemented;
-  clearCache = throwNotImplemented;
-  getCacheInfo = throwNotImplemented;
-  listStorageEntries = throwNotImplemented;
-  downloadStorage = throwNotImplemented;
+  public openTutorial = throwNotImplemented;
+  public getRecentFiles = throwNotImplemented;
+  public getWorkspaceFiles = throwNotImplemented;
+  public getRunningNotebooks = throwNotImplemented;
+  public shutdownSession = throwNotImplemented;
+  public getExportAvailability = throwNotImplemented;
+  public installExportRequirements = throwNotImplemented;
+  public exportAsIPYNB = throwNotImplemented;
+  public exportAsPDF = throwNotImplemented;
+  public autoExportAsHTML = throwNotImplemented;
+  public autoExportAsMarkdown = throwNotImplemented;
+  public autoExportAsIPYNB = throwNotImplemented;
+  public updateCellOutputs = throwNotImplemented;
+  public writeSecret = throwNotImplemented;
+  public invokeAiTool = throwNotImplemented;
+  public clearCache = throwNotImplemented;
+  public getCacheInfo = throwNotImplemented;
+  public listStorageEntries = throwNotImplemented;
+  public downloadStorage = throwNotImplemented;
 
-  private async putControlRequest(operation: CommandMessage) {
+  private async putControlRequest(operation: ClientCommand) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
       payload: operation,
@@ -713,16 +802,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
   }
 }
 
-export function createPyodideConnection(): IConnectionTransport {
-  return BasicTransport.withProducerCallback((callback) => {
-    PyodideBridge.INSTANCE.attachMessageConsumer(callback);
-  });
-}
-
-// Compose the worker name. The version prefix is read by getMarimoVersion()
-// in the worker; the optional "::controller" suffix tells getController.ts
-// that the host page provides a custom /wasm/controller.js and that the
-// dynamic import should be attempted. Hosts opt in by setting
+// Compose the worker name. The optional "::controller" suffix tells
+// getController.ts that the host page provides a custom /wasm/controller.js
+// and that the dynamic import should be attempted. Hosts opt in by setting
 // `window.__MARIMO_HAS_WASM_CONTROLLER__ = true` before
 // PyodideBridge/worker initialization.
 export function getWasmWorkerName(): string {
@@ -730,5 +812,5 @@ export function getWasmWorkerName(): string {
     typeof window !== "undefined" &&
     (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
       .__MARIMO_HAS_WASM_CONTROLLER__ === true;
-  return getMarimoVersion() + (hasCustomController ? "::controller" : "");
+  return `marimo${hasCustomController ? CUSTOM_CONTROLLER_SUFFIX : ""}`;
 }

@@ -1,13 +1,15 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
-from unittest.mock import AsyncMock, call
+from unittest.mock import AsyncMock, call, patch
 
 import pytest
 
 pytest.importorskip("pydantic_ai", reason="pydantic_ai not installed")
 
+from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
     create_simple_prompt,
@@ -246,6 +248,172 @@ class TestFormToolsets:
 
 
 class TestConvertToPydanticMessages:
+    @pytest.mark.parametrize(
+        ("media_type", "filename"),
+        [
+            ("text/plain", "notes.txt"),
+            ("text/markdown", "notes.md"),
+            ("text/csv", "data.csv"),
+            ("application/json", "data.json"),
+            ("application/toml", "pyproject.toml"),
+            ("application/xml", "data.xml"),
+            ("application/yaml", "config.yaml"),
+            ("application/x-yaml", "config.yml"),
+            ("application/vnd.example+json", "data.json"),
+            ("application/vnd.example+xml", "data.xml"),
+            ("application/javascript", "script.js"),
+            ("application/x-ndjson", "data.ndjson"),
+            ("", "script.PY"),
+            ("application/octet-stream", "notebook.ipynb"),
+            ("", "README"),
+            ("application/octet-stream", "file.unlisted-extension"),
+        ],
+    )
+    def test_inlines_user_text_files(
+        self, media_type: str, filename: str
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
+
+        text = "Hello, 世界!"
+        encoded = base64.b64encode(text.encode()).decode()
+        metadata = {"marimo": {"contextAttachment": True}}
+        messages = [
+            {
+                "id": "user-1",
+                "role": "user",
+                "parts": [
+                    {
+                        "type": "file",
+                        "mediaType": media_type,
+                        "url": f"data:{media_type};base64,{encoded}",
+                        "filename": filename,
+                        "providerMetadata": metadata,
+                    }
+                ],
+            }
+        ]
+
+        result = convert_to_pydantic_messages(messages)
+
+        assert result[0].parts == [
+            TextUIPart(type="text", text=text, provider_metadata=metadata)
+        ]
+        assert messages[0]["parts"][0]["type"] == "file"
+
+    @pytest.mark.parametrize(
+        ("role", "media_type", "url"),
+        [
+            ("user", "image/png", "data:image/png;base64,aW1hZ2U="),
+            ("user", "application/pdf", "data:application/pdf;base64,cGRm"),
+            ("user", "text/plain", "https://example.com/context.txt"),
+            ("assistant", "text/plain", "data:text/plain;base64,dGV4dA=="),
+            ("user", "", "data:;base64,AP8="),
+            (
+                "user",
+                "application/octet-stream",
+                "data:application/octet-stream;base64,QQFC",
+            ),
+        ],
+    )
+    def test_preserves_other_file_parts(
+        self, role: str, media_type: str, url: str
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import FileUIPart
+
+        part = {
+            "type": "file",
+            "mediaType": media_type,
+            "url": url,
+            "filename": "attachment",
+        }
+        result = convert_to_pydantic_messages(
+            [{"id": "message-1", "role": role, "parts": [part]}]
+        )
+
+        assert result[0].parts == [FileUIPart.model_validate(part)]
+
+    def test_inlines_uploaded_text_without_context_metadata(self) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
+
+        result = convert_to_pydantic_messages(
+            [
+                {
+                    "id": "user-1",
+                    "role": "user",
+                    "parts": [
+                        {
+                            "type": "file",
+                            "mediaType": "text/plain",
+                            "filename": "notes.txt",
+                            "url": "data:text/plain;base64,aGVsbG8=",
+                        }
+                    ],
+                }
+            ]
+        )
+
+        assert result[0].parts == [TextUIPart(type="text", text="hello")]
+
+    @pytest.mark.parametrize(
+        ("media_type", "contents", "expected_text"),
+        [
+            ("text/plain", b"\xe9", "é"),
+            ("application/octet-stream", b"", ""),
+            ("application/octet-stream", b"a\t\n\f\rb", "a\t\n\f\rb"),
+            ("application/octet-stream", b"\xff", None),
+            ("application/octet-stream", b"text\x08", None),
+            ("application/octet-stream", b"text\x0b", None),
+            ("application/octet-stream", b"text\x1f", None),
+        ],
+    )
+    def test_attachment_text_decoding(
+        self, media_type: str, contents: bytes, expected_text: str | None
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            FileUIPart,
+            TextUIPart,
+        )
+
+        part = {
+            "type": "file",
+            "mediaType": media_type,
+            "url": f"data:{media_type};base64,{base64.b64encode(contents).decode()}",
+        }
+        result = convert_to_pydantic_messages(
+            [{"id": "user-1", "role": "user", "parts": [part]}]
+        )
+
+        expected = (
+            FileUIPart.model_validate(part)
+            if expected_text is None
+            else TextUIPart(type="text", text=expected_text)
+        )
+        assert result[0].parts == [expected]
+
+    @pytest.mark.parametrize(
+        ("filename", "media_type", "contents"),
+        [
+            ("archive.zip", "application/octet-stream", b"PK\x03\x04"),
+            ("image.svg", "image/svg+xml", b"<svg/>"),
+        ],
+    )
+    def test_preserves_binary_upload_without_context_metadata(
+        self, filename: str, media_type: str, contents: bytes
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import FileUIPart
+
+        part = {
+            "type": "file",
+            "mediaType": media_type,
+            "filename": filename,
+            "url": f"data:{media_type};base64,{base64.b64encode(contents).decode()}",
+        }
+        result = convert_to_pydantic_messages(
+            [{"id": "user-1", "role": "user", "parts": [part]}]
+        )
+
+        assert result[0].parts == [FileUIPart.model_validate(part)]
+
     def test_convert_empty_messages(self):
         result = convert_to_pydantic_messages([])
         assert result == []
@@ -437,153 +605,34 @@ class TestConvertToPydanticMessages:
         assert result[1].id == "msg_2"
         assert result[2].id.startswith("message_")
 
-    def test_convert_with_part_processor(self):
-        """Test that part_processor is called on each part."""
-        from pydantic_ai.ui.vercel_ai.request_types import (
-            TextUIPart,
-            UIMessage,
-        )
+    def test_text_attachment_error_preserves_file_and_redacts_logs(
+        self,
+    ) -> None:
+        from pydantic_ai.ui.vercel_ai.request_types import FileUIPart
 
-        call_count = 0
+        part = {
+            "type": "file",
+            "mediaType": "text/plain",
+            "filename": "private.txt",
+            "url": "data:text/plain;base64,c2Vuc2l0aXZlLWNvbnRlbnQ=",
+        }
+        error = ValueError(f"Failed to process attachment: {part}")
 
-        def processor(part):
-            nonlocal call_count
-            call_count += 1
-            # Modify the text
-            if isinstance(part, TextUIPart):
-                return TextUIPart(
-                    type="text",
-                    text=f"processed: {part.text}",
-                    state=part.state,
-                    provider_metadata=part.provider_metadata,
-                )
-            return part
-
-        messages = [
-            {
-                "id": "msg_1",
-                "role": "user",
-                "parts": [
-                    {"type": "text", "text": "Hello"},
-                    {"type": "text", "text": "World"},
-                ],
-            }
-        ]
-        result = convert_to_pydantic_messages(
-            messages, part_processor=processor
-        )
-
-        assert call_count == 2
-        assert result == [
-            UIMessage(
-                id="msg_1",
-                role="user",
-                metadata=None,
-                parts=[
-                    TextUIPart(
-                        type="text",
-                        text="processed: Hello",
-                        state=None,
-                        provider_metadata=None,
-                    ),
-                    TextUIPart(
-                        type="text",
-                        text="processed: World",
-                        state=None,
-                        provider_metadata=None,
-                    ),
-                ],
+        with (
+            patch(
+                "marimo._ai._pydantic_ai_utils._decode_text_attachment",
+                side_effect=error,
+            ),
+            _loggers.capture_output() as (_, _, records),
+        ):
+            result = convert_to_pydantic_messages(
+                [{"id": "user-1", "role": "user", "parts": [part]}]
             )
-        ]
 
-    def test_convert_with_part_processor_error_returns_original(self):
-        """Test that part_processor errors are caught and original part is returned."""
-        from pydantic_ai.ui.vercel_ai.request_types import (
-            TextUIPart,
-            UIMessage,
-        )
-
-        def failing_processor(_part):
-            raise ValueError("Processing failed!")
-
-        messages = [
-            {
-                "id": "msg_1",
-                "role": "user",
-                "parts": [{"type": "text", "text": "Hello"}],
-            }
-        ]
-        result = convert_to_pydantic_messages(
-            messages, part_processor=failing_processor
-        )
-
-        # Should return original part when processor fails
-        assert result == [
-            UIMessage(
-                id="msg_1",
-                role="user",
-                metadata=None,
-                parts=[
-                    TextUIPart(
-                        type="text",
-                        text="Hello",
-                        state=None,
-                        provider_metadata=None,
-                    )
-                ],
-            )
-        ]
-
-    def test_convert_with_part_processor_empty_parts(self):
-        """Test that part_processor is not called when parts is empty."""
-        call_count = 0
-
-        def processor(_part):
-            nonlocal call_count
-            call_count += 1
-            return _part
-
-        messages = [
-            {
-                "id": "msg_1",
-                "role": "user",
-                "parts": [],
-            }
-        ]
-        result = convert_to_pydantic_messages(
-            messages, part_processor=processor
-        )
-
-        assert call_count == 0
-        assert len(result) == 1
-        assert result[0].parts == []
-
-    def test_convert_with_part_processor_multiple_messages(self):
-        """Test that part_processor is applied to all messages."""
-        from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
-
-        processed_parts = []
-
-        def processor(part):
-            if isinstance(part, TextUIPart):
-                processed_parts.append(part.text)
-            return part
-
-        messages = [
-            {
-                "id": "msg_1",
-                "role": "user",
-                "parts": [{"type": "text", "text": "First"}],
-            },
-            {
-                "id": "msg_2",
-                "role": "assistant",
-                "parts": [{"type": "text", "text": "Second"}],
-            },
-        ]
-        convert_to_pydantic_messages(messages, part_processor=processor)
-
-        assert processed_parts == ["First", "Second"]
+        assert [
+            (record.getMessage(), record.exc_info) for record in records
+        ] == [("Error processing FileUIPart: ValueError", None)]
+        assert result[0].parts == [FileUIPart.model_validate(part)]
 
 
 class TestCreateSimplePrompt:

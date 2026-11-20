@@ -74,6 +74,7 @@ export interface CodeMirrorSetupOpts {
   cellId: CellId;
   showPlaceholder: boolean;
   enableAI: boolean;
+  enableAIChat?: boolean;
   acceptCompletionOnEnter?: boolean;
   cellActions: CodemirrorCellActions;
   completionConfig: CompletionConfig;
@@ -92,7 +93,10 @@ export interface CodeMirrorSetupOpts {
 }
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
-  const { showPlaceholder, enableAI } = opts;
+  const { showPlaceholder, enableAI, enableAIChat } = opts;
+  if (enableAIChat) {
+    return "ai";
+  }
   return showPlaceholder ? "marimo-import" : enableAI ? "ai" : "none";
 }
 

@@ -137,7 +137,7 @@ export function initializeUIElement() {
       this.initialized = true;
     }
 
-    connectedCallback() {
+    public connectedCallback() {
       this.init();
 
       if (this.initialized) {
@@ -157,7 +157,7 @@ export function initializeUIElement() {
       }
     }
 
-    disconnectedCallback() {
+    public disconnectedCallback() {
       if (this.initialized) {
         // Unregister everything
         document.removeEventListener(
@@ -175,7 +175,7 @@ export function initializeUIElement() {
     /**
      * Reset the value of the child element to its initial value.
      */
-    reset() {
+    public reset() {
       const child = this.firstElementChild;
       if (isCustomMarimoElement(child)) {
         child.reset();
@@ -189,11 +189,11 @@ export function initializeUIElement() {
     // We look for changes to the random-id attribute, which is effectively
     // used like a React key. If the random-id changes, we need to unmount and
     // remount its child.
-    static get observedAttributes() {
+    public static get observedAttributes() {
       return [RANDOM_ID_ATTR];
     }
 
-    attributeChangedCallback(
+    public attributeChangedCallback(
       name: string,
       oldValue: string | null,
       newValue: string | null,

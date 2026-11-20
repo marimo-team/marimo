@@ -36,7 +36,12 @@ import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-owner
 import { LoadingTable } from "@/components/data-table/loading-table";
 import {
   type DownloadAsArgs,
+  type DownloadAsFunction,
   DownloadAsSchema,
+  type DownloadGeoJSON,
+  DownloadGeoJSONSchema,
+  type GetExportMetadata,
+  GetExportMetadataSchema,
 } from "@/components/data-table/schemas";
 import { TableExplorerPanel } from "@/components/data-table/table-explorer-panel/table-explorer-panel";
 import {
@@ -209,7 +214,9 @@ interface Data<T> {
 
 // oxlint-disable-next-line typescript/consistent-type-definitions
 type DataTableFunctions = {
-  download_as: DownloadAsArgs;
+  download_as: DownloadAsFunction;
+  download_geojson: DownloadGeoJSON;
+  get_export_metadata: GetExportMetadata;
   get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
@@ -224,6 +231,7 @@ type DataTableFunctions = {
   }) => Promise<{
     data: TableData<T>;
     total_rows: number | TooManyRows;
+    has_next_page?: boolean | null;
     cell_styles?: CellStyleState | null;
     cell_hover_texts?: Record<string, Record<string, string | null>> | null;
     raw_data?: TableData<T> | null;
@@ -251,7 +259,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         z.array(z.object({ rowId: z.string(), columnName: z.string() })),
       ]),
       label: z.string().nullable(),
-      data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+      data: z.union([z.string(), z.array(z.looseObject({}))]),
       rawData: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
       totalRows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
       pagination: z.boolean().default(false),
@@ -289,7 +297,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       hasStableRowId: z.boolean().default(false),
       maxHeight: z.number().optional(),
       cellStyles: z
-        .record(z.string(), z.record(z.string(), z.object({}).passthrough()))
+        .record(z.string(), z.record(z.string(), z.looseObject({})))
         .optional(),
       hoverTemplate: z.string().optional(),
       cellHoverTexts: cellHoverTextSchema,
@@ -302,6 +310,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   )
   .withFunctions<DataTableFunctions>({
     download_as: DownloadAsSchema,
+    download_geojson: DownloadGeoJSONSchema,
+    get_export_metadata: GetExportMetadataSchema,
     get_column_summaries: rpc.input(z.looseObject({})).output(
       z.object({
         data: z.union([z.string(), z.array(z.looseObject({}))]).nullable(),
@@ -332,28 +342,26 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       )
       .output(
         z.object({
-          data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+          data: z.union([z.string(), z.array(z.looseObject({}))]),
           total_rows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
+          has_next_page: z.boolean().nullish(),
           cell_styles: z
-            .record(
-              z.string(),
-              z.record(z.string(), z.object({}).passthrough()),
-            )
+            .record(z.string(), z.record(z.string(), z.looseObject({})))
             .nullable(),
           cell_hover_texts: cellHoverTextSchema.nullable(),
           raw_data: z.union([z.string(), z.array(z.looseObject({}))]).nullish(),
         }),
       ),
-    get_row_ids: rpc.input(z.object({}).passthrough()).output(
+    get_row_ids: rpc.input(z.looseObject({})).output(
       z.object({
         row_ids: z.array(z.number()),
         all_rows: z.boolean(),
         error: z.string().nullable(),
       }),
     ),
-    get_data_url: rpc.input(z.object({}).passthrough()).output(
+    get_data_url: rpc.input(z.looseObject({})).output(
       z.object({
-        data_url: z.union([z.string(), z.array(z.object({}).passthrough())]),
+        data_url: z.union([z.string(), z.array(z.looseObject({}))]),
         format: z.enum(["csv", "json", "arrow"]),
       }),
     ),
@@ -501,6 +509,7 @@ interface DataTableSearchProps {
   filters?: ColumnFiltersState;
   setFilters?: SetFilters;
   hasStableRowId: boolean;
+  hasNextPage?: boolean;
 }
 
 export const LoadingDataTableComponent = memo(
@@ -537,16 +546,42 @@ export const LoadingDataTableComponent = memo(
       }
     }, [setValue, filters, searchQuery, sorting, props.hasStableRowId]);
 
-    // If pageSize changes, reset pagination state
-    useEffect(() => {
+    const [previousPageSize, setPreviousPageSize] = useState(props.pageSize);
+    // Reconcile before requesting data for the updated table configuration.
+    if (previousPageSize !== props.pageSize) {
+      setPreviousPageSize(props.pageSize);
       setPaginationState({ pageIndex: 0, pageSize: props.pageSize });
-    }, [props.pageSize]);
+    }
+
+    const resetLazyPage = useEvent(() => {
+      if (props.lazy) {
+        setPaginationState((state) =>
+          state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
+        );
+      }
+    });
+
+    const handleSortingChange: OnChangeFn<SortingState> = useEvent(
+      (updater) => {
+        setSorting(updater);
+        resetLazyPage();
+      },
+    );
+    const handleFiltersChange: SetFilters = useEvent((updater) => {
+      setFilters(updater);
+      resetLazyPage();
+    });
+    const handleSearchQueryChange = useEvent((query: string) => {
+      setSearchQuery(query);
+      resetLazyPage();
+    });
 
     // Data loading
     const { data, error, isPending, isFetching } = useAsyncData<{
       rows: T[];
       rawRows?: T[];
       totalRows: number | TooManyRows;
+      hasNextPage?: boolean;
       cellStyles: CellStyleState | undefined | null;
       cellHoverTexts?: Record<string, Record<string, string | null>> | null;
     }>(async () => {
@@ -563,6 +598,7 @@ export const LoadingDataTableComponent = memo(
       let tableData = props.data;
       let rawTableData: TableData<T> | undefined | null = props.rawData;
       let totalRows = props.totalRows;
+      let hasNextPage: boolean | undefined;
       let cellStyles = props.cellStyles;
       let cellHoverTexts = props.cellHoverTexts;
 
@@ -606,6 +642,7 @@ export const LoadingDataTableComponent = memo(
         tableData = searchResults.data;
         rawTableData = searchResults.raw_data;
         totalRows = searchResults.total_rows;
+        hasNextPage = searchResults.has_next_page ?? undefined;
         cellStyles = searchResults.cell_styles || {};
         cellHoverTexts = searchResults.cell_hover_texts || {};
       }
@@ -618,6 +655,7 @@ export const LoadingDataTableComponent = memo(
         rows: tableData,
         rawRows: rawData,
         totalRows: totalRows,
+        hasNextPage,
         cellStyles,
         cellHoverTexts,
       };
@@ -688,12 +726,13 @@ export const LoadingDataTableComponent = memo(
       [search, sorting, filters, searchQuery],
     );
 
-    // If total rows change, reset pageIndex
-    useEffect(() => {
+    const [previousTotalRows, setPreviousTotalRows] = useState(data?.totalRows);
+    if (previousTotalRows !== data?.totalRows) {
+      setPreviousTotalRows(data?.totalRows);
       setPaginationState((state) =>
         state.pageIndex === 0 ? state : { ...state, pageIndex: 0 },
       );
-    }, [data?.totalRows]);
+    }
 
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
@@ -766,13 +805,16 @@ export const LoadingDataTableComponent = memo(
         rawData={data?.rawRows}
         columnSummaries={columnSummaries}
         sorting={sorting}
-        setSorting={setSorting}
+        setSorting={handleSortingChange}
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        setSearchQuery={handleSearchQueryChange}
         filters={filters}
-        setFilters={setFilters}
+        setFilters={handleFiltersChange}
         reloading={isFetching && !isPending}
         totalRows={data?.totalRows ?? props.totalRows}
+        hasNextPage={
+          props.lazy ? !error && (data?.hasNextPage ?? false) : undefined
+        }
         sizeBytes={sizeBytes}
         sizeBytesIsLoading={sizeBytesIsLoading}
         paginationState={paginationState}
@@ -822,11 +864,12 @@ const DataTableComponent = ({
   data,
   rawData,
   totalRows,
+  hasNextPage,
   sizeBytes,
   sizeBytesIsLoading,
   maxColumns,
   pagination,
-  selection,
+  selection: requestedSelection,
   value,
   showFilters,
   showDownload,
@@ -834,12 +877,14 @@ const DataTableComponent = ({
   showColumnExplorer,
   showRowExplorer,
   showChartBuilder,
-  showDataTypes,
+  showDataTypes: requestedShowDataTypes,
   rowHeaders,
   fieldTypes,
   paginationState,
   setPaginationState,
-  download_as: downloadAs,
+  download_as,
+  download_geojson,
+  get_export_metadata: getExportMetadata,
   columnSummaries,
   className,
   setValue,
@@ -880,6 +925,15 @@ const DataTableComponent = ({
     sizeBytesIsLoading?: boolean;
   }): JSX.Element => {
   const id = useId();
+  const downloadAs = useCallback<DownloadAsArgs>(
+    (request) => {
+      const { format, ...options } = request;
+      return format === "geojson"
+        ? download_geojson({ format, ...options })
+        : download_as({ format, ...options });
+    },
+    [download_as, download_geojson],
+  );
   const { locale } = useLocale();
   const [viewedRowIdx, setViewedRowIdx] = useState(0);
   const { isPanelOpen, isAnyPanelOpen, togglePanel, panelType, setPanelType } =
@@ -896,16 +950,16 @@ const DataTableComponent = ({
     }
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
 
-    return new ColumnChartSpecModel(
-      columnSummaries.data || [],
-      fieldTypesWithoutExternalTypes,
-      columnSummaries.stats,
-      columnSummaries.bin_values,
-      columnSummaries.value_counts,
-      {
+    return new ColumnChartSpecModel({
+      data: columnSummaries.data || [],
+      fieldTypes: fieldTypesWithoutExternalTypes,
+      stats: columnSummaries.stats,
+      binValues: columnSummaries.bin_values,
+      valueCounts: columnSummaries.value_counts,
+      opts: {
         includeCharts: columnSummaries.show_charts,
       },
-    );
+    });
   }, [fieldTypes, columnSummaries]);
 
   const rowHeaderNames = new Set(rowHeaders.map(([name]) => name));
@@ -955,15 +1009,11 @@ const DataTableComponent = ({
   const fractionDigitsByColumn = useDeepCompareMemoize(computedFractionDigits);
   const shownColumns = memoizedClampedFieldTypes.length;
 
-  // If the field types are not set, we don't show them
-  if (!fieldTypes) {
-    showDataTypes = false;
-  }
+  // Only show data types when they are explicitly supplied.
+  const showDataTypes = Boolean(fieldTypes && requestedShowDataTypes);
 
   // Row/cell selection writes back to the kernel, absent in static exports.
-  if (isStatic) {
-    selection = null;
-  }
+  const selection = isStatic ? null : requestedSelection;
 
   const columns = useMemo(
     () =>
@@ -1114,7 +1164,8 @@ const DataTableComponent = ({
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
        * number of rows, we are likely displaying all the data (could be more, but we don't know the total). */}
-      {totalRows === TOO_MANY_ROWS &&
+      {hasNextPage === undefined &&
+        totalRows === TOO_MANY_ROWS &&
         paginationState.pageSize === data.length && (
           <Banner className="mb-1 rounded">
             Previewing the first {paginationState.pageSize} rows.
@@ -1152,6 +1203,7 @@ const DataTableComponent = ({
             maxHeight={maxHeight}
             sorting={sorting}
             totalRows={totalRows}
+            hasNextPage={hasNextPage}
             sizeBytes={sizeBytes}
             sizeBytesIsLoading={sizeBytesIsLoading}
             totalColumns={totalColumns}
@@ -1168,6 +1220,7 @@ const DataTableComponent = ({
             hoverTemplate={hoverTemplate}
             cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
+            getExportMetadata={showDownload ? getExportMetadata : undefined}
             showSearch={showSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}

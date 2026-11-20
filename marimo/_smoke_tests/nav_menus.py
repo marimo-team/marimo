@@ -2,14 +2,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Horizontal""")
-    return
+    mo.md("""
+    # Horizontal
+    """)
 
 
 @app.cell
@@ -21,13 +22,13 @@ def _(mo):
             "#products": f"{mo.icon('lucide:package')} Products",
         }
     )
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""-----""")
-    return
+    mo.md("""
+    -----
+    """)
 
 
 @app.cell
@@ -53,13 +54,13 @@ def _(mo):
             },
         }
     )
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""# Vertical""")
-    return
+    mo.md("""
+    # Vertical
+    """)
 
 
 @app.cell
@@ -72,13 +73,13 @@ def _(mo):
         },
         orientation="vertical",
     )
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md("""-----""")
-    return
+    mo.md("""
+    -----
+    """)
 
 
 @app.cell
@@ -105,12 +106,12 @@ def _(mo):
         },
         orientation="vertical",
     )
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

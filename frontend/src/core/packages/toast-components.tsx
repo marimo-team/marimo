@@ -29,6 +29,17 @@ export const showPackageRestartToast = () => {
   });
 };
 
+export const showSandboxSyncToast = () => {
+  toast({
+    title: "Sandbox environment synced",
+    description: (
+      <div className="text-xs text-muted-foreground">
+        Some Python packages may require a kernel restart to see changes.
+      </div>
+    ),
+  });
+};
+
 export const showAddPackageToast = (
   packageName: string | string[],
   error?: string | null,

@@ -9,11 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from marimo import _loggers
-from marimo._config.config import (
-    MarimoConfig,
-    PartialMarimoConfig,
-    merge_config,
-)
+from marimo._config.config import PartialMarimoConfig, merge_config
+from marimo._config.config_schema import MarimoConfig
 from marimo._export.exporter import Exporter, export_markdown, export_script
 from marimo._export.requests import (
     HTMLExportRequest,
@@ -21,7 +18,17 @@ from marimo._export.requests import (
     ScriptExportRequest,
 )
 from marimo._export.serialization import serialize_notebook_snapshot
+from marimo._messaging.input import InputReply, deliver_reply
 from marimo._messaging.msgspec_encoder import encode_json_str
+from marimo._messaging.notebook import Transaction
+from marimo._messaging.notebook.reconcile import reconcile_transaction
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+)
+from marimo._messaging.serde import (
+    deserialize_kernel_message,
+    deserialize_kernel_notification_name,
+)
 from marimo._messaging.types import KernelStreams
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
@@ -73,7 +80,6 @@ from marimo._server.models.models import (
     FormatResponse,
     ReadCodeResponse,
     SaveAppConfigurationRequest,
-    SaveNotebookRequest,
     SaveUserConfigurationRequest,
 )
 from marimo._session.model import SessionMode
@@ -88,6 +94,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellConfig
     from marimo._messaging.types import KernelMessage
+    from marimo._pyodide.notebook import PyodideNotebook
     from marimo._runtime.context.types import RuntimeContext
     from marimo._session.notebook.file_manager import AppFileManager
     from marimo._types.ids import CellId_t
@@ -112,7 +119,7 @@ class AsyncQueueManager:
 
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue = asyncio.Queue[str](maxsize=1)
+        self.input_queue = asyncio.Queue[InputReply](maxsize=1)
 
     def close_queues(self) -> None:
         # kernel thread cleans up read/write conn and IOloop handler on
@@ -127,7 +134,6 @@ class PyodideSession:
         self,
         app: AppFileManager,
         mode: SessionMode,
-        on_write: Callable[[KernelMessage], None],
         app_metadata: AppMetadata,
         user_config: MarimoConfig,
     ) -> None:
@@ -138,47 +144,87 @@ class PyodideSession:
         self.mode = mode
         self.app_metadata = app_metadata
         self._queue_manager = AsyncQueueManager()
-        self.session_consumer = on_write
         self.session_view = SessionView()
+        self.instantiated = False
+        self.started = asyncio.Event()
+        """Set once the kernel task exists and takes commands."""
+        self.stopped = asyncio.Event()
+        """Set once the kernel task has ended, with `exit_reason` if it failed."""
+        self.exit_reason: str | None = None
         self._initial_user_config = user_config
         self._enqueue_control_request = make_control_enqueuer(
             self._queue_manager.control_queue,
             self._queue_manager.set_ui_element_queue,
         )
 
+        # Notebook subscriptions add themselves to receive notifications.
         self.consumers: list[Callable[[KernelMessage], None]] = [
-            lambda msg: self.session_consumer(msg),
-            lambda msg: self.session_view.add_raw_notification(msg),
+            self.session_view.add_raw_notification,
         ]
 
     def _on_message(self, msg: KernelMessage) -> None:
-        for consumer in self.consumers:
-            consumer(msg)
+        # A consumer may unsubscribe during delivery, and one that fails
+        # must not keep the notification from the others.
+        for consumer in list(self.consumers):
+            try:
+                consumer(msg)
+            except Exception:
+                LOGGER.exception("A notification consumer failed")
 
     async def start(self) -> None:
-        self.kernel_task = _launch_pyodide_kernel(
-            control_queue=self._queue_manager.control_queue,
-            set_ui_element_queue=self._queue_manager.set_ui_element_queue,
-            completion_queue=self._queue_manager.completion_queue,
-            input_queue=self._queue_manager.input_queue,
-            on_message=self._on_message,
-            session_mode=self.mode,
-            configs=self.app_manager.app.cell_manager.config_map(),
-            app_metadata=self.app_metadata,
-            user_config=self._initial_user_config,
-        )
-        await self.kernel_task.start()
+        try:
+            self.kernel_task = _launch_pyodide_kernel(
+                control_queue=self._queue_manager.control_queue,
+                set_ui_element_queue=self._queue_manager.set_ui_element_queue,
+                completion_queue=self._queue_manager.completion_queue,
+                input_queue=self._queue_manager.input_queue,
+                on_message=self._on_message,
+                session_mode=self.mode,
+                configs=self.app_manager.app.cell_manager.config_map(),
+                app_metadata=self.app_metadata,
+                user_config=self._initial_user_config,
+            )
+            self.started.set()
+            await self.kernel_task.start()
+        except asyncio.CancelledError:
+            raise
+        except BaseException as exception:
+            self.exit_reason = str(exception) or type(exception).__name__
+            raise
+        finally:
+            self.stopped.set()
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         self._enqueue_control_request(request)
+        self.session_view.add_control_request(request)
+
+    def instantiate(self, *, auto_run: bool) -> None:
+        """Register the notebook's cells with the kernel, running them if `auto_run`."""
+        app = self.app_manager.app
+        self.instantiated = True
+        self.put_control_request(
+            commands.CreateNotebookCommand(
+                execution_requests=tuple(
+                    commands.ExecuteCellCommand(
+                        cell_id=cell.cell_id, code=cell.code, request=None
+                    )
+                    for cell in app.cell_manager.cell_data()
+                ),
+                cell_ids=(),
+                set_ui_element_value_request=commands.UpdateUIElementCommand(
+                    object_ids=[], values=[], request=None
+                ),
+                auto_run=auto_run,
+            )
+        )
 
     def put_completion_request(
         self, request: commands.CodeCompletionCommand
     ) -> None:
         self._queue_manager.completion_queue.put_nowait(request)
 
-    def put_input(self, text: str) -> None:
-        self._queue_manager.input_queue.put_nowait(text)
+    def reply_input(self, reply: InputReply) -> None:
+        deliver_reply(self._queue_manager.input_queue, reply)
 
     def find_packages(self, code: str) -> list[str]:
         """
@@ -190,7 +236,6 @@ class PyodideSession:
         try:
             from marimo._runtime.packages.utils import (
                 filter_requirements_for_emscripten,
-                strip_requirement_name,
             )
 
             reader = PyProjectReader.from_script(code)
@@ -199,7 +244,14 @@ class PyodideSession:
             )
 
             if len(script_deps) > 0:
-                return [strip_requirement_name(dep) for dep in script_deps]
+                # Returned as written, version specifiers included. These are
+                # handed to micropip, which resolves them; dropping the
+                # specifier does not merely lose precision, it can select a
+                # different release. A pin is the only thing that selects a
+                # pre-release, so an unpinned name resolves to the newest
+                # *stable* version instead -- the opposite of what the notebook
+                # asked for.
+                return [dep.strip() for dep in script_deps]
         except Exception as e:
             LOGGER.warning("Error parsing script metadata: %s", e)
 
@@ -239,13 +291,47 @@ class PyodideBridge:
     ):
         self.session = session
         self.file_system = OSFileSystem()
+        self._notebook: PyodideNotebook | None = None
+        self.session.consumers.append(self._on_message)
+
+    def _on_message(self, message: KernelMessage) -> None:
+        if (
+            deserialize_kernel_notification_name(message)
+            != "notebook-document-transaction"
+        ):
+            return
+        notification = deserialize_kernel_message(message)
+        assert isinstance(
+            notification, NotebookDocumentTransactionNotification
+        )
+        transaction = notification.transaction
+        if transaction.source == "host":
+            return
+        # Kernel/code-mode edits already reached the frontend; retain them for
+        # subsequent host saves without sending them back to the kernel.
+        document = self.session.app_manager.app.cell_manager.document
+        changes = reconcile_transaction(transaction.changes, document)
+        document.apply(Transaction(changes=changes, source=transaction.source))
+        if self._notebook is not None:
+            self._notebook.refresh()
+
+    @property
+    def notebook(self) -> PyodideNotebook:
+        if self._notebook is None:
+            from marimo._pyodide.notebook import PyodideNotebook
+
+            self._notebook = PyodideNotebook(self.session)
+        return self._notebook
+
+    def close(self) -> None:
+        if self._on_message in self.session.consumers:
+            self.session.consumers.remove(self._on_message)
+        if self._notebook is not None:
+            self._notebook.close()
 
     def put_control_request(self, request: str) -> None:
         parsed = parse_command(request)
         self.session.put_control_request(parsed)
-
-    def put_input(self, text: str) -> None:
-        self.session.put_input(text)
 
     def code_complete(self, request: str) -> None:
         parsed = self._parse(request, commands.CodeCompletionCommand)
@@ -272,13 +358,9 @@ class PyodideBridge:
         response = FormatResponse(codes=await formatter.format(parsed.codes))
         return self._dump(response)
 
-    def save(self, request: str) -> None:
-        parsed = self._parse(request, SaveNotebookRequest)
-        self.session.app_manager.save(parsed)
-
-    def save_app_config(self, request: str) -> None:
+    async def save_app_config(self, request: str) -> None:
         parsed = self._parse(request, SaveAppConfigurationRequest)
-        self.session.app_manager.save_app_config(parsed.config)
+        await self.notebook.save_app_config(parsed.config)
 
     def save_user_config(self, request: str) -> None:
         parsed = self._parse(request, SaveUserConfigurationRequest)
@@ -288,7 +370,7 @@ class PyodideBridge:
         )
         self.session._initial_user_config = config
         self.session.put_control_request(
-            UpdateUserConfigCommand(config=config)
+            UpdateUserConfigCommand(config=config.to_dict())
         )
 
     def rename_file(self, filename: str) -> None:
@@ -307,7 +389,7 @@ class PyodideBridge:
     def file_roots(self) -> str:
         roots = resolve_file_roots(
             self.file_system.get_root(),
-            self.session._initial_user_config.get("file_browser"),
+            self.session._initial_user_config.file_browser,
         )
         return self._dump(FileRootsResponse(roots=roots))
 
@@ -426,7 +508,7 @@ class PyodideBridge:
                     drop_virtual_file_outputs=False,
                     include_model_notifications=True,
                 ),
-                display_config=self.session._initial_user_config["display"],
+                display_config=self.session._initial_user_config.display,
                 options=to_html_export_options(parsed),
                 layout=(
                     to_html_export_layout(
@@ -517,7 +599,7 @@ def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[CommandMessage],
     set_ui_element_queue: asyncio.Queue[BatchableCommand],
     completion_queue: asyncio.Queue[OutOfBandCommand],
-    input_queue: asyncio.Queue[str],
+    input_queue: asyncio.Queue[InputReply],
     on_message: Callable[[KernelMessage], None],
     session_mode: SessionMode,
     configs: dict[CellId_t, CellConfig],
@@ -538,7 +620,7 @@ def _launch_pyodide_kernel(
         teardown_kernel,
     )
 
-    register_formatters(theme=user_config["display"]["theme"])
+    register_formatters()
     LOGGER.debug("Launching pyodide kernel")
 
     # Patches for pyodide compatibility

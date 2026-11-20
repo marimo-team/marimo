@@ -5,18 +5,14 @@ from typing import Any, Literal
 
 import msgspec
 
-from marimo._ast.cell import CellConfig
-from marimo._messaging.notebook.changes import DocumentChange
+from marimo._config.config import PartialMarimoConfig
 from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
     DebugCellCommand,
-    DeleteCellCommand,
     DiscoverDataSourcesCommand,
-    ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     GetCacheInfoCommand,
-    HTTPRequest,
     InstallPackagesCommand,
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
@@ -29,7 +25,6 @@ from marimo._runtime.commands import (
     SetBreakpointsCommand,
     StorageDownloadCommand,
     StorageListEntriesCommand,
-    UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
     ValidateSQLCommand,
@@ -60,6 +55,12 @@ class GetCacheInfoRequest(GetCacheInfoCommand, tag=False):
 class DebugCellRequest(DebugCellCommand, tag=False):
     def as_command(self) -> DebugCellCommand:
         return DebugCellCommand(cell_id=self.cell_id, request=self.request)
+
+
+class PdbInputReplyRequest(msgspec.Struct, rename="camel"):
+    cell_id: CellId_t
+    input_id: str
+    value: str
 
 
 class SetBreakpointsRequest(SetBreakpointsCommand, tag=False):
@@ -186,14 +187,11 @@ class StorageDownloadRequest(StorageDownloadCommand, tag=False):
         )
 
 
-class UpdateUserConfigRequest(UpdateUserConfigCommand, tag=False):
+class UpdateUserConfigRequest(msgspec.Struct):
+    config: PartialMarimoConfig
+
     def as_command(self) -> UpdateUserConfigCommand:
         return UpdateUserConfigCommand(config=self.config)
-
-
-class DeleteCellRequest(DeleteCellCommand, tag=False):
-    def as_command(self) -> DeleteCellCommand:
-        return DeleteCellCommand(cell_id=self.cell_id)
 
 
 class InstallPackagesRequest(InstallPackagesCommand, tag=False):
@@ -201,11 +199,6 @@ class InstallPackagesRequest(InstallPackagesCommand, tag=False):
         return InstallPackagesCommand(
             manager=self.manager, versions=self.versions, source=self.source
         )
-
-
-class UpdateCellConfigRequest(UpdateCellConfigCommand, tag=False):
-    def as_command(self) -> UpdateCellConfigCommand:
-        return UpdateCellConfigCommand(configs=self.configs)
 
 
 class CodeCompletionRequest(CodeCompletionCommand, tag=False):
@@ -254,63 +247,14 @@ class RenameNotebookRequest(msgspec.Struct, rename="camel"):
     filename: str
 
 
-class NotebookDocumentTransactionRequest(msgspec.Struct, rename="camel"):
-    changes: list[DocumentChange]
-
-
 class FocusCellRequest(msgspec.Struct, rename="camel"):
     cell_id: CellId_t
 
 
-class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
-    # ids of cells to run
-    cell_ids: list[CellId_t]
-    # code to register/run for each cell
-    codes: list[str]
-    # incoming request, e.g. from Starlette or FastAPI
-    request: HTTPRequest | None = None
+class SaveLayoutRequest(msgspec.Struct, rename="camel"):
+    """The notebook's layout, written beside it; `None` removes it."""
 
-    def as_command(self) -> ExecuteCellsCommand:
-        return ExecuteCellsCommand(
-            cell_ids=self.cell_ids,
-            codes=self.codes,
-            request=self.request,
-        )
-
-    # Validate same length
-    def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
-
-
-class SaveNotebookRequest(msgspec.Struct, rename="camel"):
-    # id of each cell
-    cell_ids: list[CellId_t]
-    # code for each cell
-    codes: list[str]
-    # name of each cell
-    names: list[str]
-    # config for each cell
-    configs: list[CellConfig]
-    # path to app
-    filename: str
-    # layout of app
     layout: dict[str, Any] | None = None
-    # persist the file to disk
-    persist: bool = True
-
-    # Validate same length
-    def __post_init__(self) -> None:
-        assert len(self.cell_ids) == len(self.codes), (
-            "Mismatched cell_ids and codes"
-        )
-        assert len(self.cell_ids) == len(self.names), (
-            "Mismatched cell_ids and names"
-        )
-        assert len(self.cell_ids) == len(self.configs), (
-            "Mismatched cell_ids and configs"
-        )
 
 
 class CopyNotebookRequest(msgspec.Struct, rename="camel"):
@@ -330,10 +274,6 @@ class SaveUserConfigurationRequest(msgspec.Struct, rename="camel"):
     config: dict[str, Any]
 
 
-class StdinRequest(msgspec.Struct, rename="camel"):
-    text: str
-
-
 class InvokeAiToolRequest(msgspec.Struct, rename="camel"):
     tool_name: str
     arguments: dict[str, Any]
@@ -343,6 +283,15 @@ class InvokeAiToolResponse(BaseResponse):
     tool_name: str
     result: Any
     error: str | None = None
+
+
+class ProviderModel(msgspec.Struct, rename="camel"):
+    id: str
+    name: str
+
+
+class ProviderModelsResponse(msgspec.Struct, rename="camel"):
+    models: list[ProviderModel]
 
 
 class MCPStatusResponse(msgspec.Struct, rename="camel"):

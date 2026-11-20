@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -20,6 +20,7 @@ def _():
     import pygwalker as pyg
 
     import marimo as mo
+
     return mo, pd, pyg
 
 
@@ -35,7 +36,6 @@ def _(pd):
 def _(df, mo, pyg):
     walker = pyg.walk(df, kernel_computation=True)
     mo.Html(walker.to_html())
-    return
 
 
 if __name__ == "__main__":

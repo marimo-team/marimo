@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -26,18 +26,18 @@ def _():
 
 
 @app.cell
-def _(mo, pl, uri):
+def _(mo, pl, uri: None | str):
     mo.stop(not uri)
     query = "SELECT * FROM pg_catalog.pg_tables;"
 
     df = pl.read_database_uri(query=query, uri=uri)
     df
-    return
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

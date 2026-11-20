@@ -244,15 +244,13 @@ const {
       cellId: nextCell.id,
     };
 
-    if (isShiftKey && state.selectedStartCell) {
-      const cellsInRange = getCellsBetween(
-        table,
-        state.selectedStartCell,
-        newCell,
-      );
+    if (isShiftKey) {
+      const anchor = state.selectedStartCell ?? currentCell;
+      const cellsInRange = getCellsBetween(table, anchor, newCell);
       return {
         ...state,
         selectedCells: new Set(cellsInRange),
+        selectedStartCell: anchor,
         focusedCell: newCell,
       };
     } else {

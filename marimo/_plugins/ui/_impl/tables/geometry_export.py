@@ -1,0 +1,1335 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+import json
+import math
+from dataclasses import dataclass, field
+from io import BytesIO
+from typing import TYPE_CHECKING, Any, Literal
+
+import narwhals.stable.v2 as nw
+
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.tables.geometry import (
+    GeometryColumnInfo,
+    GeometryEncoding,
+    arrow_storage_field,
+)
+from marimo._plugins.ui._impl.tables.narwhals_table import (
+    NarwhalsTableManager,
+)
+from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._sql.sql_quoting import quote_sql_identifier
+
+if TYPE_CHECKING:
+    import pyarrow as pa
+
+
+GeometryExportErrorCode = Literal[
+    "geometry_required",
+    "invalid_geometry",
+    "invalid_metadata",
+    "unsupported_representation",
+    "unsupported_version",
+    "missing_packages",
+    "missing_crs",
+    "conversion_failed",
+]
+
+_MIN_GEOPANDAS_GEOPARQUET_VERSION = "0.14.1"
+_GEOPANDAS_UPGRADE_MESSAGE = (
+    "Update geopandas to 0.14.1 or newer to export GeoParquet."
+)
+_MIN_SHAPELY_GEOJSON_VERSION = "2.0"
+_SHAPELY_UPGRADE_MESSAGE = "Update shapely to 2.0 or newer to export GeoJSON."
+
+
+class GeometryExportError(Exception):
+    """An export failure that the dialog can explain and recover from.
+
+    Args:
+        code (GeometryExportErrorCode): Machine-readable failure category.
+        message (str): User-facing failure explanation.
+        column (str | None, optional): Affected geometry column.
+        missing_packages (list[str] | None, optional): Required packages.
+    """
+
+    def __init__(
+        self,
+        code: GeometryExportErrorCode,
+        message: str,
+        column: str | None = None,
+        missing_packages: list[str] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.column = column
+        self.missing_packages = missing_packages
+
+
+@dataclass(frozen=True)
+class ArrowGeometryDeclaration:
+    """Geometry semantics declared in GeoArrow field metadata.
+
+    Args:
+        crs (str | dict[str, Any] | None): Declared CRS or opaque identifier.
+        crs_type (str | None): Declared CRS representation.
+        edges (str | None): Declared non-planar edge interpretation.
+        error (str | None): Reason that the declaration is invalid.
+    """
+
+    crs: str | dict[str, Any] | None = None
+    crs_type: str | None = None
+    edges: str | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class GeometryExportColumn:
+    """Geometry declared by the export source.
+
+    Args:
+        name (str): Name of the geometry column.
+        encoding (GeometryEncoding): Declared value encoding.
+        crs (str | dict[str, Any] | None): Declared CRS, when available.
+    """
+
+    name: str
+    encoding: GeometryEncoding
+    crs: str | dict[str, Any] | None
+
+
+@dataclass(frozen=True)
+class ExportFormatEligibility:
+    """Known prerequisites for a format.
+
+    Args:
+        available (bool): Whether the source can use the format.
+        reason (str | None): Reason when the format is unavailable.
+        missing_packages (list[str]): Packages needed for the format.
+    """
+
+    available: bool
+    reason: str | None = None
+    missing_packages: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ExportMetadata:
+    """Schema-level geometry and format metadata for an export source.
+
+    Args:
+        geometry_columns (list[GeometryExportColumn]): All declared geometry
+            columns, including columns outside the visible preview.
+        primary_geometry_column (str | None): Valid source primary, if any.
+        default_geometry_column (str | None): Primary or sole geometry.
+        formats (dict[str, ExportFormatEligibility]): Eligibility for
+            geometry-aware formats. The serializer checks values separately.
+    """
+
+    geometry_columns: list[GeometryExportColumn] = field(default_factory=list)
+    primary_geometry_column: str | None = None
+    default_geometry_column: str | None = None
+    formats: dict[str, ExportFormatEligibility] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _ExportSource:
+    metadata: ExportMetadata
+    schema: pa.Schema | None = None
+    declarations: dict[str, ArrowGeometryDeclaration] = field(
+        default_factory=dict
+    )
+    rejection: GeometryExportError | None = None
+
+
+def get_export_metadata(manager: TableManager[Any]) -> ExportMetadata:
+    """Read geometry declarations without materializing source rows.
+
+    Format eligibility covers source support and dependencies. The chosen
+    geometry's CRS and values require separate checks.
+
+    Args:
+        manager (TableManager[Any]): Manager for the export source.
+    """
+    return _describe_export_source(manager).metadata
+
+
+def _missing_package_message(
+    manager: NarwhalsTableManager[Any, Any], package: str, label: str = ""
+) -> str:
+    if package == "pyarrow":
+        return (
+            "DuckDB geographic export requires pyarrow."
+            if manager.data.implementation.is_duckdb()
+            else "GeoParquet export requires pyarrow."
+        )
+    implementation = manager.data.implementation
+    source_label = (
+        "pandas"
+        if implementation.is_pandas()
+        else "DuckDB"
+        if implementation.is_duckdb()
+        else "Arrow"
+    )
+    return f"This {source_label} table needs {package} to export {label}."
+
+
+def _geographic_prerequisite_error(
+    manager: NarwhalsTableManager[Any, Any],
+    format_name: Literal["parquet", "geojson"],
+) -> GeometryExportError | None:
+    """Check current packages for a supported geographic export source."""
+    label = "GeoParquet" if format_name == "parquet" else "GeoJSON"
+    if (
+        manager.data.implementation.is_duckdb()
+        and not DependencyManager.pyarrow.has()
+    ):
+        return GeometryExportError(
+            "missing_packages",
+            _missing_package_message(manager, "pyarrow"),
+            missing_packages=["pyarrow"],
+        )
+    if not DependencyManager.geopandas.has():
+        return GeometryExportError(
+            "missing_packages",
+            _missing_package_message(manager, "geopandas", label),
+            missing_packages=["geopandas"],
+        )
+    if format_name == "parquet":
+        if not DependencyManager.geopandas.has_at_version(
+            min_version=_MIN_GEOPANDAS_GEOPARQUET_VERSION, quiet=True
+        ):
+            return GeometryExportError(
+                "unsupported_version", _GEOPANDAS_UPGRADE_MESSAGE
+            )
+        if not DependencyManager.pyarrow.has():
+            return GeometryExportError(
+                "missing_packages",
+                _missing_package_message(manager, "pyarrow", "GeoParquet"),
+                missing_packages=["pyarrow"],
+            )
+    elif not DependencyManager.shapely.has_at_version(
+        min_version=_MIN_SHAPELY_GEOJSON_VERSION, quiet=True
+    ):
+        return GeometryExportError(
+            "unsupported_version", _SHAPELY_UPGRADE_MESSAGE
+        )
+    return None
+
+
+def _describe_export_source(manager: TableManager[Any]) -> _ExportSource:
+    """Keep parsed source declarations separate from the metadata response."""
+    if not isinstance(manager, NarwhalsTableManager):
+        return _ExportSource(ExportMetadata())
+
+    info_by_name = manager._geometry_columns
+    if not info_by_name:
+        return _ExportSource(ExportMetadata())
+
+    source = manager.data
+    primary: str | None = None
+    columns: list[GeometryExportColumn] = []
+    source_reason: str | None = None
+    schema: pa.Schema | None = None
+    declarations: dict[str, ArrowGeometryDeclaration] = {}
+    first_rejection: GeometryExportError | None = None
+    if source.implementation.is_pandas():
+        native = source.to_native()
+        candidate = getattr(native, "_geometry_column_name", None)
+        if isinstance(candidate, str) and candidate in info_by_name:
+            primary = candidate
+        for name, info in info_by_name.items():
+            crs = native[name].array.crs
+            columns.append(
+                GeometryExportColumn(
+                    name=name,
+                    encoding=info.encoding,
+                    crs=crs.to_string() if crs is not None else None,
+                )
+            )
+        is_supported_source = True
+    elif (
+        source.implementation.is_pyarrow() or source.implementation.is_duckdb()
+    ):
+        if source.implementation.is_duckdb():
+            if DependencyManager.pyarrow.has():
+                schema = _duckdb_geometry_schema(manager)
+        else:
+            schema = source.to_native().schema
+        for name, info in info_by_name.items():
+            if schema is None:
+                columns.append(
+                    GeometryExportColumn(
+                        name=name, encoding=info.encoding, crs=None
+                    )
+                )
+                continue
+            declaration = _arrow_geometry_declaration(schema.field(name))
+            declarations[name] = declaration
+            columns.append(
+                GeometryExportColumn(
+                    name=name,
+                    encoding=info.encoding,
+                    crs=(
+                        declaration.crs
+                        if declaration.crs_type != "srid"
+                        else None
+                    ),
+                )
+            )
+            rejection = _arrow_geometry_rejection(
+                name, info.encoding, declaration
+            )
+            if source.implementation.is_duckdb() and info.encoding == "other":
+                rejection = _duckdb_geometry_rejection(name, info)
+            if source_reason is None and rejection is not None:
+                source_reason = rejection[1]
+                first_rejection = GeometryExportError(*rejection, column=name)
+        is_supported_source = True
+    else:
+        columns = [
+            GeometryExportColumn(name=name, encoding=info.encoding, crs=None)
+            for name, info in info_by_name.items()
+        ]
+        is_supported_source = False
+
+    formats: dict[str, ExportFormatEligibility] = {}
+    for format_name in ("parquet", "geojson"):
+        failure: GeometryExportError | None
+        if not is_supported_source:
+            label = "GeoParquet" if format_name == "parquet" else "GeoJSON"
+            failure = GeometryExportError(
+                "unsupported_representation",
+                f"{label} export is not supported for this table type.",
+            )
+        else:
+            failure = _geographic_prerequisite_error(manager, format_name)
+        formats[format_name] = ExportFormatEligibility(
+            available=failure is None,
+            reason=str(failure) if failure is not None else None,
+            missing_packages=(failure.missing_packages or [])
+            if failure is not None
+            else [],
+        )
+
+    if source_reason is not None:
+        formats = {
+            name: ExportFormatEligibility(
+                available=False,
+                reason=source_reason,
+            )
+            for name in ("parquet", "geojson")
+        }
+
+    default = (
+        primary
+        if primary is not None
+        else (columns[0].name if len(columns) == 1 else None)
+    )
+    return _ExportSource(
+        ExportMetadata(
+            geometry_columns=columns,
+            primary_geometry_column=primary,
+            default_geometry_column=default,
+            formats=formats,
+        ),
+        schema,
+        declarations,
+        first_rejection,
+    )
+
+
+def _duckdb_geometry_rejection(
+    name: str, info: GeometryColumnInfo
+) -> tuple[GeometryExportErrorCode, str]:
+    return (
+        "unsupported_representation",
+        (
+            f"Geometry column {name!r} uses {info.external_type}. "
+            "DuckDB geographic exports require GEOMETRY columns."
+        ),
+    )
+
+
+def _duckdb_geometry_schema(
+    manager: NarwhalsTableManager[Any, Any],
+) -> pa.Schema:
+    """Read geometry declarations from a zero-row relation's Arrow schema."""
+    import pyarrow as pa
+
+    relation = manager.data.to_native()
+    reader = relation.limit(0).arrow()
+    try:
+        schema = reader.schema
+    finally:
+        reader.close()
+    fields = []
+    for arrow_field in schema:
+        arrow_field = arrow_storage_field(arrow_field)
+        info = manager._geometry_columns.get(arrow_field.name)
+        if info is not None and info.encoding == "wkb":
+            metadata = dict(arrow_field.metadata or {})
+            if b"ARROW:extension:name" not in metadata:
+                if info.external_type != "GEOMETRY":
+                    raise GeometryExportError(
+                        "invalid_metadata",
+                        f"DuckDB did not preserve the CRS declaration for {arrow_field.name!r}.",
+                        column=arrow_field.name,
+                    )
+                metadata[b"ARROW:extension:name"] = b"geoarrow.wkb"
+                metadata[b"ARROW:extension:metadata"] = b"{}"
+            arrow_field = arrow_field.with_metadata(metadata)
+        fields.append(arrow_field)
+    return pa.schema(fields, metadata=schema.metadata)
+
+
+def _arrow_geometry_declaration(
+    field: pa.Field[Any],
+) -> ArrowGeometryDeclaration:
+    field = arrow_storage_field(field)
+    metadata = field.metadata
+    if not metadata:
+        return ArrowGeometryDeclaration()
+    raw = metadata.get(b"ARROW:extension:metadata")
+    if raw is None:
+        return ArrowGeometryDeclaration()
+
+    def invalid(reason: str) -> ArrowGeometryDeclaration:
+        return ArrowGeometryDeclaration(
+            error=f"Geometry column {field.name!r} has invalid GeoArrow metadata: {reason}"
+        )
+
+    try:
+        declaration = json.loads(
+            raw.decode("utf-8"), parse_constant=_reject_json_constant
+        )
+    except (ValueError, UnicodeDecodeError):
+        return invalid("expected a UTF-8 JSON object.")
+    if not isinstance(declaration, dict):
+        return invalid("expected a JSON object.")
+    crs = declaration.get("crs")
+    if "crs" in declaration and not isinstance(crs, (str, dict)):
+        return invalid("crs must be a string or PROJJSON object.")
+    crs_type = declaration.get("crs_type")
+    if "crs_type" in declaration and crs_type not in (
+        "projjson",
+        "wkt2:2019",
+        "authority_code",
+        "srid",
+    ):
+        return invalid("unknown crs_type.")
+    if crs is not None and crs_type is not None:
+        if crs_type == "projjson" and not isinstance(crs, dict):
+            return invalid("projjson crs must be an object.")
+        if crs_type != "projjson" and not isinstance(crs, str):
+            return invalid(f"{crs_type} crs must be a string.")
+    edges = declaration.get("edges")
+    if "edges" in declaration and edges not in (
+        "spherical",
+        "vincenty",
+        "thomas",
+        "andoyer",
+        "karney",
+    ):
+        return invalid("unknown edges interpretation.")
+    if (
+        crs is not None
+        and crs_type != "srid"
+        and DependencyManager.geopandas.has()
+    ):
+        from pyproj import CRS  # type: ignore[import-not-found,import-untyped,unused-ignore]
+        from pyproj.exceptions import CRSError  # type: ignore[import-not-found,import-untyped,unused-ignore]
+
+        try:
+            if crs_type == "projjson":
+                CRS.from_json_dict(crs)
+            elif crs_type == "wkt2:2019":
+                CRS.from_wkt(crs)
+            elif crs_type == "authority_code":
+                authority, code = crs.split(":", 1)
+                CRS.from_authority(authority, code)
+            else:
+                CRS.from_user_input(crs)
+        except (CRSError, ValueError):
+            return invalid("crs cannot be resolved.")
+    return ArrowGeometryDeclaration(crs=crs, crs_type=crs_type, edges=edges)
+
+
+def _arrow_geometry_rejection(
+    name: str,
+    encoding: GeometryEncoding,
+    declaration: ArrowGeometryDeclaration,
+) -> tuple[GeometryExportErrorCode, str] | None:
+    if declaration.error is not None:
+        return "invalid_metadata", declaration.error
+    if declaration.edges is not None:
+        return (
+            "unsupported_representation",
+            (
+                f"Geometry column {name!r} declares {declaration.edges!r} "
+                "edges, which geographic exports cannot preserve."
+            ),
+        )
+    if encoding not in ("wkb", "wkt"):
+        return (
+            "unsupported_representation",
+            (
+                f"Geometry column {name!r} uses a native GeoArrow layout. "
+                "Geographic exports require WKB or WKT."
+            ),
+        )
+    return None
+
+
+def has_geometry_columns(manager: TableManager[Any]) -> bool:
+    """Check geometry declarations without inspecting rows.
+
+    Args:
+        manager (TableManager[Any]): Manager for the export source.
+    """
+    return isinstance(manager, NarwhalsTableManager) and bool(
+        manager._geometry_columns
+    )
+
+
+def _arrow_to_geodataframe(
+    table: pa.Table,
+    columns: list[GeometryExportColumn],
+    declarations: dict[str, ArrowGeometryDeclaration] | None = None,
+) -> Any:
+    import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import pandas as pd
+    import pyarrow as pa
+
+    if len(set(table.column_names)) != len(table.column_names):
+        raise GeometryExportError(
+            "invalid_metadata",
+            "Geographic exports require unique column names.",
+        )
+    for column in columns:
+        declaration = (
+            declarations[column.name]
+            if declarations is not None
+            else _arrow_geometry_declaration(table.schema.field(column.name))
+        )
+        rejection = _arrow_geometry_rejection(
+            column.name, column.encoding, declaration
+        )
+        if rejection is not None:
+            raise GeometryExportError(
+                rejection[0], rejection[1], column=column.name
+            )
+
+    try:
+        ordinary = table.drop([column.name for column in columns]).to_pandas(
+            ignore_metadata=True, types_mapper=pd.ArrowDtype
+        )
+        frame = gpd.GeoDataFrame(ordinary)
+        for index, column in enumerate(columns):
+            values = table.column(column.name)
+            decoded = [
+                value
+                for chunk in values.chunks
+                for value in (
+                    chunk.storage
+                    if isinstance(chunk, pa.ExtensionArray)
+                    else chunk
+                ).to_pylist()
+            ]
+            parser = (
+                gpd.GeoSeries.from_wkb
+                if column.encoding == "wkb"
+                else gpd.GeoSeries.from_wkt
+            )
+            geometry = parser(decoded, crs=column.crs, index=frame.index)
+            if index == 0:
+                frame = frame.set_geometry(geometry.rename(column.name))
+            else:
+                frame[column.name] = geometry
+        return frame[table.column_names]
+    except Exception as e:
+        raise GeometryExportError(
+            "conversion_failed", f"Could not convert Arrow geometry: {e}"
+        ) from e
+
+
+def _export_geodataframe(
+    manager: NarwhalsTableManager[Any, Any],
+    metadata: ExportMetadata,
+    declarations: dict[str, ArrowGeometryDeclaration] | None = None,
+) -> Any:
+    native = manager.as_frame().to_native()
+    if manager.data.implementation.is_pandas():
+        return native
+    if manager.data.implementation.is_pyarrow():
+        return _arrow_to_geodataframe(
+            native, metadata.geometry_columns, declarations
+        )
+    raise GeometryExportError(
+        "unsupported_representation",
+        "Geographic export from this table type is not supported yet.",
+    )
+
+
+def _prepare_geographic_export(
+    manager: TableManager[Any],
+    geometry_column: str | None,
+    format_name: Literal["parquet", "geojson"],
+) -> tuple[NarwhalsTableManager[Any, Any], _ExportSource, str]:
+    """Validate a geographic request before materializing its source."""
+    label = "GeoParquet" if format_name == "parquet" else "GeoJSON"
+    if not isinstance(manager, NarwhalsTableManager) or not (
+        manager.data.implementation.is_pandas()
+        or manager.data.implementation.is_pyarrow()
+        or manager.data.implementation.is_duckdb()
+    ):
+        raise GeometryExportError(
+            "unsupported_representation",
+            f"{label} export from this table type is not supported yet.",
+            column=geometry_column,
+        )
+    try:
+        source = _describe_export_source(manager)
+    except GeometryExportError:
+        raise
+    except Exception as e:
+        raise GeometryExportError(
+            "conversion_failed"
+            if manager.data.implementation.is_duckdb()
+            else "invalid_metadata",
+            f"Could not read geometry metadata: {e}",
+        ) from e
+    names = {column.name for column in source.metadata.geometry_columns}
+    if geometry_column is not None and geometry_column not in names:
+        raise GeometryExportError(
+            "invalid_geometry",
+            f"{geometry_column!r} is not a geometry column in this table.",
+            column=geometry_column,
+        )
+    primary = (
+        geometry_column
+        if geometry_column is not None
+        else source.metadata.default_geometry_column
+    )
+    if primary is None:
+        raise GeometryExportError(
+            "geometry_required",
+            f"Choose a {'primary ' if format_name == 'parquet' else ''}geometry column for {label} export.",
+        )
+    failure = _geographic_prerequisite_error(manager, format_name)
+    if failure is not None:
+        raise failure
+    if source.rejection is not None:
+        raise source.rejection
+    if (
+        format_name == "geojson"
+        and next(
+            column
+            for column in source.metadata.geometry_columns
+            if column.name == primary
+        ).crs
+        is None
+    ):
+        raise GeometryExportError(
+            "missing_crs",
+            f"Geometry column {primary!r} needs a CRS for GeoJSON export. Declare its source CRS in Python before exporting.",
+            column=primary,
+        )
+    if manager.data.implementation.is_duckdb():
+        assert source.schema is not None
+        manager = _duckdb_to_arrow_manager(manager, source.schema)
+    return manager, source, primary
+
+
+def _duckdb_to_arrow_manager(
+    manager: NarwhalsTableManager[Any, Any],
+    schema: pa.Schema,
+) -> NarwhalsTableManager[Any, Any]:
+    """Convert native geometry to portable WKB while retaining declarations."""
+    try:
+        relation = manager.data.to_native()
+        expressions = []
+        for name in relation.columns:
+            quoted = quote_sql_identifier(name, dialect="duckdb")
+            expressions.append(
+                f"ST_AsWKB({quoted})::BLOB AS {quoted}"
+                if name in manager._geometry_columns
+                else quoted
+            )
+        table = relation.project(", ".join(expressions)).to_arrow_table()
+        for name in manager._geometry_columns:
+            index = table.schema.get_field_index(name)
+            field = table.schema.field(index).with_metadata(
+                schema.field(name).metadata
+            )
+            table = table.set_column(index, field, table.column(index))
+        return NarwhalsTableManager.from_dataframe(table)
+    except GeometryExportError:
+        raise
+    except Exception as e:
+        raise GeometryExportError(
+            "conversion_failed",
+            f"Could not convert DuckDB geometry to WKB: {e}",
+        ) from e
+
+
+def serialize_geojson(
+    manager: TableManager[Any],
+    geometry_column: str | None,
+    ensure_ascii: bool = True,
+) -> bytes:
+    """Write selected geometry and ordinary JSON properties as RFC 7946.
+
+    Args:
+        manager (TableManager[Any]): Manager for the effective export rows.
+        geometry_column (str | None): Explicit geometry, if chosen.
+        ensure_ascii (bool, optional): Whether to escape non-ASCII text.
+
+    Raises:
+        GeometryExportError: If geometry or properties cannot be preserved.
+    """
+    if not has_geometry_columns(manager):
+        raise GeometryExportError(
+            "invalid_geometry"
+            if geometry_column is not None
+            else "geometry_required",
+            "GeoJSON export requires a declared geometry column.",
+            column=geometry_column,
+        )
+    prepared, source, primary = _prepare_geographic_export(
+        manager, geometry_column, "geojson"
+    )
+    manager = prepared
+    metadata = source.metadata
+    names = {column.name for column in metadata.geometry_columns}
+
+    import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    from shapely.ops import orient  # type: ignore[import-untyped]
+
+    from marimo._plugins.ui._impl.tables.pandas_table import (
+        PandasTableManagerFactory,
+        _index_level_names,
+        _trivial_range_index,
+    )
+
+    native = _export_geodataframe(prepared, metadata, source.declarations)
+    if not native.columns.is_unique:
+        raise GeometryExportError(
+            "invalid_metadata", "GeoJSON export requires unique column names."
+        )
+    geometry = gpd.GeoSeries(native[primary].array, index=native.index)
+    exports_index = isinstance(
+        manager, PandasTableManagerFactory.create()
+    ) and not _trivial_range_index(native.index)
+    if geometry.crs is None:
+        raise GeometryExportError(
+            "missing_crs",
+            f"Geometry column {primary!r} needs a CRS for GeoJSON export. "
+            "Declare its source CRS in Python before exporting.",
+            column=primary,
+        )
+    try:
+        if any(getattr(value, "has_m", False) for value in geometry.array):
+            raise GeometryExportError(
+                "unsupported_representation",
+                f"Geometry column {primary!r} contains M coordinates.",
+                column=primary,
+            )
+        projected = geometry.to_crs(epsg=4326)
+        _validate_reprojection(geometry, projected, primary)
+        projected = gpd.GeoSeries(
+            [
+                orient(value, sign=1.0)
+                if value is not None
+                and value.geom_type
+                in ("Polygon", "MultiPolygon", "GeometryCollection")
+                else value
+                for value in projected.array
+            ],
+            index=projected.index,
+            crs=projected.crs,
+        )
+        export = gpd.GeoDataFrame(geometry=projected)
+        properties_manager = (
+            _prepare_arrow_geojson_properties(manager, native, primary, names)
+            if manager.data.implementation.is_pyarrow()
+            else prepare_geometry_text_export(manager.drop_columns([primary]))
+        )
+        properties: list[dict[str, Any]]
+        if len(native.columns) == 1 and not exports_index:
+            properties = [{} for _ in range(len(native))]
+        else:
+            property_json = properties_manager.to_json_str(
+                strict_json=True, ensure_ascii=ensure_ascii
+            )
+            properties = json.loads(
+                property_json, parse_constant=_reject_json_constant
+            )
+            del property_json
+        if not isinstance(properties, list) or len(properties) != len(native):
+            raise ValueError("Property conversion changed the number of rows.")
+        expected_keys = set(native.columns) - {primary}
+        if exports_index:
+            expected_keys.update(
+                _index_level_names(native.index, expected_keys)
+            )
+        if any(
+            not isinstance(row, dict) or set(row) != expected_keys
+            for row in properties
+        ):
+            raise ValueError("Property conversion changed the column names.")
+        _validate_secondary_wkt(properties, native, names - {primary})
+        features = []
+        for feature, row, value in zip(
+            export.iterfeatures(drop_id=True),
+            properties,
+            projected.array,
+            strict=True,
+        ):
+            if value is not None and value.is_empty:
+                feature["geometry"] = (
+                    {"type": "GeometryCollection", "geometries": []}
+                    if value.geom_type == "GeometryCollection"
+                    else {"type": value.geom_type, "coordinates": []}
+                )
+            expected_geometry = (
+                None
+                if value is None
+                else feature["geometry"]
+                if value.is_empty
+                else value.__geo_interface__
+            )
+            if (
+                set(feature) != {"type", "geometry", "properties"}
+                or feature["type"] != "Feature"
+                or feature["geometry"] != expected_geometry
+            ):
+                raise ValueError(
+                    "Geometry serialization changed feature geometry."
+                )
+            if feature["geometry"] is not None:
+                _validate_geojson_geometry(feature["geometry"])
+            feature["properties"] = row
+            features.append(feature)
+        del properties
+        text = json.dumps(
+            {"type": "FeatureCollection", "features": features},
+            allow_nan=False,
+            ensure_ascii=ensure_ascii,
+            separators=(",", ":"),
+        )
+        del features, export, projected, geometry, properties_manager
+        return text.encode("utf-8")
+    except GeometryExportError:
+        raise
+    except Exception as e:
+        raise GeometryExportError(
+            "conversion_failed",
+            f"Could not export GeoJSON: {e}",
+            column=primary,
+        ) from e
+
+
+def _prepare_arrow_geojson_properties(
+    manager: NarwhalsTableManager[Any, Any],
+    frame: Any,
+    primary: str,
+    geometry_columns: set[str],
+) -> TableManager[Any]:
+    import pyarrow as pa
+
+    source: pa.Table = manager.as_frame().to_native()
+    properties = source.drop([primary])
+    for name in geometry_columns - {primary}:
+        index = properties.schema.get_field_index(name)
+        original = properties.schema.field(index)
+        metadata = {
+            key: value
+            for key, value in (original.metadata or {}).items()
+            if key
+            not in (b"ARROW:extension:name", b"ARROW:extension:metadata")
+        }
+        field = pa.field(
+            name,
+            pa.string(),
+            nullable=original.nullable,
+            metadata=metadata or None,
+        )
+        values = pa.array(
+            frame[name].to_wkt(rounding_precision=-1),
+            type=pa.string(),
+            from_pandas=True,
+        )
+        properties = properties.set_column(index, field, values)
+    return _with_native_data(manager, properties)
+
+
+def _reject_json_constant(value: str) -> Any:
+    raise ValueError(f"Invalid JSON constant: {value}")
+
+
+def _validate_reprojection(source: Any, projected: Any, column: str) -> None:
+    import numpy as np
+    import shapely  # type: ignore[import-untyped]
+
+    original_coordinates = shapely.get_coordinates(
+        source.array, include_z=True
+    )
+    projected_coordinates = shapely.get_coordinates(
+        projected.array, include_z=True
+    )
+    if (
+        not np.isfinite(original_coordinates[:, :2]).all()
+        or not np.isfinite(projected_coordinates[:, :2]).all()
+        or not np.array_equal(
+            shapely.get_num_coordinates(source.array),
+            shapely.get_num_coordinates(projected.array),
+        )
+        or not np.array_equal(
+            shapely.get_type_id(source.array),
+            shapely.get_type_id(projected.array),
+        )
+        or not np.array_equal(
+            shapely.has_z(source.array), shapely.has_z(projected.array)
+        )
+    ):
+        raise GeometryExportError(
+            "conversion_failed",
+            "Reprojection changed geometry structure or produced non-finite coordinates.",
+            column=column,
+        )
+    if source.crs != projected.crs:
+        restored = projected.to_crs(source.crs)
+        restored_coordinates = shapely.get_coordinates(
+            restored.array, include_z=True
+        )
+        if (
+            original_coordinates.shape != restored_coordinates.shape
+            or not np.allclose(
+                original_coordinates,
+                restored_coordinates,
+                rtol=1e-9,
+                atol=1e-8,
+                equal_nan=True,
+            )
+        ):
+            raise GeometryExportError(
+                "conversion_failed",
+                "Reprojection cannot preserve the source coordinates.",
+                column=column,
+            )
+
+
+def _validate_secondary_wkt(
+    properties: list[dict[str, Any]], source: Any, columns: set[str]
+) -> None:
+    import numpy as np
+    import shapely  # type: ignore[import-untyped]
+
+    for column in columns:
+        original = source[column].array
+        text = [row[column] for row in properties]
+        if any(
+            value is not None and not isinstance(value, str) for value in text
+        ):
+            raise ValueError(f"WKT conversion lost geometry in {column!r}.")
+        restored = shapely.from_wkt(text)
+        if np.array_equal(shapely.to_wkb(original), shapely.to_wkb(restored)):
+            continue
+        coordinate_options = {"include_z": True}
+        if any(getattr(value, "has_m", False) for value in original):
+            coordinate_options["include_m"] = True
+        before = shapely.get_coordinates(original, **coordinate_options)
+        after = shapely.get_coordinates(restored, **coordinate_options)
+        tolerance = np.abs(before[:, :2]).max(initial=0) * 1e-15
+        if (
+            not np.all(
+                shapely.equals_exact(original, restored, tolerance=tolerance)
+                | (shapely.is_missing(original) & shapely.is_missing(restored))
+            )
+            or before.shape != after.shape
+            or not np.allclose(
+                before, after, rtol=1e-15, atol=0, equal_nan=True
+            )
+        ):
+            raise ValueError(f"WKT conversion lost geometry in {column!r}.")
+
+
+def _validate_geojson_geometry(geometry: dict[str, Any]) -> None:
+    from shapely.geometry import LinearRing  # type: ignore[import-untyped]
+
+    def position(values: Any) -> None:
+        if len(values) not in (2, 3) or not all(
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            for value in values
+        ):
+            raise ValueError(
+                "GeoJSON positions require two or three finite coordinates."
+            )
+        if not (-180 <= values[0] <= 180 and -90 <= values[1] <= 90):
+            raise ValueError(
+                "GeoJSON coordinates must be longitude and latitude."
+            )
+
+    def line(values: Any, minimum: int = 2) -> None:
+        if values and len(values) < minimum:
+            raise ValueError("GeoJSON line has too few positions.")
+        for values_at_position in values:
+            position(values_at_position)
+
+    def polygon(rings: Any) -> None:
+        for index, ring in enumerate(rings):
+            line(ring, minimum=4)
+            if (
+                not ring
+                or ring[0] != ring[-1]
+                or LinearRing(ring).is_ccw != (index == 0)
+            ):
+                raise ValueError(
+                    "GeoJSON polygon rings require closure and correct orientation."
+                )
+
+    coordinates = geometry.get("coordinates", [])
+    match geometry["type"]:
+        case "Point":
+            if coordinates:
+                position(coordinates)
+        case "MultiPoint":
+            line(coordinates, minimum=1)
+        case "LineString":
+            line(coordinates)
+        case "MultiLineString":
+            for values in coordinates:
+                line(values)
+        case "Polygon":
+            polygon(coordinates)
+        case "MultiPolygon":
+            for rings in coordinates:
+                polygon(rings)
+        case "GeometryCollection":
+            for child in geometry["geometries"]:
+                _validate_geojson_geometry(child)
+        case _:
+            raise ValueError("Unsupported GeoJSON geometry type.")
+
+
+def serialize_geoparquet(
+    manager: TableManager[Any], geometry_column: str | None
+) -> bytes | None:
+    """Write declared geometry as GeoParquet 1.0.0.
+
+    Args:
+        manager (TableManager[Any]): Manager for the effective export rows.
+        geometry_column (str | None): Explicit primary geometry, if chosen.
+
+    Returns:
+        bytes | None: GeoParquet bytes, or None for an ordinary table.
+
+    Raises:
+        GeometryExportError: If a geometry source cannot produce valid
+            GeoParquet or the requested primary is invalid.
+    """
+    if not has_geometry_columns(manager):
+        if geometry_column is not None:
+            raise GeometryExportError(
+                "invalid_geometry",
+                f"{geometry_column!r} is not a geometry column in this table.",
+                column=geometry_column,
+            )
+        return None
+
+    if (
+        isinstance(manager, NarwhalsTableManager)
+        and manager.data.implementation.is_pandas()
+        and not manager.as_frame().to_native().columns.is_unique
+    ):
+        raise GeometryExportError(
+            "invalid_metadata",
+            "GeoParquet export requires unique column names.",
+        )
+
+    prepared, source, primary = _prepare_geographic_export(
+        manager, geometry_column, "parquet"
+    )
+    manager = prepared
+    metadata = source.metadata
+    names = {column.name for column in metadata.geometry_columns}
+
+    import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
+
+    native = _export_geodataframe(prepared, metadata, source.declarations)
+    if not native.columns.is_unique:
+        raise GeometryExportError(
+            "invalid_metadata",
+            "GeoParquet export requires unique column names.",
+        )
+
+    for name in names:
+        for geometry in native[name].array:
+            if geometry is not None and getattr(geometry, "has_m", False):
+                raise GeometryExportError(
+                    "unsupported_representation",
+                    f"Geometry column {name!r} contains M coordinates.",
+                    column=name,
+                )
+
+    try:
+        export_frame = gpd.GeoDataFrame(
+            native.copy(deep=True), geometry=primary
+        )
+        buffer = BytesIO()
+        export_frame.to_parquet(
+            buffer,
+            index=None,
+            schema_version="1.0.0",
+        )
+        artifact = buffer.getvalue()
+        _validate_geoparquet(artifact, export_frame, primary, names)
+    except GeometryExportError:
+        raise
+    except Exception as e:
+        raise GeometryExportError(
+            "conversion_failed",
+            f"Could not export GeoParquet: {e}",
+            column=primary,
+        ) from e
+    return artifact
+
+
+def _validate_geoparquet(
+    artifact: bytes,
+    source: Any,
+    primary: str,
+    geometry_columns: set[str],
+) -> None:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from pyproj import CRS  # type: ignore[import-not-found,import-untyped,unused-ignore]
+
+    try:
+        file_metadata = pq.read_metadata(BytesIO(artifact))
+    except Exception as e:
+        raise GeometryExportError(
+            "invalid_metadata", "The GeoParquet file is not valid Parquet."
+        ) from e
+    raw_geo = (file_metadata.metadata or {}).get(b"geo")
+    if raw_geo is None:
+        raise GeometryExportError(
+            "invalid_metadata", "The GeoParquet file has no geo metadata."
+        )
+    try:
+        geo = json.loads(raw_geo)
+    except (ValueError, UnicodeDecodeError) as e:
+        raise GeometryExportError(
+            "invalid_metadata", "The GeoParquet metadata is not valid JSON."
+        ) from e
+    if (
+        not isinstance(geo, dict)
+        or geo.get("version") != "1.0.0"
+        or geo.get("primary_column") != primary
+        or not isinstance(geo.get("columns"), dict)
+        or set(geo["columns"]) != geometry_columns
+    ):
+        raise GeometryExportError(
+            "invalid_metadata", "The GeoParquet file metadata is incomplete."
+        )
+    schema = file_metadata.schema.to_arrow_schema()
+    for name in geometry_columns:
+        column = geo["columns"][name]
+        if (
+            not isinstance(column, dict)
+            or column.get("encoding") != "WKB"
+            or not isinstance(column.get("geometry_types"), list)
+            or "crs" not in column
+            or name not in schema.names
+            or not pa.types.is_binary(
+                arrow_storage_field(schema.field(name)).type
+            )
+        ):
+            raise GeometryExportError(
+                "invalid_metadata",
+                f"The GeoParquet metadata for {name!r} is invalid.",
+                column=name,
+            )
+        expected_crs = source[name].crs
+        stored_crs = column["crs"]
+        if expected_crs is None:
+            valid_crs = stored_crs is None
+        else:
+            try:
+                valid_crs = isinstance(stored_crs, dict) and (
+                    CRS.from_json_dict(stored_crs) == expected_crs
+                )
+            except Exception:
+                valid_crs = False
+        if not valid_crs:
+            raise GeometryExportError(
+                "invalid_metadata",
+                f"The GeoParquet CRS for {name!r} is invalid.",
+                column=name,
+            )
+
+
+def prepare_geometry_text_export(
+    manager: TableManager[Any],
+) -> TableManager[Any]:
+    """Create an export view with complete geometry text.
+
+    Args:
+        manager (TableManager[Any]): The manager for the effective export
+            rows.
+
+    Returns:
+        TableManager[Any]: A manager with supported geometry columns replaced
+            by complete WKT or lossless hexadecimal WKB text.
+    """
+    if not isinstance(manager, NarwhalsTableManager):
+        return manager
+
+    geometry_columns = manager._geometry_columns
+    if not geometry_columns:
+        return manager
+
+    source_frame = manager.data
+    if source_frame.implementation.is_duckdb():
+        return _prepare_duckdb_export(manager, geometry_columns)
+
+    frame = manager.as_frame()
+    if frame.implementation.is_pandas():
+        return _prepare_pandas_export(manager, geometry_columns)
+    if frame.implementation.is_pyarrow():
+        return _prepare_arrow_export(manager, geometry_columns)
+    return manager
+
+
+def _prepare_pandas_export(
+    manager: NarwhalsTableManager[Any, Any],
+    geometry_columns: dict[str, GeometryColumnInfo],
+) -> TableManager[Any]:
+    import geopandas as gpd  # type: ignore[import-not-found,import-untyped,unused-ignore]
+    import pandas as pd
+
+    native = manager.as_frame().to_native()
+    export_frame = pd.DataFrame(native.copy())
+    converted = False
+
+    for column, info in geometry_columns.items():
+        if info.encoding != "objects":
+            continue
+        geometry = gpd.GeoSeries(
+            native[column].array,
+            index=native.index,
+        )
+        export_frame[column] = geometry.to_wkt(rounding_precision=-1)
+        converted = True
+
+    return _with_native_data(manager, export_frame) if converted else manager
+
+
+def _prepare_arrow_export(
+    manager: NarwhalsTableManager[Any, Any],
+    geometry_columns: dict[str, GeometryColumnInfo],
+) -> TableManager[Any]:
+    import pyarrow as pa
+
+    export_table: pa.Table = manager.as_frame().to_native()
+    converted = False
+
+    for column, info in geometry_columns.items():
+        if info.encoding not in ("wkt", "wkb"):
+            continue
+
+        index = export_table.schema.get_field_index(column)
+        field = arrow_storage_field(export_table.schema.field(index))
+        metadata = dict(field.metadata or {})
+        metadata.pop(b"ARROW:extension:name", None)
+        metadata.pop(b"ARROW:extension:metadata", None)
+        export_type = pa.string() if info.encoding == "wkb" else field.type
+        export_field = pa.field(
+            field.name,
+            export_type,
+            nullable=field.nullable,
+            metadata=metadata or None,
+        )
+
+        values = pa.chunked_array(
+            [
+                chunk.storage
+                if isinstance(chunk, pa.ExtensionArray)
+                else chunk
+                for chunk in export_table.column(index).chunks
+            ],
+            type=field.type,
+        )
+        export_values: pa.Array[Any] | pa.ChunkedArray[Any]
+        if info.encoding == "wkb":
+            export_values = pa.array(
+                _wkb_values_to_text(values.to_pylist()),
+                type=pa.string(),
+            )
+        else:
+            export_values = values
+
+        export_table = export_table.set_column(
+            index, export_field, export_values
+        )
+        converted = True
+
+    return _with_native_data(manager, export_table) if converted else manager
+
+
+def _wkb_values_to_text(values: list[Any]) -> list[str | None]:
+    if not DependencyManager.shapely.has():
+        return [
+            None if value is None else bytes(value).hex() for value in values
+        ]
+
+    from shapely import wkb, wkt  # type: ignore[import-untyped]
+
+    return [
+        (
+            None
+            if value is None
+            else wkt.dumps(
+                wkb.loads(bytes(value)),
+                rounding_precision=-1,
+                trim=True,
+            )
+        )
+        for value in values
+    ]
+
+
+def _prepare_duckdb_export(
+    manager: NarwhalsTableManager[Any, Any],
+    geometry_columns: dict[str, GeometryColumnInfo],
+) -> TableManager[Any]:
+    relation = manager.data.to_native()
+    expressions: list[str] = []
+    converted = False
+
+    for column in relation.columns:
+        quoted = quote_sql_identifier(column, dialect="duckdb")
+        info = geometry_columns.get(column)
+        if (
+            info is not None
+            and info.encoding == "wkb"
+            and info.external_type.startswith("GEOMETRY")
+        ):
+            expressions.append(f"ST_AsText({quoted}) AS {quoted}")
+            converted = True
+        else:
+            expressions.append(quoted)
+
+    if not converted:
+        return manager
+    return _with_native_data(manager, relation.project(", ".join(expressions)))
+
+
+def _with_native_data(
+    manager: NarwhalsTableManager[Any, Any], native: Any
+) -> TableManager[Any]:
+    return manager.with_new_data(nw.from_native(native, pass_through=False))

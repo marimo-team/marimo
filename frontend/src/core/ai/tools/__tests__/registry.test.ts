@@ -10,6 +10,23 @@ import { TestFrontendTool } from "../sample-tool";
 const INVALID_KEYS_IN_SCHEMA_PARAMS = new Set(["anyOf", "oneOf"]);
 
 describe("FrontendToolRegistry", () => {
+  it("only offers cell proposals with Suggest edits access", () => {
+    expect(
+      Object.fromEntries(
+        COPILOT_MODES.map((mode) => [
+          mode,
+          FRONTEND_TOOL_REGISTRY.getToolSchemas(mode).map((tool) => tool.name),
+        ]),
+      ),
+    ).toEqual({
+      manual: [],
+      ask: [],
+      agent: ["edit_notebook_tool"],
+      code_mode: [],
+    });
+    expect(FRONTEND_TOOL_REGISTRY.has("run_stale_cells_tool")).toBe(false);
+  });
+
   it("registers tools via constructor and supports has()", () => {
     const registry = new FrontendToolRegistry([new TestFrontendTool()]);
     expect(registry.has("test_frontend_tool")).toBe(true);

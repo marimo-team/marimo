@@ -73,10 +73,7 @@ describe("FilenameForm", () => {
     });
 
     await waitFor(() => {
-      expect(mockSaveNotebook).toHaveBeenCalledWith(
-        "/path/to/new-file.py",
-        true,
-      );
+      expect(mockSaveNotebook).toHaveBeenCalledWith(true);
     });
   });
 

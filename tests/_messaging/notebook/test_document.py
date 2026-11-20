@@ -326,7 +326,7 @@ class TestMoveCell:
 
     def test_no_anchor_raises(self) -> None:
         doc = _doc("a", "b")
-        with pytest.raises(ValueError, match="before.*after"):
+        with pytest.raises(ValueError, match=r"before.*after"):
             doc.apply(_tx(MoveCell(cell_id=CellId_t("a"))))
 
     def test_missing_cell_raises(self) -> None:
@@ -455,6 +455,7 @@ class TestCellVersion:
                     column=None,
                     disabled=True,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
@@ -500,11 +501,30 @@ class TestSetConfig:
                     column=None,
                     disabled=False,
                     hide_code=True,
+                    expand_output=False,
                 )
             )
         )
         cfg = doc.get_cell(CellId_t("a")).config
         assert cfg == CellConfig(column=None, disabled=False, hide_code=True)
+
+    def test_sets_expand_output(self) -> None:
+        doc = _doc("a")
+        doc.apply(
+            _tx(
+                SetConfig(
+                    cell_id=CellId_t("a"),
+                    column=None,
+                    disabled=False,
+                    hide_code=False,
+                    expand_output=True,
+                )
+            )
+        )
+        cfg = doc.get_cell(CellId_t("a")).config
+        assert cfg == CellConfig(
+            column=None, disabled=False, hide_code=False, expand_output=True
+        )
 
     def test_sets_disabled(self) -> None:
         doc = _doc("a")
@@ -515,6 +535,7 @@ class TestSetConfig:
                     column=None,
                     disabled=True,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
@@ -531,7 +552,12 @@ class TestSetConfig:
                     id=CellId_t("a"),
                     code="",
                     name="__",
-                    config=CellConfig(column=2, disabled=True, hide_code=True),
+                    config=CellConfig(
+                        column=2,
+                        disabled=True,
+                        hide_code=True,
+                        expand_output=True,
+                    ),
                 )
             ]
         )
@@ -542,11 +568,14 @@ class TestSetConfig:
                     column=0,
                     disabled=False,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
         cfg = doc.get_cell(CellId_t("a")).config
-        assert cfg == CellConfig(column=0, disabled=False, hide_code=False)
+        assert cfg == CellConfig(
+            column=0, disabled=False, hide_code=False, expand_output=False
+        )
 
     def test_column_reset_to_none(self) -> None:
         doc = NotebookDocument(
@@ -566,6 +595,7 @@ class TestSetConfig:
                     column=None,
                     disabled=False,
                     hide_code=False,
+                    expand_output=False,
                 )
             )
         )
@@ -580,7 +610,7 @@ class TestSetConfig:
 class TestValidation:
     def test_delete_and_set_code_same_cell(self) -> None:
         doc = _doc("a")
-        with pytest.raises(ValueError, match="delete.*update"):
+        with pytest.raises(ValueError, match=r"delete.*update"):
             doc.apply(
                 _tx(
                     SetCode(cell_id=CellId_t("a"), code="x"),
@@ -590,7 +620,7 @@ class TestValidation:
 
     def test_set_code_and_delete_same_cell(self) -> None:
         doc = _doc("a")
-        with pytest.raises(ValueError, match="update.*delete"):
+        with pytest.raises(ValueError, match=r"update.*delete"):
             doc.apply(
                 _tx(
                     DeleteCell(cell_id=CellId_t("a")),
@@ -600,7 +630,7 @@ class TestValidation:
 
     def test_delete_and_move_same_cell(self) -> None:
         doc = _doc("a", "b")
-        with pytest.raises(ValueError, match="delete.*move"):
+        with pytest.raises(ValueError, match=r"delete.*move"):
             doc.apply(
                 _tx(
                     MoveCell(cell_id=CellId_t("a"), after=CellId_t("b")),

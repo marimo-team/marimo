@@ -13,10 +13,11 @@ import { Functions } from "@/utils/functions";
 import { MarkdownIcon, PythonIcon } from "./icons";
 
 interface LanguageTogglesProps {
-  editorView: EditorView | null;
+  editorViewRef: React.RefObject<EditorView | null>;
   code: string;
   currentLanguageAdapter: LanguageAdapter["type"] | undefined;
-  onAfterToggle: () => void;
+  onAfterToggleSQL: () => void;
+  onAfterToggleMarkdown: () => void;
   /**
    * Classes for the wrapper element. Defaults to the absolutely-positioned,
    * hover-revealed placement used inside the notebook cell editor.
@@ -25,10 +26,11 @@ interface LanguageTogglesProps {
 }
 
 export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
-  editorView,
+  editorViewRef,
   code,
   currentLanguageAdapter,
-  onAfterToggle,
+  onAfterToggleSQL,
+  onAfterToggleMarkdown,
   className = "absolute right-3 top-2 z-20 flex hover-action gap-1",
 }) => {
   const canUseMarkdown = useMemo(
@@ -43,7 +45,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
   return (
     <div className={className}>
       <LanguageToggle
-        editorView={editorView}
+        editorViewRef={editorViewRef}
         currentLanguageAdapter={currentLanguageAdapter}
         canSwitchToLanguage={canUseSQL && currentLanguageAdapter === "python"}
         icon={
@@ -55,10 +57,10 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
         }
         toType="sql"
         displayName="SQL"
-        onAfterToggle={onAfterToggle}
+        onAfterToggle={onAfterToggleSQL}
       />
       <LanguageToggle
-        editorView={editorView}
+        editorViewRef={editorViewRef}
         currentLanguageAdapter={currentLanguageAdapter}
         canSwitchToLanguage={
           canUseMarkdown && currentLanguageAdapter === "python"
@@ -72,10 +74,10 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
         }
         toType="markdown"
         displayName="Markdown"
-        onAfterToggle={onAfterToggle}
+        onAfterToggle={onAfterToggleMarkdown}
       />
       <LanguageToggle
-        editorView={editorView}
+        editorViewRef={editorViewRef}
         currentLanguageAdapter={currentLanguageAdapter}
         canSwitchToLanguage={true}
         icon={
@@ -95,7 +97,7 @@ export const LanguageToggles: React.FC<LanguageTogglesProps> = ({
 
 interface Props {
   className?: string;
-  editorView: EditorView | null;
+  editorViewRef: React.RefObject<EditorView | null>;
   canSwitchToLanguage: boolean;
   currentLanguageAdapter: LanguageAdapter["type"] | undefined;
   toType: LanguageAdapter["type"];
@@ -105,7 +107,7 @@ interface Props {
 }
 
 export const LanguageToggle: React.FC<Props> = ({
-  editorView,
+  editorViewRef,
   currentLanguageAdapter,
   canSwitchToLanguage,
   icon,
@@ -114,6 +116,7 @@ export const LanguageToggle: React.FC<Props> = ({
   onAfterToggle,
 }) => {
   const handleClick = () => {
+    const editorView = editorViewRef.current;
     if (!editorView) {
       return;
     }

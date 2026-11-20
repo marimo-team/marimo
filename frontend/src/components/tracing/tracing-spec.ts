@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { TopLevelSpec } from "vega-lite";
-import type { TimeUnit } from "vega-typings";
+import type { TimeUnit } from "vega-lite/types_unstable/timeunit.js";
 import type { CellId } from "@/core/cells/ids";
 import type { CellRun } from "@/core/cells/runs";
 import type { ResolvedTheme } from "@/theme/useTheme";
@@ -96,7 +96,17 @@ export function createGanttBaseSpec(
       },
       color: {
         field: statusField,
-        scale: { domain: ["success", "error"], range: ["#37BE5F", "red"] },
+        scale: {
+          domain: [
+            "success",
+            "error",
+            "queued",
+            "running",
+            "skipped",
+            "interrupted",
+          ],
+          range: ["#37BE5F", "red", "grey", "steelblue", "grey", "darkorange"],
+        },
         legend: null,
       },
     },

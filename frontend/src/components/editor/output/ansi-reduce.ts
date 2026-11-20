@@ -13,8 +13,25 @@ export interface Cursor {
 export class TerminalBuffer {
   private lines: string[] = [""];
   private cursor: Cursor = { row: 0, col: 0 };
-  // oxlint-ignore-next-line no-control-regex -- Needed for ANSI escape sequence parsing
-  private static readonly ESCAPE_REGEX = /\u001B\[([0-9;]*)([A-DJKH])/u;
+
+  // The cursor is relative to the retained lines. Absolute ANSI positions
+  // still refer to the original screen after old lines have been discarded.
+  private firstRow: number;
+
+  public constructor(firstRow = 0) {
+    this.firstRow = firstRow;
+  }
+
+  public copy(dropLines = 0): TerminalBuffer {
+    const copy = new TerminalBuffer(this.firstRow + dropLines);
+    copy.lines = this.lines.slice(dropLines);
+    copy.cursor = { row: this.cursor.row - dropLines, col: this.cursor.col };
+    return copy;
+  }
+  private static readonly ESCAPE_REGEX = new RegExp(
+    String.raw`\u001B\[([0-9;]*)([A-DJKH])`,
+    "u",
+  );
 
   /** Ensure the internal lines array is large enough. */
   private ensureLine(row: number) {
@@ -25,7 +42,7 @@ export class TerminalBuffer {
 
   /** Move cursor by relative offsets. */
   private moveCursor(rowDelta: number, colDelta: number) {
-    this.cursor.row = Math.max(0, this.cursor.row + rowDelta);
+    this.cursor.row = Math.max(-this.firstRow, this.cursor.row + rowDelta);
     this.cursor.col = Math.max(0, this.cursor.col + colDelta);
     this.ensureLine(this.cursor.row);
     // Cursor movement does not erase content. This matters for multi-line
@@ -34,24 +51,20 @@ export class TerminalBuffer {
 
   /** Move cursor to a specific absolute position. */
   private setCursor(row: number, col: number) {
-    this.cursor.row = Math.max(0, row);
+    this.cursor.row = Math.max(0, row) - this.firstRow;
     this.cursor.col = Math.max(0, col);
     this.ensureLine(this.cursor.row);
   }
 
   /** Write a visible character at the current cursor position. */
-  writeChar(ch: string) {
-    this.ensureLine(this.cursor.row);
-    const line = this.lines[this.cursor.row];
-    const padded = line.padEnd(this.cursor.col, " ");
-    this.lines[this.cursor.row] =
-      padded.slice(0, this.cursor.col) + ch + padded.slice(this.cursor.col + 1);
-    this.cursor.col++;
+  public writeChar(ch: string) {
+    this.writeString(ch);
   }
 
   /** Write a string of visible characters at the current cursor position (optimized batch write). */
-  writeString(str: string) {
-    if (str.length === 0) {
+  public writeString(str: string) {
+    if (this.cursor.row < 0 || str.length === 0) {
+      this.cursor.col += str.length;
       return;
     }
     this.ensureLine(this.cursor.row);
@@ -65,7 +78,7 @@ export class TerminalBuffer {
   }
 
   /** Handle simple control characters (\n, \r, \t, \b, \v). */
-  control(ch: string) {
+  public control(ch: string) {
     switch (ch) {
       case "\n":
         this.cursor.row++;
@@ -93,7 +106,7 @@ export class TerminalBuffer {
    * Supports cursor movement and line erasing.
    * For other sequences (like color codes), preserve them by writing to the buffer.
    */
-  handleEscape(seq: string) {
+  public handleEscape(seq: string) {
     const match = TerminalBuffer.ESCAPE_REGEX.exec(seq);
     if (!match) {
       // If it doesn't match the cursor movement pattern, it might be:
@@ -129,10 +142,14 @@ export class TerminalBuffer {
       case "J": // Erase in display
         if (params[0] === 2) {
           this.lines = [""];
+          this.firstRow = 0;
           this.setCursor(0, 0);
         }
         break;
       case "K": // Erase line
+        if (this.cursor.row < 0) {
+          break;
+        }
         this.ensureLine(this.cursor.row);
         switch (params[0]) {
           case 0:
@@ -170,7 +187,7 @@ export class TerminalBuffer {
   }
 
   /** Return the final rendered buffer as a single string. */
-  render(): string {
+  public render(): string {
     return this.lines.join("\n");
   }
 }
@@ -180,10 +197,12 @@ export class TerminalBuffer {
  */
 export class AnsiParser {
   // Matches both CSI sequences (ESC[...letter) and other escape sequences like character set selection (ESC(B)
-  // oxlint-ignore-next-line no-control-regex -- Needed for ANSI parsing
-  private ESC_REGEX = /\u001B(?:\[[0-9;]*[A-Za-z]|\([0-9A-Za-z])/gu;
+  private ESC_REGEX = new RegExp(
+    String.raw`\u001B(?:\[[0-9;]*[A-Za-z]|\([0-9A-Za-z])`,
+    "gu",
+  );
 
-  parse(input: string): { type: "text" | "escape"; value: string }[] {
+  public parse(input: string): { type: "text" | "escape"; value: string }[] {
     const tokens: { type: "text" | "escape"; value: string }[] = [];
     let lastIndex = 0;
 
@@ -211,13 +230,29 @@ export class AnsiParser {
  */
 export class AnsiReducer {
   private parser = new AnsiParser();
-  private buffer = new TerminalBuffer();
+  private buffer: TerminalBuffer;
+  private incompleteEscape = "";
+  private static readonly INCOMPLETE_ESCAPE = new RegExp(
+    String.raw`\u001B(?:\[[0-9;]*|\()?$`,
+    "u",
+  );
+
+  public constructor(firstRow = 0) {
+    this.buffer = new TerminalBuffer(firstRow);
+  }
+
+  public copy(dropLines = 0): AnsiReducer {
+    const copy = new AnsiReducer();
+    copy.buffer = this.buffer.copy(dropLines);
+    copy.incompleteEscape = this.incompleteEscape;
+    return copy;
+  }
 
   /**
    * Process the entire input string (replaces any previous state).
    * Use this for one-time processing or when starting fresh.
    */
-  reduce(input: string): string {
+  public reduce(input: string): string {
     this.reset();
     this.append(input);
     return this.render();
@@ -227,7 +262,14 @@ export class AnsiReducer {
    * Append new input to the existing buffer (for streaming/incremental updates).
    * This is efficient for streaming scenarios - only processes the new chunk.
    */
-  append(input: string): void {
+  public append(input: string): void {
+    input = this.incompleteEscape + input;
+    // A pipe read can split a CSI or character-set sequence at any byte.
+    const partial = AnsiReducer.INCOMPLETE_ESCAPE.exec(input);
+    this.incompleteEscape = partial?.[0] ?? "";
+    if (partial) {
+      input = input.slice(0, partial.index);
+    }
     const tokens = this.parser.parse(input);
 
     // Fast path: if only one text token (no ANSI codes), handle directly
@@ -256,14 +298,15 @@ export class AnsiReducer {
    * Reset the buffer and cursor to initial state.
    * Use this when you want to start processing fresh input.
    */
-  reset(): void {
+  public reset(): void {
     this.buffer = new TerminalBuffer();
+    this.incompleteEscape = "";
   }
 
   /**
    * Get the current rendered output without processing new input.
    */
-  render(): string {
+  public render(): string {
     return this.buffer.render();
   }
 
@@ -354,7 +397,22 @@ export class AnsiReducer {
 
 export type StringOutputMessage = Omit<OutputMessage, "data"> & {
   data: string;
+  id?: number;
 };
+
+/** Plain writes can extend the rendered string until a control code needs a terminal. */
+function plainLineCount(text: string): number | undefined {
+  let count = 1;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 10) {
+      count++;
+    } else if (code < 32) {
+      return;
+    }
+  }
+  return count;
+}
 
 /**
  * Immutable output message that maintains ANSI state across appends.
@@ -364,53 +422,88 @@ export class StatefulOutputMessage implements OutputMessage {
   public readonly mimetype: OutputMessage["mimetype"];
   public readonly channel: OutputMessage["channel"];
   public readonly timestamp: OutputMessage["timestamp"];
-  private ansiReducer = new AnsiReducer();
-  private _data: string;
-
-  public get data(): string {
-    return this._data;
-  }
-
-  static create(message: StringOutputMessage): StatefulOutputMessage {
-    const ansiReducer = new AnsiReducer();
-    ansiReducer.append(message.data);
-    return new StatefulOutputMessage(
-      message.mimetype,
-      message.channel,
-      message.timestamp,
-      ansiReducer,
-    );
-  }
+  public readonly code: OutputMessage["code"];
+  public readonly id: StringOutputMessage["id"];
+  /** The prompt this entry is, when it asks for input. A reply names it. */
+  public readonly input_id: OutputMessage["input_id"];
+  public readonly data: string;
+  public readonly lineCount: number;
+  private readonly terminal?: AnsiReducer;
+  private readonly firstPlainRow: number;
 
   private constructor(
-    mimetype: OutputMessage["mimetype"],
-    channel: OutputMessage["channel"],
-    timestamp: OutputMessage["timestamp"],
-    ansiReducer: AnsiReducer,
+    message: StringOutputMessage,
+    state: {
+      data: string;
+      lineCount: number;
+      terminal?: AnsiReducer;
+      firstPlainRow?: number;
+    },
   ) {
-    this.mimetype = mimetype;
-    this.channel = channel;
-    this.timestamp = timestamp;
-    this.ansiReducer = ansiReducer;
-    this._data = this.ansiReducer.render();
+    this.data = state.data;
+    this.lineCount = state.lineCount;
+    this.terminal = state.terminal;
+    this.firstPlainRow = state.firstPlainRow ?? 0;
+    this.mimetype = message.mimetype;
+    this.channel = message.channel;
+    this.timestamp = message.timestamp;
+    this.code = message.code;
+    this.id = message.id;
+    this.input_id = message.input_id;
   }
 
-  appendData(chunk: string): StatefulOutputMessage {
-    this.ansiReducer.append(chunk);
-    return new StatefulOutputMessage(
-      this.mimetype,
-      this.channel,
-      this.timestamp,
-      this.ansiReducer,
-    );
+  public static create(message: StringOutputMessage): StatefulOutputMessage {
+    return new StatefulOutputMessage(message, {
+      data: "",
+      lineCount: 1,
+    }).appendData(message.data);
   }
 
-  toJSON(): StringOutputMessage {
+  public appendData(chunk: string): StatefulOutputMessage {
+    if (!this.terminal) {
+      const lines = plainLineCount(chunk);
+      if (lines !== undefined) {
+        return new StatefulOutputMessage(this, {
+          data: this.data + chunk,
+          lineCount: this.lineCount + lines - 1,
+          firstPlainRow: this.firstPlainRow,
+        });
+      }
+    }
+    const terminal =
+      this.terminal?.copy() ?? new AnsiReducer(this.firstPlainRow);
+    if (!this.terminal) {
+      terminal.append(this.data);
+    }
+    terminal.append(chunk);
+    const data = terminal.render();
+    return new StatefulOutputMessage(this, {
+      data,
+      lineCount: data.split("\n").length,
+      terminal,
+    });
+  }
+
+  public dropFirstLines(count: number): StatefulOutputMessage {
+    if (count === 0) {
+      return this;
+    }
+    const terminal = this.terminal?.copy(count);
+    return new StatefulOutputMessage(this, {
+      data: terminal?.render() ?? this.data.split("\n").slice(count).join("\n"),
+      lineCount: this.lineCount - count,
+      terminal,
+      firstPlainRow: this.firstPlainRow + count,
+    });
+  }
+
+  public toJSON(): StringOutputMessage {
     return {
       mimetype: this.mimetype,
       channel: this.channel,
       timestamp: this.timestamp,
       data: this.data,
+      ...(this.code === undefined ? {} : { code: this.code }),
     };
   }
 }

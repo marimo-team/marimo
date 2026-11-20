@@ -7,7 +7,6 @@ app = marimo.App()
 @app.cell
 def _():
     print('Hello, Output!')
-    return
 
 
 if __name__ == "__main__":

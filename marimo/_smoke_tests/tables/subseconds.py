@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -10,13 +10,15 @@ def _():
 
     import marimo as mo
     import pandas as pd
+
     return datetime, mo, pd
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Datetime""")
-    return
+    mo.md(r"""
+    ## Datetime
+    """)
 
 
 @app.cell
@@ -28,13 +30,13 @@ def _(datetime, pd):
             "timestamp": [_start + n * _slice for n in range(5)],
         }
     )
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Seconds""")
-    return
+    mo.md(r"""
+    ## Seconds
+    """)
 
 
 @app.cell
@@ -46,13 +48,13 @@ def _(datetime, pd):
             "timestamp": [_start + n * _slice for n in range(5)],
         }
     )
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Milliseconds""")
-    return
+    mo.md(r"""
+    ## Milliseconds
+    """)
 
 
 @app.cell
@@ -71,13 +73,13 @@ def _(datetime, pd):
 def _(mo, test_df):
     # Nanoseconds are still missing, because JavaScript (browsers) don't support nanoseconds.
     mo.hstack([mo.plain(test_df), test_df])
-    return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Nanoseconds""")
-    return
+    mo.md(r"""
+    ## Nanoseconds
+    """)
 
 
 @app.cell
@@ -85,7 +87,6 @@ def _(test_df):
     nano_df = test_df.copy()
     nano_df["timestamp"] = nano_df["timestamp"].astype(str)
     nano_df
-    return
 
 
 if __name__ == "__main__":

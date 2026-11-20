@@ -41,8 +41,10 @@ function measureRevealedHeight(el: HTMLElement): number {
   if (!firstUnrevealed) {
     return el.scrollHeight;
   }
+  const bounds = el.getBoundingClientRect();
+  const scale = el.offsetHeight > 0 ? bounds.height / el.offsetHeight : 1;
   const fragmentTop = firstUnrevealed.getBoundingClientRect().top;
-  return fragmentTop - el.getBoundingClientRect().top + el.scrollTop;
+  return (fragmentTop - bounds.top) / (scale || 1) + el.scrollTop;
 }
 
 /**

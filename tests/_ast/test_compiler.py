@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import os
+import sys
 from functools import partial
+from textwrap import indent
 from typing import Any
 from unittest.mock import patch
 
@@ -10,9 +12,12 @@ import pytest
 
 from marimo._ast import compiler
 from marimo._ast.cell_manager import CellManager
+from marimo._ast.errors import LazyImportError
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.visitor import ImportData, VariableData
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._types.ids import CellId_t
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -73,6 +78,122 @@ class TestParseCell:
         assert cell.defs == {"f"}
         assert cell.refs == set()
         assert not cell.imported_namespaces
+
+
+class TestClassScope:
+    @staticmethod
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "x = 0\ndef value(self):\n    return x",
+            "def value(self):\n    return x\nx = 0",
+            "x = 0\nvalue = lambda self: x",
+            "x = 0\nvalues = [x for _ in (0,)]",
+            "x = 0\nvalues = {x for _ in (0,)}",
+            "x = 0\nvalues = {x: x for _ in (0,)}",
+            "x = 0\nvalues = (x for _ in (0,))",
+            "x = 0\nvalues = [item for item in (0,) if x]",
+            "x = (0,)\nvalues = [item for _ in (0,) for item in x]",
+            "x = 0\nclass Inner:\n    value = x",
+            "x = (0,)\ndef value(self):\n    return [item for item in x]",
+            (
+                "x = (0,)\nvalues = [item for _ in (0,) "
+                "for item in [item for item in x]]"
+            ),
+        ],
+    )
+    def test_class_attributes_do_not_bind_nested_scopes(body: str) -> None:
+        cell = compile_cell("class C:\n" + indent(body, "    "))
+        assert cell.defs == {"C"}
+        assert cell.refs == {"x"}
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "expression",
+        [
+            "[item for item in x]",
+            "{item for item in x}",
+            "{item: item for item in x}",
+            "(item for item in x)",
+            "[item for item in [item for item in x]]",
+        ],
+    )
+    def test_comprehension_first_iterable_uses_class_scope(
+        expression: str,
+    ) -> None:
+        cell = compile_cell(
+            f"class C:\n    x = (1,)\n    value = {expression}"
+        )
+        assert cell.refs == set()
+
+    @staticmethod
+    def test_nested_class_header_uses_enclosing_class_scope() -> None:
+        cell = compile_cell(
+            "class Outer:\n"
+            "    base = object\n"
+            "    class Inner(base):\n"
+            "        pass"
+        )
+        assert cell.refs == {"object"}
+
+    @staticmethod
+    def test_method_captures_cell_variable_despite_class_attribute() -> None:
+        cell = compile_cell(
+            "x = 10\nclass C:\n    x = 0\n"
+            "    def value(self):\n        return x"
+        )
+        assert cell.refs == set()
+        assert cell.variable_data["C"][0].required_refs == {"x"}
+
+    @staticmethod
+    def test_method_captures_enclosing_function_variable() -> None:
+        cell = compile_cell(
+            "def outer(x):\n    class C:\n        x = 0\n"
+            "        def value(self):\n            return x\n"
+            "    return C"
+        )
+        assert cell.refs == set()
+
+    @staticmethod
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12), reason="Requires type parameters"
+    )
+    @pytest.mark.parametrize(
+        ("code", "expected_refs"),
+        [
+            ("class C:\n    x = int\n    type Alias = x", {"int"}),
+            pytest.param(
+                "class C:\n    x = (int,)\n"
+                "    type Alias = [item for item in x]",
+                {"int"},
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 13),
+                    reason="Class annotation comprehensions require Python 3.13",
+                ),
+            ),
+            pytest.param(
+                "class C:\n    x = 0\n    type Alias = [x for _ in (0,)]",
+                {"x"},
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 13),
+                    reason="Class annotation comprehensions require Python 3.13",
+                ),
+            ),
+            (
+                (
+                    "class Outer:\n    base = object\n"
+                    "    class Inner[T](base):\n        value: T"
+                ),
+                {"object"},
+            ),
+            ("@T\nclass C[T]:\n    value: T", {"T"}),
+        ],
+    )
+    def test_class_annotation_scope(
+        code: str, expected_refs: set[str]
+    ) -> None:
+        cell = compile_cell(code)
+        assert cell.refs == expected_refs
 
 
 class TestCompilerFlags:
@@ -1017,3 +1138,54 @@ class TestCellAstMatchesRawAst:
         assert pos is not None
 
         self._assert_fixed_ast_contains_line(cell.code, source, pos)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 15), reason="`lazy import` requires Python 3.15"
+)
+class TestLazyImports:
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("code", "lineno", "offset"),
+        [
+            ("lazy import numpy", 1, 1),
+            ("x = 1\nif x:\n    lazy import numpy", 3, 5),
+        ],
+    )
+    def test_lazy_import_in_regular_cell_is_a_syntax_error(
+        code: str, lineno: int, offset: int
+    ) -> None:
+        with pytest.raises(
+            LazyImportError, match="only allowed in the setup cell"
+        ) as e:
+            compile_cell(code)
+        assert e.value.lineno == lineno
+        assert e.value.offset == offset
+
+    @staticmethod
+    @pytest.mark.parametrize("prefix", ["", "app1-"])
+    def test_lazy_import_in_setup_cell_compiles(prefix: str) -> None:
+        cell = compiler.compile_cell(
+            "lazy import numpy", cell_id=CellId_t(prefix + SETUP_CELL_NAME)
+        )
+        assert cell.defs == {"numpy"}
+
+    @staticmethod
+    def test_lazy_import_is_tracked() -> None:
+        cell = compiler.compile_cell(
+            "lazy import numpy\nimport os\nlazy from json import dumps",
+            cell_id=CellId_t(SETUP_CELL_NAME),
+        )
+        assert {data.definition: data for data in cell.imports} == {
+            "numpy": ImportData(
+                module="numpy", definition="numpy", is_lazy=True
+            ),
+            "os": ImportData(module="os", definition="os"),
+            "dumps": ImportData(
+                module="json",
+                definition="dumps",
+                imported_symbol="json.dumps",
+                import_level=0,
+                is_lazy=True,
+            ),
+        }

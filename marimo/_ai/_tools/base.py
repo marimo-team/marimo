@@ -24,7 +24,7 @@ from marimo._ai._tools.types import (
 )
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ai._tools.utils.output_cleaning import clean_output
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.notification import CellNotification
 from marimo._server.ai.tools.types import (
@@ -51,6 +51,7 @@ if TYPE_CHECKING:
 
     from marimo._server.session_manager import SessionManager
     from marimo._session import Session
+    from marimo._session.state.session_view import SessionView
 
 
 @dataclass
@@ -154,7 +155,9 @@ class ToolContext:
                 maybe_cell_notif=cell_notif,
             )
             if include_stderr:
-                stderr = self.get_cell_console_outputs(cell_notif).stderr
+                stderr = self.get_cell_console_outputs(
+                    session_view, cell_id
+                ).stderr
             if errors:
                 cell_errors_map[cell_id] = MarimoCellErrors(
                     cell_id=cell_id,
@@ -228,26 +231,13 @@ class ToolContext:
         return errors
 
     def get_cell_console_outputs(
-        self, cell_notif: CellNotification
+        self, view: SessionView, cell_id: CellId_t
     ) -> MarimoCellConsoleOutputs:
-        """
-        Get the console outputs for a given cell notification.
-        """
+        """Read public stdout and stderr in the order displayed by the cell."""
         stdout_messages: list[str] = []
         stderr_messages: list[str] = []
-
-        if cell_notif.console is None:
-            return MarimoCellConsoleOutputs(stdout=[], stderr=[])
-
-        console_outputs = (
-            cell_notif.console
-            if isinstance(cell_notif.console, list)
-            else [cell_notif.console]
-        )
-        for output in console_outputs:
-            if output is None:
-                continue
-            elif output.channel == CellChannel.STDOUT:
+        for output in view.cell_console(cell_id, include_callbacks=True):
+            if output.channel == CellChannel.STDOUT:
                 stdout_messages.append(str(output.data))
             elif output.channel == CellChannel.STDERR:
                 stderr_messages.append(str(output.data))

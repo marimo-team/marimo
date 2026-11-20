@@ -7,6 +7,8 @@ import {
   CheckIcon,
   ChevronDownCircleIcon,
   ChevronRightCircleIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
   ClipboardCopyIcon,
   CodeIcon,
   CommandIcon,
@@ -60,22 +62,23 @@ import {
   getNotebook,
   hasDisabledCellsAtom,
   undoLabelAtom,
-  useCellActions,
 } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/actions";
+import { useNotebookDocumentEdit } from "@/core/notebook/document";
+import { canEditAtom } from "@/core/notebook";
 import { disabledCellIds } from "@/core/cells/utils";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { Constants } from "@/core/constants";
 import { useLayoutActions, useLayoutState } from "@/core/layout/state";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
-import { kioskModeAtom, viewStateAtom } from "@/core/mode";
+import { viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import { useFilename } from "@/core/saving/filename";
 import { createShareableLink } from "@/core/wasm/share";
 import { isWasm } from "@/core/wasm/utils";
 import { useDetectedDataSources } from "@/hooks/useDataSourceDiscovery";
 import { copyToClipboard } from "@/utils/copy";
-import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
@@ -100,6 +103,7 @@ import type { ActionButton } from "./types";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { useRestartKernel } from "./useRestartKernel";
 import { useSetCodeVisibility } from "./useSetCodeVisibility";
+import { useSetOutputsExpanded } from "./useSetOutputsExpanded";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -116,19 +120,19 @@ export function useNotebookActions({
   const { toggleApplication } = useChromeActions();
   const { selectedPanel } = useChromeState();
   const [viewState] = useAtom(viewStateAtom);
-  const kioskMode = useAtomValue(kioskModeAtom);
+  const canEdit = useAtomValue(canEditAtom);
   const setCodeVisibility = useSetCodeVisibility();
+  const setOutputsExpanded = useSetOutputsExpanded();
   const [resolvedConfig] = useResolvedMarimoConfig();
   const capabilities = useAtomValue(capabilitiesAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
 
   const {
-    updateCellConfig,
     undoDeleteCell,
     clearAllCellOutputs,
-    addSetupCellIfDoesntExist,
     collapseAllCells,
     expandAllCells,
+    addSetupCell,
   } = useCellActions();
   const restartKernel = useRestartKernel();
   const runAllCells = useRunAllCells();
@@ -138,7 +142,8 @@ export function useNotebookActions({
   const { handleClick: openSettings } = useOpenSettingsToTab();
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
   const setExportOptions = useSetAtom(exportOptionsAtom);
-  const { readCode, saveCellConfig } = useRequestClient();
+  const { readCode } = useRequestClient();
+  const edit = useNotebookDocumentEdit();
   const detectedDatabaseSources = useDetectedDataSources("database");
   const detectedStorageSources = useDetectedDataSources("storage");
   const addDetectedDataSource = useAddDetectedDataSource();
@@ -297,11 +302,12 @@ export function useNotebookActions({
 
     {
       icon: <SparklesIcon size={14} strokeWidth={1.5} />,
-      label: "Pair with an agent",
+      label: "Pair an agent",
       hidden: isWasm(),
       handle: async () => {
         openModal(<PairWithAgentModal onClose={closeModal} />);
       },
+      additionalKeywords: ["connect"],
     },
 
     {
@@ -343,7 +349,7 @@ export function useNotebookActions({
               code: code.contents,
               baseUrl: `${Constants.molab}/new`,
             });
-            window.open(url, "_blank");
+            window.open(url, "_blank", "noopener");
           },
         },
       ],
@@ -443,19 +449,14 @@ export function useNotebookActions({
     {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
-      hidden: !hasDisabledCells || kioskMode,
-      handle: async () => {
-        const notebook = getNotebook();
-        const ids = disabledCellIds(notebook);
-        const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: false }]),
-        );
-        // send to BE
-        await saveCellConfig({ configs: newConfigs });
-        // update on FE
-        for (const cellId of ids) {
-          updateCellConfig({ cellId, config: { disabled: false } });
-        }
+      hidden: !hasDisabledCells || !canEdit,
+      handle: () => {
+        const ids = disabledCellIds(getNotebook());
+        edit((tx) => {
+          for (const cellId of ids) {
+            tx.updateConfig(cellId, { disabled: false });
+          }
+        });
       },
     },
 
@@ -464,7 +465,7 @@ export function useNotebookActions({
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
       label: "Add setup cell",
       handle: () => {
-        addSetupCellIfDoesntExist({});
+        addSetupCell();
       },
     },
     {
@@ -538,7 +539,7 @@ export function useNotebookActions({
     {
       icon: <Undo2Icon size={14} strokeWidth={1.5} />,
       label: undoLabel,
-      hidden: !canUndoDeletes || kioskMode,
+      hidden: !canUndoDeletes || !canEdit,
       handle: () => {
         undoDeleteCell();
       },
@@ -596,6 +597,22 @@ export function useNotebookActions({
       redundant: true,
     },
     {
+      icon: <ChevronsUpDownIcon size={14} strokeWidth={1.5} />,
+      label: "Expand all outputs",
+      hotkey: "global.expandAllOutputs",
+      hidden: viewState.mode !== "edit",
+      handle: () => setOutputsExpanded(true),
+      redundant: true,
+    },
+    {
+      icon: <ChevronsDownUpIcon size={14} strokeWidth={1.5} />,
+      label: "Clamp all outputs",
+      hotkey: "global.clampAllOutputs",
+      hidden: viewState.mode !== "edit",
+      handle: () => setOutputsExpanded(false),
+      redundant: true,
+    },
+    {
       icon: <ChevronRightCircleIcon size={14} strokeWidth={1.5} />,
       label: "Collapse all sections",
       hotkey: "global.collapseAllSections",
@@ -645,35 +662,35 @@ export function useNotebookActions({
           icon: <BookMarkedIcon size={14} strokeWidth={1.5} />,
           label: "Documentation",
           handle: () => {
-            window.open(Constants.docsPage, "_blank");
+            window.open(Constants.docsPage, "_blank", "noopener");
           },
         },
         {
           icon: <GitHubIcon className="h-3.5 w-3.5" />,
           label: "GitHub",
           handle: () => {
-            window.open(Constants.githubPage, "_blank");
+            window.open(Constants.githubPage, "_blank", "noopener");
           },
         },
         {
           icon: <MessagesSquareIcon size={14} strokeWidth={1.5} />,
           label: "Discord Community",
           handle: () => {
-            window.open(Constants.discordLink, "_blank");
+            window.open(Constants.discordLink, "_blank", "noopener");
           },
         },
         {
           icon: <YouTubeIcon className="h-3.5 w-3.5" />,
           label: "YouTube",
           handle: () => {
-            window.open(Constants.youtube, "_blank");
+            window.open(Constants.youtube, "_blank", "noopener");
           },
         },
         {
           icon: <FileTextIcon size={14} strokeWidth={1.5} />,
           label: "Changelog",
           handle: () => {
-            window.open(Constants.releasesPage, "_blank");
+            window.open(Constants.releasesPage, "_blank", "noopener");
           },
         },
       ],

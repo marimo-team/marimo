@@ -12,13 +12,129 @@ from marimo._messaging.console_output_worker import (
     FlushMarker,
     _add_output_to_buffer,
     _can_merge_outputs,
+    _flush_outputs,
     _write_console_output,
     buffered_writer,
 )
+from marimo._messaging.context import run_id_context
 from tests._messaging.mocks import MockStream
 
 
 class TestConsoleOutputWorker:
+    def test_command_output_keeps_its_owner_through_a_shared_buffer(
+        self,
+    ) -> None:
+        from marimo._messaging.command_output import command_console
+        from marimo._messaging.context import execution_id_context
+        from marimo._messaging.notification import (
+            CallbackOutputNotification,
+            PdbOutputNotification,
+        )
+
+        buffered = {}
+
+        def write(text: str) -> None:
+            _add_output_to_buffer(
+                ConsoleMsg(CellChannel.STDOUT, "cell", text, "text/plain"),
+                buffered,
+            )
+
+        with command_console("cell", PdbOutputNotification):
+            write("debugger")
+            with command_console("cell", CallbackOutputNotification):
+                write("callback")
+                with execution_id_context("cell", "exec"):
+                    write("execution")
+        write("unattributed")
+        stream = MockStream()
+        _flush_outputs(buffered, stream)
+        assert [msg.name for msg in stream.parsed_operations] == [
+            "pdb-output",
+            "callback-output",
+            "cell-op",
+            "cell-op",
+        ]
+        assert [msg.execution_id for msg in stream.cell_notifications] == [
+            "exec",
+            None,
+        ]
+
+    def test_repeated_evaluations_keep_separate_buffered_output(self) -> None:
+        buffered = {}
+        for execution_id in ("first", "second"):
+            _add_output_to_buffer(
+                ConsoleMsg(
+                    CellChannel.STDOUT,
+                    "cell1",
+                    execution_id,
+                    "text/plain",
+                    run_id="same-run",
+                    execution_id=execution_id,
+                ),
+                buffered,
+            )
+        stream = MockStream()
+        _flush_outputs(buffered, stream)
+        assert [
+            (n.execution_id, n.console.data) for n in stream.cell_notifications
+        ] == [
+            ("first", "first"),
+            ("second", "second"),
+        ]
+
+    def test_flush_keeps_source_code_and_separates_outputs_by_code(
+        self,
+    ) -> None:
+        buffered = {}
+        for code in ("x = 1", "x = 2"):
+            _add_output_to_buffer(
+                ConsoleMsg(
+                    CellChannel.STDERR,
+                    "cell1",
+                    "Traceback",
+                    "application/vnd.marimo+traceback",
+                    run_id="same-run",
+                    execution_id="same-execution",
+                    code=code,
+                ),
+                buffered,
+            )
+        stream = MockStream()
+        _flush_outputs(buffered, stream)
+        assert [n.console.code for n in stream.cell_notifications] == [
+            "x = 1",
+            "x = 2",
+        ]
+
+    def test_write_console_output_omits_code_when_absent(self) -> None:
+        stream = MockStream()
+        _write_console_output(
+            stream,
+            ConsoleMsg(CellChannel.STDERR, "cell1", "Hello", "text/plain"),
+        )
+        assert "code" not in stream.operations[0]["console"]
+
+    def test_buffer_preserves_run_ids_across_execution_boundaries(
+        self,
+    ) -> None:
+        buffered = {}
+        for run_id in ("first", "second"):
+            with run_id_context(run_id):
+                _add_output_to_buffer(
+                    ConsoleMsg(
+                        CellChannel.STDOUT, "cell1", run_id, "text/plain"
+                    ),
+                    buffered,
+                )
+        stream = MockStream()
+        _flush_outputs(buffered, stream)
+        assert [
+            notification.run_id for notification in stream.cell_notifications
+        ] == [
+            "first",
+            "second",
+        ]
+
     def test_can_merge_outputs(self) -> None:
         # Same stream and mimetype should be mergeable
         msg1 = ConsoleMsg(
@@ -123,10 +239,7 @@ class TestConsoleOutputWorker:
         stream = MockStream()
         _write_console_output(
             stream,
-            CellChannel.STDOUT,
-            "cell1",
-            "Hello",
-            "text/plain",
+            ConsoleMsg(CellChannel.STDOUT, "cell1", "Hello", "text/plain"),
         )
 
         assert len(stream.operations) == 1

@@ -13,12 +13,15 @@ permissions:
   contents: read
 
 env:
-  MARIMO_SKIP_UPDATE_CHECK: 1
+  MARIMO_SERVER_SKIP_UPDATE_CHECK: 1
   UV_EXCLUDE_NEWER: "7 days"
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       playwright: ${{ steps.filter.outputs.playwright }}
     steps:
@@ -26,6 +29,7 @@ jobs:
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
+          token: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.token || '' }}
           filters: |
             playwright:
               - 'frontend/**'
@@ -35,10 +39,10 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
     timeout-minutes: 18 # 2024-01-18 avg: 5.0m max: 7.0m
-    runs-on: ubuntu-24.04
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
     container:
       # Keep this tag in sync with EXPECTED_PLAYWRIGHT_VERSION below.
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -58,10 +62,12 @@ jobs:
 
       - name: Write TOML
         run: |
-          echo "[runtime]" > .marimo.toml
-          echo "auto_instantiate=true" >> .marimo.toml
-          echo "[experimental]" >> .marimo.toml
-          echo "layouts=true" >> .marimo.toml
+          {
+            echo "[runtime]"
+            echo "auto_instantiate=true"
+            echo "[experimental]"
+            echo "layouts=true"
+          } > .marimo.toml
 
       # Turn on automatic instantiation for playwright tests
       - name: Update pyproject.toml
@@ -99,12 +105,12 @@ jobs:
 
       - name: 🐍 Install marimo
         run: |
-          echo "MARIMO_VERSION=$(uv run marimo --version)" >> $GITHUB_ENV
+          echo "MARIMO_VERSION=$(uv run marimo --version)" >> "$GITHUB_ENV"
 
       - name: 🎭 Verify Playwright image version
         working-directory: ./frontend
         env:
-          EXPECTED_PLAYWRIGHT_VERSION: 1.62.1
+          EXPECTED_PLAYWRIGHT_VERSION: 1.64.0
         run: |
           ACTUAL_PLAYWRIGHT_VERSION=$(pnpm exec playwright --version)
           ACTUAL_PLAYWRIGHT_VERSION=${ACTUAL_PLAYWRIGHT_VERSION#Version }
@@ -118,6 +124,15 @@ jobs:
         run: pnpm playwright test
         env:
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
+
+      - name: 🎭 Verify code-mode screenshots with Chromium
+        # Python and JavaScript Playwright releases can differ. Install the
+        # browser revision expected by Python instead of using the image's.
+        run: |
+          uv run --group test --with playwright==1.63.0 python -m playwright install chromium
+          uv run --group test --with playwright==1.63.0 pytest tests/_code_mode/test_screenshot_integration.py
+        env:
+          MARIMO_TEST_SCREENSHOTS: "1"
 
       # - name: ☁️ Google Auth
       #   uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2

@@ -17,16 +17,16 @@ The path to `marimo.toml` is printed at the top of the output.
 
 marimo uses three roles:
 
-* **`chat_model`**: chat panel
-* **`edit_model`**: refactor cells (Cmd/Ctrl-Shift-E) and Generate with AI
-* **`autocomplete_model`**: inline code completion
+* **`chat_model`** handles chat panel requests.
+* **`edit_model`** refactors existing cells with `Cmd/Ctrl-Shift-E`.
+* **`autocomplete_model`** provides inline code completion.
 
 Models are written as `provider/model`, and the provider prefix routes to the matching config section:
 
 ```toml title="marimo.toml"
 [ai.models]
 chat_model = "openai/gpt-4o-mini"           # Routes to OpenAI config
-edit_model = "anthropic/claude-3-sonnet"    # Routes to Anthropic config
+edit_model = "anthropic/claude-sonnet-5-5"  # Routes to Anthropic config
 autocomplete_model = "ollama/codellama"     # Routes to Ollama config
 autocomplete_model = "some_other_provider/some_model" # Routes to OpenAI compatible config
 ```
@@ -100,33 +100,9 @@ The first value takes precedence.
 
 ## Supported providers
 
-<div align="center">
-<figure>
-<img src="/_static/docs-provider-config.png" width="740px"/>
-<figcaption>Configure LLM providers in the notebook settings panel.</figcaption>
-</figure>
-</div>
-
-You can configure the following providers:
-
-* Anthropic
-* AWS Bedrock
-* Google AI
-* DeepSeek
-* xAI
-* LM Studio
-* Mistral
-* Ollama
-* OpenAI
-* GitHub Copilot
-* OpenCode Go
-* OpenRouter
-* Weights & Biases
-* Together AI
-* Vercel v0
-* and any OpenAI-compatible provider
-
-Below we describe how to connect marimo to your AI provider.
+Providers can be configured in the notebook settings. All major commercial and
+open providers are supported. Below we describe how to connect marimo to your
+AI provider.
 
 ### OpenAI
 
@@ -163,7 +139,7 @@ api_key = "sk-proj-..."
 
 ```toml title="marimo.toml"
 [ai.models]
-chat_model = "anthropic/claude-3-7-sonnet-latest" # other options: claude-3-haiku, claude-3-opus
+chat_model = "anthropic/claude-sonnet-5-5" # other options: claude-haiku-5-5, claude-opus-5-5
 # See Anthropic model list: https://docs.anthropic.com/en/docs/about-claude/models
 
 [ai.anthropic]
@@ -184,7 +160,7 @@ AWS Bedrock exposes multiple foundation models via a unified AWS API.
 
 ```toml title="marimo.toml"
 [ai.models]
-chat_model = "bedrock/anthropic.claude-3-sonnet-latest"
+chat_model = "bedrock/global.anthropic.claude-sonnet-5"
 # Example model families include Anthropic Claude, Meta Llama, Cohere Command
 
 [ai.bedrock]
@@ -213,7 +189,7 @@ You can use Google AI via two backends: **Google AI Studio** (API key) or **Goog
 
 ```toml title="marimo.toml"
 [ai.models]
-chat_model = "google/gemini-2.5-pro"
+chat_model = "google/gemini-3.8-flash"
 # or any model from https://ai.google.dev/gemini-api/docs/models/gemini
 
 [ai.google]
@@ -380,6 +356,10 @@ base_url = "https://opencode.ai/zen/go/v1/"  # Optional, this is the default
 ```
 
 You can also set the `OPENCODE_API_KEY` environment variable instead of `api_key`. See available models at the [OpenCode Go documentation](https://opencode.ai/docs/go/). Make sure to prepend `opencode-go/` to the model slug.
+
+marimo automatically sends `User-Agent: marimo/<version>`, `x-opencode-client: marimo`, and a stable `x-opencode-session` header for OpenCode Go.
+marimo derives the session header from the conversation ID, with a notebook-session fallback.
+You can override these headers using `extra_headers` in `[ai.opencode_go]`.
 
 ### Local models with Ollama { #using-ollama }
 

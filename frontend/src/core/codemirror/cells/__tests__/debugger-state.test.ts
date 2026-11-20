@@ -11,7 +11,6 @@ import {
   createActiveLineInfoAtom,
   createCellBreakpointsAtom,
   createDebuggerLineAtom,
-  resyncBreakpoints,
   setActiveLine,
   toggleBreakpoint,
 } from "../debugger-state";
@@ -85,25 +84,6 @@ describe("debugger-state", () => {
 
     it("is a no-op when the cell has no breakpoints", () => {
       clearCellBreakpoints(cell1);
-
-      expect(mockRequestClient.sendSetBreakpoints).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("resyncBreakpoints", () => {
-    it("re-sends the current breakpoint set", () => {
-      toggleBreakpoint(cell1, 4);
-      vi.clearAllMocks();
-
-      resyncBreakpoints();
-
-      expect(mockRequestClient.sendSetBreakpoints).toHaveBeenCalledWith({
-        breakpoints: { [cell1]: [4] },
-      });
-    });
-
-    it("does not send when there are no breakpoints", () => {
-      resyncBreakpoints();
 
       expect(mockRequestClient.sendSetBreakpoints).not.toHaveBeenCalled();
     });

@@ -191,7 +191,7 @@ class DirectoryScanner:
             try:
                 entries = os.scandir(directory)
             except OSError as e:
-                LOGGER.debug("OSError scanning directory: %s", str(e))
+                LOGGER.debug("OSError scanning directory: %s", e)
                 self.truncated = True
                 return None
 

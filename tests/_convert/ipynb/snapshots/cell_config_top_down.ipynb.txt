@@ -60,6 +60,22 @@
       "source": [
         "print(y)"
       ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "PKri",
+      "metadata": {
+        "marimo": {
+          "config": {
+            "expand_output": true
+          }
+        }
+      },
+      "outputs": [],
+      "source": [
+        "z = y + 1"
+      ]
     }
   ],
   "metadata": {

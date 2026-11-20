@@ -1,0 +1,199 @@
+# @marimo-team/client
+
+Connect to a marimo host to find notebooks, read their state, and request
+edits or execution. A host serves notebooks through the
+[host protocol](../../protocols/host/spec.md). `Client` works with the host's
+catalog. `NotebookClient` works with one notebook.
+
+## Connect to a host
+
+Give `Client` the host's API base URL and token. These can come from your
+application's configuration or the host's
+[local discovery record](../../protocols/host/spec.md#local-discovery).
+
+```ts
+import { Client } from "@marimo-team/client";
+
+const client = new Client("http://127.0.0.1:2718/api/marimo/v1", {
+  token: "your-token",
+});
+```
+
+Requests use HTTP and event streams use server-sent events. Pass `fetch`
+alongside `token` to customize requests.
+
+## Find notebooks
+
+The catalog stream describes the host's notebooks, projects, runtimes, and
+attachments. It also reports the host's capabilities. This example prints
+the notebooks the host currently knows about.
+
+```ts
+for await (const event of client.events({ types: ["notebook"] })) {
+  if (event.event === "notebook") {
+    console.log(event.data.notebook.id, event.data.notebook.name);
+  }
+  if (event.event === "ready") break;
+}
+```
+
+`ready` ends the initial snapshot. Breaking out closes the stream. Projects
+may still be indexing when `ready` arrives, so more notebooks can appear
+afterward.
+
+## Discover local hosts in Node.js
+
+`discoverHosts()` performs [local discovery](../../protocols/host/spec.md#local-discovery)
+on macOS and Linux (requires `procps` on Linux). This example lists the notebooks
+each discovered host currently knows about:
+
+```ts
+import { Client } from "@marimo-team/client";
+import { discoverHosts } from "@marimo-team/client/node";
+
+for await (const host of discoverHosts()) {
+  const client = new Client(host.url, { token: host.token });
+  for await (const event of client.events({ types: ["notebook"] })) {
+    if (event.event === "ready") break;
+    if (event.event === "notebook") {
+      console.log(event.data.notebook.id, event.data.notebook.name);
+    }
+  }
+}
+```
+
+## Work with a notebook
+
+Use an id or a notebook record from the catalog to get a `NotebookClient`.
+This example reads the document, prints its cell count, and asks the host
+to save it. It assumes the notebook supports `notebook.save`.
+
+```ts
+import type { DocumentOutput } from "@marimo-team/client/protocol";
+
+const notebook = client.notebook("n1");
+let document: DocumentOutput | undefined;
+
+for await (const event of notebook.events({ types: ["document"] })) {
+  if (event.event === "document") document = event.data.document;
+  if (event.event === "reset") document = undefined;
+  if (event.event === "ready") break;
+}
+
+if (document === undefined) throw new Error("The host did not send a document");
+console.log(`${document.order.length} cells`);
+
+const result = await notebook.save({ ifMatch: document.etag });
+if (result.ok) {
+  console.log("Saved", result.data.document.etag);
+} else {
+  console.error(result.problem);
+}
+```
+
+`ifMatch` makes the document's etag a precondition. If the document changes
+before the save, the host returns a `precondition-failed` problem. Other actions, such
+as `edit` and `run`, use the same result shape. The notebook's advertised
+operations describe which actions it permits. Invalid request data,
+invalid responses, and connection failures throw.
+
+Problems form a discriminated union. Checking `type` makes the fields for that
+problem available without presence checks:
+
+```ts
+if (!result.ok && result.problem.type === "urn:marimo:problem:precondition-failed") {
+  console.log("Current document", result.problem.document.etag);
+  console.log("Stale entry", result.problem.index);
+}
+```
+
+The client represents unrecognized problem types as `type: "unknown"`, retaining
+the original type in `uri` and the common `status`, `title`, and optional `detail`
+fields. Handle these by status. Known types with missing required fields or an
+incorrect status are invalid responses and throw.
+
+You can also construct a `NotebookClient` directly when you already know
+the notebook's URL.
+
+## Run cells or execute code
+
+Run cells by id. The notebook's execution settings determine which dependent
+cells run too.
+
+```ts
+await notebook.run({ cells: [{ id: "c1" }] });
+```
+
+Use `execute` to work with values already defined in the notebook. For example,
+inspect a dataframe named `df`.
+
+```ts
+await notebook.execute({ code: "df.head()" });
+```
+
+Assignments in `execute` stay local to the call. Objects are shared with the
+notebook, so changing a list or dataframe can affect it.
+
+On marimo hosts, the internal `marimo._code_mode.get_context()` API provides
+access to notebook cells and captured outputs, along with methods for editing
+and running cells. The outputs are captured when execution begins.
+
+Both methods return a `Run` in `result.data` on success, without waiting for
+execution to finish. Runs wait their turn in a shared queue. Open the notebook
+stream before submitting work to receive its progress and results.
+
+## Interrupt or cancel work
+
+`notebook.interrupt()` stops active runtime work, including work without a run
+record, and ends queued runs as interrupted. It takes no runtime or run id.
+An idle `running` runtime accepts the request without affecting future work.
+An absent runtime returns `no-runtime`; a runtime that is not `running` returns
+`conflict`.
+
+`notebook.cancel({ runId })` cancels one queued or running run and leaves other
+runs untouched. Cancelling a completed run returns a conflict problem.
+
+Both keep the runtime alive. Their successful results contain a `Runtime` and
+`Run`, respectively. These acknowledge the request; follow the notebook stream
+to observe completion.
+
+## Follow changes
+
+Keep iterating after `ready` to follow changes. Streams reconnect and resume
+from their last cursor. If they cannot resume, they deliver `reset` followed
+by a new snapshot. Discard accumulated state on `reset` before applying the
+snapshot.
+
+To maintain a notebook list or document state from events, see the
+[reducer guide](REDUCERS.md).
+
+To follow events over a WebSocket or another connection, see the
+[custom transport guide](TRANSPORTS.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](../../CONTRIBUTING.md#setup) for repository setup.
+Run package commands from the repository root:
+
+```sh
+pnpm --dir packages/client build
+pnpm --dir packages/client typecheck
+pnpm --dir packages/client test --run
+```
+
+Package imports resolve to `dist`; use `build --watch` while developing.
+Omit `--run` to watch tests.
+
+Protocol definitions live in [`packages/host-protocol`](../host-protocol/README.md).
+Follow the [contract workflow](../../protocols/host/README.md#change-a-contract)
+to regenerate OpenAPI and both language bindings. This client consumes
+generated TypeScript and Zod schemas without an Effect runtime dependency.
+
+To install this package from a pinned GitHub revision:
+
+```sh
+pnpm add 'github:marimo-team/marimo#<commit>&path:/packages/client'
+```
+
+The `prepare` script builds the checked-in sources. pnpm may require allowing
+that revision's build in `allowBuilds`.

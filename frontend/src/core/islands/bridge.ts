@@ -1,19 +1,32 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
+import {
+  NotebookClient,
+  type NotebookEvent,
+  type NotebookTransport,
+} from "@marimo-team/client";
 import { getWorkerRPC } from "@/core/wasm/rpc";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { generateUUID } from "@/utils/uuid";
-import { initialNotebookState, notebookAtom } from "../cells/cells";
-import type { CommandMessage } from "../kernel/messages";
+import {
+  initialNotebookState,
+  notebookAtom,
+  notebookReducer,
+} from "../cells/cells";
+import type { CellId } from "../cells/ids";
+import { getCellLogsForMessage } from "../cells/logs";
+import type { NotebookBackend } from "../notebook/replica";
+import type { ClientCommand, NotificationMessage } from "../kernel/messages";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store as defaultStore } from "../state/jotai";
 import { getMarimoExportContext } from "../static/export-context";
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
 import { islandsInitializedAtom, islandsPendingInitialRunsAtom } from "./state";
-import type { IslandsKernelMessage, WorkerSchema } from "./worker/worker";
+import type { WorkerSchema } from "./worker/worker";
 import type { WorkerFactory } from "./worker-factory";
 import { DefaultWorkerFactory } from "./worker-factory";
 
@@ -52,27 +65,69 @@ interface AppSession {
  * @example
  * ```ts
  * const bridge = new IslandsPyodideBridge();
- * bridge.consumeMessages(message => console.log(message));
+ * bridge.consumeNotifications((notification) => console.log(notification.op));
  * await bridge.initializeApps();
  * ```
  */
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private rpc: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
-  private messageConsumer:
-    | ((message: IslandsKernelMessage) => void)
+  private notificationConsumer:
+    | ((notification: NotificationMessage, sessionGeneration: number) => void)
     | undefined;
   private readonly store: typeof defaultStore;
   private readonly root: Document | Element;
   private session: AppSession | undefined;
   private sessionReady = new Deferred<AppSession>();
   private nextSessionGeneration = 0;
-  private readonly activeSessionGenerations = new Set<number>();
+  /** The host retains one execution per cell and removes it before its replacement. */
+  private readonly activeSessions = new Map<number, Map<string, CellId>>();
   private appTransition = Promise.resolve();
   private workerReady = new Deferred<void>();
+  /** Where the managed session's host events go while a replica follows them. */
+  private stream: Parameters<NotebookTransport>[1] | undefined;
 
   public initialized = new Deferred<void>();
 
-  constructor(config: IslandsBridgeConfig = {}) {
+  /**
+   * The managed session's host stream, for a replica to follow. Replacing
+   * or stopping the session resets the stream, and the next session's
+   * snapshot follows.
+   */
+  public readonly notebookBackend: NotebookBackend = {
+    transport: ({ signal }, handlers) =>
+      new Promise((resolve) => {
+        this.stream = handlers;
+        handlers.open();
+        signal.addEventListener(
+          "abort",
+          () => {
+            if (this.stream === handlers) {
+              this.stream = undefined;
+            }
+            resolve();
+          },
+          { once: true },
+        );
+      }),
+    notebook: (notebookId) => {
+      const session = this.session;
+      if (session === undefined) {
+        throw new Error("No island session is active");
+      }
+      const { appId, sessionGeneration } = session;
+      return NotebookClient.unstable_over(
+        (call) =>
+          this.rpc.proxy.request.notebookCall({
+            appId,
+            sessionGeneration,
+            call,
+          }),
+        { notebookId },
+      );
+    },
+  };
+
+  public constructor(config: IslandsBridgeConfig = {}) {
     this.store = config.store || defaultStore;
     this.root = config.root || document;
 
@@ -110,17 +165,80 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       },
     );
 
-    this.rpc.addMessageListener("kernelMessage", (message) => {
-      // A stopped session can still have messages in transit after the next
-      // app takes ownership of the shared frontend state.
-      if (!this.activeSessionGenerations.has(message.sessionGeneration)) {
-        return;
-      }
-      this.messageConsumer?.(message);
-    });
+    this.rpc.addMessageListener(
+      "notebookEvent",
+      ({ event, sessionGeneration }) => {
+        // A stopped session can still have events in transit after the next
+        // app takes ownership of the shared frontend state.
+        const cells = this.activeSessions.get(sessionGeneration);
+        if (!cells) {
+          return;
+        }
+        const frame = jsonParseWithSpecialChar(event) as
+          | NotebookEvent
+          | { event: "marimo"; data: { marimo?: NotificationMessage } };
+        if (frame.event === "marimo") {
+          if (frame.data.marimo) {
+            this.notificationConsumer?.(frame.data.marimo, sessionGeneration);
+          }
+          return;
+        }
+        // The replica follows the managed session's host document.
+        if (sessionGeneration === this.session?.sessionGeneration) {
+          this.stream?.message(frame);
+        } else {
+          this.logIslandConsole(cells, frame);
+        }
+      },
+    );
   }
 
-  async initializeApps(): Promise<void> {
+  private logIslandConsole(cells: Map<string, CellId>, frame: NotebookEvent) {
+    switch (frame.event) {
+      case "reset":
+        cells.clear();
+        break;
+      case "execution": {
+        const { id, cell_id } = frame.data.execution;
+        if (cell_id !== null) {
+          cells.set(id, cell_id as CellId);
+        }
+        break;
+      }
+      case "execution.removed":
+        cells.delete(frame.data.id);
+        break;
+      case "console": {
+        const entry = frame.data.console;
+        const cellId = cells.get(entry.execution_id);
+        // Snapshot rows have no cursor. Only live writes belong in the logs.
+        if (frame.id !== undefined && cellId !== undefined) {
+          const logs = getCellLogsForMessage({
+            cell_id: cellId,
+            console: {
+              channel: entry.name,
+              mimetype: "text/plain",
+              data: entry.text,
+              timestamp: frame.data.time
+                ? Date.parse(frame.data.time) / 1000
+                : Date.now() / 1000,
+            },
+          });
+          this.store.set(notebookAtom, (state) =>
+            notebookReducer(state, { type: "addLogs", payload: { logs } }),
+          );
+        }
+        break;
+      }
+    }
+  }
+
+  /** The managed session is gone, so its stream starts over. */
+  private resetNotebookStream(): void {
+    this.stream?.message({ event: "reset", data: {} });
+  }
+
+  public async initializeApps(): Promise<void> {
     await this.enqueueAppTransition(async () => {
       await this.workerReady.promise;
       await this.startApps();
@@ -155,7 +273,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       return;
     }
     if (apps.length > 0) {
-      this.activeSessionGenerations.clear();
+      this.activeSessions.clear();
       this.store.set(
         islandsPendingInitialRunsAtom,
         new Set(apps.map((_, index) => this.nextSessionGeneration + index + 1)),
@@ -172,8 +290,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       };
       const previousSession = this.session;
       const replacesSession = managesSingleApp && previousSession !== undefined;
-      this.activeSessionGenerations.add(request.sessionGeneration);
+      this.activeSessions.set(request.sessionGeneration, new Map());
       if (replacesSession) {
+        this.resetNotebookStream();
         this.store.set(notebookAtom, initialNotebookState());
       }
       if (managesSingleApp || !previousSession) {
@@ -194,12 +313,13 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
           this.sessionReady.resolve(this.session);
         }
       } catch (error) {
-        this.activeSessionGenerations.delete(request.sessionGeneration);
+        this.activeSessions.delete(request.sessionGeneration);
         if (this.session?.sessionGeneration === request.sessionGeneration) {
           this.session = previousSession;
           if (previousSession) {
-            this.activeSessionGenerations.add(
+            this.activeSessions.set(
               previousSession.sessionGeneration,
+              new Map(),
             );
           }
         }
@@ -211,13 +331,13 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     }
   }
 
-  async stopSession(appId?: string): Promise<void> {
+  public async stopSession(appId?: string): Promise<void> {
     await this.enqueueAppTransition(async () => {
       const session = this.session;
       if (session?.code === undefined || (appId && session.appId !== appId)) {
         return;
       }
-      this.activeSessionGenerations.delete(session.sessionGeneration);
+      this.activeSessions.delete(session.sessionGeneration);
       await this.rpc.proxy.request.stopSession({
         appId: session.appId,
         sessionGeneration: session.sessionGeneration,
@@ -225,6 +345,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       this.store.set(islandsPendingInitialRunsAtom, null);
       this.session = undefined;
       this.sessionReady = new Deferred<AppSession>();
+      this.resetNotebookStream();
       this.store.set(notebookAtom, initialNotebookState());
     });
   }
@@ -238,7 +359,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Starts a new Python session for an app
    */
-  async startSession(opts: {
+  public async startSession(opts: {
     code: string;
     appId: string;
     sessionGeneration: number;
@@ -246,19 +367,21 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     await this.rpc.proxy.request.startSession(opts);
   }
 
-  /**
-   * Sets up a consumer for kernel messages
-   */
-  consumeMessages(consumer: (message: IslandsKernelMessage) => void): void {
-    this.messageConsumer = consumer;
-    this.rpc.proxy.send.consumerReady({});
+  /** Receive each running session's marimo notifications. */
+  public consumeNotifications(
+    consumer: (
+      notification: NotificationMessage,
+      sessionGeneration: number,
+    ) => void,
+  ): void {
+    this.notificationConsumer = consumer;
   }
 
   // ============================================================================
   // RunRequests Implementation
   // ============================================================================
 
-  sendComponentValues: RunRequests["sendComponentValues"] = async (
+  public sendComponentValues: RunRequests["sendComponentValues"] = async (
     request,
   ): Promise<null> => {
     await this.putControlRequest({
@@ -269,11 +392,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendInstantiate: RunRequests["sendInstantiate"] = async (): Promise<null> => {
-    return null;
-  };
-
-  sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
+  public sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
     request,
   ): Promise<null> => {
     await this.putControlRequest({
@@ -283,7 +402,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendModelValue: RunRequests["sendModelValue"] = async (request) => {
+  public sendModelValue: RunRequests["sendModelValue"] = async (request) => {
     await this.putControlRequest({
       type: "model",
       ...request,
@@ -295,98 +414,80 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   // EditRequests Implementation
   // ============================================================================
 
-  sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
-    const session = await this.getActiveSession();
-    await this.rpc.proxy.request.loadPackages({
-      appId: session.appId,
-      code: request.codes.join("\n"),
-      sessionGeneration: session.sessionGeneration,
-    });
-    await this.putControlRequest(
-      {
-        type: "execute-cells",
-        ...request,
-      },
-      session,
-    );
-    return null;
-  };
-
   // ============================================================================
   // Not Implemented (Read-Only Mode)
   // ============================================================================
 
-  getUsageStats = throwNotImplemented;
-  getEnvironmentInfo = throwNotImplemented;
-  sendRename = throwNotImplemented;
-  sendSave = throwNotImplemented;
-  sendCopy = throwNotImplemented;
-  sendRunScratchpad = throwNotImplemented;
-  sendStdin = throwNotImplemented;
-  sendInterrupt = throwNotImplemented;
-  sendShutdown = throwNotImplemented;
-  sendFormat = throwNotImplemented;
-  sendDeleteCell = throwNotImplemented;
-  sendInstallMissingPackages = throwNotImplemented;
-  sendCodeCompletionRequest = throwNotImplemented;
-  saveUserConfig = throwNotImplemented;
-  saveAppConfig = throwNotImplemented;
-  saveCellConfig = throwNotImplemented;
-  sendRestart = throwNotImplemented;
-  sendDocumentTransaction = throwNotImplemented;
-  readCode = throwNotImplemented;
-  readSnippets = throwNotImplemented;
-  previewDatasetColumn = throwNotImplemented;
-  previewSQLTable = throwNotImplemented;
-  previewSQLTableList = throwNotImplemented;
-  previewSQLSchemaList = throwNotImplemented;
-  previewDataSourceConnection = throwNotImplemented;
-  discoverDataSources = throwNotImplemented;
-  validateSQL = throwNotImplemented;
-  openFile = throwNotImplemented;
-  getFileRoots = throwNotImplemented;
-  sendListFiles = throwNotImplemented;
-  sendSearchFiles = throwNotImplemented;
-  sendPdb = throwNotImplemented;
-  sendSetBreakpoints = throwNotImplemented;
-  sendCreateFileOrFolder = throwNotImplemented;
-  sendDeleteFileOrFolder = throwNotImplemented;
-  sendCopyFileOrFolder = throwNotImplemented;
-  sendRenameFileOrFolder = throwNotImplemented;
-  sendUpdateFile = throwNotImplemented;
-  sendFileDetails = throwNotImplemented;
-  openTutorial = throwNotImplemented;
-  getExportAvailability = throwNotImplemented;
-  installExportRequirements = throwNotImplemented;
-  exportAsHTML = throwNotImplemented;
-  exportAsIPYNB = throwNotImplemented;
-  exportAsMarkdown = throwNotImplemented;
-  exportAsScript = throwNotImplemented;
-  exportAsPDF = throwNotImplemented;
-  autoExportAsHTML = throwNotImplemented;
-  autoExportAsMarkdown = throwNotImplemented;
-  autoExportAsIPYNB = throwNotImplemented;
-  updateCellOutputs = throwNotImplemented;
-  addPackage = throwNotImplemented;
-  removePackage = throwNotImplemented;
-  getPackageList = throwNotImplemented;
-  getDependencyTree = throwNotImplemented;
-  getRecentFiles = throwNotImplemented;
-  getWorkspaceFiles = throwNotImplemented;
-  getRunningNotebooks = throwNotImplemented;
-  shutdownSession = throwNotImplemented;
-  listSecretKeys = throwNotImplemented;
-  writeSecret = throwNotImplemented;
-  invokeAiTool = throwNotImplemented;
-  clearCache = throwNotImplemented;
-  getCacheInfo = throwNotImplemented;
-  listStorageEntries = throwNotImplemented;
-  downloadStorage = throwNotImplemented;
+  public getUsageStats = throwNotImplemented;
+  public getEnvironmentInfo = throwNotImplemented;
+  public sendRename = throwNotImplemented;
+  public saveLayout = throwNotImplemented;
+  public sendCopy = throwNotImplemented;
+  public sendRunScratchpad = throwNotImplemented;
+  public sendShutdown = throwNotImplemented;
+  public sendFormat = throwNotImplemented;
+  public sendInstallMissingPackages = throwNotImplemented;
+  public sendCodeCompletionRequest = throwNotImplemented;
+  public saveUserConfig = throwNotImplemented;
+  public saveAppConfig = throwNotImplemented;
+  public sendRestart = throwNotImplemented;
+  public readCode = throwNotImplemented;
+  public readSnippets = throwNotImplemented;
+  public previewDatasetColumn = throwNotImplemented;
+  public previewSQLTable = throwNotImplemented;
+  public previewSQLTableList = throwNotImplemented;
+  public previewSQLSchemaList = throwNotImplemented;
+  public previewDataSourceConnection = throwNotImplemented;
+  public discoverDataSources = throwNotImplemented;
+  public validateSQL = throwNotImplemented;
+  public openFile = throwNotImplemented;
+  public getFileRoots = throwNotImplemented;
+  public sendListFiles = throwNotImplemented;
+  public sendSearchFiles = throwNotImplemented;
+  public sendPdbReply = throwNotImplemented;
+  public sendPdb = throwNotImplemented;
+  public sendSetBreakpoints = throwNotImplemented;
+  public sendCreateFileOrFolder = throwNotImplemented;
+  public sendDeleteFileOrFolder = throwNotImplemented;
+  public sendCopyFileOrFolder = throwNotImplemented;
+  public sendRenameFileOrFolder = throwNotImplemented;
+  public sendUpdateFile = throwNotImplemented;
+  public sendFileDetails = throwNotImplemented;
+  public openTutorial = throwNotImplemented;
+  public getExportAvailability = throwNotImplemented;
+  public installExportRequirements = throwNotImplemented;
+  public exportAsHTML = throwNotImplemented;
+  public exportAsIPYNB = throwNotImplemented;
+  public exportAsMarkdown = throwNotImplemented;
+  public exportAsScript = throwNotImplemented;
+  public exportAsPDF = throwNotImplemented;
+  public autoExportAsHTML = throwNotImplemented;
+  public autoExportAsMarkdown = throwNotImplemented;
+  public autoExportAsIPYNB = throwNotImplemented;
+  public updateCellOutputs = throwNotImplemented;
+  public addPackage = throwNotImplemented;
+  public removePackage = throwNotImplemented;
+  public getPackageList = throwNotImplemented;
+  public getSandbox = throwNotImplemented;
+  public updateManifest = throwNotImplemented;
+  public syncSandbox = throwNotImplemented;
+  public getDependencyTree = throwNotImplemented;
+  public getRecentFiles = throwNotImplemented;
+  public getWorkspaceFiles = throwNotImplemented;
+  public getRunningNotebooks = throwNotImplemented;
+  public shutdownSession = throwNotImplemented;
+  public listSecretKeys = throwNotImplemented;
+  public writeSecret = throwNotImplemented;
+  public invokeAiTool = throwNotImplemented;
+  public clearCache = throwNotImplemented;
+  public getCacheInfo = throwNotImplemented;
+  public listStorageEntries = throwNotImplemented;
+  public downloadStorage = throwNotImplemented;
 
   // The kernel uses msgspec to parse control requests, which requires a 'type'
   // field for discriminated union deserialization.
   private async putControlRequest(
-    operation: CommandMessage,
+    operation: ClientCommand,
     session?: AppSession,
   ): Promise<void> {
     session ??= await this.getActiveSession();
@@ -409,7 +510,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Cleans up resources (for testing)
    */
-  destroy(): void {
+  public destroy(): void {
     // Future: terminate worker if we own it
   }
 }

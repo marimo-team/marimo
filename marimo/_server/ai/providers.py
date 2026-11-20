@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import inspect
 import os
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import (
     TYPE_CHECKING,
     Generic,
@@ -19,7 +20,6 @@ from urllib.parse import parse_qs, urlparse
 from starlette.exceptions import HTTPException
 
 from marimo import _loggers
-from marimo._ai._convert import extract_text
 from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
     form_toolsets,
@@ -34,6 +34,7 @@ from marimo._plugins.ui._impl.chat.chat import (
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.constants import ANTHROPIC_DEFAULT_MAX_TOKENS
 from marimo._server.ai.ids import AiModelId, AiProviderId
+from marimo._server.ai.openai_client import create_openai_client
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.ai.tracing import (
@@ -42,9 +43,10 @@ from marimo._server.ai.tracing import (
     trace_stream,
 )
 from marimo._server.models.completion import UIMessage as ServerUIMessage
-from marimo._utils.assert_never import log_never
 from marimo._utils.http import HTTPStatus
+from marimo._utils.log_never import log_never
 from marimo._utils.typing import override
+from marimo._version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Sequence
@@ -80,7 +82,7 @@ if TYPE_CHECKING:
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.toolsets import AbstractToolset
-    from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessage
     from pydantic_ai.ui.vercel_ai.response_types import (
         FinishReason as VercelFinishReason,
     )
@@ -405,6 +407,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         additional_tools: list[ToolDefinition],
         span_info: SpanInfo,
         enable_capabilities: bool = True,
+        thinking: ThinkingLevel | None = None,
     ) -> str:
         """Return a string response from the given messages."""
 
@@ -426,6 +429,9 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             result = await agent.run(
                 user_prompt=None,
                 message_history=VercelAIAdapter.load_messages(messages),
+                model_settings={"thinking": thinking}
+                if thinking is not None
+                else None,
             )
 
         return str(result.output)
@@ -589,78 +595,7 @@ class OpenAIClientMixin:
     """Mixin providing OpenAI client creation logic for OpenAI-based providers."""
 
     def get_openai_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
-        import ssl
-        from pathlib import Path
-
-        from openai import AsyncOpenAI, DefaultAsyncHttpxClient
-
-        base_url = config.base_url or None
-        key = config.api_key
-
-        # Add SSL parameters/values
-        ssl_verify: bool = (
-            config.ssl_verify if config.ssl_verify is not None else True
-        )
-        extra_headers: dict[str, str] | None = config.extra_headers
-        ca_bundle_path: str | None = config.ca_bundle_path
-        client_pem: str | None = config.client_pem
-
-        # Check if ca_bundle_path and client_pem are valid files
-        if ca_bundle_path:
-            ca_path = Path(ca_bundle_path)
-            if not ca_path.exists():
-                raise HTTPException(
-                    status_code=HTTPStatus.BAD_REQUEST,
-                    detail="CA Bundle is not a valid path or does not exist",
-                )
-
-        if client_pem:
-            client_pem_path = Path(client_pem)
-            if not client_pem_path.exists():
-                raise HTTPException(
-                    status_code=HTTPStatus.BAD_REQUEST,
-                    detail="Client PEM is not a valid path or does not exist",
-                )
-
-        # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
-        client: DefaultAsyncHttpxClient | None = None
-        if ssl_verify:
-            ctx = None  # Initialize ctx to avoid UnboundLocalError
-            if ca_bundle_path:
-                ctx = ssl.create_default_context(cafile=ca_bundle_path)
-            if client_pem:
-                # if ctx already exists from caBundlePath argument
-                if ctx:
-                    ctx.load_cert_chain(certfile=client_pem)
-                else:
-                    ctx = ssl.create_default_context()
-                    ctx.load_cert_chain(certfile=client_pem)
-
-            # if ssl context was created by the above statements
-            if ctx:
-                client = DefaultAsyncHttpxClient(verify=ctx)
-        else:
-            client = DefaultAsyncHttpxClient(verify=False)
-
-        # if client is created, either with a custom context or with verify=False, use it as the http_client object in `AsyncOpenAI`
-        extra_headers = extra_headers or {}
-        project = config.project or None
-        if client:
-            return AsyncOpenAI(
-                default_headers={"api-key": key, **extra_headers},
-                api_key=key,
-                base_url=base_url,
-                project=project,
-                http_client=client,
-            )
-
-        # if not, return bog standard AsyncOpenAI object
-        return AsyncOpenAI(
-            default_headers={"api-key": key, **extra_headers},
-            api_key=key,
-            base_url=base_url,
-            project=project,
-        )
+        return create_openai_client(config)
 
 
 class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
@@ -846,7 +781,7 @@ def _known_provider_base_urls() -> dict[str, str]:
     known service (e.g. `https://api.deepseek.com`) points to the correct provider.
     """
     responses, chat = _openai_compatible_provider_names()
-    mapping: dict[str, str] = {}
+    mapping: dict[str, str] = {"api.moonshot.ai": "moonshotai"}
     # Sorted so that, if two providers normalize alike, the first wins.
     for name in sorted(responses | chat):
         provider_class = _try_infer_provider_class(name)
@@ -860,7 +795,9 @@ def _known_provider_base_urls() -> dict[str, str]:
             )
             continue
         normalized = _normalize_base_url(base_url)
-        if normalized:
+        # OpenAI API keys and ChatGPT OAuth share a URL, so it cannot
+        # identify which provider to use. Preserve the generic OpenAI fallback.
+        if normalized and normalized != "api.openai.com":
             mapping.setdefault(normalized, name)
     return mapping
 
@@ -1058,6 +995,17 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
         from pydantic_ai.models import infer_model
         from pydantic_ai.models.openai import OpenAIChatModel
 
+        if (
+            self._provider_name == "deepseek"
+            and self.model == "deepseek-flash"
+        ):
+            # Remove once pydantic/pydantic-ai#8353 fixes this model's profile.
+            return OpenAIChatModel(
+                model_name=self.model,
+                provider=self.provider,
+                profile=self.provider.model_profile("deepseek-v4-flash"),
+            )
+
         try:
             return infer_model(
                 f"{self._provider_name}:{self.model}",
@@ -1136,37 +1084,16 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
             if max_tokens is not None
             else ANTHROPIC_DEFAULT_MAX_TOKENS,
         )
-        settings: AnthropicModelSettings = {"anthropic_cache": True}
+        settings: AnthropicModelSettings = {
+            "anthropic_cache": True,
+            "anthropic_cache_instructions": True,
+            "anthropic_cache_tool_definitions": True,
+        }
         if values.max_tokens is not None:
             settings["max_tokens"] = values.max_tokens
         if values.thinking is not None:
             settings["thinking"] = values.thinking
         return settings
-
-    @override
-    def convert_messages(
-        self, messages: list[ServerUIMessage]
-    ) -> list[UIMessage]:
-        return convert_to_pydantic_messages(messages, self.process_part)
-
-    def process_part(self, part: UIMessagePart) -> UIMessagePart:
-        """
-        Anthropic does not support binary content for text files, so we convert to text parts.
-        Ideally, we would use DocumentUrl parts with a url, but we only have the binary data from the frontend
-        Refer to: https://ai.pydantic.dev/input/#user-side-download-vs-direct-file-url
-        """
-        from pydantic_ai.ui.vercel_ai.request_types import (
-            FileUIPart,
-            TextUIPart,
-        )
-
-        if isinstance(part, FileUIPart) and part.media_type.startswith("text"):
-            return TextUIPart(
-                type="text",
-                text=extract_text(part.url),
-                provider_metadata=part.provider_metadata,
-            )
-        return part
 
 
 class BedrockProvider(PydanticProvider["PydanticBedrock"]):
@@ -1225,9 +1152,25 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
 
 
 def get_completion_provider(
-    config: AnyProviderConfig, model: str
+    config: AnyProviderConfig, model: str, *, session_id: str | None = None
 ) -> PydanticProvider[Provider]:
     model_id = AiModelId.from_model(model)
+
+    if model_id.provider == "opencode-go":
+        headers = {
+            "User-Agent": f"marimo/{__version__}",
+            "x-opencode-client": "marimo",
+        }
+        if session_id:
+            # Keep client-supplied IDs bounded and safe for HTTP headers.
+            headers["x-opencode-session"] = hashlib.sha256(
+                session_id.encode("utf-8")
+            ).hexdigest()
+        # Preserve default casing: the SDK merges its own headers by key.
+        header_names = {name.lower(): name for name in headers}
+        for name, value in (config.extra_headers or {}).items():
+            headers[header_names.get(name.lower(), name)] = value
+        config = replace(config, extra_headers=headers)
 
     if model_id.provider == "anthropic":
         return AnthropicProvider(

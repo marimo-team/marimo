@@ -10,7 +10,8 @@ pyproject: |-
       "marimo",
       "duckdb==1.2.2",
       "matplotlib==3.10.9",
-      "sqlglot==26.16.2",
+      "sqlglot[c]>=30.11.0; python_version < '3.15'",
+      "sqlglot[c]>=30.23.0; python_version >= '3.15'",
       "pandas==2.3.3",
       "pyarrow==23.0.0",
   ]

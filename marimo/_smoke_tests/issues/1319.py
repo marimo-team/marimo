@@ -2,19 +2,21 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _():
     import pandas as pd
+
     return (pd,)
 
 
@@ -28,6 +30,7 @@ def _():
             "".join(random.choices("abcdefghikjlmnopqrstuvwxyz", k=8)),
             "".join(random.choices("abcdefghikjlmnopqrstuvwxyz", k=8)),
         ] + [random.randint(1000, 100000) for i in range(columns - 2)]
+
     return (row,)
 
 
@@ -46,7 +49,6 @@ def _():
 def _(df, mo):
     uidf = mo.ui.dataframe(df)
     uidf
-    return
 
 
 if __name__ == "__main__":

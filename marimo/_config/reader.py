@@ -1,14 +1,39 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
+from marimo._config.deprecations import warn_deprecated_fields
+from marimo._config.provenance import ConfigLayer, ConfigSource
 from marimo._utils.toml import toml_reader
 
 LOGGER = _loggers.marimo_logger()
+
+
+class ConfigReader(ABC):
+    """Read explicitly supplied settings without filling in defaults.
+
+    Sources parse and normalize their own values. Precedence and computed
+    defaults are handled separately by the configuration manager.
+    """
+
+    @abstractmethod
+    def read(self) -> PartialMarimoConfig:
+        """Read a sparse, unmasked configuration from this source."""
+
+    @property
+    def source(self) -> ConfigSource:
+        return "override"
+
+    def read_layer(self) -> ConfigLayer:
+        """Read sparse settings and their sources, without validating inherited fields."""
+        layer = ConfigLayer(self.read(), self.source)
+        warn_deprecated_fields(layer)
+        return layer
 
 
 def read_marimo_config(path: str) -> PartialMarimoConfig:
@@ -22,7 +47,7 @@ def read_pyproject_marimo_config(
     """Read the marimo tool config from a pyproject.toml file."""
     pyproject_config = toml_reader.read(pyproject_path)
     marimo_tool_config = get_marimo_config_from_pyproject_dict(
-        pyproject_config
+        pyproject_config, location=str(pyproject_path)
     )
     if marimo_tool_config is None:
         return None
@@ -121,9 +146,12 @@ def allowlist_script_config(
     return pyproject_dict
 
 
-# Settings that an untrusted-origin config layer must not set. Both take effect
-# before any cell runs, so a layer that sets one decides something the operator
-# never agreed to:
+# We typically do not strip pyproject configuration keys on the basis that a
+# malicious project can provide behavior as bad as, if not worse than, our options.
+# However, we are reserving these keys for potential TOFU-style trust anchors.
+# Reporters, do not read into this as a security guarantee for stripping
+# project options. See https://docs.marimo.io/security/#project-files for
+# more discussion.
 #
 #   signing              trusting a key is a code-execution grant, because a
 #                        cache restore is `pickle.loads`
@@ -131,8 +159,12 @@ def allowlist_script_config(
 #
 # Both are anchored only in trusted user/environment config.
 _UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
+    ("server", "session_secret"),
+    ("server", "token_password"),
+    ("server", "token_password_file"),
     ("signing",),
     ("cache", "verification"),
+    ("cache", "loader"),
 )
 
 # `cache.store` is not a trust anchor on its own: the verifying loaders check
@@ -178,15 +210,19 @@ def strip_untrusted_config(
 
 def get_marimo_config_from_pyproject_dict(
     pyproject_dict: dict[str, Any],
+    *,
+    location: str | None = None,
 ) -> PartialMarimoConfig | None:
     """Get the marimo config from a pyproject.toml dictionary."""
     marimo_tool_config = _get_tool_dict(pyproject_dict).get("marimo", None)
     if marimo_tool_config is None:
         return None
     if not isinstance(marimo_tool_config, dict):
-        LOGGER.warning(
-            "pyproject.toml contains invalid marimo config: %s",
-            marimo_tool_config,
+        LOGGER.error(
+            "Ignoring marimo configuration in %s: 'tool.marimo' must be a table, got %s.",
+            location or "pyproject.toml/script metadata",
+            type(marimo_tool_config).__name__,
+            extra={"omit_log_prefix": True},
         )
         return None
     return cast(PartialMarimoConfig, marimo_tool_config)

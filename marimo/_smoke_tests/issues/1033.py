@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -22,7 +22,6 @@ def _(az):
     az.plot_autocorr(_data)
     # [az.plot_autocorr(_data), 
     # type(az.plot_autocorr(_data))]
-    return
 
 
 @app.cell
@@ -32,7 +31,6 @@ def _(az, np):
     az.plot_bf(_idata, var_name="a", ref_val=0)
     # [az.plot_bf(_idata, var_name="a", ref_val=0),
     # type(az.plot_bf(_idata, var_name="a", ref_val=0))]
-    return
 
 
 @app.cell
@@ -40,7 +38,6 @@ def _(az, np):
     _data = az.load_arviz_data("regression1d")
     # [az.plot_bpv(_data, kind="t_stat", t_stat=lambda x:np.percentile(x, q=50, axis=-1)), type(az.plot_bpv(_data, kind="t_stat", t_stat=lambda x:np.percentile(x, q=50, axis=-1)))]
     az.plot_bpv(_data, kind="t_stat", t_stat=lambda x:np.percentile(x, q=50, axis=-1))
-    return
 
 
 @app.cell
@@ -49,7 +46,6 @@ def _(az):
                      'Non-centered 8 schools': az.load_arviz_data('non_centered_eight')})
     # [az.plot_compare(_model_compare), type(az.plot_compare(_model_compare))]
     az.plot_compare(_model_compare)
-    return
 
 
 @app.cell
@@ -58,7 +54,6 @@ def _(az):
     _non_centered = az.load_arviz_data('non_centered_eight')
     # [az.plot_density([_centered, _non_centered]), type(az.plot_density([_centered, _non_centered]))]
     az.plot_density([_centered, _non_centered])
-    return
 
 
 @app.cell
@@ -74,7 +69,6 @@ def _(az, np):
     _values = np.random.normal(0, 1, 500)
     # [az.plot_dot(_values), type(az.plot_dot(_values))]
     az.plot_dot(_values)
-    return
 
 
 @app.cell
@@ -83,7 +77,6 @@ def _(az, norm, np):
     _npoints = 100
     # [az.plot_ecdf(_sample, eval_points=np.linspace(_sample.min(), _sample.max(), _npoints)), type(az.plot_ecdf(_sample, eval_points=np.linspace(_sample.min(), _sample.max(), _npoints)))]
     az.plot_ecdf(_sample, eval_points=np.linspace(_sample.min(), _sample.max(), _npoints))
-    return
 
 
 @app.cell
@@ -101,7 +94,6 @@ def _(az):
         {"centered model": _idata1, "non centered model": _idata2},
         xlabels=True
     )
-    return
 
 
 @app.cell
@@ -109,7 +101,6 @@ def _(az):
     _data = az.load_arviz_data('centered_eight')
     # [az.plot_energy(_data), type(az.plot_energy(_data))]
     az.plot_energy(_data)
-    return
 
 
 @app.cell
@@ -124,7 +115,6 @@ def _(az):
     # ), type(az.plot_ess(
     #     _idata, kind="local", var_names=["mu", "theta"], coords=_coords
     # ))]
-    return
 
 
 @app.cell
@@ -138,7 +128,6 @@ def _(az):
                                figsize=(9, 7))
     _axes[0].set_title('Estimated theta for 8 schools model')
     # [_axes, type(_axes)]
-    return
 
 
 @app.cell
@@ -152,7 +141,6 @@ def _(az, np):
     _y_data = np.random.normal(2 + _mu * 0.5, 0.5, size = (2, 50, 100))
     # [az.plot_hdi(_x_data, _y_data), type(az.plot_hdi(_x_data, _y_data))]
     az.plot_hdi(_x_data, _y_data)
-    return
 
 
 @app.cell
@@ -162,7 +150,6 @@ def _(az, np):
     _tau_posterior = np.concatenate(_non_centered.posterior["tau"].values)
     # [az.plot_kde(_mu_posterior), type(az.plot_kde(_mu_posterior))]
     az.plot_kde(_mu_posterior)
-    return
 
 
 @app.cell
@@ -171,7 +158,6 @@ def _(az):
     _loo_radon = az.loo(_radon, pointwise=True)
     # [az.plot_khat(_loo_radon, show_bins=True), type(az.plot_khat(_loo_radon, show_bins=True))]
     az.plot_khat(_loo_radon, show_bins=True)
-    return
 
 
 @app.cell
@@ -179,7 +165,6 @@ def _(az):
     _idata = az.load_arviz_data("radon")
     # [az.plot_loo_pit(idata=_idata, y="y"), type(az.plot_loo_pit(idata=_idata, y="y"))]
     az.plot_loo_pit(idata=_idata, y="y")
-    return
 
 
 @app.cell
@@ -190,7 +175,6 @@ def _(az, np, xr):
 
     # [az.plot_lm(idata=_idata, y="y", x=_x), type(az.plot_lm(idata=_idata, y="y", x=_x))]
     az.plot_lm(idata=_idata, y="y", x=_x)
-    return
 
 
 @app.cell
@@ -205,7 +189,6 @@ def _(az):
     az.plot_mcse(
         _idata, var_names=["mu", "theta"], coords=_coords
     )
-    return
 
 
 @app.cell
@@ -229,7 +212,6 @@ def _(az):
                 coords=_coords,
                 divergences=True,
                 textsize=18)
-    return
 
 
 @app.cell
@@ -238,7 +220,6 @@ def _(az):
     # [az.plot_parallel(_data, var_names=["mu", "tau"]), type(az.plot_parallel(_data, var_names=["mu", "tau"]))]
     az.plot_parallel(_data, var_names=["mu", "tau"])
     # plt.show()
-    return
 
 
 @app.cell
@@ -246,7 +227,6 @@ def _(az):
     _data = az.load_arviz_data('centered_eight')
     # [az.plot_posterior(_data), type(az.plot_posterior(_data))]
     az.plot_posterior(_data)
-    return
 
 
 @app.cell
@@ -255,7 +235,6 @@ def _(az):
     # [az.plot_ppc(_data, data_pairs={"y":"y"}), type(az.plot_ppc(_data, data_pairs={"y":"y"}))]
     az.plot_ppc(_data, data_pairs={"y":"y"})
     # plt.gca()
-    return
 
 
 @app.cell
@@ -264,7 +243,6 @@ def _(az, plt):
     # [az.plot_rank(_data), type(az.plot_rank(_data))]
     az.plot_rank(_data)
     plt.gca()
-    return
 
 
 @app.cell
@@ -272,7 +250,6 @@ def _(az):
     _idata = az.load_arviz_data('classification10d')
     # [az.plot_separation(idata=_idata, y='outcome', y_hat='outcome', figsize=(8, 1)), type(az.plot_separation(idata=_idata, y='outcome', y_hat='outcome', figsize=(8, 1)))]
     az.plot_separation(idata=_idata, y='outcome', y_hat='outcome', figsize=(8, 1))
-    return
 
 
 @app.cell
@@ -281,7 +258,6 @@ def _(az):
     _coords = {'school': ['Choate', 'Lawrenceville']}
     # [az.plot_trace(_data, var_names=('theta'), filter_vars="like", coords=_coords), type(az.plot_trace(_data, var_names=('theta'), filter_vars="like", coords=_coords))]
     az.plot_trace(_data, var_names=('theta'), filter_vars="like", coords=_coords)
-    return
 
 
 @app.cell
@@ -308,14 +284,12 @@ def _(az, np):
     ax = az.plot_ts(idata=_idata, y="y", y_holdout="z")
     # [ax, type(ax)]
     ax
-    return
 
 
 @app.cell
 def _(az):
     _data = az.load_arviz_data('centered_eight')
     az.plot_violin(_data)
-    return
 
 
 @app.cell(hide_code=True)
@@ -327,6 +301,7 @@ def _():
     import matplotlib.pyplot as plt
     import xarray as xr
     from scipy.stats import uniform, norm
+
     return az, norm, np, plt, xr
 
 

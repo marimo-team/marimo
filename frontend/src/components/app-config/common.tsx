@@ -4,7 +4,8 @@ import type { HTMLProps, PropsWithChildren } from "react";
 import type { SqlOutputType } from "@/core/config/config-schema";
 import { cn } from "@/utils/cn";
 
-export const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
+export const formItemClasses =
+  "settings-row flex flex-row items-center space-x-1 space-y-0";
 
 export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
   return (
@@ -14,21 +15,18 @@ export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
   );
 };
 
-export const SettingSubtitle: React.FC<HTMLProps<HTMLDivElement>> = ({
+export const SettingSubtitle: React.FC<HTMLProps<HTMLHeadingElement>> = ({
   children,
   className,
   ...props
 }) => {
   return (
-    <div
+    <h3
       {...props}
-      className={cn(
-        "text-base font-semibold underline-offset-2 text-accent-foreground uppercase tracking-wide",
-        className,
-      )}
+      className={cn("text-base font-semibold text-foreground", className)}
     >
       {children}
-    </div>
+    </h3>
   );
 };
 
@@ -43,7 +41,7 @@ export const SettingGroup: React.FC<{
   children: React.ReactNode;
 }> = ({ title, children }) => {
   return (
-    <div className="flex flex-col gap-4 pb-4">
+    <div className="settings-group flex flex-col gap-4">
       <SettingSubtitle>{title}</SettingSubtitle>
       {children}
     </div>

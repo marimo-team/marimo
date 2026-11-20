@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -18,6 +18,7 @@ def _():
     import marimo as mo
     import duckdb
     import re
+
     return duckdb, mo, re
 
 
@@ -41,13 +42,11 @@ def _(code, duckdb):
     print("Number of statements: " + str(len(statements)))
 
     print(duckdb.tokenize(code.value))
-    return
 
 
 @app.cell
 def _(code, find_created_tables):
     find_created_tables(code.value)
-    return
 
 
 @app.cell
@@ -131,6 +130,7 @@ def _(re):
             i += 1
 
         return created_tables
+
     return (find_created_tables,)
 
 

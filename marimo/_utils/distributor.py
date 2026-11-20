@@ -5,7 +5,7 @@ import asyncio
 import threading
 import time
 from collections.abc import Callable
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 from marimo import _loggers
 from marimo._session.queue import QueueType
@@ -27,7 +27,7 @@ class Distributor(Protocol, Generic[T_co]):
         """Add a consumer to the distributor."""
         ...
 
-    def start(self) -> Any:
+    def start(self) -> Disposable | threading.Thread:
         """Start the distributor."""
         ...
 
@@ -79,9 +79,7 @@ class ConnectionDistributor(Distributor[T_co]):
                 response = self.input_connection.recv()
             except BlockingIOError as e:
                 # recv() sporadically fails with EAGAIN, EDEADLK ...
-                LOGGER.warning(
-                    "BlockingIOError in distributor receive: %s", str(e)
-                )
+                LOGGER.warning("BlockingIOError in distributor receive: %s", e)
                 time.sleep(retry_sleep_seconds)
                 continue
             except (EOFError, StopIteration):

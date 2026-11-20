@@ -7,8 +7,7 @@ import { generateUUID } from "@/utils/uuid";
 import type { Banner } from "../kernel/messages";
 
 /**
- * Atom for storing kernel startup error message.
- * When set to a non-null value, shows a modal with the error details.
+ * Full startup diagnostics, retained until a new connection attempt or readiness.
  */
 export const kernelStartupErrorAtom = atom<string | null>(null);
 

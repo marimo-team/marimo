@@ -41,9 +41,9 @@ interface Data {
 }
 
 export class ProgressPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-progress";
+  public tagName = "marimo-progress";
 
-  validator = z.object({
+  public validator = z.object({
     title: z.string().optional(),
     subtitle: z.string().optional(),
     progress: z.union([z.number(), z.boolean()]),
@@ -52,7 +52,7 @@ export class ProgressPlugin implements IStatelessPlugin<Data> {
     rate: z.number().optional(),
   });
 
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
+  public render(props: IStatelessPluginProps<Data>): JSX.Element {
     return <ProgressComponent {...props.data} />;
   }
 }

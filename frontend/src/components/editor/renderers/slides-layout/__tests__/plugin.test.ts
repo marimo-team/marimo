@@ -13,11 +13,7 @@ function makeCell(id: string, code = "print('hi')"): CellData {
     id: cellId(id),
     name: id,
     code,
-    edited: false,
-    lastCodeRun: null,
-    lastExecutionTime: null,
     config: { hide_code: false, disabled: false, column: null },
-    serializedEditorState: null,
   };
 }
 
@@ -217,7 +213,7 @@ interface BackwardsCompatCase {
    * properties need to be listed — extra properties are ignored.
    */
   expected: {
-    deck?: unknown;
+    deck: unknown;
     cellIds: string[];
     cellEntries?: Array<[string, unknown]>;
   };
@@ -355,9 +351,7 @@ describe("SlidesLayoutPlugin backwards compatibility", () => {
       // known field, the deserialized config won't carry it and the
       // assertion below fails.
       const layout = SlidesLayoutPlugin.deserializeLayout(parsed.data, cells);
-      if (expected.deck !== undefined) {
-        expect(layout.deck).toEqual(expected.deck);
-      }
+      expect(layout.deck).toEqual(expected.deck);
       for (const [cellEntryId, expectedConfig] of expected.cellEntries ?? []) {
         expect(layout.cells.get(cellId(cellEntryId))).toMatchObject(
           expectedConfig as object,
@@ -379,9 +373,7 @@ describe("SlidesLayoutPlugin backwards compatibility", () => {
           expectedConfig as object,
         );
       }
-      if (expected.deck !== undefined) {
-        expect(redeserialized.deck).toEqual(expected.deck);
-      }
+      expect(redeserialized.deck).toEqual(expected.deck);
     },
   );
 

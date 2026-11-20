@@ -621,15 +621,29 @@ class file_browser(
     def _convert_value(
         self, value: list[TypedFileBrowserFileInfo]
     ) -> Sequence[FileBrowserFileInfo]:
-        return tuple(
-            FileBrowserFileInfo(
-                id=file["id"],
-                name=file["name"],
-                path=self._create_path(file["path"]),
-                is_directory=file["is_directory"],
+        converted: list[FileBrowserFileInfo] = []
+        for file in value:
+            path = self._create_path(file["path"])
+            # The value can be set directly through the set_ui_element_value
+            # API, bypassing _list_directory. Enforce the navigation
+            # restriction here too so a client cannot select a path outside
+            # the initial path.
+            if self._restrict_navigation and not _is_path_within(
+                path, self._initial_path
+            ):
+                raise RuntimeError(
+                    "Navigation is restricted; selecting a path outside the "
+                    "initial path is not allowed."
+                )
+            converted.append(
+                FileBrowserFileInfo(
+                    id=file["id"],
+                    name=file["name"],
+                    path=path,
+                    is_directory=file["is_directory"],
+                )
             )
-            for file in value
-        )
+        return tuple(converted)
 
     def name(self, index: int = 0) -> str | None:
         """Get file name at index.

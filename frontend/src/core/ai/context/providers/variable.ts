@@ -16,20 +16,20 @@ export interface VariableContextItem extends AIContextItem {
 }
 
 export class VariableContextProvider extends AIContextProvider<VariableContextItem> {
-  readonly title = "Variables";
-  readonly mentionPrefix = "@";
-  readonly contextType = "variable";
+  public readonly title = "Variables";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = "variable";
 
   private variables: Variables;
   private tablesMap: DatasetTablesMap;
 
-  constructor(variables: Variables, tablesMap: DatasetTablesMap) {
+  public constructor(variables: Variables, tablesMap: DatasetTablesMap) {
     super();
     this.variables = variables;
     this.tablesMap = tablesMap;
   }
 
-  getItems(): VariableContextItem[] {
+  public getItems(): VariableContextItem[] {
     const ignore = new Set(this.tablesMap.keys());
 
     return Object.entries(this.variables).flatMap(([name, variable]) => {
@@ -51,7 +51,7 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
     });
   }
 
-  formatCompletion(item: VariableContextItem): Completion {
+  public formatCompletion(item: VariableContextItem): Completion {
     const { data } = item;
     const { variable } = data;
     return {
@@ -66,7 +66,7 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
     };
   }
 
-  formatContext(item: VariableContextItem): string {
+  public formatContext(item: VariableContextItem): string {
     const { data } = item;
     const { variable } = data;
     return contextToXml({

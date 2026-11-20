@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "process": { "pid": 12345, "started_at": "2026-10-01T09:13:58Z" },
+  "name": "VS Code",
+  "url": "http://127.0.0.1:52817/api/marimo/v1",
+  "token": "opaque-token"
+}

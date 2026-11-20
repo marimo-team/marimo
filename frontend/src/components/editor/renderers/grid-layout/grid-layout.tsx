@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { OutputArea } from "@/components/editor/Output";
-import type { CellRuntimeState } from "@/core/cells/types";
+import type { RuntimeCell } from "@/core/cells/types";
 import type { ICellRendererProps } from "../types";
 import type { GridLayout, GridLayoutCellSide } from "./types";
 
@@ -37,6 +37,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Switch } from "@/components/ui/switch";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
+import { useCellPresentation, useCellOutput } from "@/core/executions";
 import type { AppMode } from "@/core/mode";
 import { useIsDragging } from "@/hooks/useIsDragging";
 import { cn } from "@/utils/cn";
@@ -190,12 +191,18 @@ export const GridLayoutRenderer: React.FC<Props> = ({
           cells: [...cellLayouts, dropped],
         });
       }}
-      onDragStart={(_layout, _oldItem, _newItem, _placeholder, event) => {
-        dragProps.onDragStart(event);
-      }}
-      onDrag={(_layout, _oldItem, _newItem, _placeholder, event) => {
-        dragProps.onDragMove(event);
-      }}
+      onDragStart={
+        // oxlint-disable-next-line marimo/prefer-object-params -- React Grid Layout supplies the event as the fifth argument.
+        (_layout, _oldItem, _newItem, _placeholder, event) => {
+          dragProps.onDragStart(event);
+        }
+      }
+      onDrag={
+        // oxlint-disable-next-line marimo/prefer-object-params -- React Grid Layout supplies the event as the fifth argument.
+        (_layout, _oldItem, _newItem, _placeholder, event) => {
+          dragProps.onDragMove(event);
+        }
+      }
       onDragStop={() => {
         dragProps.onDragStop();
       }}
@@ -220,12 +227,9 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               code={cell.code}
               mode={mode}
               cellId={cell.id}
-              output={cell.output}
-              status={cell.status}
-              stale={outputIsStale(cell, false)}
+              hideWithoutValue={true}
               isScrollable={isScrollable}
               side={side}
-              hidden={cell.errored || cell.interrupted || cell.stopped}
             />
           );
 
@@ -287,11 +291,8 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 code={cell.code}
                 mode={mode}
                 cellId={cell.id}
-                output={cell.output}
-                status={cell.status}
-                stale={outputIsStale(cell, false)}
+                hideWithoutValue={false}
                 isScrollable={false}
-                hidden={false}
               />
             );
           })}
@@ -357,11 +358,8 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 className="select-none pointer-events-none"
                 mode={mode}
                 cellId={cell.id}
-                output={cell.output}
+                hideWithoutValue={false}
                 isScrollable={false}
-                status={cell.status}
-                stale={outputIsStale(cell, false)}
-                hidden={false}
               />
             </div>
           ))}
@@ -371,31 +369,35 @@ export const GridLayoutRenderer: React.FC<Props> = ({
   );
 };
 
-interface GridCellProps extends Pick<CellRuntimeState, "output" | "status"> {
+interface GridCellProps {
   className?: string;
   code: string;
   cellId: CellId;
   mode: AppMode;
-  hidden: boolean;
+  /** Whether a cell whose last run ended without a value keeps its place but shows nothing. */
+  hideWithoutValue: boolean;
   isScrollable: boolean;
   side?: GridLayoutCellSide;
-  stale: boolean;
 }
 
 const GridCell = memo(
   ({
-    output,
     cellId,
-    status,
     mode,
     code,
-    hidden,
+    hideWithoutValue,
     isScrollable,
     side,
     className,
-    stale,
   }: GridCellProps) => {
-    const loading = outputIsLoading(status);
+    const output = useCellOutput(cellId);
+    const { execution, freshness } = useCellPresentation(cellId);
+    const loading = outputIsLoading(execution.status);
+    const stale = outputIsStale(execution, freshness, false);
+    const hidden =
+      hideWithoutValue &&
+      execution.outcome !== null &&
+      execution.outcome !== "succeeded";
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output
@@ -677,7 +679,7 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
   );
 };
 
-function isSidebarCell(cell: CellRuntimeState) {
+function isSidebarCell(cell: RuntimeCell) {
   // False-positives are ok here because we rendering these cells in a hidden div
   return (
     typeof cell.output?.data === "string" &&

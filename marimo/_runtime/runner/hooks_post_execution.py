@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import sys
-import traceback as tb
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -27,7 +26,6 @@ from marimo._messaging.notification import (
     DatasetsNotification,
     DataSourceConnectionsNotification,
     StorageNamespacesNotification,
-    VariableValuesNotification,
 )
 from marimo._messaging.notification_utils import (
     CellNotificationUtils,
@@ -35,20 +33,22 @@ from marimo._messaging.notification_utils import (
 )
 from marimo._messaging.tracebacks import (
     _highlight_traceback,
+    format_exception,
     format_exception_message,
     write_traceback,
 )
-from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.types import (
     get_context,
     get_global_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hook_context import PostExecutionHookContext
 from marimo._runtime.runner.hooks import PostExecutionHook
+from marimo._runtime.runner.hooks_lens import mount_lens
 from marimo._runtime.side_effect import SideEffect
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
@@ -118,27 +118,6 @@ def _set_run_result_status(
         )
     else:
         cell.set_run_result_status("success")
-
-
-@kernel_tracer.start_as_current_span("broadcast_variables")
-def _broadcast_variables(
-    cell: CellImpl,
-    ctx: PostExecutionHookContext,
-    run_result: cell_runner.RunResult,
-) -> None:
-    if not ctx.should_broadcast_data:
-        return
-
-    del run_result
-    values = [
-        create_variable_value(
-            name=variable,
-            value=(ctx.glbls.get(variable, None)),
-        )
-        for variable in cell.defs
-    ]
-    if values:
-        broadcast_notification(VariableValuesNotification(variables=values))
 
 
 @kernel_tracer.start_as_current_span("broadcast_datasets")
@@ -363,7 +342,7 @@ def _broadcast_outputs(
         ):
             ctx.exceptions[cell.cell_id] = formatted_output.exception
         if formatted_output.traceback is not None:
-            write_traceback(formatted_output.traceback)
+            write_traceback(formatted_output.traceback, code=cell.code)
 
         CellNotificationUtils.broadcast_output(
             channel=CellChannel.OUTPUT,
@@ -379,6 +358,7 @@ def _broadcast_outputs(
             data=[run_result.output],
             clear_console=True,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
     elif isinstance(run_result.exception, MarimoInterrupt):
         LOGGER.debug("Cell %s was interrupted", cell.cell_id)
@@ -388,12 +368,14 @@ def _broadcast_outputs(
             data=[MarimoInterruptionError()],
             clear_console=False,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
     elif isinstance(run_result.exception, MarimoExceptionRaisedError):
         CellNotificationUtils.broadcast_error(
             data=[run_result.exception],
             clear_console=False,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
     elif isinstance(run_result.exception, MarimoSQLError):
         LOGGER.debug("Cell %s raised a SQL error", cell.cell_id)
@@ -401,6 +383,7 @@ def _broadcast_outputs(
             data=[run_result.exception],
             clear_console=True,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
     elif run_result.exception is not None:
         LOGGER.debug(
@@ -418,20 +401,20 @@ def _broadcast_outputs(
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
 
-        # Include formatted traceback if enabled in config
         formatted_traceback = None
-        show_tracebacks = False
+        show_tracebacks = get_mode() == "edit"
         if ctx.user_config is not None:
-            show_tracebacks = bool(
-                ctx.user_config["runtime"].get("show_tracebacks", False)
+            show_tracebacks = show_tracebacks or bool(
+                ctx.user_config.runtime.show_tracebacks
             )
 
         if show_tracebacks and (
             isinstance(run_result.exception, BaseException)
             and run_result.exception.__traceback__
         ):
-            tb_lines = tb.format_exception(run_result.exception)
-            formatted_traceback = _highlight_traceback("".join(tb_lines))
+            formatted_traceback = _highlight_traceback(
+                format_exception(run_result.exception)
+            )
 
         CellNotificationUtils.broadcast_error(
             data=[
@@ -444,6 +427,7 @@ def _broadcast_outputs(
             ],
             clear_console=False,
             cell_id=cell.cell_id,
+            code=cell.code,
         )
 
 
@@ -553,13 +537,13 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _store_reference_to_output,
     _store_state_reference,
     _issue_exception_side_effect,
-    _broadcast_variables,
     _broadcast_datasets,
     _broadcast_data_source_connection,
     _broadcast_duckdb_datasource,
     _broadcast_outputs,
     _reset_matplotlib_context,
     _delete_local_variables,
+    mount_lens,
 ]
 
 

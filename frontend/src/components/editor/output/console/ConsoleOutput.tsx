@@ -1,13 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
 import {
   ChevronRightIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   WrapTextIcon,
 } from "lucide-react";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useState } from "react";
 import { ToggleButton } from "react-aria-components";
+import { pendingPdbInputAtom } from "@/core/codemirror/cells/debugger-state";
+import { kioskModeAtom } from "@/core/mode";
+import { getRequestClient } from "@/core/network/requests";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Button } from "@/components/ui/button";
@@ -16,8 +20,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
 import { useExpandedConsoleOutput } from "@/core/cells/outputs";
-import type { WithResponse } from "@/core/cells/types";
-import type { OutputMessage } from "@/core/kernel/messages";
+import type { ConsoleOutputMessage } from "@/core/cells/types";
 import {
   type UseInputHistoryReturn,
   useInputHistory,
@@ -49,31 +52,21 @@ export const CONSOLE_CLEAR_DEBOUNCE_MS = 200;
  */
 function useDebouncedConsoleOutputs<T>(outputs: T[]): T[] {
   const [debouncedOutputs, setDebouncedOutputs] = useState(outputs);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Non-empty outputs: apply immediately and cancel any pending clear
+  // Non-empty outputs: apply immediately. Effect cleanup cancels pending clears.
   if (outputs.length > 0 && debouncedOutputs !== outputs) {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
     setDebouncedOutputs(outputs);
   }
 
   // Empty outputs: delay the clear so new outputs can arrive first
   useEffect(() => {
-    if (outputs.length === 0 && timerRef.current === null) {
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        setDebouncedOutputs([]);
-      }, CONSOLE_CLEAR_DEBOUNCE_MS);
+    if (outputs.length > 0) {
+      return;
     }
-    return () => {
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
+    const timer = setTimeout(() => {
+      setDebouncedOutputs([]);
+    }, CONSOLE_CLEAR_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
   }, [outputs]);
 
   return debouncedOutputs;
@@ -83,13 +76,11 @@ interface Props {
   cellId: CellId;
   cellName: string;
   className?: string;
-  consoleOutputs: WithResponse<OutputMessage>[];
+  consoleOutputs: ConsoleOutputMessage[];
   stale: boolean;
-  interrupted: boolean;
-  debuggerActive: boolean;
   onRefactorWithAI?: OnRefactorWithAI;
   onClear?: () => void;
-  onSubmitDebugger: (text: string, index: number) => void;
+  onSubmitDebugger: (text: string, inputId?: string) => void;
 }
 
 export const ConsoleOutput = (props: Props) => {
@@ -112,7 +103,6 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const {
     consoleOutputs: rawConsoleOutputs,
     stale,
-    interrupted,
     cellName,
     cellId,
     onSubmitDebugger,
@@ -124,18 +114,11 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   // Debounce clearing to prevent flickering when cells re-run
   const consoleOutputs = useDebouncedConsoleOutputs(rawConsoleOutputs);
 
-  /* The debugger UI needs some work. For now just use the regular
-  /* console output. */
-  /* if (debuggerActive) {
-    return (
-      <Debugger
-        code={consoleOutputs.map((output) => output.data).join("\n")}
-        onSubmit={(text) => onSubmitDebugger(text, consoleOutputs.length - 1)}
-      />
-    );
-  } */
-
-  const hasOutputs = consoleOutputs.length > 0;
+  const kioskMode = useAtomValue(kioskModeAtom);
+  const prompt = useAtomValue(pendingPdbInputAtom);
+  const pdbInput =
+    !kioskMode && prompt?.cellId === cellId ? prompt.inputId : null;
+  const hasOutputs = consoleOutputs.length > 0 || pdbInput != null;
 
   // Enable Ctrl/Cmd-A to select all content within the console output
   const selectAllProps = useSelectAllContent(hasOutputs);
@@ -246,10 +229,34 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
         )}
         style={isExpanded ? { maxHeight: "none" } : undefined}
       >
+        {pdbInput != null && (
+          <StdInput
+            key={pdbInput}
+            output=""
+            isPdb={true}
+            onSubmit={(value) => {
+              void getRequestClient()
+                .sendPdbReply({ cellId, inputId: pdbInput, value })
+                .catch(() => {
+                  /* The request client reports the failure. */
+                });
+            }}
+            onClear={onClear}
+            value={stdinValue}
+            setValue={setStdinValue}
+            inputHistory={inputHistory}
+          />
+        )}
         {reversedOutputs.map((output, idx) => {
           if (output.channel === "pdb") {
             return null;
           }
+
+          const originalIdx = consoleOutputs.length - idx - 1;
+          // Outputs render in reverse, so the reversed index shifts on every
+          // new line. The assigned id survives collapse and truncation. The
+          // original position is the fallback for outputs without one.
+          const key = output.id ?? `position-${originalIdx}`;
 
           if (output.channel === "stdin") {
             invariant(
@@ -257,17 +264,16 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
               "Expected data to be a string",
             );
 
-            const originalIdx = consoleOutputs.length - idx - 1;
             const isPassword = output.mimetype === "text/password";
 
-            if (output.response == null && lastStdInputIdx === idx) {
+            if (output.response === undefined && lastStdInputIdx === idx) {
               return (
                 <StdInput
-                  key={idx}
+                  key={key}
                   output={output.data}
                   isPdb={isPdb}
                   isPassword={isPassword}
-                  onSubmit={(text) => onSubmitDebugger(text, originalIdx)}
+                  onSubmit={(text) => onSubmitDebugger(text, output.input_id)}
                   onClear={onClear}
                   value={stdinValue}
                   setValue={setStdinValue}
@@ -278,17 +284,16 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
             return (
               <StdInputWithResponse
-                key={idx}
+                key={key}
                 output={output.data}
                 response={output.response}
                 isPassword={isPassword}
-                interrupted={interrupted}
               />
             );
           }
 
           return (
-            <React.Fragment key={idx}>
+            <React.Fragment key={key}>
               <OutputRenderer
                 cellId={cellId}
                 onRefactorWithAI={onRefactorWithAI}
@@ -347,23 +352,25 @@ const StdInput = (props: {
         placeholder="stdin"
         // Capture the keydown event for history navigation and submission
         onKeyDownCapture={(e) => {
-          if (e.key === "ArrowUp") {
+          if (!isPassword && e.key === "ArrowUp") {
             navigateUp();
             e.preventDefault();
             return;
           }
 
-          if (e.key === "ArrowDown") {
+          if (!isPassword && e.key === "ArrowDown") {
             navigateDown();
             e.preventDefault();
             return;
           }
 
           if (e.key === "Enter" && !e.shiftKey) {
-            if (value) {
-              addToHistory(value);
+            // Submit the visible input even if its change has not committed yet.
+            const submittedValue = e.currentTarget.value;
+            if (submittedValue && !isPassword) {
+              addToHistory(submittedValue);
             }
-            onSubmit(value);
+            onSubmit(submittedValue);
             setValue("");
             e.preventDefault();
             e.stopPropagation();
@@ -383,24 +390,21 @@ const StdInput = (props: {
 
 const StdInputWithResponse = (props: {
   output: string;
-  response?: string;
+  response?: string | null;
   isPassword?: boolean;
-  interrupted?: boolean;
 }) => {
-  const { output, response, isPassword, interrupted } = props;
-  const hasResponse = response != null && response !== "";
-  const wasInterruptedWithoutResponse = interrupted && !hasResponse;
+  const { output, response, isPassword } = props;
 
   return (
     <div className="flex gap-2 items-center">
       {renderText(output)}
-      {!isPassword && !wasInterruptedWithoutResponse && (
+      {!isPassword && response != null && (
         <span
           className="inline-flex items-center gap-1 text-(--sky-11)"
           aria-label="stdin response"
         >
           <ChevronRightIcon className="w-4 h-4 shrink-0 opacity-70" />
-          {hasResponse ? (
+          {response !== "" ? (
             response
           ) : (
             <span className="italic opacity-70">(empty)</span>

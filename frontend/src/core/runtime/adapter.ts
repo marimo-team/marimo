@@ -1,14 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { type Atom, atom } from "jotai";
-import { kernelStateAtom } from "../kernel/state";
+import { runtimeStatusAtom } from "../executions";
 import { islandsInitializedAtom } from "../islands/state";
 import { isIslands } from "../islands/utils";
 import { connectionAtom } from "../network/connection";
 import { isStaticNotebook } from "../static/static-state";
 import { wasmInitStateAtom } from "../wasm/state";
 import { isWasm } from "../wasm/utils";
-import { WebSocketState } from "../websocket/types";
+import { ConnectionState } from "../session/types";
 
 export type RuntimeKind = "wasm" | "remote" | "static" | "islands";
 
@@ -76,23 +76,16 @@ export const wasmAdapter: RuntimeAdapter = {
 const remoteStateAtom = atom<AdapterState>((get) => {
   const conn = get(connectionAtom);
   switch (conn.state) {
-    case WebSocketState.OPEN:
+    case ConnectionState.OPEN:
       return { kind: "ready" };
-    case WebSocketState.CONNECTING:
+    case ConnectionState.CONNECTING:
       return { kind: "connecting", progress: { label: "Connecting…" } };
-    case WebSocketState.NOT_STARTED:
+    case ConnectionState.NOT_STARTED:
       return { kind: "connecting", progress: { label: "Not connected" } };
-    case WebSocketState.CLOSING:
-    case WebSocketState.CLOSED:
+    case ConnectionState.CLOSED:
       return {
         kind: "failed",
-        error: {
-          message:
-            conn.state === WebSocketState.CLOSED
-              ? conn.reason
-              : "Disconnecting",
-          errorKind: "runtime",
-        },
+        error: { message: conn.reason, errorKind: "runtime" },
       };
   }
 });
@@ -163,8 +156,8 @@ function selectAdapter(): RuntimeAdapter {
 export const runtimeAdapterAtom = atom<RuntimeAdapter>(selectAdapter());
 
 /**
- * Remote runtimes require both the WS to be open *and* the kernel to have
- * ack'd instantiation. WASM/islands have no separate kernel handshake.
+ * Remote runtimes require both the WS to be open *and* the host to report
+ * the runtime running. WASM/islands have no separate kernel handshake.
  * Static notebooks never run cells.
  */
 export const canRunCellsAtom = atom<boolean>((get) => {
@@ -176,7 +169,7 @@ export const canRunCellsAtom = atom<boolean>((get) => {
     return false;
   }
   if (adapter.kind === "remote") {
-    return get(kernelStateAtom).isInstantiated;
+    return get(runtimeStatusAtom) === "running";
   }
   return true;
 });

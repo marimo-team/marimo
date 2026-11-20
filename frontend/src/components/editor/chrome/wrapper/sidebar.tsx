@@ -7,10 +7,8 @@ import type { PropsWithChildren } from "react";
 import { useEffect, useMemo } from "react";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  cellErrorCount,
-  notebookQueuedOrRunningCountAtom,
-} from "@/core/cells/cells";
+import { cellErrorCount } from "@/core/cells/cells";
+import { notebookQueuedOrRunningCountAtom } from "@/core/executions";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom } from "@/core/config/config";
 import { cn } from "@/utils/cn";
@@ -22,6 +20,7 @@ import {
   PANELS,
   type PanelDescriptor,
 } from "../types";
+import { PendingAIChangesBadge } from "./pending-ai-changes-badge";
 import { PANEL_PRELOADERS } from "./lazy-panels";
 
 export const Sidebar: React.FC = () => {
@@ -150,6 +149,11 @@ export const Sidebar: React.FC = () => {
           >
             {panel.type === "errors" ? (
               <ErrorPanelIcon Icon={panel.Icon} />
+            ) : panel.type === "ai" ? (
+              <span className="relative">
+                {renderIcon(panel)}
+                <PendingAIChangesBadge className="absolute -top-2 -right-2" />
+              </span>
             ) : (
               renderIcon(panel)
             )}

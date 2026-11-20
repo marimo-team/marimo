@@ -4,9 +4,11 @@ from __future__ import annotations
 import sys
 import traceback as tb
 
+import msgspec
+
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.command_output import console_notification
 from marimo._messaging.context import is_code_mode_request
-from marimo._messaging.notification import CellNotification
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.types import Stderr
 from marimo._runtime.context.types import safe_get_context
@@ -28,6 +30,32 @@ def _highlight_traceback(traceback: str) -> str:
     return f'<span class="codehilite">{body}</span>'
 
 
+def format_exception(exc: BaseException) -> str:
+    """Format `exc` like `traceback.format_exception`.
+
+    If that formatting raises, format `exc` alone, without its causes.
+    """
+    try:
+        return "".join(tb.format_exception(exc))
+    except Exception:
+        # On Python 3.12+, formatting a chained `NameError` iterates the frame
+        # locals to suggest a similar name. Libraries such as patsy evaluate
+        # code against a mapping that cannot be iterated, so formatting raises.
+        lines = tb.format_tb(exc.__traceback__)
+        if lines:
+            lines.insert(0, "Traceback (most recent call last):\n")
+        exc_type = type(exc)
+        name = exc_type.__qualname__
+        if exc_type.__module__ not in ("builtins", "__main__"):
+            name = f"{exc_type.__module__}.{name}"
+        try:
+            message = str(exc)
+        except Exception:
+            message = "<exception str() failed>"
+        lines.append(f"{name}: {message}\n" if message else f"{name}\n")
+        return "".join(lines)
+
+
 def _show_tracebacks_enabled() -> bool:
     """Returns True if show_tracebacks is enabled in the current config."""
     from marimo._runtime.context.types import (
@@ -37,14 +65,17 @@ def _show_tracebacks_enabled() -> bool:
 
     try:
         ctx = get_context()
-        return bool(ctx.marimo_config["runtime"].get("show_tracebacks", False))
+        return bool(ctx.marimo_config.runtime.show_tracebacks)
     except ContextNotInitializedError:
         return True  # no context → not in run mode, always show
 
 
-def write_traceback(traceback: str) -> None:
+def write_traceback(traceback: str, *, code: str | None = None) -> None:
     in_run_mode = get_mode() == "run"
+    if in_run_mode:
+        code = None
     code_mode = is_code_mode_request()
+    ctx = safe_get_context()
 
     if isinstance(sys.stderr, Stderr) and not code_mode:
         # In run mode, only forward to the frontend if show_tracebacks is on.
@@ -53,18 +84,18 @@ def write_traceback(traceback: str) -> None:
         sys.stderr._write_with_mimetype(
             _highlight_traceback(traceback),
             mimetype="application/vnd.marimo+traceback",
+            code=code,
         )
     else:
         # When stderr is not redirected (e.g., run mode with redirect_console_to_browser=False),
         # send the traceback directly via the stream to ensure exceptions reach the frontend
-        ctx = safe_get_context()
         if ctx is not None and ctx.cell_id is not None:
             # In run mode, only forward to the frontend if show_tracebacks is on.
             if in_run_mode and not _show_tracebacks_enabled():
                 sys.stderr.write(traceback)
                 return
             broadcast_notification(
-                CellNotification(
+                console_notification(
                     cell_id=ctx.cell_id,
                     console=CellOutput(
                         channel=CellChannel.STDERR,
@@ -72,6 +103,8 @@ def write_traceback(traceback: str) -> None:
                         data=traceback
                         if code_mode
                         else _highlight_traceback(traceback),
+                        code=code if code is not None else msgspec.UNSET,
+                        traceback_format="text" if code_mode else "html",
                     ),
                 ),
                 ctx.stream,

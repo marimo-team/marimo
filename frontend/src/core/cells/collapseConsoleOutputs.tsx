@@ -3,41 +3,60 @@ import {
   StatefulOutputMessage,
   type StringOutputMessage,
 } from "@/components/editor/output/ansi-reduce";
-import type { OutputMessage } from "@/core/kernel/messages";
+import type { ConsoleOutputMessage as OutputMessage } from "./types";
 import { invariant } from "@/utils/invariant";
 
-/**
- * Collapses the last text/plain cells with the preceding one on the same
- * channel (if any), and handles bare carriage returns ("\r").
- */
+const MAX_CONSOLE_LINES = 5000;
+
+/** Merge the last write with the preceding row when both use the same text channel. */
 export function collapseConsoleOutputs(
   consoleOutputs: OutputMessage[],
-  maxLines = 5000,
+  maxLines = MAX_CONSOLE_LINES,
 ): OutputMessage[] {
-  const newConsoleOutputs = [...consoleOutputs];
-
-  if (newConsoleOutputs.length < 2) {
-    return truncateHead(
-      newConsoleOutputs.map(maybeMakeOutputStateful),
-      maxLines,
-    );
+  const outputs = consoleOutputs.slice(0, -1);
+  const last = consoleOutputs.at(-1);
+  if (last) {
+    appendOutput(outputs, last);
   }
+  return truncateHead(outputs, maxLines);
+}
 
-  const lastOutput = newConsoleOutputs[newConsoleOutputs.length - 1];
-  const secondLastOutput = newConsoleOutputs[newConsoleOutputs.length - 2];
-
-  if (shouldCollapse(lastOutput, secondLastOutput)) {
-    assertStringOutputMessage(lastOutput);
-    assertStringOutputMessage(secondLastOutput);
-
-    newConsoleOutputs[newConsoleOutputs.length - 2] = mergeLeft(
-      secondLastOutput,
-      lastOutput,
-    );
-    newConsoleOutputs.pop();
+/** Rebuild the visible rows from a replay, carrying ANSI state across adjacent writes. */
+export function collapseConsoleBatch(
+  entries: OutputMessage[],
+): OutputMessage[] {
+  const rows: OutputMessage[] = [];
+  for (let start = 0; start < entries.length;) {
+    const first = entries[start];
+    let end = start + 1;
+    while (end < entries.length && shouldCollapse(first, entries[end])) {
+      end++;
+    }
+    if (end === start + 1) {
+      appendOutput(rows, first);
+    } else {
+      const text = entries.slice(start, end).map((entry) => {
+        assertStringOutputMessage(entry);
+        return entry.data;
+      });
+      rows.push(
+        StatefulOutputMessage.create({ ...first, data: text.join("") }),
+      );
+    }
+    start = end;
   }
+  return truncateHead(rows, MAX_CONSOLE_LINES);
+}
 
-  return truncateHead(newConsoleOutputs, maxLines);
+function appendOutput(outputs: OutputMessage[], entry: OutputMessage): void {
+  const last = outputs.at(-1);
+  if (last && shouldCollapse(last, entry)) {
+    assertStringOutputMessage(last);
+    assertStringOutputMessage(entry);
+    outputs[outputs.length - 1] = mergeLeft(last, entry);
+  } else {
+    outputs.push(maybeMakeOutputStateful(entry));
+  }
 }
 
 function shouldCollapse(
@@ -60,7 +79,11 @@ export function maybeMakeOutputStateful(output: OutputMessage): OutputMessage {
   if (output instanceof StatefulOutputMessage) {
     return output;
   }
-  if (typeof output.data === "string") {
+  if (
+    output.mimetype === "text/plain" &&
+    output.channel !== "stdin" &&
+    typeof output.data === "string"
+  ) {
     return StatefulOutputMessage.create(output as StringOutputMessage);
   }
   return output;
@@ -90,7 +113,10 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
     const output: OutputMessage = consoleOutputs[i];
     if (output.mimetype === "text/plain") {
       invariant(typeof output.data === "string", "expected string");
-      nLines += output.data.split("\n").length;
+      nLines +=
+        output instanceof StatefulOutputMessage
+          ? output.lineCount
+          : output.data.split("\n").length;
     } else {
       nLines++;
     }
@@ -107,20 +133,25 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
     data: `<pre>Streaming output truncated to last ${limit} lines.\n</pre>`,
     timestamp: -1,
   };
+  const pending = consoleOutputs
+    .slice(0, cutoff)
+    .filter((row) => row.channel === "stdin" && row.response === undefined);
+  const retained = [warningOutput, ...pending];
   const output = consoleOutputs[cutoff];
-  if (output == null) {
-    return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
+  if (output?.channel === "stdin" && output.response === undefined) {
+    return [...retained, ...consoleOutputs.slice(cutoff)];
   }
-  if (output.mimetype === "text/plain") {
+  if (output?.mimetype === "text/plain") {
     invariant(typeof output.data === "string", "expected string");
-    const outputLines = output.data.split("\n");
-    const nLinesAfterOutput = nLines - outputLines.length;
-    const nLinesToKeep = limit - nLinesAfterOutput;
-    return [
-      warningOutput,
-      { ...output, data: outputLines.slice(-nLinesToKeep).join("\n") },
-      ...consoleOutputs.slice(cutoff + 1),
-    ];
+    const dropLines = nLines - limit;
+    const tail =
+      output instanceof StatefulOutputMessage
+        ? output.dropFirstLines(dropLines)
+        : {
+            ...output,
+            data: output.data.split("\n").slice(dropLines).join("\n"),
+          };
+    return [...retained, tail, ...consoleOutputs.slice(cutoff + 1)];
   }
-  return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
+  return [...retained, ...consoleOutputs.slice(cutoff + 1)];
 }

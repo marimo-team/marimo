@@ -82,8 +82,6 @@ marimo 保證您的筆記本程式碼、輸出和程式狀態保持一致。這[
 
 **使用資料感知 AI 生成單元格。** 使用您最喜愛 agent（如 Claude Code、Codex 或 OpenCode），透過 [marimo pair](https://docs.marimo.io/guides/generate_with_ai/marimo_pair/) 協作編輯 marimo 筆記本。或者，透過 [marimo 編輯器的 AI 助手](https://docs.marimo.io/guides/editor_features/ai_completion/)生成程式碼，該助手專門為資料處理而設計，具有記憶體中變數的上下文。自訂系統提示，使用您自己的 API 金鑰，或使用本地模型。
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-generate-with-ai.gif" width="700px" />
-
 **使用 SQL 查詢資料。** 建構依賴於 Python 值的 [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 查詢，並使用我們內建的 SQL 引擎對資料框、資料庫、資料湖、CSV、Google 試算表或任何其他資料來源執行查詢，結果會以 Python 資料框返回。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />

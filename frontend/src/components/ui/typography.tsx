@@ -5,7 +5,7 @@ import { cn } from "@/utils/cn";
 const H1 = React.forwardRef<
   HTMLHeadingElement,
   React.ComponentPropsWithoutRef<"h1">
->(({ className, ...props }, ref) => {
+>(({ className, children, ...props }, ref) => {
   return (
     <h1
       className={cn(
@@ -14,7 +14,9 @@ const H1 = React.forwardRef<
       )}
       ref={ref}
       {...props}
-    />
+    >
+      {children}
+    </h1>
   );
 });
 H1.displayName = "H1";
@@ -22,7 +24,7 @@ H1.displayName = "H1";
 const H2 = React.forwardRef<
   HTMLHeadingElement,
   React.ComponentPropsWithoutRef<"h2">
->(({ className, ...props }, ref) => {
+>(({ className, children, ...props }, ref) => {
   return (
     <h2
       className={cn(
@@ -31,7 +33,9 @@ const H2 = React.forwardRef<
       )}
       ref={ref}
       {...props}
-    />
+    >
+      {children}
+    </h2>
   );
 });
 H2.displayName = "H2";
@@ -39,7 +43,7 @@ H2.displayName = "H2";
 const H3 = React.forwardRef<
   HTMLHeadingElement,
   React.ComponentPropsWithoutRef<"h3">
->(({ className, ...props }, ref) => {
+>(({ className, children, ...props }, ref) => {
   return (
     <h3
       className={cn(
@@ -48,7 +52,9 @@ const H3 = React.forwardRef<
       )}
       ref={ref}
       {...props}
-    />
+    >
+      {children}
+    </h3>
   );
 });
 H3.displayName = "H3";
@@ -56,7 +62,7 @@ H3.displayName = "H3";
 const H4 = React.forwardRef<
   HTMLHeadingElement,
   React.ComponentPropsWithoutRef<"h4">
->(({ className, ...props }, ref) => {
+>(({ className, children, ...props }, ref) => {
   return (
     <h4
       className={cn(
@@ -65,7 +71,9 @@ const H4 = React.forwardRef<
       )}
       ref={ref}
       {...props}
-    />
+    >
+      {children}
+    </h4>
   );
 });
 H4.displayName = "H4";

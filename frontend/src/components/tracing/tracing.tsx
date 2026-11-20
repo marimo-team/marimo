@@ -7,7 +7,9 @@ import {
   ChevronRight,
   CircleCheck,
   CircleEllipsis,
+  CircleMinus,
   CirclePlayIcon,
+  CircleStop,
   CircleX,
 } from "lucide-react";
 import React, { type JSX, Suspense, useEffect, useRef, useState } from "react";
@@ -52,6 +54,7 @@ export const Tracing: React.FC = () => {
 
   const { theme } = useTheme();
   const [chartPosition, setChartPosition] = useState<ChartPosition>("above");
+  const chartPositionId = React.useId();
   const panelSection = usePanelSection();
 
   const toggleChartPosition = () => {
@@ -76,11 +79,12 @@ export const Tracing: React.FC = () => {
     <div className="py-1 px-2 overflow-y-scroll h-full">
       <div className="flex flex-row justify-start gap-3">
         <div className="flex flex-row gap-1 items-center">
-          <label htmlFor="chartPosition" className="text-xs">
+          <label htmlFor={chartPositionId} className="text-xs">
             Inline chart
           </label>
           <input
             type="checkbox"
+            id={chartPositionId}
             name="chartPosition"
             data-testid="chartPosition"
             onClick={toggleChartPosition}
@@ -145,11 +149,11 @@ const TraceBlock: React.FC<{
   isMostRecentRun: boolean;
   chartPosition: ChartPosition;
   theme: ResolvedTheme;
-}> = ({ run, isMostRecentRun, chartPosition, isExpanded, theme }) => {
+}> = ({ run, isMostRecentRun, chartPosition, isExpanded: expanded, theme }) => {
   const setExpandedRuns = useSetAtom(expandedRunsAtom);
   // We prefer the user's last click, but if they haven't clicked on this run,
   // we expand the most recent run by default, otherwise we collapse it.
-  isExpanded = isExpanded ?? isMostRecentRun;
+  const isExpanded = expanded ?? isMostRecentRun;
 
   const onToggleExpanded = () => {
     setExpandedRuns((prev) => {
@@ -163,28 +167,31 @@ const TraceBlock: React.FC<{
   const chevron = <Icon height={16} className="inline" />;
 
   const traceTitle = (
-    <span className="text-sm cursor-pointer" onClick={onToggleExpanded}>
+    <button
+      type="button"
+      aria-expanded={isExpanded}
+      className="text-sm cursor-pointer"
+      onClick={onToggleExpanded}
+    >
       Run - {formatLogTimestamp(run.runStartTime)}
       {chevron}
-    </span>
+    </button>
   );
 
-  if (!isExpanded) {
-    return (
-      <div key={run.runId} className="flex flex-col">
-        <pre className="font-mono font-semibold">{traceTitle}</pre>
-      </div>
-    );
-  }
-
   return (
-    <TraceBlockBody
-      key={run.runId}
-      run={run}
-      chartPosition={chartPosition}
-      theme={theme}
-      title={traceTitle}
-    />
+    <div
+      className={cn(
+        "grid grid-cols-1",
+        isExpanded &&
+          chartPosition === "sideBySide" &&
+          "grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr]",
+      )}
+    >
+      <pre className="font-mono font-semibold">{traceTitle}</pre>
+      {isExpanded && (
+        <TraceBlockBody run={run} chartPosition={chartPosition} theme={theme} />
+      )}
+    </div>
   );
 };
 
@@ -192,8 +199,7 @@ const TraceBlockBody: React.FC<{
   run: Run;
   chartPosition: ChartPosition;
   theme: ResolvedTheme;
-  title: React.ReactNode;
-}> = ({ run, chartPosition, theme, title }) => {
+}> = ({ run, chartPosition, theme }) => {
   const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
   const vegaRef = useRef<HTMLDivElement>(null);
   const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
@@ -205,7 +211,7 @@ const TraceBlockBody: React.FC<{
       const elapsedTime = cellRun.elapsedTime ?? 0;
       return {
         cell: cellRun.cellId,
-        cellNum: cellIds.inOrderIds.indexOf(cellRun.cellId),
+        cellNum: cellIds.indexOf(cellRun.cellId),
         startTimestamp: formatChartTime(cellRun.startTime),
         endTimestamp: formatChartTime(cellRun.startTime + elapsedTime),
         elapsedTime: formatElapsedTime(elapsedTime * 1000),
@@ -264,16 +270,22 @@ const TraceBlockBody: React.FC<{
   }, [embed]);
 
   const traceRows = (
-    <TraceRows
-      run={run}
-      hoveredCellId={hoveredCellId}
-      hiddenInputElementId={hiddenInputElementId}
-    />
+    <div className="font-mono font-semibold">
+      <TraceRows
+        run={run}
+        hoveredCellId={hoveredCellId}
+        hiddenInputElementId={hiddenInputElementId}
+      />
+    </div>
   );
 
   const chartElement = (
     <div
-      className={chartPosition === "sideBySide" ? "-mt-0.5 flex-1" : ""}
+      className={
+        chartPosition === "sideBySide"
+          ? "-mt-0.5 col-start-2 row-start-1 row-span-2 min-w-0"
+          : "min-w-0"
+      }
       ref={ref}
     >
       <Suspense>
@@ -284,24 +296,18 @@ const TraceBlockBody: React.FC<{
 
   if (chartPosition === "above") {
     return (
-      <div key={run.runId} className="flex flex-col">
-        <pre className="font-mono font-semibold">
-          {title}
-          {chartElement}
-          {traceRows}
-        </pre>
-      </div>
+      <>
+        {chartElement}
+        {traceRows}
+      </>
     );
   }
 
   return (
-    <div key={run.runId} className="flex flex-row">
-      <pre className="font-mono font-semibold">
-        {title}
-        {traceRows}
-      </pre>
+    <>
+      {traceRows}
       {chartElement}
-    </div>
+    </>
   );
 };
 
@@ -349,6 +355,8 @@ const StatusIcons: Record<CellRun["status"], JSX.Element> = {
   success: <CircleCheck color="green" size={14} />,
   running: <CirclePlayIcon color="var(--blue-10)" size={14} />,
   error: <CircleX color="red" size={14} />,
+  skipped: <CircleMinus color="grey" size={14} />,
+  interrupted: <CircleStop color="var(--amber-10)" size={14} />,
   queued: <CircleEllipsis color="grey" size={14} />,
 };
 

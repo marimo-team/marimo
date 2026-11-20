@@ -18,8 +18,9 @@ const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
     valueMap: (sliderValue: number) => number;
+    maximumFractionDigits?: number;
   }
->(({ className, valueMap, ...props }, ref) => {
+>(({ className, valueMap, maximumFractionDigits, ...props }, ref) => {
   const [open, openActions] = useBoolean(false);
   const { locale } = useLocale();
 
@@ -57,6 +58,8 @@ const Slider = React.forwardRef<
         <TooltipRoot delayDuration={0} open={open}>
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
+              aria-label={props["aria-label"]}
+              aria-labelledby={props["aria-labelledby"]}
               data-testid="thumb"
               className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50"
               onFocus={openActions.setTrue}
@@ -68,7 +71,10 @@ const Slider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 1 && (
               <TooltipContent key={props.value[0]}>
-                {prettyScientificNumber(valueMap(props.value[0]), { locale })}
+                {prettyScientificNumber(valueMap(props.value[0]), {
+                  locale,
+                  maximumFractionDigits,
+                })}
               </TooltipContent>
             )}
           </TooltipPortal>

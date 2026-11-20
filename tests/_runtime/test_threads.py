@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import cast
+
+import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._pyodide.streams import PyodideStream
+from marimo._runtime.cell_lifecycle_registry import NoOwningCellError
 from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.context.script_context import (
@@ -18,6 +22,23 @@ from marimo._runtime.threads import Thread
 from marimo._types.ids import CellId_t
 from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider
+
+
+def test_thread_constructed_off_cell_raises(
+    k: Kernel,  # noqa: ARG001
+) -> None:
+    # A plain thread that restored the kernel's context has no cell that
+    # can tell a mo.Thread to exit, so constructing one there is refused.
+    ctx = get_context()
+    assert ctx.cell_id is None
+
+    def construct_off_cell() -> Thread:
+        with ctx.install():
+            return Thread(target=lambda: None)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with pytest.raises(NoOwningCellError, match=r"mo\.Thread"):
+            pool.submit(construct_off_cell).result(timeout=10)
 
 
 # Doesn't work with strict kernel ...
@@ -93,7 +114,10 @@ def test_thread_copies_pyodide_stream_in_script_context() -> None:
         def target() -> None:
             observed_contexts.append(cast(ScriptRuntimeContext, get_context()))
 
-        thread = Thread(target=target)
+        # Script cells run under `with_cell_id`, and a mo.Thread needs that
+        # cell as its owner.
+        with ctx.with_cell_id(CellId_t("script-cell")):
+            thread = Thread(target=target)
         thread.start()
         thread.join(timeout=1)
 
@@ -377,3 +401,51 @@ async def test_threads_share_output_list_with_parent(
         "All threads should share the same output list, "
         f"but got ids: {output_ids}"
     )
+
+
+async def test_thread_of_deleted_cell_cannot_create_lifecycle_items(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # The spawning cell is deleted while its thread still runs. Nothing can
+    # dispose of what the thread creates afterwards, so the thread gets an
+    # error instead of an item registered under the dead cell.
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import threading
+                import marimo as mo
+                from marimo._output.data import data as mo_data
+                """
+            ),
+            spawn := exec_req.get(
+                """
+                gate = threading.Event()
+                outcome = {}
+
+                def build(gate=gate, outcome=outcome):
+                    gate.wait()
+                    try:
+                        outcome["vfile"] = mo_data.any_data(b"hello", ext="txt")
+                    except Exception as e:
+                        outcome["error"] = e
+
+                thread = mo.Thread(target=build)
+                thread.start()
+                """
+            ),
+        ]
+    )
+    ctx = get_context()
+    gate, outcome, thread = (
+        k.globals["gate"],
+        k.globals["outcome"],
+        k.globals["thread"],
+    )
+    await k.delete_cell(DeleteCellCommand(cell_id=spawn.cell_id))
+    gate.set()
+    thread.join(timeout=10)
+
+    assert isinstance(outcome.get("error"), NoOwningCellError), outcome
+    assert spawn.cell_id not in ctx.cell_lifecycle_registry.registry
+    assert not ctx.virtual_file_registry.registry

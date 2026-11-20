@@ -1,6 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
-import { EditorView, keymap, placeholder } from "@codemirror/view";
+import {
+  Decoration,
+  EditorView,
+  keymap,
+  placeholder,
+  WidgetType,
+} from "@codemirror/view";
 import { isEditorReadonly } from "../readonly/extension";
 
 /**
@@ -60,36 +66,91 @@ export function clickablePlaceholderExtension(opts: {
 }): Extension[] {
   const { beforeText, linkText, afterText, onClick } = opts;
 
-  // Create a placeholder
-  // Needs to be a function to keep event listeners
-  // See https://github.com/codemirror/dev/issues/1457
-  const createPlaceholder = (ev: EditorView) => {
-    const placeholderText = document.createElement("span");
-    placeholderText.append(document.createTextNode(beforeText));
-    const link = document.createElement("span");
-    link.textContent = linkText;
-    link.classList.add("cm-clickable-placeholder");
-    link.onclick = (evt) => {
-      evt.stopPropagation();
-      onClick(ev);
-    };
-    placeholderText.append(link);
-    placeholderText.append(document.createTextNode(afterText));
-    return placeholderText;
-  };
+  class ActionPlaceholder extends WidgetType {
+    public toDOM(ev: EditorView) {
+      const wrapper = document.createElement("span");
+      wrapper.className = "cm-placeholder";
+      wrapper.contentEditable = "false";
+      const before = document.createElement("span");
+      before.textContent = beforeText;
+      before.setAttribute("aria-hidden", "true");
+      wrapper.append(before);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = linkText;
+      button.className = "cm-clickable-placeholder";
+      button.onclick = (event) => {
+        event.stopPropagation();
+        onClick(ev);
+      };
+      const after = document.createElement("span");
+      after.textContent = afterText;
+      after.setAttribute("aria-hidden", "true");
+      wrapper.append(button, after);
+      return wrapper;
+    }
+
+    public override coordsAt(dom: HTMLElement) {
+      // A wrapped placeholder must not make the caret span every line.
+      const walker = document.createTreeWalker(dom, NodeFilter.SHOW_TEXT);
+      let text = walker.nextNode();
+      while (text && !text.textContent) {
+        text = walker.nextNode();
+      }
+      if (!text) {
+        return null;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const rect = range.getClientRects()[0];
+      if (!rect) {
+        return null;
+      }
+      const left =
+        window.getComputedStyle(dom).direction === "rtl"
+          ? rect.right
+          : rect.left;
+      return { left, right: left, top: rect.top, bottom: rect.bottom };
+    }
+
+    public override ignoreEvent(event: Event) {
+      return (
+        event.target instanceof Element &&
+        event.target.closest(".cm-clickable-placeholder") !== null
+      );
+    }
+  }
 
   return [
-    placeholder(createPlaceholder),
+    EditorView.decorations.compute(["doc"], (state) =>
+      state.doc.length === 0
+        ? Decoration.set([
+            Decoration.widget({
+              widget: new ActionPlaceholder(),
+              side: 1,
+            }).range(0),
+          ])
+        : Decoration.none,
+    ),
     EditorView.theme({
       ".cm-placeholder": {
         color: "var(--slate-8)",
       },
       ".cm-clickable-placeholder": {
         cursor: "pointer !important",
+        font: "inherit",
+        background: "transparent",
+        border: "none",
+        padding: "0",
         pointerEvents: "auto",
         color: "var(--slate-9)",
         textDecoration: "underline",
         textUnderlineOffset: "0.2em",
+      },
+      ".cm-clickable-placeholder:focus-visible": {
+        outline: "1px solid var(--muted-foreground)",
+        outlineOffset: "2px",
+        borderRadius: "2px",
       },
       ".cm-clickable-placeholder:hover": {
         color: "var(--sky-11)",

@@ -1,8 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { act } from "@testing-library/react";
 import ReactDOM from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { z } from "zod";
+import { MarimoValueInputEvent } from "@/core/dom/events";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import type { FunctionCallResultMessage } from "@/core/kernel/messages";
 import { FunctionNotFoundError } from "@/utils/errors";
@@ -31,6 +33,61 @@ function makePlugin(tagName: string) {
     render: () => null as never,
   };
 }
+
+describe("stylesheet copying", () => {
+  afterEach(() => {
+    delete (Document.prototype as Partial<Document>).adoptedStyleSheets;
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  test.each([
+    {
+      name: "linked stylesheet",
+      href: "http://localhost/assets/index.css",
+      title: "marimo-linked-test",
+      expectedBaseURL: "http://localhost/assets/index.css",
+    },
+    {
+      name: "inline stylesheet",
+      href: null,
+      title: "marimo-inline-test",
+      expectedBaseURL: document.baseURI,
+    },
+  ])(
+    "preserves the base URL of a $name",
+    ({ href, title, expectedBaseURL }) => {
+      const constructedStyleSheet = {
+        replaceSync: vi.fn(),
+      } as unknown as CSSStyleSheet;
+      const constructor = vi.fn(function () {
+        return constructedStyleSheet;
+      });
+      constructor.prototype.replace = vi.fn();
+      vi.stubGlobal("CSSStyleSheet", constructor);
+      Object.defineProperty(Document.prototype, "adoptedStyleSheets", {
+        configurable: true,
+        value: [],
+      });
+
+      const source = {
+        cssRules: [],
+        href,
+        ownerNode: null,
+        title,
+      } as unknown as CSSStyleSheet;
+      vi.spyOn(document, "styleSheets", "get").mockReturnValue([
+        source,
+      ] as unknown as StyleSheetList);
+
+      const tag = uniqueTag("stylesheet-base-url");
+      registerReactComponent(makePlugin(tag));
+      document.createElement(tag);
+
+      expect(constructor).toHaveBeenCalledWith({ baseURL: expectedBaseURL });
+    },
+  );
+});
 
 describe("isCustomMarimoElement", () => {
   test("returns false for null", () => {
@@ -296,5 +353,48 @@ describe("plugin function: not-found recovery", () => {
     const promise = run({});
     await expect(promise).rejects.toThrow("boom");
     expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("mounted element: value dispatch", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("a functional update from a plugin reaches document once with the host element", async () => {
+    const tag = uniqueTag("value");
+    let setValue: ((v: (prev: number) => number) => void) | undefined;
+    registerReactComponent<number>({
+      tagName: tag,
+      validator: z.any(),
+      render: (props) => {
+        setValue = props.setValue;
+        return null as never;
+      },
+    });
+
+    const wrapper = document.createElement("marimo-ui-element");
+    wrapper.setAttribute("object-id", "value-object-id");
+    const el = document.createElement(tag);
+    el.dataset.initialValue = "0";
+    wrapper.append(el);
+    document.body.append(wrapper);
+    await vi.waitFor(() => expect(setValue).toBeDefined());
+
+    const seen: Array<{ value: unknown; element: HTMLElement }> = [];
+    const listener = (e: Event) => {
+      seen.push(
+        (e as CustomEvent<{ value: unknown; element: HTMLElement }>).detail,
+      );
+    };
+    document.addEventListener(MarimoValueInputEvent.TYPE, listener);
+    await act(async () => {
+      setValue?.((prev) => prev + 1);
+      setValue?.((prev) => prev + 1);
+    });
+    document.removeEventListener(MarimoValueInputEvent.TYPE, listener);
+
+    expect(seen.map((s) => s.value)).toEqual([1, 2]);
+    expect(seen.every((s) => s.element === el)).toBe(true);
   });
 });

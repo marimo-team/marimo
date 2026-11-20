@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CellOutputId } from "@/core/cells/ids";
-import { createCell, createCellRuntimeState } from "@/core/cells/types";
+import { createCell } from "@/core/cells/types";
 import { CellOutputBlock } from "../reveal-component";
 
 describe("CellOutputBlock", () => {
@@ -13,14 +13,13 @@ describe("CellOutputBlock", () => {
     const id = cellId("test");
     const cell = {
       ...createCell({ id, name: "title" }),
-      ...createCellRuntimeState({
-        output: {
-          channel: "output",
-          mimetype: "text/plain",
-          data: "hello",
-          timestamp: 0,
-        },
-      }),
+      consoleOutputs: [],
+      output: {
+        channel: "output" as const,
+        mimetype: "text/plain" as const,
+        data: "hello",
+        timestamp: 0,
+      },
     };
 
     const { container } = render(

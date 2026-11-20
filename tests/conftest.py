@@ -37,10 +37,10 @@ from tests._runtime._helpers.streams import (
 _MockStream = MockStream
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    import threading
+    from collections.abc import Callable, Generator
     from types import ModuleType, TracebackType
-
-    from typing_extensions import Self
+    from typing import Self
 
     from marimo._runtime.runtime import Kernel
 
@@ -49,6 +49,22 @@ register_formatters()
 
 # Initialize mimetypes for consistent behavior across platforms (especially Windows)
 initialize_mimetypes()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_jedi_cache(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator[None, None, None]:
+    import jedi
+
+    # Parso's disk cache writes are not atomic across pytest workers.
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(
+            jedi.settings,
+            "cache_directory",
+            str(tmp_path_factory.mktemp("jedi")),
+        )
+        yield
 
 
 def pytest_collection_modifyitems(
@@ -277,6 +293,41 @@ def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(UIElement, "_random_seed", random.Random(42))
 
 
+@pytest.fixture
+def cleanup_watchers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[None, None, None]:
+    from marimo._runtime.threads import Thread
+    from marimo._runtime.watch import _directory, _file, _path
+
+    watchers: list[tuple[Thread, threading.Event]] = []
+
+    def track_thread(
+        *,
+        target: Callable[..., None],
+        args: tuple[Path, _path.PathState, threading.Event],
+        daemon: bool,
+    ) -> Thread:
+        thread = Thread(target=target, args=args, daemon=daemon)
+        watchers.append((thread, args[2]))
+        return thread
+
+    monkeypatch.setattr(_path, "Thread", track_thread)
+    # Restore intervals changed by notebook cells after each test.
+    monkeypatch.setattr(_file, "_TEST_SLEEP_INTERVAL", None)
+    monkeypatch.setattr(_directory, "_TEST_SLEEP_INTERVAL", None)
+    try:
+        yield
+    finally:
+        # The watcher target holds its PathState alive, so __del__ cannot
+        # stop the thread when the test kernel clears its globals.
+        for _, should_exit in watchers:
+            should_exit.set()
+        for thread, _ in watchers:
+            thread.join(timeout=5)
+            assert not thread.is_alive()
+
+
 @dataclasses.dataclass
 class MockedKernel:
     """Should only be created in fixtures b/c inits a runtime context."""
@@ -435,7 +486,7 @@ def session_view() -> Generator[SessionView, None, None]:
     yield sv
 
     # Test all operations can be serialized/deserialized
-    for operation in sv.notifications:
+    for operation in sv.snapshot_notifications():
         assert_serialize_roundtrip(operation)
 
 
@@ -647,3 +698,16 @@ def pytest_make_collect_report(collector):
             " (tests/conftest.py)."
         )
     return report
+
+
+@pytest.fixture
+def clean_config_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    from marimo._config.config_schema import MarimoConfig
+    from marimo._config.provenance import DEPRECATED_ENV_VARS, env_var_name
+    from marimo._config.schema_utils import config_leaf_types
+
+    for name in {
+        *DEPRECATED_ENV_VARS.values(),
+        *(env_var_name(path) for path in config_leaf_types(MarimoConfig)),
+    }:
+        monkeypatch.delenv(name, raising=False)

@@ -3,11 +3,11 @@ from __future__ import annotations
 import ast
 import datetime
 import string
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import narwhals.stable.v2 as nw
 import pytest
-from hypothesis import assume, given, settings, strategies as st
+from hypothesis import assume, example, given, settings, strategies as st
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
@@ -31,6 +31,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     FilterGroup,
     FilterRowsTransform,
     GroupByTransform,
+    Operator,
     PivotTransform,
     RenameColumnTransform,
     SampleRowsTransform,
@@ -271,6 +272,118 @@ transformations_strategy = st.builds(
 )
 
 
+def _assert_string_filter_matches_runtime(
+    backend: str,
+    strings: list[str | None],
+    operator: Operator,
+    value: str,
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    data = {"strings": strings, "row_id": list(range(len(strings)))}
+    if backend.startswith("pandas"):
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame(data).astype(
+            {"strings": "object" if backend == "pandas-object" else "string"}
+        )
+        printer = python_print_pandas
+        namespace = {"pd": pd, "df": df}
+    elif backend == "polars":
+        pl = pytest.importorskip("polars")
+        df = pl.DataFrame(data, schema_overrides={"strings": pl.String})
+        printer = python_print_polars
+        namespace = {"pl": pl, "df": df}
+    else:
+        ibis = pytest.importorskip("ibis")
+        pytest.importorskip("duckdb")
+        df = ibis.memtable(
+            data, schema={"strings": "string", "row_id": "int64"}
+        )
+        printer = python_print_ibis
+        namespace = {"ibis": ibis, "df": df}
+
+    transform = FilterRowsTransform(
+        type=TransformType.FILTER_ROWS,
+        operation=operation,
+        where=FilterGroup(
+            operator="and",
+            children=[
+                FilterCondition(
+                    column_id="strings",
+                    operator=operator,
+                    value=value,
+                    negate=negate,
+                )
+            ],
+        ),
+    )
+    expected = _apply_transforms(
+        nw.from_native(df).lazy(),
+        NarwhalsTransformHandler(),
+        Transformations([transform]),
+    ).collect()
+    code = python_print_transforms("df", list(data), [transform], printer)
+    exec(code, namespace)
+    actual = nw.from_native(namespace["df_next"]).lazy().collect()
+    assert actual.to_dict(as_series=False) == expected.to_dict(as_series=False)
+
+
+@pytest.mark.parametrize(
+    "backend", ["pandas-object", "pandas-string", "polars", "ibis"]
+)
+@pytest.mark.parametrize(
+    "operator", ["contains", "regex", "starts_with", "ends_with"]
+)
+@pytest.mark.parametrize("value", ["", "a", "a.c"])
+@pytest.mark.parametrize("negate", [False, True])
+@pytest.mark.parametrize("operation", ["keep_rows", "remove_rows"])
+def test_print_code_string_filters_with_nulls(
+    backend: str,
+    operator: Operator,
+    value: str,
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    _assert_string_filter_matches_runtime(
+        backend,
+        [None, "", "abc", "a.c", "cba", "zzz"],
+        operator,
+        value,
+        negate,
+        operation,
+    )
+
+
+@pytest.mark.parametrize(
+    "backend", ["pandas-object", "pandas-string", "polars", "ibis"]
+)
+@given(
+    strings=st.lists(
+        st.one_of(st.none(), st.text(alphabet="abc .", max_size=10)),
+        min_size=1,
+        max_size=10,
+    ),
+    operator=st.sampled_from(
+        ["contains", "regex", "starts_with", "ends_with"]
+    ),
+    value=st.text(alphabet="abc.", max_size=3),
+    negate=st.booleans(),
+    operation=st.sampled_from(["keep_rows", "remove_rows"]),
+)
+@settings(deadline=None)
+def test_print_code_string_filters_with_generated_nulls(
+    backend: str,
+    strings: list[str | None],
+    operator: Operator,
+    value: str,
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    _assert_string_filter_matches_runtime(
+        backend, strings, operator, value, negate, operation
+    )
+
+
 def _validate_code(code: str):
     try:
         ast.parse(code)
@@ -309,6 +422,47 @@ def test_python_print_ibis(transformations: Transformations):
     assert isinstance(result, str)
     _validate_code(result)
     assert df_name in result
+
+
+QUOTED_COLUMN = "a'b\"{c}"
+
+
+@pytest.mark.parametrize(
+    "printer", [python_print_pandas, python_print_polars, python_print_ibis]
+)
+@pytest.mark.parametrize(
+    "transform",
+    [
+        AggregateTransform(
+            type=TransformType.AGGREGATE,
+            column_ids=[QUOTED_COLUMN],
+            aggregations=["sum"],
+        ),
+        GroupByTransform(
+            type=TransformType.GROUP_BY,
+            column_ids=["g"],
+            drop_na=False,
+            aggregation="sum",
+            aggregation_column_ids=[QUOTED_COLUMN],
+        ),
+        PivotTransform(
+            type=TransformType.PIVOT,
+            column_ids=["g"],
+            index_column_ids=["i"],
+            value_column_ids=[QUOTED_COLUMN],
+            aggregation="sum",
+        ),
+    ],
+)
+def test_print_code_quoted_column_name_stays_a_string(
+    printer, transform: Transform
+) -> None:
+    code = printer("df", ["g", "i", QUOTED_COLUMN], transform)
+    tree = ast.parse(code)
+    assert not any(
+        isinstance(node, ast.Name) and node.id == "c"
+        for node in ast.walk(tree)
+    ), code
 
 
 @given(transformations=transformations_strategy)
@@ -690,6 +844,23 @@ def test_print_code_contains_is_literal_pandas(value: str) -> None:
         df_size=3,
     )
 )
+@example(
+    transform=SortColumnTransform(
+        type=TransformType.SORT_COLUMN,
+        column_id="dates",
+        ascending=False,
+        na_position="first",
+    )
+)
+@example(
+    transform=PivotTransform(
+        type=TransformType.PIVOT,
+        column_ids=["strings"],
+        index_column_ids=["integers"],
+        value_column_ids=["floats"],
+        aggregation="median",
+    )
+)
 @settings(deadline=None)
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars not installed"
@@ -814,10 +985,12 @@ def test_print_code_result_matches_actual_transform_polars(
             )
         )
         # When value_column_ids is empty, all remaining columns become values.
-        # sum/mean aggregations fail on non-numeric columns (strings, booleans)
+        # sum/mean fail on non-numeric columns; median on lists can panic
+        # in Polars' streaming engine.
         if not transform.value_column_ids and transform.aggregation in {
             "sum",
             "mean",
+            "median",
         }:
             assume(False)
         # Polars does not support sum/mean on string or other non-numeric columns
@@ -922,7 +1095,304 @@ def test_print_code_result_matches_actual_transform_polars(
                 code_result = code_result.sort(sortable_cols)
                 real_result = real_result.sort(sortable_cols)
 
+        if transform.type == TransformType.SORT_COLUMN:
+            # Ties may differ between eager and lazy sorts. Check key order
+            # before comparing rows using the fixture's unique string column.
+            pl_testing.assert_series_equal(
+                code_result[transform.column_id],
+                real_result[transform.column_id],
+            )
+            code_result = code_result.sort("strings")
+            real_result = real_result.sort("strings")
+
         pl_testing.assert_frame_equal(code_result, real_result)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("errors", ["raise", "ignore"])
+@pytest.mark.parametrize(
+    ("data_type", "values", "expected_values"),
+    [
+        (
+            "date",
+            ["2026-10-07", None, "2026-10-08"],
+            [datetime.date(2026, 10, 7), None, datetime.date(2026, 10, 8)],
+        ),
+        (
+            "datetime64",
+            ["2026-10-07 12:34:56.123456", None, "2026-10-08 00:00:00"],
+            [
+                datetime.datetime(2026, 10, 7, 12, 34, 56, 123456),
+                None,
+                datetime.datetime(2026, 10, 8),
+            ],
+        ),
+        (
+            "datetime64",
+            [datetime.date(2026, 10, 7), None],
+            [datetime.datetime(2026, 10, 7), None],
+        ),
+        (
+            "date",
+            [datetime.datetime(2026, 10, 7, 12), None],
+            [datetime.date(2026, 10, 7), None],
+        ),
+        (
+            "datetime64",
+            [0, 1_000_000],
+            [
+                datetime.datetime(1970, 1, 1),
+                datetime.datetime(1970, 1, 1, 0, 0, 1),
+            ],
+        ),
+    ],
+)
+def test_polars_temporal_conversion_code_matches_runtime(
+    lazy: bool,
+    errors: Literal["raise", "ignore"],
+    data_type: str,
+    values: list[str | datetime.date | int | None],
+    expected_values: list[datetime.date | None],
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    column = 'event "time"'
+    original = pl.DataFrame({column: values, "id": range(len(values))})
+    source = original.lazy() if lazy else original
+    transform = ColumnConversionTransform(
+        type=TransformType.COLUMN_CONVERSION,
+        column_id=column,
+        data_type=data_type,
+        errors=errors,
+    )
+    runtime = (
+        NarwhalsTransformHandler.handle_column_conversion(
+            nw.from_native(source).lazy(), transform
+        )
+        .collect()
+        .to_native()
+    )
+    namespace = {"pl": pl, "df": source}
+    exec(
+        python_print_transforms(
+            "df", original.columns, [transform], python_print_polars
+        ),
+        namespace,
+    )
+    generated = namespace["df_next"]
+    if lazy:
+        generated = generated.collect()
+    expected = pl.DataFrame(
+        {column: expected_values, "id": range(len(values))}
+    )
+    pl_testing.assert_frame_equal(runtime, expected)
+    pl_testing.assert_frame_equal(generated, expected)
+    pl_testing.assert_frame_equal(
+        original, pl.DataFrame({column: values, "id": range(len(values))})
+    )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("multiple_columns", [False, True])
+@pytest.mark.parametrize("empty_frame", [False, True])
+def test_polars_explode_code_preserves_empty_and_null_rows(
+    lazy: bool, multiple_columns: bool, empty_frame: bool
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    column = 'list "values"'
+    original = pl.DataFrame(
+        {
+            column: [[1, 2], [], None],
+            "other": [[3, 4], [], None],
+            "id": [0, 1, 2],
+        }
+    )
+    columns = [column, "other"] if multiple_columns else [column]
+    expected = pl.DataFrame(
+        {
+            column: [1, 2, None, None],
+            "other": (
+                [3, 4, None, None]
+                if multiple_columns
+                else [[3, 4], [3, 4], [], None]
+            ),
+            "id": [0, 0, 1, 2],
+        }
+    )
+    if empty_frame:
+        original = original.head(0)
+        expected = expected.head(0)
+    source = original.lazy() if lazy else original
+    transform = ExplodeColumnsTransform(
+        type=TransformType.EXPLODE_COLUMNS, column_ids=columns
+    )
+    runtime = NarwhalsTransformHandler.handle_explode_columns(
+        nw.from_native(source), transform
+    )
+    assert isinstance(runtime, nw.LazyFrame) == lazy
+    if isinstance(runtime, nw.LazyFrame):
+        runtime = runtime.collect()
+    runtime = runtime.to_native()
+    namespace = {"pl": pl, "df": source}
+    exec(
+        python_print_transforms(
+            "df", original.columns, [transform], python_print_polars
+        ),
+        namespace,
+    )
+    generated = namespace["df_next"]
+    if lazy:
+        generated = generated.collect()
+    pl_testing.assert_frame_equal(runtime, expected)
+    pl_testing.assert_frame_equal(generated, expected)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+@pytest.mark.parametrize("values", [[], [None, None]])
+@pytest.mark.parametrize("data_type", ["date", "datetime64"])
+def test_polars_temporal_conversion_without_non_null_values(
+    values: list[None], data_type: str
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    source = pl.LazyFrame(
+        {"event_time": values}, schema={"event_time": pl.String}
+    )
+    transform = ColumnConversionTransform(
+        type=TransformType.COLUMN_CONVERSION,
+        column_id="event_time",
+        data_type=data_type,
+        errors="raise",
+    )
+    runtime = (
+        NarwhalsTransformHandler.handle_column_conversion(
+            nw.from_native(source), transform
+        )
+        .collect()
+        .to_native()
+    )
+    namespace = {"pl": pl, "df": source}
+    exec(
+        python_print_transforms(
+            "df", ["event_time"], [transform], python_print_polars
+        ),
+        namespace,
+    )
+    dtype = pl.Date if data_type == "date" else pl.Datetime
+    expected = pl.DataFrame(
+        {"event_time": values}, schema={"event_time": dtype}
+    )
+    pl_testing.assert_frame_equal(runtime, expected)
+    pl_testing.assert_frame_equal(namespace["df_next"].collect(), expected)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("errors", ["raise", "ignore"])
+@pytest.mark.parametrize(
+    ("column", "other_column"),
+    [
+        ('event "time"', "other"),
+        ("^other$", "other"),
+        ("*", "other"),
+        ("event\ntime", "event time"),
+        ("event\rtime", "event time"),
+        ("event\x00time", "eventtime"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("data_type", "valid", "expected_value"),
+    [
+        ("date", "2026-10-07", datetime.date(2026, 10, 7)),
+        (
+            "datetime64",
+            "2026-10-07 12:34:56.123456",
+            datetime.datetime(2026, 10, 7, 12, 34, 56, 123456),
+        ),
+    ],
+)
+def test_polars_temporal_conversion_invalid_strings(
+    lazy: bool,
+    errors: Literal["raise", "ignore"],
+    column: str,
+    other_column: str,
+    data_type: str,
+    valid: str,
+    expected_value: datetime.date,
+) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    original = pl.DataFrame(
+        {
+            column: ["invalid", valid, None, ""],
+            other_column: [valid, "untouched", None, ""],
+        }
+    )
+    source = original.lazy() if lazy else original
+    transform = ColumnConversionTransform(
+        type=TransformType.COLUMN_CONVERSION,
+        column_id=column,
+        data_type=data_type,
+        errors=errors,
+    )
+
+    def runtime() -> pl.DataFrame:
+        return (
+            NarwhalsTransformHandler.handle_column_conversion(
+                nw.from_native(source).lazy(), transform
+            )
+            .collect()
+            .to_native()
+        )
+
+    def generated() -> pl.DataFrame:
+        namespace = {"pl": pl, "df": source}
+        exec(
+            python_print_transforms(
+                "df", original.columns, [transform], python_print_polars
+            ),
+            namespace,
+        )
+        result = namespace["df_next"]
+        return result.collect() if lazy else result
+
+    for convert, error_types in (
+        (
+            runtime,
+            (nw.exceptions.ComputeError, nw.exceptions.InvalidOperationError),
+        ),
+        (
+            generated,
+            (pl.exceptions.ComputeError, pl.exceptions.InvalidOperationError),
+        ),
+    ):
+        if errors == "raise":
+            with pytest.raises(error_types):
+                convert()
+        else:
+            pl_testing.assert_frame_equal(
+                convert(),
+                original.with_columns(
+                    pl.Series(
+                        "parsed", [None, expected_value, None, None]
+                    ).alias(column)
+                ),
+            )
 
 
 @pytest.mark.skipif(

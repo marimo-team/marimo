@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   countFractionDigits,
+  fractionDigitsForSlider,
   maxFractionDigitsForSteps,
   prettyEngineeringNumber,
   prettyNumber,
@@ -19,6 +20,53 @@ describe("prettyNumber", () => {
 });
 
 const options = { locale };
+
+describe("formatter reuse", () => {
+  it.each([
+    {
+      name: "scientific",
+      value: 0.000_123_4,
+      format: (value: number, locale: string) =>
+        prettyScientificNumber(value, { locale }),
+    },
+    {
+      name: "rounded",
+      value: 1234.567,
+      format: (value: number, locale: string) =>
+        prettyScientificNumber(value, { locale, shouldRound: true }),
+    },
+    {
+      name: "engineering",
+      value: 12_345,
+      format: prettyEngineeringNumber,
+    },
+  ])(
+    "reuses the $name formatter until the locale changes",
+    ({ format, value }) => {
+      const NumberFormat = Intl.NumberFormat;
+      const constructor = vi
+        .spyOn(Intl, "NumberFormat")
+        .mockImplementation(function (locales, options) {
+          return new NumberFormat(locales, options);
+        });
+      try {
+        const first = format(value, "fr-FR");
+        expect(format(value, "fr-FR")).toBe(first);
+        format(value * 2, "fr-FR");
+        expect(constructor).toHaveBeenCalledTimes(1);
+
+        format(value, "de-DE");
+        expect(constructor).toHaveBeenCalledTimes(2);
+        expect(constructor).toHaveBeenLastCalledWith(
+          "de-DE",
+          expect.any(Object),
+        );
+      } finally {
+        constructor.mockRestore();
+      }
+    },
+  );
+});
 
 describe("prettyScientificNumber", () => {
   it("should handle special cases", () => {
@@ -56,6 +104,42 @@ describe("prettyScientificNumber", () => {
     expect(prettyScientificNumber(1.234_567_891_011_12, options)).toBe(
       "1.23456789101112",
     );
+  });
+
+  it("supports caller-provided display precision", () => {
+    expect(
+      prettyScientificNumber(1.2340000000000002, {
+        maximumFractionDigits: 2,
+        locale,
+      }),
+    ).toBe("1.23");
+    expect(
+      prettyScientificNumber(1.2340000000000002, {
+        maximumFractionDigits: 3,
+        locale,
+      }),
+    ).toBe("1.234");
+    expect(
+      prettyScientificNumber(1.234, {
+        maximumFractionDigits: 3,
+        locale,
+      }),
+    ).toBe("1.234");
+  });
+
+  it("preserves caller-provided precision in scientific notation", () => {
+    expect(
+      prettyScientificNumber(0.0012300000000000002, {
+        maximumFractionDigits: 5,
+        locale,
+      }),
+    ).toBe("1.23e-3");
+    expect(
+      prettyScientificNumber(1_000_001.2300000001, {
+        maximumFractionDigits: 2,
+        locale,
+      }),
+    ).toBe("1.00000123e6");
   });
 });
 
@@ -104,5 +188,25 @@ describe("maxFractionDigitsForSteps", () => {
     expect(maxFractionDigitsForSteps([0.1, 0.2, 0.3, 0.4], 0.1)).toBe(1);
     expect(maxFractionDigitsForSteps([1, 2, 3.5, 4], 0.5)).toBe(1);
     expect(maxFractionDigitsForSteps([1, 2, 3, 4], 1)).toBe(0);
+  });
+});
+
+describe("fractionDigitsForSlider", () => {
+  it("preserves precision for regular slider steps", () => {
+    expect(fractionDigitsForSlider(0.001)).toBe(3);
+    expect(fractionDigitsForSlider(0.01)).toBe(2);
+    expect(fractionDigitsForSlider(undefined)).toBe(2);
+    expect(fractionDigitsForSlider(undefined, null, 0, [0.1234, 0.5])).toBe(4);
+  });
+
+  it("infers precision from custom step values", () => {
+    expect(fractionDigitsForSlider(undefined, [1, 1.234, 2])).toBe(3);
+    expect(
+      fractionDigitsForSlider(undefined, [0.1, 0.2, 0.30000000000000004]),
+    ).toBe(1);
+  });
+
+  it("includes the slider origin in regular step precision", () => {
+    expect(fractionDigitsForSlider(1, null, 0.5)).toBe(1);
   });
 });

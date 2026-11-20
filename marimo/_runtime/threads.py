@@ -6,6 +6,7 @@ import threading
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
+from marimo._messaging.command_output import ConsoleContext
 from marimo._output.rich_help import mddoc
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.cell_output_list import CellOutputList
@@ -75,6 +76,7 @@ class Thread(threading.Thread):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self._console_context = ConsoleContext()
 
         self._marimo_ctx: RuntimeContext | None = None
         exit_event = threading.Event()
@@ -152,7 +154,8 @@ class Thread(threading.Thread):
         thread_id: int,
     ) -> Any:
         try:
-            return await awaitable
+            with self._console_context.install():
+                return await awaitable
         finally:
             THREADS.discard(thread_id)
             if context_initialized:
@@ -190,7 +193,8 @@ class Thread(threading.Thread):
         try:
             if managed_thread:
                 THREADS.add(thread_id)
-            result = super().run()
+            with self._console_context.install():
+                result = super().run()
             if is_pyodide() and managed_thread and inspect.isawaitable(result):
                 defer_cleanup = True
                 return self._finish_awaitable_run(

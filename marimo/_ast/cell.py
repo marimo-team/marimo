@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from types import CodeType
 
     from marimo._ast.app import InternalApp
+    from marimo._core.protocol import Revision
     from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
 
@@ -46,6 +47,11 @@ class CellConfig(msgspec.Struct):
 
     # If True, the cell is hidden from the editor.
     hide_code: bool = False
+
+    # If True, the cell's output is shown in full in the editor; otherwise the
+    # output is clamped to a fixed height, with an option to expand it. Does
+    # not apply to console output, which is clamped independently.
+    expand_output: bool = False
 
     @classmethod
     def from_dict(
@@ -87,6 +93,16 @@ CellConfigKeys = frozenset(
     {field.name for field in msgspec.structs.fields(CellConfig)}
 )
 
+# Config keys whose values are plain booleans; useful for formats that
+# serialize cell config as strings (e.g. markdown tag attributes).
+CellConfigBooleanKeys = frozenset(
+    {
+        field.name
+        for field in msgspec.structs.fields(CellConfig)
+        if field.type is bool
+    }
+)
+
 
 # States in a cell's runtime state machine
 #
@@ -125,6 +141,14 @@ class RunResultStatus:
     exception: Exception | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class ImportedValue:
+    """An imported value whose revision may survive reevaluation."""
+
+    value: object
+    revision: Revision
+
+
 @dataclasses.dataclass
 class ImportWorkspace:
     """A workspace for runtimes to use to manage a cell's imports."""
@@ -133,6 +157,10 @@ class ImportWorkspace:
     is_import_block: bool = False
     # Defs that have been imported by the runtime
     imported_defs: set[Name] = dataclasses.field(default_factory=set)
+    # Candidates carried across invalidation, consumed by the next evaluation.
+    carried_values: dict[Name, ImportedValue] = dataclasses.field(
+        default_factory=dict
+    )
 
 
 def _is_coroutine(code: CodeType | None) -> bool:
@@ -379,16 +407,8 @@ class CellImpl:
         self._run_result_status.state = run_result_status
         self._run_result_status.exception = exception
 
-    def set_stale(
-        self, stale: bool, stream: Stream | None = None, broadcast: bool = True
-    ) -> None:
-        from marimo._messaging.notification_utils import CellNotificationUtils
-
+    def set_stale(self, stale: bool) -> None:
         self._stale.state = stale
-        if broadcast:
-            CellNotificationUtils.broadcast_stale(
-                cell_id=self.cell_id, stale=stale, stream=stream
-            )
 
     def set_output(self, output: Any) -> None:
         self._output.output = output

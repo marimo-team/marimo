@@ -1120,7 +1120,6 @@ def test_try_block() -> None:
     assert v.defs == {"f", "v", "w", "x", "y", "z", "err", "err2", "err3"}
 
 
-@pytest.mark.skipif("sys.version_info < (3, 11)")
 def test_try_star_block() -> None:
     code = "try:\n  raise ExceptionGroup('eg', [ValueError(1), TypeError(2), OSError(3)])\nexcept* TypeError as e:\n  print(f'caught {type(e)} with nested {e.exceptions}')\nexcept* OSError as f:\n  print(f'caught {type(f)} with nested {f.exceptions}')\nelse:\n  print('Type and Os not raised')\nfinally:\n  print('finally')"
     v = visitor.ScopedVisitor()
@@ -1161,6 +1160,26 @@ def test_type_var_generic_class() -> None:
 
 
 @pytest.mark.skipif("sys.version_info < (3, 12)")
+@pytest.mark.parametrize(
+    ("code", "refs"),
+    [
+        ("class A[T](Base[T]): pass", {"Base"}),
+        ("class A[T](metaclass=Meta[T]): pass", {"Meta"}),
+        ("class A[*Ts](Base[*Ts]): pass", {"Base"}),
+        ("class A[**P](Base[P]): pass", {"Base"}),
+        ("class A[T]:\n    item: list[T]", {"list"}),
+    ],
+)
+def test_type_var_generic_class_bases_and_body(
+    code: str, refs: set[str]
+) -> None:
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+    assert v.defs == {"A"}
+    assert v.refs == refs
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
 def test_type_var_generic_function() -> None:
     expr = cleandoc(
         """
@@ -1174,6 +1193,28 @@ def test_type_var_generic_function() -> None:
     assert v.defs == {"test"}
     # U should not be a ref
     assert v.refs == set()
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
+@pytest.mark.parametrize(
+    "code",
+    [
+        "def f[T](x: T = T): return x",
+        "@T\ndef f[T](x: T): return x",
+    ],
+)
+def test_generic_function_signature_uses_enclosing_scope(code: str) -> None:
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+    assert v.defs == {"f"}
+    assert v.refs == {"T"}
+    assert v.variable_data == {
+        "f": [
+            VariableData(
+                kind="function", required_refs={"T"}, unbounded_refs={"T"}
+            )
+        ]
+    }
 
 
 def test_private_ref_requirement_caught() -> None:
@@ -1415,13 +1456,13 @@ def test_polars_sql_fallback_refs(
 @pytest.mark.parametrize("has_sqlglot", [False, True])
 @pytest.mark.parametrize("quote", ["", '"', "`"])
 @pytest.mark.parametrize("cte_name", ["orders", "Orders"])
-def test_polars_sql_cte_names_are_case_sensitive(
+def test_polars_sql_cte_names_are_case_insensitive(
     monkeypatch: pytest.MonkeyPatch,
     has_sqlglot: bool,
     quote: str,
     cte_name: str,
 ) -> None:
-    """Keep differently cased frame dependencies with and without SQLGlot."""
+    """Exclude differently cased CTE names with and without SQLGlot."""
     if has_sqlglot and not HAS_SQLGLOT:
         pytest.skip("Requires sqlglot")
     monkeypatch.setattr(DependencyManager.sqlglot, "has", lambda: has_sqlglot)
@@ -1432,7 +1473,95 @@ def test_polars_sql_cte_names_are_case_sensitive(
     v = visitor.ScopedVisitor()
     v.visit(ast.parse(f"result = mo.sql({query!r}, engine='polars')"))
 
-    assert v.refs == ({"mo"} if cte_name == "orders" else {"mo", "orders"})
+    assert v.refs == {"mo"}
+
+
+@pytest.mark.parametrize("has_sqlglot", [False, True])
+@pytest.mark.parametrize(
+    ("query", "expected_refs"),
+    [
+        (
+            (
+                "WITH RECURSIVE Nums(n) AS (SELECT n FROM seed UNION ALL "
+                "SELECT n + 1 FROM nums WHERE n < 3) SELECT * FROM nums"
+            ),
+            {"seed"},
+        ),
+        (
+            (
+                "SELECT * FROM orders ASOF JOIN customers "
+                "MATCH_CONDITION (orders.id >= customers.id)"
+            ),
+            {"orders", "customers"},
+        ),
+        (
+            (
+                "SELECT * FROM orders WHERE EXISTS "
+                "(SELECT 1 FROM customers WHERE customers.id = orders.id)"
+            ),
+            {"orders", "customers"},
+        ),
+        (
+            (
+                "SELECT * FROM orders QUALIFY ROW_NUMBER() OVER "
+                "(PARTITION BY id ORDER BY amount DESC) = 1"
+            ),
+            {"orders"},
+        ),
+        (
+            (
+                "SELECT * FROM read_ndjson(['a.json', 'b.json']) "
+                "JOIN orders USING (id)"
+            ),
+            {"orders"},
+        ),
+        (
+            "SELECT * FROM generate_series(1, 3) JOIN orders ON true",
+            {"orders"},
+        ),
+        (
+            "SELECT $$ FROM ghost $$ AS message FROM orders",
+            {"orders"},
+        ),
+        (
+            "SELECT '(' AS message FROM orders",
+            {"orders"},
+        ),
+        (
+            (
+                "WITH selected AS (SELECT ')' AS message FROM orders) "
+                "SELECT * FROM selected"
+            ),
+            {"orders"},
+        ),
+        (
+            "SELECT $message$ FROM ghost $message$ AS message FROM orders",
+            {"orders"},
+        ),
+        (
+            "SELECT * FROM orders /* outer /* inner */ JOIN ghost */",
+            {"orders"},
+        ),
+        (
+            "SELECT * FROM orders WHERE EXISTS (FROM customers)",
+            {"orders", "customers"},
+        ),
+    ],
+)
+def test_polars_two_sql_dependencies(
+    monkeypatch: pytest.MonkeyPatch,
+    has_sqlglot: bool,
+    query: str,
+    expected_refs: set[str],
+) -> None:
+    """Discover dependencies across Polars syntax before and after installs."""
+    if has_sqlglot and not HAS_SQLGLOT:
+        pytest.skip("Requires sqlglot")
+    monkeypatch.setattr(DependencyManager.sqlglot, "has", lambda: has_sqlglot)
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(f"result = mo.sql({query!r}, engine='polars')"))
+
+    assert v.refs == expected_refs | {"mo"}
 
 
 @pytest.mark.skipif(not HAS_SQLGLOT, reason="Requires sqlglot")

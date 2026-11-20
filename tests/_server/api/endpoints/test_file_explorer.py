@@ -5,10 +5,12 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, cast
+from unittest.mock import patch
 
 import pytest
 
 from marimo._utils.platform import is_windows
+from tests._server.api.endpoints.ws_helpers import receive_notification
 from tests._server.mocks import (
     get_session_manager,
     token_header,
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
     from starlette.testclient import TestClient
 
     from marimo._config.config import PartialMarimoConfig
-    from marimo._config.manager import UserConfigManager
+    from marimo._config.manager import UserConfigStore
 
 HEADERS = {
     **token_header("fake-token"),
@@ -366,7 +368,7 @@ def test_update_file_with_session(client: TestClient) -> None:
         "/ws?session_id=test-session&access_token=fake-token"
     ) as websocket:
         # Receive kernel ready message
-        data = websocket.receive_json()
+        data = receive_notification(websocket)
         assert data["op"] == "kernel-ready"
 
         # Verify file watcher was attached when session was created
@@ -444,15 +446,22 @@ def test_copy_directory(client: TestClient) -> None:
     assert copy_sub_dir.joinpath("inner.txt").read_text() == "inner content"
 
 
-def test_open_file(client: TestClient) -> None:
-    response = client.post(
-        "/api/files/open",
-        headers=HEADERS,
-        json={"path": test_file_path},
-    )
+def test_open_file(client: TestClient, tmp_path: Path) -> None:
+    path = tmp_path / "test_file.txt"
+    path.write_text(test_content, encoding="utf-8")
+    with patch(
+        "marimo._server.api.endpoints.file_explorer.file_system.open_in_editor",
+        return_value=True,
+    ) as open_in_editor:
+        response = client.post(
+            "/api/files/open",
+            headers=HEADERS,
+            json={"path": str(path)},
+        )
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/json"
-    assert "success" in response.json()
+    assert response.json()["success"] is True
+    open_in_editor.assert_called_once_with(str(path), None)
 
 
 def test_search_files_basic(client: TestClient, tmp_path: Path) -> None:
@@ -678,7 +687,7 @@ def test_download_requires_auth(client: TestClient) -> None:
 
 
 def test_download_disabled_by_config(
-    client: TestClient, user_config_manager: UserConfigManager
+    client: TestClient, user_config_manager: UserConfigStore
 ) -> None:
     user_config_manager.save_config(
         cast(

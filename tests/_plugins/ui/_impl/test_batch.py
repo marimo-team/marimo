@@ -14,17 +14,17 @@ from marimo._plugins.ui._impl.batch import validate_and_clone
 def test_batch_rejects_non_ui_elements() -> None:
     """Test that batch raises ValueError for non-UIElement arguments."""
     with pytest.raises(
-        ValueError, match="`.batch` only accepts UIElements as arguments"
+        ValueError, match=r"`\.batch` only accepts UIElements as arguments"
     ):
         md("Example {thing}").batch(thing="thing")  # type: ignore
 
     with pytest.raises(
-        ValueError, match="`.batch` only accepts UIElements as arguments"
+        ValueError, match=r"`\.batch` only accepts UIElements as arguments"
     ):
         md("Example {thing}").batch(thing=42)  # type: ignore
 
     with pytest.raises(
-        ValueError, match="`.batch` only accepts UIElements as arguments"
+        ValueError, match=r"`\.batch` only accepts UIElements as arguments"
     ):
         md("Example {thing}").batch(thing={"key": "value"})  # type: ignore
 
@@ -32,17 +32,17 @@ def test_batch_rejects_non_ui_elements() -> None:
 def test_dictionary_rejects_non_ui_elements() -> None:
     """Test that dictionary raises ValueError for non-UIElement arguments."""
     with pytest.raises(
-        ValueError, match="`.batch` only accepts UIElements as arguments"
+        ValueError, match=r"`\.batch` only accepts UIElements as arguments"
     ):
         ui.dictionary({"hi": 1})  # type: ignore
 
     with pytest.raises(
-        ValueError, match="`.batch` only accepts UIElements as arguments"
+        ValueError, match=r"`\.batch` only accepts UIElements as arguments"
     ):
         ui.dictionary({"text": "string"})  # type: ignore
 
     with pytest.raises(
-        ValueError, match="`.batch` only accepts UIElements as arguments"
+        ValueError, match=r"`\.batch` only accepts UIElements as arguments"
     ):
         ui.dictionary({"valid": ui.slider(1, 10), "invalid": "string"})  # type: ignore
 

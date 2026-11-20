@@ -18,7 +18,14 @@ from marimo._ai._tools.tools.cells import (
 )
 from marimo._ai._tools.types import MarimoCellConsoleOutputs
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
-from marimo._messaging.notification import VariableValue
+from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.notification import (
+    CallbackOutputNotification,
+    CellNotification,
+    PdbOutputNotification,
+    VariableValue,
+)
+from marimo._session.state.session_view import SessionView
 from marimo._types.ids import CellId_t, SessionId
 from tests._ai.tools.test_utils import MockSession, MockSessionView
 
@@ -35,12 +42,6 @@ class MockOutput:
     channel: object = None
     data: object = None
     mimetype: object = None
-
-
-@dataclass
-class MockConsoleOutput:
-    channel: object
-    data: object
 
 
 @dataclass
@@ -206,21 +207,34 @@ def test_get_cell_outputs_empty_cell_ids():
     mock_cell_manager = Mock()
     mock_cell_manager.cell_data.return_value = [cell_data_1, cell_data_2]
 
-    notif_c1 = MockCellNotification(
-        output=MockOutput(data="42", mimetype="text/plain"),
-        console=None,
+    view = SessionView()
+    view.add_notification(
+        CellNotification(
+            CellId_t("c1"),
+            output=CellOutput(CellChannel.OUTPUT, "text/plain", "42"),
+            console=CellOutput.stdout("A"),
+        )
     )
-    notif_c2 = MockCellNotification(output=None, console=None)
+    view.add_notification(
+        PdbOutputNotification(CellId_t("c1"), [CellOutput.stdout("private")])
+    )
+    view.add_notification(
+        CallbackOutputNotification(CellId_t("c1"), [CellOutput.stdout("B")])
+    )
+    view.add_notification(
+        CellNotification(CellId_t("c1"), console=CellOutput.stdout("C"))
+    )
+    view.add_notification(
+        CallbackOutputNotification(
+            CellId_t("c2"), [CellOutput.stderr("only callback")]
+        )
+    )
 
     mock_session = Mock()
     mock_session.app_file_manager.app.cell_manager = mock_cell_manager
-    mock_session.session_view = MockSessionView(
-        cell_notifications={"c1": notif_c1, "c2": notif_c2}
-    )
-
-    context = Mock(spec=ToolContext)
+    mock_session.session_view = view
+    context = Mock(spec=ToolContext, wraps=ToolContext())
     context.get_session.return_value = mock_session
-    context.get_cell_console_outputs.return_value = MarimoCellConsoleOutputs()
     tool.context = context
 
     args = GetCellOutputArgs(session_id=SessionId("test"), cell_ids=[])
@@ -228,6 +242,8 @@ def test_get_cell_outputs_empty_cell_ids():
     assert len(result.cells) == 2
     assert result.cells[0].cell_id == "c1"
     assert result.cells[0].visual_output.visual_output == "42"
+    assert result.cells[0].console_outputs.stdout == ["ABC"]
+    assert result.cells[1].console_outputs.stderr == ["only callback"]
     assert result.cells[1].cell_id == "c2"
     assert result.cells[1].visual_output.visual_output is None
 
@@ -312,36 +328,37 @@ def test_lightweight_cell_map_includes_runtime_info():
     # c2 is running with console output
     # c3 has no notification
     # c4 is idle with an error
-    notif_c1 = MockCellNotification(
-        status="idle",
-        output=MockOutput(data="42", mimetype="text/plain"),
-        console=None,
+    view = SessionView()
+    view.add_notification(
+        CellNotification(
+            CellId_t("c1"),
+            status="idle",
+            output=CellOutput(CellChannel.OUTPUT, "text/plain", "42"),
+        )
     )
-    notif_c2 = MockCellNotification(
-        status="running",
-        output=None,
-        console=[MockConsoleOutput(channel="stdout", data="hello")],
+    view.add_notification(CellNotification(CellId_t("c2"), status="running"))
+    view.add_notification(
+        CallbackOutputNotification(
+            CellId_t("c2"), [CellOutput.stdout("hello")]
+        )
     )
-    notif_c4 = MockCellNotification(
-        status="idle",
-        output=MockOutput(
-            channel="marimo-error",
-            data=[
-                MockError(
-                    type="NameError", _message="name 'bad_var' is not defined"
-                )
-            ],
-            mimetype="application/vnd.marimo+error",
-        ),
-        console=None,
+    view.add_notification(
+        PdbOutputNotification(CellId_t("c3"), [CellOutput.stdout("private")])
+    )
+    view.add_notification(
+        CellNotification(
+            CellId_t("c4"),
+            status="idle",
+            output=CellOutput(
+                CellChannel.MARIMO_ERROR, "application/vnd.marimo+error", []
+            ),
+        )
     )
 
     mock_session = Mock()
     mock_session.app_file_manager.app.cell_manager = mock_cell_manager
     mock_session.app_file_manager.filename = "test.py"
-    mock_session.session_view = MockSessionView(
-        cell_notifications={"c1": notif_c1, "c2": notif_c2, "c4": notif_c4}
-    )
+    mock_session.session_view = view
 
     context = Mock(spec=ToolContext)
     context.get_session.return_value = mock_session
@@ -473,6 +490,7 @@ def test_get_cell_outputs_invalid_cell():
     tool = GetCellOutputs(ToolContext())
 
     mock_session = Mock()
+    mock_session.app_file_manager.app.cell_manager.get_cell_data.return_value = None
     mock_session.session_view = MockSessionView(cell_notifications={})
 
     context = Mock(spec=ToolContext)

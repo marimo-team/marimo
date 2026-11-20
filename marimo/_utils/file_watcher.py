@@ -21,7 +21,7 @@ class FileWatcher(ABC):
     @staticmethod
     def create(path: Path, callback: Callback) -> FileWatcher:
         # Capture the running loop now so background callbacks scheduled
-        # via ``run_coroutine_threadsafe`` target the right loop.
+        # via `run_coroutine_threadsafe` target the right loop.
         loop = asyncio.get_running_loop()
         if DependencyManager.watchdog.has():
             LOGGER.debug("Using watchdog file watcher")

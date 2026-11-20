@@ -6,6 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import msgspec
 import pytest
 
 from marimo import __version__
@@ -13,9 +14,15 @@ from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
+from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
-from marimo._messaging.notification import CellNotification
-from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._messaging.notification import (
+    CallbackOutputNotification,
+    CellNotification,
+    PdbOutputNotification,
+    StartupProgressNotification,
+)
+from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand
 from marimo._schemas.session import NotebookSessionV1
 from marimo._session.state.serialize import (
     SessionCacheKey,
@@ -116,6 +123,137 @@ def test_serialize_session_with_error(session_view: SessionView):
     snapshot("error_session.json", json.dumps(result, indent=2))
 
 
+@pytest.mark.parametrize("dictionary", [False, True])
+def test_exception_type_survives_cache_round_trip(
+    session_view: SessionView, *, dictionary: bool
+) -> None:
+    error = MarimoExceptionRaisedError(
+        msg="bad value",
+        exception_type="ValueError",
+        raising_cell=None,
+    )
+    session_view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput.errors(
+            [asdict(error) if dictionary else error],  # type: ignore[list-item]
+        ),
+    )
+    session_view.last_executed_code[CELL1] = "raise ValueError('bad value')"
+    saved = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=False
+    )
+    assert saved["cells"][0]["outputs"] == [
+        {
+            "type": "error",
+            "ename": "ValueError",
+            "evalue": "bad value",
+            "traceback": [],
+        }
+    ]
+    restored = deserialize_session(
+        saved, _build_code_hash_to_cell_id_mapping(saved)
+    )
+    output = restored.cell_notifications[CELL1].output
+    assert output is not None
+    assert output.data == [error]
+
+
+@pytest.mark.parametrize("dictionary", [False, True])
+@pytest.mark.parametrize("traceback_format", ["text", "html"])
+def test_error_evidence_survives_cache_round_trip(
+    session_view: SessionView, *, dictionary: bool, traceback_format: str
+) -> None:
+    code = "raise ValueError('failed code')"
+    traceback = (
+        '<span class="codehilite"><pre>ValueError: failed code\n</pre></span>'
+    )
+    error = MarimoExceptionRaisedError(
+        msg="failed code",
+        exception_type="ValueError",
+        raising_cell=None,
+        traceback=traceback,
+    )
+    output = CellOutput.errors(
+        [asdict(error) if dictionary else error],  # type: ignore[list-item]
+        code=code,
+    )
+    session_view.add_notification(
+        _make_cell_notification(
+            CELL1,
+            output=output,
+            console=[
+                CellOutput(
+                    channel=CellChannel.STDERR,
+                    mimetype="application/vnd.marimo+traceback",
+                    data=traceback,
+                    code=code,
+                    traceback_format=traceback_format,  # type: ignore[arg-type]
+                )
+            ],
+        )
+    )
+    session_view.add_notification(
+        CellNotification(cell_id=CELL1, status="queued")
+    )
+    session_view.last_executed_code[CELL1] = "newer code"
+    saved = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=False
+    )
+    saved_error = saved["cells"][0]["outputs"][0]
+    assert saved_error["type"] == "error"
+    assert saved_error["code"] == code
+    assert saved_error["traceback"] == [traceback]
+    restored = deserialize_session(
+        saved, _build_code_hash_to_cell_id_mapping(saved)
+    )
+    notification = restored.cell_notifications[CELL1]
+    assert notification.output is not None
+    assert notification.output.code == code
+    assert notification.output.data == [error]
+    assert isinstance(notification.console, list)
+    assert notification.console[0].code == code
+    assert notification.console[0].data == traceback
+    assert notification.console[0].traceback_format == traceback_format
+
+
+@pytest.mark.parametrize(
+    ("entries", "expected"),
+    [
+        ([], None),
+        (["Traceback", "ValueError: bad"], "Traceback\nValueError: bad"),
+        (["Traceback\n", "ValueError: bad"], "Traceback\nValueError: bad"),
+        (["<pre>ValueError: bad\n</pre>"], "<pre>ValueError: bad\n</pre>"),
+        ("<pre>ValueError: bad\n</pre>", "<pre>ValueError: bad\n</pre>"),
+    ],
+)
+def test_restored_legacy_traceback_preserves_boundaries(
+    session_view: SessionView,
+    entries: list[str] | str,
+    expected: str | None,
+) -> None:
+    session_view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1, output=CellOutput.errors([UnknownError(msg="bad")])
+    )
+    session_view.last_executed_code[CELL1] = "legacy code"
+    saved = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=False
+    )
+    error = saved["cells"][0]["outputs"][0]
+    assert error["type"] == "error"
+    error["ename"] = "exception"
+    error["traceback"] = entries  # type: ignore[typeddict-item]
+    restored = deserialize_session(
+        saved, _build_code_hash_to_cell_id_mapping(saved)
+    )
+    output = restored.cell_notifications[CELL1].output
+    assert output is not None
+    assert output.code is msgspec.UNSET
+    assert isinstance(output.data, list)
+    assert isinstance(output.data[0], MarimoExceptionRaisedError)
+    assert output.data[0].exception_type == "exception"
+    assert output.data[0].traceback == expected
+
+
 def test_serialize_session_with_console(session_view: SessionView):
     """Test serialization of a session with console output"""
     view = session_view
@@ -140,6 +278,93 @@ def test_serialize_session_with_console(session_view: SessionView):
         view, cell_ids=[CELL1], drop_virtual_file_outputs=False
     )
     snapshot("console_session.json", json.dumps(result, indent=2))
+
+
+def test_export_orders_execution_and_callback_writes_before_merging(
+    session_view: SessionView,
+) -> None:
+    def write(data: str, timestamp: float) -> CellOutput:
+        return CellOutput(CellChannel.STDOUT, "text/plain", data, timestamp)
+
+    session_view.add_notification(
+        CellNotification(CELL1, console=[write("A", 1), write("C", 3)])
+    )
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [write("B", 2)])
+    )
+    for include_callbacks, expected in [(True, "ABC"), (False, "AC")]:
+        saved = serialize_session_view(
+            session_view,
+            [CELL1],
+            include_callback_output=include_callbacks,
+            drop_virtual_file_outputs=False,
+        )
+        assert [row["text"] for row in saved["cells"][0]["console"]] == [
+            expected
+        ]
+
+
+def test_export_keeps_callback_between_writes_with_the_same_timestamp(
+    session_view: SessionView,
+) -> None:
+    def write(data: str) -> CellOutput:
+        return CellOutput(CellChannel.STDOUT, "text/plain", data, 1)
+
+    session_view.add_notification(CellNotification(CELL1, console=write("A")))
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [write("B")])
+    )
+    session_view.add_notification(CellNotification(CELL1, console=write("C")))
+
+    assert [
+        entry.data
+        for entry in session_view.cell_console(CELL1, include_callbacks=True)
+    ] == ["ABC"]
+
+
+def test_export_retains_callbacks_and_excludes_debugger_output(
+    session_view: SessionView,
+) -> None:
+    callback = CellOutput.stdout("callback")
+    session_view.add_notification(
+        PdbOutputNotification(CELL1, [CellOutput.stdout("debugger")])
+    )
+    assert session_view.is_empty()
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [callback])
+    )
+    assert not session_view.is_empty()
+    assert session_view.get_cell_console_outputs([CELL1]) == {
+        CELL1: [callback]
+    }
+
+    export = serialize_session_view(
+        session_view,
+        [CELL1],
+        include_callback_output=True,
+        drop_virtual_file_outputs=False,
+    )
+    assert export["cells"] == [
+        {
+            "id": CELL1,
+            "code_hash": None,
+            "outputs": [],
+            "console": [
+                {
+                    "type": "stream",
+                    "name": "stdout",
+                    "text": "callback",
+                    "mimetype": "text/plain",
+                }
+            ],
+        }
+    ]
+    cache = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=True
+    )
+    assert cache["cells"] == [
+        {"id": CELL1, "code_hash": None, "outputs": [], "console": []}
+    ]
 
 
 def test_serialize_session_with_mime_bundle(session_view: SessionView):
@@ -634,6 +859,47 @@ def test_deserialize_session_with_console():
     assert console_outputs[1].mimetype == "text/plain"
 
 
+def test_deserialize_session_discards_cached_password_response():
+    session = NotebookSessionV1(
+        version="1",
+        metadata={"marimo_version": "0.23.0"},
+        cells=[
+            {
+                "id": "cell1",
+                "code_hash": "123",
+                "outputs": [],
+                "console": [
+                    {
+                        "type": "stream",
+                        "name": "stdout",
+                        "text": "Password: cached-secret\n",
+                        "mimetype": "text/password",
+                    },
+                    {
+                        "type": "stream",
+                        "name": "stdout",
+                        "text": "Name: marimo\n",
+                        "mimetype": "text/plain",
+                    },
+                ],
+            }
+        ],
+    )
+
+    view = deserialize_session(session, {"123": CELL1})
+    restored = serialize_session_view(
+        view, [CELL1], drop_virtual_file_outputs=True
+    )
+    assert restored["cells"][0]["console"] == [
+        {
+            "type": "stream",
+            "name": "stdout",
+            "text": "Name: marimo\n",
+            "mimetype": "text/plain",
+        }
+    ]
+
+
 async def test_session_cache_writer(session_view: SessionView):
     """Test AsyncWriter writes session data periodically"""
     view = session_view
@@ -958,9 +1224,9 @@ def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
     # Check first error (dictionary with explicit no traceback)
     error1 = cell["outputs"][0]
     assert error1["type"] == "error"
-    assert error1["ename"] == "exception"
+    assert error1["ename"] == "ValueError"
     assert error1["evalue"] == "Invalid value"
-    assert error1["traceback"] is None
+    assert error1["traceback"] == []
 
     # Check second error (object format)
     error2 = cell["outputs"][1]
@@ -1066,6 +1332,55 @@ class TestSessionCacheManager:
             )
             assert loaded_view.cell_notifications is not None
 
+    @pytest.mark.parametrize(
+        ("code", "rewrites"), [("a", False), ("edited", True)]
+    )
+    async def test_a_cache_that_was_read_is_not_written_back_unchanged(
+        self, session_view: SessionView, code: str, rewrites: bool
+    ):
+        # The writer takes each cell's code hash from the code the session
+        # ran, and a session that has just read its cache has run nothing.
+        view = session_view
+        doc = _make_document(CELL1)
+        view.cell_notifications[CELL1] = _make_cell_notification(
+            CELL1,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="test data",
+            ),
+        )
+        view.add_control_request(
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=CELL1, code="a")
+                ]
+            )
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "notebook.py"
+            cache_file = get_session_cache_file(path)
+            cache_file.parent.mkdir(parents=True)
+            cache_file.write_text(
+                json.dumps(
+                    serialize_session_view(
+                        view, cell_ids=[CELL1], drop_virtual_file_outputs=False
+                    )
+                )
+            )
+
+            manager = SessionCacheManager(SessionView(), doc, path, 0.1)
+            loaded_view = manager.read_session_view(
+                SessionCacheKey(
+                    codes=(code,),
+                    marimo_version=__version__,
+                    cell_ids=(CELL1,),
+                )
+            )
+
+            assert loaded_view.needs_export("session") is rewrites
+
     async def test_read_session_view_cache_miss_code(
         self, session_view: SessionView
     ):
@@ -1081,7 +1396,11 @@ class TestSessionCacheManager:
             ),
         )
         view.add_control_request(
-            ExecuteCellsCommand(cell_ids=[CELL1], codes=["a"])
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=CELL1, code="a")
+                ]
+            )
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1115,7 +1434,12 @@ class TestSessionCacheManager:
         id1, id2 = CellId_t("1"), CellId_t("2")
         doc = _make_document(id1, id2)
         view.add_control_request(
-            ExecuteCellsCommand(cell_ids=[id1, id2], codes=["a", "b"])
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=id1, code="a"),
+                    ExecuteCellCommand(cell_id=id2, code="b"),
+                ]
+            )
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1151,7 +1475,12 @@ class TestSessionCacheManager:
         id1, id2 = CellId_t("1"), CellId_t("2")
         doc = _make_document(id1, id2)
         view.add_control_request(
-            ExecuteCellsCommand(cell_ids=[id1, id2], codes=["a", "b"])
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=id1, code="a"),
+                    ExecuteCellCommand(cell_id=id2, code="b"),
+                ]
+            )
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1200,7 +1529,12 @@ class TestSessionCacheManager:
         )
 
         view.add_control_request(
-            ExecuteCellsCommand(cell_ids=[CELL1, CELL2], codes=["a", "b"])
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id=CELL1, code="a"),
+                    ExecuteCellCommand(cell_id=CELL2, code="b"),
+                ]
+            )
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1215,7 +1549,12 @@ class TestSessionCacheManager:
             cache_file.write_text(json.dumps(data))
 
             # Read back
-            manager = SessionCacheManager(SessionView(), doc, path, 0.1)
+            current = SessionView()
+            progress = StartupProgressNotification(
+                phase="starting-kernel", logs="", log_mode="replace"
+            )
+            current.add_notification(progress)
+            manager = SessionCacheManager(current, doc, path, 0.1)
             loaded_view = manager.read_session_view(
                 SessionCacheKey(
                     codes=(
@@ -1226,5 +1565,7 @@ class TestSessionCacheManager:
                     cell_ids=(CELL1, CELL2),
                 )
             )
+            assert loaded_view is current
+            assert loaded_view.startup_progress == progress
             # cache hit: codes and version match
             assert len(loaded_view.cell_notifications) == 2

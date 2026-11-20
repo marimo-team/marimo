@@ -5,7 +5,6 @@ import type { FileUIPart } from "ai";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
-import { notebookAtom } from "@/core/cells/cells";
 import { CellId as CellIdClass } from "@/core/cells/ids";
 import {
   type ErrorContextItem,
@@ -44,9 +43,9 @@ const mockAttachment2: FileUIPart = {
 
 // Concrete implementation of AIContextProvider for testing
 class MockContextProvider extends AIContextProvider<MockContextItem> {
-  readonly title = "Mock Items";
-  readonly mentionPrefix = "@";
-  readonly contextType = "mock";
+  public readonly title = "Mock Items";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = "mock";
 
   private items: MockContextItem[] = [
     {
@@ -72,57 +71,60 @@ class MockContextProvider extends AIContextProvider<MockContextItem> {
     },
   ];
 
-  getItems(): MockContextItem[] {
+  public getItems(): MockContextItem[] {
     return this.items;
   }
 
-  formatContext(item: MockContextItem): string {
+  public formatContext(item: MockContextItem): string {
     return `Mock: ${item.name} (${item.data.value})`;
   }
 
-  formatCompletion(item: MockContextItem): Completion {
+  public formatCompletion(item: MockContextItem): Completion {
     return this.createBasicCompletion(item);
   }
 
   // Method to add items for testing
-  addItem(item: MockContextItem): void {
+  public addItem(item: MockContextItem): void {
     this.items.push(item);
   }
 
   // Method to clear items for testing
-  clearItems(): void {
+  public clearItems(): void {
     this.items = [];
   }
 }
 
 // Test provider that supports attachments
 class AttachmentContextProvider extends AIContextProvider<MockContextItem> {
-  readonly title = "Attachment Items";
-  readonly mentionPrefix = "@";
-  readonly contextType = "attachment";
+  public readonly title = "Attachment Items";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = "attachment";
 
   private items: MockContextItem[];
   private attachments: FileUIPart[];
 
-  constructor(items: MockContextItem[] = [], attachments: FileUIPart[] = []) {
+  public constructor(
+    items: MockContextItem[] = [],
+    attachments: FileUIPart[] = [],
+  ) {
     super();
     this.items = items;
     this.attachments = attachments;
   }
 
-  getItems(): MockContextItem[] {
+  public getItems(): MockContextItem[] {
     return this.items;
   }
 
-  formatContext(item: MockContextItem): string {
+  public formatContext(item: MockContextItem): string {
     return `Attachment: ${item.name} (${item.data.value})`;
   }
 
-  formatCompletion(item: MockContextItem): Completion {
+  public formatCompletion(item: MockContextItem): Completion {
     return this.createBasicCompletion(item);
   }
 
-  override async getAttachments(
+  public override async getAttachments(
     items: MockContextItem[],
   ): Promise<FileUIPart[]> {
     // Return attachments for items that need them
@@ -142,9 +144,9 @@ interface FileContextItem extends AIContextItem {
 
 // Another mock provider with different prefix and type
 class FileContextProvider extends AIContextProvider<FileContextItem> {
-  readonly title = "Files";
-  readonly mentionPrefix = "@";
-  readonly contextType = "file";
+  public readonly title = "Files";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = "file";
 
   private items: FileContextItem[] = [
     {
@@ -163,26 +165,26 @@ class FileContextProvider extends AIContextProvider<FileContextItem> {
     },
   ];
 
-  getItems(): FileContextItem[] {
+  public getItems(): FileContextItem[] {
     return this.items;
   }
 
-  formatCompletion(item: FileContextItem): Completion {
+  public formatCompletion(item: FileContextItem): Completion {
     return this.createBasicCompletion(item);
   }
 
-  formatContext(item: FileContextItem): string {
+  public formatContext(item: FileContextItem): string {
     return `File: ${item.uri}\nDescription: ${item.description}`;
   }
 }
 
 // Second mock provider with the same context type as MockContextProvider
 class SecondaryMockProvider extends AIContextProvider<MockContextItem> {
-  readonly title = "Secondary Mock Items";
-  readonly mentionPrefix = "@";
-  readonly contextType = "mock";
+  public readonly title = "Secondary Mock Items";
+  public readonly mentionPrefix = "@";
+  public readonly contextType = "mock";
 
-  getItems(): MockContextItem[] {
+  public getItems(): MockContextItem[] {
     return [
       {
         type: "mock",
@@ -194,11 +196,11 @@ class SecondaryMockProvider extends AIContextProvider<MockContextItem> {
     ];
   }
 
-  formatContext(item: MockContextItem): string {
+  public formatContext(item: MockContextItem): string {
     return `Secondary: ${item.name}`;
   }
 
-  formatCompletion(item: MockContextItem): Completion {
+  public formatCompletion(item: MockContextItem): Completion {
     return this.createBasicCompletion(item);
   }
 }
@@ -722,23 +724,21 @@ describe("AIContextRegistry", () => {
       const cellId1 = CellIdClass.create();
       const cellId2 = CellIdClass.create();
 
-      const notebookState = MockNotebook.notebookStateWithErrors([
+      MockNotebook.withErrors(store, [
         {
           cellId: cellId1,
           cellName: "Cell 1",
-          errorData: [
-            MockNotebook.errors.syntax("Invalid syntax"),
-            MockNotebook.errors.exception("Runtime error"),
-          ],
+          error: { kind: "invalid-syntax", message: "Invalid syntax" },
         },
         {
           cellId: cellId2,
           cellName: "Cell 2",
-          errorData: [MockNotebook.errors.cycle()],
+          error: {
+            kind: "cycle-dependencies",
+            message: "This cell is in a cycle",
+          },
         },
       ]);
-
-      store.set(notebookAtom, notebookState);
       errorProvider = new ErrorContextProvider(store);
       registry = new AIContextRegistry<ErrorContextItem>().register(
         errorProvider,
@@ -794,8 +794,7 @@ describe("AIContextRegistry", () => {
     it("should handle empty errors gracefully", () => {
       // Create store with no errors using MockNotebook
       const emptyStore = createStore();
-      const emptyNotebookState = MockNotebook.notebookStateWithErrors([]);
-      emptyStore.set(notebookAtom, emptyNotebookState);
+      MockNotebook.withErrors(emptyStore, []);
 
       const emptyErrorProvider = new ErrorContextProvider(emptyStore);
       const emptyRegistry = new AIContextRegistry().register(

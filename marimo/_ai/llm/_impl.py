@@ -6,6 +6,8 @@ import os
 import re
 from typing import TYPE_CHECKING, Any, cast
 
+from msgspec import UNSET
+
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import generate_id, sanitize_part
 from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION, DONE_CHUNK
@@ -29,6 +31,7 @@ from marimo._ai._types import (
     ChatModel,
     ChatModelConfig,
 )
+from marimo._cli.install_hints import get_install_hint
 from marimo._dependencies.dependencies import DependencyManager
 
 LOGGER = _loggers.marimo_logger()
@@ -46,6 +49,36 @@ def _looks_like_streaming_error(e: Exception) -> bool:
         re.search(r"\bstreaming\b", error_msg)
         or re.search(r"\bstream\b", error_msg)
     )
+
+
+def _start_stream(
+    chunks: Generator[str, None, None],
+) -> Generator[str, None, None]:
+    """Return a generator that replays the first chunk, then yields the rest.
+
+    Starting it here raises a streaming error inside the caller's try block, so non-streaming models can fallback safely.
+    """
+    first = next(chunks, None)
+
+    def resume() -> Generator[str, None, None]:
+        if first is not None:
+            yield first
+        yield from chunks
+
+    return resume()
+
+
+def _stream_or_fallback(
+    stream: Callable[[], Generator[str, None, None]],
+    fallback: Callable[[], str],
+) -> Generator[str, None, None] | str:
+    """Stream the response, or call `fallback` if the model can't stream."""
+    try:
+        return _start_stream(stream())
+    except Exception as e:
+        if _looks_like_streaming_error(e):
+            return fallback()
+        raise
 
 
 class simple(ChatModel):
@@ -111,8 +144,9 @@ class openai(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["open_ai"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.open_ai
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass
@@ -138,7 +172,7 @@ class openai(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
-            "chat model requires openai. `pip install openai`"
+            f"chat model requires openai. `{get_install_hint('openai')}`"
         )
         from urllib.parse import parse_qs, urlparse
 
@@ -247,8 +281,9 @@ class anthropic(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["anthropic"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.anthropic
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass
@@ -278,7 +313,7 @@ class anthropic(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.anthropic.require(
-            "chat model requires anthropic. `pip install anthropic`"
+            f"chat model requires anthropic. `{get_install_hint('anthropic')}`"
         )
         from anthropic import Anthropic
 
@@ -303,17 +338,23 @@ class anthropic(ChatModel):
         ):
             params["temperature"] = config.temperature
 
-        # Try streaming first, fall back to non-streaming on error
-        try:
-            # Note: client.messages.stream() doesn't take a 'stream' parameter
-            # It's already a streaming method
-            return self._stream_response(client, params)
-        except Exception as e:
-            # Fall back to non-streaming mode if streaming fails
-            if _looks_like_streaming_error(e):
-                response = client.messages.create(**params)
-                return response.content[0].text
-            raise
+        def non_streaming() -> str:
+            response = client.messages.create(**params)
+            # The first block can be a thinking block, which has no text
+            return next(
+                (
+                    block.text
+                    for block in response.content
+                    if block.type == "text"
+                ),
+                "",
+            )
+
+        # Note: client.messages.stream() doesn't take a 'stream' parameter
+        # It's already a streaming method
+        return _stream_or_fallback(
+            lambda: self._stream_response(client, params), non_streaming
+        )
 
 
 class google(ChatModel):
@@ -351,8 +392,9 @@ class google(ChatModel):
         try:
             from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["google"]["api_key"]
-            if api_key:
+            provider = get_context().marimo_config.ai.google
+            api_key = provider.api_key if provider is not UNSET else UNSET
+            if isinstance(api_key, str) and api_key:
                 return api_key
         except Exception:
             pass
@@ -388,7 +430,7 @@ class google(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
-            "chat model requires google. `pip install google-genai`"
+            f"chat model requires google. `{get_install_hint('google-genai')}`"
         )
         from google import genai  # type: ignore[import-not-found]
 
@@ -407,21 +449,20 @@ class google(ChatModel):
             "presence_penalty": config.presence_penalty,
         }
 
-        # Try streaming first, fall back to non-streaming on error
-        try:
-            return self._stream_response(
-                client, google_messages, generation_config
+        def non_streaming() -> str:
+            response = client.models.generate_content(
+                model=self.model,
+                contents=google_messages,
+                config=generation_config,  # type: ignore[arg-type]
             )
-        except Exception as e:
-            # Fall back to non-streaming mode if streaming fails
-            if _looks_like_streaming_error(e):
-                response = client.models.generate_content(
-                    model=self.model,
-                    contents=google_messages,
-                    config=generation_config,  # type: ignore[arg-type]
-                )
-                return response.text
-            raise
+            return response.text or ""
+
+        return _stream_or_fallback(
+            lambda: self._stream_response(
+                client, google_messages, generation_config
+            ),
+            non_streaming,
+        )
 
 
 class groq(ChatModel):
@@ -506,7 +547,7 @@ class groq(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.groq.require(
-            "chat model requires groq. `pip install groq`"
+            f"chat model requires groq. `{get_install_hint('groq')}`"
         )
         from groq import Groq  # type: ignore[import-not-found]
 
@@ -517,23 +558,22 @@ class groq(ChatModel):
             + messages
         )
 
-        # Try streaming first, fall back to non-streaming on error
-        try:
-            return self._stream_response(client, groq_messages, config)
-        except Exception as e:
-            # Fall back to non-streaming mode if streaming fails
-            if _looks_like_streaming_error(e):
-                response = client.chat.completions.create(
-                    model=self.model,
-                    messages=groq_messages,
-                    max_tokens=config.max_tokens,
-                    temperature=config.temperature,
-                    top_p=config.top_p,
-                    stop=None,
-                    stream=False,
-                )
-                return response.choices[0].message.content or ""
-            raise
+        def non_streaming() -> str:
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=groq_messages,
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                stop=None,
+                stream=False,
+            )
+            return response.choices[0].message.content or ""
+
+        return _stream_or_fallback(
+            lambda: self._stream_response(client, groq_messages, config),
+            non_streaming,
+        )
 
 
 class bedrock(ChatModel):
@@ -582,7 +622,7 @@ class bedrock(ChatModel):
 
     def _create_client(self) -> Any:
         DependencyManager.boto3.require(
-            "bedrock chat model requires boto3. `pip install boto3`"
+            f"bedrock chat model requires boto3. `{get_install_hint('boto3')}`"
         )
         import boto3
 
@@ -643,19 +683,21 @@ class bedrock(ChatModel):
         client = self._create_client()
         params = self._build_converse_params(messages, config)
 
+        def non_streaming() -> str:
+            response = client.converse(**params)
+            output = response.get("output", {})
+            message = output.get("message", {})
+            content = message.get("content", [])
+            # The first block can be reasoning, which has no text
+            return next(
+                (block["text"] for block in content if "text" in block),
+                "",
+            )
+
         try:
-            try:
-                return self._stream_response(client, params)
-            except Exception as stream_error:
-                if _looks_like_streaming_error(stream_error):
-                    response = client.converse(**params)
-                    output = response.get("output", {})
-                    message = output.get("message", {})
-                    content = message.get("content", [])
-                    if content and "text" in content[0]:
-                        return content[0]["text"]
-                    return ""
-                raise
+            return _stream_or_fallback(
+                lambda: self._stream_response(client, params), non_streaming
+            )
         except Exception as e:
             error_msg = str(e)
 
@@ -705,7 +747,7 @@ class pydantic_ai(ChatModel):
 
     def __init__(self, agent: Agent[Any, Any]):
         DependencyManager.pydantic_ai.require(
-            "pydantic-ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+            f"pydantic-ai chat model requires pydantic-ai. `{get_install_hint('pydantic-ai')}`"
         )
         self.agent = agent
 

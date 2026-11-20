@@ -77,5 +77,12 @@ def _(mo):
     mo.md(fr"siiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiingle line")
     return
 
+@app.cell
+def _(mo):
+    mo.md(r"""
+    Inline comment after the call. No issue
+    """)  # noqa: E501
+    return
+
 if __name__ == "__main__":
     app.run()

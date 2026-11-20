@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import contextlib
-import os
+import io
 import sys
+from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
-from marimo._messaging.streams import redirect
+from marimo._messaging.streams import ThreadSafeStream, redirect
 from marimo._messaging.thread_local_streams import (
     ThreadLocalStreamProxy,
     clear_thread_local_streams,
@@ -20,37 +21,33 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
-    while True:
-        data = os.read(fd, 1024)
-        if not data:
-            break
-        stream_object.write(data.decode())
+_STDIN_ALLOWED = ContextVar("stdin_allowed", default=True)
 
 
-def dup2newfd(fd: int) -> tuple[int, int, int]:
-    """Create a pipe, with `fd` at the write end of it.
-
-    Returns:
-    - duplicate (os.dup) of `fd`
-    - read end of pipe
-    - fd (which now points to the file referenced by the write end of the pipe)
-
-    When done with the pipe, the write-end of the pipe should be closed
-    and remapped to point to the saved duplicate. The read end should
-    also be closed, as should the saved duplicate.
-    """
-    # fd_dup keeps a pointer to `fd`'s original location
-    fd_dup = os.dup(fd)
-    # create a pipe, with `fd` as the write end of it
-    read_fd, write_fd = os.pipe()
-    # repurpose fd to point to the write-end of the pipe
-    os.dup2(write_fd, fd)
-    os.close(write_fd)
-    return fd_dup, read_fd, fd
+class _EOFStdin(io.StringIO):
+    def _readline_with_prompt(
+        self, prompt: str = "", password: bool = False
+    ) -> str:
+        del prompt, password
+        raise EOFError("EOF when reading a line")
 
 
-# Redirect output stream and stdout/stderr/stdin (if they have been installed)
+@contextlib.contextmanager
+def stdin_context(allow_stdin: bool) -> Iterator[None]:
+    """Give noninteractive commands an empty stdin, including nested cells."""
+    if allow_stdin:
+        yield
+        return
+    token = _STDIN_ALLOWED.set(False)
+    previous = sys.stdin
+    sys.stdin = _EOFStdin()
+    try:
+        yield
+    finally:
+        sys.stdin = previous
+        _STDIN_ALLOWED.reset(token)
+
+
 @contextlib.contextmanager
 def redirect_streams(
     cell_id: CellId_t,
@@ -61,17 +58,10 @@ def redirect_streams(
 ) -> Iterator[None]:
     cell_id_old = stream.cell_id
 
-    # In a nested context, generally NOOP so messages reach the top-level
-    # cell.  The exception is the scratchpad: when code_mode runs cells
-    # from within __scratch__, we must swap cell_id so console output
-    # routes to the real cell, not the scratchpad.
-    if cell_id_old is not None:
-        if cell_id_old == SCRATCH_CELL_ID:
-            stream.cell_id = cell_id
-        try:
-            yield
-        finally:
-            stream.cell_id = cell_id_old
+    # Ordinary nested calls share the outer cell's console. Code mode runs
+    # real cells inside the scratchpad, each with its own output and pipes.
+    if cell_id_old is not None and cell_id_old != SCRATCH_CELL_ID:
+        yield
         return
 
     stream.cell_id = cell_id
@@ -88,11 +78,13 @@ def redirect_streams(
         #
         # We don't support redirecting file descriptors in run mode.
         # We also don't support sys.stdin redirection.
-        set_thread_local_streams(stdout, stderr)
+        if cell_id_old is None:
+            set_thread_local_streams(stdout, stderr)
         try:
             yield
         finally:
-            clear_thread_local_streams()
+            if cell_id_old is None:
+                clear_thread_local_streams()
             stream.cell_id = cell_id_old
     else:
         # In edit mode, we have one process per notebook, so we can safely
@@ -102,10 +94,17 @@ def redirect_streams(
         py_stdin = sys.stdin
         sys.stdout = stdout  # type: ignore
         sys.stderr = stderr  # type: ignore
-        sys.stdin = stdin  # type: ignore
+        if _STDIN_ALLOWED.get():
+            sys.stdin = stdin  # type: ignore
 
         try:
-            with redirect(stdout), redirect(stderr):
+            with (
+                stream.own_console()
+                if isinstance(stream, ThreadSafeStream)
+                else contextlib.nullcontext(),
+                redirect(stdout),
+                redirect(stderr),
+            ):
                 yield
         finally:
             sys.stdout = py_stdout

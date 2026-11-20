@@ -124,6 +124,7 @@ export const DataTableBody = <TData,>({
     handleCellMouseUp,
     handleCellMouseOver,
     handleCellsKeyDown,
+    handleCellFocus,
     handleCopy: handleCopyAllCells,
   } = useCellRangeSelection({ table });
 
@@ -147,10 +148,16 @@ export const DataTableBody = <TData,>({
       return (
         <TableCell
           tabIndex={0}
+          role={table.options.enableCellSelection ? "gridcell" : undefined}
+          aria-selected={
+            table.options.enableCellSelection
+              ? cell.getIsSelected?.()
+              : undefined
+          }
           {...getCellDomProps(cell.id)}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate outline-hidden border-r border-r-border/75",
+            "whitespace-pre truncate outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring border-r border-r-border/75",
             !fixedWidth && "max-w-[300px]",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping?.() === "wrap" &&
@@ -169,7 +176,13 @@ export const DataTableBody = <TData,>({
             hoverTooltip.handleCellMouseOver(e, cell);
           }}
           onMouseLeave={hoverTooltip.handleCellMouseLeave}
-          onFocus={(e) => hoverTooltip.handleCellFocus(e, cell)}
+          onFocus={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCellFocus(cell);
+            }
+            hoverTooltip.handleCellFocus(e, cell);
+          }}
+          onKeyDown={(e) => handleCellsKeyDown(e, cell)}
           onBlur={hoverTooltip.handleCellBlur}
           onContextMenu={() => handleContextMenu(cell)}
         >
@@ -264,11 +277,7 @@ export const DataTableBody = <TData,>({
     return rows.map((row) => renderRow(row));
   };
 
-  const tableBody = (
-    <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
-      {renderRows()}
-    </TableBody>
-  );
+  const tableBody = <TableBody ref={tableRef}>{renderRows()}</TableBody>;
 
   return (
     <>

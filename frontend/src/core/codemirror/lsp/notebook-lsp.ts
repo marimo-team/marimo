@@ -12,10 +12,8 @@ import { Objects } from "@/utils/objects";
 import { isRecord } from "@/utils/records";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { topologicalCodesAtom } from "../copilot/getCodes";
-import {
-  getEditorCodeAsPython,
-  updateEditorCodeFromPython,
-} from "../language/utils";
+import { prepareCellCodeUpdate } from "../language/cell-code";
+import { getEditorCodeAsPython } from "../language/utils";
 import { createNotebookLens, type NotebookLens } from "./lens";
 import { normalizeLspDocumentation } from "./normalize-markdown-math";
 import {
@@ -42,7 +40,7 @@ class Snapshotter {
     codes: Record<CellId, string>;
   };
 
-  constructor(
+  public constructor(
     getNotebookCode: () => {
       cellIds: CellId[];
       codes: Record<CellId, string>;
@@ -226,7 +224,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   private latestDiagnosticsVersion: number | null = null;
   private forwardedDiagnosticsVersion = 0;
 
-  constructor(
+  public constructor(
     client: ILanguageServerClient,
     initialSettings: Record<string, unknown>,
     getNotebookEditors: () => Record<
@@ -254,7 +252,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     this.snapshotter = new Snapshotter(this.getNotebookCode.bind(this));
   }
 
-  onNotification(
+  public onNotification(
     listener: (n: {
       jsonrpc: "2.0";
       id?: null | undefined;
@@ -265,44 +263,44 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return this.client.onNotification(listener);
   }
 
-  get ready(): boolean {
+  public get ready(): boolean {
     return this.client.ready;
   }
 
-  set ready(value: boolean) {
+  public set ready(value: boolean) {
     this.client.ready = value;
   }
 
-  get capabilities(): LSP.ServerCapabilities | null {
+  public get capabilities(): LSP.ServerCapabilities | null {
     return this.client.capabilities;
   }
 
-  set capabilities(value: LSP.ServerCapabilities) {
+  public set capabilities(value: LSP.ServerCapabilities) {
     this.client.capabilities = value;
   }
 
-  get initializePromise(): Promise<void> {
+  public get initializePromise(): Promise<void> {
     return this.client.initializePromise;
   }
 
-  set initializePromise(value: Promise<void>) {
+  public set initializePromise(value: Promise<void>) {
     this.client.initializePromise = value;
   }
 
-  get clientCapabilities() {
+  public get clientCapabilities() {
     return this.client.clientCapabilities;
   }
 
-  async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     await this.client.initialize();
   }
 
-  close(): void {
+  public close(): void {
     this.openCellDocumentCounts.clear();
     this.client.close();
   }
 
-  hasCapability(method: string): boolean {
+  public hasCapability(method: string): boolean {
     return this.client.hasCapability(method);
   }
 
@@ -343,7 +341,21 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   private getNotebookCode() {
-    return store.get(topologicalCodesAtom);
+    const { cellIds, codes } = store.get(topologicalCodesAtom);
+    const editors = this.getNotebookEditors();
+    // EditorView edits do not invalidate the cached notebook atom.
+    return {
+      cellIds,
+      codes: Objects.fromEntries(
+        cellIds.map((id) => {
+          const editor = editors[id];
+          return [
+            id,
+            editor ? getEditorCodeAsPython(editor) : (codes[id] ?? ""),
+          ];
+        }),
+      ),
+    };
   }
 
   private assertCellDocumentUri(
@@ -430,7 +442,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
    * This ensures the caller uses the same lens that was sent to the server,
    * avoiding race conditions if cells change between sync and subsequent operations.
    */
-  async sync(): Promise<{
+  public async sync(): Promise<{
     params: LSP.DidChangeTextDocumentParams;
     lens: NotebookLens;
   }> {
@@ -499,7 +511,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     });
   }
 
-  async textDocumentDefinition(
+  public async textDocumentDefinition(
     params: LSP.DefinitionParams,
   ): Promise<LSP.Definition | LSP.LocationLink[] | null> {
     // Get the cell document URI from the params
@@ -525,7 +537,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     });
   }
 
-  async textDocumentSignatureHelp(
+  public async textDocumentSignatureHelp(
     params: LSP.SignatureHelpParams,
   ): Promise<LSP.SignatureHelp | null> {
     const cellDocumentUri = params.textDocument.uri;
@@ -572,7 +584,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
    *
    * See textDocumentRename for a similar workaround that manually applies edits.
    */
-  textDocumentCodeAction(
+  public textDocumentCodeAction(
     params: LSP.CodeActionParams,
   ): Promise<(LSP.Command | LSP.CodeAction)[] | null> {
     const disabledCodeAction = true;
@@ -582,7 +594,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return this.client.textDocumentCodeAction(params);
   }
 
-  codeActionResolve(action: LSP.CodeAction): Promise<LSP.CodeAction> {
+  public codeActionResolve(action: LSP.CodeAction): Promise<LSP.CodeAction> {
     return Promise.resolve(action);
   }
 
@@ -646,7 +658,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
    * LSP edit application flow. The trade-off is that we lose undo grouping
    * across cells.
    */
-  async textDocumentRename(
+  public async textDocumentRename(
     params: LSP.RenameParams,
   ): Promise<LSP.WorkspaceEdit | null> {
     // Get the cell document URI from the params
@@ -756,7 +768,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       // Only update if it has changed
       const code = getEditorCodeAsPython(ev);
       if (code !== newCode) {
-        updateEditorCodeFromPython(ev, newCode);
+        const update = prepareCellCodeUpdate(ev.state, newCode);
+        if (update) {
+          ev.dispatch(update);
+        }
         updatedCount++;
       }
     }
@@ -784,7 +799,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     };
   }
 
-  async completionItemResolve(
+  public async completionItemResolve(
     params: LSP.CompletionItem,
   ): Promise<LSP.CompletionItem> {
     // Used cached result to avoid jitter while typing in the same completion item
@@ -801,7 +816,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return resolved;
   }
 
-  async textDocumentPrepareRename(
+  public async textDocumentPrepareRename(
     params: LSP.PrepareRenameParams,
   ): Promise<LSP.PrepareRenameResult | null> {
     // Get the cell document URI from the params
@@ -870,7 +885,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   public async textDocumentCompletion(params: LSP.CompletionParams) {
-    const { lens } = this.snapshotter.getLatestSnapshot();
+    const { lens } = await this.sync();
 
     // Check if URI is valid
     if (!CellDocumentUri.is(params.textDocument.uri)) {

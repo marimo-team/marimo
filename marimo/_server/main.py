@@ -10,7 +10,8 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
 from marimo import _loggers
-from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config_schema import ServerConfig
 from marimo._server.api.auth import (
     SESSION_SECRET,
     CustomAuthenticationMiddleware,
@@ -23,9 +24,11 @@ from marimo._server.api.middleware import (
     ProxyMiddleware,
     SkewProtectionMiddleware,
     TimeoutMiddleware,
+    WebSocketOriginMiddleware,
 )
 from marimo._server.api.router import build_routes
 from marimo._server.errors import handle_error
+from marimo._server.host.middleware import HostApiMiddleware
 from marimo._server.lsp import LspServer
 from marimo._server.registry import MIDDLEWARE_REGISTRY
 from marimo._utils.http import (
@@ -58,8 +61,21 @@ def create_starlette_app(
     lsp_servers: list[LspServer] | None = None,
     skew_protection: bool = True,
     timeout: float | None = None,
+    server_config: ServerConfig | None = None,
 ) -> Starlette:
-    final_middlewares: list[Middleware] = []
+    server_config = (
+        server_config if server_config is not None else DEFAULT_CONFIG.server
+    )
+    session_secret = server_config.session_secret or SESSION_SECRET
+    final_middlewares: list[Middleware] = [
+        Middleware(
+            WebSocketOriginMiddleware,
+            allow_origins=allow_origins or (),
+            host=host,
+        ),
+        # Handle host API requests before the editor's middleware.
+        Middleware(HostApiMiddleware, base_url=base_url),
+    ]
 
     if allow_origins is None:
         allow_origins = ("localhost", "127.0.0.1") + (
@@ -71,8 +87,9 @@ def create_starlette_app(
             [
                 Middleware(
                     CustomSessionMiddleware,
-                    secret_key=SESSION_SECRET,
-                    https_only=GLOBAL_SETTINGS.SESSION_COOKIE_SECURE,
+                    secret_key=session_secret,
+                    https_only=server_config.session_cookie_secure,
+                    partitioned=server_config.session_cookie_partitioned,
                 ),
             ]
         )
@@ -131,6 +148,7 @@ def create_starlette_app(
             app_state=app.state,
             timeout_duration_minutes=timeout,
         )
+    app.state.session_secret = session_secret
     return app
 
 
@@ -141,7 +159,8 @@ def _create_lsps_proxy_middleware(
         Middleware(
             ProxyMiddleware,
             proxy_path=f"{base_url}/lsp/{server.id}",
-            target_url=f"http://localhost:{server.port}",
+            target_url=f"http://127.0.0.1:{server.port}",
+            websocket_headers={"Marimo-LSP-Token": server.auth_token},
         )
         for server in servers
     )

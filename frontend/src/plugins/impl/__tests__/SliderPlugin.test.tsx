@@ -134,6 +134,46 @@ describe("SliderPlugin", () => {
     });
   };
 
+  it.each([
+    { step: 1 / 30, value: 35.86666666666667, expected: "35.87" },
+    { step: 0.1, value: 0.30000000000000004, expected: "0.3" },
+    { step: 0.25, value: 1.25, expected: "1.25" },
+    { step: 0.001, value: 1.234, expected: "1.234" },
+    { step: 1e-7, value: 3e-7, expected: "3.0e-7" },
+    { step: 1e-15, value: 3e-15, expected: "3.0e-15" },
+    { step: 1, value: 1.0001, expected: "1.0001", start: 0.0001 },
+    { step: undefined, value: 0.1234, expected: "0.1234" },
+    { step: 1, value: 1, expected: "1.234", steps: [1, 1.234, 2] },
+  ])(
+    "formats the displayed value for step $step",
+    ({ step, value, expected, start = 0, steps = null }) => {
+      const plugin = new SliderPlugin();
+      const setValue = vi.fn();
+      const props = createProps({
+        debounce: false,
+        includeInput: false,
+        setValue,
+      });
+      const { getByText } = render(
+        plugin.render({
+          ...props,
+          value,
+          data: {
+            ...props.data,
+            step,
+            start,
+            steps,
+            stop: 60,
+            showValue: true,
+          },
+        }),
+      );
+
+      expect(getByText(expected)).toBeVisible();
+      expect(setValue).not.toHaveBeenCalled();
+    },
+  );
+
   it("slider triggers setValue immediately when debounce is false", () => {
     const plugin = new SliderPlugin();
     const setValue = vi.fn();
@@ -210,6 +250,28 @@ describe("SliderPlugin", () => {
     // Because the user explicitly typed 9 in the editable input,
     // setValue should be called immediately regardless of debounce=true.
     expect(setValue).toHaveBeenCalledWith(9);
+  });
+
+  it("preserves an uncommitted drag until the controlled value changes", () => {
+    const plugin = new SliderPlugin();
+    const setValue = vi.fn();
+    const props = createProps({
+      debounce: true,
+      includeInput: false,
+      setValue,
+    });
+    const { getByRole, rerender } = render(plugin.render(props));
+
+    fireEvent.click(getByRole("button", { name: "Slider change" }));
+    rerender(
+      plugin.render({ ...props, data: { ...props.data, label: "Updated" } }),
+    );
+    fireEvent.click(getByRole("button", { name: "Slider commit" }));
+    expect(setValue).toHaveBeenLastCalledWith(6);
+
+    rerender(plugin.render({ ...props, value: 2 }));
+    fireEvent.click(getByRole("button", { name: "Slider commit" }));
+    expect(setValue).toHaveBeenLastCalledWith(2);
   });
 
   describe("editable input with steps (regression for #9850)", () => {
@@ -381,9 +443,8 @@ describe("SliderPlugin", () => {
         vi.advanceTimersByTime(0);
       });
 
-      // Shrink `steps` so the held index (4) is now out of range. The index
-      // syncs in an effect after this render, so the render must not throw on
-      // the stale, out-of-range index.
+      // Shrink `steps` so the held index (4) is now out of range. Updating
+      // the controlled index must render the new valid step without throwing.
       const shrunkProps = createStepsProps({
         steps: [10, 20],
         valueIndex: 1,

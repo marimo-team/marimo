@@ -33,6 +33,22 @@ class RemovePackageRequest(msgspec.Struct, rename="camel"):
     group: str | None = None
 
 
+class SandboxRequest(msgspec.Struct, rename="camel"):
+    file_key: str | None = None
+
+
+class UpdateManifestRequest(msgspec.Struct, rename="camel"):
+    contents: str
+    previous: str
+    file_key: str | None = None
+
+
+class SandboxResponse(msgspec.Struct, rename="camel"):
+    backend: Literal["uv", "pixi"] | None
+    manifest: str | None
+    filename: str | None
+
+
 class SandboxPackageContext(
     msgspec.Struct,
     frozen=True,
@@ -77,3 +93,7 @@ class PackageOperationResponse(msgspec.Struct, rename="camel"):
     @staticmethod
     def of_failure(error: str) -> PackageOperationResponse:
         return PackageOperationResponse(success=False, error=error)
+
+
+class SyncSandboxResponse(PackageOperationResponse, rename="camel"):
+    reconnect: bool = False

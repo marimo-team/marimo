@@ -108,3 +108,78 @@ describe("VariableTable cell links", () => {
     );
   });
 });
+
+describe("VariableTable search", () => {
+  const importCell = cellId("Hbol");
+  const summaryCell = cellId("Xref");
+
+  const renderTable = () => {
+    store.set(
+      notebookAtom,
+      MockNotebook.notebookState({
+        cellData: {
+          [importCell]: { name: "_" },
+          [summaryCell]: { name: "report" },
+        },
+      }),
+    );
+    const variables: Variables = {
+      [variableName("reference")]: {
+        dataType: "str",
+        declaredBy: [importCell],
+        name: variableName("reference"),
+        usedBy: [],
+        value: "ORDER-1042",
+      },
+      [variableName("Total")]: {
+        dataType: "float",
+        declaredBy: [importCell],
+        name: variableName("Total"),
+        usedBy: [summaryCell],
+        value: "50.7",
+      },
+      [variableName("summary")]: {
+        dataType: "Html",
+        declaredBy: [summaryCell],
+        name: variableName("summary"),
+        usedBy: [],
+        value: null,
+      },
+    };
+    render(
+      <Provider store={store}>
+        <TooltipProvider>
+          <VariableTable
+            cellIds={[importCell, summaryCell]}
+            variables={variables}
+          />
+        </TooltipProvider>
+      </Provider>,
+    );
+  };
+
+  const search = (query: string) => {
+    fireEvent.change(screen.getByPlaceholderText("Search"), {
+      target: { value: query },
+    });
+    return ["reference", "Total", "summary"].filter(
+      (name) => screen.queryByText(name) !== null,
+    );
+  };
+
+  test("does not match the IDs of the declaring or using cells", () => {
+    renderTable();
+    expect(search("ref")).toEqual(["reference"]);
+    expect(search("Hbol")).toEqual([]);
+  });
+
+  test("matches name, type, value and cell names, ignoring case", () => {
+    renderTable();
+    expect(search("TOTAL")).toEqual(["Total"]);
+    expect(search("float")).toEqual(["Total"]);
+    expect(search("order-10")).toEqual(["reference"]);
+    expect(search("report")).toEqual(["Total", "summary"]);
+    expect(search("cell-0")).toEqual(["reference", "Total"]);
+    expect(search("")).toEqual(["reference", "Total", "summary"]);
+  });
+});

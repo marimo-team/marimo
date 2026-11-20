@@ -10,6 +10,8 @@ export const aiSettingsSubTabAtom = atom<AiSettingsSubTab>("ai-features");
 
 export const settingDialogAtom = atom<boolean>(false);
 
+export const pendingConfigSavesAtom = atom<number>(0);
+
 export function useOpenSettingsToTab() {
   const setActiveCategory = useSetAtom(activeUserConfigCategoryAtom);
   const setSettingsDialog = useSetAtom(settingDialogAtom);

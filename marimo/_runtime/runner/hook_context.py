@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias, Union
 
-from marimo._config.config import MarimoConfig, OnCellChangeType
+from marimo._config.config_schema import MarimoConfig
+from marimo._config.types import OnCellChangeType
 from marimo._messaging.errors import Error
 from marimo._types.ids import CellId_t
 
@@ -115,3 +116,4 @@ class OnFinishHookContext:
     interrupted: bool
     cancelled_cells: CancelledCells
     exceptions: Mapping[CellId_t, ExceptionOrError]
+    execution_ids: Mapping[CellId_t, str] = field(default_factory=dict)

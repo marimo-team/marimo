@@ -4,7 +4,7 @@ export class PluralWord {
   public singular: string;
   public _plural?: string;
 
-  constructor(singular: string, _plural?: string) {
+  public constructor(singular: string, _plural?: string) {
     this.singular = singular;
     this._plural = _plural;
   }
@@ -21,11 +21,11 @@ export class PluralWord {
 export class PluralWords {
   private words: PluralWord[];
 
-  constructor(words: PluralWord[]) {
+  public constructor(words: PluralWord[]) {
     this.words = words;
   }
 
-  static of(...words: (PluralWord | string)[]) {
+  public static of(...words: (PluralWord | string)[]) {
     return new PluralWords(
       words.map((word) => {
         if (typeof word === "string") {
