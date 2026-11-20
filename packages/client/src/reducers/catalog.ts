@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { CatalogEvent } from "../catalog/events.ts";
+import type { CatalogStreamEvent } from "../catalog/events.ts";
 import type { CatalogKind } from "../kinds.ts";
 import {
   composeResources,
@@ -10,7 +10,7 @@ import {
 
 /** Catalog records, removals, and the end of a snapshot or replay. */
 export type CatalogResourceEvent<K extends CatalogKind = CatalogKind> = Exclude<
-  CatalogEvent<K>,
+  CatalogStreamEvent<K>,
   { event: "reset" }
 >;
 
@@ -31,7 +31,7 @@ export interface CatalogReducer<States> {
   readonly initial: CatalogReducerState<States>;
   reduce(
     state: CatalogReducerState<States>,
-    event: CatalogEvent,
+    event: CatalogStreamEvent,
   ): CatalogReducerState<States>;
 }
 

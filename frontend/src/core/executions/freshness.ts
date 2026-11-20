@@ -113,7 +113,8 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
         continue;
       }
       const variable = variables.find(
-        (candidate) => candidate.revision.execution === revision.execution,
+        (candidate) =>
+          candidate.revision.execution_id === revision.execution_id,
       );
       if (
         variable === undefined ||

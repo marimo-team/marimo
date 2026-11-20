@@ -77,7 +77,7 @@ function endedAt(record: Protocol.Execution): number {
 
 function valueOutput(
   record: Protocol.Execution,
-  value: Protocol.DisplayData,
+  value: Protocol.Media,
 ): CellOutput {
   return {
     channel: "output",
@@ -143,7 +143,7 @@ export function cellError(error: Protocol.Error): CellError {
 /** The notice a skipped cell shows in place of a value. */
 function skippedOutput(
   record: Protocol.Execution,
-  outcome: Protocol.SkippedOutcome,
+  outcome: Protocol.ExecutionSkippedOutcome,
 ): CellOutput {
   const cause = outcome.related[0];
   if (cause !== undefined && outcome.reason === "upstream-stopped") {

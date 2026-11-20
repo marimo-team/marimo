@@ -166,7 +166,9 @@ async def test_variables_outlive_the_run_that_bound_them(
         )
         execution = before.latest(c.cells["state"])
         assert execution is not None
-        assert getter.execution_id == getter.revision.execution == execution.id
+        assert (
+            getter.execution_id == getter.revision.execution_id == execution.id
+        )
         records = c.events.records
         bound = next(
             i
@@ -500,14 +502,14 @@ async def test_replaced_inputs_take_precedence_over_updates_and_edits(
     ("code", "outcome", "reader"),
     [
         ("if False:\n    x = 2", "succeeded", protocol.ExecutionFailedOutcome),
-        ("1 / 0\nx = 2", "failed", protocol.SkippedOutcome),
+        ("1 / 0\nx = 2", "failed", protocol.ExecutionSkippedOutcome),
     ],
 )
 async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
     tmp_path: Path,
     code: str,
     outcome: RunEnding,
-    reader: type[protocol.Outcome],
+    reader: type[protocol.ExecutionOutcome],
 ) -> None:
     async with client(
         tmp_path,

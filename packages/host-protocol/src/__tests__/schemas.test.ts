@@ -55,10 +55,10 @@ it.each([
 ])("decodes events from %s", (name) => {
   const text = readFileSync(new URL(name, fixtures), "utf8");
   const schema = name.startsWith("../experimental/")
-    ? Analysis.NotebookEvent
+    ? Analysis.NotebookStreamEvent
     : ["events.sse", "events-reset.sse"].includes(name)
-      ? Host.Event
-      : Notebook.Event;
+      ? Host.StreamEvent
+      : Notebook.StreamEvent;
   let count = 0;
   for (const frame of text.split(/\r?\n\r?\n/)) {
     const event = /^event: (.+)$/m.exec(frame)?.[1];
@@ -118,7 +118,7 @@ it("retains nullable, omitted, arbitrary JSON, and forward-compatible field sema
     }),
   ).toEqual({ type: "future/problem", title: "Future", status: 409 });
   expect(() =>
-    Schema.decodeUnknownSync(Notebook.Event)({
+    Schema.decodeUnknownSync(Notebook.StreamEvent)({
       id: "1",
       event: "ready",
       data: { unexpected: 1 },
@@ -149,7 +149,7 @@ it("enforces integer, array, and nullable attachment constraints without narrowi
     identity: null,
     name: null,
     kind: "client",
-    since: "2026-01-01T00:00:00Z",
+    created_at: "2026-01-01T00:00:00Z",
   };
   expect(Schema.decodeUnknownSync(S.Attachment)(attachment)).toEqual(
     attachment,

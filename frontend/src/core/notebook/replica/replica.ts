@@ -5,7 +5,7 @@
 import { Logger } from "@/utils/Logger";
 import {
   createNotebookReducer,
-  type NotebookEvent,
+  type NotebookStreamEvent,
   NotebookEvents,
   StreamStopped,
 } from "@marimo-team/client";
@@ -55,7 +55,7 @@ export const EDITOR_EVENT_TYPES = [
   "marimo",
 ] as const;
 
-type EditorEvent = NotebookEvent<(typeof EDITOR_EVENT_TYPES)[number]>;
+type EditorEvent = NotebookStreamEvent<(typeof EDITOR_EVENT_TYPES)[number]>;
 
 /** A native marimo notification, passed through without interpretation. */
 const MarimoMessage = z.object({ marimo: z.unknown() });

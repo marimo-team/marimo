@@ -74,7 +74,11 @@ it("adds experimental features without changing the stable protocol", () => {
   expect(experimental.paths).toEqual(stable.paths);
   const extended = experimental.components.schemas;
   for (const [name, schema] of Object.entries(schemas)) {
-    if (name === "Event" || name === "ObjectType") {
+    if (
+      name === "Event" ||
+      name === "NotebookStreamEvent" ||
+      name === "ObjectType"
+    ) {
       continue;
     }
     expect(extended[name]).toEqual(schema);

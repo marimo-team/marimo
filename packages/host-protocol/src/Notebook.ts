@@ -11,10 +11,10 @@ import * as S from "./Schemas.ts";
 import * as Problems from "./Problems.ts";
 import * as P from "./api/Parameters.ts";
 import { sseEvents, response } from "./internal/http.ts";
-import { NotebookEvent } from "./Events.ts";
+import { NotebookStreamEvent } from "./Events.ts";
 
-export const Event = NotebookEvent;
-export type Event = typeof Event.Type;
+export const StreamEvent = NotebookStreamEvent;
+export type StreamEvent = typeof StreamEvent.Type;
 
 export const Delete = HttpApiEndpoint.delete(
   "delete",
@@ -384,5 +384,5 @@ export const group = <E extends Schema.Constraint>(events: E) =>
     Update,
   );
 
-export const Events = makeEvents(Event);
-export const Group = group(Event);
+export const Events = makeEvents(StreamEvent);
+export const Group = group(StreamEvent);

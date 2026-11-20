@@ -824,7 +824,7 @@ describe("readExport", () => {
         project_id: "embedded",
         path: null,
         name: "",
-        updated_at: null,
+        modified_at: null,
       });
       expect(result.snapshot.document).toMatchObject({
         notebook_id: "embedded",

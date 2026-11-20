@@ -28,16 +28,16 @@ from marimo._core.protocol import (
     Console,
     ConsoleMedia,
     ConsoleText,
-    DisplayData,
     Error,
     ExecutionFailedOutcome,
     ExecutionId,
+    ExecutionSkippedOutcome,
+    Media,
     Position,
     Range,
     Related,
     Revision,
     RunId,
-    SkippedOutcome,
     SucceededOutcome,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -109,7 +109,7 @@ def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
     messages.extend(t.finish())
 
     completed = next(m for m in messages if isinstance(m, be.Completed))
-    assert completed.outcome == protocol.SkippedOutcome(
+    assert completed.outcome == protocol.ExecutionSkippedOutcome(
         reason="superseded",
         message="Replaced by a newer execution of this cell before it started",
         related=(
@@ -157,7 +157,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                         id=ExecutionId("scratch"),
                         cell_id=None,
                         code_fingerprint=code_fingerprint("3 * 3"),
-                        caused_by=None,
+                        caused_by_id=None,
                     ),
                 ),
             ),
@@ -172,7 +172,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
             ),
             Displayed(
                 execution_id=ExecutionId("scratch"),
-                display=DisplayData(data="<pre>9</pre>", mimetype="text/html"),
+                display=Media(data="<pre>9</pre>", mimetype="text/html"),
             ),
             Completed(
                 execution_id=ExecutionId("scratch"),
@@ -217,7 +217,7 @@ def test_structured_displays_preserve_message_encoding(
         mimetype="application/json",
         data=data,
     )
-    display = DisplayData(mimetype="application/json", data=expected)
+    display = Media(mimetype="application/json", data=expected)
     if console:
         assert t.feed(scratch(console=output)) == [
             Produced(
@@ -284,7 +284,7 @@ def test_an_exception_ends_the_run_in_error() -> None:
                         kind="exception",
                         message="division by zero",
                         name="ZeroDivisionError",
-                        traceback=DisplayData(
+                        traceback=Media(
                             data="""\
 Traceback...
 ZeroDivisionError: division by zero
@@ -389,9 +389,7 @@ def test_media_written_to_the_console_is_an_entry_among_the_text() -> None:
     ]
     assert len({item.id for item in items}) == 3
     assert items[1].content == ConsoleMedia(
-        protocol.DisplayData(
-            mimetype="image/png", data="data:image/png;base64,AAAA"
-        )
+        protocol.Media(mimetype="image/png", data="data:image/png;base64,AAAA")
     )
 
 
@@ -420,7 +418,7 @@ def test_a_rendered_traceback_is_media_and_a_plain_one_is_text() -> None:
 
     rendered, text = (m.item for m in out if isinstance(m, Produced))
     assert rendered.content == ConsoleMedia(
-        protocol.DisplayData(
+        protocol.Media(
             mimetype="application/vnd.marimo+traceback", data=highlighted
         )
     )
@@ -508,7 +506,7 @@ def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
                 "Ancestor raised",
                 CellId_t("a"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
         (
@@ -525,7 +523,7 @@ def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
                 "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
                 CellId_t("a"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
         (
@@ -534,7 +532,7 @@ def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
                 CellId_t("a"),
                 CellId_t("b"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
     ],
@@ -667,7 +665,7 @@ def test_a_skipped_cell_names_its_reason_and_the_cells_involved(
     )
     assert isinstance(completed, Completed)
     outcome = completed.outcome
-    assert isinstance(outcome, SkippedOutcome)
+    assert isinstance(outcome, ExecutionSkippedOutcome)
     assert outcome.reason == reason
     assert outcome.message.startswith(("This cell wasn't run", "An ancestor"))
     assert not outcome.message.endswith((":", " "))

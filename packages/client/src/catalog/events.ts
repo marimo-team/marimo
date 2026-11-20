@@ -6,7 +6,8 @@ import type { Transport } from "../transport/frame.ts";
 import type { StreamEvent } from "../transport/stream.ts";
 
 /** An event delivered for the requested catalog kinds, plus ready and reset. */
-export type CatalogEvent<K extends CatalogKind = CatalogKind> = StreamEvent<K>;
+export type CatalogStreamEvent<K extends CatalogKind = CatalogKind> =
+  StreamEvent<K>;
 
 /** How a catalog stream reaches its host and what it follows. */
 export interface CatalogEventsOptions<

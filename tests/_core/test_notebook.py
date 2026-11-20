@@ -34,13 +34,13 @@ from marimo._core.protocol import (
     ConsoleText,
     Custom,
     CustomMessage,
-    DisplayData,
     Error,
     Execution,
     ExecutionFailedOutcome,
     ExecutionId,
     ExecutionMessage,
     ItemId,
+    Media,
     NotebookId,
     Run,
     RunId,
@@ -559,8 +559,8 @@ def console(
     )
 
 
-def value(data: str) -> DisplayData:
-    return DisplayData(mimetype="text/html", data=data)
+def value(data: str) -> Media:
+    return Media(mimetype="text/html", data=data)
 
 
 class TestRun:
@@ -714,7 +714,7 @@ class TestRun:
                     ),
                 ),
                 Execution(
-                    caused_by=None,
+                    caused_by_id=None,
                     cell_id=None,
                     code_fingerprint="9f",
                     id=ExecutionId("e7"),
@@ -1232,7 +1232,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
         execution_id=first,
         id=ItemId("first-display"),
         seq=1,
-        content=ConsoleMedia(DisplayData(mimetype="text/plain", data="b")),
+        content=ConsoleMedia(Media(mimetype="text/plain", data="b")),
     )
     second_console = Console(
         id=ItemId("second-console"),
@@ -1244,7 +1244,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
         execution_id=second,
         id=ItemId("second-display"),
         seq=1,
-        content=ConsoleMedia(DisplayData(mimetype="text/plain", data="d")),
+        content=ConsoleMedia(Media(mimetype="text/plain", data="d")),
     )
     for item in (second_console, first_console, second_display, first_display):
         notebook.observe(be.Produced(item))
@@ -1423,7 +1423,7 @@ def test_restoration_preserves_revisions_and_outputs(
                 id=ItemId("display"),
                 seq=1,
                 content=ConsoleMedia(
-                    DisplayData(
+                    Media(
                         mimetype="application/json", data='{"values": [1, 2]}'
                     )
                 ),

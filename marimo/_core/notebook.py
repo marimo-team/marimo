@@ -649,7 +649,7 @@ class Notebook:
             "notebook_id": self.id,
             "kind": kind or "client",
             "name": name or None,
-            "since": utcnow(),
+            "created_at": utcnow(),
         }
         fields["identity"] = identity
         attachment = msgspec.convert(fields, protocol.Attachment)

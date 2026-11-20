@@ -110,7 +110,7 @@ describe("static notebook backend", () => {
       id: "embedded:result",
       run_id: "embedded:run",
       runtime_id: "embedded",
-      caused_by: null,
+      caused_by_id: null,
       cell_id: cell.id,
       code_fingerprint: cell.code_fingerprint,
       created_at: null,

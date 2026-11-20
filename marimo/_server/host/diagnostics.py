@@ -21,7 +21,7 @@ def error(
     message: str,
     *,
     name: str | None = None,
-    traceback: protocol.DisplayData | None = None,
+    traceback: protocol.Media | None = None,
     range_: protocol.Range | None = None,
     related: tuple[protocol.Related, ...] = (),
 ) -> protocol.Error:

@@ -171,7 +171,7 @@ describe("host protocol bindings", () => {
     });
   });
 
-  it.each(["run_id", "runtime_id", "caused_by"] as const)(
+  it.each(["run_id", "runtime_id", "caused_by_id"] as const)(
     "requires the nullable execution field %s",
     (field) => {
       const execution = Protocol.Execution.parse(

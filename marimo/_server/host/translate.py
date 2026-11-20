@@ -60,7 +60,7 @@ class _Execution:
     id: protocol.ExecutionId
     cell_id: str
     ended: bool = False
-    outcome: protocol.Outcome = field(
+    outcome: protocol.ExecutionOutcome = field(
         default_factory=protocol.SucceededOutcome
     )
     errors: list[Error] = field(default_factory=list)
@@ -177,7 +177,7 @@ class RunTranslator:
                     if execution.cell_id == SCRATCH_CELL_ID
                     else execution.cell_id,
                     notification.code_fingerprint,
-                    caused_by=parent.id if parent is not None else None,
+                    caused_by_id=parent.id if parent is not None else None,
                 ),
             ),
         )
@@ -464,9 +464,9 @@ def variable_messages(notification: NotificationMessage) -> list[be.Message]:
     return out
 
 
-def displayed(mimetype: str, data: object) -> protocol.DisplayData:
+def displayed(mimetype: str, data: object) -> protocol.Media:
     """A rendered value as the stream carries it, with structured data as JSON."""
-    return protocol.DisplayData(
+    return protocol.Media(
         mimetype=str(mimetype),
         data=data if isinstance(data, str) else encode_json_str(data),
     )
@@ -502,14 +502,14 @@ def _skip_reason(error: Error) -> str | None:
     return None
 
 
-def _declined(reason: str, cell_id: str) -> protocol.SkippedOutcome:
+def _declined(reason: str, cell_id: str) -> protocol.ExecutionSkippedOutcome:
     """Describe an attempt the kernel ended without evaluating it."""
     message = (
         "Replaced by a newer execution of this cell before it started"
         if reason == "superseded"
         else "Did not run"
     )
-    return protocol.SkippedOutcome(
+    return protocol.ExecutionSkippedOutcome(
         reason=reason,
         message=message,
         related=(
@@ -522,7 +522,7 @@ def _declined(reason: str, cell_id: str) -> protocol.SkippedOutcome:
     )
 
 
-def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
+def _skipped(error: Error, cell_id: str) -> protocol.ExecutionSkippedOutcome:
     """Describe a cell that did not evaluate because of the cells it names.
 
     The kernel's message ends where the editor appends a link to the cause,
@@ -542,7 +542,7 @@ def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
         involved.append((error.raising_cell, "Raised an exception"))
     involved = [(cell, part) for cell, part in involved if cell != cell_id]
     involved.append((cell_id, "Did not run"))
-    return protocol.SkippedOutcome(
+    return protocol.ExecutionSkippedOutcome(
         reason=reason,
         message=error.describe().rstrip(": "),
         related=tuple(
@@ -584,7 +584,7 @@ def _describe(
     if isinstance(error, MarimoExceptionRaisedError):
         traceback = None
         if error.traceback:
-            traceback = protocol.DisplayData(
+            traceback = protocol.Media(
                 mimetype="text/html"
                 if is_code_highlighting(error.traceback)
                 else "text/plain",

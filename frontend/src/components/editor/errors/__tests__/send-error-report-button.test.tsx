@@ -70,7 +70,7 @@ const AGENT: Attachment = {
   id: "a1",
   kind: "agent",
   name: "Pi",
-  since: "2026-10-14T00:00:00Z",
+  created_at: "2026-10-14T00:00:00Z",
   notebook_id: "nb-test",
   identity: "pi-thread",
 };

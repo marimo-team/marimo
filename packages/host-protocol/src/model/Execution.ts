@@ -119,11 +119,11 @@ export const Run = Schema.Struct({
   state: RunState,
 }).annotate({
   description:
-    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",
+    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items other than inputs each have removal\nevents; a cell result may outlive its run.\n",
   identifier: "Run",
 });
 
-export const DisplayData = Schema.Struct({
+export const Media = Schema.Struct({
   mimetype: Schema.String.annotateKey({
     description: "The format of `data`, such as `text/html` or `image/png`.",
     examples: ["text/html"],
@@ -134,11 +134,11 @@ export const DisplayData = Schema.Struct({
   }),
 }).annotate({
   description: "A rendered value.",
-  identifier: "DisplayData",
+  identifier: "Media",
 });
 
 export const Revision = Schema.Struct({
-  execution: ExecutionId.annotateKey({
+  execution_id: ExecutionId.annotateKey({
     description:
       "The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.",
   }),
@@ -148,7 +148,7 @@ export const Revision = Schema.Struct({
   }),
 }).annotate({
   description:
-    "A variable's value at a point in time. Two revisions are equal\nwhen `execution` and `update` are equal. Clients compare\nrevisions for equality.\n",
+    "A variable's value at a point in time. Two revisions are equal\nwhen `execution_id` and `update` are equal. Clients compare\nrevisions for equality.\n",
   identifier: "Revision",
 });
 
@@ -215,7 +215,7 @@ export const Error = Schema.Struct({
     description:
       "The exception class, such as `ZeroDivisionError`. Set when kind is exception, null otherwise.",
   }),
-  traceback: Schema.NullOr(DisplayData).annotateKey({
+  traceback: Schema.NullOr(Media).annotateKey({
     description:
       "The traceback as rendered by the runtime, plain text or HTML by its mimetype. Null when unavailable or not shown.",
   }),
@@ -234,7 +234,7 @@ export const ExecutionFailedOutcome = Schema.Struct({
   error: Error,
 }).annotate({ identifier: "ExecutionFailedOutcome" });
 
-export const SkippedOutcome = Schema.Struct({
+export const ExecutionSkippedOutcome = Schema.Struct({
   kind: Schema.Literal("skipped"),
   reason: Schema.String.annotateKey({
     description:
@@ -246,17 +246,17 @@ export const SkippedOutcome = Schema.Struct({
   related: Schema.Array(Related).annotateKey({
     description: "The cells involved, the cause first and this cell last.",
   }),
-}).annotate({ identifier: "SkippedOutcome" });
+}).annotate({ identifier: "ExecutionSkippedOutcome" });
 
-export const Outcome = Schema.Union([
+export const ExecutionOutcome = Schema.Union([
   SucceededOutcome,
   ExecutionFailedOutcome,
   CancelledOutcome,
-  SkippedOutcome,
+  ExecutionSkippedOutcome,
 ]).annotate({
   description:
     "How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. A `failed` execution carries the error that ended it.\nA `cancelled` execution was stopped before or while it ran.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
-  identifier: "Outcome",
+  identifier: "ExecutionOutcome",
 });
 
 export const ExecutionQueued = Schema.Struct({
@@ -280,7 +280,7 @@ export const ExecutionCompleted = Schema.Struct({
     description:
       "When the execution ended. Null for a restored result whose store does not record it.",
   }),
-  outcome: Outcome,
+  outcome: ExecutionOutcome,
   depends_on: Schema.Record(Schema.String, Schema.NullOr(Revision)).annotateKey(
     {
       description:
@@ -309,7 +309,7 @@ export const Execution = Schema.Struct({
     description:
       "The runtime that produced this execution. Live while that runtime is the notebook's and has not ended. Null when the producer is unknown.",
   }),
-  caused_by: Schema.NullOr(ExecutionId).annotateKey({
+  caused_by_id: Schema.NullOr(ExecutionId).annotateKey({
     description:
       "The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one.",
   }),

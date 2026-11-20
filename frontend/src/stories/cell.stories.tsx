@@ -53,7 +53,7 @@ function seedResult(
       depends_on:
         freshness === undefined || freshness === "edited"
           ? {}
-          : { x: { execution: "gone", update: 0 } },
+          : { x: { execution_id: "gone", update: 0 } },
     }),
     code_fingerprint: "ran",
   };

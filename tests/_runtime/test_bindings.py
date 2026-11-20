@@ -221,7 +221,7 @@ async def test_state_updates_advance_the_setters_own_input_revision(
     )
     messages = mocked_kernel.stream.parsed_operations
     new = bound(messages)["get"].revision
-    assert new.execution == old.execution
+    assert new.execution_id == old.execution_id
     assert new.update == old.update + 3
     executions = completed(messages)
     assert executions["d"].depends_on["get"] == new
@@ -252,8 +252,8 @@ async def test_ui_updates_publish_revisions_without_rerunning_lazy_cells(
     messages = mocked_kernel.stream.parsed_operations
     assert completed(messages)["c"] == before
     slider = bound(messages)["slider"]
-    assert (slider.revision.execution, slider.revision.update) == (
-        old.execution,
+    assert (slider.revision.execution_id, slider.revision.update) == (
+        old.execution_id,
         old.update + 1,
     )
     assert slider.value == "5"
@@ -345,8 +345,8 @@ get()
     assert completed(messages)["c"] == before
     previous = before.depends_on["get"]
     current = bound(messages)["get"].revision
-    assert (current.execution, current.update) == (
-        previous.execution,
+    assert (current.execution_id, current.update) == (
+        previous.execution_id,
         previous.update + 1,
     )
 

@@ -192,7 +192,7 @@ class PlannedExecution:
     id: protocol.ExecutionId
     cell_id: str | None
     code_fingerprint: str
-    caused_by: protocol.ExecutionId | None = None
+    caused_by_id: protocol.ExecutionId | None = None
 
 
 @dataclass(frozen=True)
@@ -215,7 +215,7 @@ class Completed:
     """An execution finished with its outcome and input revisions."""
 
     execution_id: protocol.ExecutionId
-    outcome: protocol.Outcome
+    outcome: protocol.ExecutionOutcome
     depends_on: dict[str, protocol.Revision | None] = field(
         default_factory=dict
     )
@@ -252,7 +252,7 @@ class Displayed:
     """Set an execution's output while its result is retained."""
 
     execution_id: protocol.ExecutionId
-    display: protocol.DisplayData | None
+    display: protocol.Media | None
 
 
 RunEnding = Literal["succeeded", "failed", "cancelled"]

@@ -1778,7 +1778,7 @@ class Kernel:
                 ):
                     continue
                 revision = Revision(
-                    binding.revision.execution, binding.revision.update + 1
+                    binding.revision.execution_id, binding.revision.update + 1
                 )
                 self._bindings[name] = dataclasses.replace(
                     binding, revision=revision

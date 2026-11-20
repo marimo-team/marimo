@@ -4,11 +4,12 @@ import { Schema, SchemaGetter } from "effect";
 import { HttpApiSchema } from "effect/http-api";
 
 export function sseEvents<S extends Schema.Constraint>(events: S) {
+  // The frame is a transport detail, so it does not take the union's name.
   return Schema.Struct({
     event: Schema.String,
     id: Schema.optionalKey(Schema.String),
     data: Schema.fromJsonString(Schema.Json),
-  }).pipe(Schema.decodeTo(events));
+  }).pipe(Schema.decodeTo(events), Schema.annotate({ identifier: undefined }));
 }
 
 export function response<A, I, const Status extends number>(

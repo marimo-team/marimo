@@ -5,7 +5,7 @@
 import { Schema } from "effect";
 import { Integer } from "../internal/schema.ts";
 import { ExecutionId, ItemId } from "./Ids.ts";
-import { DisplayData, Revision } from "./Execution.ts";
+import { Media, Revision } from "./Execution.ts";
 
 export const ConsoleText = Schema.Struct({
   kind: Schema.Literal("text"),
@@ -19,7 +19,7 @@ export const ConsoleText = Schema.Struct({
 
 export const ConsoleMedia = Schema.Struct({
   kind: Schema.Literal("media"),
-  media: DisplayData.annotateKey({
+  media: Media.annotateKey({
     description:
       "Something rendered into the console, such as a figure from `plt.show()` or a formatted traceback.",
   }),
@@ -49,7 +49,7 @@ export const Console = Schema.Struct({
 export const Output = Schema.Struct({
   id: ItemId,
   execution_id: ExecutionId,
-  media: Schema.NullOr(DisplayData).annotateKey({
+  media: Schema.NullOr(Media).annotateKey({
     description:
       "The output as last rendered. Null when the code set it to nothing or cleared it.",
   }),
@@ -110,6 +110,6 @@ export const Variable = Schema.Struct({
   }),
 }).annotate({
   description:
-    "A name a cell's execution bound in the notebook's namespace, with\nthe revision of its value. The execution binds it as it ends, and\nthe item is removed with the execution. An update, as when a\nstate setter runs or a client sets a value, advances the revision\nwithout binding again, and the producer sends the item again with\nthe same id. Hosts publish a cell execution's variables before its\n`completed` status, and remove a cell's previous execution and\nits items before publishing the next one. A scratch execution's\nnames live only while it runs, so it publishes no variables.\n",
+    "A name a cell's execution bound in the notebook's namespace, with\nthe revision of its value. The execution binds it as it ends, and\nthe item is removed with the execution. An update, as when a\nstate setter runs or a UI element's value changes, advances the revision\nwithout binding again, and the producer sends the item again with\nthe same id. Hosts publish a cell execution's variables before its\n`completed` status, and remove a cell's previous execution and\nits items before publishing the next one. A scratch execution's\nnames live only while it runs, so it publishes no variables.\n",
   identifier: "Variable",
 });

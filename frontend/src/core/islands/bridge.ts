@@ -3,7 +3,7 @@
 
 import {
   NotebookClient,
-  type NotebookEvent,
+  type NotebookStreamEvent,
   type NotebookTransport,
 } from "@marimo-team/client";
 import { getWorkerRPC } from "@/core/wasm/rpc";
@@ -175,7 +175,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
           return;
         }
         const frame = jsonParseWithSpecialChar(event) as
-          | NotebookEvent
+          | NotebookStreamEvent
           | { event: "marimo"; data: { marimo?: NotificationMessage } };
         if (frame.event === "marimo") {
           if (frame.data.marimo) {
@@ -193,7 +193,10 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     );
   }
 
-  private logIslandConsole(cells: Map<string, CellId>, frame: NotebookEvent) {
+  private logIslandConsole(
+    cells: Map<string, CellId>,
+    frame: NotebookStreamEvent,
+  ) {
     switch (frame.event) {
       case "reset":
         cells.clear();

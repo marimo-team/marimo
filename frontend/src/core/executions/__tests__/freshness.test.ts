@@ -35,12 +35,12 @@ function cell(
   };
 }
 
-const SUCCEEDED: Protocol.Outcome = { kind: "succeeded" };
+const SUCCEEDED: Protocol.ExecutionOutcome = { kind: "succeeded" };
 
 /** A completed state that read `depends_on`. */
 function completed(
   depends_on: Protocol.ExecutionCompleted["depends_on"] = {},
-  outcome: Protocol.Outcome = SUCCEEDED,
+  outcome: Protocol.ExecutionOutcome = SUCCEEDED,
 ): Protocol.ExecutionCompleted {
   return {
     status: "completed",
@@ -61,7 +61,7 @@ function record(
   return {
     run_id: "run-1",
     runtime_id: "r1",
-    caused_by: null,
+    caused_by_id: null,
     created_at: null,
     state: completed(),
     ...fields,
@@ -77,7 +77,7 @@ function variable(
     id: `${execution}-${name}`,
     execution_id: execution,
     name,
-    revision: { execution, update },
+    revision: { execution_id: execution, update },
     type: null,
     preview: null,
   };
@@ -147,7 +147,7 @@ const e13 = record({
   id: "e13",
   cell_id: "k7f2",
   code_fingerprint: K7F2_FINGERPRINT,
-  state: completed({ x: { execution: "e12", update: 0 } }),
+  state: completed({ x: { execution_id: "e12", update: 0 } }),
 });
 
 describe("cellFreshness", () => {
@@ -223,7 +223,7 @@ describe("cellFreshness", () => {
       id: "e15",
       cell_id: "m",
       code_fingerprint: "aaaa111122223333",
-      state: completed({ y: { execution: "e13", update: 0 } }),
+      state: completed({ y: { execution_id: "e13", update: 0 } }),
     });
     const state = inputs({
       cells: [c3, k7f2, m],
@@ -316,8 +316,8 @@ describe("cellFreshness", () => {
       cell_id: "k7f2",
       code_fingerprint: "stale",
       state: completed({
-        x: { execution: "e12", update: 0 },
-        z: { execution: "e30", update: 0 },
+        x: { execution_id: "e12", update: 0 },
+        z: { execution_id: "e30", update: 0 },
       }),
     });
     const state = inputs({
@@ -339,7 +339,7 @@ describe("cellFreshness", () => {
       cell_id: "k7f2",
       code_fingerprint: K7F2_FINGERPRINT,
       state: completed(
-        { x: { execution: "e12", update: 0 } },
+        { x: { execution_id: "e12", update: 0 } },
         {
           kind: "skipped",
           reason: "upstream-failed",

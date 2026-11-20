@@ -219,7 +219,7 @@ function resultRecord(
 ): StaticResult | null {
   const primary = primaryOutputOf(sessionCell);
   const id = `${EMBEDDED}:${cell.id}:result`;
-  let outcome: Protocol.Outcome;
+  let outcome: Protocol.ExecutionOutcome;
   let output: Protocol.Output | null = null;
   if (primary === undefined) {
     return null;
@@ -263,7 +263,7 @@ function resultRecord(
       id,
       run_id: `${EMBEDDED}:run`,
       runtime_id: EMBEDDED,
-      caused_by: null,
+      caused_by_id: null,
       cell_id: cell.id,
       code_fingerprint: cell.code_fingerprint,
       created_at: null,
@@ -377,7 +377,7 @@ export function readExport({
         project_id: EMBEDDED,
         path: filename,
         name: filename ?? EMPTY_STRING,
-        updated_at: null,
+        modified_at: null,
       },
       document: {
         notebook_id: EMBEDDED,

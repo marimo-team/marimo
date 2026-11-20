@@ -2,7 +2,7 @@
   "id": "e-restored",
   "run_id": null,
   "runtime_id": null,
-  "caused_by": null,
+  "caused_by_id": null,
   "cell_id": "c3",
   "code_fingerprint": "0f71456db2ea83f4",
   "created_at": null,

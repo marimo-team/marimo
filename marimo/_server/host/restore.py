@@ -123,7 +123,7 @@ def _result(cell: DocumentCell, stored: Cell) -> CellExecution | None:
             id=execution_id,
             run_id=None,
             runtime_id=None,
-            caused_by=None,
+            caused_by_id=None,
             cell_id=cell.id,
             code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
             created_at=None,
@@ -166,7 +166,9 @@ _KINDS = {
 }
 
 
-def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
+def _failure(
+    cell: DocumentCell, stored: ErrorOutput
+) -> protocol.ExecutionOutcome:
     """A stored error as the outcome a live run reports for it.
 
     The file keeps an error's type and message and not the cells it
@@ -176,7 +178,7 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
     if name == "interruption":
         return protocol.CancelledOutcome()
     if name in _SKIPPED:
-        return protocol.SkippedOutcome(
+        return protocol.ExecutionSkippedOutcome(
             reason=_SKIPPED[name],
             message=message.rstrip(": "),
             related=(
@@ -205,7 +207,7 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
 
 def _outcome(
     cell: DocumentCell, outputs: Sequence[OutputType]
-) -> tuple[protocol.Outcome, protocol.DisplayData | None]:
+) -> tuple[protocol.ExecutionOutcome, protocol.Media | None]:
     """How the stored result ended, and the first output that shows something."""
     for output in outputs:
         if output["type"] == "error":

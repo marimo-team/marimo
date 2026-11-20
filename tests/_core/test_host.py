@@ -524,12 +524,12 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
                 id=protocol.ItemId("display"),
                 seq=1,
                 content=protocol.ConsoleMedia(
-                    protocol.DisplayData(mimetype="text/html", data="value")
+                    protocol.Media(mimetype="text/html", data="value")
                 ),
             )
         )
     )
-    media = protocol.DisplayData(mimetype="text/plain", data="9")
+    media = protocol.Media(mimetype="text/plain", data="9")
     notebook.observe(be.Displayed(execution, media))
     finish(notebook, execution)
     notebook.observe(be.Done(run.id, "succeeded"))

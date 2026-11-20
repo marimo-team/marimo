@@ -27,7 +27,7 @@ import {
 import { scratchOutputView } from "../output";
 
 const C1 = cellId("c1");
-const text = (data: string): Protocol.DisplayData => ({
+const text = (data: string): Protocol.Media => ({
   mimetype: "text/plain",
   data,
 });

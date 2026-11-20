@@ -177,14 +177,14 @@ When a run fails because an execution raised an exception, the execution
 records the error and the run's failure message is null. When the host
 cannot finish the cycle, the run's failure message gives the reason.
 
-    RunOutcome { kind: "succeeded" }
-             | { kind: "failed", message }
-             | { kind: "cancelled" }
+    RunOutcome       { kind: "succeeded" }
+                   | { kind: "failed", message }
+                   | { kind: "cancelled" }
 
-    Outcome    { kind: "succeeded" }
-             | { kind: "failed", error }
-             | { kind: "cancelled" }
-             | { kind: "skipped", reason, message, related }
+    ExecutionOutcome { kind: "succeeded" }
+                   | { kind: "failed", error }
+                   | { kind: "cancelled" }
+                   | { kind: "skipped", reason, message, related }
 
 Hosts MUST wait until scheduling for a run has finished before completing it.
 If one cell raises an exception, other cells in the run may still need to
@@ -301,12 +301,12 @@ An execution waiting for an answer stays `running` and has a `pending` input.
 A **variable** is a name in the notebook's namespace whose value varies over
 time. A cell's execution **binds** variables as it ends, each with a
 **revision** of its value. An **update** advances a revision without binding
-again, as when a state setter runs or a client sets a value. A revision names
-the execution whose evaluation produced the value and counts the updates
+again, as when a state setter runs or a UI element's value changes. A revision
+names the execution whose evaluation produced the value and counts the updates
 since. Clients compare revisions for equality.
 
     Variable  { id, execution_id, name, revision, type, preview }
-    Revision  { execution, update }
+    Revision  { execution_id, update }
 
 Hosts MUST publish a cell execution's variables before its `completed` status,
 and MUST remove a cell's previous execution and its items before publishing
@@ -326,9 +326,9 @@ A completed cell execution is **current** when all of the following hold.
 - the execution that bound each of those variables is current.
 
 A client looks up each dependency by name, and also by the recorded revision's
-`execution` unless it is null. A dependency was replaced if no variable matches
-its revision, or if a variable now has a name recorded as null. It was updated
-if the variable's `update` is higher. An execution was edited if its
+`execution_id` unless it is null. A dependency was replaced if no variable
+matches its revision, or if a variable now has a name recorded as null. It was
+updated if the variable's `update` is higher. An execution was edited if its
 `code_fingerprint` differs from its cell's. A result whose dependency was bound
 by an outdated execution is outdated for the same reason. The first of replaced,
 updated, and edited that applies is why the result is **outdated**.
@@ -358,12 +358,12 @@ rules to describe the values in its namespace.
 - a name bound only by a result from an earlier runtime is recorded as
   unbound,
 - a value carried forward unchanged, such as an import, keeps its revision,
-  so a revision's `execution` can be earlier than the variable's
+  so a revision's `execution_id` can be earlier than the variable's
   `execution_id`.
 
 Updates are published before any execution that depends on them. A result is
-**live** when its `runtime_id` is the notebook's runtime and that runtime has
-not ended.
+**live** when its execution's `runtime_id` names the notebook's runtime and
+that runtime has not ended.
 
 ## Connecting to the host API
 
@@ -510,7 +510,7 @@ arrive on the stream.
 Accepting an edit and saving it are separate actions. The host reports whether
 the current document has reached storage, whether it saves automatically or
 offers an explicit save operation. Changes made during saving, such as code
-formatting, MUST reach clients through the document stream as well.
+formatting, MUST reach clients through the notebook stream as well.
 
 ### Execution
 
@@ -599,10 +599,11 @@ the run completes.
 ### Answering input
 
 When running code requests input, the host MUST publish a pending input and
-wait for an answer or cancellation. This applies to cell, scratch, and reactive
-executions. Hosts MUST associate each new input with a running execution.
-Input calls from completed or removed executions MUST raise `EOFError` in the
-calling code, including calls from background work that outlives its execution.
+wait for an answer or cancellation. This applies to every execution, including
+those the runtime schedules itself. Hosts MUST associate each new input with a
+running execution. Input calls from completed or removed executions MUST raise
+`EOFError` in the calling code, including calls from background work that
+outlives its execution.
 
 Hosts offering `runtime.run` or `runtime.execute` MUST implement
 `runtime.input`. Any client permitted the operation may answer. This permission
@@ -625,8 +626,7 @@ The host MUST accept at most one reply to each input and reject replies once
 it is cancelled. Before acknowledging a reply, the host MUST arrange delivery
 to that specific input and publish its `answered` record. The response confirms
 acceptance, and clients follow execution events to observe further progress.
-If delivery subsequently fails, the host MUST end the execution with an error
-or interruption.
+If delivery subsequently fails, the host MUST fail or cancel the execution.
 
 Replies follow the protocol's [idempotency rules](#requests-and-decisions).
 
