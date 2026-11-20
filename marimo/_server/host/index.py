@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from msgspec.structs import replace
 
 from marimo._core import protocol
+from marimo._core.errors import MarimoBugError, expect
 from marimo._core.ids import mint
 from marimo._server.host import OPERATIONS
 from marimo._server.workspace import NEW_FILE, flatten_files
@@ -120,8 +121,10 @@ class WorkspaceIndex:
 
     def register_open_notebook(self, path: str) -> protocol.Notebook:
         """Register an authorized file, including files outside the workspace."""
-        resolved = self._workspace.resolve(path)
-        assert resolved is not None
+        resolved = expect(
+            self._workspace.resolve(path),
+            "Notebook path could not be resolved",
+        )
         existing = self.notebook_for(resolved) or self.ensure(resolved)
         if existing is not None:
             return existing
@@ -220,15 +223,17 @@ class WorkspaceIndex:
             )
         self._open_files.pop(notebook_id, None)
         self._ids[relative] = notebook_id
-        assert self._root is not None
+        if self._root is None:
+            raise MarimoBugError("Workspace root is not initialized")
         file = self._root / relative
         try:
             modified: float | None = file.stat().st_mtime
         except OSError:
             modified = None
-        record = self._publish(file, modified, request_id=request_id)
-        assert record is not None
-        return record
+        return expect(
+            self._publish(file, modified, request_id=request_id),
+            "Notebook record could not be published",
+        )
 
     def rename(
         self,

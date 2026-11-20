@@ -53,6 +53,35 @@ async def test_cached_element_still_registered(
     assert get_context().ui_element_registry.get_object(s._id) == s
 
 
+async def test_ui_construction_after_execution_is_usage_error(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import asyncio
+                import marimo as mo
+
+                gate = asyncio.Event()
+
+                async def create_ui():
+                    await gate.wait()
+                    return mo.ui.text()
+
+                pending_ui = asyncio.create_task(create_ui())
+                """
+            )
+        ]
+    )
+    k.globals["gate"].set()
+    with pytest.raises(
+        RuntimeError, match="during notebook cell execution"
+    ) as exc_info:
+        await k.globals["pending_ui"]
+    assert exc_info.type is RuntimeError
+
+
 def test_resolve_simple_noop(executing_kernel: Kernel) -> None:
     del executing_kernel
     t = ui.text()

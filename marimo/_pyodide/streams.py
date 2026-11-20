@@ -78,7 +78,10 @@ class PyodideStdout(Stdout):
     def _write_with_mimetype(
         self, data: str, mimetype: ConsoleMimeType
     ) -> int:
-        assert self.stream.cell_id is not None
+        if self.stream.cell_id is None:
+            raise RuntimeError(
+                "Stream has no active cell. Read or write from a notebook cell."
+            )
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -128,7 +131,10 @@ class PyodideStderr(Stderr):
         *,
         code: str | None = None,
     ) -> int:
-        assert self.stream.cell_id is not None
+        if self.stream.cell_id is None:
+            raise RuntimeError(
+                "Stream has no active cell. Read or write from a notebook cell."
+            )
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -184,7 +190,10 @@ class PyodideStdin(Stdin):
         require_active_execution()
         async with self.stream.input_lock:
             require_active_execution()
-            assert self.stream.cell_id is not None
+            if self.stream.cell_id is None:
+                raise RuntimeError(
+                    "Stream has no active cell. Read or write from a notebook cell."
+                )
             if not isinstance(prompt, str):
                 raise TypeError(
                     f"prompt must be a str, not {type(prompt).__name__}"

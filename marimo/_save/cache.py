@@ -9,6 +9,7 @@ from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, get_args
 
+from marimo._core.errors import expect
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import ContextNotInitializedError, get_context
@@ -24,16 +25,6 @@ from marimo._save.stubs import (
     maybe_register_stub,
 )
 from marimo._save.stubs.lazy_stub import UnhashableStub
-
-# Many assertions are for typing and should always pass. This message is a
-# catch all to motive users to report if something does fail.
-UNEXPECTED_FAILURE_BOILERPLATE = (
-    "— this is"
-    " unexpected and is likely a bug in marimo. "
-    "Please file an issue at "
-    "https://github.com/marimo-team/marimo/issues"
-)
-
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
@@ -574,19 +565,21 @@ class Cache:
             from marimo._ast.compiler import get_filename
 
             context = get_context().execution_context
-            assert context is not None
+            if context is None:
+                return None
             return get_filename(context.cell_id)
-        except (ContextNotInitializedError, AssertionError):
+        except ContextNotInitializedError:
             return None
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
         try:
             context = get_context().execution_context
-            assert context is not None, "Context could not be resolved"
-            private_prefix = f"_cell_{context.cell_id}_"
-        except (ContextNotInitializedError, AssertionError):
-            private_prefix = r"_"
+            private_prefix = (
+                f"_cell_{context.cell_id}_" if context is not None else "_"
+            )
+        except ContextNotInitializedError:
+            private_prefix = "_"
 
         return {
             (var, re.sub(r"^_", private_prefix, var)): value
@@ -646,8 +639,7 @@ class CacheContext(abc.ABC):
 
     @property
     def loader(self) -> Loader:
-        assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
-        return self._loader()
+        return expect(self._loader, "Cache loader is not initialized")()
 
     def cache_clear(self) -> None:
         if self._loader is not None:

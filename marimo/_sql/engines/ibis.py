@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal
 
 from marimo import _loggers
+from marimo._core.errors import MarimoBugError
 from marimo._data.models import (
     Database,
     DataTable,
@@ -54,7 +55,8 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         # reverse lookup
         for dialect_name, dialect_class in dialect_registry.items():
             if self._connection.dialect == dialect_class:
-                assert isinstance(dialect_name, str)
+                if not isinstance(dialect_name, str):
+                    raise MarimoBugError("Ibis dialect name must be a string")
                 return dialect_name
 
         return str(self._connection.dialect)

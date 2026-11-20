@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo._core import protocol
+from marimo._core.errors import MarimoBugError
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
     ConsumerCapabilitiesNotification,
@@ -233,7 +234,8 @@ class SessionEventStream(SessionHandler):
     async def start(self) -> None:
         """Deliver the host stream over a WebSocket."""
         websocket = self.connection
-        assert isinstance(websocket, WebSocket)
+        if not isinstance(websocket, WebSocket):
+            raise MarimoBugError("Expected a WebSocket connection")
         await websocket.accept()
         try:
             async with aclosing(self.stream()) as events:

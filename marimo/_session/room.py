@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._core.errors import MarimoBugError
 from marimo._messaging.notification import (
     ConsumerCapabilities,
     ConsumerCapabilitiesNotification,
@@ -74,9 +75,8 @@ class Room:
             consumer=consumer, capabilities=capabilities
         )
         if main:
-            assert self.main_consumer is None, (
-                "Main session consumer already exists"
-            )
+            if self.main_consumer is not None:
+                raise MarimoBugError("Main session consumer already exists")
             self.main_consumer = consumer
 
     def remove_consumer(self, consumer: SessionConsumer) -> None:
@@ -107,9 +107,10 @@ class Room:
         capability change.
         """
 
-        assert consumer.consumer_id in self.consumers, (
-            "Consumer must be in the room to be promoted."
-        )
+        if consumer.consumer_id not in self.consumers:
+            raise MarimoBugError(
+                "Consumer must be in the room to be promoted."
+            )
         previous_main_consumer = self.main_consumer
 
         if previous_main_consumer is consumer:

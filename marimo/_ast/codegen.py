@@ -29,6 +29,7 @@ from marimo._ast.type_inference import infer_annotations
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
+from marimo._core.errors import MarimoBugError, expect
 from marimo._schemas.serialization import (
     ClassCell,
     FunctionCell,
@@ -437,13 +438,15 @@ def to_top_functiondef(
     # the cell, it must pass basic checks in the cell impl.
     if allowed_refs is None:
         allowed_refs = BUILTINS
-    toplevel_var = cell.toplevel_variable
+    toplevel_var = expect(
+        cell.toplevel_variable, "Cell is not a top-level function"
+    )
 
-    assert toplevel_var, "Cell is not a top-level function"
     if cell.code:
-        assert toplevel_var.kind in ("function", "class"), (
-            "Unexpected cell kind, please report an issue to github.com/marimo-team/marimo"
-        )
+        if toplevel_var.kind not in ("function", "class"):
+            raise MarimoBugError(
+                f"Unexpected top-level cell kind: {toplevel_var.kind}"
+            )
         if toplevel_var.kind == "class":
             decorator = to_decorator(cell.config, fn="class_definition")
         else:
@@ -495,8 +498,7 @@ def serialize_cell(
         return generate_unparsable_cell(
             code=status.code, config=status.cell_config, name=status.name
         )
-    cell = status._cell
-    assert cell is not None
+    cell = expect(status._cell, "Cell is not initialized")
     if status.is_cell:
         return to_functiondef(
             cell,
@@ -512,7 +514,7 @@ def serialize_cell(
     elif status.is_toplevel:
         return to_top_functiondef(cell, extraction.allowed_refs)
     else:
-        raise ValueError("Unknown cell status, please report this issue.")
+        raise MarimoBugError(f"Unknown cell status for cell {status.name}")
 
 
 def safe_serialize_cell(
@@ -610,7 +612,7 @@ def _extract_header_comments(ir: NotebookSerializationV1) -> str | None:
 
                 return wrap_block(pyproject)
             return None
-    except (yaml.YAMLError, AssertionError):
+    except (yaml.YAMLError, TypeError):
         pass
     return ir.header.value
 

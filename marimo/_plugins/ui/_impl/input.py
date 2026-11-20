@@ -16,6 +16,7 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._data.series import (
     DataFrameSeries,
     get_category_series_info,
@@ -271,10 +272,13 @@ class slider(UIElement[Numeric, Numeric]):
                 steps = _convert_numpy_array(steps)
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
+            if not steps or not all(
+                isinstance(num, (int, float)) for num in steps
+            ):
+                raise TypeError(
+                    "Invalid steps: steps must be a sequence of numbers."
+                )
             try:
-                # check if steps is a sequence of numbers
-                assert all(isinstance(num, (int, float)) for num in steps)
-                assert len(steps) > 0
                 value = steps[0] if value is None else value
                 value = steps.index(value)
             except ValueError:
@@ -283,10 +287,6 @@ class slider(UIElement[Numeric, Numeric]):
                     ", set to first value.\n"
                 )
                 value = 0
-            except AssertionError as e:
-                raise TypeError(
-                    "Invalid steps: steps must be a sequence of numbers."
-                ) from e
 
             # minimum value of interval
             self.start = steps[0]
@@ -316,8 +316,8 @@ class slider(UIElement[Numeric, Numeric]):
                 on_change=on_change,
             )
         else:
-            assert start is not None
-            assert stop is not None
+            start = expect(start, "Slider start is required")
+            stop = expect(stop, "Slider stop is required")
 
             self._dtype = _infer_dtype([start, stop, step, value])
             value = start if value is None else value
@@ -488,9 +488,13 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
             self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
 
+            if not steps or not all(
+                isinstance(num, (int, float)) for num in steps
+            ):
+                raise TypeError(
+                    "Invalid steps: steps must be a sequence of numbers."
+                )
             try:
-                assert all(isinstance(num, (int, float)) for num in steps)
-                assert len(steps) > 0
                 value = [steps[0], steps[-1]] if value is None else value
                 value = [steps.index(num) for num in value]
             except ValueError:
@@ -499,10 +503,6 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                     "steps, set to first and last values.\n"
                 )
                 value = [0, len(steps) - 1]
-            except AssertionError as e:
-                raise TypeError(
-                    "Invalid steps: steps must be a sequence of numbers."
-                ) from e
 
             # minimum value of interval
             self.start = steps[0]
@@ -531,8 +531,8 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                 on_change=on_change,
             )
         else:
-            assert start is not None
-            assert stop is not None
+            start = expect(start, "Slider start is required")
+            stop = expect(stop, "Slider stop is required")
 
             self._dtype = _infer_dtype([start, stop, step, value])
 
@@ -1152,7 +1152,8 @@ class dropdown(UIElement[list[str], Any]):
 
     def _convert_value(self, value: list[str]) -> Any:
         if value:
-            assert len(value) == 1, "Dropdowns only support a single value"
+            if len(value) != 1:
+                raise ValueError("Dropdowns only support a single value")
             self._selected_key = value[0]
             _validate_option_name(self._selected_key, self.options)
             return self.options[value[0]]

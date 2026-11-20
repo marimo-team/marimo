@@ -8,6 +8,8 @@ import io
 import tokenize
 from dataclasses import dataclass
 
+from marimo._core.errors import expect
+
 
 @dataclass(frozen=True)
 class DefinitionRange:
@@ -87,12 +89,13 @@ class _DefinitionVisitor(ast.NodeVisitor):
             .encode("utf-8")[: node.col_offset]
             .decode("utf-8")
         )
-        end_line = node.end_lineno
-        assert end_line is not None
-        assert node.end_col_offset is not None
+        end_line = expect(node.end_lineno, "AST node has no end line")
+        end_col_offset = expect(
+            node.end_col_offset, "AST node has no end column"
+        )
         end_column = len(
             self._lines[end_line - 1]
-            .encode("utf-8")[: node.end_col_offset]
+            .encode("utf-8")[:end_col_offset]
             .decode("utf-8")
         )
         tokens = [

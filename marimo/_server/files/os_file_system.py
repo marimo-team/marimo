@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
 from marimo import _loggers
+from marimo._core.errors import MarimoBugError
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
 from marimo._session.notebook.file_manager import AppFileManager
@@ -297,7 +298,8 @@ class OSFileSystem(FileSystem):
                             f"{MAX_UPLOAD_BYTES} bytes"
                         )
                     tmp.write(chunk)
-            assert tmp_path is not None
+            if tmp_path is None:
+                raise MarimoBugError("Temporary upload path is not available")
             os.replace(tmp_path, full_path)
         except BaseException:
             # Both paths may or may not exist depending on where we failed;

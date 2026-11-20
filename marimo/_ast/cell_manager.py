@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import os
 from collections.abc import Callable
 from typing import (
@@ -23,6 +24,7 @@ from marimo._ast.dedent import fixed_dedent
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.pytest import process_for_pytest
+from marimo._core.errors import MarimoBugError
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -148,10 +150,14 @@ class CellManager:
                 # either.
                 if top_level:
                     return obj
-                # If it is not a top-level definition, something is very wrong
-                raise ValueError(
-                    "Unexpected failure. Please report this error to "
-                    "github.com/marimo-team/marimo/issues."
+                function = inspect.unwrap(obj)
+                if inspect.isfunction(function):
+                    raise MarimoBugError(
+                        f"Could not create a cell from `{function.__name__}`"
+                    ) from e
+                raise TypeError(
+                    "`@app.cell` must decorate a function, got "
+                    f"{type(obj).__name__}."
                 ) from e
 
             cell._cell.configure(cell_config)

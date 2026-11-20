@@ -41,6 +41,7 @@ from marimo._config.provenance import ConfigPath
 from marimo._config.resolver import config_paths
 from marimo._config.schema_utils import default_if_unset
 from marimo._config.types import ExecutionType, OnCellChangeType
+from marimo._core.errors import MarimoBugError, expect
 from marimo._core.protocol import ExecutionId, Revision
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._entrypoints.registry import EntryPointRegistry
@@ -878,7 +879,8 @@ class Kernel:
             ...
         """
         ctx = get_context()
-        assert isinstance(ctx, KernelRuntimeContext)
+        if not isinstance(ctx, KernelRuntimeContext):
+            raise MarimoBugError("Expected a kernel runtime context")
         ctx.execution_context = (
             exec_ctx := ExecutionContext(cell_id, setting_element_value)
         )
@@ -1401,7 +1403,8 @@ class Kernel:
         for cid, error in syntax_errors.items():
             # No chance of collision because cells with syntax errors are not
             # in the graph, so can't be in semantic errors
-            assert cid not in all_errors
+            if cid in all_errors:
+                raise MarimoBugError("Cell already has a semantic error")
             all_errors[cid] = (error,)
 
         LOGGER.debug(
@@ -1654,8 +1657,7 @@ class Kernel:
         cell.import_workspace.carried_values = {}
         if not ctx.should_broadcast_data:
             return
-        current = EXECUTION_CTX.get()
-        assert current is not None
+        current = expect(EXECUTION_CTX.get(), "No active execution context")
         sql_bindings = get_sql_bindings(cell)
         python_names = {
             name

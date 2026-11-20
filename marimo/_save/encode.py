@@ -15,6 +15,7 @@ import pickle
 import struct
 from typing import TYPE_CHECKING, Any
 
+from marimo._core.errors import MarimoBugError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.primitives import is_data_primitive, is_primitive
 
@@ -84,10 +85,8 @@ def standardize_tensor(tensor: Tensor) -> Tensor:
                 tensor = tensor.toarray()
         # As array should not perform copy
         return numpy.asarray(tensor)
-    raise ValueError(
-        f"Expected a data primitive object, but got {type(tensor)} instead."
-        "This maybe is an internal marimo issue. Please report to "
-        "https://github.com/marimo-team/marimo/issues."
+    raise MarimoBugError(
+        f"Expected a data primitive object, but got {type(tensor)} instead"
     )
 
 

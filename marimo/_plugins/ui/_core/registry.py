@@ -5,6 +5,7 @@ import weakref
 from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar
 
 from marimo._ast.app import _Namespace
+from marimo._core.errors import expect
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
@@ -39,7 +40,10 @@ class UIElementRegistry:
             # here
             self.delete(object_id, id(self._objects[object_id]()))
         self._objects[object_id] = weakref.ref(ui_element)
-        assert execution_context is not None
+        if execution_context is None:
+            raise RuntimeError(
+                "UI elements must be created during notebook cell execution."
+            )
         self._constructing_cells[object_id] = execution_context.cell_id
         # bindings must be lazily registered, since there aren't any
         # bindings at UIElement object creation time
@@ -119,9 +123,10 @@ class UIElementRegistry:
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:
             raise KeyError(f"UIElement with id {object_id} not found")
-        obj = self._objects[object_id]()
-        assert obj is not None
-        return obj
+        return expect(
+            self._objects[object_id](),
+            "UI element has been garbage collected",
+        )
 
     def get_cell(self, object_id: UIElementId) -> CellId_t:
         return self._constructing_cells[object_id]

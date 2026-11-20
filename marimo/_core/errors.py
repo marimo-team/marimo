@@ -1,16 +1,25 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Exceptions raised by host and notebook commands."""
+"""Exceptions raised by marimo and by host and notebook commands."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
     from marimo._core import protocol
 
+T = TypeVar("T")
+
 
 class MarimoBugError(RuntimeError):
     """A bug in marimo itself, which users should report to the marimo team."""
+
+
+def expect(value: T | None, message: str) -> T:
+    """Return `value`, or raise `MarimoBugError` when it is `None`."""
+    if value is None:
+        raise MarimoBugError(message)
+    return value
 
 
 class HostError(Exception):

@@ -8,6 +8,8 @@ from typing import Any, TypeAlias
 import yaml
 from yaml.representer import SafeRepresenter, ScalarNode
 
+from marimo._core.errors import MarimoBugError
+
 # Regex captures loose yaml for frontmatter
 # Should match the following:
 # ---
@@ -56,7 +58,8 @@ def dump(data: dict[str, Any], **kwargs: Any) -> str:
     yaml.add_representer(literal_str, represent_literal_str)
 
     response = yaml.dump(data, **kwargs)
-    assert isinstance(response, str), f"Expected str, got {type(response)}"
+    if not isinstance(response, str):
+        raise MarimoBugError(f"Expected str, got {type(response)}")
     return response
 
 
@@ -72,7 +75,8 @@ def load(yaml_content: str) -> dict[str, Any]:
     except ImportError:
         from yaml import SafeLoader  # type: ignore[assignment]
     response = yaml.load(yaml_content, SafeLoader)
-    assert isinstance(response, dict), f"Expected dict, got {type(response)}"
+    if not isinstance(response, dict):
+        raise TypeError(f"Expected dict, got {type(response)}")
     return response
 
 

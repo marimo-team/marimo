@@ -18,6 +18,7 @@ from marimo._ast.names import (
 )
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import AnnotationData, Name, VariableData
+from marimo._core.errors import MarimoBugError
 from marimo._runtime.dataflow import topological_sort
 from marimo._runtime.dataflow.topology import GraphTopology
 from marimo._types.ids import CellId_t
@@ -365,7 +366,10 @@ class TopLevelExtraction:
         for name in names_to_resolve:
             if name in self.unresolved:
                 _ = resolve(name)
-        assert not self.unresolved
+        if self.unresolved:
+            raise MarimoBugError(
+                "Unresolved references remain after resolution"
+            )
 
     @property
     def variables(self) -> dict[Name, VariableData]:

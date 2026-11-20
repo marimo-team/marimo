@@ -10,6 +10,7 @@ import tempfile
 import threading
 import weakref
 from contextvars import Context, ContextVar
+from functools import partial
 from queue import Queue
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -594,6 +595,23 @@ def test_native_writes_from_a_cell_run_inside_scratch(
         }
     finally:
         stream.stop()
+
+
+def test_console_io_without_cell_is_usage_error() -> None:
+    stream = ThreadSafeStream(
+        pipe=Mock(), input_queue=Queue[str](), redirect_console=False
+    )
+    for operation in (
+        partial(
+            ThreadSafeStdout(stream, forward_os_streams=False).write, "output"
+        ),
+        partial(
+            ThreadSafeStderr(stream, forward_os_streams=False).write, "output"
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="notebook cell") as exc_info:
+            operation()
+        assert exc_info.type is RuntimeError
 
 
 @pytest.mark.parametrize("custom_handler", [False, True])

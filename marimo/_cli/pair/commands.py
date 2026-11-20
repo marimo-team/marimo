@@ -37,6 +37,7 @@ from marimo._cli.pair.forwarder import ensure_connection
 from marimo._cli.pair.harnesses import environment_identity
 from marimo._cli.pair.prompts import render_prompt
 from marimo._cli.pair.target import ExecutionTarget, resolve_target
+from marimo._core.errors import MarimoBugError
 from marimo._server.ai.skills import utils as skills_utils
 
 _REFERENCES_DIR = (
@@ -306,7 +307,8 @@ def execute(
             code = Path(code_file).read_text(encoding="utf-8")
         except (OSError, UnicodeError) as error:
             raise click.UsageError("Could not read the code file.") from error
-    assert code is not None
+    if code is None:
+        raise MarimoBugError("Code is required")
     if not code:
         raise click.UsageError("Code must not be empty.")
 
@@ -361,7 +363,8 @@ def execute(
         ctx.exit(1)
 
     target_id = notebook_id or session_id
-    assert target_id is not None
+    if target_id is None:
+        raise MarimoBugError("Notebook or session ID is required")
     next_text = None
     if not result.success:
         next_text = _kernel_next(
@@ -687,7 +690,10 @@ def prompt(
 
 def _notebook_sort_key(notebook: dict[str, object]) -> tuple[str, str, str]:
     server = notebook["server"]
-    assert isinstance(server, dict)
+    if not isinstance(server, dict):
+        raise MarimoBugError(
+            "Expected notebook server metadata to be a dictionary"
+        )
     return (
         str(server.get("url") or ""),
         str(notebook.get("name") or ""),
@@ -712,14 +718,16 @@ def _group_notebooks(
             },
         )
         notebook_sessions = notebook["sessions"]
-        assert isinstance(notebook_sessions, list)
+        if not isinstance(notebook_sessions, list):
+            raise MarimoBugError("Expected notebook sessions to be a list")
         notebook_sessions.append(
             {"id": routing_id, "session_id": session["session_id"]}
         )
 
     for notebook in grouped.values():
         notebook_sessions = notebook["sessions"]
-        assert isinstance(notebook_sessions, list)
+        if not isinstance(notebook_sessions, list):
+            raise MarimoBugError("Expected notebook sessions to be a list")
         notebook_sessions.sort(key=lambda session: session["id"])
     return list(grouped.values())
 
@@ -839,11 +847,13 @@ def connect(
             token_file=token_file,
             require_notebook=True,
         )
-        assert selected.notebook_id is not None
+        if selected.notebook_id is None:
+            raise MarimoBugError("Execution target has no notebook ID")
         connection = ensure_connection(
             selected, ConnectionStore(), harness=harness, pid=pid
         )
-        assert connection is not None
+        if connection is None:
+            raise MarimoBugError("Inbox connection was not created")
         click.echo(
             f"Connected as {connection.harness_kind}. Agent messages from this notebook arrive here as messages from marimo."
         )

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from marimo._ast.sql_visitor import SQLKind, SQLRef
+from marimo._core.errors import expect
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
@@ -108,8 +109,9 @@ def existing_sql_bindings(
             )
             exists = qualified in schemas
         else:
-            ref = candidate.ref
-            assert ref is not None
+            ref = expect(
+                candidate.ref, "SQL binding candidate has no table reference"
+            )
             catalog = ref.catalog or database
             namespace = ref.schema or schema
             if ref.catalog is None and ref.schema in catalogs:

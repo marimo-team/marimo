@@ -8,6 +8,7 @@ from math import isfinite
 from typing import TYPE_CHECKING
 
 from marimo._core import protocol, protocol_events
+from marimo._core.errors import MarimoBugError
 from marimo._core.stream import RoutedEvent, removal, snapshot_event
 
 if TYPE_CHECKING:
@@ -111,7 +112,10 @@ class RunLog:
                 if (entry := self._entry(event)) is not None:
                     entry.live.discard(execution_id)
                     entry.scratch.pop(execution_id, None)
-                    assert event.run_id is not None
+                    if event.run_id is None:
+                        raise MarimoBugError(
+                            "Completed execution has no run ID"
+                        )
                     return self._close(event.run_id)
         return []
 
@@ -120,7 +124,8 @@ class RunLog:
         entry = self._runs.get(run_id)
         if entry is None:
             return None
-        assert isinstance(entry.event.event, protocol.RunEvent)
+        if not isinstance(entry.event.event, protocol.RunEvent):
+            raise MarimoBugError("Expected a run event")
         return entry.event.event.data.run
 
     def input(self, input_id: str) -> protocol.Input | None:
@@ -196,14 +201,17 @@ class RunLog:
             for output in scratch.outputs.values():
                 if isinstance(output.event, protocol.InputEvent):
                     continue  # Inputs leave with their execution.
-                assert isinstance(
+                if not isinstance(
                     output.event,
                     (
                         protocol.OutputEvent,
                         protocol.ConsoleEvent,
                         protocol.DisplayEvent,
                     ),
-                )
+                ):
+                    raise MarimoBugError(
+                        "Expected an output, console, or display event"
+                    )
                 body = protocol_events.body(output.event)
                 events.append(self._removal(entry, type(body), body.id))
             events.append(
@@ -241,9 +249,11 @@ class RunLog:
         )
 
     def _snapshot_event(self, event: RoutedEvent, entry: _Run) -> RoutedEvent:
-        assert isinstance(event.event, protocol_events.RecordEvent)
+        if not isinstance(event.event, protocol_events.RecordEvent):
+            raise MarimoBugError("Expected a record event")
         body = protocol_events.body(event.event)
-        assert isinstance(body, protocol_events.SnapshotBody)
+        if not isinstance(body, protocol_events.SnapshotBody):
+            raise MarimoBugError("Expected a snapshot body")
         return snapshot_event(
             body,
             request_id=(

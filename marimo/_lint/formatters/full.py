@@ -7,6 +7,7 @@ import os
 from typing import TYPE_CHECKING
 
 from marimo._cli.print import bold, cyan, light_blue, red, yellow
+from marimo._core.errors import expect
 from marimo._lint.diagnostic import Severity
 from marimo._lint.formatters.base import DiagnosticFormatter
 
@@ -25,20 +26,23 @@ class FullFormatter(DiagnosticFormatter):
     ) -> str:
         """Format the diagnostic for display with code context."""
 
-        # Implementation error if this is raised.
-        assert diagnostic.name is not None, diagnostic
-        assert diagnostic.severity is not None, diagnostic
+        name = expect(
+            diagnostic.name, f"Diagnostic has no rule name: {diagnostic!r}"
+        )
+        severity = expect(
+            diagnostic.severity, f"Diagnostic has no severity: {diagnostic!r}"
+        )
 
         severity_color = {
             Severity.FORMATTING: yellow,
             Severity.RUNTIME: red,
             Severity.BREAKING: red,
-        }.get(diagnostic.severity, bold)
+        }.get(severity, bold)
         severity_str = {
             Severity.FORMATTING: "warning",
             Severity.RUNTIME: "error",
             Severity.BREAKING: "critical",
-        }.get(diagnostic.severity, "info")
+        }.get(severity, "info")
 
         lines, columns = diagnostic.sorted_lines
 
@@ -46,7 +50,7 @@ class FullFormatter(DiagnosticFormatter):
         if max(lines + (0,)) > 0:
             location = f"{filename}:{lines[0]}:{columns[0]}"
 
-        header = f"{bold(severity_color(severity_str + '[' + diagnostic.name + ']'))}: {bold(diagnostic.message)}"
+        header = f"{bold(severity_color(severity_str + '[' + name + ']'))}: {bold(diagnostic.message)}"
         header += "\n" + cyan(" --> ") + cyan(location)
 
         # If code_lines is None, try to read from file

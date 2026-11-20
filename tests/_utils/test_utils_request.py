@@ -168,13 +168,13 @@ def test_make_request(
 
 
 def test_invalid_url():
-    with pytest.raises(AssertionError, match="url must be a string"):
+    with pytest.raises(TypeError, match="url must be a string"):
         _make_request("GET", 123)  # type: ignore
 
 
 def test_conflicting_data_and_json():
     with pytest.raises(
-        AssertionError, match="cannot pass both data and json_data"
+        ValueError, match="cannot pass both data and json_data"
     ):
         _make_request(
             "POST",

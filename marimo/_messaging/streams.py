@@ -19,6 +19,7 @@ from typing import (
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._core.errors import expect
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.command_output import ConsoleContext
 from marimo._messaging.console_output_worker import (
@@ -515,7 +516,10 @@ class ThreadSafeStdout(Stdout):
     ) -> int:
         redirected_write = cell_id is None
         cell_id = self._stream.cell_id if cell_id is None else cell_id
-        assert cell_id is not None
+        if cell_id is None:
+            raise RuntimeError(
+                "Stream has no active cell. Read or write from a notebook cell."
+            )
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -589,7 +593,10 @@ class ThreadSafeStderr(Stderr):
     ) -> int:
         redirected_write = cell_id is None
         cell_id = self._stream.cell_id if cell_id is None else cell_id
-        assert cell_id is not None
+        if cell_id is None:
+            raise RuntimeError(
+                "Stream has no active cell. Read or write from a notebook cell."
+            )
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -649,7 +656,10 @@ class ThreadSafeStdin(Stdin):
 
     def _read_input(self, prompt: str, password: bool) -> str:
         require_active_execution()
-        assert self._stream.cell_id is not None
+        if self._stream.cell_id is None:
+            raise RuntimeError(
+                "Stream has no active cell. Read or write from a notebook cell."
+            )
         if not isinstance(prompt, str):
             raise TypeError(
                 f"prompt must be a str, not {type(prompt).__name__}"
@@ -736,8 +746,10 @@ def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
         yield
         return
 
-    cell_id = standard_stream._stream.cell_id
-    assert cell_id is not None
+    cell_id = expect(
+        standard_stream._stream.cell_id,
+        "Native output redirected outside a cell",
+    )
     fd = standard_stream._original_fd
     inheritable = os.get_inheritable(fd)
     outer_pipe = standard_stream._active_pipe

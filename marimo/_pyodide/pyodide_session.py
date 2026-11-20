@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig, merge_config
 from marimo._config.config_schema import MarimoConfig
+from marimo._core.errors import MarimoBugError
 from marimo._export.exporter import Exporter, export_markdown, export_script
 from marimo._export.requests import (
     HTMLExportRequest,
@@ -301,9 +302,10 @@ class PyodideBridge:
         ):
             return
         notification = deserialize_kernel_message(message)
-        assert isinstance(
+        if not isinstance(
             notification, NotebookDocumentTransactionNotification
-        )
+        ):
+            raise MarimoBugError("Expected a notebook document transaction")
         transaction = notification.transaction
         if transaction.source == "host":
             return

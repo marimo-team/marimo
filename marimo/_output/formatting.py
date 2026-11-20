@@ -25,6 +25,7 @@ from html import escape
 from typing import Any, TypeVar, cast
 
 from marimo import _loggers as loggers
+from marimo._core.errors import MarimoBugError
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.repr_formatters import maybe_get_repr_formatter
@@ -166,7 +167,10 @@ def get_formatter(
         if child_formatter:
 
             def plain_formatter(obj: T) -> tuple[KnownMimeType, str]:
-                assert child_formatter is not None
+                if child_formatter is None:
+                    raise MarimoBugError(
+                        "Plain output child formatter is not available"
+                    )
                 return child_formatter(cast(Plain, obj).child)
 
             return plain_formatter

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 from marimo._ast.cell import Cell
 from marimo._ast.fast_stack import fast_stack
 from marimo._ast.parse import ast_parse
+from marimo._core.errors import MarimoBugError
 from marimo._runtime.context.filename import notebook_filename
 
 if TYPE_CHECKING:
@@ -383,10 +384,8 @@ def build_test_class(
         ):
             if inner:
                 continue
-            # Unexpected, should be guarded to this point.
-            raise RuntimeError(
-                "Invalid test compilation. "
-                " Please report to marimo-team/marimo/issues."
+            raise MarimoBugError(
+                f"Unexpected {type(node).__name__} node in test compilation"
             )
         tests[node.name] = node
 
@@ -428,10 +427,7 @@ def build_test_class(
 
             def fails(*args: Any, **kwargs: Any) -> NoReturn:
                 del args, kwargs
-                raise ValueError(
-                    f"Could not find test {var}, please report to"
-                    "marimo-team/marimo/issues."
-                )
+                raise MarimoBugError(f"Could not find test {var}")
 
             return fails
 
@@ -462,10 +458,7 @@ def build_test_class(
             return build_test_class(
                 test.body, _run, file, var, class_defs, frames, True
             )
-        raise ValueError(
-            "Improperly compiled as a test. Please report to"
-            "marimo-team/marimo/issues."
-        )
+        raise MarimoBugError(f"{var} was improperly compiled as a test")
 
     attrs = {var: h for var in sorted(defs) if (h := hook(var)) is not None}
     return type(name, (MarimoTest,), attrs)

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._config.config_schema import MarimoConfig
 from marimo._config.provenance import ConfigPath
+from marimo._core.errors import expect
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context.types import (
@@ -147,8 +148,9 @@ class KernelRuntimeContext(RuntimeContext):
 
     @property
     def app(self) -> InternalApp:
-        assert self._app is not None
-        return self._app
+        return expect(
+            self._app, "Only an embedded app's kernel context has an app"
+        )
 
 
 def create_kernel_context(

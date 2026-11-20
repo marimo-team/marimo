@@ -37,9 +37,6 @@ tutorial_order: list[Tutorial] = [
     "markdown-format",
     "for-jupyter-users",
 ]
-assert set(tutorial_order) == set(get_args(PythonTutorial)) | set(
-    get_args(MarkdownTutorial)
-), "Tutorial missing"
 
 
 def get_tutorial_source(name: Tutorial) -> str:
@@ -50,7 +47,8 @@ def get_tutorial_source(name: Tutorial) -> str:
             __import__("marimo._tutorials", fromlist=[name]), name
         )
         return inspect.getsource(tutorial)
-    assert name in get_args(MarkdownTutorial)
+    if name not in get_args(MarkdownTutorial):
+        raise ValueError(f"Unknown tutorial: {name}")
     name = name.replace("-", "_")
     file = os.path.join(os.path.dirname(__file__), f"{name}.md")
     with open(file, "r", encoding="utf8") as f:

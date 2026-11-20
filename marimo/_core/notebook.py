@@ -17,9 +17,11 @@ from marimo._core.document import Stale
 from marimo._core.errors import (
     Conflict,
     Invalid,
+    MarimoBugError,
     NoRuntime,
     NotFound,
     PreconditionFailed,
+    expect,
 )
 from marimo._core.executions import Executions, InputChanged, Released, Removed
 from marimo._core.ids import mint
@@ -306,12 +308,14 @@ class Notebook:
     async def _analyze(
         self, document: Document, request_id: str | None
     ) -> None:
-        assert self._analyzer is not None
+        analyzer = expect(
+            self._analyzer, "Notebook analyzer is not initialized"
+        )
         try:
             while not self._closed:
                 etag = document.etag
                 try:
-                    cells = await self._analyzer.analyze(document)
+                    cells = await analyzer.analyze(document)
                 except Exception:
                     LOGGER.exception("Could not analyze document %s", etag)
                 else:
@@ -428,7 +432,8 @@ class Notebook:
             self._runtime_request = None
 
     def _end_runtime(self) -> None:
-        assert self._runtime is not None
+        if self._runtime is None:
+            raise MarimoBugError("Notebook runtime is not initialized")
         self._apply(self.executions.interrupt())
         runtime, self._runtime = self._runtime, None
         self._remove(protocol.Runtime, runtime.id, self._runtime_request)

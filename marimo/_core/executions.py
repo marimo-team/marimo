@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from msgspec.structs import replace
 
 from marimo._core import backend as be, protocol
-from marimo._core.errors import Conflict, NoRuntime, NotFound
+from marimo._core.errors import Conflict, NoRuntime, NotFound, expect
 from marimo._core.stream import utcnow
 
 if TYPE_CHECKING:
@@ -604,8 +604,8 @@ class Executions:
             execution,
             state=protocol.ExecutionRunning(started_at=now),
         )
-        assert execution.run_id is not None
-        run = self._runs[execution.run_id].run
+        run_id = expect(execution.run_id, "Running execution has no run ID")
+        run = self._runs[run_id].run
         if isinstance(run.state, protocol.RunQueued):
             changes.append(
                 self._set_run(

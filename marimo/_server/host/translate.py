@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from marimo._core import backend as be, protocol
 from marimo._core.code import code_fingerprint
+from marimo._core.errors import MarimoBugError, expect
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     ANCESTOR_RAISED,
@@ -170,7 +171,8 @@ class RunTranslator:
         )
         self._executions[notification.execution_id] = execution
         parent = self._executions.get(notification.caused_by or "")
-        assert notification.code_fingerprint is not None
+        if notification.code_fingerprint is None:
+            raise MarimoBugError("Planned cell has no code fingerprint")
         return be.Planned(
             self.run_id,
             (
@@ -532,8 +534,7 @@ def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
     The kernel's message ends where the editor appends a link to the cause,
     so the trailing colon goes and the cause is named in `related`.
     """
-    reason = _skip_reason(error)
-    assert reason is not None
+    reason = expect(_skip_reason(error), "Expected a skipped execution reason")
     involved: list[tuple[str, str]] = []
     if isinstance(error, MarimoAncestorStoppedError):
         involved.append((error.raising_cell, "Stopped with `mo.stop`"))
@@ -542,8 +543,10 @@ def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
         if error.blamed_cell is not None:
             involved.append((error.blamed_cell, "Expected to define it"))
     elif isinstance(error, MarimoExceptionRaisedError):
-        assert error.raising_cell is not None
-        involved.append((error.raising_cell, "Raised an exception"))
+        raising_cell = expect(
+            error.raising_cell, "Ancestor exception has no raising cell"
+        )
+        involved.append((raising_cell, "Raised an exception"))
     involved = [(cell, part) for cell, part in involved if cell != cell_id]
     involved.append((cell_id, "Did not run"))
     return protocol.SkippedOutcome(

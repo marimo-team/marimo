@@ -5,7 +5,10 @@ import base64
 
 
 def build_data_url(mimetype: str, data: bytes) -> str:
-    assert mimetype is not None
+    if not isinstance(mimetype, str):
+        raise TypeError(
+            f"mimetype must be a string, got {type(mimetype).__name__}"
+        )
     # `data` must be base64 encoded
     str_repr = data.decode("utf-8").replace("\n", "")
     return f"data:{mimetype};base64,{str_repr}"
@@ -13,8 +16,10 @@ def build_data_url(mimetype: str, data: bytes) -> str:
 
 # Format: data:mime_type;base64,data
 def from_data_uri(data: str, *, validate: bool = False) -> tuple[str, bytes]:
-    assert isinstance(data, str)
-    assert data.startswith("data:")
+    if not isinstance(data, str):
+        raise TypeError("data must be a string")
+    if not data.startswith("data:"):
+        raise ValueError("Data URI must start with 'data:'")
     mime_type, data = data.split(",", 1)
     # strip data: and ;base64
     mime_type = mime_type.split(";")[0][5:]

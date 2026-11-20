@@ -17,6 +17,7 @@ from marimo._ast.variables import (
     unmangle_local,
 )
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
+from marimo._core.errors import MarimoBugError
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -305,9 +306,10 @@ class BlockHasher:
         if not scoped_refs:
             scoped_refs = set()
         else:
-            assert not apply_content_hash, (
-                "scoped_refs should only be used with deferred hashing."
-            )
+            if apply_content_hash:
+                raise MarimoBugError(
+                    "scoped_refs should only be used with deferred hashing."
+                )
 
         self._hash: str | None = None
         self._exe_hash: str | None = None
@@ -370,11 +372,11 @@ class BlockHasher:
             subgraph, children = induced_subgraph(
                 graph, to_hash | {self.cell_id}
             )
-            assert not children.get(self.cell_id, None), (
-                "No children expected, please report this issue. "
-                "You may have a cycle which marimo should have previously "
-                "detected."
-            )
+            if children.get(self.cell_id, None):
+                raise MarimoBugError(
+                    "Cached block has children in its execution subgraph; "
+                    "an undetected cycle may exist"
+                )
             refs = self.hash_and_dequeue_execution_refs(
                 refs, subgraph[self.cell_id], scope, ctx
             )
@@ -436,13 +438,15 @@ class BlockHasher:
 
     @property
     def raw_hash(self) -> bytes:
-        assert self.hash_alg is not None, "Hash algorithm not initialized."
+        if self.hash_alg is None:
+            raise MarimoBugError("Hash algorithm not initialized.")
         return self.hash_alg.digest()
 
     @property
     def hash(self) -> str:
         if self._hash is None:
-            assert self.hash_alg is not None, "Hash algorithm not initialized."
+            if self.hash_alg is None:
+                raise MarimoBugError("Hash algorithm not initialized.")
             self._hash = (
                 base64.urlsafe_b64encode(self.raw_hash)
                 .decode("utf-8")
@@ -464,7 +468,8 @@ class BlockHasher:
     @property
     def exe_hash(self) -> str:
         if self._exe_hash is None:
-            assert self.exe_alg is not None, "Hash algorithm not initialized."
+            if self.exe_alg is None:
+                raise MarimoBugError("Hash algorithm not initialized.")
             self._exe_hash = (
                 base64.urlsafe_b64encode(self.exe_alg.digest())
                 .decode("utf-8")
@@ -1028,10 +1033,10 @@ class BlockHasher:
                     obj.key for obj in registry if isinstance(obj, CellHash)
                 ]
                 if cell_hash:
-                    assert len(cell_hash) == 1, (
-                        "Cell Hash registered multiple times, this is unexpected. "
-                        "Please report this issue to marimo-team/marimo"
-                    )
+                    if len(cell_hash) != 1:
+                        raise MarimoBugError(
+                            "Cell hash registered multiple times"
+                        )
                     hashes.append(cell_hash[0])
                     refs -= cell.defs
                     continue
@@ -1073,13 +1078,11 @@ class BlockHasher:
 
         # Native save won't pass down context, so if we are here,
         # then something is wrong with the remaining references.
-        assert context is not None, (
-            "Execution path could not be resolved. "
-            "There may be cyclic definitions in the code. "
-            f"The unresolved references are: {refs}. "
-            "This is unexpected, please report this issue to "
-            "https://github.com/marimo-team/marimo/issues"
-        )
+        if context is None:
+            raise MarimoBugError(
+                "Execution path could not be resolved. "
+                f"The unresolved references are: {refs}"
+            )
 
         ref_cells = set().union(
             *[self.graph.definitions.get(ref, set()) for ref in refs]
@@ -1089,18 +1092,16 @@ class BlockHasher:
             for ref in refs
             if (cell := get_cell_from_local(ref, self.cell_id))
         }
-        assert len(ref_cells) == 1, (
-            "Inconsistent references, cannot determine execution path. "
-            f"Got {ref_cells} expected set({self.cell_id}). "
-            "This is unexpected, please report this issue to "
-            "https://github.com/marimo-team/marimo/issues"
-        )
-        assert ref_cells == {self.cell_id}, (
-            "Unexpected execution cell residual "
-            f"{ref_cells.pop()} expected {self.cell_id}. "
-            "This is unexpected, please report this issue to "
-            "https://github.com/marimo-team/marimo/issues"
-        )
+        if len(ref_cells) != 1:
+            raise MarimoBugError(
+                "Inconsistent references, cannot determine execution path. "
+                f"Got {ref_cells} expected set({self.cell_id})"
+            )
+        if ref_cells != {self.cell_id}:
+            raise MarimoBugError(
+                "Unexpected execution cell residual "
+                f"{ref_cells.pop()} expected {self.cell_id}"
+            )
         self.hash_alg.update(hash_raw_module(context, self.hash_alg.name))
         # refs have been accounted for at this point. Nothing to return
 
@@ -1285,11 +1286,12 @@ def content_cache_attempt_from_base(
 
     stateful_refs |= tmp_stateful_refs
 
-    assert not refs, (
-        "Content addressed hash could not be resolved. "
-        "Try defining the cached block in a separate cell. "
-        f"The unresolved references are: {refs}. "
-    )
+    if refs:
+        raise RuntimeError(
+            "Content addressed hash could not be resolved. "
+            "Try defining the cached block in a separate cell. "
+            f"The unresolved references are: {refs}. "
+        )
 
     if as_fn:
         hasher.defs.clear()

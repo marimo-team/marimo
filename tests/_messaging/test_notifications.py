@@ -7,6 +7,7 @@ import msgspec
 import pytest
 
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.notification import (
     CellNotification,
     EnvironmentOperationNotification,
@@ -76,6 +77,20 @@ def test_variable_value_broken_str() -> None:
     assert variable_value.datatype == "Broken"
     assert variable_value.value is not None
     assert variable_value.value.startswith("<Broken object at")
+
+
+def test_display_without_cell_is_usage_error() -> None:
+    with patch("marimo._messaging.notification_utils.get_context") as context:
+        context.return_value.stream.cell_id = None
+        with pytest.raises(RuntimeError, match="notebook cell") as exc_info:
+            CellNotificationUtils.broadcast_output(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="output",
+                cell_id=None,
+                status=None,
+            )
+    assert exc_info.type is RuntimeError
 
 
 def test_broadcast_serialization() -> None:

@@ -10,6 +10,7 @@ import threading
 from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
+from marimo._core.errors import MarimoBugError
 from marimo._environments.environment import ProcessPlan
 from marimo._messaging.types import KernelMessage
 from marimo._session.app_host.commands import (
@@ -113,7 +114,8 @@ class AppHost:
         import zmq
 
         conn = self._conn
-        assert conn is not None  # start() sets _conn before this thread
+        if conn is None:  # start() sets _conn before this thread
+            raise MarimoBugError("App host connection is not initialized")
 
         while not self._closed.is_set():
             try:

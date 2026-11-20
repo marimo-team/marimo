@@ -5,6 +5,7 @@ import typing
 
 import pytest
 
+from marimo._core.errors import MarimoBugError
 from marimo._messaging.notification import ConsumerCapabilities
 from marimo._runtime import commands
 from marimo._session.capabilities import (
@@ -57,7 +58,7 @@ def test_required_capability_classifies_commands() -> None:
 def test_unknown_command_raises() -> None:
     class MysteryCommand: ...
 
-    with pytest.raises(AssertionError, match="not classified"):
+    with pytest.raises(MarimoBugError, match="not classified"):
         required_capability(MysteryCommand)
 
 

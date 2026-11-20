@@ -147,13 +147,13 @@ async def test_show_code_position_default(
 
 
 def test_fails_if_with_bad_args() -> None:
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         show_code(1, position="foo")
 
     with pytest.raises(TypeError):
         show_code(1, "below")
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         show_code(1, position=None)
 
 

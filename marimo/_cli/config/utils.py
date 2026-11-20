@@ -21,6 +21,7 @@ from marimo._cli.print import cyan, green, muted, orange, yellow
 from marimo._config.provenance import format_config_source
 from marimo._config.schema_utils import Config
 from marimo._config.utils import drop_none_values
+from marimo._core.errors import MarimoBugError
 
 if TYPE_CHECKING:
     from tomlkit import TOMLDocument
@@ -67,7 +68,8 @@ def format_config_with_sources(resolved: ResolvedConfig) -> str:
                 for entry in item:
                     entry.comment(source)
             else:
-                assert isinstance(item, Item)
+                if not isinstance(item, Item):
+                    raise MarimoBugError("Expected a TOML item")
                 item.comment(source)
 
     annotate(document, ())

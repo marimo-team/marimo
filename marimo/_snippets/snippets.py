@@ -9,6 +9,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._ast.load import load_app
+from marimo._ast.parse import MarimoFileError
 from marimo._config.config_schema import MarimoConfig
 from marimo._utils.paths import marimo_package_path
 
@@ -35,7 +36,10 @@ async def read_snippets(config: MarimoConfig) -> Snippets:
 
     for file in read_snippet_filenames_from_config(config):
         app = load_app(file)
-        assert app is not None
+        if app is None:
+            raise MarimoFileError(
+                f"Snippet file {file} does not contain a marimo app."
+            )
         sections: list[SnippetSection] = []
         title = ""
 
