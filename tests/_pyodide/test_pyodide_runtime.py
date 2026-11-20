@@ -164,7 +164,7 @@ async def test_worker_input_reply_reaches_its_prompt(
     assert pending["status"] == "pending"
     response = await call(
         bridge,
-        "runtime.input",
+        "input.reply",
         {"value": "secret"},
         input_id="prompt",
         key="answer",
@@ -314,7 +314,7 @@ async def test_callback_position_and_clear_survive_worker_replay(bridge):
     assert latest(replay, "input")["status"] == "pending"
     response = await call(
         bridge,
-        "runtime.input",
+        "input.reply",
         {"value": "yes"},
         key="answer",
         input_id="prompt",

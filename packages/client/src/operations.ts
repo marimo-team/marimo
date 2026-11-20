@@ -142,7 +142,7 @@ export const operations = {
     },
   },
   /** Answer an execution's pending input. */
-  "runtime.input": {
+  "input.reply": {
     method: "POST",
     path: "/notebooks/{notebook_id}/runtime/inputs/{input_id}/reply",
     query: {},

@@ -15,7 +15,7 @@ OPERATIONS = [
     "runtime.stop",
     "runtime.restart",
     "runtime.run",
-    "runtime.input",
+    "input.reply",
     "runtime.execute",
     "runtime.interrupt",
     "runtime.cancel",

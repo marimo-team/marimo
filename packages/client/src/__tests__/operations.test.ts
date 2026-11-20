@@ -33,7 +33,7 @@ describe("operations", () => {
       | "runtime.restart"
       | "runtime.run"
       | "runtime.execute"
-      | "runtime.input"
+      | "input.reply"
       | "runtime.interrupt"
       | "runtime.cancel"
     >();

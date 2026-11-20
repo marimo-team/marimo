@@ -606,7 +606,7 @@ running execution. Input calls from completed or removed executions MUST raise
 outlives its execution.
 
 Hosts offering `runtime.run` or `runtime.execute` MUST implement
-`runtime.input`. Any client permitted the operation may answer. This permission
+`input.reply`. Any client permitted the operation may answer. This permission
 applies to the notebook and is independent of which client started the run or
 opened an event stream.
 

@@ -131,7 +131,7 @@ async function testHostInputs(notebook, notebookId, frames) {
     );
     assert.equal(input.password, password);
     const reply = () => call(
-      "runtime.input", `answer-${input.id}`, { value }, { input_id: input.id },
+      "input.reply", `answer-${input.id}`, { value }, { input_id: input.id },
     );
     const answered = await reply();
     assert.deepEqual(answered, {

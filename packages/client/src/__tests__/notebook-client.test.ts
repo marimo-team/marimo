@@ -395,7 +395,7 @@ describe("NotebookClient", () => {
       "runtime.restart": "restart",
       "runtime.run": "run",
       "runtime.execute": "execute",
-      "runtime.input": "input",
+      "input.reply": "input",
       "runtime.interrupt": "interrupt",
       "runtime.cancel": "cancel",
     } as const).toExtend<Record<NotebookOperationId, keyof NotebookClient>>();

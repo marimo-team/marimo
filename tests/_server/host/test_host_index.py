@@ -268,7 +268,7 @@ def test_untitled_notebooks_offer_editing_and_the_runtime(
         "runtime.restart",
         "runtime.run",
         "runtime.execute",
-        "runtime.input",
+        "input.reply",
         "runtime.interrupt",
         "runtime.cancel",
     }
