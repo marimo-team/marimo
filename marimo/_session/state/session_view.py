@@ -230,6 +230,8 @@ class SessionView:
         self.pending_pdb_input: PdbInputNotification | None = None
         # Map of cell id to the last code that was executed in that cell.
         self.last_executed_code: dict[CellId_t, str] = {}
+        # Restored outputs retain their source identity without implying execution.
+        self.cached_code_hashes: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
         self.last_execution_time: dict[CellId_t, float] = {}
         # Aggregated model state — one snapshot per live model.
@@ -263,6 +265,7 @@ class SessionView:
         self.ui_values[name] = value
 
     def _add_last_run_code(self, req: ExecuteCellCommand) -> None:
+        self.cached_code_hashes.pop(req.cell_id, None)
         self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_notification(self, raw_notification: KernelMessage) -> None:
