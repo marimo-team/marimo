@@ -38,6 +38,7 @@ def run(run_id: str) -> protocol.Run:
         notebook_id=NOTEBOOK,
         runtime_id=RUNTIME.id,
         origin=protocol.RunRuntimeOrigin(),
+        created_at=utcnow(),
         state=protocol.RunQueued(),
     )
 

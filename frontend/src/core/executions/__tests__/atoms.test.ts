@@ -36,6 +36,7 @@ function run(
     notebook_id: "n1",
     runtime_id: "r1",
     origin: { kind: "cells", cell_ids: cells },
+    created_at: "2026-10-01T09:20:00Z",
     state:
       status === "completed"
         ? {

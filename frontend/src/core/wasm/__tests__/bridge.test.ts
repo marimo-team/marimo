@@ -275,6 +275,7 @@ it("raises the interrupt buffer for a cancelled running run before the worker ta
     notebook_id: "n1",
     runtime_id: "r1",
     origin: { kind: "code", code: "pass" },
+    created_at: "2026-10-01T09:20:00Z",
     state: { status: "running", started_at: "2026-10-01T09:20:11Z" },
   };
   const replicaWith = (status: string) =>
@@ -324,6 +325,7 @@ it.each(["running", "completed", null])(
       notebook_id: "n1",
       runtime_id: "r1",
       origin: { kind: "code", code: "pass" },
+      created_at: "2026-10-01T09:20:00Z",
       state: { status: "running", started_at: "2026-10-01T09:20:11Z" },
     };
     const replicaWith = (status: string) =>
@@ -400,6 +402,7 @@ it("raises the interrupt buffer once a run cancelled while queued starts", async
     notebook_id: "n1",
     runtime_id: "r1",
     origin: { kind: "code", code: "pass" },
+    created_at: "2026-10-01T09:20:00Z",
     state: { status: "queued" },
   };
   store.set(activeNotebookReplicaAtom, {

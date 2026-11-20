@@ -396,6 +396,7 @@ class Executions:
                                 notebook_id=runtime.notebook_id,
                                 runtime_id=runtime.id,
                                 origin=origin,
+                                created_at=utcnow(),
                                 state=protocol.RunQueued(),
                             )
                         )
@@ -610,6 +611,7 @@ class Executions:
                         code_fingerprint=protocol.CodeFingerprint(
                             entry.code_fingerprint
                         ),
+                        created_at=utcnow(),
                         state=protocol.ExecutionQueued(),
                     )
                 )

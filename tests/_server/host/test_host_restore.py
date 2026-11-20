@@ -118,6 +118,7 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
         code_fingerprint=protocol.CodeFingerprint(
             document[0].code_fingerprint
         ),
+        created_at=None,
         state=protocol.ExecutionCompleted(
             started_at=None,
             completed_at=None,

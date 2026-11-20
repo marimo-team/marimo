@@ -2105,6 +2105,15 @@ class Execution(Struct, frozen=True):
             description="Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued."
         ),
     ]
+    created_at: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the runtime scheduled this execution. Null for a restored result, whose timing is unknown."
+            ),
+        ]
+        | None
+    )
     id: ExecutionId
     run_id: (
         Annotated[
@@ -2150,6 +2159,12 @@ class ExecutionMessage(Struct, frozen=True):
 
 
 class Run(Struct, frozen=True):
+    created_at: Annotated[
+        Timestamp,
+        Meta(
+            description="When the host accepted the run, or when the runtime scheduled it."
+        ),
+    ]
     id: RunId
     notebook_id: NotebookId
     origin: RunOrigin

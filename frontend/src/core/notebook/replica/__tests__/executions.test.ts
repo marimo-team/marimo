@@ -220,7 +220,14 @@ describe("executions resource", () => {
         event: "run",
         id: cursor,
         data: {
-          run: { id, notebook_id: "n1", runtime_id: "r1", origin, state },
+          run: {
+            id,
+            notebook_id: "n1",
+            runtime_id: "r1",
+            origin,
+            created_at: time,
+            state,
+          },
           time,
         },
       });

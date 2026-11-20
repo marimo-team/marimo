@@ -112,6 +112,10 @@ export const Run = Schema.Struct({
     description: "The runtime that produced this run.",
   }),
   origin: RunOrigin,
+  created_at: Timestamp.annotateKey({
+    description:
+      "When the host accepted the run, or when the runtime scheduled it.",
+  }),
   state: RunState,
 }).annotate({
   description:
@@ -316,6 +320,10 @@ export const Execution = Schema.Struct({
   code_fingerprint: CodeFingerprint.annotateKey({
     description:
       "Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued.",
+  }),
+  created_at: Schema.NullOr(Timestamp).annotateKey({
+    description:
+      "When the runtime scheduled this execution. Null for a restored result, whose timing is unknown.",
   }),
   state: ExecutionState,
 }).annotate({

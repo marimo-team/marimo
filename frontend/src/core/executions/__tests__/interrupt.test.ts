@@ -29,6 +29,7 @@ function run(
     notebook_id: "n1",
     runtime_id: runtimeId,
     origin: { kind: "code", code: "pass" },
+    created_at: "2026-10-01T09:20:00Z",
     state:
       status === "completed"
         ? {
