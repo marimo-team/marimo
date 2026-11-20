@@ -186,7 +186,7 @@ async def test_idle_host_expires_results_and_stops_maintenance(
         run_id = protocol.RunId(response.json()["id"])
         eid = protocol.ExecutionId("execution")
         notebook.observe(
-            be.Planned(run_id, (be.PlannedExecution(eid, None, "hash", "42"),))
+            be.Planned(run_id, (be.PlannedExecution(eid, None, "hash"),))
         )
         notebook.observe(be.Completed(eid, protocol.SucceededOutcome()))
         notebook.observe(be.Done(run_id, "succeeded"))

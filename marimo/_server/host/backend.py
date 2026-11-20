@@ -197,9 +197,7 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = self._accept(
-            session, RunTranslator(run_id, code, self._cell_order)
-        )
+        run = self._accept(session, RunTranslator(run_id, self._cell_order))
         # Server adapters pass HTTPRequest through the core's RequestInfo protocol.
         self._watch_run(
             run,
@@ -220,9 +218,7 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = self._accept(
-            session, RunTranslator(run_id, None, self._cell_order)
-        )
+        run = self._accept(session, RunTranslator(run_id, self._cell_order))
         try:
             cells = {
                 cell.id: ExecuteCellCommand(

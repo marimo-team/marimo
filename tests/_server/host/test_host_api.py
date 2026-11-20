@@ -1011,7 +1011,7 @@ async def test_run_filter_over_http(harness: Harness) -> None:
     notebook.observe(
         be.Planned(
             first.id,
-            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
+            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h"),),
         )
     )
     notebook.observe(
@@ -1188,7 +1188,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     assert harness.backend().calls.count(("run", run_id, "3 * 3")) == 1
     notebook = await harness.host.notebook(nid)
     notebook.observe(
-        be.Planned(run_id, (be.PlannedExecution("e1", None, "hash", "3 * 3"),))
+        be.Planned(run_id, (be.PlannedExecution("e1", None, "hash"),))
     )
     notebook.observe(be.Started("e1"))
     running = await finished(
@@ -1317,7 +1317,7 @@ async def test_request_receipts_expire_independently_of_results(
     run_id = protocol.RunId(accepted.json()["id"])
     eid = protocol.ExecutionId("execution")
     notebook.observe(
-        be.Planned(run_id, (be.PlannedExecution(eid, cell_id, "hash", "42"),))
+        be.Planned(run_id, (be.PlannedExecution(eid, cell_id, "hash"),))
     )
     notebook.observe(be.Started(eid))
     harness.now = 100

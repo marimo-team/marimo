@@ -293,11 +293,7 @@ def plan(
     notebook.observe(
         be.Planned(
             run.id,
-            (
-                be.PlannedExecution(
-                    execution, cell, "hash", "code" if cell is None else None
-                ),
-            ),
+            (be.PlannedExecution(execution, cell, "hash"),),
         )
     )
     notebook.observe(be.Started(execution))
