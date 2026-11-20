@@ -204,11 +204,8 @@ def _outcome(
                 if len(data) == 1
                 else ("application/vnd.marimo+mimebundle", data)
             )
-            text = value if isinstance(value, str) else json.dumps(value)
-            if (mimetype, text) != ("text/plain", ""):
-                return protocol.ValueOutcome(
-                    protocol.DisplayData(mimetype=mimetype, data=text)
-                )
+            if (mimetype, value) != ("text/plain", ""):
+                return protocol.ValueOutcome(displayed(mimetype, value))
     return protocol.ValueOutcome(None)
 
 
