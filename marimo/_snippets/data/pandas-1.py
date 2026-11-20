@@ -26,12 +26,11 @@ def __():
         }
     )
 
-    df.rename(
+    df = df.rename(
         columns={
             "Year": "Calendar Year",
             "Top Animal": "Favorite Animal",
         },
-        inplace=True,
     )
     df
     return df, pd

@@ -25,7 +25,7 @@ def __():
             "last_name": ["Connor", "Connor", "Reese", "Bonnot"],
         }
     )
-    df.set_index("last_name", inplace=True)
+    df = df.set_index("last_name")
 
     df.loc[~df.index.duplicated(), :]
     return df, pd

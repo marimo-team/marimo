@@ -39,13 +39,13 @@ def __():
             "msg_ids": [[1, 2, 3], [], [2, 3]],
         }
     )
-    df.set_index("date", inplace=True)
+    df = df.set_index("date")
 
-    temp_series = df["msg_ids"].apply(pd.Series, 1).stack()
+    temp_series = df["msg_ids"].apply(pd.Series).stack().dropna()
     temp_series.index = temp_series.index.droplevel(-1)
     temp_series.name = "msg_id"
     new_df = temp_series.to_frame()
-    new_df.set_index("msg_id", inplace=True)
+    new_df = new_df.set_index("msg_id")
     new_df.loc[~new_df.index.duplicated(), :]  # Drop duplicates.
     return df, new_df, pd, temp_series
 

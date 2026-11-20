@@ -30,7 +30,7 @@ def __():
         }
     )
     df["time"] = pd.to_datetime(df.time)
-    df.set_index("time", inplace=True)
+    df = df.set_index("time")
 
     df.loc["2022-09-14":"2022-09-14 00:53"]
     return df, pd

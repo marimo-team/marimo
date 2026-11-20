@@ -25,7 +25,7 @@ def __():
             "last_name": ["Connor", "Connor", "Reese"],
         }
     )
-    terminator_df.set_index("first_name", inplace=True)
+    terminator_df = terminator_df.set_index("first_name")
 
     buckaroo_df = pd.DataFrame(
         {
@@ -33,7 +33,7 @@ def __():
             "last_name": ["Parker", "Whorfin", "Banzai"],
         }
     )
-    buckaroo_df.set_index("first_name", inplace=True)
+    buckaroo_df = buckaroo_df.set_index("first_name")
 
     terminator_df.index.intersection(buckaroo_df.index).shape
     return buckaroo_df, pd, terminator_df
