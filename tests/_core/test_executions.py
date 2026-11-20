@@ -38,7 +38,7 @@ def run(run_id: str) -> protocol.Run:
         id=protocol.RunId(run_id),
         notebook_id=NOTEBOOK,
         runtime_id=RUNTIME.id,
-        cells=(),
+        origin=protocol.RunCodeOrigin(),
         status="queued",
         outcome=None,
         started_at=None,
@@ -380,12 +380,21 @@ def test_clearing_removes_results_and_releases_runs() -> None:
 def test_scheduling_needs_a_runtime_but_stray_updates_do_not() -> None:
     executions = Executions()
     with pytest.raises(NoRuntime):
-        executions.observe(be.Scheduled(protocol.RunId("r1")), None)
+        executions.observe(
+            be.Scheduled(protocol.RunId("r1"), protocol.RunRuntimeOrigin()),
+            None,
+        )
     assert (
         executions.observe(be.Started(protocol.ExecutionId("e1")), None) == []
     )
-    scheduled = executions.observe(be.Scheduled(protocol.RunId("r1")), RUNTIME)
+    scheduled = executions.observe(
+        be.Scheduled(protocol.RunId("r1"), protocol.RunRuntimeOrigin()),
+        RUNTIME,
+    )
     assert describe(scheduled) == ["run r1"]
+    (published,) = scheduled
+    assert isinstance(published, protocol.Run)
+    assert published.origin == protocol.RunRuntimeOrigin()
     assert executions.request_id(protocol.RunId("r1")) is None
 
 

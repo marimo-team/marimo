@@ -110,7 +110,8 @@ function awaited(inputs: CellExecutionInputs, id: Protocol.CellId): boolean {
     if (
       run.status !== "completed" &&
       run.id !== planned &&
-      run.cells.includes(id)
+      run.origin.kind === "cells" &&
+      run.origin.cell_ids.includes(id)
     ) {
       return true;
     }
@@ -176,8 +177,8 @@ export function queuedOrRunningCount(inputs: CellExecutionInputs): number {
   );
   const named = new Set<Protocol.CellId>(inputs.requested);
   for (const run of inputs.executions.runs.values()) {
-    if (run.status !== "completed") {
-      for (const cellId of run.cells) {
+    if (run.status !== "completed" && run.origin.kind === "cells") {
+      for (const cellId of run.origin.cell_ids) {
         named.add(cellId);
       }
     }

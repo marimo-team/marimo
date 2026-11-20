@@ -359,8 +359,8 @@ class RunTranslators:
     """The translators for a kernel's runs, by run id.
 
     A host submits some runs itself. The kernel schedules others, such as
-    a UI interaction's reactive work or a legacy client's request, and
-    those get a translator when their first execution is planned.
+    a UI interaction's reactive work, and those get a translator when
+    their first execution is planned.
     """
 
     def __init__(self, cell_order: CellOrder = _unordered) -> None:
@@ -421,15 +421,21 @@ class RunTranslators:
                 or notification.phase != "planned"
             ):
                 return None, []
+            scratch = notification.cell_id == SCRATCH_CELL_ID
             translator = RunTranslator(
                 protocol.RunId(run_id),
-                notification.code
-                if notification.cell_id == SCRATCH_CELL_ID
-                else None,
+                notification.code if scratch else None,
                 self._cell_order,
             )
             self.add(translator)
-            out.append(be.Scheduled(translator.run_id))
+            out.append(
+                be.Scheduled(
+                    translator.run_id,
+                    protocol.RunCodeOrigin()
+                    if scratch
+                    else protocol.RunRuntimeOrigin(),
+                )
+            )
         out.extend(
             translator.feed(
                 notification,

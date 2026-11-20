@@ -54,7 +54,7 @@ function run(
     id,
     notebook_id: "n1",
     runtime_id: "r1",
-    cells,
+    origin: { kind: "cells", cell_ids: cells },
     status,
     outcome: status === "completed" ? "succeeded" : null,
     started_at: null,

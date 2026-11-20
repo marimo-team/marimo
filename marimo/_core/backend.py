@@ -177,6 +177,7 @@ class Scheduled:
     """The runtime scheduled a run independently of a host API request."""
 
     run_id: protocol.RunId
+    origin: protocol.RunCodeOrigin | protocol.RunRuntimeOrigin
 
 
 @dataclass(frozen=True)
