@@ -22,7 +22,7 @@ export function message<const Fields extends Schema.Struct.Fields>(
     time: Schema.optionalKey(
       Timestamp.annotateKey({
         description:
-          "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+          "When the host published this event. Present on live and replayed events; omitted on snapshots.",
       }),
     ),
     ...fields,

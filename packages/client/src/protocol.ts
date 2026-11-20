@@ -35,7 +35,7 @@ export const HostMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     host: Host,
   })
@@ -119,7 +119,7 @@ export const ProjectMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     project: Project,
   })
@@ -194,7 +194,7 @@ export const NotebookMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     notebook: Notebook,
   })
@@ -288,7 +288,7 @@ export const DocumentMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     document: Document,
   })
@@ -392,7 +392,7 @@ export const CellMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     cell: Cell,
   })
@@ -517,7 +517,7 @@ export const Runtime = zod
     state: RuntimeState,
   })
   .describe(
-    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits. The notebook keeps the ended runtime, so clients can\nsee how it ended, until another one starts or the notebook closes.\nThe host then sends `runtime.removed`. Every start and restart\ncreates a new runtime with a new id. Results carry their producer's\nruntime id, and are live while that runtime has not ended.\n",
+    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits. The notebook keeps the ended runtime, so clients can\nsee how it ended, until another one starts or the notebook closes.\nThe host then sends `runtime.removed`. Every start and restart\ncreates a new runtime with a new id. Executions carry their producer's\nruntime id, and their results are live while that runtime has not ended.\n",
   );
 
 export type Runtime = zod.input<typeof Runtime>;
@@ -532,7 +532,7 @@ export const RuntimeMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     runtime: Runtime,
   })
@@ -617,7 +617,7 @@ export const AttachmentMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     attachment: Attachment,
   })
@@ -779,7 +779,7 @@ export const Run = zod
     state: RunState,
   })
   .describe(
-    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",
+    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items other than inputs each have removal\nevents; a cell result may outlive its run.\n",
   );
 
 export type Run = zod.input<typeof Run>;
@@ -794,7 +794,7 @@ export const RunMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     run: Run,
   })
@@ -1096,7 +1096,7 @@ export const ExecutionMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     execution: Execution,
   })
@@ -1156,7 +1156,7 @@ export const OutputMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     output: Output,
   })
@@ -1236,7 +1236,7 @@ export const ConsoleMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     console: Console,
   })
@@ -1305,7 +1305,7 @@ export const InputMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     input: Input,
   })
@@ -1345,7 +1345,7 @@ export const Variable = zod
       .describe("A short rendering of the value. A host may leave it null."),
   })
   .describe(
-    "A name a cell's execution bound in the notebook's namespace, with\nthe revision of its value. The execution binds it as it ends, and\nthe item is removed with the execution. An update, as when a\nstate setter runs or a client sets a value, advances the revision\nwithout binding again, and the producer sends the item again with\nthe same id. Hosts publish a cell execution's variables before its\n`completed` status, and remove a cell's previous execution and\nits items before publishing the next one. A scratch execution's\nnames live only while it runs, so it publishes no variables.\n",
+    "A name a cell's execution bound in the notebook's namespace, with\nthe revision of its value. The execution binds it as it ends, and\nthe item is removed with the execution. An update, as when a\nstate setter runs or a UI element's value changes, advances the revision\nwithout binding again, and the producer sends the item again with\nthe same id. Hosts publish a cell execution's variables before its\n`completed` status, and remove a cell's previous execution and\nits items before publishing the next one. A scratch execution's\nnames live only while it runs, so it publishes no variables.\n",
   );
 
 export type Variable = zod.input<typeof Variable>;
@@ -1360,7 +1360,7 @@ export const VariableMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     variable: Variable,
   })
@@ -1429,7 +1429,7 @@ export const AnalysisMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     analysis: Analysis,
   })
@@ -1484,7 +1484,7 @@ export const CustomMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.describe(
-      "When the host emitted this event. Preserved on replay.",
+      "When the host published this event. Preserved on replay.",
     ),
   })
   .describe(
@@ -1518,7 +1518,7 @@ export const RemovedMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     id: zod.string().describe("The id of the object that was removed."),
   })

@@ -301,8 +301,8 @@ An execution waiting for an answer stays `running` and has a `pending` input.
 A **variable** is a name in the notebook's namespace whose value varies over
 time. A cell's execution **binds** variables as it ends, each with a
 **revision** of its value. An **update** advances a revision without binding
-again, as when a state setter runs or a client sets a value. A revision names
-the execution whose evaluation produced the value and counts the updates
+again, as when a state setter runs or a UI element's value changes. A revision
+names the execution whose evaluation produced the value and counts the updates
 since. Clients compare revisions for equality.
 
     Variable  { id, execution_id, name, revision, type, preview }
@@ -362,8 +362,8 @@ rules to describe the values in its namespace.
   `execution_id`.
 
 Updates are published before any execution that depends on them. A result is
-**live** when its `runtime_id` is the notebook's runtime and that runtime has
-not ended.
+**live** when its execution's `runtime_id` names the notebook's runtime and
+that runtime has not ended.
 
 ## Connecting to the host API
 
@@ -510,7 +510,7 @@ arrive on the stream.
 Accepting an edit and saving it are separate actions. The host reports whether
 the current document has reached storage, whether it saves automatically or
 offers an explicit save operation. Changes made during saving, such as code
-formatting, MUST reach clients through the document stream as well.
+formatting, MUST reach clients through the notebook stream as well.
 
 ### Execution
 
@@ -599,10 +599,11 @@ the run completes.
 ### Answering input
 
 When running code requests input, the host MUST publish a pending input and
-wait for an answer or cancellation. This applies to cell, scratch, and reactive
-executions. Hosts MUST associate each new input with a running execution.
-Input calls from completed or removed executions MUST raise `EOFError` in the
-calling code, including calls from background work that outlives its execution.
+wait for an answer or cancellation. This applies to every execution, including
+those the runtime schedules itself. Hosts MUST associate each new input with a
+running execution. Input calls from completed or removed executions MUST raise
+`EOFError` in the calling code, including calls from background work that
+outlives its execution.
 
 Hosts offering `runtime.run` or `runtime.execute` MUST implement
 `runtime.input`. Any client permitted the operation may answer. This permission
@@ -625,8 +626,7 @@ The host MUST accept at most one reply to each input and reject replies once
 it is cancelled. Before acknowledging a reply, the host MUST arrange delivery
 to that specific input and publish its `answered` record. The response confirms
 acceptance, and clients follow execution events to observe further progress.
-If delivery subsequently fails, the host MUST end the execution with an error
-or interruption.
+If delivery subsequently fails, the host MUST fail or cancel the execution.
 
 Replies follow the protocol's [idempotency rules](#requests-and-decisions).
 

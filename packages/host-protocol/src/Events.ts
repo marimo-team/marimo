@@ -80,7 +80,7 @@ const CustomMessage = Schema.Struct({
     }),
   ),
   time: Timestamp.annotateKey({
-    description: "When the host emitted this event. Preserved on replay.",
+    description: "When the host published this event. Preserved on replay.",
   }),
 }).annotate({
   description:

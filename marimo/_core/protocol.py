@@ -847,7 +847,7 @@ class VariableMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -900,7 +900,7 @@ class AttachmentMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -962,7 +962,7 @@ class CellMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -1020,7 +1020,7 @@ class CustomMessage(Struct, frozen=True):
     time: Annotated[
         Timestamp,
         Meta(
-            description="When the host emitted this event. Preserved on replay."
+            description="When the host published this event. Preserved on replay."
         ),
     ]
     request_id: (
@@ -1135,7 +1135,7 @@ class DocumentMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -1264,7 +1264,7 @@ class HostMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -1313,7 +1313,7 @@ class InputMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -1370,7 +1370,7 @@ class NotebookMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -1392,7 +1392,7 @@ class OutputMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -1505,7 +1505,7 @@ class ProjectMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -1529,7 +1529,7 @@ class RemovedMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -2000,7 +2000,7 @@ class AnalysisMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -2037,7 +2037,7 @@ class ConsoleMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -2113,7 +2113,7 @@ class RunMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -2156,7 +2156,7 @@ class RuntimeMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -2262,7 +2262,7 @@ class ExecutionMessage(Struct, frozen=True):
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the host published this event. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType

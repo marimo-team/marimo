@@ -74,7 +74,7 @@ export const Runtime = Schema.Struct({
   state: RuntimeState,
 }).annotate({
   description:
-    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits. The notebook keeps the ended runtime, so clients can\nsee how it ended, until another one starts or the notebook closes.\nThe host then sends `runtime.removed`. Every start and restart\ncreates a new runtime with a new id. Results carry their producer's\nruntime id, and are live while that runtime has not ended.\n",
+    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits. The notebook keeps the ended runtime, so clients can\nsee how it ended, until another one starts or the notebook closes.\nThe host then sends `runtime.removed`. Every start and restart\ncreates a new runtime with a new id. Executions carry their producer's\nruntime id, and their results are live while that runtime has not ended.\n",
   identifier: "Runtime",
 });
 
