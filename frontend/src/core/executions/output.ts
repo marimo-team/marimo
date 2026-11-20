@@ -13,6 +13,7 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import type { CellId } from "@/core/cells/ids";
 import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
 import type { Executions, Result, Results } from "@/core/notebook/replica";
+import { completedAt, shownOutcome, startedAt } from "@/core/notebook/replica";
 
 /** A host error shown as its message and the cells involved. */
 export interface HostDiagnostic {
@@ -71,7 +72,7 @@ function seconds(iso: string | null): number {
 }
 
 function endedAt(record: Protocol.Execution): number {
-  return seconds(record.completed_at ?? record.started_at);
+  return seconds(completedAt(record) ?? startedAt(record));
 }
 
 function valueOutput(
@@ -212,7 +213,7 @@ export function outcomeOutput(
 }
 
 function outcomeDisplay(record: Protocol.Execution): CellOutput | null {
-  const outcome = record.outcome;
+  const outcome = shownOutcome(record);
   if (outcome === null) {
     return null;
   }
@@ -250,15 +251,16 @@ export function shownExecution(
       : inputs.executions.executions.get(latestId);
   if (
     latest !== undefined &&
-    latest.record.outcome !== null &&
-    latest.record.status !== "completed"
+    shownOutcome(latest.record) !== null &&
+    latest.record.state.status !== "completed"
   ) {
     return latest;
   }
   const result = inputs.results.get(id) ?? null;
   if (
-    latest?.record.status === "running" &&
-    result?.record.outcome?.kind === "skipped"
+    latest?.record.state.status === "running" &&
+    result !== null &&
+    shownOutcome(result.record)?.kind === "skipped"
   ) {
     return null;
   }

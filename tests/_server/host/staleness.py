@@ -71,7 +71,7 @@ class Snapshot:
                 execution
                 for execution in self.executions.values()
                 if execution.cell_id == cell_id
-                and execution.status == "completed"
+                and isinstance(execution.state, protocol.ExecutionCompleted)
             ),
             None,
         )
@@ -92,9 +92,10 @@ class Snapshot:
 
     def _reason(self, execution: protocol.Execution) -> Outdated | None:
         assert execution.cell_id is not None
+        assert isinstance(execution.state, protocol.ExecutionCompleted)
         reasons = [
             reason
-            for name, revision in execution.depends_on.items()
+            for name, revision in execution.state.depends_on.items()
             if (reason := self._dependency(name, revision)) is not None
         ]
         if (

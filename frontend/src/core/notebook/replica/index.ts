@@ -22,3 +22,9 @@ export {
   itemsInOrder,
 } from "./resources/executions";
 export type { Result, Results } from "./resources/results";
+export {
+  completedAt,
+  dependsOn,
+  shownOutcome,
+  startedAt,
+} from "./execution-state";

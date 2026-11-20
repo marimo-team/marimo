@@ -738,7 +738,7 @@ async def test_stored_results_are_on_the_stream_without_a_runtime(
     (cell,) = notebook.document
     result = notebook.executions.current(cell.id)
     assert result is not None
-    assert result.execution.outcome == protocol.ValueOutcome(
+    assert result.execution.state.outcome == protocol.ValueOutcome(
         protocol.DisplayData(mimetype="text/plain", data="1")
     )
     assert [

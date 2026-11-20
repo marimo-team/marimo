@@ -184,7 +184,7 @@ describe("output persistence across mode changes", () => {
     // The host holds newer source than the cell last ran with
     MockExecutions.seed(
       store,
-      [MockExecutions.shown(cid, PERSIST, { code_fingerprint: "ran" })],
+      [{ ...MockExecutions.shown(cid, PERSIST), code_fingerprint: "ran" }],
       null,
       withCells(
         documentOf(),

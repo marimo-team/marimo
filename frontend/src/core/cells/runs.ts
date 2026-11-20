@@ -2,6 +2,7 @@
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { TypedString } from "@/utils/typed";
 import type { Execution } from "@marimo-team/client/protocol";
+import { completedAt, startedAt } from "@/core/notebook/replica";
 import type { CellId } from "./ids";
 export type RunId = TypedString<"RunId">;
 
@@ -42,11 +43,11 @@ export const MAX_RUNS = 50;
 export const MAX_CODE_LENGTH = 200;
 
 function traceStatus(record: Execution): CellRun["status"] {
-  if (record.status !== "completed") {
-    return record.status;
+  if (record.state.status !== "completed") {
+    return record.state.status;
   }
-  const outcome = record.outcome?.kind;
-  return outcome === "value" ? "success" : (outcome ?? "error");
+  const outcome = record.state.outcome.kind;
+  return outcome === "value" ? "success" : outcome;
 }
 
 const {
@@ -75,14 +76,13 @@ const {
     const cellRuns = new Map(previous?.cellRuns);
     const prior = cellRuns.get(cellId);
     const sameExecution = prior?.executionId === record.id ? prior : undefined;
-    const ended =
-      record.completed_at === null
-        ? undefined
-        : Date.parse(record.completed_at) / 1000;
+    const end = completedAt(record);
+    const start = startedAt(record);
+    const ended = end === null ? undefined : Date.parse(end) / 1000;
     const startTime =
-      record.started_at === null
+      start === null
         ? (sameExecution?.startTime ?? ended ?? receivedAt)
-        : Date.parse(record.started_at) / 1000;
+        : Date.parse(start) / 1000;
     cellRuns.set(cellId, {
       cellId,
       executionId: record.id,

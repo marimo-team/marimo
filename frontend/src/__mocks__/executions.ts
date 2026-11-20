@@ -17,6 +17,7 @@ import {
   type Results,
   type Result,
 } from "@/core/notebook/replica";
+import { shownOutcome } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 
 type Store = ReturnType<typeof createStore>;
@@ -32,9 +33,11 @@ const T1 = "2026-10-01T09:20:12.500Z";
 
 let sequence = 0;
 
-function completed(
-  cellId: string,
-  overrides: Partial<Protocol.Execution> = {},
+const NO_VALUE: Protocol.ValueOutcome = { kind: "value", display: null };
+
+function execution(
+  cellId: string | null,
+  state: Protocol.ExecutionState,
 ): Protocol.Execution {
   sequence += 1;
   return {
@@ -44,13 +47,21 @@ function completed(
     caused_by: null,
     cell_id: cellId,
     code_fingerprint: "0f71456db2ea83f4",
-    depends_on: {},
+    state,
+  };
+}
+
+function completed(
+  cellId: string | null,
+  outcome: Protocol.Outcome = NO_VALUE,
+): Protocol.Execution {
+  return execution(cellId, {
     status: "completed",
-    outcome: { kind: "value", display: null },
     started_at: T0,
     completed_at: T1,
-    ...overrides,
-  };
+    outcome,
+    depends_on: {},
+  });
 }
 
 type ExecutionFixture = Protocol.Execution & { items?: readonly Item[] };
@@ -75,7 +86,7 @@ function mirror(records: readonly ExecutionFixture[]): Executions {
     });
   }
   const scratch = records.findLast(
-    (record) => record.cell_id === null && record.outcome !== null,
+    (record) => record.cell_id === null && shownOutcome(record) !== null,
   );
   return {
     runs: new Map(),
@@ -94,7 +105,7 @@ function results(records: readonly Protocol.Execution[]): Results {
       if (!results.has(record.cell_id)) {
         results.set(record.cell_id, null);
       }
-      if (record.status === "completed") {
+      if (record.state.status === "completed") {
         results.set(record.cell_id, { record, outputVersion: 0 });
       }
     }
@@ -105,49 +116,47 @@ function results(records: readonly Protocol.Execution[]): Results {
 export const MockExecutions = {
   T0,
   T1,
+  execution,
   completed,
 
   /** A completed execution that took `elapsedMs`. */
   took(cellId: string, elapsedMs: number): Protocol.Execution {
-    return completed(cellId, {
+    return execution(cellId, {
+      status: "completed",
+      started_at: T0,
       completed_at: new Date(Date.parse(T0) + elapsedMs).toISOString(),
+      outcome: NO_VALUE,
+      depends_on: {},
     });
   },
 
   /** A completed execution that showed `display`. */
   shown(
-    cellId: string,
+    cellId: string | null,
     display: Protocol.DisplayData,
-    overrides: Partial<Protocol.Execution> = {},
+    fields: Partial<Omit<Protocol.Execution, "id" | "state">> = {},
   ): Protocol.Execution {
-    return completed(cellId, {
-      outcome: { kind: "value", display },
-      ...overrides,
-    });
+    return { ...completed(cellId, { kind: "value", display }), ...fields };
   },
 
   /** A completed execution that ended in `error`, a ValueError by default. */
   failed(
     cellId: string,
     error: Partial<Protocol.Error> = {},
-    overrides: Partial<Protocol.Execution> = {},
   ): Protocol.Execution {
     return completed(cellId, {
-      outcome: {
-        kind: "error",
-        error: {
-          kind: "exception",
-          message: "boom",
-          name: "ValueError",
-          traceback: null,
-          source: "marimo",
-          severity: "error",
-          range: null,
-          related: [],
-          ...error,
-        },
+      kind: "error",
+      error: {
+        kind: "exception",
+        message: "boom",
+        name: "ValueError",
+        traceback: null,
+        source: "marimo",
+        severity: "error",
+        range: null,
+        related: [],
+        ...error,
       },
-      ...overrides,
     });
   },
 
@@ -155,36 +164,29 @@ export const MockExecutions = {
     return MockExecutions.failed(cellId);
   },
 
-  interrupted(cellId: string): Protocol.Execution {
-    return completed(cellId, { outcome: { kind: "interrupted" } });
+  interrupted(cellId: string | null): Protocol.Execution {
+    return completed(cellId, { kind: "interrupted" });
   },
 
   skipped(cellId: string): Protocol.Execution {
     return completed(cellId, {
-      outcome: {
-        kind: "skipped",
-        reason: "ancestor-stopped",
-        message: "",
-        related: [],
-      },
+      kind: "skipped",
+      reason: "ancestor-stopped",
+      message: "",
+      related: [],
     });
   },
 
-  running(cellId: string): Protocol.Execution {
-    return completed(cellId, {
-      status: "running",
-      outcome: null,
-      completed_at: null,
-    });
+  /** A running execution that has shown `value` so far. */
+  running(
+    cellId: string | null,
+    value: Protocol.ValueOutcome | null = null,
+  ): Protocol.Execution {
+    return execution(cellId, { status: "running", started_at: T0, value });
   },
 
-  queued(cellId: string): Protocol.Execution {
-    return completed(cellId, {
-      status: "queued",
-      outcome: null,
-      started_at: null,
-      completed_at: null,
-    });
+  queued(cellId: string | null): Protocol.Execution {
+    return execution(cellId, { status: "queued" });
   },
 
   notebook(id: Protocol.NotebookId = "n1"): Protocol.Notebook {

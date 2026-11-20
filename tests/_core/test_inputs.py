@@ -100,7 +100,9 @@ def test_pending_inputs_cancel_before_execution_ends(
     )
     assert any(
         isinstance(event.event, protocol.ExecutionEvent)
-        and event.event.data.execution.status == "completed"
+        and isinstance(
+            event.event.data.execution.state, protocol.ExecutionCompleted
+        )
         for event in log[index + 1 :]
     )
     if ending == "exit":

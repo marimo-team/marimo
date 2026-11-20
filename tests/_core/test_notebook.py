@@ -255,8 +255,12 @@ class TestStop:
         ]
         interrupted = log[1].event.data
         assert isinstance(interrupted, ExecutionMessage)
-        assert interrupted.execution.status == "completed"
-        assert isinstance(interrupted.execution.outcome, InterruptedOutcome)
+        assert isinstance(
+            interrupted.execution.state, protocol.ExecutionCompleted
+        )
+        assert isinstance(
+            interrupted.execution.state.outcome, InterruptedOutcome
+        )
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
             "document",
@@ -611,11 +615,18 @@ class TestRun:
             protocol.RunRunning,
             protocol.RunCompleted,
         ]
-        assert [(e.status, e.outcome) for e in executions] == [
-            ("queued", None),
-            ("running", None),
-            ("running", value("working")),
-            ("completed", value("working<pre>9</pre>")),
+        assert [e.state for e in executions] == [
+            protocol.ExecutionQueued(),
+            protocol.ExecutionRunning(started_at=IsDatetime(), value=None),
+            protocol.ExecutionRunning(
+                started_at=IsDatetime(), value=value("working")
+            ),
+            protocol.ExecutionCompleted(
+                started_at=IsDatetime(),
+                completed_at=IsDatetime(),
+                outcome=value("working<pre>9</pre>"),
+                depends_on={},
+            ),
         ]
         retained = [
             event.event.data
@@ -651,18 +662,20 @@ class TestRun:
                     caused_by=None,
                     cell_id=None,
                     code_fingerprint="9f",
-                    completed_at=IsDatetime(),
-                    depends_on={},
                     id=ExecutionId("e7"),
-                    outcome=ValueOutcome(
-                        display=DisplayData(
-                            data="working<pre>9</pre>", mimetype="text/html"
-                        )
-                    ),
                     run_id=run.id,
                     runtime_id=notebook.runtime.id,
-                    started_at=IsDatetime(),
-                    status="completed",
+                    state=protocol.ExecutionCompleted(
+                        started_at=IsDatetime(),
+                        completed_at=IsDatetime(),
+                        outcome=ValueOutcome(
+                            display=DisplayData(
+                                data="working<pre>9</pre>",
+                                mimetype="text/html",
+                            )
+                        ),
+                        depends_on={},
+                    ),
                 ),
                 Console(
                     execution_id=ExecutionId("e7"),

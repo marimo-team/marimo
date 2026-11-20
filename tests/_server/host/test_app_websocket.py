@@ -109,7 +109,7 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
                 break
         assert executions
         assert executions[-1]["code_fingerprint"] == cell["code_fingerprint"]
-        assert executions[-1]["status"] == "completed"
+        assert executions[-1]["state"]["status"] == "completed"
 
 
 def test_app_visitors_are_isolated_and_reconnect_retains_identity(

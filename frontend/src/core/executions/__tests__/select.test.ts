@@ -17,6 +17,13 @@ const T0 = "2026-10-01T09:20:11Z";
 const T1 = "2026-10-01T09:20:12.500Z";
 const T2 = "2026-10-01T09:20:20Z";
 
+const QUEUED: Protocol.ExecutionState = { status: "queued" };
+const RUNNING: Protocol.ExecutionState = {
+  status: "running",
+  started_at: T0,
+  value: null,
+};
+
 function record(
   overrides: Partial<Protocol.Execution> & { id: string },
 ): Protocol.Execution {
@@ -26,11 +33,13 @@ function record(
     caused_by: null,
     cell_id: "c1",
     code_fingerprint: "0f71456db2ea83f4",
-    depends_on: {},
-    status: "completed",
-    outcome: { kind: "value", display: null },
-    started_at: T0,
-    completed_at: T1,
+    state: {
+      status: "completed",
+      started_at: T0,
+      completed_at: T1,
+      outcome: { kind: "value", display: null },
+      depends_on: {},
+    },
     ...overrides,
   };
 }
@@ -125,10 +134,7 @@ describe("cellExecutionView", () => {
       executions: [
         execution({
           id: "e1",
-          status: "queued",
-          outcome: null,
-          started_at: null,
-          completed_at: null,
+          state: QUEUED,
         }),
       ],
     });
@@ -137,10 +143,7 @@ describe("cellExecutionView", () => {
       executions: [
         execution({
           id: "e1",
-          status: "running",
-          outcome: null,
-          started_at: T2,
-          completed_at: null,
+          state: { status: "running", started_at: T2, value: null },
         }),
       ],
       results: new Map([["c1", execution({ id: "e0" })]]),
@@ -180,11 +183,20 @@ describe("cellExecutionView", () => {
   });
 
   it("reports how the last completed execution ended, with its timing", () => {
+    const completedWith = (outcome: Protocol.Outcome) => ({
+      status: "completed" as const,
+      started_at: T0,
+      completed_at: T1,
+      outcome,
+      depends_on: {},
+    });
     const ended = (outcome: Protocol.Outcome) =>
       cellExecutionView(
         inputs({
-          executions: [execution({ id: "e1", outcome })],
-          results: new Map([["c1", execution({ id: "e1", outcome })]]),
+          executions: [execution({ id: "e1", state: completedWith(outcome) })],
+          results: new Map([
+            ["c1", execution({ id: "e1", state: completedWith(outcome) })],
+          ]),
         }),
         "c1",
       );
@@ -251,8 +263,7 @@ describe("cellExecutionView", () => {
         execution({
           id: "e2",
           run_id: "run-2",
-          status: "running",
-          completed_at: null,
+          state: RUNNING,
         }),
       ],
       results: result,
@@ -321,20 +332,17 @@ describe("cellExecutionView", () => {
 describe("notebook-level views", () => {
   const stream = inputs({
     executions: [
-      execution({ id: "e1", status: "running", completed_at: null }),
+      execution({ id: "e1", state: RUNNING }),
       execution({
         id: "e2",
         cell_id: "c2",
-        status: "queued",
-        started_at: null,
-        completed_at: null,
+        state: QUEUED,
       }),
       execution({ id: "e3", cell_id: "c3" }),
       execution({
         id: "s1",
         cell_id: null,
-        status: "running",
-        completed_at: null,
+        state: RUNNING,
       }),
     ],
     runs: [run(["c1", "c2", "c5"], "running"), run(["c5"], "queued", "run-2")],
@@ -355,8 +363,7 @@ describe("notebook-level views", () => {
         execution({
           id: "s1",
           cell_id: null,
-          status: "running",
-          completed_at: null,
+          state: RUNNING,
         }),
         execution({ id: "e3", cell_id: "c3" }),
       ],

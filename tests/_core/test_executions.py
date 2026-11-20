@@ -164,11 +164,12 @@ def test_completion_freezes_the_outcome_and_input_revisions(
     assert executions.observe(completed, RUNTIME) == [
         replace(
             queued,
-            status="completed",
-            outcome=protocol.InterruptedOutcome(),
-            depends_on=inputs,
-            started_at=IsDatetime() if started else None,
-            completed_at=IsDatetime(),
+            state=protocol.ExecutionCompleted(
+                started_at=IsDatetime() if started else None,
+                completed_at=IsDatetime(),
+                outcome=protocol.InterruptedOutcome(),
+                depends_on=inputs,
+            ),
         )
     ]
     retained = executions.current(protocol.CellId("a"))
@@ -242,8 +243,12 @@ def test_late_display_updates_preserve_completion_and_stop_after_replacement() -
         protocol.DisplayData(mimetype="text/plain", data="late"),
         None,
     ):
-        outcome = protocol.ValueOutcome(display)
-        expected = replace(before.execution, outcome=outcome)
+        expected = replace(
+            before.execution,
+            state=replace(
+                before.execution.state, outcome=protocol.ValueOutcome(display)
+            ),
+        )
         assert executions.observe(
             be.Displayed(protocol.ExecutionId("e1"), display), RUNTIME
         ) == [expected]
@@ -347,7 +352,8 @@ def test_interrupting_completes_everything_in_flight() -> None:
     changes = executions.interrupt()
     assert describe(changes) == ["execution e1", "execution e2", "run r1"]
     assert all(
-        isinstance(change.outcome, protocol.InterruptedOutcome)
+        isinstance(change.state, protocol.ExecutionCompleted)
+        and isinstance(change.state.outcome, protocol.InterruptedOutcome)
         for change in changes
         if isinstance(change, protocol.Execution)
     )
@@ -476,7 +482,6 @@ def test_restored_executions_are_current_until_replaced() -> None:
         ("other-cell", "containing cell"),
         ("missing-cell", "not in the document"),
         ("unfinished", "completed"),
-        ("no-outcome", "outcome"),
         ("output-owner", "belong to their execution"),
         ("duplicate-output", "unique"),
         ("variable-owner", "belong to their execution"),
@@ -500,9 +505,8 @@ def test_restore_rejects_inconsistent_executions(
         key = protocol.CellId("missing")
         retained = CellExecution(replace(execution, cell_id=key), outputs)
     elif invalid == "unfinished":
-        retained = CellExecution(replace(execution, status="running"), outputs)
-    elif invalid == "no-outcome":
-        retained = CellExecution(replace(execution, outcome=None), outputs)
+        running = protocol.ExecutionRunning(started_at=utcnow(), value=None)
+        retained = CellExecution(replace(execution, state=running), outputs)
     elif invalid == "output-owner":
         retained = CellExecution(
             execution,

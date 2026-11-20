@@ -434,7 +434,9 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                 members = [
                     e for e in executions.values() if e["run_id"] == run["id"]
                 ]
-                assert all(e["status"] == "completed" for e in members)
+                assert all(
+                    e["state"]["status"] == "completed" for e in members
+                )
                 assert run["state"]["outcome"] == outcome
             else:
                 assert "outcome" not in run["state"]
@@ -448,9 +450,9 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
             previous = executions.get(execution["id"])
             if previous is not None:
                 statuses = ["queued", "running", "completed"]
-                assert statuses.index(execution["status"]) >= statuses.index(
-                    previous["status"]
-                )
+                assert statuses.index(
+                    execution["state"]["status"]
+                ) >= statuses.index(previous["state"]["status"])
                 for field in (
                     "run_id",
                     "runtime_id",
@@ -465,19 +467,16 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                 )
             if execution["cell_id"] is None:
                 assert run["origin"]["kind"] == "code"
-            if execution["status"] == "queued":
-                assert execution["outcome"] is None
-                assert execution["started_at"] is None
-                assert execution["depends_on"] == {}
-            elif previous is not None and previous["status"] != "queued":
-                assert execution["depends_on"] == previous["depends_on"]
-            for revision in execution["depends_on"].values():
-                assert revision is None or revision["update"] >= 0
-            if execution["status"] == "completed":
-                assert execution["outcome"] is not None
-            assert (execution["completed_at"] is not None) == (
-                execution["status"] == "completed"
-            )
+            state = execution["state"]
+            if state["status"] == "queued":
+                assert state == {"status": "queued"}
+            elif state["status"] == "running":
+                assert set(state) == {"status", "started_at", "value"}
+            else:
+                assert state["outcome"] is not None
+                assert state["completed_at"] is not None
+                for revision in state["depends_on"].values():
+                    assert revision is None or revision["update"] >= 0
             executions[execution["id"]] = execution
         elif kind in {"console", "display"}:
             assert data[kind]["execution_id"] in executions
@@ -487,7 +486,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
             assert execution["cell_id"] is not None
             if variable["revision"]["update"] == 0:
                 # Bound before the execution completes.
-                assert execution["status"] == "running"
+                assert execution["state"]["status"] == "running"
                 assert (
                     variable["revision"]["execution"]
                     == variable["execution_id"]
@@ -513,8 +512,8 @@ def test_cell_run_request_and_results() -> None:
     assert cells["k7f2"]["code"] == "y = x * 2"
     assert executions["e12"]["caused_by"] is None
     assert executions["e13"]["caused_by"] is None
-    assert executions["e12"]["depends_on"] == {}
-    assert executions["e13"]["depends_on"] == {
+    assert executions["e12"]["state"]["depends_on"] == {}
+    assert executions["e13"]["state"]["depends_on"] == {
         "x": {"execution": "e12", "update": 0}
     }
     for execution in executions.values():
@@ -522,7 +521,10 @@ def test_cell_run_request_and_results() -> None:
             execution["code_fingerprint"]
             == cells[execution["cell_id"]]["code_fingerprint"]
         )
-        assert execution["outcome"] == {"kind": "value", "display": None}
+        assert execution["state"]["outcome"] == {
+            "kind": "value",
+            "display": None,
+        }
     variables = {
         m["variable"]["name"]: m["variable"]
         for m in messages("run-cells.sse", "variable")

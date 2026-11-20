@@ -8,6 +8,7 @@ import {
   retainResult,
   retainScratchResult,
 } from "./results";
+import { shownOutcome, startedAt } from "../execution-state";
 
 /** A console line, display, or input an execution produced, tagged by kind. */
 type ProducedItem =
@@ -75,7 +76,8 @@ function retainScratchConsole(
   execution: Execution,
 ): Execution | undefined {
   const current = state.scratchConsole;
-  const { id, cell_id, started_at } = execution.record;
+  const { id, cell_id } = execution.record;
+  const started_at = startedAt(execution.record);
   if (cell_id !== null || started_at === null) {
     return current;
   }
@@ -83,10 +85,11 @@ function retainScratchConsole(
     return execution;
   }
   // A late write from an older execution cannot select its console again.
-  if (state.executions.get(id)?.record.started_at != null) {
+  const previous = state.executions.get(id);
+  if (previous && startedAt(previous.record) !== null) {
     return current;
   }
-  return Date.parse(started_at) >= Date.parse(current.record.started_at ?? "")
+  return Date.parse(started_at) >= Date.parse(startedAt(current.record) ?? "")
     ? execution
     : current;
 }
@@ -181,10 +184,8 @@ function unbind(state: Executions, itemId: Protocol.ItemId): Executions {
 }
 
 function sameOutcome(a: Protocol.Execution, b: Protocol.Execution): boolean {
-  return (
-    a.outcome === b.outcome ||
-    JSON.stringify(a.outcome) === JSON.stringify(b.outcome)
-  );
+  const [x, y] = [shownOutcome(a), shownOutcome(b)];
+  return x === y || JSON.stringify(x) === JSON.stringify(y);
 }
 
 /** Carry displayed results and their revisions through a replacement snapshot. */
@@ -230,7 +231,7 @@ export function resumeResults(
     results,
     scratchConsole:
       next.scratchConsole ??
-      (previous.scratchConsole?.record.status === "completed" &&
+      (previous.scratchConsole?.record.state.status === "completed" &&
       previous.scratchConsole.record.runtime_id === runtimeId
         ? previous.scratchConsole
         : undefined),

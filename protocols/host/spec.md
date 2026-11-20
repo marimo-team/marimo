@@ -150,13 +150,18 @@ Notebook
     └── Scratch execution
 ```
 
-Runs and executions move through `queued`, `running`, and `completed`. A run's
-`state` holds its status together with the fields that status has, so a queued
-run has no start time and only a completed run has an outcome.
+Runs and executions move through `queued`, `running`, and `completed`. Each
+carries its status in `state` together with the fields that status has, so a
+queued run has no start time and only a completed one has an outcome. A running
+execution carries the value it has shown so far.
 
-    RunState { status: "queued" }
-           | { status: "running", started_at }
-           | { status: "completed", started_at, completed_at, outcome }
+    RunState       { status: "queued" }
+                 | { status: "running", started_at }
+                 | { status: "completed", started_at, completed_at, outcome }
+
+    ExecutionState { status: "queued" }
+                 | { status: "running", started_at, value }
+                 | { status: "completed", started_at, completed_at, outcome, depends_on }
 
 Hosts MUST complete a run only after its executions have ended and scheduling
 for that cycle has finished. An error in one execution may occur while others
@@ -266,7 +271,7 @@ has one latest execution on the stream and at most one that is not completed.
 An execution's `depends_on` records the variable revisions its result is valid
 against. A name that no retained cell execution had bound is recorded as null.
 
-    Execution { ..., depends_on: Record<Name, Revision | null> }
+    ExecutionState { status: "completed", ..., depends_on: Record<Name, Revision | null> }
 
 A completed cell execution is **current** when all of the following hold.
 
