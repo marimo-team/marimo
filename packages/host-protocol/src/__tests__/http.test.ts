@@ -24,10 +24,9 @@ const edit = Schema.decodeUnknownSync(S.EditResponse)(
 const runtime = Schema.decodeUnknownSync(S.Runtime)({
   id: "r",
   notebook_id: "n",
-  status: "running",
-  message: null,
   marimo_version: "0.1.0",
-  started_at: "2026-01-01T00:00:00Z",
+  created_at: "2026-01-01T00:00:00Z",
+  state: { status: "ready" },
 });
 const unavailable = () =>
   Effect.fail(new Problems.UnsupportedOperationProblem());

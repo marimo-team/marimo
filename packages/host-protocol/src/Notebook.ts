@@ -162,7 +162,7 @@ export const Interrupt = HttpApiEndpoint.post(
   .annotate(OpenApi.Summary, "Interrupt the notebook's runtime")
   .annotate(
     OpenApi.Description,
-    "Requests interruption of active work in the notebook's current runtime,\nincluding work with no run or execution record. Queued runs complete\ncancelled without executing. The runtime stays alive. Interruption\ndoes not roll back work already performed. Pending inputs belonging\nto interrupted work are cancelled.\n\nIf the notebook has no runtime, the host answers `no-runtime`. If its\nruntime is not `running`, the host answers `conflict`. An idle running\nruntime accepts the request as a no-op and does not arm an interrupt\nfor future work.\n\nThe response contains the current runtime and acknowledges the request,\nnot that the work has stopped. Runs and executions report their actual\noutcomes on the stream once they settle; acceptance alone does not\nmark them cancelled. Work without a run record need not acquire one.\nWithin the retry window, repeating the same request returns the original\nacknowledgement without interrupting again, including after new work\nstarts or the runtime is replaced. Hosts offering `runtime.run` or\n`runtime.execute` support this operation.\n",
+    "Requests interruption of active work in the notebook's current runtime,\nincluding work with no run or execution record. Queued runs complete\ncancelled without executing. The runtime stays alive. Interruption\ndoes not roll back work already performed. Pending inputs belonging\nto interrupted work are cancelled.\n\nIf the notebook has no runtime, or its runtime has ended, the host\nanswers `no-runtime`. If its runtime is `starting` or `stopping`, the\nhost answers `conflict`. An idle runtime accepts the request as a no-op\nand does not arm an interrupt for future work.\n\nThe response contains the current runtime and acknowledges the request,\nnot that the work has stopped. Runs and executions report their actual\noutcomes on the stream once they settle; acceptance alone does not\nmark them cancelled. Work without a run record need not acquire one.\nWithin the retry window, repeating the same request returns the original\nacknowledgement without interrupting again, including after new work\nstarts or the runtime is replaced. Hosts offering `runtime.run` or\n`runtime.execute` support this operation.\n",
   );
 
 export const Cancel = HttpApiEndpoint.delete(
@@ -208,7 +208,7 @@ export const Restart = HttpApiEndpoint.post(
   .annotate(OpenApi.Summary, "Restart the notebook's kernel")
   .annotate(
     OpenApi.Description,
-    "Stops the runtime and starts a new one with a new id. The stream\nshows the old runtime `terminating`, then `runtime.removed`, then\nthe new runtime `starting`, keeping one runtime attached to the\nnotebook at a time. Active and queued runs and their unfinished\nexecutions complete with outcome `cancelled`. Retained\nresults stay and are no longer live. The response carries the replacement\nruntime in its `starting` state. The client follows that id until\nit is `running` or has `failed`. If the notebook has no runtime,\nthe host answers `no-runtime`.\n",
+    "Stops the runtime and starts a new one with a new id. The stream\nshows the old runtime `stopping`, then `ended`, then `runtime.removed`,\nthen the new runtime `starting`, keeping one runtime attached to the\nnotebook at a time. Active and queued runs and their unfinished\nexecutions complete with outcome `cancelled`. Retained\nresults stay and are no longer live. The response carries the replacement\nruntime in its `starting` state. The client follows that id until\nit is `ready` or has `ended`. If the notebook has no runtime, or its\nruntime has ended, the host answers `no-runtime`.\n",
   );
 
 export const Run = HttpApiEndpoint.post(
@@ -286,7 +286,7 @@ export const Start = HttpApiEndpoint.put(
   )
   .annotate(
     OpenApi.Description,
-    "Makes sure the notebook has a running runtime. If it has none, the\nhost starts one and answers `202` with the runtime `starting`. The\nclient then follows `runtime` events for that runtime, on either\nstream, until its status is `running` or `failed`. If the notebook\nalready has a runtime, the host answers `200` with it and starts\nnothing.\n\nSometimes the host needs a choice the client did not make, such as\nwhich environment the kernel should run in. It then answers `409`\nwith a problem of type `decision-required` that lists the options,\nand the client repeats the request with a new `Idempotency-Key`\nand `decisions` filled in. A client that already knows its choice\ncan include `decisions` the first time.\n",
+    "Makes sure the notebook has a runtime that has not ended. If it has\nnone, or its last one ended, the host starts one and answers `202`\nwith the runtime `starting`. The client then follows `runtime` events\nfor that runtime, on either stream, until its status is `ready` or\n`ended`. If the notebook already has a runtime that has not ended,\nthe host answers `200` with it and starts nothing.\n\nSometimes the host needs a choice the client did not make, such as\nwhich environment the kernel should run in. It then answers `409`\nwith a problem of type `decision-required` that lists the options,\nand the client repeats the request with a new `Idempotency-Key`\nand `decisions` filled in. A client that already knows its choice\ncan include `decisions` the first time.\n",
   );
 
 export const Stop = HttpApiEndpoint.delete(
@@ -307,7 +307,7 @@ export const Stop = HttpApiEndpoint.delete(
   .annotate(OpenApi.Summary, "Stop the notebook's runtime")
   .annotate(
     OpenApi.Description,
-    "Ends the runtime for everyone attached to the notebook. A runtime\nthat is still starting is cancelled; a running kernel is shut\ndown. Active and queued runs and their unfinished executions complete\nwith outcome `cancelled`. Retained results stay\nand are no longer live. The notebook and its attachments stay,\nbut Python state is lost. The client follows the\nruntime on a stream until `runtime.removed`. If the notebook has\nno runtime, the host answers `no-runtime`.\n",
+    "Ends the runtime for everyone attached to the notebook. A runtime\nthat is still starting is cancelled; a running kernel is shut\ndown. Active and queued runs and their unfinished executions complete\nwith outcome `cancelled`. Retained results stay\nand are no longer live. The notebook and its attachments stay,\nbut Python state is lost. The client follows the\nruntime on a stream until it has `ended`. If the notebook has no\nruntime, or its runtime has ended, the host answers `no-runtime`.\n",
   );
 
 export const Save = HttpApiEndpoint.post(

@@ -13,7 +13,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from contract import Host, accepted, objects, validate
+from contract import Host, accepted, ended, objects, validate
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -163,10 +163,11 @@ async def scratch(
             if response.status_code == 202:
                 async with host.watch(path + "/events") as watch:
                     snapshot = await watch.ready()
-                    if objects(snapshot, "runtime"):
-                        await watch.until(
-                            lambda f: f.event == "runtime.removed"
-                        )
+                    if any(
+                        runtime["state"]["status"] != "ended"
+                        for runtime in objects(snapshot, "runtime")
+                    ):
+                        await watch.until(ended)
         response = await host.request("DELETE", path)
         assert response.status_code in (204, 404), (
             "could not clean up scratch notebook"

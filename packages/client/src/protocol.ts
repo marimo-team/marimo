@@ -426,34 +426,98 @@ export const RuntimeId = zod
 export type RuntimeId = zod.input<typeof RuntimeId>;
 export type RuntimeIdOutput = zod.output<typeof RuntimeId>;
 
-export const RuntimeStatus = zod
-  .enum(["starting", "running", "terminating", "failed"])
+export const RuntimeStarting = zod.object({
+  status: zod.enum(["starting"]),
+  message: zod
+    .union([zod.string(), zod.null()])
+    .describe(
+      "A note about progress, such as the packages being installed. Null when the host has nothing to report.",
+    ),
+});
+
+export type RuntimeStarting = zod.input<typeof RuntimeStarting>;
+export type RuntimeStartingOutput = zod.output<typeof RuntimeStarting>;
+
+export const RuntimeReady = zod.object({
+  status: zod.enum(["ready"]),
+});
+
+export type RuntimeReady = zod.input<typeof RuntimeReady>;
+export type RuntimeReadyOutput = zod.output<typeof RuntimeReady>;
+
+export const RuntimeStopping = zod.object({
+  status: zod.enum(["stopping"]),
+});
+
+export type RuntimeStopping = zod.input<typeof RuntimeStopping>;
+export type RuntimeStoppingOutput = zod.output<typeof RuntimeStopping>;
+
+export const RuntimeStoppedOutcome = zod.object({
+  kind: zod.enum(["stopped"]),
+});
+
+export type RuntimeStoppedOutcome = zod.input<typeof RuntimeStoppedOutcome>;
+export type RuntimeStoppedOutcomeOutput = zod.output<
+  typeof RuntimeStoppedOutcome
+>;
+
+export const RuntimeFailedOutcome = zod.object({
+  kind: zod.enum(["failed"]),
+  message: zod
+    .union([zod.string(), zod.null()])
+    .describe(
+      "Why the kernel could not start or why it exited, to show people. Null when the host does not know.",
+    ),
+});
+
+export type RuntimeFailedOutcome = zod.input<typeof RuntimeFailedOutcome>;
+export type RuntimeFailedOutcomeOutput = zod.output<
+  typeof RuntimeFailedOutcome
+>;
+
+export const RuntimeOutcome = zod
+  .union([RuntimeStoppedOutcome, RuntimeFailedOutcome])
   .describe(
-    "Where a runtime is in its life. A `starting` runtime is bringing\nits kernel up. A `running` runtime accepts work. A `terminating`\nruntime is shutting its kernel down. A `failed` runtime could not\nstart, or its kernel exited unexpectedly. A runtime that has\nended is removed rather than given a status.\n",
+    "How a runtime ended, tagged on `kind`. A `stopped` runtime was\nended by a client or the host. A `failed` runtime could not start,\nor its kernel exited unexpectedly.\n",
   );
 
-export type RuntimeStatus = zod.input<typeof RuntimeStatus>;
-export type RuntimeStatusOutput = zod.output<typeof RuntimeStatus>;
+export type RuntimeOutcome = zod.input<typeof RuntimeOutcome>;
+export type RuntimeOutcomeOutput = zod.output<typeof RuntimeOutcome>;
+
+export const RuntimeEnded = zod.object({
+  status: zod.enum(["ended"]),
+  ended_at: Timestamp.describe("When the runtime ended."),
+  outcome: RuntimeOutcome,
+});
+
+export type RuntimeEnded = zod.input<typeof RuntimeEnded>;
+export type RuntimeEndedOutput = zod.output<typeof RuntimeEnded>;
+
+export const RuntimeState = zod
+  .union([RuntimeStarting, RuntimeReady, RuntimeStopping, RuntimeEnded])
+  .describe(
+    "Where a runtime is in its life, tagged on `status`. A `starting`\nruntime is bringing its kernel up. A `ready` runtime accepts work.\nA `stopping` runtime is shutting its kernel down. An `ended`\nruntime has no kernel and does not change again.\n",
+  );
+
+export type RuntimeState = zod.input<typeof RuntimeState>;
+export type RuntimeStateOutput = zod.output<typeof RuntimeState>;
 
 export const Runtime = zod
   .object({
     id: RuntimeId,
     notebook_id: NotebookId,
-    status: RuntimeStatus,
-    message: zod
-      .union([zod.string(), zod.null()])
-      .describe(
-        "A note about the current status, such as progress while `starting` or the reason when `failed`. Null otherwise.",
-      ),
     marimo_version: zod
       .union([zod.string(), zod.null()])
       .describe(
         "The version of marimo running the kernel. Null until the host knows it.",
       ),
-    started_at: Timestamp.describe("When this runtime started."),
+    created_at: Timestamp.describe(
+      "When the host created this runtime and began starting it.",
+    ),
+    state: RuntimeState,
   })
   .describe(
-    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits, and the host then sends `runtime.removed`. Every start and restart creates\na new runtime with a new id. Results carry their producer's runtime\nid so clients can tell which are live.\n",
+    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits. The notebook keeps the ended runtime, so clients can\nsee how it ended, until another one starts or the notebook closes.\nThe host then sends `runtime.removed`. Every start and restart\ncreates a new runtime with a new id. Results carry their producer's\nruntime id, and are live while that runtime has not ended.\n",
   );
 
 export type Runtime = zod.input<typeof Runtime>;
@@ -989,7 +1053,7 @@ export const Execution = zod
     runtime_id: zod
       .union([RuntimeId, zod.null()])
       .describe(
-        "The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown.",
+        "The runtime that produced this execution. Live while that runtime is the notebook's and has not ended. Null when the producer is unknown.",
       ),
     caused_by: zod
       .union([ExecutionId, zod.null()])

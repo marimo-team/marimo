@@ -45,15 +45,11 @@ function run(
 
 function setup(runs: Protocol.Run[]) {
   const store = createStore();
-  const replica = MockExecutions.seed(
-    store,
-    [],
-    MockExecutions.runtime("running"),
-  );
+  const replica = MockExecutions.seed(store, [], MockExecutions.runtime());
   const interrupt = vi.fn<FakeInterrupt>(async () => ({
     ok: true,
     status: 202,
-    data: MockExecutions.runtime("running"),
+    data: MockExecutions.runtime(),
   }));
   store.set(replica.backendAtom, fakeBackend({ interrupt }));
   store.set(replica.executionsAtom, {

@@ -24,11 +24,15 @@ def catalog(*, ready: bool = True) -> bytes:
             ),
         ),
     ]
-    for name, status in [
-        ("live", "running"),
+    ended = protocol.RuntimeEnded(
+        ended_at=datetime(2026, 1, 2, tzinfo=UTC),
+        outcome=protocol.RuntimeFailedOutcome(message=None),
+    )
+    for name, state in [
+        ("live", protocol.RuntimeReady()),
         ("closed", None),
-        ("dead", "failed"),
-        ("untitled", "running"),
+        ("dead", ended),
+        ("untitled", protocol.RuntimeReady()),
     ]:
         notebook = msgspec.structs.replace(
             record(name),
@@ -36,14 +40,13 @@ def catalog(*, ready: bool = True) -> bytes:
             name=name,
         )
         entries.append(("notebook", protocol.NotebookMessage(notebook)))
-        if status is not None:
+        if state is not None:
             runtime = protocol.Runtime(
                 id=protocol.RuntimeId(f"rt-{name}"),
                 notebook_id=notebook.id,
-                status=status,
                 marimo_version=None,
-                message=None,
-                started_at=datetime(2026, 1, 1, tzinfo=UTC),
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
+                state=state,
             )
             entries.append(("runtime", protocol.RuntimeMessage(runtime)))
     if ready:

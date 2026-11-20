@@ -303,7 +303,7 @@ export const Execution = Schema.Struct({
   }),
   runtime_id: Schema.NullOr(RuntimeId).annotateKey({
     description:
-      "The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown.",
+      "The runtime that produced this execution. Live while that runtime is the notebook's and has not ended. Null when the producer is unknown.",
   }),
   caused_by: Schema.NullOr(ExecutionId).annotateKey({
     description:

@@ -3,7 +3,7 @@
 import type { Runtime } from "@marimo-team/client/protocol";
 import type { NotebookResource } from "@marimo-team/client";
 
-/** The notebook's runtime record while it has one. */
+/** The notebook's runtime record, kept after the runtime ends. */
 export const runtime: NotebookResource<Runtime | null, "runtime"> = {
   initial: null,
   on: {

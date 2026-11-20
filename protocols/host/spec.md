@@ -107,6 +107,29 @@ document or a separate concurrent runtime MUST appear as another notebook, even
 when both originate from the same file. Restarting a notebook's runtime
 preserves the notebook's identity.
 
+A runtime carries its status in `state`, like a run. It is `starting` while its
+kernel comes up, `ready` while it accepts work, `stopping` while its kernel
+shuts down, and `ended` after that. An ended state does not change.
+
+    RuntimeState   { status: "starting", message }
+                 | { status: "ready" }
+                 | { status: "stopping" }
+                 | { status: "ended", ended_at, outcome }
+
+    RuntimeOutcome { kind: "stopped" }
+                 | { kind: "failed", message }
+
+A runtime that a client or the host stopped ends `stopped`. One that could not
+start, or whose kernel exited on its own, ends `failed`. Its unfinished runs
+complete `failed` with the same message, the execution that was running fails
+with it too, and queued executions are cancelled. Hosts MUST complete a
+runtime's runs before publishing it as `ended`.
+
+The notebook keeps its runtime after it ends, so a client that connects later
+can see how it ended. Hosts MUST send `runtime.removed` for the ended runtime
+before publishing another for the same notebook. A request that needs a runtime
+is `no-runtime` when the notebook has none or its runtime has ended.
+
 Hosts MAY seed a new notebook from an existing document and retained results,
 choosing how it is stored and which operations each client can use. Several
 clients can share a notebook while only some are permitted to edit or save it.
@@ -349,9 +372,9 @@ rules to describe the values in its namespace.
   so a revision's `execution` can be earlier than the variable's
   `execution_id`.
 
-Updates are published before any execution that depends on them. The host
-removes the runtime when its process ends, so a result is **live** when its
-`runtime_id` is the notebook's runtime.
+Updates are published before any execution that depends on them. A result is
+**live** when its `runtime_id` is the notebook's runtime and that runtime has
+not ended.
 
 ## Connecting to the host API
 
@@ -542,9 +565,9 @@ POST /notebooks/{notebook_id}/runtime/interrupt
 Idempotency-Key: interrupt-1
 ```
 
-This request has no body. An absent runtime is `no-runtime`; a runtime that is
-not `running` is a `conflict`. An idle running runtime accepts the request as a
-no-op and MUST NOT arm an interrupt for future work.
+This request has no body. An absent or ended runtime is `no-runtime`; a runtime
+that is `starting` or `stopping` is a `conflict`. An idle runtime accepts the
+request as a no-op and MUST NOT arm an interrupt for future work.
 
 Interruption keeps the runtime alive and does not roll back work already
 performed. The host MUST remove queued runs from the queue and complete them

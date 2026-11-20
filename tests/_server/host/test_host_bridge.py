@@ -129,7 +129,7 @@ async def test_sessions_present_and_created_are_adopted(
     assert a is not None
     runtime = (await bridge.host.notebook(a.id)).runtime
     assert runtime is not None
-    assert runtime.status == "running"
+    assert runtime.state == protocol.RuntimeReady()
     assert existing.consumers[0][1] is False
 
     created = FakeSession(str(tmp_path / "b.py"))
@@ -163,7 +163,7 @@ async def running(bridge: SessionBridge, runtime: protocol.Runtime) -> None:
         if (
             isinstance(event.event, protocol.RuntimeEvent)
             and event.event.data.runtime.id == runtime.id
-            and event.event.data.runtime.status == "running"
+            and event.event.data.runtime.state == protocol.RuntimeReady()
         ):
             reached.set()
 
@@ -203,7 +203,7 @@ async def test_an_editor_rejoins_its_untitled_notebook_by_session_key(
     notebook_id, session = await untitled(manager, bridge)
     notebook = await bridge.host.notebook(notebook_id)
     notebook.stop()
-    assert (session.closed, notebook.runtime) == (True, None)
+    assert (session.closed, notebook.live_runtime) == (True, None)
 
     rejoined = FakeSession(path=None)
     await manager.event_bus.emit_session_created(rejoined)  # type: ignore[arg-type]
@@ -265,7 +265,7 @@ async def test_delete_during_adoption_preserves_the_file_and_session(
 
         notebook = await bridge.host.notebook(record.id)
         assert notebook.runtime is not None
-        assert notebook.runtime.status == "running"
+        assert notebook.runtime.state == protocol.RuntimeReady()
         assert path.read_text() == NOTEBOOK
         assert bridge._backends[record.id].session is session
         assert not session.closed
@@ -288,9 +288,10 @@ async def test_a_subscriber_can_stop_an_adopted_session(
     manager.sessions["browser"] = session
 
     def stop_on_starting(event: RoutedEvent) -> None:
-        if (
-            isinstance(event.event, protocol.RuntimeEvent)
-            and event.event.data.runtime.status == "starting"
+        if isinstance(
+            event.event, protocol.RuntimeEvent
+        ) and event.event.data.runtime.state == protocol.RuntimeStarting(
+            message=None
         ):
             notebook.stop()
 
@@ -298,7 +299,7 @@ async def test_a_subscriber_can_stop_an_adopted_session(
 
     await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
 
-    assert (session.closed, notebook.runtime, manager.sessions) == (
+    assert (session.closed, notebook.live_runtime, manager.sessions) == (
         True,
         None,
         {},
@@ -334,13 +335,18 @@ async def test_failed_adoption_detaches_without_closing_the_session(
     failed = notebook.runtime
     assert failed is not None
     backend = bridge._backends[record.id]
+    assert isinstance(failed.state, protocol.RuntimeEnded)
     assert (
-        failed.status,
-        failed.message,
+        failed.state.outcome,
         backend.session,
         session.consumers,
         session.closed,
-    ) == ("failed", "cannot attach", None, [], False)
+    ) == (
+        protocol.RuntimeFailedOutcome(message="cannot attach"),
+        None,
+        [],
+        False,
+    )
 
     replacement = FakeSession(str(tmp_path / "a.py"))
     await manager.event_bus.emit_session_created(replacement)  # type: ignore[arg-type]
@@ -349,7 +355,10 @@ async def test_failed_adoption_detaches_without_closing_the_session(
     runtime = notebook.runtime
     assert runtime is not None
     assert runtime.id != failed.id
-    assert (runtime.status, backend.session) == ("running", replacement)
+    assert (runtime.state, backend.session) == (
+        protocol.RuntimeReady(),
+        replacement,
+    )
     bridge.close()
 
 

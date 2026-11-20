@@ -128,7 +128,7 @@ describe("canRunCellsAtom", () => {
     store.set(connectionAtom, { state: ConnectionState.OPEN });
     expect(store.get(canRunCellsAtom)).toBe(false);
 
-    MockExecutions.seed(store, [], MockExecutions.runtime("running"));
+    MockExecutions.seed(store, [], MockExecutions.runtime());
     expect(store.get(canRunCellsAtom)).toBe(true);
   });
 

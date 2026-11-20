@@ -290,25 +290,27 @@ def _watch_lifecycle(
             settle()
         elif isinstance(event.event, protocol.RuntimeEvent):
             runtime = event.event.data.runtime
+            ended = isinstance(runtime.state, protocol.RuntimeEnded)
             if (
                 operation == "runtime.restart"
                 and event.event.data.request_id == request_id
-                and runtime.status == "terminating"
+                and isinstance(runtime.state, protocol.RuntimeStopping)
                 and runtime.id != runtime_id
             ):
                 previous_id = runtime.id
-            if (
-                operation != "runtime.stop"
-                and runtime.id == runtime_id
-                and runtime.status in ("running", "failed")
+            if runtime.id == runtime_id and (
+                ended or isinstance(runtime.state, protocol.RuntimeReady)
             ):
                 settle()
-        elif isinstance(event.event, protocol.RuntimeRemovedEvent):
-            if event.event.data.id == runtime_id or (
-                event.event.data.id == previous_id
+            elif (
+                runtime.id == previous_id
+                and ended
                 and event.event.data.request_id != request_id
             ):
                 # A later stop can cancel a restart before its replacement starts.
+                settle()
+        elif isinstance(event.event, protocol.RuntimeRemovedEvent):
+            if event.event.data.id == runtime_id:
                 settle()
 
     unsubscribe = context.host.subscribe(

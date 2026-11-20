@@ -162,7 +162,7 @@ def test_subscribers_act_after_the_command_reaches_the_backend(
 
     assert backend.calls == [("start", runtime.id), ("stop", runtime.id)]
     assert notebook.runtime is not None
-    assert notebook.runtime.status == "terminating"
+    assert notebook.runtime.state == protocol.RuntimeStopping()
 
 
 def test_subscribers_cannot_interrupt_a_restart(

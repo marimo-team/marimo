@@ -677,7 +677,7 @@ class SessionBridge(SessionEventListener):
         async with self._files_lock:
             notebook = self.host.peek_notebook(notebook_id)
             if notebook_id in self._adopting or (
-                notebook is not None and notebook.runtime is not None
+                notebook is not None and notebook.live_runtime is not None
             ):
                 raise Conflict("The notebook has a runtime")
             file = self.index.file_of(notebook_id)

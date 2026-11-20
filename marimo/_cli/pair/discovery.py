@@ -7,7 +7,7 @@ import http.client
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from time import monotonic
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import msgspec
 
@@ -33,7 +33,7 @@ class RunningNotebook(msgspec.Struct, frozen=True):
     name: str
     path: str | None
     url: str
-    status: protocol.RuntimeStatus
+    status: Literal["running"]
 
 
 class Listing(msgspec.Struct):
@@ -135,7 +135,9 @@ def _snapshot(host: HostEndpoint) -> Listing:
             )
     for notebook in notebooks.values():
         current_runtime = runtimes.get(notebook.id)
-        if current_runtime is None or current_runtime.status != "running":
+        if current_runtime is None or not isinstance(
+            current_runtime.state, protocol.RuntimeReady
+        ):
             continue
         current_project = projects.get(notebook.project_id)
         path = notebook.path
@@ -146,8 +148,6 @@ def _snapshot(host: HostEndpoint) -> Listing:
         ):
             path = str(Path(current_project.root) / path)
         listing.notebooks.append(
-            RunningNotebook(
-                notebook.id, notebook.name, path, url, current_runtime.status
-            )
+            RunningNotebook(notebook.id, notebook.name, path, url, "running")
         )
     return listing

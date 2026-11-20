@@ -516,28 +516,47 @@ class Executions:
                     changes.extend(self._finish_run(tracked))
         return changes
 
-    def interrupt(self, outcome: be.RunEnding = "cancelled") -> list[Change]:
-        """Complete every unfinished execution and run."""
+    def interrupt(
+        self,
+        outcome: be.RunEnding = "cancelled",
+        message: str | None = None,
+    ) -> list[Change]:
+        """Complete every unfinished execution and run.
+
+        `message` says why the runs failed, when they did. The execution
+        that was running fails with it too, and queued ones are cancelled.
+        """
         changes: list[Change] = []
         now = utcnow()
         for result in list(self._results.values()):
-            if not isinstance(
-                result.execution.state, protocol.ExecutionCompleted
-            ):
-                changes.extend(self._cancel_inputs(result))
-                changes.append(
-                    self._set_execution(
-                        _ended(
-                            result.execution,
-                            protocol.CancelledOutcome(),
-                            now,
+            state = result.execution.state
+            if not isinstance(state, protocol.ExecutionCompleted):
+                ended: protocol.Outcome = protocol.CancelledOutcome()
+                if outcome == "failed" and isinstance(
+                    state, protocol.ExecutionRunning
+                ):
+                    ended = protocol.ExecutionFailedOutcome(
+                        error=protocol.Error(
+                            kind="internal",
+                            name=None,
+                            message=message or "The kernel exited.",
+                            traceback=None,
+                            source="marimo",
+                            severity="error",
+                            range=None,
+                            related=(),
                         )
                     )
+                changes.extend(self._cancel_inputs(result))
+                changes.append(
+                    self._set_execution(_ended(result.execution, ended, now))
                 )
         for tracked in list(self._runs.values()):
             if not isinstance(tracked.run.state, protocol.RunCompleted):
                 changes.append(
-                    self._set_run(_completed(tracked.run, outcome, now))
+                    self._set_run(
+                        _completed(tracked.run, outcome, now, message)
+                    )
                 )
             tracked.retired.clear()
             changes.extend(self._finish_run(tracked))

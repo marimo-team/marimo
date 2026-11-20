@@ -33,6 +33,7 @@ const T1 = "2026-10-01T09:20:12.500Z";
 
 let sequence = 0;
 
+const READY: Protocol.RuntimeState = { status: "ready" };
 const SUCCEEDED: Protocol.Outcome = { kind: "succeeded" };
 
 /** An execution, or the output it set, as the stream delivers them. */
@@ -231,14 +232,13 @@ export const MockExecutions = {
     };
   },
 
-  runtime(status: Protocol.RuntimeStatus): Protocol.Runtime {
+  runtime(state: Protocol.RuntimeState = READY): Protocol.Runtime {
     return {
       id: "r1",
       notebook_id: "n1",
-      status,
-      message: null,
       marimo_version: null,
-      started_at: T0,
+      created_at: T0,
+      state,
     };
   },
 

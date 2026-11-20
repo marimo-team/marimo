@@ -341,10 +341,9 @@ it.each(["running", "completed", null])(
       body: {
         id: "r1",
         notebook_id: "n1",
-        status: "running",
-        message: null,
         marimo_version: null,
-        started_at: "2026-10-01T09:20:11Z",
+        created_at: "2026-10-01T09:20:11Z",
+        state: { status: "ready" },
       },
     };
     mockNotebookCall.mockImplementation(async () => {
@@ -479,10 +478,9 @@ it("signals an interrupt once across pending, completed, and lost-reply retries"
     body: {
       id: "r1",
       notebook_id: "n1",
-      status: "running",
-      message: null,
       marimo_version: null,
-      started_at: "2026-10-01T09:20:11Z",
+      created_at: "2026-10-01T09:20:11Z",
+      state: { status: "ready" },
     },
   };
   mockNotebookCall.mockImplementation(() => pending.promise);

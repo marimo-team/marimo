@@ -690,7 +690,7 @@ async def test_restart_retains_results_without_restoring_python_values(
             lambda response: any(
                 r.get("event") == "runtime"
                 and r["data"]["runtime"]["id"] == runtime_id
-                and r["data"]["runtime"]["status"] == "running"
+                and r["data"]["runtime"]["state"]["status"] == "ready"
                 for r in response.records
             ),
             timeout=15,
