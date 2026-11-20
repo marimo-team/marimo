@@ -1390,6 +1390,12 @@ export const CellAnalysis = zod
     refs: zod
       .array(zod.string())
       .describe("Names this cell reads from other cells."),
+    parents: zod
+      .array(CellId)
+      .optional()
+      .describe(
+        "Cell IDs of the direct dependencies in this revision. An empty list means no parents. Omitted when the host does not provide the graph.",
+      ),
     errors: zod
       .array(Error)
       .describe(
@@ -1397,7 +1403,7 @@ export const CellAnalysis = zod
       ),
   })
   .describe(
-    "What a cell's text implies: the names it defines and reads, which\nare the edges of the dependency graph, and the errors found in the\ntext alone or across the set of cells. A pure function of the\ncode, so two producers compute the same values.\n",
+    "The definitions, references, direct dependencies, and diagnostics for one cell at this document revision.",
   );
 
 export type CellAnalysis = zod.input<typeof CellAnalysis>;

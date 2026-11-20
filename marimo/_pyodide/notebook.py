@@ -44,6 +44,7 @@ from marimo._runtime.layout.layout import (
     layout_config_to_data_uri,
 )
 from marimo._server.host import document as documents
+from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.events import EditorNotifications, serialize_event
 from marimo._server.host.handover import Handover, Turn
 from marimo._server.host.translate import (
@@ -448,6 +449,7 @@ class PyodideNotebook:
             backend,
             sink,
             saved_etag=document.etag,
+            analyzer=HostAnalyzer(),
         )
         # The page starts the kernel; the notebook adopts it as its runtime.
         notebook.adopt(backend.attach)

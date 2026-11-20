@@ -1660,6 +1660,15 @@ class CellAnalysis(Struct, frozen=True):
         tuple[str, ...],
         Meta(description="Names this cell reads from other cells."),
     ]
+    parents: (
+        Annotated[
+            tuple[CellId, ...],
+            Meta(
+                description="Cell IDs of the direct dependencies in this revision. An empty list means no parents. Omitted when the host does not provide the graph."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class CellEvent(Struct, frozen=True, tag_field="event", tag="cell"):

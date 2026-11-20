@@ -424,11 +424,14 @@ json.dumps(result)
     // Exercise the same Python proxy and callback lifetime as the worker RPC.
     const notebook = pyodide.runPython("bridge.notebook");
     const frames = [];
+    const analyses = [];
     try {
       // Host events only. Notifications follow them on the same stream.
       await notebook.subscribe("acceptance", null, (raw) => {
         const frame = JSON.parse(raw);
-        if (frame.event !== "marimo") {
+        if (frame.event === "analysis") {
+          analyses.push(frame);
+        } else if (frame.event !== "marimo") {
           frames.push(frame);
         }
       });
@@ -453,6 +456,10 @@ json.dumps(result)
       assert.deepEqual(JSON.parse(await notebook.call(call)), reply);
       assert.equal(frames.length, count);
       assert.equal(pyodide.runPython("list(session.app_manager.app.cell_manager.codes())[0]"), "x = 7");
+      const { data: { analysis } } = await waitForFrame(analyses, (frame) =>
+        frame.data.analysis.document_etag === reply.body.document.etag,
+      );
+      assert.deepEqual(analysis.cells[cell.id].parents, []);
       notebook.set_persistence(async (contents, filename) => {
         await Promise.resolve();
         pyodide.FS.writeFile(filename, contents);

@@ -76,7 +76,7 @@ class CellAnalyzer:
             compiled = cache[cell.id].result
             if isinstance(compiled, protocol.Error):
                 analyses[cell.id] = protocol.CellAnalysis(
-                    defs=(), refs=(), errors=(compiled,)
+                    defs=(), refs=(), parents=(), errors=(compiled,)
                 )
             else:
                 refs = resolve_cell_references(
@@ -88,6 +88,10 @@ class CellAnalyzer:
                 analyses[cell.id] = protocol.CellAnalysis(
                     defs=tuple(sorted(compiled.defs)),
                     refs=tuple(sorted(refs)),
+                    parents=tuple(
+                        protocol.CellId(parent)
+                        for parent in sorted(graph.parents[CellId_t(cell.id)])
+                    ),
                     errors=tuple(
                         diagnostics.multiple_definitions(
                             cell.id,
