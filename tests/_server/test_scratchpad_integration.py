@@ -261,25 +261,24 @@ class _Session:
         """
         if names is None:
             names = cell_ids
-        self.edit(
-            [
-                *(
-                    {"kind": "delete_cell", "id": cid, "base_etag": etag}
-                    for cid, etag in self.cells.items()
-                    if cid not in cell_ids
-                ),
-                *(
+        changes: list[dict[str, Any]] = [
+            {"kind": "delete_cell", "id": cid, "base_etag": etag}
+            for cid, etag in self.cells.items()
+            if cid not in cell_ids
+        ]
+        for cid, code, name in zip(cell_ids, codes, names, strict=True):
+            cell = {"id": cid, "code": code, "name": name}
+            if cid in self.cells:
+                changes.append(
                     {
-                        "kind": "put_cell",
-                        "base_etag": self.cells.get(cid),
-                        "cell": {"id": cid, "code": code, "name": name},
+                        "kind": "replace_cell",
+                        "base_etag": self.cells[cid],
+                        "cell": cell,
                     }
-                    for cid, code, name in zip(
-                        cell_ids, codes, names, strict=True
-                    )
-                ),
-            ]
-        )
+                )
+            else:
+                changes.append({"kind": "create_cell", "cell": cell})
+        self.edit(changes)
         self.run_cells(cell_ids)
 
     def execute(self, code: str) -> list[str]:

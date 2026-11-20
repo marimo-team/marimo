@@ -440,7 +440,7 @@ json.dumps(result)
         params: { notebook_id: cell.notebook_id },
         headers: { "idempotency-key": "wasm-acceptance-edit" },
         body: { changes: [{
-          kind: "put_cell", base_etag: cell.etag,
+          kind: "replace_cell", base_etag: cell.etag,
           cell: { id: cell.id, code: "x = 7", name: cell.name, config: cell.config },
         }] },
       });

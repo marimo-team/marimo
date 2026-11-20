@@ -75,7 +75,7 @@ interface ModelState {
 export interface DocumentState {
   /** Shown host state with local drafts applied, null while unavailable. */
   readonly documentAtom: Atom<EditableDocument | null>;
-  /** Null when the document or source needed by a put is unavailable. */
+  /** Null when the document or source needed by an edit is unavailable. */
   readonly changesAtom: Atom<readonly Protocol.Change[] | null>;
   /** Remains pending until both the response and its streamed revision arrive. */
   readonly pendingAtom: Atom<DocumentSubmission | null>;

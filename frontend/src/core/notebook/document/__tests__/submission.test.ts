@@ -75,7 +75,7 @@ describe("document submissions", () => {
       const sent = submit();
       expect(sent.changes).toEqual([
         {
-          kind: "put_cell",
+          kind: "replace_cell",
           base_etag: "c2-etag",
           cell: {
             id: "c2",
@@ -85,7 +85,7 @@ describe("document submissions", () => {
           },
         },
         {
-          kind: "put_cell",
+          kind: "replace_cell",
           base_etag: "c1-etag",
           cell: {
             id: "c1",
@@ -188,7 +188,7 @@ describe("document submissions", () => {
     const retry = submit();
     expect(retry.changes).toEqual([
       {
-        kind: "put_cell",
+        kind: "replace_cell",
         base_etag: "fresh",
         cell: {
           id: "c1",

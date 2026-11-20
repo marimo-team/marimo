@@ -105,7 +105,7 @@ describe("createCell and deleteCell", () => {
     const deleted = deleteCell(EMPTY_DRAFT, "c1");
     const back = { id: "c1", code: "back" };
     const put = {
-      kind: "put_cell",
+      kind: "replace_cell",
       base_etag: "c1-etag",
       cell: { ...back, name: "_", config: CONFIG },
     };
@@ -133,10 +133,13 @@ describe("createCell and deleteCell", () => {
     expect(viewDocument(removed, settled).order).toEqual(["c1", "c2"]);
     expect(toChanges(removed, settled)).toEqual([
       {
-        kind: "put_cell",
-        base_etag: null,
+        kind: "create_cell",
         cell: { ...back, name: "_", config: CONFIG },
-        before: "c2",
+      },
+      {
+        kind: "set_order",
+        base_etag: removed.revision.order_etag,
+        order: ["c1", "c2"],
       },
     ]);
   });
@@ -215,7 +218,7 @@ describe("toChanges", () => {
       });
       expect(toChanges(hidden, draft)).toEqual([
         {
-          kind: "put_cell",
+          kind: "replace_cell",
           base_etag: "c1-etag",
           cell: { id: "c1", code, name: "renamed", config: CONFIG },
         },
@@ -236,58 +239,56 @@ describe("toChanges", () => {
     ]);
   });
 
-  it("is empty for an empty draft and omits puts that change nothing", () => {
+  it("is empty for an empty draft and omits unchanged cells", () => {
     expect(toChanges(confirmed, EMPTY_DRAFT)).toEqual([]);
     expect(
       toChanges(confirmed, edits({ code: "local" }, { code: "x = 1" })),
     ).toEqual([]);
   });
 
-  it("puts the merged cell against the confirmed etag", () => {
+  it("replaces the merged cell using the confirmed etag", () => {
     const draft = edits({ code: "local" });
     const remote = withCells(confirmed, {
       c1: cell("c1", "remote", { name: "renamed", etag: "c1-etag-2" }),
     });
     expect(toChanges(remote, draft)).toEqual([
       {
-        kind: "put_cell",
+        kind: "replace_cell",
         base_etag: "c1-etag-2",
         cell: { id: "c1", code: "local", name: "renamed", config: CONFIG },
       },
     ]);
   });
 
-  it.each([{ after: "c3" }, { before: "c3" }])(
-    "can anchor to a cell created earlier in the request: %o",
-    (placement) => {
-      let draft = createCell(EMPTY_DRAFT, { id: "c3", code: "3" });
-      draft = createCell(draft, { id: "c4", code: "4" }, placement);
-      expect(toChanges(confirmed, draft)).toEqual([
-        {
-          kind: "put_cell",
-          base_etag: null,
-          cell: { id: "c3", code: "3", name: "_", config: CONFIG },
-        },
-        {
-          kind: "put_cell",
-          base_etag: null,
-          cell: { id: "c4", code: "4", name: "_", config: CONFIG },
-          ...placement,
-        },
-      ]);
-    },
-  );
+  it("places a cell before another creation with one order change", () => {
+    let draft = createCell(EMPTY_DRAFT, { id: "c3", code: "3" });
+    draft = createCell(draft, { id: "c4", code: "4" }, { before: "c3" });
+    expect(toChanges(confirmed, draft)).toEqual([
+      {
+        kind: "create_cell",
+        cell: { id: "c3", code: "3", name: "_", config: CONFIG },
+      },
+      {
+        kind: "create_cell",
+        cell: { id: "c4", code: "4", name: "_", config: CONFIG },
+      },
+      {
+        kind: "set_order",
+        base_etag: "order-1",
+        order: ["c1", "c2", "c4", "c3"],
+      },
+    ]);
+  });
 
   it.each([{ after: "c2" }, { before: "c2" }])(
-    "omits an anchor deleted earlier in the request: %o",
+    "appends when the placement anchor was deleted earlier in the request: %o",
     (placement) => {
       let draft = deleteCell(EMPTY_DRAFT, "c2");
       draft = createCell(draft, { id: "c3", code: "3" }, placement);
       expect(toChanges(confirmed, draft)).toEqual([
         { kind: "delete_cell", id: "c2", base_etag: "c2-etag" },
         {
-          kind: "put_cell",
-          base_etag: null,
+          kind: "create_cell",
           cell: { id: "c3", code: "3", name: "_", config: CONFIG },
         },
       ]);
@@ -300,10 +301,8 @@ describe("toChanges", () => {
     draft = deleteCell(draft, "c1");
     expect(toChanges(confirmed, draft)).toEqual([
       {
-        kind: "put_cell",
-        base_etag: null,
+        kind: "create_cell",
         cell: { id: "c3", code: "3", name: "_", config: CONFIG },
-        after: "c2",
       },
       { kind: "delete_cell", id: "c1", base_etag: "c1-etag" },
       { kind: "set_order", base_etag: "order-1", order: ["c2", "c3"] },
@@ -340,7 +339,7 @@ describe("acknowledge", () => {
     const remote = withCells(confirmed, { c3: cell("c3", "remote code") });
     expect(toChanges(remote, acknowledge(later, sent))).toEqual([
       {
-        kind: "put_cell",
+        kind: "replace_cell",
         base_etag: "c3-etag",
         cell: { id: "c3", code: "remote code", name: "named", config: CONFIG },
       },

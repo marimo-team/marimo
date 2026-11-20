@@ -2313,26 +2313,28 @@ export const CellInput = zod
 export type CellInput = zod.input<typeof CellInput>;
 export type CellInputOutput = zod.output<typeof CellInput>;
 
-export const PutCell = zod
+export const CreateCell = zod
   .strictObject({
-    kind: zod.enum(["put_cell"]),
-    base_etag: zod
-      .union([zod.string(), zod.null()])
-      .describe(
-        "The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is `precondition-failed`.",
-      ),
+    kind: zod.enum(["create_cell"]),
     cell: CellInput,
-    after: CellId.optional().describe(
-      "The cell a created cell goes after. Ignored for an existing cell.",
-    ),
-    before: CellId.optional().describe(
-      "The cell a created cell goes before. Ignored for an existing cell. With neither `after` nor `before`, a created cell goes at the end.",
-    ),
   })
-  .describe("Replaces a whole cell, or creates one.");
+  .describe("Appends a new cell. An existing id is a failed precondition.");
 
-export type PutCell = zod.input<typeof PutCell>;
-export type PutCellOutput = zod.output<typeof PutCell>;
+export type CreateCell = zod.input<typeof CreateCell>;
+export type CreateCellOutput = zod.output<typeof CreateCell>;
+
+export const ReplaceCell = zod
+  .strictObject({
+    kind: zod.enum(["replace_cell"]),
+    base_etag: zod.string().describe("The cell's etag as last read, or `*`."),
+    cell: CellInput,
+  })
+  .describe(
+    "Replaces an existing cell in place. A missing cell is a failed precondition.",
+  );
+
+export type ReplaceCell = zod.input<typeof ReplaceCell>;
+export type ReplaceCellOutput = zod.output<typeof ReplaceCell>;
 
 export const DeleteCell = zod
   .strictObject({
@@ -2363,7 +2365,7 @@ export type SetOrder = zod.input<typeof SetOrder>;
 export type SetOrderOutput = zod.output<typeof SetOrder>;
 
 export const Change = zod
-  .union([PutCell, DeleteCell, SetOrder])
+  .union([CreateCell, ReplaceCell, DeleteCell, SetOrder])
   .describe("One change to the document, tagged on `kind`.");
 
 export type Change = zod.input<typeof Change>;

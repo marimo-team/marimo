@@ -105,7 +105,7 @@ class Client:
                 {
                     "changes": [
                         {
-                            "kind": "put_cell",
+                            "kind": "replace_cell",
                             "base_etag": "*",
                             "cell": {"id": self.cells[cell], "code": code},
                         }

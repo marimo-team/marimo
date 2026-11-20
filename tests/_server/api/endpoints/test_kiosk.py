@@ -34,8 +34,7 @@ def notebook_id_of(snapshot: list[dict[str, Any]]) -> str:
 def new_cell(cell_id: str) -> dict[str, Any]:
     """A host edit that adds a cell, which every consumer hears about."""
     return {
-        "kind": "put_cell",
-        "base_etag": None,
+        "kind": "create_cell",
         "cell": {"id": cell_id, "code": f"{cell_id} = 1"},
     }
 

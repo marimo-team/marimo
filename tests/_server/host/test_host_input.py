@@ -388,8 +388,7 @@ def test_failed_cell_debugger_prompt_survives_reconnect(
             json={
                 "changes": [
                     {
-                        "kind": "put_cell",
-                        "base_etag": None,
+                        "kind": "create_cell",
                         "cell": {
                             "id": "probe",
                             "code": dedent("""

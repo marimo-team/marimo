@@ -882,8 +882,7 @@ async def test_pyodide_bridge_document_export(
                     "body": {
                         "changes": [
                             {
-                                "kind": "put_cell",
-                                "base_etag": None,
+                                "kind": "create_cell",
                                 "cell": {
                                     "id": "test",
                                     "code": 'message = "NEW"',

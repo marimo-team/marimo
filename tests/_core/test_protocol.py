@@ -568,14 +568,17 @@ def test_edit_request_response_and_events() -> None:
     order = before["order"].copy()
     touched = {}
     for change in request["changes"]:
-        if change["kind"] == "put_cell":
+        if change["kind"] == "set_order":
+            assert change["base_etag"] == before["order_etag"]
+            assert sorted(order) == sorted(change["order"])
+            order = change["order"]
+        elif change["kind"] in ("create_cell", "replace_cell"):
             cell = change["cell"]
-            previous = cells.get(cell["id"])
-            assert change["base_etag"] == (
-                previous["etag"] if previous else None
-            )
-            if previous is None:
-                order.insert(order.index(change["after"]) + 1, cell["id"])
+            if change["kind"] == "create_cell":
+                assert cell["id"] not in cells
+                order.append(cell["id"])
+            else:
+                assert change["base_etag"] == cells[cell["id"]]["etag"]
             updated = changed[cell["id"]]
             assert all(updated[key] == value for key, value in cell.items())
             cells[cell["id"]] = updated

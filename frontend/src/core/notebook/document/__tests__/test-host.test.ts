@@ -44,7 +44,7 @@ it("rejects an entire batch when a later precondition is stale", () => {
   const initial = initialDocument();
   const host = createTestHost(initial);
   const result = host.apply([
-    { kind: "put_cell", base_etag: null, cell: { id: "created", code: "new" } },
+    { kind: "create_cell", cell: { id: "created", code: "new" } },
     { kind: "delete_cell", id: "c3", base_etag: "stale" },
   ]);
   expect(result).toMatchObject({
@@ -72,7 +72,7 @@ it("keeps successful and rejected receipts tied to their original payload and re
   };
   const rejected = host.process(stale);
   host.apply([
-    { kind: "put_cell", base_etag: "*", cell: { id: "c3", code: "later" } },
+    { kind: "replace_cell", base_etag: "*", cell: { id: "c3", code: "later" } },
   ]);
   const latest = host.document();
   expect(host.process(request)).toEqual({ result: accepted.result });

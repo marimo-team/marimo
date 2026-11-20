@@ -18,7 +18,7 @@ from marimo._core.calls import (
     dispatch,
 )
 from marimo._core.operations import Mutations, Reply
-from tests._core.test_notebook_document import put
+from tests._core.test_notebook_document import create, replace_cell
 
 NOTEBOOK = protocol.NotebookId("n1")
 PARAMS = NotebookParams(NOTEBOOK)
@@ -54,7 +54,7 @@ def kind(reply: Reply) -> str:
 async def test_edit_retry_and_atomic_conflict(bridge, serve):
     events = []
     bridge.host.subscribe(events.append, notebook_id=NOTEBOOK)
-    call = edit("edit", put("c1", "x = 2", "*"))
+    call = edit("edit", replace_cell("c1", "x = 2", "*"))
     status, result = await serve(call)
     assert status == 200
     assert isinstance(result, protocol.EditResponse)
@@ -65,7 +65,9 @@ async def test_edit_retry_and_atomic_conflict(bridge, serve):
 
     conflict = await serve(
         edit(
-            "conflict", put("new", "y = 1", None), put("c1", "x = 3", "stale")
+            "conflict",
+            create("new", "y = 1"),
+            replace_cell("c1", "x = 3", "stale"),
         )
     )
     assert conflict[0] == 412
@@ -79,7 +81,7 @@ async def test_edit_retry_and_atomic_conflict(bridge, serve):
 
 async def test_cancellation_and_concurrent_retry(bridge, serve):
     bridge.release.clear()
-    call = edit("edit", put("c1", "x = 2", "*"))
+    call = edit("edit", replace_cell("c1", "x = 2", "*"))
     first = asyncio.create_task(serve(call))
     await asyncio.wait_for(bridge.started.wait(), 5)
     try:
@@ -106,10 +108,10 @@ async def test_receipts_include_operation_and_preconditions(bridge, serve):
 
 
 async def test_rejected_calls_do_not_reserve_keys(serve):
-    assert kind(await serve(edit("edit", put("c1", "x = 2", "stale")))) == (
-        "precondition-failed"
-    )
-    status, _ = await serve(edit("edit", put("c1", "x = 2", "*")))
+    assert kind(
+        await serve(edit("edit", replace_cell("c1", "x = 2", "stale")))
+    ) == ("precondition-failed")
+    status, _ = await serve(edit("edit", replace_cell("c1", "x = 2", "*")))
     assert status == 200
 
 
