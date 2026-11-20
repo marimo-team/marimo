@@ -1569,3 +1569,75 @@ class TestSessionCacheManager:
             assert loaded_view.startup_progress == progress
             # cache hit: codes and version match
             assert len(loaded_view.cell_notifications) == 2
+            assert (
+                serialize_session_view(
+                    loaded_view,
+                    [CELL1, CELL2],
+                    drop_virtual_file_outputs=False,
+                )["cells"]
+                == data["cells"]
+            )
+
+
+@pytest.mark.parametrize("restored_id", [CELL1, CELL2])
+def test_cached_outputs_survive_repeated_serialization(restored_id: CellId_t):
+    view = SessionView()
+    view.last_executed_code[CELL1] = "print(42)"
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT, mimetype="text/plain", data="42"
+        ),
+        console=[
+            CellOutput(
+                channel=CellChannel.STDOUT, mimetype="text/plain", data="42\n"
+            )
+        ],
+    )
+    serialized = serialize_session_view(
+        view, [CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash = serialized["cells"][0]["code_hash"]
+    assert code_hash is not None
+    expected = [{**serialized["cells"][0], "id": restored_id}]
+    for _ in range(3):
+        view = deserialize_session(serialized, {code_hash: restored_id})
+        assert view.last_executed_code == {}
+        serialized = serialize_session_view(
+            view, [restored_id], drop_virtual_file_outputs=True
+        )
+        assert serialized["cells"] == expected
+    # Changed source must not inherit the old output, even at the same cell ID.
+    changed_hash = _hash_code("print(43)")
+    assert changed_hash is not None
+    assert not deserialize_session(
+        serialized, {changed_hash: restored_id}
+    ).cell_notifications
+    assert not deserialize_session(serialized, {}).cell_notifications
+
+
+@pytest.mark.parametrize("code", ["print(43)", ""])
+def test_execution_replaces_cached_output_hash(code: str):
+    view = SessionView()
+    view.last_executed_code[CELL1] = "print(42)"
+    view.cell_notifications[CELL1] = _make_cell_notification(CELL1)
+    view.last_executed_code[CELL2] = "other"
+    view.cell_notifications[CELL2] = _make_cell_notification(CELL2)
+    serialized = serialize_session_view(
+        view, [CELL1, CELL2], drop_virtual_file_outputs=True
+    )
+    restored = deserialize_session(
+        serialized, _build_code_hash_to_cell_id_mapping(serialized)
+    )
+    restored.add_control_request(
+        ExecuteCellsCommand(
+            execution_requests=[ExecuteCellCommand(cell_id=CELL1, code=code)]
+        )
+    )
+    result = serialize_session_view(
+        restored, [CELL1, CELL2], drop_virtual_file_outputs=True
+    )
+    assert result["cells"] == [
+        {**serialized["cells"][0], "code_hash": _hash_code(code)},
+        serialized["cells"][1],
+    ]

@@ -236,7 +236,11 @@ def serialize_session_view(
             if console_out.traceback_format is not msgspec.UNSET:
                 console[-1]["traceback_format"] = console_out.traceback_format
 
-        code_hash = _hash_code(view.last_executed_code.get(cell_id))
+        code_hash = (
+            _hash_code(view.last_executed_code[cell_id])
+            if cell_id in view.last_executed_code
+            else view.cached_code_hashes.get(cell_id)
+        )
 
         cells.append(
             Cell(
@@ -394,6 +398,7 @@ def deserialize_session(
             )
             continue
 
+        view.cached_code_hashes[cell_id] = cell["code_hash"]
         view.cell_notifications[cell_id] = CellNotification(
             cell_id=cell_id,
             status="idle",
@@ -650,7 +655,7 @@ class SessionCacheManager:
         cached = deserialize_session(notebook_session, code_hash_to_cell_id)
         # Cached cell output must not replace this launch's environment state.
         self.session_view.cell_notifications = cached.cell_notifications
-        # The view now holds what the file does. Writing it back before a
-        # cell has run would drop the code hashes that tie outputs to cells.
+        self.session_view.cached_code_hashes = cached.cached_code_hashes
+        # The restored view already matches the cache file.
         self.session_view.mark_auto_export_session()
         return self.session_view
