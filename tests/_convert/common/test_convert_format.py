@@ -3,9 +3,11 @@ from __future__ import annotations
 import re
 from textwrap import dedent
 
+import pytest
+
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
-from marimo._ast.compiler import compile_cell
+from marimo._ast.compiler import compile_cell, extract_markdown
 from marimo._convert.common import format
 
 
@@ -15,10 +17,7 @@ def test_markdown_to_marimo():
     assert format.markdown_to_marimo(markdown) == expected
 
     markdown = 'Here are some quotes: """'
-    expected = r'''
-mo.md(r"""
-Here are some quotes: \"\"\"
-""")'''.strip()
+    expected = "mo.md(r'''\nHere are some quotes: \"\"\"\n''')"
 
     assert format.markdown_to_marimo(markdown) == expected
 
@@ -39,6 +38,33 @@ mo.md(r"""
 """)'''
     ).strip()
     assert format.markdown_to_marimo(markdown) == expected
+
+
+@pytest.mark.parametrize(
+    "markdown",
+    [
+        '```python\ndef f():\n    """Docstring."""\n```',
+        'say """hi"""',
+        r"Write \"\"\" to escape '''",
+    ],
+)
+def test_markdown_to_marimo_roundtrips_quotes(markdown: str) -> None:
+    assert extract_markdown(format.markdown_to_marimo(markdown)) == markdown
+
+
+@pytest.mark.parametrize("prefix", ["", "f"])
+@pytest.mark.parametrize("markdown", ['say """hi"""', r'Write \""" to escape'])
+def test_markdown_to_marimo_non_raw_roundtrips(
+    markdown: str, prefix: str
+) -> None:
+    code = format.markdown_to_marimo(markdown, prefix)
+    assert extract_markdown(code) == markdown
+
+
+def test_markdown_to_marimo_non_raw_uses_frontend_escape() -> None:
+    # The editor only reverses `\"""`
+    code = format.markdown_to_marimo('say """hi"""', "")
+    assert code == 'mo.md("""\nsay \\"""hi\\"""\n""")'
 
 
 def test_generate_from_sources():
@@ -149,6 +175,12 @@ def test_get_markdown_from_cell_empty():
         compile_cell(empty_markdown_str, "id"), empty_markdown_str
     )
     assert markdown is None
+
+
+def test_get_markdown_from_cell_keeps_authored_backslash():
+    code = 'mo.md(r"""\n\\"""quote\n""")'
+    markdown = format.get_markdown_from_cell(compile_cell(code, "id"), code)
+    assert markdown == '\\"""quote'
 
 
 def test_get_markdown_from_cell_broken():
