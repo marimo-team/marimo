@@ -284,7 +284,7 @@ def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
 
 
 def test_stored_values_and_text_keep_their_formats() -> None:
-    bundle = {"text/html": "<b>1</b>", "text/plain": "1"}
+    bundle = {"text/plain": "NaN", "application/json": [float("nan")]}
     highlighted = '<span class="codehilite">Traceback</span>'
     executions = executions_from_session(
         session(
@@ -329,7 +329,7 @@ def test_stored_values_and_text_keep_their_formats() -> None:
     assert value.execution.outcome == protocol.ValueOutcome(
         protocol.DisplayData(
             mimetype="application/vnd.marimo+mimebundle",
-            data=json.dumps(bundle),
+            data='{"text/plain":"NaN","application/json":[null]}',
         )
     )
     raised = executions.current(protocol.CellId("b"))
