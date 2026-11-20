@@ -102,7 +102,7 @@ def edit(events, code="x = 2", request_id="edit-1"):
         "body": {
             "changes": [
                 {
-                    "kind": "put_cell",
+                    "kind": "replace_cell",
                     "base_etag": cell["etag"],
                     "cell": {
                         "id": cell["id"],
@@ -181,9 +181,7 @@ async def test_atomic_conflict_and_kernel_update(bridge):
     request["body"]["changes"].insert(
         0,
         {
-            "kind": "put_cell",
-            "base_etag": None,
-            "after": cell_id,
+            "kind": "create_cell",
             "cell": {"id": "new", "code": "y = 1"},
         },
     )
@@ -490,7 +488,7 @@ async def test_host_edits_config_layout_and_reload(bridge):
             "body": {
                 "changes": [
                     {
-                        "kind": "put_cell",
+                        "kind": "replace_cell",
                         "base_etag": cell["etag"],
                         "cell": {
                             "id": cell["id"],
@@ -500,10 +498,13 @@ async def test_host_edits_config_layout_and_reload(bridge):
                         },
                     },
                     {
-                        "kind": "put_cell",
-                        "base_etag": None,
-                        "before": cell["id"],
+                        "kind": "create_cell",
                         "cell": {"id": "new", "code": "y = 2"},
+                    },
+                    {
+                        "kind": "set_order",
+                        "base_etag": "*",
+                        "order": ["new", cell["id"]],
                     },
                 ]
             },

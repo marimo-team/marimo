@@ -88,34 +88,14 @@ export function createTestHost(initial: Document) {
 
     for (const [index, change] of changes.entries()) {
       switch (change.kind) {
-        case "put_cell": {
+        case "create_cell":
+        case "replace_cell": {
           const { id } = change.cell;
-          if (change.base_etag === null) {
+          if (change.kind === "create_cell") {
             if (current.cells.has(id) || cells.has(id)) {
               return conflict(index, id);
             }
-            if (change.after !== undefined && change.before !== undefined) {
-              return rejected({
-                type: "urn:marimo:problem:invalid-request",
-                title: "Invalid request",
-                status: 400,
-                detail: "A cell cannot name both before and after",
-              });
-            }
-            const anchor = change.after ?? change.before;
-            if (anchor !== undefined && !order.includes(anchor)) {
-              return rejected({
-                type: "urn:marimo:problem:invalid-request",
-                title: "Invalid request",
-                status: 400,
-                detail: "The placement anchor does not exist",
-              });
-            }
-            const position =
-              anchor === undefined
-                ? order.length
-                : order.indexOf(anchor) + (change.after === undefined ? 0 : 1);
-            order.splice(position, 0, id);
+            order.push(id);
           } else if (!cells.has(id) || !matches(id, change.base_etag)) {
             return conflict(index, id);
           }

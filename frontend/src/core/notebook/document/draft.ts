@@ -47,8 +47,8 @@ type CellDraft =
  * This client's changes, layered over a confirmed document.
  *
  * A draft is a document delta in the terms of the host's edit request:
- * per-cell puts and deletes, and optionally the order as a whole. The view
- * a person edits and the request that synchronizes it both derive from it.
+ * cell creations, replacements, deletions, and optionally the full order.
+ * The editable view and the request that synchronizes it both derive from it.
  */
 export interface Draft {
   readonly cells: ReadonlyMap<Protocol.CellId, CellDraft>;
@@ -436,39 +436,32 @@ export function viewDocument(
 /**
  * The edit request that would make the host match the view.
  *
- * Preconditions are the confirmed etags. A put with no effect is left out.
- * Cells come before the order, so one request can create a cell and then
- * place it. Returns null if a put lacks source or its edited cell was removed,
- * keeping the draft atomic and retaining local intent for recovery.
+ * Preconditions use the confirmed etags. Unchanged cells are omitted.
+ * Creates append before a final order change places them. A missing cell or
+ * missing source blocks replacement, keeping the draft atomic for recovery.
  */
 export function toChanges(
   confirmed: Document,
   draft: Draft,
 ): Protocol.Change[] | null {
   const changes: Protocol.Change[] = [];
-  let stagedOrder = confirmed.revision.order;
-  const stagedIds = new Set(stagedOrder);
+  const stagedOrder = new Set(confirmed.revision.order);
+  const { cells, order } = viewDocument(confirmed, draft);
+  let hasAnchoredCreate = false;
   for (const [id, local] of draft.cells) {
     const base = confirmed.cells.get(id);
     if (local.kind === "delete") {
       if (base !== undefined) {
         changes.push({ kind: "delete_cell", id, base_etag: base.etag });
-        stagedOrder = stagedOrder.filter((other) => other !== id);
-        stagedIds.delete(id);
+        stagedOrder.delete(id);
       }
     } else if (local.kind === "create") {
+      changes.push({ kind: "create_cell", cell: local.cell });
+      stagedOrder.add(id);
       const anchor = local.placement.after ?? local.placement.before;
-      const placement =
-        anchor === undefined || stagedIds.has(anchor) ? local.placement : {};
-      changes.push({
-        kind: "put_cell",
-        base_etag: null,
-        cell: local.cell,
-        ...placement,
-      });
-      if (base === undefined) {
-        stagedOrder = insertAt(stagedOrder, id, placement);
-        stagedIds.add(id);
+      if (anchor !== undefined && cells.has(anchor)) {
+        // A concurrent append can separate a new cell from its anchor.
+        hasAnchoredCreate = true;
       }
     } else if (base !== undefined) {
       const cell = applyEdit(base, local.edit);
@@ -478,7 +471,7 @@ export function toChanges(
           return null;
         }
         changes.push({
-          kind: "put_cell",
+          kind: "replace_cell",
           base_etag: base.etag,
           cell: { ...cell, code },
         });
@@ -487,10 +480,10 @@ export function toChanges(
       return null;
     }
   }
-  const { order } = viewDocument(confirmed, draft);
   if (
+    hasAnchoredCreate ||
     (draft.order !== null && !sameOrder(order, confirmed.revision.order)) ||
-    !sameOrder(order, stagedOrder)
+    !sameOrder(order, [...stagedOrder])
   ) {
     changes.push({
       kind: "set_order",

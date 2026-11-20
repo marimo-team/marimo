@@ -150,6 +150,16 @@ class ConsoleText(Struct, frozen=True, tag_field="kind", tag="text"):
     text: Annotated[str, Meta(description="The text, exactly as written.")]
 
 
+class CreateCell(
+    Struct,
+    frozen=True,
+    forbid_unknown_fields=True,
+    tag_field="kind",
+    tag="create_cell",
+):
+    cell: CellInput
+
+
 class Custom(Struct, frozen=True):
     data: Annotated[
         Any,
@@ -448,43 +458,6 @@ ProjectStatus: TypeAlias = Annotated[
 ]
 
 
-class PutCell(
-    Struct,
-    frozen=True,
-    forbid_unknown_fields=True,
-    tag_field="kind",
-    tag="put_cell",
-):
-    base_etag: (
-        Annotated[
-            str,
-            Meta(
-                description="The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is `precondition-failed`."
-            ),
-        ]
-        | None
-    )
-    cell: CellInput
-    after: (
-        Annotated[
-            CellId,
-            Meta(
-                description="The cell a created cell goes after. Ignored for an existing cell."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    before: (
-        Annotated[
-            CellId,
-            Meta(
-                description="The cell a created cell goes before. Ignored for an existing cell. With neither `after` nor `before`, a created cell goes at the end."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-
-
 class Range(Struct, frozen=True):
     end: Annotated[
         Position,
@@ -518,6 +491,19 @@ class Related(Struct, frozen=True):
         Annotated[Range, Meta(description="Where in that cell, when known.")]
         | None
     )
+
+
+class ReplaceCell(
+    Struct,
+    frozen=True,
+    forbid_unknown_fields=True,
+    tag_field="kind",
+    tag="replace_cell",
+):
+    base_etag: Annotated[
+        str, Meta(description="The cell's etag as last read, or `*`.")
+    ]
+    cell: CellInput
 
 
 class RequestedCell(Struct, frozen=True, forbid_unknown_fields=True):
@@ -978,7 +964,7 @@ class CellVersion(Struct, frozen=True):
 
 
 Change: TypeAlias = Annotated[
-    PutCell | DeleteCell | SetOrder,
+    CreateCell | ReplaceCell | DeleteCell | SetOrder,
     Meta(description="One change to the document, tagged on `kind`."),
 ]
 

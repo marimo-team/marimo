@@ -61,23 +61,25 @@ def run_cells(
     assert notebook is not None
     base = f"/api/marimo/v1/notebooks/{notebook.id}"
 
-    def etag(cell_id: str) -> str | None:
-        cell = notebook.document.cell(CellId_t(cell_id))
-        return None if cell is None else cell.etag
+    changes = []
+    for cell_id, code in cells.items():
+        cell = {"id": cell_id, "code": code}
+        existing = notebook.document.cell(CellId_t(cell_id))
+        if existing is None:
+            changes.append({"kind": "create_cell", "cell": cell})
+        else:
+            changes.append(
+                {
+                    "kind": "replace_cell",
+                    "cell": cell,
+                    "base_etag": existing.etag,
+                }
+            )
 
     edited = client.post(
         f"{base}/edits",
         headers={**headers, "Idempotency-Key": uuid4().hex},
-        json={
-            "changes": [
-                {
-                    "kind": "put_cell",
-                    "base_etag": etag(cell_id),
-                    "cell": {"id": cell_id, "code": code},
-                }
-                for cell_id, code in cells.items()
-            ]
-        },
+        json={"changes": changes},
     )
     assert edited.status_code == 200, edited.text
     return client.post(

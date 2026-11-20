@@ -565,8 +565,7 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     response = await bridge.edit(
         record.id,
         [
-            protocol.PutCell(
-                base_etag=None,
+            protocol.CreateCell(
                 cell=protocol.CellInput(
                     id=protocol.CellId("new"), code="y = x"
                 ),
@@ -619,8 +618,7 @@ async def test_edit_response_includes_app_config_mirrored_from_the_session(
         response = await bridge.edit(
             record.id,
             [
-                protocol.PutCell(
-                    base_etag=None,
+                protocol.CreateCell(
                     cell=protocol.CellInput(
                         id=protocol.CellId("new"), code="y = 2"
                     ),
@@ -689,8 +687,7 @@ async def test_a_new_session_adopts_unsaved_host_edits(
     await bridge.edit(
         record.id,
         [
-            protocol.PutCell(
-                base_etag=None,
+            protocol.CreateCell(
                 cell=protocol.CellInput(
                     id=protocol.CellId("new"), code="unsaved = 42"
                 ),
@@ -861,7 +858,7 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     await bridge.edit(
         record.id,
         [
-            protocol.PutCell(
+            protocol.ReplaceCell(
                 base_etag=first.etag,
                 cell=protocol.CellInput(
                     id=first.id,
@@ -870,8 +867,7 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
                 ),
             ),
             protocol.DeleteCell(id=second.id, base_etag=second.etag),
-            protocol.PutCell(
-                base_etag=None,
+            protocol.CreateCell(
                 cell=protocol.CellInput(
                     id=protocol.CellId("new"),
                     code="z = 1",
@@ -903,7 +899,7 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     await bridge.edit(
         record.id,
         [
-            protocol.PutCell(
+            protocol.ReplaceCell(
                 base_etag="*",
                 cell=protocol.CellInput(
                     id=protocol.CellId("new"),
@@ -920,8 +916,8 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     bridge.close()
 
 
-def replace_code(cell: protocol.Cell, code: str) -> protocol.PutCell:
-    return protocol.PutCell(
+def replace_code(cell: protocol.Cell, code: str) -> protocol.ReplaceCell:
+    return protocol.ReplaceCell(
         base_etag=cell.etag, cell=protocol.CellInput(id=cell.id, code=code)
     )
 

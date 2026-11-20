@@ -294,14 +294,14 @@ class Document:
             return current is not None and base == current.etag
 
         for index, change in enumerate(changes):
-            if isinstance(change, protocol.PutCell):
+            if isinstance(change, (protocol.CreateCell, protocol.ReplaceCell)):
                 cell = _cell(change.cell)
-                if change.base_etag is None:
+                if isinstance(change, protocol.CreateCell):
                     # A cell deleted earlier in the batch still existed
                     # when the client read, so creating it is a conflict.
                     if cell.id in self._cells or cell.id in staged:
                         return Stale(index, cell.id)
-                    order.insert(_slot(order, change, index), cell.id)
+                    order.append(cell.id)
                 elif cell.id not in staged or not matches(
                     change.base_etag, cell.id
                 ):
@@ -358,21 +358,3 @@ def _cell(cell: protocol.CellInput) -> DocumentCell:
             else config.expand_output,
         ),
     )
-
-
-def _slot(
-    order: list[protocol.CellId], change: protocol.PutCell, index: int
-) -> int:
-    """Where a created cell goes: after or before an anchor, or at the end."""
-    after = None if change.after is UNSET else change.after
-    before = None if change.before is UNSET else change.before
-    if after is not None and before is not None:
-        raise Invalid(f"change {index} names both after and before")
-    anchor = after if after is not None else before
-    if anchor is None:
-        return len(order)
-    if anchor not in order:
-        raise Invalid(
-            f"change {index} places a cell by {anchor}, which does not exist"
-        )
-    return order.index(anchor) + (1 if after is not None else 0)

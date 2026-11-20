@@ -488,7 +488,9 @@ the document as it now is. It also carries the cell that change named, or null
 when the document no longer has the cell or the change named the order.
 Clients can inspect that state and decide how to revise their edit.
 
-`put_cell` replaces the whole cell and MUST include string-valued source in
+`create_cell` appends a new cell. To place it elsewhere, include a later
+`set_order` in the same edit. `replace_cell` replaces an existing cell in
+place. Both changes MUST include string-valued source in
 `CellInput.code`. A client MUST NOT round-trip a withheld `code: null` as an
 edit or substitute an empty string for it. Other changes, such as reordering
 or deleting cells, do not require source but still require editing permission.

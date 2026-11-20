@@ -498,10 +498,8 @@ async def test_running_a_cell_loads_the_imports_of_the_whole_document(
         {
             "changes": [
                 {
-                    "kind": "put_cell",
-                    "base_etag": None,
+                    "kind": "create_cell",
                     "cell": {"id": "c2", "code": "import json\ny = x"},
-                    "after": cell["id"],
                 }
             ]
         },
@@ -577,7 +575,7 @@ async def test_an_edit_waits_behind_a_run_loading_packages(bridge):
         {
             "changes": [
                 {
-                    "kind": "put_cell",
+                    "kind": "replace_cell",
                     "base_etag": cell["etag"],
                     "cell": {
                         "id": cell["id"],
@@ -620,8 +618,7 @@ async def test_each_cell_loads_its_own_imports(bridge):
         {
             "changes": [
                 {
-                    "kind": "put_cell",
-                    "base_etag": None,
+                    "kind": "create_cell",
                     "cell": {
                         "id": "c2",
                         "code": "import numpy\ninvalid =",

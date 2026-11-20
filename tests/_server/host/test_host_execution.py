@@ -379,17 +379,15 @@ async def test_repeated_startup_preserves_host_edits(
                 {
                     "changes": [
                         {
-                            "kind": "put_cell",
-                            "base_etag": None,
+                            "kind": "create_cell",
                             "cell": {"id": "definition", "code": "x = 40"},
                         },
                         {
-                            "kind": "put_cell",
-                            "base_etag": None,
+                            "kind": "create_cell",
                             "cell": {"id": "answer", "code": "x + 2"},
                         },
                         {
-                            "kind": "put_cell",
+                            "kind": "replace_cell",
                             "base_etag": markdown.etag,
                             "cell": {
                                 "id": markdown.id,

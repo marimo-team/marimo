@@ -1829,7 +1829,6 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
 ) -> None:
     stream, disconnect = await opened(harness)
     document = first_record(stream, "document")["document"]
-    first_id = document["order"][0]
     # The first revision's analysis arrives off the event loop.
     await wait_for(stream, lambda r: "analysis" in r.names())
     seen = len(stream.records)
@@ -1841,9 +1840,7 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
         headers=key("edit-1"),
         body=edit_body(
             {
-                "kind": "put_cell",
-                "base_etag": None,
-                "after": first_id,
+                "kind": "create_cell",
                 "cell": {"id": "fresh", "code": "z = 3"},
             }
         ),
@@ -1851,7 +1848,7 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
     assert edited.status == 200, edited.body
     response = edited.json()
     assert set(response["cells"]) == {"fresh"}
-    assert response["document"]["order"][1] == "fresh"
+    assert response["document"]["order"] == [*document["order"], "fresh"]
     assert response["document"]["saved_etag"] == document["etag"]
     assert response["document"]["etag"] != document["etag"]
 
@@ -1885,12 +1882,11 @@ async def test_a_stale_etag_fails_the_precondition_and_changes_nothing(
         headers=key("edit-stale"),
         body=edit_body(
             {
-                "kind": "put_cell",
-                "base_etag": None,
+                "kind": "create_cell",
                 "cell": {"id": "new", "code": "1"},
             },
             {
-                "kind": "put_cell",
+                "kind": "replace_cell",
                 "base_etag": "0000000000000000",
                 "cell": {"id": cell["id"], "code": "x = 99"},
             },
@@ -1926,8 +1922,6 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
     harness: Harness,
 ) -> None:
     stream, disconnect = await opened(harness)
-    document = first_record(stream, "document")["document"]
-    first_id = document["order"][0]
     edited = await finished(
         harness.app,
         "POST",
@@ -1935,9 +1929,7 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
         headers=key("edit-1"),
         body=edit_body(
             {
-                "kind": "put_cell",
-                "base_etag": None,
-                "after": first_id,
+                "kind": "create_cell",
                 "cell": {"id": "fresh", "code": "z = 3"},
             }
         ),
@@ -2028,8 +2020,7 @@ async def test_edits_during_a_save_remain_unsaved(
             headers=key("edit-during-save"),
             body=edit_body(
                 {
-                    "kind": "put_cell",
-                    "base_etag": None,
+                    "kind": "create_cell",
                     "cell": {"id": "new", "code": "new_value = 42"},
                 }
             ),
@@ -2061,7 +2052,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
         headers=key("edit-1"),
         body=edit_body(
             {
-                "kind": "put_cell",
+                "kind": "replace_cell",
                 "base_etag": cell["etag"],
                 "cell": {"id": cell["id"], "code": "x = 99"},
             }
@@ -2111,7 +2102,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
         headers=key("edit-2"),
         body=edit_body(
             {
-                "kind": "put_cell",
+                "kind": "replace_cell",
                 "base_etag": "*",
                 "cell": {"id": cell["id"], "code": "x = 100"},
             }
@@ -2126,7 +2117,10 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
 
     # The host's own writes are not changes, even when the file does not
     # read back as written: a new cell's id is not stored in the file.
-    for n, base, code in ((6, None, "y = 1\n\n"), (7, "*", "y = 2")):
+    for n, change, code in (
+        (6, {"kind": "create_cell"}, "y = 1\n\n"),
+        (7, {"kind": "replace_cell", "base_etag": "*"}, "y = 2"),
+    ):
         edited = await finished(
             harness.app,
             "POST",
@@ -2134,8 +2128,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
             headers=key(f"edit-{n}"),
             body=edit_body(
                 {
-                    "kind": "put_cell",
-                    "base_etag": base,
+                    **change,
                     "cell": {"id": "fresh", "code": code},
                 }
             ),
@@ -2409,8 +2402,7 @@ def test_editor_authentication_is_limited_to_notebook_events_and_operations(
             },
             content=edit_body(
                 {
-                    "kind": "put_cell",
-                    "base_etag": None,
+                    "kind": "create_cell",
                     "cell": {"id": "fresh", "code": "z = 3"},
                 }
             ),

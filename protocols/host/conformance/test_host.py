@@ -184,9 +184,13 @@ async def test_create_duplicate_replay_and_missing_key(host, scratch):
     )
 
 
-def put(cell_id, code, base_etag=None):
+def create_cell(cell_id, code):
+    return {"kind": "create_cell", "cell": {"id": cell_id, "code": code}}
+
+
+def replace_cell(cell_id, code, base_etag):
     return {
-        "kind": "put_cell",
+        "kind": "replace_cell",
         "base_etag": base_etag,
         "cell": {"id": cell_id, "code": code},
     }
@@ -205,7 +209,7 @@ async def test_edit_atomicity_and_conflicts(host, scratch):
     async with host.watch(path + "/events") as watch:
         await watch.ready()
         answer = accepted(
-            await edit(host, path, [put("check_a", "x = 1")], key=key),
+            await edit(host, path, [create_cell("check_a", "x = 1")], key=key),
             200,
             "EditResponse",
         )
@@ -222,7 +226,12 @@ async def test_edit_atomicity_and_conflicts(host, scratch):
     before, cells = document_state(await host.snapshot(path + "/events"))
     # A valid change followed by a stale one must apply neither.
     response = await edit(
-        host, path, [put("check_b", "y = 2"), put("check_a", "x = 3", "stale")]
+        host,
+        path,
+        [
+            create_cell("check_b", "y = 2"),
+            replace_cell("check_a", "x = 3", "stale"),
+        ],
     )
     stale = problem(response, 412, "precondition-failed")
     assert stale["index"] == 1
@@ -247,8 +256,8 @@ async def test_concurrent_edits(host, scratch):
     require(scratch, "notebook.edit")
     path = notebook_path(scratch)
     responses = await asyncio.gather(
-        edit(host, path, [put("check_a", "x = 1")]),
-        edit(host, path, [put("check_b", "y = 2")]),
+        edit(host, path, [create_cell("check_a", "x = 1")]),
+        edit(host, path, [create_cell("check_b", "y = 2")]),
     )
     for response in responses:
         accepted(response, 200, "EditResponse")
@@ -260,7 +269,9 @@ async def test_save(host, scratch):
     require(scratch, "notebook.edit", "notebook.save")
     path = notebook_path(scratch)
     answer = accepted(
-        await edit(host, path, [put("check_a", "x = 1")]), 200, "EditResponse"
+        await edit(host, path, [create_cell("check_a", "x = 1")]),
+        200,
+        "EditResponse",
     )
     response = await host.request(
         "POST",
@@ -453,7 +464,9 @@ async def test_run_cells(host, scratch):
     )
     path = notebook_path(scratch)
     answer = accepted(
-        await edit(host, path, [put("check_a", "x = 1")]), 200, "EditResponse"
+        await edit(host, path, [create_cell("check_a", "x = 1")]),
+        200,
+        "EditResponse",
     )
     async with host.watch(path + "/events") as watch:
         await watch.ready()

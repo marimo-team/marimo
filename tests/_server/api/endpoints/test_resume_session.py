@@ -243,8 +243,7 @@ def test_edited_document_survives_resume(client: TestClient) -> None:
                         for cell_id in session.document.cell_ids
                     ),
                     {
-                        "kind": "put_cell",
-                        "base_etag": None,
+                        "kind": "create_cell",
                         "cell": {
                             "id": "2",
                             "code": "slider = mo.ui.slider(0, 100)",
@@ -252,8 +251,7 @@ def test_edited_document_survives_resume(client: TestClient) -> None:
                         },
                     },
                     {
-                        "kind": "put_cell",
-                        "base_etag": None,
+                        "kind": "create_cell",
                         "cell": {
                             "id": "1",
                             "code": "import marimo as mo",
