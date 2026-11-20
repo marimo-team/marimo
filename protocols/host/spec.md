@@ -48,9 +48,6 @@ its saved results, then offer editing or execution when those operations are
 available. Hosts MAY choose their own storage and runtime arrangements while
 presenting the same notebook model and API to clients.
 
-A host can serve a document and saved results without a Python runtime,
-then attach one when a client needs to execute code.
-
 - **Snapshot hosts** serve documents and results from previous runs. A small
   web server could expose these through the host API for a client to display in
   a webview, without running Python.
@@ -107,10 +104,7 @@ document or a separate concurrent runtime MUST appear as another notebook, even
 when both originate from the same file. Restarting a notebook's runtime
 preserves the notebook's identity.
 
-A runtime carries its current `state`, just as a run does. Its `state.status`
-is `starting` while the kernel starts, `ready` when it can accept work,
-`stopping` while it shuts down, and `ended` once it has stopped or failed.
-
+    Runtime        { ..., state: RuntimeState }
     RuntimeState   { status: "starting", message }
                  | { status: "ready" }
                  | { status: "stopping" }
@@ -151,13 +145,7 @@ reconnects. Each attachment keeps its own id and connection lifetime.
 ### Runs and results
 
 A **run** groups a cycle of work and the reactive evaluations it causes. An
-**execution** records an individual cell evaluation or scratch computation
-within that cycle. Clients can follow individual execution results and the
-overall progress of a run.
-
-A run's `origin` identifies what triggered it. For a client request, it
-records the requested cell IDs or the submitted scratch code. For work the
-runtime initiates, the origin is `runtime`.
+**execution** records one cell evaluation or scratch computation in that run.
 
     Run { ..., origin: { kind: "cells", cell_ids } | { kind: "code", code } | { kind: "runtime" } }
 
@@ -173,10 +161,9 @@ Notebook
     └── Scratch execution
 ```
 
-Each run and each execution carries its own `state`. A run is `queued` until
-its first execution starts. It stays `running` while the runtime evaluates
-cells or schedules more work for that run. A run cancelled while still in
-the queue goes directly to `completed`.
+A run is `queued` until its first execution starts. A run or execution that
+completes without starting has a null `started_at`. A run that ends before
+the runtime plans its work has no executions.
 
     RunState       { status: "queued" }
                  | { status: "running", started_at }
@@ -186,11 +173,9 @@ the queue goes directly to `completed`.
                  | { status: "running", started_at }
                  | { status: "completed", started_at, completed_at, outcome, depends_on }
 
-A run's outcome is `succeeded`, `failed`, or `cancelled`. An execution can
-also be `skipped`. When a run fails because an execution raised an exception,
-the execution records the error and the run's failure message is null. When
-the host cannot finish the cycle, the run's failure message gives the reason.
-A run that ends before the runtime plans its work has no executions.
+When a run fails because an execution raised an exception, the execution
+records the error and the run's failure message is null. When the host
+cannot finish the cycle, the run's failure message gives the reason.
 
     RunOutcome { kind: "succeeded" }
              | { kind: "failed", message }
@@ -205,8 +190,7 @@ Hosts MUST wait until scheduling for a run has finished before completing it.
 If one cell raises an exception, other cells in the run may still need to
 execute. The runtime skips a cell when a cell it depends on fails or stops
 the cycle. It also skips a queued execution when a later execution of the
-same cell replaces it. The `skipped` outcome gives the reason and identifies
-the cells involved. A skipped execution produces no output, binds no
+same cell replaces it. A skipped execution produces no output, binds no
 variables, and does not cause its run to fail.
 
 A host publishes an execution as `queued` when the runtime schedules the cell,
@@ -215,10 +199,8 @@ for another evaluation. The execution's cell and code fingerprint are fixed from
 then on. A queued execution that will not run completes without starting, as
 `skipped` or `cancelled`.
 
-An execution can also lead to a later run. For example, a cell may create a UI
-element that a user later interacts with, triggering reactive evaluation. That
-work belongs to a new run and does not extend the original run's lifetime. The
-runtime schedules the new run itself, so its origin is `runtime`.
+A UI interaction can trigger new work after the run that created the UI
+element has finished. The runtime schedules that work as a separate run.
 
 ```text
 Notebook
@@ -270,14 +252,12 @@ NOT affect a newer execution of the same cell.
 ### Inputs
 
 An **input** records an execution's request for a line of text, such as a call
-to Python's `input()` or `getpass.getpass()`. It gives clients a prompt to
-display and a status indicating whether an answer is still needed.
+to Python's `input()` or `getpass.getpass()`.
 
     Input { id, execution_id, seq, prompt, password, status }
 
 Hosts MUST assign each prompt a distinct item id across executions and runtime
-restarts. Its execution, prompt, password flag, and position stay fixed while
-its status records the progress of the request.
+restarts. Its execution, prompt, password flag, and position stay fixed.
 
 | Status | Meaning |
 | --- | --- |
@@ -298,38 +278,23 @@ or variables.
 
 ### Lifecycles
 
-By the time a client sees a completed run, every execution in that run has
-finished. If a cell is waiting at `input()` when the host stops its runtime,
-the client sees the following sequence on the notebook stream.
+If the host stops a runtime while a cell is waiting at `input()`, the client
+sees these changes in order.
 
 ```text
 input cancelled → execution completed → run completed → runtime ended
 ```
 
-Before publishing an execution as `completed`, the host MUST cancel any of
-its inputs that are still pending. The host MUST complete every execution
-in a run before completing the run, and all of a runtime's runs before
-publishing the runtime as `ended`. This order holds even if the kernel
-exits unexpectedly.
+Hosts MUST cancel pending inputs before completing their execution, complete
+all executions before completing their run, and complete all runs before
+publishing their runtime as `ended`.
 
-Statuses can only move forward. Once a runtime ends, a run or execution
-completes, or an input is answered or cancelled, its record stays in that
-final state. Clients that reconnect can read it for as long as the host
-retains it. A record without a status is removed when the object it
-describes or the record that owns it is removed. Closing an event stream
-removes its attachment, and removing an execution removes its console entries.
-
-`created_at` marks the creation of a record, and `started_at` marks the
-start of work. A run or execution that completes without starting has a null
-`started_at`.
-`completed_at` records when a run or execution finished, and `ended_at`
-records when a runtime ended.
+Statuses move forward. A final state stays fixed and remains visible to
+reconnecting clients while the host retains the record. Records without a
+status are removed when the object they describe or their owner goes away.
 
 A client can tell that a runtime is busy when one of its runs is `running`.
-In the example above, the execution stays `running` while its `pending`
-input tells the client that the cell is waiting for an answer. A client can
-also determine whether a result is current by examining the cell and its
-dependencies.
+An execution waiting for an answer stays `running` and has a `pending` input.
 
 ### Variables and result freshness
 
@@ -643,7 +608,6 @@ Hosts offering `runtime.run` or `runtime.execute` MUST implement
 `runtime.input`. Any client permitted the operation may answer. This permission
 applies to the notebook and is independent of which client started the run or
 opened an event stream.
-The client sends the input id in the URL and its answer in the request body.
 
 ```http
 POST /notebooks/{notebook_id}/runtime/inputs/{input_id}/reply
