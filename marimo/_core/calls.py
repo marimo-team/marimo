@@ -237,7 +237,7 @@ class CancelCall(_Call, frozen=True, tag="runtime.cancel"):
             raise
 
 
-class InputCall(_Call, frozen=True, tag="runtime.input"):
+class InputCall(_Call, frozen=True, tag="input.reply"):
     """Answer a pending input."""
 
     METHOD = "POST"

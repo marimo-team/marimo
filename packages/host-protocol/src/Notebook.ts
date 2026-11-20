@@ -137,7 +137,7 @@ export const Reply = HttpApiEndpoint.post(
     error: [...Problems.Mutation.members],
   },
 )
-  .annotate(OpenApi.Identifier, "runtime.input")
+  .annotate(OpenApi.Identifier, "input.reply")
   .annotate(OpenApi.Summary, "Answer an execution's pending input")
   .annotate(
     OpenApi.Description,

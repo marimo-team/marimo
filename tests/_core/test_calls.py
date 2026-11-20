@@ -102,7 +102,7 @@ def test_calls_match_the_spec() -> None:
         operation_id
         for operation_id in specified
         if operation_id.startswith("runtime.")
-        or operation_id in {"notebook.edit", "notebook.save"}
+        or operation_id in {"input.reply", "notebook.edit", "notebook.save"}
     }
 
     for kind in CALLS:
