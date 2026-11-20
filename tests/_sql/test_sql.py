@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sized
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -16,6 +17,7 @@ from marimo._plugins import ui
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql import (
+    _apply_result_limit,
     _query_includes_limit,
     _resolve_default_duckdb_deps,
     get_default_result_limit,
@@ -34,6 +36,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import duckdb
+    import pandas as pd
+    import polars as pl
     import sqlalchemy as sa
 
 
@@ -465,6 +469,58 @@ def test_query_includes_limit() -> None:
         _query_includes_limit("SELECT * FROM t LIMIT 5; SELECT * FROM t2")
         is False
     )
+
+
+def _as_polars(df: pl.DataFrame) -> pl.DataFrame:
+    return df
+
+
+def _as_pandas(df: pl.DataFrame) -> pd.DataFrame:
+    return df.to_pandas()
+
+
+def _as_duckdb_relation(df: pl.DataFrame) -> duckdb.DuckDBPyRelation:
+    import duckdb
+
+    duckdb.register("limit_frame", df)
+    return duckdb.sql("SELECT * FROM limit_frame")
+
+
+@pytest.mark.requires("polars", "pandas", "duckdb")
+@pytest.mark.parametrize(
+    "to_result", [_as_polars, _as_pandas, _as_duckdb_relation]
+)
+def test_apply_result_limit_eager(
+    to_result: Callable[[pl.DataFrame], Sized],
+) -> None:
+    import polars as pl
+
+    result = to_result(pl.DataFrame({"n": range(5)}))
+
+    limited, total_count = _apply_result_limit(result, 3)
+    assert isinstance(limited, Sized)
+    assert len(limited) == 3
+    assert total_count == "too_many"
+
+    _, total_count = _apply_result_limit(result, 5)
+    assert total_count is None
+
+
+def test_apply_result_limit_leaves_unknown_results_unchanged() -> None:
+    cursor = iter([1, 2, 3])
+    assert _apply_result_limit(cursor, 1) == (cursor, None)
+
+
+@pytest.mark.requires("polars")
+def test_apply_result_limit_keeps_lazy_frames_lazy() -> None:
+    import polars as pl
+
+    limited, total_count = _apply_result_limit(
+        pl.LazyFrame({"n": range(5)}), 3
+    )
+    assert isinstance(limited, pl.LazyFrame)
+    assert len(limited.collect()) == 3
+    assert total_count is None
 
 
 @pytest.mark.parametrize(

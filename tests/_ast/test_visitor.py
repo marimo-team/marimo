@@ -10,7 +10,11 @@ import pytest
 
 from marimo._ast import visitor
 from marimo._ast.errors import ImportStarError
-from marimo._ast.sql_visitor import SQLRef, normalize_sql_f_string
+from marimo._ast.sql_visitor import (
+    POLARS_SQL_MIN_VERSION,
+    SQLRef,
+    normalize_sql_f_string,
+)
 from marimo._ast.visitor import (
     AnnotationData,
     ImportData,
@@ -1350,6 +1354,33 @@ def test_sql_statement_with_duckdb_sql(code: str) -> None:
     v.visit(mod)
     assert v.defs == {"df"}
     assert v.refs == {"cars", "duckdb"}
+
+
+HAS_POLARS_SQL = DependencyManager.polars.has_at_version(
+    min_version=POLARS_SQL_MIN_VERSION, quiet=True
+)
+
+
+@pytest.mark.skipif(not HAS_POLARS_SQL, reason="Requires Polars SQL")
+def test_sql_statement_with_polars_engine() -> None:
+    code = (
+        "df = mo.sql(f'SELECT * FROM `cars` SEMI JOIN owners USING (id) "
+        "WHERE make = {make}', engine='polars')"
+    )
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+    assert v.language == "sql"
+    assert v.defs == {"df"}
+    assert v.refs == {"cars", "make", "mo", "owners"}
+
+
+@pytest.mark.skipif(not HAS_POLARS_SQL, reason="Requires Polars SQL")
+def test_sql_statement_with_polars_engine_defines_no_tables() -> None:
+    code = "mo.sql('CREATE TABLE made AS SELECT * FROM src', engine='polars')"
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(code))
+    assert v.defs == set()
+    assert "src" in v.refs
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")

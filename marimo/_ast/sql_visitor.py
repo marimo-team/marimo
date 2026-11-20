@@ -490,6 +490,32 @@ class SQLRef:
         return False
 
 
+POLARS_ENGINE: Literal["polars"] = "polars"
+POLARS_SQL_MIN_VERSION = "1.37.0"
+
+
+def find_polars_sql_table_names(sql_statement: str) -> set[str]:
+    """Return the Python-identifier table names a Polars SQL query reads.
+
+    The result over-approximates: CTE names and table functions are included.
+    """
+    if not DependencyManager.polars.has_at_version(
+        min_version=POLARS_SQL_MIN_VERSION, quiet=True
+    ):
+        return set()
+    try:
+        # `pl.sql` resolves frames with this parser; it is not public API, so
+        # any failure means no references rather than a compile error.
+        from polars._plr import PySQLContext
+
+        names = PySQLContext.table_identifiers(
+            sql_statement, include_schema=True, unique=True
+        )
+    except Exception:
+        return set()
+    return {name for name in names if name.isidentifier()}
+
+
 def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     """
     Find table and schema references in a SQL statement.

@@ -3,11 +3,19 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Protocol,
+    cast,
+    runtime_checkable,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
+from marimo._ast.sql_visitor import POLARS_ENGINE
 from marimo._config.manager import (
     EnvVarReader,
     MarimoConfigManager,
@@ -26,6 +34,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.output import replace
 from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.engines.polars import PolarsEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
 from marimo._sql.error_utils import MarimoSQLException, is_sql_parse_error
@@ -34,7 +43,6 @@ from marimo._sql.utils import (
     extract_explain_content,
     get_configured_sql_output_format,
     is_explain_query,
-    raise_df_import_error,
 )
 from marimo._types.ids import VariableName
 from marimo._utils.log_never import log_never
@@ -136,12 +144,26 @@ def _default_duckdb_deps() -> list[Dependency]:
     )
 
 
+def _polars_engine_deps(sql_output: SqlOutputType) -> list[Dependency]:
+    deps = [DependencyManager.polars]
+    if sql_output == "pandas":
+        deps.extend([DependencyManager.pandas, DependencyManager.pyarrow])
+    return deps
+
+
+def _execution_globals() -> Mapping[str, object]:
+    try:
+        return get_context().globals
+    except ContextNotInitializedError:
+        return {}
+
+
 @mddoc
 def sql(
     query: str,
     *,
     output: bool = True,
-    engine: DBAPIConnection | None = None,
+    engine: DBAPIConnection | Literal["polars"] | None = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -160,7 +182,8 @@ def sql(
         output: Whether to display the result in the UI. Defaults to True.
         engine: Optional SQL engine to use. Can be a SQLAlchemy, DuckDB, Clickhouse,
             Redshift, Ibis, or DB-API 2.0 compatible connection (including ADBC drivers).
-               If None, uses DuckDB.
+            Pass `"polars"` to run the query with Polars against the Polars
+            DataFrames and LazyFrames in the notebook. If None, uses DuckDB.
 
     Returns:
         The result of the query.
@@ -176,6 +199,13 @@ def sql(
             source="kernel",
         )
         sql_engine = DuckDBEngine(connection=None)
+    elif PolarsEngine.is_compatible(engine):
+        DependencyManager.require_many(
+            "to execute sql with Polars",
+            *_polars_engine_deps(get_configured_sql_output_format()),
+            source="kernel",
+        )
+        sql_engine = PolarsEngine(_execution_globals())
     else:
         for engine_cls in SUPPORTED_ENGINES:
             if engine_cls.is_compatible(engine):
@@ -185,7 +215,7 @@ def sql(
                 break
         else:
             raise ValueError(
-                "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift, StarRocks or DBAPI 2.0 compatible engine."
+                f"Unsupported engine. Must be {POLARS_ENGINE!r} or a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift, StarRocks or DBAPI 2.0 compatible engine."
             )
 
     try:
@@ -222,26 +252,9 @@ def sql(
     except OSError:
         default_result_limit = None
 
-    enforce_own_limit = not has_limit and default_result_limit is not None
-
-    custom_total_count: Literal["too_many"] | None = None
-    if enforce_own_limit:
-        if DependencyManager.polars.has():
-            custom_total_count = (
-                "too_many"
-                if len(df) > cast(int, default_result_limit)
-                else None
-            )
-            df = df.limit(default_result_limit)
-        elif DependencyManager.pandas.has():
-            custom_total_count = (
-                "too_many"
-                if len(df) > cast(int, default_result_limit)
-                else None
-            )
-            df = df.head(default_result_limit)
-        else:
-            raise_df_import_error("polars[pyarrow]")
+    custom_total_count: TotalRowCount = None
+    if not has_limit and default_result_limit is not None:
+        df, custom_total_count = _apply_result_limit(df, default_result_limit)
 
     if output:
         from marimo._output.formatters.df_formatters import include_opinionated
@@ -281,8 +294,49 @@ def sql(
     return df
 
 
+TotalRowCount = Literal["too_many"] | None
+
+
+@runtime_checkable
+class _LimitableResult(Protocol):
+    """An eager result such as a Polars DataFrame or a DuckDB relation."""
+
+    def __len__(self) -> int: ...
+
+    def limit(self, n: int, /) -> object: ...
+
+
+def _apply_result_limit(
+    df: object, limit: int
+) -> tuple[object, TotalRowCount]:
+    def total_row_count(row_count: int) -> TotalRowCount:
+        return "too_many" if row_count > limit else None
+
+    if DependencyManager.polars.imported():
+        import polars as pl
+
+        if isinstance(df, pl.LazyFrame):
+            # Counting the rows would execute the query.
+            return df.limit(limit), None
+
+    if DependencyManager.pandas.imported():
+        import pandas as pd
+
+        if isinstance(df, pd.DataFrame):
+            return df.head(limit), total_row_count(len(df))
+
+    if isinstance(df, _LimitableResult):
+        return df.limit(limit), total_row_count(len(df))
+
+    # Cursors and other results can't be truncated or counted.
+    return df, None
+
+
 def _query_includes_limit(query: str) -> bool:
     """Check if a SQL query includes a LIMIT clause."""
+    if not DependencyManager.sqlglot.has():
+        return False
+
     import sqlglot
     from sqlglot.expressions import Limit, Select
 

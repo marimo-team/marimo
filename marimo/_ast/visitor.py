@@ -14,9 +14,11 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.errors import ImportStarError, LazyImportError
 from marimo._ast.sql_visitor import (
+    POLARS_ENGINE,
     SQLDefs,
     SQLKind,
     SQLRef,
+    find_polars_sql_table_names,
     find_sql_defs,
     find_sql_refs,
     normalize_sql_f_string,
@@ -244,6 +246,15 @@ NamedNode = Union[
 @lru_cache(maxsize=200)
 def find_sql_refs_cached(sql_statement: str) -> set[SQLRef]:
     return find_sql_refs(sql_statement)
+
+
+def _uses_polars_engine(call: ast.Call) -> bool:
+    return any(
+        keyword.arg == "engine"
+        and isinstance(keyword.value, ast.Constant)
+        and keyword.value.value == POLARS_ENGINE
+        for keyword in call.keywords
+    )
 
 
 class ScopedVisitor(ast.NodeVisitor):
@@ -806,7 +817,11 @@ class ScopedVisitor(ast.NodeVisitor):
             elif isinstance(first_arg, ast.JoinedStr):
                 sql = normalize_sql_f_string(first_arg)
 
-            if (
+            if isinstance(sql, str) and sql and _uses_polars_engine(node):
+                # Polars SQL only reads notebook frames and defines nothing.
+                for name in find_polars_sql_table_names(sql):
+                    self._add_ref(None, name, deleted=False)
+            elif (
                 isinstance(sql, str)
                 and DependencyManager.duckdb.has_at_version(
                     min_version="1.0.0"

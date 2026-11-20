@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, Mock, patch
 import msgspec
 import pytest
 
+from marimo._ast.sql_visitor import POLARS_SQL_MIN_VERSION
 from marimo._ast.variables import is_mangled_local
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._config.config_schema import MarimoConfig
@@ -4181,6 +4182,44 @@ class TestSQL:
 
         await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
         assert not table_exists()
+
+    async def test_sql_polars_engine_reacts_to_frames(self, k: Kernel) -> None:
+        if not DependencyManager.polars.has_at_version(
+            min_version=POLARS_SQL_MIN_VERSION, quiet=True
+        ):
+            pytest.skip(
+                f"Polars SQL requires polars>={POLARS_SQL_MIN_VERSION}"
+            )
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="import marimo as mo; import polars as pl",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1", code="cars = pl.LazyFrame({'n': [1, 2, 3]})"
+                ),
+                ExecuteCellCommand(
+                    cell_id="2",
+                    code=(
+                        "big = mo.sql('SELECT n FROM cars WHERE n > 1', "
+                        "engine='polars', output=False)"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["big"]["n"].to_list() == [2, 3]
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="1", code="cars = pl.LazyFrame({'n': [5]})"
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["big"]["n"].to_list() == [5]
 
     async def test_sql_query_as_local_df(self, k: Kernel) -> None:
         await k.run(
