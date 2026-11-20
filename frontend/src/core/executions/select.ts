@@ -5,12 +5,13 @@
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { Execution, Executions, Results } from "@/core/notebook/replica";
 import { type Milliseconds, Time } from "@/utils/time";
+import { completedAt, startedAt as startedAtOf } from "@/core/notebook/replica";
 
 /** Where a cell is in its run. */
 export type CellRunStatus = "idle" | "queued" | "running";
 
 /** How a cell's last completed execution ended. */
-export type CellOutcome = "value" | "error" | "interrupted" | "skipped";
+export type CellOutcome = Protocol.Outcome["kind"];
 
 export interface CellExecutionView {
   readonly status: CellRunStatus;
@@ -18,12 +19,19 @@ export interface CellExecutionView {
   readonly blocked: boolean;
   /** Null until the cell completes once, and while it runs again. */
   readonly outcome: CellOutcome | null;
+  /**
+   * Whether the notebook's runtime produced the cell's result.
+   *
+   * A result restored from storage, or kept from a runtime that has since
+   * been replaced, still shows, but nothing it bound exists in the
+   * runtime. True when there is no result or no runtime to compare, as on
+   * a static page.
+   */
+  readonly live: boolean;
   /** When the current run started, or the last one, since the epoch. */
   readonly startedAt: Milliseconds | null;
   /** How long the last completed execution took, null while the cell runs again. */
   readonly duration: Milliseconds | null;
-  /** Whether the running execution has shown a value so far. TODO(MO-8404) */
-  readonly rendered: boolean;
 }
 
 /** What a cell's view is derived from. */
@@ -31,24 +39,23 @@ export interface CellExecutionInputs {
   readonly executions: Executions;
   readonly results: Results;
   /**
-   * The execution each submitted cell had when its run was requested.
-   *
-   * A cell reads as queued until the host shows a newer execution for it.
+   * The cells of the confirmed document. A run can only reach a cell the
+   * document has, and the kernel sets aside one the document has disabled.
    */
-  readonly submissions: ReadonlyMap<
-    Protocol.CellId,
-    Protocol.ExecutionId | null
-  >;
+  readonly cells: ReadonlyMap<Protocol.CellId, Pick<Protocol.Cell, "config">>;
+  /**
+   * Cells this browser has asked to run, while the stream has not yet
+   * shown the run.
+   */
+  readonly requested: ReadonlySet<Protocol.CellId>;
   /** Cells the kernel reports as blocked by a disabled ancestor. */
   readonly blocked: ReadonlySet<Protocol.CellId>;
+  /** The notebook's runtime, null while it has none or the stream is not ready. */
+  readonly runtimeId: Protocol.RuntimeId | null;
 }
 
 export function outcomeOf(record: Protocol.Execution): CellOutcome | null {
-  const outcome = record.outcome;
-  if (outcome === null) {
-    return null;
-  }
-  return outcome.kind;
+  return record.state.status === "completed" ? record.state.outcome.kind : null;
 }
 
 function millis(iso: string | null): Milliseconds | null {
@@ -66,14 +73,47 @@ function latestOf(
 }
 
 /**
- * The execution a submission is measured against: the cell's latest on the
- * stream, or its retained result once the stream has let that execution go.
+ * Whether a run can reach `id`, meaning the document has the cell and
+ * nothing keeps it from running.
  */
-export function latestExecutionId(
-  inputs: Pick<CellExecutionInputs, "executions" | "results">,
-  id: Protocol.CellId,
-): Protocol.ExecutionId | null {
-  return inputs.executions.latest.get(id) ?? inputs.results.get(id)?.id ?? null;
+function runnable(inputs: CellExecutionInputs, id: Protocol.CellId): boolean {
+  const cell = inputs.cells.get(id);
+  return cell !== undefined && !cell.config.disabled && !inputs.blocked.has(id);
+}
+
+/**
+ * Whether `id` is waiting on a run that has not planned an execution for
+ * it yet.
+ *
+ * When the host accepts a run it names the cells that were requested, and
+ * this happens before the kernel plans their executions. Until the cell's
+ * execution in that run appears, the run itself is what makes the cell
+ * queued. A request this browser has made works the same way until its
+ * run shows up on the stream. The host keeps one execution per cell, so
+ * the cell's latest execution, or its retained result once the stream has
+ * let that execution go, tells which run has already planned it.
+ */
+function awaited(inputs: CellExecutionInputs, id: Protocol.CellId): boolean {
+  if (!runnable(inputs, id)) {
+    return false;
+  }
+  if (inputs.requested.has(id)) {
+    return true;
+  }
+  const planned =
+    latestOf(inputs.executions, id)?.record.run_id ??
+    inputs.results.get(id)?.record.run_id;
+  for (const run of inputs.executions.runs.values()) {
+    if (
+      run.state.status !== "completed" &&
+      run.id !== planned &&
+      run.origin.kind === "cells" &&
+      run.origin.cell_ids.includes(id)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function cellExecutionView(
@@ -81,52 +121,49 @@ export function cellExecutionView(
   id: Protocol.CellId,
 ): CellExecutionView {
   const latest = latestOf(inputs.executions, id);
-  const result = inputs.results.get(id) ?? null;
-  const submitted =
-    inputs.submissions.has(id) &&
-    inputs.submissions.get(id) === latestExecutionId(inputs, id);
+  const result = inputs.results.get(id)?.record ?? null;
   let status: CellRunStatus = "idle";
-  let startedAt = result === null ? null : millis(result.started_at);
-  let rendered = false;
-  if (latest !== null && latest.record.status !== "completed") {
-    status = latest.record.status;
-    startedAt = millis(latest.record.started_at) ?? startedAt;
-    rendered = latest.record.outcome !== null;
-  } else if (submitted) {
+  const began = result === null ? null : startedAtOf(result);
+  const ended = result === null ? null : completedAt(result);
+  let startedAt = millis(began);
+  if (latest !== null && latest.record.state.status !== "completed") {
+    status = latest.record.state.status;
+    startedAt = millis(startedAtOf(latest.record)) ?? startedAt;
+  } else if (awaited(inputs, id)) {
     status = "queued";
   }
   const settled = status === "idle";
   const duration =
-    settled &&
-    result !== null &&
-    result.started_at !== null &&
-    result.completed_at !== null
-      ? Time.parse(result.completed_at).since(Time.parse(result.started_at))
+    settled && began !== null && ended !== null
+      ? Time.parse(ended).since(Time.parse(began))
       : null;
   return {
     status,
     blocked: inputs.blocked.has(id),
     outcome: settled && result !== null ? outcomeOf(result) : null,
+    live:
+      result === null ||
+      inputs.runtimeId === null ||
+      result.runtime_id === inputs.runtimeId,
     startedAt,
     duration,
-    rendered,
   };
 }
 
 /** Executions the host has not completed, cells and scratch alike. */
 function unfinished(executions: Executions): Execution[] {
   return [...executions.executions.values()].filter(
-    (execution) => execution.record.status !== "completed",
+    (execution) => execution.record.state.status !== "completed",
   );
 }
 
 export function anyRunning(executions: Executions): boolean {
   return unfinished(executions).some(
-    (execution) => execution.record.status === "running",
+    (execution) => execution.record.state.status === "running",
   );
 }
 
-/** Cells and scratch work queued or running, plus submissions the host has not shown yet. */
+/** Cells and scratch work queued or running, plus cells awaiting a run the kernel has not planned. */
 export function queuedOrRunningCount(inputs: CellExecutionInputs): number {
   const pending = unfinished(inputs.executions);
   const shown = new Set(
@@ -134,12 +171,17 @@ export function queuedOrRunningCount(inputs: CellExecutionInputs): number {
       execution.record.cell_id === null ? [] : [execution.record.cell_id],
     ),
   );
+  const named = new Set<Protocol.CellId>(inputs.requested);
+  for (const run of inputs.executions.runs.values()) {
+    if (run.state.status !== "completed" && run.origin.kind === "cells") {
+      for (const cellId of run.origin.cell_ids) {
+        named.add(cellId);
+      }
+    }
+  }
   let awaiting = 0;
-  for (const [cellId, executionId] of inputs.submissions) {
-    if (
-      !shown.has(cellId) &&
-      executionId === latestExecutionId(inputs, cellId)
-    ) {
+  for (const cellId of named) {
+    if (!shown.has(cellId) && awaited(inputs, cellId)) {
       awaiting += 1;
     }
   }
@@ -149,7 +191,7 @@ export function queuedOrRunningCount(inputs: CellExecutionInputs): number {
 export function onlyScratchRunning(executions: Executions): boolean {
   return unfinished(executions).every(
     (execution) =>
-      execution.record.status !== "running" ||
+      execution.record.state.status !== "running" ||
       execution.record.cell_id === null,
   );
 }
@@ -159,16 +201,17 @@ export function scratchStatus(executions: Executions): CellRunStatus {
   const scratch = unfinished(executions).find(
     (execution) => execution.record.cell_id === null,
   );
-  if (scratch === undefined || scratch.record.status === "completed") {
+  if (scratch === undefined || scratch.record.state.status === "completed") {
     return "idle";
   }
-  return scratch.record.status;
+  return scratch.record.state.status;
 }
 
 /** Cells with a running execution, in the order the host reported them. */
 export function runningCellIds(executions: Executions): Protocol.CellId[] {
   return unfinished(executions).flatMap((execution) =>
-    execution.record.status === "running" && execution.record.cell_id !== null
+    execution.record.state.status === "running" &&
+    execution.record.cell_id !== null
       ? [execution.record.cell_id]
       : [],
   );

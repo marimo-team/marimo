@@ -112,7 +112,7 @@ class ExecutionNotification(Notification, tag="execution"):
 
 
 class CellNotification(Notification, tag="cell-op"):
-    """Updates a cell's state in the frontend.
+    """A kernel update. The editor still receives serialization and blocked-state changes.
 
     This is a partial update: each field carries its own "unchanged" semantics,
     documented per field below. Most fields treat None as "unchanged"; fields
@@ -158,6 +158,20 @@ class CellNotification(Notification, tag="cell-op"):
         except Exception as e:
             LOGGER.error("Error getting run id: %s", e)
             self.run_id = None
+
+
+# TODO(MO-8407): Remove once the editor and islands read reusability from
+# analysis (MO-8414) and blocked cells from the document and analysis (MO-8463).
+class EditorCellNotification(Notification, tag="cell-op"):
+    """A cell enters the blocked set with `disabled-transitively` and leaves with `idle`.
+
+    An omitted serialization hint is unchanged. A null hint clears reusability.
+    """
+
+    name: ClassVar[str] = "cell-op"
+    cell_id: CellId_t
+    status: Literal["disabled-transitively", "idle"] | None = None
+    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
 
 
 class HumanReadableStatus(msgspec.Struct):
@@ -448,7 +462,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
         app_config: Application configuration.
         kiosk: Whether running in kiosk mode.
         capabilities: Available kernel capabilities.
-        auto_instantiated: Whether cells already executed (run mode).
         stable_session_id: Server-owned Session identity that survives
             browser reconnects. None where no server Session exists.
     """
@@ -461,7 +474,6 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     kiosk: bool
     capabilities: KernelCapabilitiesNotification
     consumer_capabilities: ConsumerCapabilities
-    auto_instantiated: bool = False
     stable_session_id: StableSessionId | None = None
 
 
@@ -614,12 +626,6 @@ class EnvironmentOperationNotification(
     packages: PackageStatusType
     logs: dict[str, str]
     log_mode: Literal["append", "replace"]
-
-
-class ReconnectedNotification(Notification, tag="reconnected"):
-    """WebSocket reconnection confirmed."""
-
-    name: ClassVar[str] = "reconnected"
 
 
 class StartupLogsNotification(Notification, tag="startup-logs"):
@@ -1035,6 +1041,71 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
+class PdbOutputNotification(Notification, tag="pdb-output"):
+    """Show debugger output in the cell that failed.
+
+    Append live entries. When `replace` is true, replace the debugger's
+    transcript for this cell with the supplied entries. The editor's
+    `after_seq` gives the preceding execution item sequence for each entry,
+    or -1 before the first item.
+    """
+
+    name: ClassVar[str] = "pdb-output"
+    cell_id: CellId_t
+    entries: list[CellOutput]
+    replace: bool = False
+    after_seq: list[int] | msgspec.UnsetType = msgspec.UNSET
+
+
+class CallbackOutputNotification(Notification, tag="callback-output"):
+    """Show a widget callback or registered function's output in its defining cell.
+
+    Append live entries. When `replace` is true, replace the callback
+    transcript for this cell with the supplied entries. The editor's
+    `after_seq` gives the preceding execution item sequence for each entry,
+    or -1 before the first item.
+    """
+
+    name: ClassVar[str] = "callback-output"
+    cell_id: CellId_t
+    entries: list[CellOutput]
+    replace: bool = False
+    after_seq: list[int] | msgspec.UnsetType = msgspec.UNSET
+
+    @property
+    def clears_cell_console(self) -> bool:
+        return not self.entries and not self.replace
+
+
+class ConsoleInputsClearedNotification(
+    Notification, tag="console-inputs-cleared"
+):
+    """The settled input rows hidden by clear_console() in this execution."""
+
+    name: ClassVar[str] = "console-inputs-cleared"
+    cell_id: CellId_t
+    execution_id: str
+    input_ids: list[str]
+
+
+class PdbInputNotification(Notification, tag="pdb-input"):
+    """Identify the debugger prompt waiting for a command in a failed cell.
+
+    A null input ID closes the prompt.
+    """
+
+    name: ClassVar[str] = "pdb-input"
+    cell_id: CellId_t
+    input_id: str | None
+
+
+class BreakpointsNotification(Notification, tag="breakpoints"):
+    """The session's complete breakpoint set, restored on connection."""
+
+    name: ClassVar[str] = "breakpoints"
+    breakpoints: dict[CellId_t, list[int]]
+
+
 class ActiveLineNotification(Notification, tag="active-line"):
     """Reports the line a cell's frame watcher is currently executing.
 
@@ -1108,17 +1179,13 @@ class NotebookDocumentTransactionNotification(
     transaction: Transaction
 
 
-NotificationMessage = (
-    # Cell operations
-    CellNotification
-    | ExecutionNotification
-    | FunctionCallResultNotification
+_SharedNotification = (
+    FunctionCallResultNotification
     | UIElementMessageNotification
     | ModelLifecycleNotification
     | RemoveUIElementsNotification
     # Notebook lifecycle
     | ReloadNotification
-    | ReconnectedNotification
     | InterruptedNotification
     | CompletedRunNotification
     | KernelReadyNotification
@@ -1162,9 +1229,19 @@ NotificationMessage = (
     # Kiosk
     | FocusCellNotification
     # Debugger
+    | CallbackOutputNotification
+    | PdbOutputNotification
+    | ConsoleInputsClearedNotification
+    | PdbInputNotification
+    | BreakpointsNotification
     | ActiveLineNotification
     # Document
     | NotebookDocumentTransactionNotification
     # Consumer
     | ConsumerCapabilitiesNotification
+)
+
+EditorNotification = _SharedNotification | EditorCellNotification
+NotificationMessage = (
+    _SharedNotification | CellNotification | ExecutionNotification
 )

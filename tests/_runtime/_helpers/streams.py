@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.notification import (
     CellNotification,
@@ -26,6 +26,7 @@ from marimo._messaging.types import KernelMessage
 
 if TYPE_CHECKING:
     from marimo._messaging.mimetypes import ConsoleMimeType
+    from marimo._types.ids import CellId_t
 
 
 class MockStream(ThreadSafeStream):
@@ -38,18 +39,13 @@ class MockStream(ThreadSafeStream):
         redirect_console: bool = False,
         cell_id: Any = None,
     ) -> None:
-        # Bypass `ThreadSafeStream.__init__`: no real pipe/input queue and
-        # we don't want a buffered-console thread. Accept the same kwargs so
-        # callers that clone via `type(stream)(pipe=..., ...)` keep working
-        # (e.g. `marimo.Thread`).
-        self.pipe = cast(Any, pipe)
-        self.input_queue = cast(Any, input_queue)
-        self.redirect_console = redirect_console
-        self.cell_id = cell_id
         self.messages: list[KernelMessage] = []
-        import threading
-
-        self.stream_lock = threading.Lock()
+        super().__init__(
+            pipe=pipe,
+            input_queue=input_queue,
+            redirect_console=redirect_console,
+            cell_id=cell_id,
+        )
 
     def write(self, data: KernelMessage) -> None:
         self.messages.append(data)
@@ -81,9 +77,13 @@ class MockStdout(ThreadSafeStdout):
         self.messages: list[str] = []
 
     def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
+        self,
+        data: str,
+        mimetype: ConsoleMimeType,
+        *,
+        cell_id: CellId_t | None = None,
     ) -> int:
-        del mimetype
+        del mimetype, cell_id
         self.messages.append(data)
         return len(data)
 
@@ -104,8 +104,9 @@ class MockStderr(ThreadSafeStderr):
         mimetype: ConsoleMimeType,
         *,
         code: str | None = None,
+        cell_id: CellId_t | None = None,
     ) -> int:
-        del mimetype, code
+        del mimetype, code, cell_id
         self.messages.append(data)
         return len(data)
 

@@ -58,8 +58,8 @@ async def _wait_for(predicate: Callable[[], bool], polls: int = 25) -> bool:
 
 def _set_mode(k: Kernel, mode: Literal["lazy", "autorun"]) -> None:
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = mode
-    k.set_user_config(UpdateUserConfigCommand(config=config))
+    config.runtime.auto_reload = mode
+    k.set_user_config(UpdateUserConfigCommand(config=config.to_dict()))
 
 
 @pytest.mark.parametrize(

@@ -39,14 +39,30 @@ export function useFullScreenClass() {
 }
 
 /**
+ * The element that is actually full screen.
+ *
+ * `document.fullscreenElement` is retargeted to the outermost shadow host, so
+ * for a target inside a plugin's shadow root it reports the plugin host.
+ * Portalling into the host appends to its light DOM, which is not rendered and
+ * which the host observes to rebuild its children.
+ */
+export function getFullScreenElement(): Element | null {
+  let element = document.fullscreenElement;
+  while (element?.shadowRoot?.fullscreenElement) {
+    element = element.shadowRoot.fullscreenElement;
+  }
+  return element;
+}
+
+/**
  * Get the full screen element if we are in full screen mode
  */
 export function useFullScreenElement() {
   const [fullScreenElement, setFullScreenElement] = useState<Element | null>(
-    document.fullscreenElement,
+    getFullScreenElement,
   );
   useEventListener(document, "fullscreenchange", () => {
-    setFullScreenElement(document.fullscreenElement);
+    setFullScreenElement(getFullScreenElement());
   });
   return fullScreenElement;
 }

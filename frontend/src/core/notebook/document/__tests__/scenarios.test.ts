@@ -1,25 +1,39 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { vi } from "vitest";
+import { document } from "./fixtures";
 import { test } from "./scenario-fixture";
 
-test("waits for a pause in typing before sending the latest edit", async ({
+test("batches from the first edit and sends further typing on host confirmation", async ({
   expect,
   session: { user, host, notebook },
 }) => {
-  user.changeCode("c3", "first");
-  await vi.advanceTimersByTimeAsync(300);
-  user.changeCode("c3", "latest");
-  await vi.advanceTimersByTimeAsync(399);
+  user.changeCode("c3", "x");
+  await vi.advanceTimersByTimeAsync(99);
+  user.changeCode("c3", "x =");
   expect(notebook.edit).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
   expect(notebook.edit).toHaveBeenCalledOnce();
   const request = await host.nextRequest();
   request.process();
+  expect(host.document().cells.get("c3")?.code).toBe("x =");
   request.deliverResponse();
+
+  user.changeCode("c3", "x = 1");
+  await vi.advanceTimersByTimeAsync(150);
+  user.changeCode("c3", "x = 12");
+  expect(notebook.edit).toHaveBeenCalledOnce();
   host.deliverDocument();
-  await expect(user.sync()).resolves.toEqual(host.document().revision);
-  expect(host.document().cells.get("c3")?.code).toBe("latest");
+  await vi.advanceTimersByTimeAsync(0);
+  expect(notebook.edit).toHaveBeenCalledTimes(2);
+  const next = await host.nextRequest();
+  next.process();
+  next.deliverResponse();
+  host.deliverDocument();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(host.document().cells.get("c3")?.code).toBe("x = 12");
+  expect(user.status()).toEqual({ status: "idle" });
+  expect(vi.getTimerCount()).toBe(0);
 });
 
 test.for(["response", "document"] as const)(
@@ -133,6 +147,66 @@ test.for(["before reset", "during reset", "after snapshot"] as const)(
     expect(user.cell("c3")?.code).toBe("another writer");
   },
 );
+
+test("holds edits made during a reset until the replacement arrives", async ({
+  expect,
+  session: { user, host, notebook },
+}) => {
+  host.reset();
+  user.changeCode("c3", "typed during reset");
+  expect(user.cell("c3")?.code).toBe("typed during reset");
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(notebook.edit).not.toHaveBeenCalled();
+  expect(user.status()).toEqual({ status: "unavailable" });
+  await expect(user.sync()).rejects.toThrow("unavailable");
+
+  host.changeCell("c1", { code: "unrelated edit" });
+  host.deliverSnapshot();
+  const synced = user.sync();
+  const request = await host.nextRequest();
+  request.process();
+  request.deliverResponse();
+  host.deliverDocument();
+  await expect(synced).resolves.toEqual(host.document().revision);
+  expect(host.document().cells.get("c3")?.code).toBe("typed during reset");
+  expect(user.cell("c1")?.code).toBe("unrelated edit");
+});
+
+test("does not submit a draft for the notebook a reset replaced", async ({
+  expect,
+  session: { user, host, notebook },
+}) => {
+  host.reset();
+  user.changeCode("c3", "for the earlier notebook");
+  host.deliverSnapshotOf(document("n2"));
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(notebook.edit).not.toHaveBeenCalled();
+  expect(user.cell("c3")).toBeUndefined();
+  expect(user.cell("c1")?.code).toBe("x = 1");
+  expect(user.status()).toEqual({ status: "idle" });
+});
+
+test("confirms a receipt that arrives during a reset only against the replacement", async ({
+  expect,
+  session: { user, host },
+}) => {
+  user.changeCode("c3", "sent");
+  const flushed = user.sync();
+  const finished = vi.fn();
+  void flushed.then(finished, finished);
+  const request = await host.nextRequest();
+  request.process();
+  // What stays on show already includes the receipt's revision.
+  host.deliverDocument();
+  host.reset();
+  request.deliverResponse();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(finished).not.toHaveBeenCalled();
+
+  host.deliverSnapshot();
+  await expect(flushed).resolves.toEqual(host.document().revision);
+  expect(user.status()).toEqual({ status: "idle" });
+});
 
 test.for(["response", "document"] as const)(
   "does not resurrect a cancelled creation when the %s arrives first",

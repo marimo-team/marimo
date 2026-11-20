@@ -4,14 +4,14 @@
   "runtime_id": null,
   "caused_by": null,
   "cell_id": "c3",
-  "code": null,
   "code_fingerprint": "0f71456db2ea83f4",
-  "depends_on": {},
-  "status": "completed",
-  "outcome": {
-    "kind": "value",
-    "display": null
-  },
-  "started_at": "2026-09-30T09:20:01Z",
-  "completed_at": "2026-09-30T09:20:02Z"
+  "state": {
+    "status": "completed",
+    "started_at": "2026-09-30T09:20:01Z",
+    "completed_at": "2026-09-30T09:20:02Z",
+    "outcome": {
+      "kind": "succeeded"
+    },
+    "depends_on": {}
+  }
 }

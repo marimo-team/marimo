@@ -17,6 +17,7 @@ from starlette.testclient import TestClient
 from marimo._server.asgi import (
     ASGIAppBuilder,
     DynamicDirectoryMiddleware,
+    _slash_redirect_url,
     create_asgi_app,
 )
 from tests._server.conftest import join_kernel_thread_tasks
@@ -1414,11 +1415,77 @@ def default_app_builder(base_url: str, file_path: str) -> Starlette:
     return app
 
 
+@pytest.mark.parametrize("dynamic", [False, True])
+@pytest.mark.parametrize("prefix", ["", "/portal", "/portal/nested"])
+@pytest.mark.parametrize(
+    ("name", "encoded_name"),
+    [
+        ("invoices", "invoices"),
+        ("sales report", "sales%20report"),
+        ("café", "caf%C3%A9"),
+    ],
+)
+def test_notebook_slash_redirect(
+    tmp_path: Path, dynamic: bool, prefix: str, name: str, encoded_name: str
+) -> None:
+    notebook = tmp_path / f"{name}.py"
+    notebook.write_text(contents)
+    builder = create_asgi_app(quiet=True, include_code=True)
+    if dynamic:
+        builder.with_dynamic_directory(path="/sales", directory=str(tmp_path))
+    else:
+        builder.with_app(path=f"/sales/{name}", root=str(notebook))
+        parent = tmp_path / "parent.py"
+        parent.write_text(contents)
+        builder.with_app(path="/sales", root=str(parent))
+    app = Starlette()
+    app.mount(prefix or "/", builder.build())
+    query = "?tab=a%2Fb&tab=c+d&empty=&flag&percent=%25"
+    path = f"{prefix}/sales/{encoded_name}"
+    with TestClient(app) as client:
+        response = client.get(path + query, follow_redirects=False)
+        assert response.status_code == (307 if dynamic else 301)
+        assert response.headers["location"] == path + "/" + query
+        response = client.get(path + query)
+        assert response.status_code == 200
+        assert len(response.history) == 1
+
+
+@pytest.mark.parametrize(
+    ("root_path", "path", "expected"),
+    [
+        ("/portal", "/sales/invoices", "/portal/sales/invoices/"),
+        ("/portal/", "/sales/invoices", "/portal/sales/invoices/"),
+        ("/portal", "/portal/sales/invoices", "/portal/sales/invoices/"),
+        (
+            "/portal",
+            "/portal-other/invoices",
+            "/portal/portal-other/invoices/",
+        ),
+        ("/portal", "/portal", "/portal/"),
+        ("", "/report?#%", "/report%3F%23%25/"),
+        ("", "//example.com/report", "/example.com/report/"),
+    ],
+)
+def test_slash_redirect_scope(
+    root_path: str, path: str, expected: str
+) -> None:
+    scope: Scope = {
+        "type": "http",
+        "root_path": root_path,
+        "path": path,
+        "query_string": b"value=%2F&value=+&empty=",
+    }
+    assert _slash_redirect_url(scope) == expected + "?value=%2F&value=+&empty="
+
+
 @pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("partitioned", [False, True])
 def test_asgi_builder_uses_configured_session_settings(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     legacy: bool,
+    partitioned: bool,
 ) -> None:
     from marimo._config.manager import UserConfigStore
     from marimo._server.api.auth import CustomSessionMiddleware
@@ -1438,6 +1505,9 @@ def test_asgi_builder_uses_configured_session_settings(
     prefix = "MARIMO_" if legacy else "MARIMO_SERVER_"
     monkeypatch.setenv(prefix + "SESSION_SECRET", "configured-asgi-secret")
     monkeypatch.setenv(prefix + "SESSION_COOKIE_SECURE", "true")
+    monkeypatch.setenv(
+        "MARIMO_SERVER_SESSION_COOKIE_PARTITIONED", str(partitioned).lower()
+    )
     notebook = tmp_path / "app.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     app = create_asgi_app(token="auth-token")._create_app_for_file(
@@ -1453,4 +1523,5 @@ def test_asgi_builder_uses_configured_session_settings(
     assert middleware.kwargs == {
         "secret_key": "configured-asgi-secret",
         "https_only": True,
+        "partitioned": partitioned,
     }

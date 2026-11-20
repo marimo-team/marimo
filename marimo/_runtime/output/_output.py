@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.notification import CellNotification
+from marimo._messaging.command_output import console_notification
 from marimo._messaging.notification_utils import (
     CellNotificationUtils,
     broadcast_notification,
@@ -160,9 +160,9 @@ def clear_console() -> None:
     if ctx.execution_context is None:
         return
 
-    ctx.stream.flush_console()
-    if ctx.stream.cell_id is not None:
+    if (cell_id := ctx.stream.cell_id) is not None:
+        ctx.stream.flush_console(clear_cell_id=cell_id)
         broadcast_notification(
-            CellNotification(cell_id=ctx.stream.cell_id, console=[]),
+            console_notification(cell_id=cell_id, console=[]),
             stream=ctx.stream,
         )

@@ -10,7 +10,7 @@ from starlette.applications import (
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase, ToolContext
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
-from marimo._config.config import CopilotMode
+from marimo._config.types import CopilotMode
 from marimo._server.ai.mcp.client import get_mcp_client
 from marimo._server.ai.tools.types import (
     FunctionArgs,

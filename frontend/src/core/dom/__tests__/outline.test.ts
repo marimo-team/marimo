@@ -9,6 +9,29 @@ import {
 } from "../outline";
 
 describe("parseOutline", () => {
+  it.each(["text/html", "text/markdown"] as const)(
+    "removes custom-element handlers from %s headings",
+    (mimetype) => {
+      const outline = parseOutline({
+        mimetype,
+        timestamp: 0,
+        channel: "output",
+        data: `<h1 id="title"><marimo-test style="animation: spin 1s linear;" onanimationstart="alert(1)">Title</marimo-test> <strong>bold</strong></h1><h2 id="next">Next</h2>`,
+      });
+      expect(outline).toEqual({
+        items: [
+          {
+            by: { id: "title" },
+            level: 1,
+            name: "Title bold",
+            html: '<marimo-test style="animation: spin 1s linear;">Title</marimo-test> <strong>bold</strong>',
+          },
+          { by: { id: "next" }, level: 2, name: "Next" },
+        ],
+      });
+    },
+  );
+
   it("can parse html outline", () => {
     const html = `
     <span class="markdown">

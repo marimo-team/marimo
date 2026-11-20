@@ -20,16 +20,37 @@ export type FakeSave = (
   ...args: Parameters<Commands["save"]>
 ) => ReturnType<Commands["save"]>;
 
-/** A backend over `transport` whose commands go to `edit` and `save`. */
+export type FakeRun = (
+  notebookId: Protocol.NotebookId,
+  ...args: Parameters<Commands["run"]>
+) => ReturnType<Commands["run"]>;
+
+export type FakeInput = (
+  notebookId: Protocol.NotebookId,
+  ...args: Parameters<Commands["input"]>
+) => ReturnType<Commands["input"]>;
+
+export type FakeInterrupt = (
+  notebookId: Protocol.NotebookId,
+  ...args: Parameters<Commands["interrupt"]>
+) => ReturnType<Commands["interrupt"]>;
+
+/** A backend over `transport` whose commands go to the given fakes. */
 export function fakeBackend({
   transport = async () => undefined,
   edit = vi.fn<FakeEdit>(),
   save = vi.fn<FakeSave>(),
+  run = vi.fn<FakeRun>(),
+  input = vi.fn<FakeInput>(),
+  interrupt = vi.fn<FakeInterrupt>(),
   checkHealth,
 }: {
   transport?: NotebookTransport;
   edit?: FakeEdit;
   save?: FakeSave;
+  run?: FakeRun;
+  input?: FakeInput;
+  interrupt?: FakeInterrupt;
   checkHealth?: () => Promise<boolean>;
 } = {}): NotebookBackend {
   return {
@@ -37,6 +58,9 @@ export function fakeBackend({
     notebook: (notebookId) => ({
       edit: (...args) => edit(notebookId, ...args),
       save: (...args) => save(notebookId, ...args),
+      run: (...args) => run(notebookId, ...args),
+      input: (...args) => input(notebookId, ...args),
+      interrupt: (...args) => interrupt(notebookId, ...args),
     }),
     checkHealth,
   };

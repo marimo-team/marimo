@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, assert_never, cast
 
 from marimo import _loggers
 from marimo._data.data_source_discovery import discover_data_sources
@@ -34,7 +34,6 @@ from marimo._sql.engines.types import EngineCatalog
 from marimo._sql.get_engines import engine_to_data_source_connection
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import VariableName
-from marimo._utils.assert_never import assert_never
 
 if TYPE_CHECKING:
     from marimo._runtime.request_router import RequestRouter

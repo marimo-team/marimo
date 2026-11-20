@@ -5,6 +5,7 @@ import * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import type { NotebookBackend } from "../../notebook/replica";
 import { document as documentResource } from "../../notebook/replica/resources/document";
+import { executions } from "../../notebook/replica/resources/executions";
 import {
   createStaticNotebookBackend,
   emptySnapshot,
@@ -26,6 +27,7 @@ function snapshot(): StaticNotebookSnapshot {
     cells: events.flatMap((event) =>
       event.event === "cell" ? [event.data.cell] : [],
     ),
+    results: [],
   };
 }
 
@@ -101,6 +103,52 @@ describe("static notebook backend", () => {
     expect(stream.status).toBe("connected");
   });
 
+  it("delivers embedded results as completed executions after the document", async () => {
+    const source = snapshot();
+    const cell = source.cells[0];
+    const execution: Protocol.Execution = {
+      id: "embedded:result",
+      run_id: "embedded:run",
+      runtime_id: "embedded",
+      caused_by: null,
+      cell_id: cell.id,
+      code_fingerprint: cell.code_fingerprint,
+      state: {
+        status: "completed",
+        started_at: null,
+        completed_at: null,
+        outcome: { kind: "succeeded" },
+        depends_on: {},
+      },
+    };
+    const output: Protocol.Output = {
+      id: "embedded:result:output",
+      execution_id: execution.id,
+      media: { mimetype: "text/html", data: "<b>1</b>" },
+    };
+    const { events } = await read(
+      createStaticNotebookBackend({
+        ...source,
+        results: [{ execution, output }],
+      }),
+    );
+    const reducer = createNotebookReducer({
+      document: documentResource,
+      executions,
+    });
+    const state = events.reduce(reducer.reduce, reducer.initial);
+    expect(events.map((event) => event.event).slice(-4)).toEqual([
+      "document",
+      "execution",
+      "output",
+      "ready",
+    ]);
+    expect(state.resources.executions.results.get(cell.id)).toMatchObject({
+      record: execution,
+      output,
+    });
+  });
+
   it("preserves withheld source and its revision metadata", async () => {
     const source = snapshot();
     const cells = source.cells.map((cell) => ({ ...cell, code: null }));
@@ -165,7 +213,7 @@ describe("static notebook backend", () => {
         ok: false,
         status: 501,
         problem: {
-          type: "tag:marimo.io,2026:host/unsupported-operation",
+          type: "urn:marimo:problem:unsupported-operation",
           title: "Unsupported operation",
           status: 501,
           detail: "Static notebooks do not support mutations",

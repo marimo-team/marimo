@@ -1,0 +1,49 @@
+name: Container engine contract
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test_container_engines.yaml
+      - marimo/_cli/containers/**
+      - marimo/_cli/cli.py
+      - marimo/_cli/files/**
+      - marimo/_config/settings.py
+      - marimo/_utils/marimo_path.py
+      - marimo/_utils/url.py
+      - scripts/test-container-nerdctl.sh
+      - tests/conftest.py
+      - tests/**/conftest.py
+      - tests/_cli/test_container_engine.py
+      - pyproject.toml
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: ${{ matrix.engine }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [docker, nerdctl]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: "0.13.5"
+      - name: Install Python dependencies
+        run: uv sync --no-default-groups --group test --python 3.13.12
+      - name: Run the Docker contract
+        if: matrix.engine == 'docker'
+        env:
+          MARIMO_TEST_CONTAINER_ENGINE: docker
+        run: |
+          docker version
+          time uv run --no-sync pytest -q tests/_cli/test_container_engine.py
+      - name: Run the standalone nerdctl contract
+        if: matrix.engine == 'nerdctl'
+        run: time bash scripts/test-container-nerdctl.sh

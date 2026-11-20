@@ -447,13 +447,15 @@ This is necessary because [in Python, closures are late-binding](https://docs.py
 
 ### Why aren't my SQL brackets working?
 
-Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
+Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which lets you interpolate Python values into SQL like `SELECT * from table where value < {min}`.
 
-To escape real `{` / `}` that you don't want parameterized, use double `\{\{...\}\}`:
+To escape real `{` / `}` that you don't want interpolated, use double `\{\{...\}\}`:
 
 ```sql
 SELECT unnest([\{\{'a': 42, 'b': 84\}\}, \{\{'a': 100, 'b': NULL\}\}]);
 ```
+
+Interpolation inserts values into the SQL text; it isn't parameter binding. To use input that other people control in a query, see the section on [avoiding SQL injection](guides/working_with_data/sql.md#avoiding-sql-injection).
 
 <a name="faq-annotations"></a>
 

@@ -37,10 +37,13 @@ class CellOutput(msgspec.Struct):
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
     # Source code associated with this output, omitted when unavailable.
     code: str | msgspec.UnsetType = msgspec.UNSET
+    input_id: str | msgspec.UnsetType = msgspec.UNSET
     # Traceback MIME data can be plain text in code-mode requests.
     traceback_format: Literal["text", "html"] | msgspec.UnsetType = (
         msgspec.UNSET
     )
+    # Identifies a debugger or callback write across live delivery and replay.
+    command_id: str | msgspec.UnsetType = msgspec.UNSET
 
     def __repr__(self) -> str:
         return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"
@@ -73,11 +76,17 @@ class CellOutput(msgspec.Struct):
         )
 
     @staticmethod
-    def stdin(data: str, password: bool = False) -> CellOutput:
+    def stdin(
+        data: str,
+        password: bool = False,
+        *,
+        input_id: str | msgspec.UnsetType = msgspec.UNSET,
+    ) -> CellOutput:
         return CellOutput(
             channel=CellChannel.STDIN,
             mimetype="text/password" if password else "text/plain",
             data=data,
+            input_id=input_id,
         )
 
     @staticmethod

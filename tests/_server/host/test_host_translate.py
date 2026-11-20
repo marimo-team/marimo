@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import msgspec
 import pytest
 from dirty_equals import IsStr
@@ -11,7 +13,7 @@ from inline_snapshot import snapshot
 from marimo._core import backend as be, protocol
 from marimo._core.backend import (
     Completed,
-    Concluded,
+    Displayed,
     Done,
     Planned,
     PlannedExecution,
@@ -34,7 +36,7 @@ from marimo._core.protocol import (
     Revision,
     RunId,
     SkippedOutcome,
-    ValueOutcome,
+    SucceededOutcome,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
@@ -168,24 +170,72 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                     text="2\n",
                 )
             ),
-            Concluded(
+            Displayed(
                 execution_id=ExecutionId("scratch"),
-                outcome=ValueOutcome(
-                    display=DisplayData(
-                        data="<pre>9</pre>", mimetype="text/html"
-                    )
-                ),
+                display=DisplayData(data="<pre>9</pre>", mimetype="text/html"),
             ),
             Completed(
                 execution_id=ExecutionId("scratch"),
-                outcome=ValueOutcome(
-                    DisplayData(data="<pre>9</pre>", mimetype="text/html")
-                ),
+                outcome=SucceededOutcome(),
                 depends_on=inputs,
             ),
             Done(run_id=RunId("r1"), outcome="succeeded"),
         ]
     )
+
+
+@pytest.mark.parametrize("console", [False, True])
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        pytest.param(
+            {"values": [float("nan"), float("inf"), float("-inf")]},
+            '{"values":[null,null,null]}',
+            id="non-finite",
+        ),
+        pytest.param(
+            {"date": datetime(2026, 1, 1)},
+            '{"date":"2026-01-01T00:00:00"}',
+            id="datetime",
+        ),
+        pytest.param(
+            {"values": range(3)},
+            '{"values":[0,1,2]}',
+            id="custom-encoder",
+        ),
+        pytest.param('{"value": 1}', '{"value": 1}', id="encoded-json"),
+    ],
+)
+def test_structured_displays_preserve_message_encoding(
+    data: str | dict[str, object], expected: str, console: bool
+) -> None:
+    t = RunTranslator(RunId("r1"), "3 * 3")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    output = CellOutput(
+        channel=CellChannel.MEDIA if console else CellChannel.OUTPUT,
+        mimetype="application/json",
+        data=data,
+    )
+    display = DisplayData(mimetype="application/json", data=expected)
+    if console:
+        assert t.feed(scratch(console=output)) == [
+            Produced(
+                protocol.Display(
+                    id=protocol.ItemId("scratch-0"),
+                    execution_id=ExecutionId("scratch"),
+                    seq=0,
+                    content=display,
+                )
+            )
+        ]
+    else:
+        assert t.feed(scratch(output=output)) == [
+            Displayed(ExecutionId("scratch"), display)
+        ]
+        assert t.feed(attempt("completed")) == [
+            Completed(ExecutionId("scratch"), SucceededOutcome())
+        ]
 
 
 def test_unrelated_output_does_not_belong_to_the_scratch_execution() -> None:
@@ -272,7 +322,7 @@ def test_an_interruption_ends_the_run_interrupted(
     )
 
 
-def test_console_items_number_in_order_and_lose_highlighting() -> None:
+def test_console_items_keep_literal_text_in_order() -> None:
     t = RunTranslator(RunId("r1"), "3 * 3")
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
@@ -303,11 +353,81 @@ def test_console_items_number_in_order_and_lose_highlighting() -> None:
                     id=IsStr(),
                     name="stderr",
                     seq=1,
-                    text="<b>",
+                    text='<span class="codehilite">&lt;b&gt;</span>',
                 )
             ),
         ]
     )
+
+
+def test_media_written_to_the_console_is_a_display_among_the_text() -> None:
+    # A figure shown with `plt.show()` arrives on the console, between
+    # whatever the cell printed before and after it.
+    t = RunTranslator(RunId("r1"), "3 * 3")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    out = t.feed(
+        scratch(
+            console=[
+                CellOutput.stdout("before"),
+                CellOutput(
+                    channel=CellChannel.MEDIA,
+                    mimetype="image/png",
+                    data="data:image/png;base64,AAAA",
+                ),
+                CellOutput.stdout("after"),
+            ]
+        )
+    )
+
+    items = [m.item for m in out if isinstance(m, Produced)]
+    assert [(type(item), item.seq) for item in items] == [
+        (Console, 0),
+        (protocol.Display, 1),
+        (Console, 2),
+    ]
+    assert len({item.id for item in items}) == 3
+    figure = items[1]
+    assert isinstance(figure, protocol.Display)
+    assert figure.content == protocol.DisplayData(
+        mimetype="image/png", data="data:image/png;base64,AAAA"
+    )
+
+
+def test_a_rendered_traceback_is_a_display_and_a_plain_one_is_text() -> None:
+    highlighted = '<span class="codehilite">Traceback</span>'
+    t = RunTranslator(RunId("r1"), "3 * 3")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    out = t.feed(
+        scratch(
+            console=[
+                CellOutput(
+                    channel=CellChannel.STDERR,
+                    mimetype="application/vnd.marimo+traceback",
+                    data=highlighted,
+                ),
+                # A scratch run's traceback is written as plain text.
+                CellOutput(
+                    channel=CellChannel.STDERR,
+                    mimetype="application/vnd.marimo+traceback",
+                    data="Traceback (most recent call last)",
+                ),
+            ]
+        )
+    )
+
+    rendered, text = (m.item for m in out if isinstance(m, Produced))
+    assert isinstance(rendered, protocol.Display)
+    assert rendered.content == protocol.DisplayData(
+        mimetype="application/vnd.marimo+traceback", data=highlighted
+    )
+    assert isinstance(text, Console)
+    assert (text.name, text.text) == (
+        "stderr",
+        "Traceback (most recent call last)",
+    )
+    assert (rendered.seq, text.seq) == (0, 1)
 
 
 def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:

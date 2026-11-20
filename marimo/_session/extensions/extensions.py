@@ -327,9 +327,8 @@ class NotificationListenerExtension(SessionExtension):
     ) -> None:
         """Best-effort persistence of code-mode mutations to disk.
 
-        Only `source="code-mode"` transactions persist; `"kernel"`
-        bookkeeping (e.g. instantiation cell-order broadcasts) is skipped
-        so opening or running a notebook never rewrites it on disk.
+        Only `source="code-mode"` transactions persist, so opening or
+        running a notebook never rewrites it on disk.
         Skipped in run mode and for unnamed notebooks. Failures surface as
         an `AlertNotification` toast; they never raise out of the
         interceptor.
@@ -481,10 +480,6 @@ class SessionViewExtension(EventAwareExtension):
         if not isinstance(request, commands.CodeCompletionCommand):
             session.session_view.add_control_request(request)
 
-    def on_received_stdin(self, session: Session, stdin: str) -> None:
-        """Called when stdin is received."""
-        session.session_view.add_stdin(stdin)
-
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
@@ -509,11 +504,6 @@ class QueueExtension(EventAwareExtension):
         del session
         del from_consumer_id
         self.queue_manager.put_control_request(request)
-
-    def on_received_stdin(self, session: Session, stdin: str) -> None:
-        """Called when stdin is received."""
-        del session
-        self.queue_manager.put_input(stdin)
 
 
 class ReplayExtension(EventAwareExtension):

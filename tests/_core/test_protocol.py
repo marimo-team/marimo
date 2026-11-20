@@ -28,12 +28,14 @@ MODELS = {
     "analysis.json": protocol.Analysis,
     "diagnostic.json": protocol.Error,
     "edit.json": protocol.EditRequest,
-    "edit-conflict-request.json": protocol.EditRequest,
+    "stale-edit-request.json": protocol.EditRequest,
     "edit-response.json": protocol.EditResponse,
     "execution-restored.json": protocol.Execution,
+    "execute-request.json": protocol.ExecuteRequest,
     "run-cells-request.json": protocol.RunRequest,
     "input-reply-request.json": protocol.InputReplyRequest,
     "input-reply-response.json": protocol.Input,
+    "interrupt-runtime-response.json": protocol.Runtime,
 }
 
 
@@ -138,9 +140,13 @@ def assert_immutable(value: object) -> None:
 def round_trip(model: type, text: str) -> None:
     wire = json.loads(text)
     assert_content_hashes(wire)
-    value = msgspec.json.decode(
-        json.dumps({**wire, "future_field": True}), type=model
-    )
+    value = msgspec.json.decode(text, type=model)
+    extended = json.dumps({**wire, "future_field": True})
+    if type(value).__struct_config__.forbid_unknown_fields:
+        with pytest.raises(msgspec.ValidationError, match="future_field"):
+            msgspec.json.decode(extended, type=model)
+    else:
+        assert msgspec.json.decode(extended, type=model) == value
     assert json.loads(msgspec.json.encode(value)) == wire
     assert_immutable(value)
 
@@ -157,6 +163,37 @@ def test_json_models(path: Path) -> None:
         else MODELS[path.name]
     )
     round_trip(model, path.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    ("name", "field"),
+    [
+        ("precondition-failed", "index"),
+        ("precondition-failed", "cell"),
+        ("precondition-failed", "document"),
+        ("decision-required", "decisions"),
+    ],
+)
+def test_problems_require_their_type_specific_fields(
+    name: str, field: str
+) -> None:
+    value = json.loads((FIXTURES / "problems" / f"{name}.json").read_text())
+    del value[field]
+    with pytest.raises(msgspec.ValidationError, match=field):
+        msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+
+
+def test_precondition_problem_requires_412_and_allows_a_missing_cell() -> None:
+    value = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text()
+    )
+    value["cell"] = None
+    decoded = msgspec.json.decode(json.dumps(value), type=protocol.Problem)
+    assert isinstance(decoded, protocol.PreconditionFailedProblem)
+    assert json.loads(msgspec.json.encode(decoded)) == value
+    value["status"] = 409
+    with pytest.raises(msgspec.ValidationError, match="status"):
+        msgspec.json.decode(json.dumps(value), type=protocol.Problem)
 
 
 @pytest.mark.parametrize(
@@ -283,8 +320,12 @@ def test_catalog_capabilities_and_runtime_stop() -> None:
             obj = data[kind]
             if kind in {"project", "notebook"}:
                 assert set(obj["operations"]) <= host_operations
-                if "runtime.run" in obj["operations"]:
-                    assert "runtime.interrupt" in obj["operations"]
+                if {"runtime.run", "runtime.execute"}.intersection(
+                    obj["operations"]
+                ):
+                    assert {"runtime.interrupt", "runtime.cancel"} <= set(
+                        obj["operations"]
+                    )
             if kind == "notebook":
                 assert obj["project_id"] in state["project"]
             if kind in {"runtime", "attachment"}:
@@ -379,34 +420,39 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
         if kind == "run":
             run = data["run"]
             previous = runs.get(run["id"])
-            assert previous is None or previous["status"] != "completed"
+            assert (
+                previous is None or previous["state"]["status"] != "completed"
+            )
             assert run["id"] != data["request_id"]
             request_ids[run["id"]] = data["request_id"]
             runs[run["id"]] = run
-            assert sum(r["status"] != "completed" for r in runs.values()) <= 1
-            if run["status"] == "completed":
+            assert (
+                sum(r["state"]["status"] != "completed" for r in runs.values())
+                <= 1
+            )
+            if run["state"]["status"] == "completed":
                 members = [
                     e for e in executions.values() if e["run_id"] == run["id"]
                 ]
-                assert all(e["status"] == "completed" for e in members)
-                assert run["outcome"] == outcome
+                assert all(
+                    e["state"]["status"] == "completed" for e in members
+                )
+                assert run["state"]["outcome"] == outcome
             else:
-                assert run["outcome"] is None
-            assert (run["completed_at"] is not None) == (
-                run["status"] == "completed"
-            )
+                assert "outcome" not in run["state"]
+                assert "completed_at" not in run["state"]
         elif kind == "execution":
             execution = data["execution"]
             run = runs[execution["run_id"]]
-            assert run["status"] != "completed"
+            assert run["state"]["status"] != "completed"
             assert data["request_id"] == request_ids[run["id"]]
             assert execution["runtime_id"] == "r1"
             previous = executions.get(execution["id"])
             if previous is not None:
                 statuses = ["queued", "running", "completed"]
-                assert statuses.index(execution["status"]) >= statuses.index(
-                    previous["status"]
-                )
+                assert statuses.index(
+                    execution["state"]["status"]
+                ) >= statuses.index(previous["state"]["status"])
                 for field in (
                     "run_id",
                     "runtime_id",
@@ -420,22 +466,17 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                     executions[execution["caused_by"]]["run_id"] == run["id"]
                 )
             if execution["cell_id"] is None:
-                assert execution["code"] is not None
+                assert run["origin"]["kind"] == "code"
+            state = execution["state"]
+            if state["status"] == "queued":
+                assert state == {"status": "queued"}
+            elif state["status"] == "running":
+                assert set(state) == {"status", "started_at"}
             else:
-                assert execution["code"] is None
-            if execution["status"] == "queued":
-                assert execution["outcome"] is None
-                assert execution["started_at"] is None
-                assert execution["depends_on"] == {}
-            elif previous is not None and previous["status"] != "queued":
-                assert execution["depends_on"] == previous["depends_on"]
-            for revision in execution["depends_on"].values():
-                assert revision is None or revision["update"] >= 0
-            if execution["status"] == "completed":
-                assert execution["outcome"] is not None
-            assert (execution["completed_at"] is not None) == (
-                execution["status"] == "completed"
-            )
+                assert state["outcome"] is not None
+                assert state["completed_at"] is not None
+                for revision in state["depends_on"].values():
+                    assert revision is None or revision["update"] >= 0
             executions[execution["id"]] = execution
         elif kind in {"console", "display"}:
             assert data[kind]["execution_id"] in executions
@@ -445,13 +486,13 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
             assert execution["cell_id"] is not None
             if variable["revision"]["update"] == 0:
                 # Bound before the execution completes.
-                assert execution["status"] == "running"
+                assert execution["state"]["status"] == "running"
                 assert (
                     variable["revision"]["execution"]
                     == variable["execution_id"]
                 )
     assert runs
-    assert all(r["status"] == "completed" for r in runs.values())
+    assert all(r["state"]["status"] == "completed" for r in runs.values())
 
 
 def test_cell_run_request_and_results() -> None:
@@ -471,8 +512,8 @@ def test_cell_run_request_and_results() -> None:
     assert cells["k7f2"]["code"] == "y = x * 2"
     assert executions["e12"]["caused_by"] is None
     assert executions["e13"]["caused_by"] is None
-    assert executions["e12"]["depends_on"] == {}
-    assert executions["e13"]["depends_on"] == {
+    assert executions["e12"]["state"]["depends_on"] == {}
+    assert executions["e13"]["state"]["depends_on"] == {
         "x": {"execution": "e12", "update": 0}
     }
     for execution in executions.values():
@@ -480,7 +521,9 @@ def test_cell_run_request_and_results() -> None:
             execution["code_fingerprint"]
             == cells[execution["cell_id"]]["code_fingerprint"]
         )
-        assert execution["outcome"] == {"kind": "value", "display": None}
+        assert execution["state"]["outcome"] == {
+            "kind": "succeeded",
+        }
     variables = {
         m["variable"]["name"]: m["variable"]
         for m in messages("run-cells.sse", "variable")
@@ -565,20 +608,26 @@ def test_edit_request_response_and_events() -> None:
     }
     assert messages("edits.sse", "cell.removed")[0]["id"] == "k7f2"
 
-    conflict_request = json.loads(
-        (FIXTURES / "edit-conflict-request.json").read_text(encoding="utf-8")
+    stale_request = json.loads(
+        (FIXTURES / "stale-edit-request.json").read_text(encoding="utf-8")
     )
-    conflict = json.loads(
-        (FIXTURES / "problems/edit-conflict.json").read_text(encoding="utf-8")
-    )["edit"]
-    assert len(conflict_request["changes"]) == 1
-    change = conflict_request["changes"][0]
+    failed = json.loads(
+        (FIXTURES / "problems/precondition-failed.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert len(stale_request["changes"]) == 1
+    change = stale_request["changes"][0]
     assert change["base_etag"] != cells[change["cell"]["id"]]["etag"]
-    assert conflict == {
-        "change": 0,
-        "cell": cells["c3"],
-        "document": response["document"],
-    }
+    assert (failed["type"], failed["status"]) == (
+        "urn:marimo:problem:precondition-failed",
+        412,
+    )
+    assert (failed["index"], failed["cell"], failed["document"]) == (
+        0,
+        cells["c3"],
+        response["document"],
+    )
 
 
 def test_restored_result_matches_source() -> None:
@@ -649,3 +698,25 @@ def test_cell_source_is_required_but_nullable_only_in_records() -> None:
         json.dumps({"id": cell["id"], "code": ""}), type=protocol.CellInput
     )
     assert value.code == ""
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (
+            FIXTURES.parent / "conformance/cases/execution-requests.json"
+        ).read_text()
+    ),
+    ids=lambda case: f"{case['schema']}: {case['name']}",
+)
+def test_execution_requests(case: dict[str, Any]) -> None:
+    body = msgspec.json.encode(case["body"])
+    schema = getattr(protocol, case["schema"])
+    if case["valid"]:
+        decoded = msgspec.json.decode(body, type=schema)
+        assert (
+            msgspec.json.decode(msgspec.json.encode(decoded)) == case["body"]
+        )
+    else:
+        with pytest.raises(msgspec.ValidationError):
+            msgspec.json.decode(body, type=schema)

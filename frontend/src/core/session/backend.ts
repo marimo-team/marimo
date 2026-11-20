@@ -4,7 +4,7 @@
 
 import { NotebookClient, StreamStopped } from "@marimo-team/client";
 import type { NotebookId } from "@marimo-team/client/protocol";
-import type { NotebookBackend } from "../notebook/replica";
+import { EDITOR_EVENT_TYPES, type NotebookBackend } from "../notebook/replica";
 import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
 import { sessionSse, websocket, withHeaders } from "../transports/server";
@@ -59,7 +59,9 @@ function afterStartup({
         });
       }
     }
-    return url();
+    const target = new URL(url());
+    target.searchParams.set("types", EDITOR_EVENT_TYPES.join(","));
+    return target;
   };
 }
 

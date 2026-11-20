@@ -94,40 +94,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
-    sendInterrupt: () => {
-      return getClient()
-        .POST("/api/kernel/interrupt", {
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
     sendShutdown: () => {
       return getClient()
         .POST("/api/kernel/shutdown")
-        .then(handleResponseReturnNull);
-    },
-    sendRun: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/run", {
-          body: request,
-          params: getParams(),
-        })
         .then(handleResponseReturnNull);
     },
     sendRunScratchpad: async (request) => {
       await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/scratchpad/run", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendInstantiate: async (request) => {
-      await waitForConnectionOpen();
-      return getClient()
-        .POST("/api/kernel/instantiate", {
           body: request,
           params: getParams(),
         })
@@ -169,14 +144,6 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     sendFunctionRequest: (request) => {
       return getClient()
         .POST("/api/kernel/function_call", {
-          body: request,
-          params: getParams(),
-        })
-        .then(handleResponseReturnNull);
-    },
-    sendStdin: (request) => {
-      return getClient()
-        .POST("/api/kernel/stdin", {
           body: request,
           params: getParams(),
         })
@@ -284,6 +251,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           body: request,
           params: getParams(),
         })
+        .then(handleResponseReturnNull);
+    },
+    sendPdbReply: (request) => {
+      return getClient()
+        .POST("/api/kernel/pdb/reply", { body: request, params: getParams() })
         .then(handleResponseReturnNull);
     },
     sendSetBreakpoints: (request) => {

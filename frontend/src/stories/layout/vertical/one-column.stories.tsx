@@ -4,6 +4,7 @@ import type { Meta } from "@storybook/react-vite";
 import { createStore, Provider } from "jotai";
 import { createRef } from "react";
 import { mockDocumentModel } from "@/__mocks__/document";
+import { MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCellRuntimeState } from "@/core/cells/types";
@@ -18,6 +19,33 @@ import { CellArray } from "../../../components/editor/renderers/cell-array";
 import { CellsRenderer } from "../../../components/editor/renderers/cells-renderer";
 import { TooltipProvider } from "../../../components/ui/tooltip";
 import type { CellId } from "../../../core/cells/ids";
+
+const LONG_REPR =
+  "<dlt.Relation(dataset='jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_', destination='<dlt.destinations.duckdb(destination_type='duckdb', credentials='local_jaffle.duckdb')>')>";
+
+/** Show the long repr as the cell's result. */
+function seedLongRepr(store: ReturnType<typeof createStore>, cellId: CellId) {
+  const [record, output] = MockExecutions.shown(cellId, {
+    mimetype: "text/plain",
+    data: LONG_REPR,
+  });
+  MockExecutions.seed(store, [
+    {
+      ...record,
+      items: [
+        {
+          kind: "console",
+          id: "printed",
+          execution_id: record.id,
+          seq: 0,
+          name: "stdout",
+          text: "hello",
+        },
+      ],
+    },
+    output,
+  ]);
+}
 
 const createLongReprNotebook = (
   cellId: CellId,
@@ -44,24 +72,7 @@ LongReprA()`,
   },
   cellIds: [cellId],
   cellRuntime: {
-    [cellId]: createCellRuntimeState({
-      output: {
-        channel: "output",
-        data: "<dlt.Relation(dataset='jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_jaffle_ingest_dataset_', destination='<dlt.destinations.duckdb(destination_type='duckdb', credentials='local_jaffle.duckdb')>')>",
-        mimetype: "text/plain",
-        timestamp: 1_686_863_710,
-      },
-      consoleOutputs: [
-        {
-          channel: "stdout",
-          mimetype: "text/plain",
-          data: "hello",
-          timestamp: 1_686_863_705,
-        },
-      ],
-      debuggerActive: false,
-      outline: null,
-    }),
+    [cellId]: createCellRuntimeState(),
   },
   cellHandles: {
     [cellId]: createRef(),
@@ -85,6 +96,7 @@ const EditModeCodeShown = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
+  seedLongRepr(store, cid);
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
@@ -113,6 +125,7 @@ const EditModeCodeHidden = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
+  seedLongRepr(store, cid);
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
@@ -141,6 +154,7 @@ const ReadModeCodeShown = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
+  seedLongRepr(store, cid);
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);
@@ -160,6 +174,7 @@ const ReadModeCodeHidden = () => {
 
   const store = createStore();
   store.set(notebookAtom, notebook);
+  seedLongRepr(store, cid);
   store.set(connectionAtom, { state: ConnectionState.OPEN });
   store.set(requestClientAtom, resolveRequestClient());
   store.set(showCodeInRunModeAtom, true);

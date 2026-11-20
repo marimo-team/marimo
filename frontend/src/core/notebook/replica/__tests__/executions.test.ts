@@ -42,16 +42,18 @@ describe("executions resource", () => {
     const ready = snapshot.findIndex((item) => item.event === "ready");
     const opening = resource(replay(snapshot.slice(0, ready + 1)));
     const scratch = opening.executions.get("e7");
-    expect(scratch?.record.status).toBe("running");
+    expect(scratch?.record.state.status).toBe("running");
     expect(itemsInOrder(scratch!).map((item) => item.kind)).toEqual([
       "console",
     ]);
-    expect(opening.runs.get("run-scratch")?.status).toBe("running");
+    expect(opening.runs.get("run-scratch")?.state.status).toBe("running");
     expect(opening.latest.size).toBe(0);
 
     const done = resource(replay(snapshot));
-    expect(done.executions.get("e7")?.record.status).toBe("completed");
-    expect(done.runs.get("run-scratch")?.outcome).toBe("succeeded");
+    expect(done.executions.get("e7")?.record.state.status).toBe("completed");
+    expect(done.runs.get("run-scratch")?.state).toMatchObject({
+      outcome: "succeeded",
+    });
     const released = reducer.reduce(
       replay(snapshot),
       removed("run", "run-scratch", "98"),
@@ -63,18 +65,23 @@ describe("executions resource", () => {
     const start = replay(snapshot);
     const running = resource(replay(runCells.slice(0, 5), start));
     expect(running.latest.get("c3")).toBe("e12");
-    expect(running.executions.get("e12")?.record.status).toBe("running");
+    expect(running.executions.get("e12")?.record.state.status).toBe("running");
     expect(running.latest.get("k7f2")).toBe("e13");
-    expect(running.runs.get("run-cells")?.status).toBe("running");
+    expect(running.runs.get("run-cells")?.state.status).toBe("running");
 
     const done = replay(runCells, start);
     const e12 = resource(done).executions.get("e12");
-    expect(e12?.record.status).toBe("completed");
+    expect(e12?.record.state.status).toBe("completed");
     expect([...e12!.variables.values()].map((v) => v.name)).toEqual(["x"]);
-    expect(resource(done).executions.get("e13")?.record.depends_on).toEqual({
-      x: { execution: "e12", update: 0 },
+    expect(resource(done).executions.get("e13")?.record.state).toHaveProperty(
+      "depends_on",
+      {
+        x: { execution: "e12", update: 0 },
+      },
+    );
+    expect(resource(done).runs.get("run-cells")?.state).toMatchObject({
+      outcome: "succeeded",
     });
-    expect(resource(done).runs.get("run-cells")?.outcome).toBe("succeeded");
 
     const retired = replay(retire("e12", "e12-x"), done);
     expect(resource(retired).executions.has("e12")).toBe(false);
@@ -159,10 +166,13 @@ describe("executions resource", () => {
       ["console", "o-input-2", 2],
       ["input", "i2", "cancelled"],
     ]);
+    expect(execution!.items.get("i1")?.time).toBe("2026-11-03T14:00:03Z");
     expect(prompted.latest.size).toBe(0);
     const gone = resource(replay(inputs, start));
     expect(gone.executions.has("e-input")).toBe(false);
-    expect(gone.runs.get("run-input")?.outcome).toBe("interrupted");
+    expect(gone.runs.get("run-input")?.state).toMatchObject({
+      outcome: "interrupted",
+    });
 
     const orphan = reducer.reduce(
       start,

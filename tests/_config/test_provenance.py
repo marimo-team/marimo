@@ -108,6 +108,23 @@ def make_user(
     return user
 
 
+def test_schema_defaults_do_not_become_explicit_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user(tmp_path, monkeypatch)
+    manager = MarimoConfigManager(user).with_overrides(
+        {"runtime": {"cache_cells": False, "pythonpath": []}}
+    )
+    resolved = manager.get_config_with_sources(hide_secrets=False)
+
+    assert set(resolved.override_paths) == {
+        ("runtime", "cache_cells"),
+        ("runtime", "pythonpath"),
+    }
+    assert resolved.origins[("runtime", "pin_modules")] == "default"
+    assert user.read() == {}
+
+
 def test_environment_output_limits_override_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -354,19 +371,23 @@ def test_manager_tracks_file_environment_default_and_security_sources(
         ("sharing", "html"): "MARIMO_RESTRICT_SHARING",
         ("ai", "open_ai", "api_key"): tmp_path / "marimo.toml",
     }
-    assert resolved.config == merge_default_config(
-        {
-            "display": {"theme": "light"},
-            "runtime": {"on_cell_change": "lazy"},
-            "server": {"transport": "sse"},
-            "sharing": {"html": False, "wasm": False, "molab": False},
-            "ai": {"open_ai": {"api_key": "********"}},
-        }
-    )
     assert (
-        manager.get_config(hide_secrets=False)["ai"]["open_ai"]["api_key"]
-        == "private-key"
+        resolved.config
+        == (
+            merge_default_config(
+                {
+                    "display": {"theme": "light"},
+                    "runtime": {"on_cell_change": "lazy"},
+                    "server": {"transport": "sse"},
+                    "sharing": {"html": False, "wasm": False, "molab": False},
+                    "ai": {"open_ai": {"api_key": "********"}},
+                }
+            )
+        ).to_dict()
     )
+    assert (manager.get_config(hide_secrets=False)).to_dict()["ai"]["open_ai"][
+        "api_key"
+    ] == "private-key"
 
 
 def test_manager_preserves_record_merge_grouping(
@@ -443,7 +464,7 @@ def test_parse_errors_identify_the_file(
     assert "Settings from this file were skipped" in messages[0]
     assert (
         resolved.config["display"]["theme"]
-        == DEFAULT_CONFIG["display"]["theme"]
+        == DEFAULT_CONFIG.to_dict()["display"]["theme"]
     )
     assert resolved.origins[("display", "theme")] == "default"
 
@@ -490,7 +511,7 @@ def test_sparse_mcp_overlay_inherits_transport_without_validation_errors(
     with _loggers.capture_output(log_level=logging.WARNING) as (_, _, records):
         overrides = manager.get_config_overrides()
         resolved = manager.get_config_with_sources()
-        assert manager.get_config() == resolved.config
+        assert (manager.get_config()).to_dict() == resolved.config
     assert records == []
     assert overrides["mcp"]["mcpServers"] == {"example": expected}
     assert resolved.config["mcp"]["mcpServers"] == {

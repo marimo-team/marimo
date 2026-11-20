@@ -31,7 +31,7 @@ from tests._runtime._helpers.session import mocked_kernel_session
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from marimo._config.config import ExecutionType
+    from marimo._config.types import ExecutionType
     from marimo._messaging.notification import NotificationMessage
     from marimo._runtime.runtime import Kernel
     from tests.conftest import MockedKernel

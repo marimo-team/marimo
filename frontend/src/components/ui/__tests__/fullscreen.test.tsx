@@ -1,8 +1,63 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { act, render, renderHook } from "@testing-library/react";
 import { useRef } from "react";
+import { createPortal } from "react-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useFullScreenClass, useIsFullScreen } from "../fullscreen";
+import {
+  useFullScreenClass,
+  useFullScreenElement,
+  useIsFullScreen,
+  withFullScreenAsRoot,
+} from "../fullscreen";
+
+describe("full screen element inside a shadow root", () => {
+  let host: HTMLElement;
+  let target: HTMLElement;
+
+  beforeEach(() => {
+    host = document.createElement("div");
+    host.append(document.createElement("div"));
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    target = document.createElement("div");
+    shadowRoot.append(target);
+    document.body.append(host);
+
+    // The browser retargets document.fullscreenElement to the shadow host and
+    // reports the element itself on the shadow root.
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => host,
+    });
+    Object.defineProperty(shadowRoot, "fullscreenElement", {
+      configurable: true,
+      get: () => target,
+    });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(document, "fullscreenElement");
+    host.remove();
+  });
+
+  it("resolves the element that is actually full screen", () => {
+    const { result } = renderHook(useFullScreenElement);
+    expect(result.current).toBe(target);
+  });
+
+  it("portals into that element, not the host's light DOM", () => {
+    const Portal = withFullScreenAsRoot(
+      ({ container }: { container?: Element | DocumentFragment | null }) =>
+        createPortal(
+          <span data-testid="portalled" />,
+          container ?? document.body,
+        ),
+    );
+    render(<Portal />);
+
+    expect(host.children).toHaveLength(1);
+    expect(target.querySelector('[data-testid="portalled"]')).not.toBeNull();
+  });
+});
 
 describe("useFullScreenClass", () => {
   let fullscreenElement: Element | null = null;

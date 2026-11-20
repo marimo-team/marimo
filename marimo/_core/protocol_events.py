@@ -1,8 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 # AUTO-GENERATED FILE — DO NOT EDIT.
-# Generated from protocols/host/openapi.yaml.
-# Experimental features: analysis
-# Regenerate with `uv run --no-config --locked --script protocols/host/generate.py --include-experimental=analysis`.
+# Generated from packages/host-protocol.
+# Regenerate with `make host-protocol-codegen`.
 """Typed envelope adapters. Payload ownership stays with the caller."""
 
 from __future__ import annotations
@@ -28,6 +27,7 @@ Body: TypeAlias = (
     | protocol.Host
     | protocol.Input
     | protocol.Notebook
+    | protocol.Output
     | protocol.Project
     | protocol.Run
     | protocol.Runtime
@@ -44,6 +44,7 @@ SnapshotBody: TypeAlias = (
     | protocol.Host
     | protocol.Input
     | protocol.Notebook
+    | protocol.Output
     | protocol.Project
     | protocol.Run
     | protocol.Runtime
@@ -61,6 +62,7 @@ RecordEvent: TypeAlias = (
     | protocol.HostEvent
     | protocol.InputEvent
     | protocol.NotebookEvent
+    | protocol.OutputEvent
     | protocol.ProjectEvent
     | protocol.RunEvent
     | protocol.RuntimeEvent
@@ -73,6 +75,7 @@ RemovableBody: TypeAlias = (
     | protocol.Display
     | protocol.Execution
     | protocol.Notebook
+    | protocol.Output
     | protocol.Project
     | protocol.Run
     | protocol.Runtime
@@ -85,6 +88,7 @@ RemovalEvent: TypeAlias = (
     | protocol.DisplayRemovedEvent
     | protocol.ExecutionRemovedEvent
     | protocol.NotebookRemovedEvent
+    | protocol.OutputRemovedEvent
     | protocol.ProjectRemovedEvent
     | protocol.RunRemovedEvent
     | protocol.RuntimeRemovedEvent
@@ -189,6 +193,15 @@ def record(
     request_id: str | UnsetType = UNSET,
     time: datetime | UnsetType = UNSET,
 ) -> protocol.NotebookEvent: ...
+
+
+@overload
+def record(
+    value: protocol.Output,
+    *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime | UnsetType = UNSET,
+) -> protocol.OutputEvent: ...
 
 
 @overload
@@ -315,6 +328,13 @@ def record(
                 )
             )
 
+        case protocol.Output():
+            return protocol.OutputEvent(
+                protocol.OutputMessage(
+                    output=value, request_id=request_id, time=time
+                )
+            )
+
         case protocol.Project():
             return protocol.ProjectEvent(
                 protocol.ProjectMessage(
@@ -391,6 +411,10 @@ def body(event: protocol.NotebookEvent) -> protocol.Notebook: ...
 
 
 @overload
+def body(event: protocol.OutputEvent) -> protocol.Output: ...
+
+
+@overload
 def body(event: protocol.ProjectEvent) -> protocol.Project: ...
 
 
@@ -441,6 +465,9 @@ def body(event: RecordEvent) -> Body:
 
         case protocol.NotebookEvent(data=data):
             return data.notebook
+
+        case protocol.OutputEvent(data=data):
+            return data.output
 
         case protocol.ProjectEvent(data=data):
             return data.project
@@ -515,6 +542,16 @@ def removed(
     request_id: str | UnsetType = UNSET,
     time: datetime | UnsetType = UNSET,
 ) -> protocol.NotebookRemovedEvent: ...
+
+
+@overload
+def removed(
+    record_type: type[protocol.Output],
+    object_id: str,
+    *,
+    request_id: str | UnsetType = UNSET,
+    time: datetime | UnsetType = UNSET,
+) -> protocol.OutputRemovedEvent: ...
 
 
 @overload
@@ -603,6 +640,13 @@ def removed(
 
     if record_type is protocol.Notebook:
         return protocol.NotebookRemovedEvent(
+            protocol.RemovedMessage(
+                id=object_id, request_id=request_id, time=time
+            )
+        )
+
+    if record_type is protocol.Output:
+        return protocol.OutputRemovedEvent(
             protocol.RemovedMessage(
                 id=object_id, request_id=request_id, time=time
             )

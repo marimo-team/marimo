@@ -25,7 +25,7 @@ from marimo._version import __version__
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from marimo._config.config import VenvConfig
+    from marimo._config.config_schema import VenvConfig
 
 LOGGER = _loggers.marimo_logger()
 
@@ -70,7 +70,7 @@ def get_configured_venv_python(
     Raises:
         ValueError: If venv is configured but invalid.
     """
-    venv_path = venv_config.get("path")
+    venv_path = venv_config.path
 
     if not venv_path:
         return None
@@ -137,6 +137,7 @@ async def has_marimo_installed(venv_python: str) -> bool:
     result = await run_command(
         [
             venv_python,
+            "-P",
             "-c",
             "import marimo, msgspec, zmq; print(marimo.__version__)",
         ],
@@ -172,6 +173,7 @@ async def check_python_version_compatibility(venv_python: str) -> bool:
     result = await run_command(
         [
             venv_python,
+            "-P",
             "-c",
             "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
         ],

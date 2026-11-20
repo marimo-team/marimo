@@ -5,7 +5,7 @@ import msgspec
 import msgspec.json
 
 from marimo._ast.cell import CellConfig
-from marimo._config.config import MarimoConfig
+from marimo._config.config import PartialMarimoConfig
 from marimo._config.provenance import ConfigPath
 from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._runtime.commands import AppMetadata
@@ -30,7 +30,7 @@ class KernelArgs(msgspec.Struct):
 
     configs: dict[CellId_t, CellConfig]
     app_metadata: AppMetadata
-    user_config: MarimoConfig
+    user_config: PartialMarimoConfig
     log_level: int
     profile_path: str | None
     connection_info: ConnectionInfo

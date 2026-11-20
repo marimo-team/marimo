@@ -15,6 +15,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigReader
 from marimo._core.ids import mint
+from marimo._messaging.input import InputReply, deliver_reply
 from marimo._messaging.notebook.document import NotebookDocument
 from marimo._messaging.notification import (
     NotificationMessage,
@@ -118,7 +119,7 @@ class SessionImpl(Session):
             ScriptConfigReader(app_file_manager.path)
         )
         config = config_manager.get_config(hide_secrets=False)
-        configured_venv = config.get("venv", {}).get("path")
+        configured_venv = config.venv.path
 
         configs = app_file_manager.app.cell_manager.config_map()
 
@@ -192,9 +193,7 @@ class SessionImpl(Session):
             cache_enabled = not auto_instantiate
             cache_mode = CacheMode.READ_WRITE
         else:
-            cache_enabled = config_manager.get_config()["runtime"].get(
-                "serve_cached_sessions_in_apps", False
-            )
+            cache_enabled = config_manager.get_config().runtime.serve_cached_sessions_in_apps
             cache_mode = CacheMode.READ
 
         extensions = [
@@ -431,9 +430,12 @@ class SessionImpl(Session):
             self.room.get_capabilities(consumer), type(request)
         )
 
-    def put_input(self, text: str) -> None:
-        """Put an input() request in the input queue."""
-        self._event_bus.emit_received_stdin(self, text)
+    def reply_input(self, reply: InputReply) -> None:
+        queue = self.extensions.get(QueueExtension)
+        if queue is None or self._closed:
+            raise RuntimeError("The session waiting for input has closed")
+        deliver_reply(queue.queue_manager.input_queue, reply)
+        self.session_view.add_stdin(reply.value, input_id=reply.input_id)
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
         """
@@ -539,7 +541,7 @@ class SessionImpl(Session):
         self.put_control_request(
             CreateNotebookCommand(
                 execution_requests=tuple(execution_requests),
-                cell_ids=tuple(app.cell_manager.cell_ids()),
+                cell_ids=(),
                 set_ui_element_value_request=UpdateUIElementCommand(
                     object_ids=request.object_ids,
                     values=request.values,

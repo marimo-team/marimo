@@ -1873,7 +1873,7 @@ class AsyncCodeModeContext:
 
     async def _format_plan(self, plan: list[_PlanEntry]) -> list[_PlanEntry]:
         """Format new/changed code when save-time formatting is enabled."""
-        if not self._kernel.user_config["save"]["format_on_save"]:
+        if not self._kernel.user_config.save.format_on_save:
             return plan
 
         existing_code = {cell.id: cell.code for cell in self._document.cells}
@@ -1889,7 +1889,7 @@ class AsyncCodeModeContext:
             return plan
 
         try:
-            line_length = self._kernel.user_config["formatting"]["line_length"]
+            line_length = self._kernel.user_config.formatting.line_length
             formatter = DefaultFormatter(line_length=line_length)
             formatted = await formatter.format(
                 to_format,

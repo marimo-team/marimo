@@ -47,7 +47,7 @@ function sockets() {
         super();
         opened.push(String(url));
       }
-      public close() {}
+      public close = vi.fn();
     },
   );
   return opened;
@@ -63,7 +63,9 @@ describe("createEditorBackend", () => {
     wasm.enabled = expected === "wasm";
     const worker = vi.fn(() => new Promise<void>(() => undefined));
     wasm.create.mockResolvedValue(fakeBackend({ transport: worker }));
-    const fetch = vi.fn(() => new Promise<Response>(() => undefined));
+    const fetch = vi.fn(
+      (_url: RequestInfo | URL) => new Promise<Response>(() => undefined),
+    );
     const opened = sockets();
     vi.stubGlobal("fetch", fetch);
     const events = new NotebookEvents(createEditorBackend(chosen).transport);
@@ -76,6 +78,21 @@ describe("createEditorBackend", () => {
           socket: opened.length === 1,
         }[expected],
       ).toBe(true),
+    );
+    const networkUrl = opened[0] ?? fetch.mock.calls[0]?.[0];
+    const kinds =
+      networkUrl === undefined
+        ? undefined
+        : new URL(String(networkUrl)).searchParams.get("types")?.split(",");
+    const executionKinds = [
+      "execution",
+      "console",
+      "display",
+      "input",
+      "marimo",
+    ];
+    expect(executionKinds.filter((kind) => kinds?.includes(kind))).toEqual(
+      expected === "socket" || expected === "fetch" ? executionKinds : [],
     );
     events.close();
   });

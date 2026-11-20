@@ -9,7 +9,6 @@ describe("RuntimeManager.getWsURL", () => {
   it("should return a URL with the wss protocol when the baseURI uses https", () => {
     const runtime = new RuntimeManager({
       url: "https://marimo.app/",
-      lazy: true,
     });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
@@ -22,7 +21,6 @@ describe("RuntimeManager.getWsURL", () => {
   it("should return a URL with the ws protocol when the baseURI uses http", () => {
     const runtime = new RuntimeManager({
       url: "http://marimo.app/",
-      lazy: true,
     });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
@@ -35,7 +33,6 @@ describe("RuntimeManager.getWsURL", () => {
   it("should work with nested baseURI", () => {
     const runtime = new RuntimeManager({
       url: "http://marimo.app/nested/",
-      lazy: true,
     });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
@@ -48,7 +45,6 @@ describe("RuntimeManager.getWsURL", () => {
   it("should work with nested baseURI and query params", () => {
     const runtime = new RuntimeManager({
       url: "http://marimo.app/nested/?foo=bar",
-      lazy: true,
     });
     window.history.pushState({}, "", "/nested/?file=test.py");
     const sessionId = "1234" as SessionId;
@@ -62,7 +58,6 @@ describe("RuntimeManager.getWsURL", () => {
   it("should include all query params from current page", () => {
     const runtime = new RuntimeManager({
       url: "http://marimo.app/",
-      lazy: true,
     });
     window.history.pushState({}, "", "/?file=test.py&search=test&other=last");
     const sessionId = "1234" as SessionId;
@@ -83,13 +78,9 @@ describe.each(["getWsURL", "getSseURL"] as const)(
   (method) => {
     it("preserves runtime parameters and repeated page values", () => {
       window.history.pushState({}, "", "/?tag=page-one&tag=page-two");
-      const runtime = new RuntimeManager(
-        {
-          url: `${window.location.origin}/nested?proxy_token=secret&tag=base&base=one&base=two`,
-          lazy: true,
-        },
-        true,
-      );
+      const runtime = new RuntimeManager({
+        url: `${window.location.origin}/nested?proxy_token=secret&tag=base&base=one&base=two`,
+      });
       const url = runtime[method]("session" as SessionId);
       expect([...url.searchParams]).toEqual([
         ["proxy_token", "secret"],
@@ -122,10 +113,7 @@ describe.each(["getWsURL", "getSseURL"] as const)(
         "",
         `/?${notebookParams}&session_id=page-session`,
       );
-      const runtime = new RuntimeManager(
-        { url: window.location.origin, lazy: true },
-        true,
-      );
+      const runtime = new RuntimeManager({ url: window.location.origin });
       const url = runtime[method]("actual-session" as SessionId);
 
       expect(Object.fromEntries(url.searchParams)).toEqual({

@@ -15,7 +15,6 @@ from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
     NotificationMessage,
-    ReconnectedNotification,
 )
 from marimo._messaging.serde import (
     serialize_kernel_message,
@@ -44,6 +43,7 @@ if TYPE_CHECKING:
     from marimo._server.session_manager import SessionManager
     from marimo._session import Session
     from marimo._session.events import SessionEventBus
+    from marimo._session.state.session_view import SnapshotScope
 
 LOGGER = _loggers.marimo_logger()
 
@@ -57,6 +57,8 @@ class SessionHandler(SessionConsumer, abc.ABC):
     transport surface (`_request_close`, `_is_transport_connected`) and
     deliver notifications through the host stream.
     """
+
+    snapshot_scope: SnapshotScope = "full"
 
     def __init__(
         self,
@@ -167,7 +169,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
             resumed=True,
             ui_values=session.session_view.ui_values,
             kiosk=kiosk,
-            auto_instantiated=False,
         )
 
     def _write_kernel_ready(
@@ -176,7 +177,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
         resumed: bool,
         ui_values: dict[str, JSONType],
         kiosk: bool,
-        auto_instantiated: bool,
     ) -> None:
         """Communicates to the client that the kernel is ready.
 
@@ -187,16 +187,12 @@ class SessionHandler(SessionConsumer, abc.ABC):
             resumed: Whether this is a resumed session
             ui_values: UI element values
             kiosk: Whether this is kiosk mode
-            auto_instantiated: Whether the kernel has already been instantiated
-                server-side (run mode). If True, the frontend does not need
-                to instantiate the app.
         """
         kernel_ready_msg = build_kernel_ready(
             session=session,
             resumed=resumed,
             ui_values=ui_values,
             kiosk=kiosk,
-            auto_instantiated=auto_instantiated,
         )
         self._serialize_and_notify(kernel_ready_msg)
 
@@ -212,9 +208,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
 
         self.status = ConnectionState.OPEN
         session.connect_consumer(self, main=True)
-
-        # Write reconnected message
-        self._serialize_and_notify(ReconnectedNotification())
 
         # If not replaying, just send a toast
         if not replay:
@@ -260,7 +253,9 @@ class SessionHandler(SessionConsumer, abc.ABC):
 
     def _replay_previous_session(self, session: Session) -> None:
         """Replay retained state to this client."""
-        notifications = session.session_view.snapshot_notifications()
+        notifications = session.session_view.snapshot_notifications(
+            scope=self.snapshot_scope
+        )
         LOGGER.debug("Replaying %s notifications", len(notifications))
         for notif in notifications:
             LOGGER.debug("Replaying notification %s", notif)

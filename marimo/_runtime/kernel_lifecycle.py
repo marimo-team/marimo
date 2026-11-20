@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import copy
 import dataclasses
 import queue as _queue
 from collections import deque
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Iterator
 
     from marimo._ast.cell import CellConfig
-    from marimo._config.config import MarimoConfig
+    from marimo._config.config_schema import MarimoConfig
     from marimo._config.provenance import ConfigPath
     from marimo._messaging.types import KernelStreams
     from marimo._runtime import marimo_pdb
@@ -187,7 +188,7 @@ def _build_hooks(
     )
 
     hooks = create_default_hooks()
-    if is_edit_mode and user_config["runtime"].get("reactive_tests", False):
+    if is_edit_mode and user_config.runtime.reactive_tests:
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
         hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
@@ -216,9 +217,9 @@ def create_kernel(
     user_config = args.user_config
     # Run mode forces autorun and disables the module autoreloader.
     if not args.is_edit_mode:
-        user_config = user_config.copy()
-        user_config["runtime"]["on_cell_change"] = "autorun"
-        user_config["runtime"]["auto_reload"] = "off"
+        user_config = copy.deepcopy(user_config)
+        user_config.runtime.on_cell_change = "autorun"
+        user_config.runtime.auto_reload = "off"
 
     # Deferred to break the runtime.py <-> kernel_lifecycle.py import cycle.
     from marimo._runtime.runtime import Kernel

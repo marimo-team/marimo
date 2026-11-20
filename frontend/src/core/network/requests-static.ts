@@ -30,28 +30,21 @@ export function createStaticRequests(): EditRequests & RunRequests {
       Logger.log("Updating model values is not supported in static mode");
       return null;
     },
-    sendInstantiate: async () => {
-      Logger.log("Viewing as static notebook");
-      return null;
-    },
     sendFunctionRequest: async () => {
       showStaticNotebookToast();
       Logger.log("Function requests are not supported in static mode");
       return null;
     },
     sendRestart: throwNotInEditMode,
-    sendRun: throwNotInEditMode,
     sendRunScratchpad: throwNotInEditMode,
     sendRename: throwNotInEditMode,
     saveLayout: throwNotInEditMode,
     sendCopy: throwNotInEditMode,
-    sendInterrupt: throwNotInEditMode,
     sendShutdown: throwNotInEditMode,
     sendFormat: throwNotInEditMode,
     sendCodeCompletionRequest: throwNotInEditMode,
     saveUserConfig: throwNotInEditMode,
     saveAppConfig: throwNotInEditMode,
-    sendStdin: throwNotInEditMode,
     readCode: throwNotInEditMode,
     readSnippets: throwNotInEditMode,
     previewDatasetColumn: throwNotInEditMode,
@@ -67,6 +60,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     getFileRoots: throwNotInEditMode,
     sendListFiles: throwNotInEditMode,
     sendSearchFiles: throwNotInEditMode,
+    sendPdbReply: throwNotInEditMode,
     sendPdb: throwNotInEditMode,
     sendSetBreakpoints: throwNotInEditMode,
     sendCreateFileOrFolder: throwNotInEditMode,

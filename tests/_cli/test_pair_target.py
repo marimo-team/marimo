@@ -239,3 +239,171 @@ def test_local_session_resolution_does_not_ignore_discovery_errors(
         target.resolve_target(
             url=NOTEBOOK.url, session_id="opaque-id", token=None
         )
+
+
+def test_connect_rejects_a_local_stable_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(target, "find_host", lambda _: HOST)
+    monkeypatch.setattr(
+        target, "list_running_notebooks", lambda _: Listing([NOTEBOOK], [])
+    )
+    monkeypatch.setattr(
+        target,
+        "list_sessions",
+        lambda **_: pytest.fail("Must not use the host credential"),
+    )
+    with pytest.raises(PairError, match="No running notebook matches"):
+        target.resolve_target(
+            url=NOTEBOOK.url,
+            session_id="sess-one",
+            token=None,
+            require_notebook=True,
+        )
+
+
+def test_inbox_resolves_frontend_proxy_to_discovered_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(target, "find_host", lambda _: None)
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda _hosts=None: Listing([NOTEBOOK], []),
+    )
+    monkeypatch.setattr(target, "resolve_host", lambda _: HOST)
+    proxied = ExecutionTarget(
+        "http://localhost:3000", "sess-one", None, NOTEBOOK.id
+    )
+    assert target.resolve_inbox_target(proxied) == ExecutionTarget(
+        NOTEBOOK.url, NOTEBOOK.id, HOST.token, NOTEBOOK.id
+    )
+
+
+@pytest.mark.parametrize(
+    ("url", "credential"),
+    [("http://localhost:3000", "explicit"), ("https://remote", None)],
+)
+def test_inbox_keeps_targets_without_a_local_host(
+    monkeypatch: pytest.MonkeyPatch, url: str, credential: str | None
+) -> None:
+    monkeypatch.setattr(target, "find_host", lambda _: None)
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda _hosts=None: pytest.fail("Must not use local discovery"),
+    )
+    selected = ExecutionTarget(url, "sess-one", credential, NOTEBOOK.id)
+    assert target.resolve_inbox_target(selected) is selected
+
+
+@pytest.mark.parametrize("credential", ["editor-secret", HOST.token])
+def test_inbox_validates_explicit_credentials_before_the_host_credential(
+    monkeypatch: pytest.MonkeyPatch, credential: str
+) -> None:
+    calls: list[dict[str, str | None]] = []
+    monkeypatch.setattr(target, "find_host", lambda _: HOST)
+    monkeypatch.setattr(
+        target, "list_running_notebooks", lambda _: Listing([NOTEBOOK], [])
+    )
+    monkeypatch.setattr(
+        target, "list_sessions", lambda **kwargs: calls.append(kwargs) or {}
+    )
+    selected = ExecutionTarget(
+        NOTEBOOK.url, NOTEBOOK.id, credential, NOTEBOOK.id
+    )
+    assert target.resolve_inbox_target(selected) == ExecutionTarget(
+        NOTEBOOK.url, NOTEBOOK.id, HOST.token, NOTEBOOK.id
+    )
+    assert calls == (
+        []
+        if credential == HOST.token
+        else [{"url": NOTEBOOK.url, "token": credential}]
+    )
+
+
+def test_inbox_rejects_invalid_explicit_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def refused(**_: object) -> dict[str, dict[str, str]]:
+        raise PairError("Authentication failed.")
+
+    monkeypatch.setattr(target, "find_host", lambda _: HOST)
+    monkeypatch.setattr(target, "list_sessions", refused)
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda _: pytest.fail("Must not use the host credential"),
+    )
+    selected = ExecutionTarget(NOTEBOOK.url, NOTEBOOK.id, "wrong", NOTEBOOK.id)
+    with pytest.raises(PairError, match="Authentication failed"):
+        target.resolve_inbox_target(selected)
+
+
+def test_connect_does_not_replace_explicit_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        target,
+        "find_host",
+        lambda _: pytest.fail("Must not use private credentials"),
+    )
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda: pytest.fail("Must not change server"),
+    )
+    monkeypatch.setattr(
+        target,
+        "list_sessions",
+        lambda **_: {
+            "browser": {"session_id": "sess-one", "notebook_id": NOTEBOOK.id}
+        },
+    )
+    result = target.resolve_target(
+        url="http://localhost:3000",
+        session_id=NOTEBOOK.id,
+        token="explicit",
+        require_notebook=True,
+    )
+    assert result.url == "http://localhost:3000"
+    assert result.token == "explicit"
+
+
+def test_connect_rejects_a_session_without_a_host_notebook(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        target,
+        "list_sessions",
+        lambda **_: {"browser": {"session_id": "sess-one"}},
+    )
+    with pytest.raises(PairError, match="does not expose a host notebook ID"):
+        target.resolve_target(
+            url="https://remote",
+            session_id="sess-one",
+            token="explicit",
+            require_notebook=True,
+        )
+
+
+def test_connect_does_not_discover_another_host_after_authentication_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def refused(**_: object) -> dict[str, dict[str, str]]:
+        raise PairError("Authentication failed")
+
+    monkeypatch.setattr(target, "find_host", lambda _: None)
+    monkeypatch.setattr(target, "list_sessions", refused)
+    monkeypatch.setattr(
+        target,
+        "list_running_notebooks",
+        lambda _: pytest.fail("Must not switch servers"),
+    )
+    with pytest.raises(PairError, match="Authentication failed"):
+        target.resolve_target(
+            url="http://localhost:3000",
+            session_id=NOTEBOOK.id,
+            token=None,
+            require_notebook=True,
+        )

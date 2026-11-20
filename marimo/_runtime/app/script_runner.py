@@ -304,21 +304,18 @@ class AppScriptRunner:
             # NB. attached here rather than __init__: config resolution
             # needs the runtime context, and the notebook's inline
             # [tool.marimo.runtime] table merges by filename.
-            runtime_config = get_context().marimo_config.get("runtime", {})
+            runtime_config = get_context().marimo_config.runtime
             # A cache key can hash the code of the cells that define a ref
             # instead of its value, so with overrides a run would restore,
             # and save, results under the keys of the cells they replace.
-            if (
-                runtime_config.get("cache_cells", False)
-                and not self._has_overrides
-            ):
+            if runtime_config.cache_cells and not self._has_overrides:
                 from marimo._runtime.executor.lifecycles.cached import (
                     CachedLifecycle,
                 )
 
                 self._cache = CachedLifecycle(
                     self.app.graph,
-                    pin_modules=bool(runtime_config.get("pin_modules", True)),
+                    pin_modules=runtime_config.pin_modules,
                 )
                 self._evaluator.lifecycles = [self._cache]
 

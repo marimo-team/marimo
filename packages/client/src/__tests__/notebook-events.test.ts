@@ -250,11 +250,11 @@ describe("NotebookEvents", () => {
       onStatus: (status) => statuses.push(status),
     });
     first.push(snapshot);
-    await vi.waitFor(() => expect(events.cursor).toBe("97"));
+    await vi.waitFor(() => expect(events.cursor).toBe("98"));
     first.end();
     await vi.advanceTimersByTimeAsync(2000);
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    expect(sent(1).headers.get("Last-Event-ID")).toBe("97");
+    expect(sent(1).headers.get("Last-Event-ID")).toBe("98");
     expect(statuses).toMatchInlineSnapshot(`
       [
         "connected",
@@ -392,7 +392,7 @@ describe("NotebookEvents", () => {
 
   it("stops with the problem when the host refuses the stream", async () => {
     const problem = {
-      type: "tag:marimo.io,2026:host/not-found",
+      type: "urn:marimo:problem:not-found",
       title: "Not found",
       status: 404,
     };

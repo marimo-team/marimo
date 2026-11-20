@@ -209,25 +209,20 @@ def test_get_cell_errors_extracts_from_output():
 
 def test_get_cell_console_outputs_separates_stdout_stderr():
     """Test get_cell_console_outputs separates stdout and stderr."""
-    from unittest.mock import Mock
+    from marimo._messaging.cell_output import CellOutput
+    from marimo._messaging.notification import CellNotification
+    from marimo._session.state.session_view import SessionView
+    from marimo._types.ids import CellId_t
 
-    from marimo._messaging.cell_output import CellChannel
-
-    context = ToolContext()
-
-    # Mock cell_notification with stdout and stderr
-    stdout_output = Mock()
-    stdout_output.channel = CellChannel.STDOUT
-    stdout_output.data = "hello"
-
-    stderr_output = Mock()
-    stderr_output.channel = CellChannel.STDERR
-    stderr_output.data = "warning"
-
-    cell_notification = Mock()
-    cell_notification.console = [stdout_output, stderr_output]
-
-    result = context.get_cell_console_outputs(cell_notification)
+    view = SessionView()
+    cell = CellId_t("cell")
+    view.add_notification(
+        CellNotification(
+            cell,
+            console=[CellOutput.stdout("hello"), CellOutput.stderr("warning")],
+        )
+    )
+    result = ToolContext().get_cell_console_outputs(view, cell)
 
     assert len(result.stdout) == 1
     assert "hello" in result.stdout[0]

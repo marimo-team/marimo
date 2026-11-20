@@ -40,14 +40,15 @@ import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
 import type { AppMode } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
-import { useRequestClient } from "@/core/network/requests";
 import {
   type CellExecutionView,
   type CellFreshness,
   type CellRunStatus,
-  useCellExecution,
-  useCellFreshness,
+  useCellPresentation,
+  useCellOutline,
+  useCellOutput,
 } from "@/core/executions";
+import { useAnswerPrompt } from "@/core/cells/useAnswerPrompt";
 import type { CellConfig } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
@@ -63,7 +64,7 @@ import {
 } from "../../core/cells/editor";
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import {
-  cellNeedsRun,
+  cellRunReason,
   cellStatusClasses,
   isUninstantiated,
   publishedCellClasses,
@@ -324,9 +325,8 @@ const ReadonlyCellComponent = forwardRef(
   (props: { cellId: CellId }, ref: React.ForwardedRef<HTMLDivElement>) => {
     const { cellId } = props;
     const cellData = useCellData(cellId);
-    const cellRuntime = useCellRuntime(cellId);
-    const execution = useCellExecution(cellId);
-    const freshness = useCellFreshness(cellId);
+    const output = useCellOutput(cellId);
+    const { execution, freshness } = useCellPresentation(cellId);
     const errored = execution.outcome === "error";
     const interrupted = execution.outcome === "interrupted";
     const stopped = execution.outcome === "skipped";
@@ -340,7 +340,7 @@ const ReadonlyCellComponent = forwardRef(
       errored,
       interrupted,
       stopped,
-      output: cellRuntime.output,
+      output,
       showErrorTracebacks: false,
     });
 
@@ -360,7 +360,7 @@ const ReadonlyCellComponent = forwardRef(
           forceExpand={true}
           className={CSSClasses.outputArea}
           cellId={cellId}
-          output={cellRuntime.output}
+          output={output}
           stale={outputIsStale(execution, freshness, true)}
           loading={outputIsLoading(execution.status)}
         />
@@ -389,8 +389,9 @@ const EditableCellComponent = ({
   const cellRef = useRef<HTMLDivElement>(null);
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
-  const execution = useCellExecution(cellId);
-  const freshness = useCellFreshness(cellId);
+  const output = useCellOutput(cellId);
+  const outline = useCellOutline(cellId);
+  const { execution, freshness } = useCellPresentation(cellId);
   const errored = execution.outcome === "error";
   const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
@@ -404,19 +405,14 @@ const EditableCellComponent = ({
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
   const runCell = useRunCell(cellId);
-  const { sendStdin } = useRequestClient();
+  const answerPrompt = useAnswerPrompt(cellId);
   const isPendingCut = useIsPendingCut(cellId);
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
   const uninstantiated = isUninstantiated(execution);
 
-  const needsRun = cellNeedsRun({
-    freshness,
-    interrupted,
-    disabled: cellData.config.disabled,
-    blocked: execution.blocked,
-  });
+  const needsRun = cellRunReason(execution, freshness, cellData) !== null;
 
   const loading = outputIsLoading(execution.status);
 
@@ -430,7 +426,7 @@ const EditableCellComponent = ({
       errored,
       interrupted,
       stopped,
-      output: cellRuntime.output,
+      output,
       showErrorTracebacks: userConfig.runtime.show_tracebacks ?? false,
     });
 
@@ -476,8 +472,8 @@ const EditableCellComponent = ({
     editorView,
     cellActionDropdownRef,
   });
-  const canCollapse = canCollapseOutline(cellRuntime.outline);
-  const hasOutput = !isOutputEmpty(cellRuntime.output);
+  const canCollapse = canCollapseOutline(outline);
+  const hasOutput = !isOutputEmpty(output);
   // While presenting, pending edits do not dim the output as stale,
   // matching the read view.
   const isStaleCell = outputIsStale(execution, freshness, !isPresenting);
@@ -572,7 +568,7 @@ const EditableCellComponent = ({
         forceExpand={isMarkdownCodeHidden || isPresenting}
         className={CSSClasses.outputArea}
         cellId={cellId}
-        output={cellRuntime.output}
+        output={output}
         stale={isStaleCell}
         loading={outputIsLoading(execution.status)}
       />
@@ -813,7 +809,6 @@ const EditableCellComponent = ({
               <ConsoleOutput
                 consoleOutputs={cellRuntime.consoleOutputs}
                 stale={consoleOutputStale}
-                interrupted={interrupted}
                 // Empty name if serialization triggered
                 cellName={cellRuntime.serialization ? "_" : cellData.name}
                 onRefactorWithAI={handleRefactorWithAI}
@@ -823,16 +818,8 @@ const EditableCellComponent = ({
                   // breakpoints; no-op when none are set.
                   clearCellBreakpoints(cellId);
                 }}
-                onSubmitDebugger={(text, index) => {
-                  actions.setStdinResponse({
-                    cellId,
-                    response: text,
-                    outputIndex: index,
-                  });
-                  sendStdin({ text });
-                }}
+                onSubmitDebugger={answerPrompt}
                 cellId={cellId}
-                debuggerActive={cellRuntime.debuggerActive}
               />
             )}
             <PendingDeleteConfirmation cellId={cellId} />
@@ -1049,10 +1036,9 @@ const SetupCellComponent = ({
   const cellRef = useRef<HTMLDivElement>(null);
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
-  const execution = useCellExecution(cellId);
-  const freshness = useCellFreshness(cellId);
+  const output = useCellOutput(cellId);
+  const { execution, freshness } = useCellPresentation(cellId);
   const errored = execution.outcome === "error";
-  const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
@@ -1060,19 +1046,14 @@ const SetupCellComponent = ({
   const connection = useAtomValue(connectionAtom);
 
   const actions = useCellActions();
-  const requestClient = useRequestClient();
   const deleteCell = useDeleteCellCallback();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const runCell = useRunCell(cellId);
+  const answerPrompt = useAnswerPrompt(cellId);
 
   const uninstantiated = isUninstantiated(execution);
 
-  const needsRun = cellNeedsRun({
-    freshness,
-    interrupted,
-    disabled: cellData.config.disabled,
-    blocked: execution.blocked,
-  });
+  const needsRun = cellRunReason(execution, freshness, cellData) !== null;
   const loading =
     execution.status === "running" || execution.status === "queued";
 
@@ -1104,9 +1085,9 @@ const SetupCellComponent = ({
     editorView,
     cellActionDropdownRef,
   });
-  const hasOutput = !isOutputEmpty(cellRuntime.output);
+  const hasOutput = !isOutputEmpty(output);
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
-  const isErrorOutput = isErrorMime(cellRuntime.output?.mimetype);
+  const isErrorOutput = isErrorMime(output?.mimetype);
 
   const className = clsx("marimo-cell", "hover-actions-parent z-10", {
     interactive: true,
@@ -1275,7 +1256,7 @@ const SetupCellComponent = ({
                 forceExpand={true}
                 className={CSSClasses.outputArea}
                 cellId={cellId}
-                output={cellRuntime.output}
+                output={output}
                 stale={false}
                 loading={loading}
               />
@@ -1283,7 +1264,6 @@ const SetupCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
-              interrupted={interrupted}
               // Don't show name
               cellName={"_"}
               onRefactorWithAI={handleRefactorWithAI}
@@ -1293,16 +1273,8 @@ const SetupCellComponent = ({
                 // breakpoints; no-op when none are set.
                 clearCellBreakpoints(cellId);
               }}
-              onSubmitDebugger={(text, index) => {
-                actions.setStdinResponse({
-                  cellId,
-                  response: text,
-                  outputIndex: index,
-                });
-                requestClient.sendStdin({ text });
-              }}
+              onSubmitDebugger={answerPrompt}
               cellId={cellId}
-              debuggerActive={cellRuntime.debuggerActive}
             />
           </div>
         </div>

@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { defaultUserConfig } from "@/core/config/config-schema";
+
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -16,11 +18,6 @@ import {
   vi,
 } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
-import {
-  notebookQueuedOrRunningCountAtom,
-  submitCells,
-} from "@/core/executions";
-import { store } from "@/core/state/jotai";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import type { CellHandle } from "@/components/editor/notebook-cell";
@@ -28,14 +25,12 @@ import { CellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { OutputMessage } from "@/core/kernel/messages";
 import type { CellConfig } from "@/core/network/types";
-import type { Seconds } from "@/utils/time";
 import {
   exportedForTesting,
-  flattenTopLevelNotebookCells,
   type NotebookState,
   notebookAtom,
+  renderedNotebookCellsAtom,
 } from "../cells";
 import {
   type CellData,
@@ -88,14 +83,14 @@ function createEditor(content: string) {
       adaptiveLanguageConfiguration({
         cellId: cellId("cell1"),
         completionConfig: {
+          ...defaultUserConfig().completion,
           activate_on_typing: true,
           signature_hint_on_typing: false,
           copilot: false,
-          codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
-        lspConfig: {},
+        lspConfig: { ...defaultUserConfig().language_servers },
       }),
     ],
   });
@@ -110,7 +105,6 @@ function createEditor(content: string) {
 
 describe("cell reducer", () => {
   let state: NotebookState;
-  let cells: ReturnType<typeof flattenTopLevelNotebookCells>;
   let firstCellId: CellId;
 
   const mountEditors = () => {
@@ -126,7 +120,6 @@ describe("cell reducer", () => {
         state.cellHandles[cid] = { current: handle };
       }
     }
-    cells = flattenTopLevelNotebookCells(state);
   };
   const actions = createActions((action) => {
     state = reducer(state, action);
@@ -235,632 +228,6 @@ describe("cell reducer", () => {
     `);
   });
 
-  it("keeps error evidence after an edit and a new queued run", () => {
-    const code = "raise ValueError('old failure')";
-    const output: OutputMessage = {
-      channel: "marimo-error",
-      mimetype: "application/vnd.marimo+error",
-      data: [
-        {
-          type: "exception",
-          msg: "old failure",
-          exception_type: "ValueError",
-          raising_cell: null,
-          traceback: "<pre>ValueError: old failure</pre>",
-        },
-      ],
-      code,
-      timestamp: 1,
-    };
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output,
-      console: {
-        channel: "stderr",
-        mimetype: "application/vnd.marimo+traceback",
-        data: "<pre>ValueError: old failure</pre>",
-        code,
-        timestamp: 1,
-      },
-      status: "idle",
-      timestamp: 1,
-    });
-    editCode(firstCellId, "print('new code')");
-    actions.prepareForRun({ cellId: firstCellId });
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: null,
-      console: null,
-      status: "queued",
-      timestamp: 2,
-    });
-    const runtime = state.cellRuntime[firstCellId];
-    expect(runtime.output).toEqual(output);
-    expect(runtime.consoleOutputs[0].code).toBe(code);
-    expect(runtime.consoleOutputs[0].data).toContain("old failure");
-  });
-
-  it("can run cell and receive cell messages", () => {
-    // HAPPY PATH
-    /////////////////
-    // Initial state
-    let cell = cells[0];
-    expect(cell).toMatchSnapshot("initial state");
-
-    // Update code
-    editCode(firstCellId, "import marimo as mo");
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("code edited");
-
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: firstCellId,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("prepared for run");
-
-    // Receive queued messages
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "queued",
-      timestamp: new Date(10).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("queued message received");
-
-    // Receive running messages
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "running",
-      timestamp: new Date(20).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("running message received");
-
-    // Console messages shouldn't transition status
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: {
-        channel: "stdout",
-        mimetype: "text/plain",
-        data: "hello!",
-        timestamp: 0,
-      },
-      status: undefined,
-      timestamp: new Date(22).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("console message received");
-
-    // Receive output messages
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: {
-        channel: "output",
-        mimetype: "text/plain",
-        data: "ok",
-        timestamp: 0,
-      },
-      console: {
-        channel: "stdout",
-        mimetype: "text/plain",
-        data: "hello!",
-        timestamp: 0,
-      },
-      status: "idle",
-      timestamp: new Date(33).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("output received");
-
-    // EDITING BACK AND FORTH
-    /////////////////
-    // Update code again
-    editCode(firstCellId, "import marimo as mo\nimport numpy");
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("code edited again");
-
-    // Update code should be unedited
-    editCode(firstCellId, "import marimo as mo");
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("code reverted");
-
-    // Update code should be edited again
-    editCode(firstCellId, "import marimo as mo\nimport numpy");
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("code changed after revert");
-
-    // ERROR RESPONSE
-    /////////////////
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: firstCellId,
-    });
-    cell = cells[0];
-    expect(cell.output).not.toBe(null); // keep old output
-    // Queue
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "queued",
-      timestamp: new Date(40).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.output).not.toBe(null); // keep old output
-    // Running
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "running",
-      timestamp: new Date(50).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.output).not.toBe(null); // keep old output
-    // Receive error
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: {
-        channel: "marimo-error",
-        mimetype: "application/vnd.marimo+error",
-        data: [
-          { type: "exception", exception_type: "ValueError", msg: "Oh no!" },
-        ],
-        timestamp: 0,
-      },
-      console: null,
-      status: "idle",
-      timestamp: new Date(61).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.output).not.toBe(null); // keep old output
-    expect(cell).toMatchSnapshot("error response received");
-
-    // INTERRUPT RESPONSE
-    /////////////////
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: firstCellId,
-    });
-    cell = cells[0];
-    expect(cell.output).not.toBe(null); // keep old output
-    // Queue
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "queued",
-      timestamp: new Date(40).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.output).not.toBe(null); // keep old output
-    // Running
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "running",
-      timestamp: new Date(50).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.output).not.toBe(null); // keep old output
-    // Receive error
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: {
-        channel: "marimo-error",
-        mimetype: "application/vnd.marimo+error",
-        data: [{ type: "interruption" }],
-        timestamp: 0,
-      },
-      console: null,
-      status: "idle",
-      timestamp: new Date(61).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("interruption response received");
-  });
-
-  it("can run a stale cell", () => {
-    // Update code of first cell
-    editCode(firstCellId, "import marimo as mo");
-    // Add cell
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-    });
-    const secondCell = cells[1].id;
-    // Update code
-    editCode(secondCell, "mo.slider()");
-
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: secondCell,
-    });
-
-    // Receive queued messages
-    actions.handleCellMessage({
-      cell_id: secondCell,
-      output: undefined,
-      console: null,
-      status: "queued",
-      timestamp: new Date(10).getTime() as Seconds,
-    });
-    let cell = cells[1];
-    expect(cell).toMatchSnapshot("queued message received");
-
-    // Receive stale message
-    actions.handleCellMessage({
-      cell_id: secondCell,
-      output: undefined,
-      console: null,
-      status: undefined,
-      timestamp: new Date(20).getTime() as Seconds,
-    });
-    cell = cells[1];
-    expect(cell).toMatchSnapshot("stale inputs received");
-  });
-
-  it("can run a stopped cell", () => {
-    // Update code of first cell
-    editCode(firstCellId, "mo.md('This has an ancestor that was stopped')");
-
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: firstCellId,
-    });
-
-    // Receive queued messages
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "queued",
-      timestamp: new Date(10).getTime() as Seconds,
-    });
-    let cell = cells[0];
-    expect(cell).toMatchSnapshot("queued message received");
-
-    // Receive idle message
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "idle",
-      timestamp: new Date(20).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("idle message received");
-
-    // Receive stop output
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: {
-        channel: "marimo-error",
-        mimetype: "application/vnd.marimo+error",
-        data: [
-          {
-            msg: "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
-            raising_cell: "2",
-            type: "ancestor-stopped",
-          },
-        ],
-        timestamp: new Date(20).getTime() as Seconds,
-      },
-      console: null,
-      status: "idle",
-      timestamp: new Date(20).getTime() as Seconds,
-    });
-    cell = cells[0];
-    // oxlint-disable-next-line typescript/no-explicit-any no-unsafe-optional-chaining
-    expect((cell.output?.data as any)[0].msg).toBe(
-      "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
-    );
-    expect(cell).toMatchSnapshot("ancestor stopped");
-
-    // Receive queued message
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "queued",
-      timestamp: new Date(30).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("queued after stop");
-
-    // Receive running message
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "running",
-      timestamp: new Date(40).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.output).toBe(null);
-    expect(cell).toMatchSnapshot("running after stop");
-  });
-
-  it("can initialize stdin", () => {
-    const STDOUT: OutputMessage = {
-      channel: "stdout",
-      mimetype: "text/plain",
-      data: "hello!",
-      timestamp: 1,
-    };
-    const STD_IN_1: OutputMessage = {
-      channel: "stdin",
-      mimetype: "text/plain",
-      data: "what is your name?",
-      timestamp: 2,
-    };
-    const STD_IN_2: OutputMessage = {
-      channel: "stdin",
-      mimetype: "text/plain",
-      data: "how old are you?",
-      timestamp: 3,
-    };
-
-    // Initial state
-    let cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot("initial state");
-
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: firstCellId,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot("prepared for run");
-
-    // Receive queued messages
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "queued",
-      timestamp: new Date(10).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("queued message received");
-
-    // Receive running messages
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "running",
-      timestamp: new Date(20).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("running message received");
-
-    // Add console
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: STDOUT,
-      status: undefined,
-      timestamp: new Date(22).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell).toMatchSnapshot("stdout received");
-
-    cell = cells[0];
-    expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
-    expect(cell).toMatchSnapshot("stdout verified");
-
-    // Ask via stdin
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: STD_IN_1,
-      status: undefined,
-      timestamp: new Date(22).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
-    expect(cell.consoleOutputs[1]).toMatchObject(STD_IN_1);
-    expect(cell).toMatchSnapshot("stdin requested");
-
-    // Response to stdin
-    actions.setStdinResponse({
-      response: "Marimo!",
-      cellId: firstCellId,
-      outputIndex: 1,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs[1]).toMatchObject({
-      ...STD_IN_1,
-      response: "Marimo!",
-    });
-    expect(cell).toMatchSnapshot("stdin answered");
-
-    // Ask via stdin, again
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: STD_IN_2,
-      status: undefined,
-      timestamp: new Date(22).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs).toMatchObject([
-      STDOUT,
-      { ...STD_IN_1, response: "Marimo!" },
-      STD_IN_2,
-    ]);
-    expect(cell).toMatchSnapshot("second stdin requested");
-
-    // Interrupt, so we respond with ""
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: {
-        channel: "marimo-error",
-        mimetype: "application/vnd.marimo+error",
-        data: [{ type: "interruption" }],
-        timestamp: 0,
-      },
-      console: null,
-      status: "idle",
-      timestamp: new Date(61).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs).toMatchObject([
-      STDOUT,
-      { ...STD_IN_1, response: "Marimo!" },
-      { ...STD_IN_2, response: "" },
-    ]);
-  });
-
-  it("resolves password prompts without retaining the response", () => {
-    const prompt: OutputMessage = {
-      channel: "stdin",
-      mimetype: "text/password",
-      data: "Password: ",
-      timestamp: 1,
-    };
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: prompt,
-      status: "running",
-      timestamp: 1 as Seconds,
-    });
-
-    const secret = "getpass-regression-secret";
-    actions.setStdinResponse({
-      cellId: firstCellId,
-      outputIndex: 0,
-      response: secret,
-    });
-
-    expect(cells[0].consoleOutputs).toEqual([
-      { ...prompt, id: 1, response: "" },
-    ]);
-    expect(JSON.stringify(cells[0].consoleOutputs)).not.toContain(secret);
-  });
-
-  it("does not crash when setStdinResponse has out-of-bounds outputIndex", () => {
-    const STDOUT: OutputMessage = {
-      channel: "stdout",
-      mimetype: "text/plain",
-      data: "hello!",
-      timestamp: 1,
-    };
-
-    // Set the cell to running with a console output
-    actions.prepareForRun({ cellId: firstCellId });
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "running",
-      timestamp: new Date(20).getTime() as Seconds,
-    });
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: STDOUT,
-      status: undefined,
-      timestamp: new Date(22).getTime() as Seconds,
-    });
-
-    // Try to set stdin response with an out-of-bounds index
-    // This should not crash - it should return state unchanged
-    actions.setStdinResponse({
-      response: "test",
-      cellId: firstCellId,
-      outputIndex: 999,
-    });
-
-    // Cell state should be unchanged
-    const cell = cells[0];
-    expect(cell.consoleOutputs).toHaveLength(1);
-    expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
-  });
-
-  it("can receive console when the cell is idle and will clear when starts again", () => {
-    const OLD_STDOUT: OutputMessage = {
-      channel: "stdout",
-      mimetype: "text/plain",
-      data: "hello!",
-      timestamp: 1,
-    };
-    const STDOUT: OutputMessage = {
-      channel: "stdin",
-      mimetype: "text/plain",
-      data: "hello again!",
-      timestamp: 2,
-    };
-
-    // Initial state
-    let cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot("initial state");
-
-    // Add console
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: [OLD_STDOUT],
-      status: undefined,
-      timestamp: new Date(1).getTime() as Seconds,
-    });
-
-    // Prepare for run
-    actions.prepareForRun({
-      cellId: firstCellId,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
-    expect(cell).toMatchSnapshot("prepared for run");
-
-    // Receive queued messages
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: null,
-      status: "queued",
-      timestamp: new Date(10).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
-    expect(cell).toMatchSnapshot("queued message received");
-
-    // Receive running messages
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: [], // Backend sends an empty array to clearu
-      status: "running",
-      timestamp: new Date(20).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs).toMatchObject([]);
-    expect(cell).toMatchSnapshot("console cleared while running");
-
-    // Add console
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: [STDOUT],
-      status: "idle",
-      timestamp: new Date(22).getTime() as Seconds,
-    });
-    cell = cells[0];
-    expect(cell.consoleOutputs).toMatchObject([STDOUT]);
-    expect(cell).toMatchSnapshot("console received while idle");
-  });
-
   it("can fold and unfold all cells", () => {
     actions.foldAll();
     expect(foldAllBulk).toHaveBeenCalled();
@@ -888,202 +255,6 @@ describe("cell reducer", () => {
     expect(state.cellLogs).toEqual([]);
   });
 
-  it("can handle multiple console outputs", () => {
-    const STDOUT1: OutputMessage = {
-      channel: "stdout",
-      mimetype: "text/plain",
-      data: "output1",
-      timestamp: 1,
-    };
-    const STDOUT2: OutputMessage = {
-      channel: "stdout",
-      mimetype: "text/plain",
-      data: "output2",
-      timestamp: 2,
-    };
-
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: undefined,
-      console: [STDOUT1, STDOUT2],
-      status: "running",
-      timestamp: new Date(20).getTime() as Seconds,
-    });
-
-    const cell = cells[0];
-    expect(cell.consoleOutputs).toMatchInlineSnapshot(`
-      [
-        {
-          "channel": "stdout",
-          "data": "output1output2",
-          "mimetype": "text/plain",
-          "timestamp": 1,
-        },
-      ]
-    `);
-  });
-
-  it("can clear output of a single cell", () => {
-    // Set up initial state with output
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: {
-        channel: "output",
-        mimetype: "text/plain",
-        data: "test output",
-        timestamp: 0,
-      },
-      console: {
-        channel: "stdout",
-        mimetype: "text/plain",
-        data: "console output",
-        timestamp: 0,
-      },
-      status: "idle",
-      timestamp: new Date(33).getTime() as Seconds,
-    });
-
-    // Verify initial state has output
-    let cell = cells[0];
-    expect(cell.output).not.toBeNull();
-    expect(cell.consoleOutputs.length).toBe(1);
-
-    // Clear output
-    actions.clearCellOutput({ cellId: firstCellId });
-
-    // Verify output is cleared
-    cell = cells[0];
-    expect(cell.output).toBeNull();
-    expect(cell.consoleOutputs).toEqual([]);
-  });
-
-  it("can clear console output of a single cell", () => {
-    // Set up initial state with output
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      output: {
-        channel: "output",
-        mimetype: "text/plain",
-        data: "test output",
-        timestamp: 0,
-      },
-      console: {
-        channel: "stdout",
-        mimetype: "text/plain",
-        data: "console output",
-        timestamp: 0,
-      },
-      status: "idle",
-      timestamp: new Date(33).getTime() as Seconds,
-    });
-
-    // Add a stdin console output that should be preserved
-    actions.handleCellMessage({
-      cell_id: firstCellId,
-      console: {
-        channel: "stdin",
-        mimetype: "text/plain",
-        data: "stdin prompt",
-        timestamp: 0,
-      },
-      status: "idle",
-      timestamp: new Date(34).getTime() as Seconds,
-    });
-
-    // Verify initial state has output and console outputs
-    let cell = cells[0];
-    expect(cell.output).not.toBeNull();
-    expect(cell.consoleOutputs.length).toBe(2);
-
-    // Clear console output
-    actions.clearCellConsoleOutput({ cellId: firstCellId });
-
-    // Verify only console output is cleared, but stdin is preserved
-    cell = cells[0];
-    expect(cell.output).not.toBeNull(); // Output should remain
-    expect(cell.consoleOutputs.length).toBe(1);
-    expect(cell.consoleOutputs[0].channel).toBe("stdin");
-    expect(cell.consoleOutputs[0].data).toBe("stdin prompt");
-  });
-
-  it("can clear output of all cells", () => {
-    // Create multiple cells with output
-    seedCell({ cellId: firstCellId, before: false });
-    const secondCellId = state.cellIds[1];
-
-    // Add output to both cells
-    const outputMessage = {
-      output: {
-        channel: "output",
-        mimetype: "text/plain",
-        data: "test output",
-        timestamp: 0,
-      },
-      console: {
-        channel: "stdout",
-        mimetype: "text/plain",
-        data: "console output",
-        timestamp: 0,
-      },
-      status: "idle",
-      timestamp: new Date(33).getTime() as Seconds,
-    } as const;
-
-    actions.handleCellMessage({
-      ...outputMessage,
-      cell_id: firstCellId,
-    });
-    actions.handleCellMessage({
-      ...outputMessage,
-      cell_id: secondCellId,
-    });
-
-    // Verify initial state has output
-    expect(state.cellRuntime[firstCellId].output).not.toBeNull();
-    expect(state.cellRuntime[firstCellId].consoleOutputs.length).toBe(1);
-    expect(state.cellRuntime[secondCellId].output).not.toBeNull();
-    expect(state.cellRuntime[secondCellId].consoleOutputs.length).toBe(1);
-
-    // Clear all outputs
-    actions.clearAllCellOutputs();
-
-    // Verify all outputs are cleared
-    expect(state.cellRuntime[firstCellId].output).toBeNull();
-    expect(state.cellRuntime[firstCellId].consoleOutputs).toEqual([]);
-    expect(state.cellRuntime[secondCellId].output).toBeNull();
-    expect(state.cellRuntime[secondCellId].consoleOutputs).toEqual([]);
-  });
-
-  it("can clear all outputs", () => {
-    // Add a cell and give it output
-    seedCell({
-      cellId: firstCellId,
-      before: false,
-    });
-
-    const cell1Id = cells[0].id;
-    const cell2Id = cells[1].id;
-
-    // Manually set output for the cells
-    state.cellRuntime[cell1Id].output = {
-      channel: "output",
-      mimetype: "text/plain",
-      data: "output1",
-      timestamp: 0 as Seconds,
-    };
-    state.cellRuntime[cell2Id].output = {
-      channel: "output",
-      mimetype: "text/plain",
-      data: "output2",
-      timestamp: 0 as Seconds,
-    };
-
-    actions.clearAllCellOutputs();
-
-    expect(state.cellRuntime[cell1Id].output).toBeNull();
-    expect(state.cellRuntime[cell2Id].output).toBeNull();
-  });
-
   describe("releaseCellAtoms", () => {
     it("atom families cache atoms until explicitly removed", () => {
       const { cellDataAtom, cellRuntimeAtom, cellHandleAtom } =
@@ -1106,15 +277,28 @@ describe("cell reducer", () => {
       expect(handleAtom2).toBe(handleAtom1);
     });
   });
-  it("withdraws the submission of a cell that leaves the document", () => {
-    MockExecutions.seed(store, []);
-    submitCells(store, [firstCellId]);
-    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(1);
+});
 
-    actions.reconcileDocument({ order: [], cells: new Map() });
+it("keeps layout cells stable when only a notebook log changes", () => {
+  const store = createStore();
+  const id = cellId("cell1");
+  const notebook = MockNotebook.notebookState({ cellData: { [id]: {} } });
+  store.set(notebookAtom, notebook);
+  const cells = store.get(renderedNotebookCellsAtom);
+  expect(cells.map((cell) => cell.id)).toEqual([id]);
 
-    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
+  store.set(notebookAtom, {
+    ...notebook,
+    cellLogs: [
+      {
+        level: "stderr",
+        message: "log",
+        timestamp: 0,
+        source: { type: "cell", cellId: id },
+      },
+    ],
   });
+  expect(store.get(renderedNotebookCellsAtom)).toBe(cells);
 });
 
 describe("createTracebackInfoAtom", () => {
@@ -1142,162 +326,60 @@ describe("createTracebackInfoAtom", () => {
     expect(traceback).toBeUndefined();
   });
 
-  it("extracts lineno from syntax errors", async () => {
+  it("extracts the line of a syntax error the host reports", () => {
     store.set(
       notebookAtom,
       MockNotebook.notebookState({
-        cellData: {
-          [cellId("cell1")]: {
-            id: cellId("cell1"),
-            name: "cell1",
-            code: "x = 1",
-          },
-        },
-        cellRuntime: {
-          [cellId("cell1")]: {
-            output: {
-              channel: "marimo-error",
-              data: [{ type: "syntax", msg: "Syntax error", lineno: 5 }],
-              mimetype: "application/vnd.marimo+error",
-            },
-          },
-        },
+        cellData: { [cellId("cell1")]: { code: "x = 1" } },
       }),
     );
+    MockExecutions.seed(store, [
+      MockExecutions.failed(cellId("cell1"), {
+        kind: "invalid-syntax",
+        message: "Syntax error",
+        range: {
+          start: { line: 4, character: 0 },
+          end: { line: 4, character: 0 },
+        },
+      }),
+    ]);
 
     const tracebackAtom = exportedForTesting.createTracebackInfoAtom(
       cellId("cell1"),
     );
     const traceback = store.get(tracebackAtom);
 
-    expect(traceback).toBeDefined();
-    expect(traceback).toHaveLength(1);
-    expect(traceback![0]).toEqual({
-      kind: "cell",
-      cellId: cellId("cell1"),
-      lineNumber: 5,
-    });
+    expect(traceback).toEqual([
+      { kind: "cell", cellId: cellId("cell1"), lineNumber: 5 },
+    ]);
   });
 
-  it("handles syntax errors with lineno = 0", async () => {
+  it("ignores a syntax error without a range", () => {
     store.set(
       notebookAtom,
       MockNotebook.notebookState({
-        cellData: {
-          [cellId("cell1")]: {
-            id: cellId("cell1"),
-            name: "cell1",
-            code: "x = 1",
-          },
-        },
-        cellRuntime: {
-          [cellId("cell1")]: {
-            output: {
-              channel: "marimo-error",
-              data: [{ type: "syntax", msg: "Syntax error", lineno: 0 }],
-              mimetype: "application/vnd.marimo+error",
-            },
-          },
-        },
+        cellData: { [cellId("cell1")]: { code: "x = 1" } },
       }),
     );
+    MockExecutions.seed(store, [
+      MockExecutions.failed(cellId("cell1"), {
+        kind: "invalid-syntax",
+        message: "Syntax error",
+      }),
+    ]);
 
     const tracebackAtom = exportedForTesting.createTracebackInfoAtom(
       cellId("cell1"),
     );
-    const traceback = store.get(tracebackAtom);
-    expect(traceback).toBeDefined();
-    expect(traceback).toHaveLength(1);
-    expect(traceback![0].lineNumber).toBe(0);
-  });
 
-  it("ignores syntax errors with lineno = null", () => {
-    store.set(
-      notebookAtom,
-      MockNotebook.notebookState({
-        cellData: {
-          [cellId("cell1")]: {
-            id: cellId("cell1"),
-            name: "cell1",
-            code: "x = 1",
-          },
-        },
-        cellRuntime: {
-          [cellId("cell1")]: {
-            output: {
-              channel: "marimo-error",
-              data: [{ type: "syntax", msg: "Syntax error", lineno: null }],
-              mimetype: "application/vnd.marimo+error",
-            },
-          },
-        },
-      }),
-    );
-
-    const tracebackAtom = exportedForTesting.createTracebackInfoAtom(
-      cellId("cell1"),
-    );
-    const traceback = store.get(tracebackAtom);
-
-    expect(traceback).toBeUndefined();
-  });
-
-  it("handles multiple syntax errors", () => {
-    store.set(
-      notebookAtom,
-      MockNotebook.notebookState({
-        cellData: {
-          [cellId("cell1")]: {
-            id: cellId("cell1"),
-            name: "cell1",
-            code: "x = 1",
-          },
-        },
-        cellRuntime: {
-          [cellId("cell1")]: {
-            output: {
-              channel: "marimo-error",
-              data: [
-                { type: "syntax", msg: "Syntax error", lineno: 3 },
-                { type: "syntax", msg: "Syntax error", lineno: 7 },
-              ],
-              mimetype: "application/vnd.marimo+error",
-            },
-          },
-        },
-      }),
-    );
-
-    const tracebackAtom = exportedForTesting.createTracebackInfoAtom(
-      cellId("cell1"),
-    );
-    const traceback = store.get(tracebackAtom);
-    expect(traceback).toBeDefined();
-    expect(traceback).toHaveLength(2);
-    expect(traceback![0].lineNumber).toBe(3);
-    expect(traceback![1].lineNumber).toBe(7);
+    expect(store.get(tracebackAtom)).toBeUndefined();
   });
 
   it("returns undefined when cell is queued", async () => {
     store.set(
       notebookAtom,
       MockNotebook.notebookState({
-        cellData: {
-          [cellId("cell1")]: {
-            id: cellId("cell1"),
-            name: "cell1",
-            code: "x = 1",
-          },
-        },
-        cellRuntime: {
-          [cellId("cell1")]: {
-            output: {
-              channel: "marimo-error",
-              data: [{ type: "syntax", msg: "Syntax error", lineno: 1 }],
-              mimetype: "application/vnd.marimo+error",
-            },
-          },
-        },
+        cellData: { [cellId("cell1")]: { code: "x = 1" } },
       }),
     );
     MockExecutions.seed(store, [MockExecutions.queued(cellId("cell1"))]);
@@ -1314,22 +396,7 @@ describe("createTracebackInfoAtom", () => {
     store.set(
       notebookAtom,
       MockNotebook.notebookState({
-        cellData: {
-          [cellId("cell1")]: {
-            id: cellId("cell1"),
-            name: "cell1",
-            code: "x = 1",
-          },
-        },
-        cellRuntime: {
-          [cellId("cell1")]: {
-            output: {
-              channel: "marimo-error",
-              data: [{ type: "syntax", msg: "Syntax error", lineno: 1 }],
-              mimetype: "application/vnd.marimo+error",
-            },
-          },
-        },
+        cellData: { [cellId("cell1")]: { code: "x = 1" } },
       }),
     );
     MockExecutions.seed(store, [MockExecutions.running(cellId("cell1"))]);
@@ -1354,16 +421,9 @@ describe("kernel-ready", () => {
         [CELL_B]: { id: CELL_B, code: "2" },
       },
       cellRuntime: {
-        [CELL_A]: {
-          output: {
-            channel: "output",
-            mimetype: "text/plain",
-            data: "hydrated-A",
-            timestamp: 0,
-          },
-        },
+        [CELL_A]: { serialization: "Valid" },
         [CELL_B]: {
-          consoleOutputs: [
+          embeddedConsole: [
             {
               channel: "stdout",
               mimetype: "text/plain",
@@ -1381,8 +441,8 @@ describe("kernel-ready", () => {
       payload: undefined,
     });
 
-    expect(next.cellRuntime[CELL_A].output).toBeNull();
-    expect(next.cellRuntime[CELL_B].consoleOutputs).toEqual([]);
+    expect(next.cellRuntime[CELL_A].serialization).toBeUndefined();
+    expect(next.cellRuntime[CELL_B].embeddedConsole).toEqual([]);
   });
 
   it("resetCellRuntimes starts the scratch cell over too", () => {
@@ -1390,12 +450,14 @@ describe("kernel-ready", () => {
       cellData: { [CELL_A]: { id: CELL_A, code: "1" } },
       cellRuntime: {
         [SCRATCH_CELL_ID]: {
-          output: {
-            channel: "output",
-            mimetype: "text/plain",
-            data: "scratch",
-            timestamp: 0,
-          },
+          embeddedConsole: [
+            {
+              channel: "stdout",
+              mimetype: "text/plain",
+              data: "scratch",
+              timestamp: 0,
+            },
+          ],
         },
       },
     });
@@ -1404,7 +466,7 @@ describe("kernel-ready", () => {
       payload: undefined,
     });
 
-    expect(next.cellRuntime[SCRATCH_CELL_ID].output).toBeNull();
+    expect(next.cellRuntime[SCRATCH_CELL_ID].embeddedConsole).toEqual([]);
   });
 
   describe("resetCellRuntimes in WASM", () => {
@@ -1418,16 +480,14 @@ describe("kernel-ready", () => {
       vi.mocked(isWasm).mockReturnValue(false);
     });
 
-    it("keeps hydrated outputs and console", () => {
+    it("keeps hydrated console output and starts the rest over", () => {
       const next = exportedForTesting.reducer(hydratedState(), {
         type: "resetCellRuntimes",
         payload: undefined,
       });
 
-      expect(next.cellRuntime[CELL_A].output).toMatchObject({
-        data: "hydrated-A",
-      });
-      expect(next.cellRuntime[CELL_B].consoleOutputs[0]).toMatchObject({
+      expect(next.cellRuntime[CELL_A].serialization).toBeUndefined();
+      expect(next.cellRuntime[CELL_B].embeddedConsole[0]).toMatchObject({
         data: "hydrated-B-stdout",
       });
     });
@@ -1441,8 +501,7 @@ describe("kernel-ready", () => {
         payload: undefined,
       });
 
-      expect(next.cellRuntime[CELL_A].output).toBeNull();
-      expect(next.cellRuntime[CELL_A].consoleOutputs).toEqual([]);
+      expect(next.cellRuntime[CELL_A].embeddedConsole).toEqual([]);
     });
   });
 });

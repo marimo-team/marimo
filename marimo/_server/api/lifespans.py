@@ -113,8 +113,8 @@ async def _cleanup_mcp_task(
 async def mcp(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     session_mgr = state.session_manager
-    user_config = state.config_manager.get_config()
-    mcp_config = user_config.get("mcp")
+    user_config = state.config_manager.get_config(hide_secrets=False)
+    mcp_config = user_config.mcp
 
     # Only start MCP servers in Edit mode
     if session_mgr.mode != SessionMode.EDIT:
@@ -162,7 +162,7 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
     if not state.headless:
         url = _startup_url(state)
         user_config = state.config_manager.get_config()
-        browser = user_config["server"]["browser"]
+        browser = user_config.server.browser
 
         def open_and_log() -> None:
             try:
@@ -235,14 +235,16 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
             shutdown(), name="server.shutdown", registry=background_tasks
         )
 
-    InterruptHandler(
+    handler = InterruptHandler(
         quiet=state.quiet,
         shutdown=request_shutdown,
-    ).register()
-    try:
-        yield
-    finally:
-        await manager.shutdown()
+    )
+    with handler.listen():
+        try:
+            yield
+        finally:
+            handler.begin_shutdown()
+            await manager.shutdown()
 
 
 @contextlib.asynccontextmanager

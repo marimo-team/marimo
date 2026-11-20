@@ -120,7 +120,7 @@ def _normalize_error(error: MarimoError | dict[str, Any]) -> ErrorOutput:
         )
 
 
-def _restore_traceback(traceback: str | list[str] | None) -> str | None:
+def restore_traceback(traceback: str | list[str] | None) -> str | None:
     entries = as_list(traceback)
     if not entries:
         return None
@@ -138,6 +138,7 @@ def serialize_session_view(
     cell_ids: Iterable[CellId_t],
     *,
     drop_virtual_file_outputs: bool,
+    include_callback_output: bool = False,
     script_metadata_hash: str | None = None,
 ) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema.
@@ -146,6 +147,9 @@ def serialize_session_view(
     the NotebookSession schema (and only these cells will be saved to the
     schema). When not provided, this method attempts to recover the notebook
     order from the SessionView object, but this is not always possible.
+
+    Rendered exports include callback output. The execution cache omits it
+    because a restored console belongs to a cell execution.
 
     `./@file/...` URLs are backed by per-process buffers, so
     `drop_virtual_file_outputs` depends on where the snapshot will be
@@ -165,7 +169,10 @@ def serialize_session_view(
 
     for cell_id in cell_ids:
         cell_notif = view.cell_notifications.get(cell_id)
-        if cell_notif is None:
+        cell_console = view.cell_console(
+            cell_id, include_callbacks=include_callback_output
+        )
+        if cell_notif is None and not cell_console:
             # We haven't seen any outputs or notifications for this cell.
             cells.append(
                 Cell(id=cell_id, code_hash=None, outputs=[], console=[])
@@ -174,33 +181,33 @@ def serialize_session_view(
         outputs: list[OutputType] = []
         console: list[ConsoleType] = []
 
-        # Convert output
-        if cell_notif.output:
-            if cell_notif.output.channel == CellChannel.MARIMO_ERROR:
+        cell_output = cell_notif.output if cell_notif is not None else None
+        if cell_output:
+            if cell_output.channel == CellChannel.MARIMO_ERROR:
                 for error in cast(
                     list[MarimoError | dict[str, Any]],
-                    cell_notif.output.data,
+                    cell_output.data,
                 ):
                     outputs.append(_normalize_error(error))
             elif not (
                 drop_virtual_file_outputs
-                and _references_virtual_file(cell_notif.output.data)
+                and _references_virtual_file(cell_output.data)
             ):
                 outputs.append(
                     DataOutput(
                         type="data",
                         data={
-                            cell_notif.output.mimetype: cell_notif.output.data,
+                            cell_output.mimetype: cell_output.data,
                         },
                     )
                 )
 
-        if cell_notif.output and isinstance(cell_notif.output.code, str):
+        if cell_output and isinstance(cell_output.code, str):
             for output in outputs:
-                output["code"] = cell_notif.output.code
+                output["code"] = cell_output.code
 
         # Convert console outputs
-        for console_out in as_list(cell_notif.console):
+        for console_out in cell_console:
             assert isinstance(console_out, CellOutput)
             if console_out.channel == CellChannel.MEDIA:
                 console.append(
@@ -277,7 +284,7 @@ def deserialize_session(
                                 exception_type=output["ename"],
                                 msg=output["evalue"],
                                 raising_cell=None,
-                                traceback=_restore_traceback(
+                                traceback=restore_traceback(
                                     output.get("traceback")
                                 ),
                             )
@@ -589,8 +596,9 @@ class SessionCacheManager:
         self.path = new_path
         self.start()
 
+    @staticmethod
     def is_cache_hit(
-        self, notebook_session: NotebookSessionV1, key: SessionCacheKey
+        notebook_session: NotebookSessionV1, key: SessionCacheKey
     ) -> bool:
         metadata = notebook_session.get("metadata")
         if not isinstance(metadata, dict):
@@ -642,4 +650,7 @@ class SessionCacheManager:
         cached = deserialize_session(notebook_session, code_hash_to_cell_id)
         # Cached cell output must not replace this launch's environment state.
         self.session_view.cell_notifications = cached.cell_notifications
+        # The view now holds what the file does. Writing it back before a
+        # cell has run would drop the code hashes that tie outputs to cells.
+        self.session_view.mark_auto_export_session()
         return self.session_view

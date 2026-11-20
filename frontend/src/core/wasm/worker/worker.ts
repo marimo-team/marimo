@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { unstable_NotebookCall } from "@marimo-team/client";
+import { EDITOR_EVENT_TYPES } from "@/core/notebook/replica";
 import type { PyodideInterface } from "pyodide";
 import {
   createRPC,
@@ -115,9 +116,14 @@ const requestHandler = createRPCRequestHandler({
       const session = await sessionReady.promise;
       const notebook = session.bridge.notebook;
       try {
-        await notebook.subscribe(request.id, request.cursor, (event) => {
-          rpc.send.notebookEvent({ id: request.id, event });
-        });
+        await notebook.subscribe(
+          request.id,
+          request.cursor,
+          (event) => {
+            rpc.send.notebookEvent({ id: request.id, event });
+          },
+          EDITOR_EVENT_TYPES.join(","),
+        );
         if (!canceled) {
           void session.start().catch((error: unknown) => {
             rpc.send.initializedError({ error: prettyError(error) });
@@ -200,6 +206,8 @@ const requestHandler = createRPCRequestHandler({
         });
         // Host runs name cells, so the worker loads their imports itself.
         notebook.set_package_loader(loadPackagesForCode);
+        // This worker serves the editor, whose user can answer a prompt.
+        notebook.allow_input(true);
       } finally {
         notebook.destroy();
       }

@@ -1,10 +1,10 @@
 id: 120
 event: run
-data: {"run":{"id":"run-failed","notebook_id":"n1","runtime_id":"r1","cells":[],"status":"running","started_at":"2026-10-01T09:21:10Z","completed_at":null,"outcome":null},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
+data: {"run":{"id":"run-failed","notebook_id":"n1","runtime_id":"r1","origin":{"kind":"code","code":"import sys\nprint(\"dividing\", file=sys.stderr)\n1 / 0"},"state":{"status":"running","started_at":"2026-10-01T09:21:10Z"}},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
 
 id: 121
 event: execution
-data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_fingerprint":"a32ab03f8d972266","depends_on":{},"status":"running","outcome":null,"started_at":"2026-10-01T09:21:10Z","completed_at":null,"runtime_id":"r1","caused_by":null,"code":"import sys\nprint(\"dividing\", file=sys.stderr)\n1 / 0"},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
+data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_fingerprint":"a32ab03f8d972266","runtime_id":"r1","caused_by":null,"state":{"status":"running","started_at":"2026-10-01T09:21:10Z"}},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:10Z"}
 
 id: 122
 event: console
@@ -12,9 +12,9 @@ data: {"console":{"id":"o4","execution_id":"e8","seq":0,"name":"stderr","text":"
 
 id: 123
 event: execution
-data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_fingerprint":"a32ab03f8d972266","depends_on":{},"status":"completed","outcome":{"kind":"error","error":{"kind":"exception","message":"division by zero","name":"ZeroDivisionError","traceback":{"mimetype":"text/plain","data":"Traceback (most recent call last):\n  File \"<scratch>\", line 3, in <module>\nZeroDivisionError: division by zero\n"},"source":"marimo","severity":"error","range":null,"related":[]}},"started_at":"2026-10-01T09:21:10Z","completed_at":"2026-10-01T09:21:11Z","runtime_id":"r1","caused_by":null,"code":"import sys\nprint(\"dividing\", file=sys.stderr)\n1 / 0"},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:11Z"}
+data: {"execution":{"id":"e8","run_id":"run-failed","cell_id":null,"code_fingerprint":"a32ab03f8d972266","runtime_id":"r1","caused_by":null,"state":{"status":"completed","started_at":"2026-10-01T09:21:10Z","completed_at":"2026-10-01T09:21:11Z","outcome":{"kind":"error","error":{"kind":"exception","message":"division by zero","name":"ZeroDivisionError","traceback":{"mimetype":"text/plain","data":"Traceback (most recent call last):\n  File \"<scratch>\", line 3, in <module>\nZeroDivisionError: division by zero\n"},"source":"marimo","severity":"error","range":null,"related":[]}},"depends_on":{}}},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:11Z"}
 
 id: 124
 event: run
-data: {"run":{"id":"run-failed","notebook_id":"n1","runtime_id":"r1","cells":[],"status":"completed","started_at":"2026-10-01T09:21:10Z","completed_at":"2026-10-01T09:21:11Z","outcome":"failed"},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:11Z"}
+data: {"run":{"id":"run-failed","notebook_id":"n1","runtime_id":"r1","origin":{"kind":"code","code":"import sys\nprint(\"dividing\", file=sys.stderr)\n1 / 0"},"state":{"status":"completed","started_at":"2026-10-01T09:21:10Z","completed_at":"2026-10-01T09:21:11Z","outcome":"failed"}},"request_id":"0f4b2c1d-8e7a-4b6c-a5d4-1e2f3a4b5c6d","time":"2026-10-01T09:21:11Z"}
 

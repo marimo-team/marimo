@@ -1,13 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { components } from "@marimo-team/marimo-api";
+import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  cellId,
-  requestId,
-  uiElementId,
-  widgetModelId,
-} from "@/__tests__/branded";
+import { MockExecutions } from "@/__mocks__/executions";
+import { requestId, uiElementId, widgetModelId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
 
@@ -50,6 +47,7 @@ vi.stubGlobal("URL", MockURL);
 const {
   mockBridge,
   mockLoadPackages,
+  mockNotebookCall,
   mockReplaceSessionRequest,
   mockStopSessionRequest,
   mockStartSessionRequest,
@@ -61,6 +59,7 @@ const {
 } = vi.hoisted(() => ({
   mockBridge: vi.fn(),
   mockLoadPackages: vi.fn(),
+  mockNotebookCall: vi.fn(),
   mockReplaceSessionRequest: vi.fn(),
   mockStopSessionRequest: vi.fn(),
   mockStartSessionRequest: vi.fn(),
@@ -84,6 +83,7 @@ vi.mock("@/core/wasm/rpc", () => ({
       request: {
         bridge: mockBridge,
         loadPackages: mockLoadPackages,
+        notebookCall: mockNotebookCall,
         replaceSession: mockReplaceSessionRequest,
         startSession: mockStartSessionRequest,
         stopSession: mockStopSessionRequest,
@@ -396,6 +396,58 @@ describe("IslandsPyodideBridge", () => {
       expect(consumeMessage.mock.calls).toEqual([notification]);
     });
 
+    it("logs live stdout and stderr from other active apps under the owning cell", async () => {
+      const store = createStore();
+      bridge = new IslandsPyodideBridge({ store });
+      mockParseMarimoIslandApps.mockReturnValue([app(), app("app-2")]);
+      mockCreateMarimoFile
+        .mockReturnValueOnce("first")
+        .mockReturnValueOnce("second");
+      signalWorkerReady();
+      await bridge.initializeApps();
+      const handlers = { open: vi.fn(), message: vi.fn() };
+      void bridge.notebookBackend.transport(
+        { signal: new AbortController().signal, cursor: null },
+        handlers,
+      );
+      const record = {
+        event: "execution",
+        data: {
+          execution: { ...MockExecutions.running("c2"), id: "e1" },
+        },
+      };
+      const write = (name: "stdout" | "stderr", text: string, seq = 0) => ({
+        event: "console",
+        data: { console: { id: text, execution_id: "e1", seq, name, text } },
+      });
+      sendNotebookEvent(2, record);
+      sendNotebookEvent(2, write("stdout", "snapshot"));
+      sendNotebookEvent(2, { ...write("stdout", "hello"), id: "1" });
+      sendNotebookEvent(2, { ...write("stderr", "warning", 1), id: "2" });
+      sendNotebookEvent(2, {
+        event: "execution.removed",
+        data: { id: "e1" },
+        id: "3",
+      });
+      sendNotebookEvent(2, { ...write("stdout", "retired", 2), id: "4" });
+      sendNotebookEvent(3, { ...write("stdout", "inactive"), id: "3" });
+      const managed = { ...write("stdout", "managed"), id: "4" };
+      sendNotebookEvent(1, managed);
+      expect(handlers.message.mock.calls).toEqual([[managed]]);
+      expect(
+        store
+          .get(notebookAtom)
+          .cellLogs.map(({ level, message, source }) => [
+            level,
+            message,
+            source,
+          ]),
+      ).toEqual([
+        ["stdout", "hello", { type: "cell", cellId: "c2" }],
+        ["stderr", "warning", { type: "cell", cellId: "c2" }],
+      ]);
+    });
+
     it("forwards the managed session's host events to the notebook stream", async () => {
       await initializeSingleApp();
       const handlers = { open: vi.fn(), message: vi.fn() };
@@ -411,9 +463,6 @@ describe("IslandsPyodideBridge", () => {
       sendKernelMessage(1);
 
       expect(handlers.message.mock.calls).toEqual([[cell]]);
-      expect(() => bridge.notebookBackend.notebook("n1")).toThrow(
-        "Islands do not edit",
-      );
     });
 
     it("resets the notebook stream when the managed session is replaced or stopped", async () => {
@@ -754,60 +803,44 @@ describe("IslandsPyodideBridge", () => {
     });
   });
 
-  describe("sendRun", () => {
+  describe("notebookBackend.notebook", () => {
     beforeEach(initializeSingleApp);
 
-    it("should include type field in control request", async () => {
-      const request = {
-        cellIds: [cellId("cell-1"), cellId("cell-2")],
-        codes: ["print('hello')", "print('world')"],
-      };
-
-      await bridge.sendRun(request);
-
-      expect(mockBridge).toHaveBeenCalledWith({
-        appId: "app-1",
-        functionName: "put_control_request",
-        payload: {
-          type: "execute-cells",
-          request: undefined,
-          executionRequests: [
-            {
-              type: "execute-cell",
-              cellId: "cell-1",
-              code: "print('hello')",
-            },
-            {
-              type: "execute-cell",
-              cellId: "cell-2",
-              code: "print('world')",
-            },
-          ],
+    it("sends notebook commands to the managed session's host", async () => {
+      mockNotebookCall.mockResolvedValue({
+        status: 202,
+        body: {
+          id: "run-1",
+          notebook_id: "n1",
+          runtime_id: "r1",
+          origin: { kind: "cells", cell_ids: ["c1"] },
+          state: { status: "queued" },
         },
+      });
+
+      const result = await bridge.notebookBackend
+        .notebook("n1")
+        .run({ cells: [{ id: "c1" }], idempotencyKey: "key-1" });
+
+      expect(result.ok).toBe(true);
+      expect(mockNotebookCall).toHaveBeenCalledWith({
+        appId: "app-1",
         sessionGeneration: 1,
+        call: expect.objectContaining({
+          operation: "runtime.run",
+          params: { notebook_id: "n1" },
+          headers: { "idempotency-key": "key-1" },
+          body: { cells: [{ id: "c1" }] },
+        }),
       });
     });
 
-    it("should call loadPackages before putControlRequest", async () => {
-      const request = {
-        cellIds: [cellId("cell-1")],
-        codes: ["import pandas"],
-      };
+    it("has no commands without an active session", async () => {
+      await bridge.stopSession();
 
-      await bridge.sendRun(request);
-
-      // Verify loadPackages was called with joined codes
-      expect(mockLoadPackages).toHaveBeenCalledWith({
-        appId: "app-1",
-        code: "import pandas",
-        sessionGeneration: 1,
-      });
-
-      // Verify order: loadPackages should be called before bridge
-      const loadPackagesCallOrder =
-        mockLoadPackages.mock.invocationCallOrder[0];
-      const bridgeCallOrder = mockBridge.mock.invocationCallOrder[0];
-      expect(loadPackagesCallOrder).toBeLessThan(bridgeCallOrder);
+      expect(() => bridge.notebookBackend.notebook("n1")).toThrow(
+        "No island session is active",
+      );
     });
   });
 
@@ -857,7 +890,6 @@ describe("IslandsPyodideBridge", () => {
         functionName: "",
         args: {},
       });
-      await bridge.sendRun({ cellIds: [], codes: [] });
       await bridge.sendModelValue({
         modelId: widgetModelId(""),
         message: { method: "update", state: {}, bufferPaths: [] },

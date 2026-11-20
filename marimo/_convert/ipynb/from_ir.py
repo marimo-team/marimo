@@ -8,7 +8,7 @@ import io
 import json
 import re
 from html.parser import HTMLParser
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeGuard, cast
 
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.errors import CycleError, MultipleDefinitionError
@@ -308,6 +308,12 @@ def _get_error_info(
         return error_dict.get("type", "Error"), error.describe()
 
 
+def _is_text_content(data: object) -> TypeGuard[str | list[str]]:
+    return isinstance(data, str) or (
+        isinstance(data, list) and all(isinstance(part, str) for part in data)
+    )
+
+
 def _convert_output_to_ipynb(
     output: CellOutput,
 ) -> NotebookNode | None:
@@ -345,6 +351,8 @@ def _convert_output_to_ipynb(
             raise ValueError(f"Invalid data type: {type(output.data)}")
 
         for mime, content in mimebundle.items():
+            if mime == "text/html" and _is_text_content(content):
+                content = _convert_marimo_tex_to_latex(content)
             if mime == METADATA_KEY and isinstance(content, dict):
                 metadata = content
             elif mime == "text/html" and _is_marimo_component(content):
@@ -353,7 +361,9 @@ def _convert_output_to_ipynb(
                 continue
             else:
                 data[mime] = _maybe_extract_dataurl(content)
-    elif output.mimetype == "text/markdown" and isinstance(output.data, str):
+    elif (
+        output.mimetype == "text/html" and _is_text_content(output.data)
+    ) or (output.mimetype == "text/markdown" and isinstance(output.data, str)):
         data[output.mimetype] = _convert_marimo_tex_to_latex(output.data)
     else:
         data[output.mimetype] = _maybe_extract_dataurl(output.data)
@@ -487,7 +497,7 @@ def _convert_latex_delimiters_for_jupyter(markdown_string: str) -> str:
     return markdown_string
 
 
-def _convert_marimo_tex_to_latex(html_string: str) -> str:
+def _convert_marimo_tex_to_latex(html_string: str | list[str]) -> str:
     """Convert marimo-tex elements back to standard LaTeX delimiters.
     Keep in sync with TexPlugin.tsx
 
@@ -496,6 +506,9 @@ def _convert_marimo_tex_to_latex(html_string: str) -> str:
     - <marimo-tex ...>||[content||]</marimo-tex> → $$content$$ (block)
     - <marimo-tex ...>||(||(content||)||)</marimo-tex> → $$content$$ (nested display)
     """
+
+    if isinstance(html_string, list):
+        html_string = "".join(html_string)
 
     def replace_tex(match: re.Match[str]) -> str:
         content = match.group(1)

@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import type { CellMessage } from "../../kernel/messages";
+import type { CellLogMessage } from "../logs";
 import { formatLogTimestamp, getCellLogsForMessage } from "../logs";
 
 // Stable mock reference so every (re)import of use-toast sees the same spy,
@@ -23,7 +23,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("handles text/plain MIME type on stdout", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-1"),
       console: [
         {
@@ -34,7 +34,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -50,7 +49,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("handles text/plain MIME type on stderr", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-2"),
       console: [
         {
@@ -61,7 +60,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -77,7 +75,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("handles text/html MIME type and strips HTML tags", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-3"),
       console: [
         {
@@ -88,7 +86,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -104,7 +101,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("handles text/html MIME type on stderr", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-4"),
       console: [
         {
@@ -115,7 +112,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -131,7 +127,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("handles application/vnd.marimo+traceback MIME type and strips HTML", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-5"),
       console: [
         {
@@ -142,7 +138,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -156,7 +151,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("handles multiple console outputs with different MIME types", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-7"),
       console: [
         {
@@ -179,7 +174,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -195,7 +189,7 @@ describe("getCellLogsForMessage", () => {
     const now = Date.now();
     vi.spyOn(Date, "now").mockReturnValue(now);
 
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-8"),
       console: [
         {
@@ -206,7 +200,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -217,7 +210,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("ignores unsupported MIME types", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-9"),
       console: [
         {
@@ -228,7 +221,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -238,7 +230,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("ignores non-logging channels", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-10"),
       console: [
         {
@@ -249,7 +241,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -259,11 +250,10 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("returns empty array when console is null", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-11"),
-      console: null as unknown as CellMessage["console"],
+      console: null as unknown as CellLogMessage["console"],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -273,7 +263,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("handles complex HTML with nested elements in text/html", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-12"),
       console: [
         {
@@ -284,7 +274,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -295,7 +284,7 @@ describe("getCellLogsForMessage", () => {
   });
 
   test("handles marimo-error channel as stderr level", () => {
-    const cellMessage: CellMessage = {
+    const cellMessage: CellLogMessage = {
       cell_id: cellId("cell-13"),
       console: [
         {
@@ -306,7 +295,6 @@ describe("getCellLogsForMessage", () => {
         },
       ],
       output: null,
-      status: "idle",
       timestamp: 0,
     };
 
@@ -340,7 +328,9 @@ describe("getCellLogsForMessage - internal error toast", () => {
     vi.clearAllMocks();
   });
 
-  const makeErrorCellMessage = (id: CellMessage["cell_id"]): CellMessage => ({
+  const makeErrorCellMessage = (
+    id: CellLogMessage["cell_id"],
+  ): CellLogMessage => ({
     cell_id: id,
     console: [],
     output: {
@@ -355,8 +345,7 @@ describe("getCellLogsForMessage - internal error toast", () => {
       ],
       channel: "marimo-error",
       timestamp: 0,
-    } as unknown as CellMessage["output"],
-    status: "idle",
+    } as unknown as CellLogMessage["output"],
     timestamp: 0,
   });
 

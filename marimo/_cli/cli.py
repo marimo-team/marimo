@@ -18,6 +18,15 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._cli.cache.commands import cache
 from marimo._cli.config.commands import config
+from marimo._cli.config.overrides import (
+    config_override_option,
+    resolve_cli_config,
+)
+from marimo._cli.containers.launcher import (
+    container_engine_option,
+    prompt_run_in_container,
+    run_in_container,
+)
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
@@ -31,17 +40,13 @@ from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
 from marimo._cli.print import bright_green, light_blue, red
-from marimo._cli.run_docker import (
-    prompt_run_in_docker_container,
-)
 from marimo._cli.tips import choose_startup_tip
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._cli.utils import (
     check_app_correctness,
     check_app_correctness_or_convert,
-    resolve_token,
 )
-from marimo._config.manager import get_default_config_manager
+from marimo._config.config import PartialMarimoConfig
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
 from marimo._mcp.setup import McpType
@@ -66,6 +71,7 @@ from marimo._tutorials import (
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 from marimo._utils.platform import is_windows
+from marimo._utils.url import is_url
 from marimo._version import __version__
 
 
@@ -292,11 +298,12 @@ class _OptionalValueOption(click.Option):
 
 
 @main.command(cls=SandboxCommand, help=edit_help_msg)
+@config_override_option
 @click.option(
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(0, 65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -377,8 +384,12 @@ class _OptionalValueOption(click.Option):
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+    help=(
+        "Use --trusted to run remote notebooks on the host. "
+        "Use --untrusted to run one remote or local notebook in a container."
+    ),
 )
+@container_engine_option
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
     "--watch",
@@ -460,32 +471,21 @@ class _OptionalValueOption(click.Option):
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
-    port: int | None,
-    host: str,
-    proxy: str | None,
-    headless: bool,
-    token: bool,
-    token_password: str | None,
-    token_password_file: str | None,
-    base_url: str,
-    allow_origins: tuple[str, ...] | None,
-    skip_update_check: bool,
     sandbox: str | None,
     no_sandbox: bool,
     trusted: bool | None,
+    container_engine: str,
     profile_dir: str | None,
-    watch: bool,
-    skew_protection: bool,
     remote_url: str | None,
     convert: bool,
     mcp: McpType | None,
     mcp_allow_remote: bool,
     server_startup_command: str | None,
     asset_url: str | None,
-    timeout: float | None,
-    session_ttl: int | None,
     name: str | None,
     args: tuple[str, ...],
+    config_overrides: PartialMarimoConfig,
+    **_server_options: object,
 ) -> None:
     from marimo._cli.sandbox import (
         ensure_server_environment,
@@ -493,8 +493,13 @@ def edit(
         resolve_sandbox,
     )
 
+    config_path = name or os.getcwd()
+    config_manager = resolve_cli_config(
+        current_path=config_path, overrides=config_overrides
+    )
+    server_config = config_manager.get_config(hide_secrets=False).server
     stdin_notebook = None
-    pass_on_stdin = token_password_file == "-"
+    pass_on_stdin = server_config.token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
     if (
         not pass_on_stdin
@@ -508,13 +513,18 @@ def edit(
         name = path.absolute_name
         stdin_notebook = name
 
-    if prompt_run_in_docker_container(name, trusted=trusted):
-        from marimo._cli.run_docker import run_in_docker
-
-        run_in_docker(
+    if prompt_run_in_container(
+        name, container_engine=container_engine, trusted=trusted
+    ):
+        if args and not args[0].startswith("-"):
+            raise click.UsageError(
+                "Container execution supports one notebook."
+            )
+        run_in_container(
             name,
             "edit",
-            port=port,
+            port=server_config.port,
+            container_engine=container_engine,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         )
         return
@@ -596,58 +606,41 @@ def edit(
             "  - Use 'marimo run' instead if you only need to view notebooks"
         )
 
-    server_config = get_default_config_manager(current_path=name).get_config()[
-        "server"
-    ]
-    GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = not (
-        skip_update_check or server_config["skip_update_check"]
-    )
+    if name != config_path:
+        config_manager = resolve_cli_config(
+            current_path=name, overrides=config_overrides
+        )
+    server_config = config_manager.get_config(hide_secrets=False).server
+    GLOBAL_SETTINGS.CHECK_STATUS_UPDATE = not server_config.skip_update_check
     if GLOBAL_SETTINGS.CHECK_STATUS_UPDATE:
         # Check for version updates after preflight checks pass.
         check_for_updates(print_latest_version)
 
-    base_url = validators.check_proxy_base_url(proxy, base_url)
-
     start(
+        config_manager=config_manager,
         workspace=infer_workspace(name),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
-        host=host,
-        port=port,
-        proxy=proxy,
-        headless=headless,
         mode=SessionMode.EDIT,
-        include_code=True,
-        watch=watch,
-        skew_protection=skew_protection,
         cli_args=parse_args(args),
         argv=list(args),
-        auth_token=resolve_token(
-            token,
-            token_password=token_password,
-            token_password_file=token_password_file,
-        ),
-        base_url=base_url,
-        allow_origins=allow_origins,
-        redirect_console_to_browser=True,
-        ttl_seconds=session_ttl,
         remote_url=remote_url,
         mcp=mcp,
         mcp_allow_remote=mcp_allow_remote,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
-        timeout=timeout,
         sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
     )
 
 
 @main.command(cls=SandboxCommand, help="Create an empty notebook.")
+@config_override_option
 @click.option(
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(0, 65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -722,49 +715,28 @@ def edit(
     help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
 def new(
-    port: int | None,
-    host: str,
-    proxy: str | None,
-    headless: bool,
-    token: bool,
-    token_password: str | None,
-    token_password_file: str | None,
-    base_url: str,
     sandbox: str | None,
     no_sandbox: bool,
-    skew_protection: bool,
-    timeout: float | None,
+    config_overrides: PartialMarimoConfig,
+    **_server_options: object,
 ) -> None:
     from marimo._cli.sandbox import ensure_server_environment, resolve_sandbox
 
     sandbox_backend = resolve_sandbox(sandbox, no_sandbox, name=None)
     ensure_server_environment(sandbox_backend)
 
-    base_url = validators.check_proxy_base_url(proxy, base_url)
+    config_manager = resolve_cli_config(
+        current_path=None, overrides=config_overrides
+    )
 
     start(
+        config_manager=config_manager,
         workspace=EmptyWorkspace(),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
-        host=host,
-        port=port,
-        proxy=proxy,
-        headless=headless,
         mode=SessionMode.EDIT,
-        include_code=True,
-        watch=False,
-        skew_protection=skew_protection,
         cli_args={},
         argv=[],
-        auth_token=resolve_token(
-            token,
-            token_password=token_password,
-            token_password_file=token_password_file,
-        ),
-        base_url=base_url,
-        redirect_console_to_browser=True,
-        ttl_seconds=None,
-        timeout=timeout,
         sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
     )
@@ -909,11 +881,12 @@ Example:
     marimo run app.py -- --arg value
 """,
 )
+@config_override_option
 @click.option(
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(0, 65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -1034,8 +1007,12 @@ Example:
     is_flag=True,
     default=None,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+    help=(
+        "Use --trusted to run remote notebooks on the host. "
+        "Use --untrusted to run one remote or local notebook in a container."
+    ),
 )
+@container_engine_option
 @click.option(
     "--server-startup-command",
     default=None,
@@ -1071,30 +1048,19 @@ Example:
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
     ctx: click.Context,
-    port: int | None,
-    host: str,
-    proxy: str | None,
-    headless: bool,
-    token: bool,
-    token_password: str | None,
-    token_password_file: str | None,
-    include_code: bool,
-    session_ttl: int,
-    watch: bool,
-    skew_protection: bool,
-    base_url: str,
-    allow_origins: tuple[str, ...],
-    redirect_console_to_browser: bool,
+    /,
     sandbox: str | None,
     no_sandbox: bool,
     check: bool,
     trusted: bool | None,
+    container_engine: str,
     server_startup_command: str | None,
     asset_url: str | None,
     execute_opengraph_generators: bool,
-    show_tracebacks: bool | None,
     name: str,
     args: tuple[str, ...],
+    config_overrides: PartialMarimoConfig,
+    **_server_options: object,
 ) -> None:
     from marimo._cli.sandbox import (
         resolve_sandbox,
@@ -1114,15 +1080,22 @@ def run(
         else None,
     )
 
-    if len(paths) == 1 and prompt_run_in_docker_container(
-        paths[0], trusted=trusted
+    trust_input = next((path for path in paths if is_url(path)), paths[0])
+    if prompt_run_in_container(
+        trust_input, container_engine=container_engine, trusted=trusted
     ):
-        from marimo._cli.run_docker import run_in_docker
-
-        run_in_docker(
+        if len(paths) != 1:
+            raise click.UsageError(
+                "Container execution supports one notebook."
+            )
+        config_manager = resolve_cli_config(
+            current_path=paths[0], overrides=config_overrides
+        )
+        run_in_container(
             paths[0],
             "run",
-            port=port,
+            port=config_manager.get_config().server.port,
+            container_engine=container_engine,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
             execute_opengraph_generators=execute_opengraph_generators,
         )
@@ -1186,38 +1159,32 @@ def run(
             )
         )
 
-    workspace = _create_run_workspace(validated_paths, watch=watch)
+    workspace: NotebookWorkspace | None = None
+    config_path: str | None = validated_paths[0]
+    if len(validated_paths) > 1:
+        workspace = _create_run_workspace(validated_paths, watch=False)
+        config_path = workspace.directory
 
-    base_url = validators.check_proxy_base_url(proxy, base_url)
+    config_manager = resolve_cli_config(
+        current_path=config_path, overrides=config_overrides
+    )
+    if workspace is None:
+        workspace = _create_run_workspace(
+            validated_paths, watch=config_manager.get_config().server.watch
+        )
 
     start(
+        config_manager=config_manager,
         workspace=workspace,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
-        host=host,
-        port=port,
-        proxy=proxy,
-        headless=headless,
         mode=SessionMode.RUN,
-        include_code=include_code,
-        ttl_seconds=session_ttl,
-        watch=watch,
-        skew_protection=skew_protection,
-        base_url=base_url,
-        allow_origins=allow_origins,
         cli_args=parse_args(notebook_args),
         argv=list(notebook_args),
-        auth_token=resolve_token(
-            token,
-            token_password=token_password,
-            token_password_file=token_password_file,
-        ),
-        redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         sandbox=sandbox_backend,
         startup_tip=choose_startup_tip(click.get_current_context()),
-        show_tracebacks=show_tracebacks,
         execute_opengraph_generators=execute_opengraph_generators,
     )
 
@@ -1267,7 +1234,7 @@ Recommended sequence:
     "-p",
     "--port",
     default=None,
-    type=int,
+    type=click.IntRange(0, 65535),
     help="Port to attach to.",
 )
 @click.option(
@@ -1320,43 +1287,29 @@ Recommended sequence:
     type=click.Choice(tutorial_order),
 )
 def tutorial(
-    port: int | None,
-    host: str,
-    proxy: str | None,
-    headless: bool,
-    token: bool,
-    token_password: str | None,
-    token_password_file: str | None,
-    skew_protection: bool,
     name: Tutorial,
+    **_server_options: object,
 ) -> None:
     temp_dir = tempfile.TemporaryDirectory()
     path = create_temp_tutorial_file(name, temp_dir)
 
-    base_url = validators.check_proxy_base_url(proxy, "")
+    config_manager = resolve_cli_config(
+        current_path=path.absolute_name, overrides={}
+    )
+    # Keep tutorials predictable: don't watch temporary notebook copies, and
+    # keep their console output in the terminal regardless of user defaults.
+    config_manager = config_manager.with_overrides(
+        {"server": {"redirect_console_to_browser": False, "watch": False}}
+    )
 
     start(
+        config_manager=config_manager,
         workspace=SingleFileWorkspace.from_path(path),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
-        host=host,
-        port=port,
-        proxy=proxy,
         mode=SessionMode.EDIT,
-        include_code=True,
-        headless=headless,
-        watch=False,
-        skew_protection=skew_protection,
         cli_args={},
         argv=[],
-        auth_token=resolve_token(
-            token,
-            token_password=token_password,
-            token_password_file=token_password_file,
-        ),
-        base_url=base_url,
-        redirect_console_to_browser=False,
-        ttl_seconds=None,
         startup_tip=choose_startup_tip(click.get_current_context()),
     )
 

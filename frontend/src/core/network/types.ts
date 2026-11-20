@@ -13,7 +13,6 @@ export type CellConfig = schemas["CellConfig"];
  * idle: not running.
  * disabled-transitively: disabled because an ancestor was disabled.
  */
-export type RuntimeState = schemas["CellNotification"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type AutoExportAsIPYNBRequest = schemas["AutoExportAsIPYNBRequest"];
 export type AutoExportAsMarkdownRequest =
@@ -72,7 +71,6 @@ export type SandboxResponse = schemas["SandboxResponse"];
 export type UpdateManifestRequest = schemas["UpdateManifestRequest"];
 export type SyncSandboxResponse = schemas["SyncSandboxResponse"];
 export type PackageOperationResponse = schemas["PackageOperationResponse"];
-export type InstantiateNotebookRequest = schemas["InstantiateNotebookRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
 export type ListSecretKeysRequest = schemas["ListSecretKeysRequest"];
@@ -91,7 +89,6 @@ export type SetBreakpointsRequest = schemas["SetBreakpointsRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameNotebookRequest = schemas["RenameNotebookRequest"];
-export type ExecuteCellsRequest = schemas["ExecuteCellsRequest"];
 export type ExecuteScratchpadRequest = schemas["ExecuteScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
@@ -117,7 +114,6 @@ export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
 export type Snippet = schemas["Snippet"];
 export type SnippetSection = schemas["SnippetSection"];
 export type Snippets = schemas["Snippets"];
-export type StdinRequest = schemas["StdinRequest"];
 export type SuccessResponse = schemas["SuccessResponse"];
 export type UpdateUIElementValuesRequest =
   schemas["UpdateUIElementValuesRequest"];
@@ -149,7 +145,6 @@ export type StorageDownloadRequest = schemas["StorageDownloadRequest"];
 export interface RunRequests {
   sendComponentValues: (request: UpdateUIElementValuesRequest) => Promise<null>;
   sendModelValue: (request: ModelRequest) => Promise<null>;
-  sendInstantiate: (request: InstantiateNotebookRequest) => Promise<null>;
   sendFunctionRequest: (request: InvokeFunctionRequest) => Promise<null>;
 }
 
@@ -164,10 +159,7 @@ export interface EditRequests {
    */
   saveLayout: (request: SaveLayoutRequest) => Promise<null>;
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
-  sendStdin: (request: StdinRequest) => Promise<null>;
-  sendRun: (request: ExecuteCellsRequest) => Promise<null>;
   sendRunScratchpad: (request: ExecuteScratchpadRequest) => Promise<null>;
-  sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatCellsRequest) => Promise<FormatResponse>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
@@ -192,6 +184,7 @@ export interface EditRequests {
   getUsageStats: () => Promise<UsageResponse>;
   getEnvironmentInfo: () => Promise<EnvironmentInfo>;
   // Debugger
+  sendPdbReply: (request: schemas["PdbInputReplyRequest"]) => Promise<null>;
   sendPdb: (request: DebugCellRequest) => Promise<null>;
   sendSetBreakpoints: (request: SetBreakpointsRequest) => Promise<null>;
   // File explorer requests

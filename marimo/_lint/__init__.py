@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from marimo._ast.type_inference import TypeInferenceMode
-    from marimo._config.config import LintConfig
+    from marimo._config.config_schema import LintConfig
 
 
 # Define severity ordering (lower index = higher priority)
@@ -36,25 +36,21 @@ def resolve_lint_config(
 
     config_mgr = get_default_config_manager(current_path=os.getcwd())
     full_config = config_mgr.get_config(hide_secrets=False)
-    lint_config: LintConfig = {
-        k: v
-        for k, v in full_config.get("lint", {}).items()
-        if k in ("select", "ignore")
-    }  # type: ignore[assignment]
+    lint_config = full_config.lint
 
     # CLI --select replaces config select entirely
     if select_rules is not None:
-        lint_config["select"] = [
+        lint_config.select = [
             s.strip() for s in select_rules.split(",") if s.strip()
         ]
 
     # CLI --ignore appends to config ignore
     if ignore_rules is not None:
         parsed = [s.strip() for s in ignore_rules.split(",") if s.strip()]
-        existing = list(lint_config.get("ignore") or [])
-        lint_config["ignore"] = existing + parsed
+        existing = list(lint_config.ignore)
+        lint_config.ignore = existing + parsed
 
-    return lint_config if lint_config else None
+    return lint_config if lint_config.to_dict() else None
 
 
 def run_check(

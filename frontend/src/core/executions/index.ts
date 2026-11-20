@@ -1,38 +1,49 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /**
- * Cell status and timing read from the host's executions.
+ * Cell status, timing, and output, as the editor reads them.
  *
- * Every atom here is derived, so it can be read but not set. The state
- * behind them changes only through `submitCells`, `withdrawCells`, and
- * `observeCellMessage`.
+ * The host's notebook stream is the source of truth. Its runs, executions,
+ * and results say what every cell is doing. The atoms here derive views
+ * from that stream, adding only what the host cannot know yet, such as a
+ * run this browser has asked for but not heard back about.
  */
 
 export {
   cellExecutionInputsAtom,
   cellFreshnessAtom,
+  cellOutlineAtom,
+  cellOutputAtom,
   cellOutputInputsAtom,
+  cellOutputsAtom,
   clearCellOutputs,
   notebookIsRunningAtom,
   notebookQueuedOrRunningCountAtom,
-  observeCellMessage,
+  setCellBlocked,
+  releaseCellOutputAtoms,
   runtimeStatusAtom,
-  submitCells,
   waitForRuntimeRunning,
-  withdrawCells,
 } from "./atoms";
 export type { CellFreshness, CellFreshnessLookup } from "./freshness";
+export { replyInput } from "./input";
+export { interruptRuntime } from "./interrupt";
+export { runCells, syncEdits } from "./run";
 export {
   useCellExecution,
   useCellFreshness,
+  useCellHasResult,
   useCellOutline,
   useCellOutput,
+  useCellPresentation,
+  useShowChangedInputs,
   useScratchOutput,
 } from "./hooks";
 export {
   type CellError,
   type CellOutput,
+  cellOutputsView,
   cellOutputView,
+  executionSource,
   type HostDiagnostic,
   scratchOutputView,
 } from "./output";

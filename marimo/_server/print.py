@@ -6,7 +6,11 @@ import sys
 
 from marimo._cli.print import bold, green, light_blue, muted, yellow
 from marimo._cli.tips import CliTip
-from marimo._config.config import MarimoConfig, MCPConfig
+from marimo._config.config_schema import (
+    ExperimentalConfig,
+    MarimoConfig,
+    MCPConfig,
+)
 from marimo._utils.print import print_, print_tabbed
 
 UTF8_SUPPORTED = False
@@ -158,10 +162,12 @@ def _format_startup_tip(tip: CliTip) -> tuple[str, str | None]:
 
 
 def print_experimental_features(config: MarimoConfig) -> None:
-    if "experimental" not in config:
-        return
-
-    keys = set(config["experimental"].keys())
+    defaults = ExperimentalConfig().to_dict()
+    keys = {
+        key
+        for key, value in config.experimental.to_dict().items()
+        if key not in defaults or value != defaults[key]
+    }
 
     # These experiments were removed. Their keys still load, and do nothing.
     removed_experiments = {"rtc", "rtc_v2"}
@@ -224,9 +230,7 @@ def print_mcp_server(mcp_url: str, server_token: str | None) -> None:
 
 
 def print_mcp_client(config: MCPConfig) -> None:
-    keys = set(config.get("mcpServers", {}).keys()) | set(
-        config.get("presets", [])
-    )
+    keys = set(config.mcpServers.keys()) | set(config.presets)
     if len(keys) == 0:
         return
 

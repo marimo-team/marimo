@@ -20,9 +20,9 @@ import { activeNotebookReplicaAtom } from "../active-notebook";
 vi.mock("../backend", () => ({ createEditorBackend: vi.fn() }));
 
 /** A host-framed native notification. */
-const reconnected = {
+const notification = {
   event: "marimo",
-  data: { marimo: { op: "reconnected" } },
+  data: { marimo: { op: "interrupted" } },
 };
 
 /** A transport whose connections the test drives. */
@@ -41,7 +41,7 @@ function makeTransport() {
     transport,
     opened,
     /** Open the latest connection and deliver a host-framed notification. */
-    notify: () => opened.at(-1)?.receive(reconnected),
+    notify: () => opened.at(-1)?.receive(notification),
   };
 }
 
@@ -57,6 +57,7 @@ function setup(strict = false) {
     waitUntilReady: async () => undefined,
     checkHealth: async () => true,
     onNotification: vi.fn(),
+    onExecution: vi.fn(),
   };
   const wrapper = ({ children }: PropsWithChildren) => (
     <Provider store={store}>{children}</Provider>
@@ -153,7 +154,7 @@ describe("useNotebookReplica", () => {
     act(() => fake.notify());
     expect(options.onNotification).not.toHaveBeenCalled();
     expect(onNotification).toHaveBeenCalledExactlyOnceWith({
-      data: { op: "reconnected" },
+      data: { op: "interrupted" },
     });
     const [{ url }] = vi.mocked(createEditorBackend).mock.calls[0];
     expect(url()).toBe("ws://redirected/ws");
@@ -175,7 +176,7 @@ describe("useNotebookReplica", () => {
     expect(store.get(result.current.connectionAtom)).toEqual({
       state: ConnectionState.OPEN,
     });
-    act(() => fake.opened.forEach((attempt) => attempt.receive(reconnected)));
+    act(() => fake.opened.forEach((attempt) => attempt.receive(notification)));
     expect(options.onNotification).toHaveBeenCalledOnce();
     unmount();
     expect(active.signal.aborted).toBe(true);

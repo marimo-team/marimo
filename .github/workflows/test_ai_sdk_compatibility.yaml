@@ -18,7 +18,7 @@ env:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       chat: ${{ steps.filter.outputs.chat }}
     steps:
@@ -26,6 +26,7 @@ jobs:
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
+          token: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.token || '' }}
           filters: |
             chat:
               - 'frontend/package.json'
@@ -52,7 +53,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.chat == 'true'
     name: Chat protocol / ${{ matrix.resolution }} pydantic-ai
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -83,7 +84,7 @@ jobs:
     name: AI SDK compatibility
     needs: [changes, compatibility]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     steps:
       - name: Require compatibility checks for relevant changes
         env:

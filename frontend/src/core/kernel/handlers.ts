@@ -7,13 +7,8 @@ import type { CellData } from "../cells/types";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { deserializeLayoutState } from "../layout/layout";
 import type { LayoutData, LayoutState } from "../layout/state";
-import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import type {
-  Capabilities,
-  CellMessage,
-  NotificationMessageData,
-} from "./messages";
+import type { Capabilities, NotificationMessageData } from "./messages";
 
 type KernelReadyData = NotificationMessageData<"kernel-ready">;
 
@@ -41,23 +36,9 @@ export function buildLayoutState(
   return layoutState;
 }
 
-/**
- * Collect current UI element values from the registry.
- */
-function collectUIElementValues() {
-  const objectIds: UIElementId[] = [];
-  const values: unknown[] = [];
-  UI_ELEMENT_REGISTRY.entries.forEach((entry, objectId) => {
-    objectIds.push(objectId);
-    values.push(entry.value);
-  });
-  return { objectIds, values };
-}
-
 export function handleKernelReady(
   data: KernelReadyData,
   opts: {
-    autoInstantiate: boolean;
     /** The notebook's cells, as the host document provided them. */
     cells: CellData[];
     resetCellRuntimes: ReducerCellActions["resetCellRuntimes"];
@@ -66,30 +47,17 @@ export function handleKernelReady(
       data: LayoutData;
     }) => void;
     setCapabilities: (capabilities: Capabilities) => void;
-    onError: (error: Error) => void;
   },
 ): LayoutState {
-  const {
-    autoInstantiate,
-    cells,
-    resetCellRuntimes,
-    setLayoutData,
-    setCapabilities,
-    onError,
-  } = opts;
-  const { resumed, ui_values, capabilities, auto_instantiated } = data;
+  const { cells, resetCellRuntimes, setLayoutData, setCapabilities } = opts;
+  const { resumed, ui_values, capabilities } = data;
 
-  resetCellRuntimes();
+  resetCellRuntimes(resumed);
   const layoutState = buildLayoutState(data, cells, setLayoutData);
 
   setCapabilities(capabilities);
 
-  // If the kernel was already instantiated server-side (e.g. run mode), we're done
-  if (auto_instantiated) {
-    return layoutState;
-  }
-
-  // If resumed, restore UI element values from kernel and we're done
+  // A resumed kernel holds the values its UI elements had.
   if (resumed) {
     for (const [objectId, value] of Objects.entries(ui_values || {})) {
       // @ts-expect-error - TODO: We need to fix the types for KernelReadyNotification["ui_values"]
@@ -97,24 +65,8 @@ export function handleKernelReady(
       const uiObjectId: UIElementId = objectId;
       UI_ELEMENT_REGISTRY.set(uiObjectId, value);
     }
-    return layoutState;
   }
 
-  // If we already have values for some objects, we should
-  // send them to the kernel. This may happen after re-connecting
-  // to the kernel after the computer wakes from sleep.
-  const { objectIds, values } = collectUIElementValues();
-
-  // Send instantiate request to kernel
-  void getRequestClient()
-    .sendInstantiate({
-      objectIds,
-      values,
-      autoRun: autoInstantiate,
-    })
-    .catch((error) => {
-      onError(new Error("Failed to instantiate", { cause: error }));
-    });
   return layoutState;
 }
 
@@ -127,19 +79,4 @@ export function handleRemoveUIElements(
   const cellId = data.cell_id;
   UI_ELEMENT_REGISTRY.removeElementsByCell(cellId);
   VirtualFileTracker.INSTANCE.removeForCellId(cellId);
-}
-
-export function handleCellNotificationeration(
-  data: NotificationMessageData<"cell-op">,
-  handleCellMessage: (message: CellMessage) => void,
-) {
-  /* Register a state transition for a cell.
-   *
-   * The cell may have a new output, a new console output,
-   * it may have been queued, it may have started running, or
-   * it may have stopped running. Each of these things
-   * affects how the cell should be rendered.
-   */
-  handleCellMessage(data);
-  VirtualFileTracker.INSTANCE.track(data);
 }

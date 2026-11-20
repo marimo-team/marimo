@@ -1,16 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useSetAtom } from "jotai";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
-import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
-import { ConnectionState } from "@/core/session/types";
 import { reloadSafe } from "@/utils/reload-safe";
 
 export function useRestartKernel() {
   const { openConfirm } = useImperativeModal();
-  const setConnection = useSetAtom(connectionAtom);
   const { sendRestart } = useRequestClient();
 
   return () => {
@@ -22,7 +18,6 @@ export function useRestartKernel() {
       confirmAction: (
         <AlertDialogDestructiveAction
           onClick={async () => {
-            setConnection({ state: ConnectionState.CLOSING });
             await sendRestart();
             reloadSafe();
           }}

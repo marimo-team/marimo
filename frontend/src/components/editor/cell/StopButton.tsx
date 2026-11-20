@@ -1,8 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { SquareIcon } from "lucide-react";
 import type { JSX } from "react";
-import { useRequestClient } from "@/core/network/requests";
-import type { RuntimeState } from "@/core/network/types";
+import { interruptRuntime } from "@/core/executions";
+import { store } from "@/core/state/jotai";
+import type { CellRunStatus } from "@/core/executions";
 import { isAppInteractionDisabled } from "@/core/session/connection-utils";
 import type { ConnectionState } from "@/core/session/types";
 import { Functions } from "@/utils/functions";
@@ -11,11 +12,10 @@ import { ToolbarItem } from "./toolbar";
 import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
 
 export const StopButton = (props: {
-  status: RuntimeState;
+  status: CellRunStatus;
   connectionState: ConnectionState;
 }): JSX.Element => {
   const { connectionState, status } = props;
-  const { sendInterrupt } = useRequestClient();
 
   const running = status === "running";
 
@@ -26,7 +26,7 @@ export const StopButton = (props: {
     <ToolbarItem
       tooltip={renderShortcut("global.interrupt")}
       disabled={isAppInteractionDisabled(connectionState) || !showInterrupt}
-      onClick={showInterrupt ? sendInterrupt : Functions.NOOP}
+      onClick={showInterrupt ? () => interruptRuntime(store) : Functions.NOOP}
       variant={showInterrupt ? "stale" : "disabled"}
       data-testid="run-button"
     >

@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -62,6 +63,12 @@ class Connection(msgspec.Struct, frozen=True):
     @property
     def forwarder(self) -> ProcessHandle:
         return ProcessHandle(self.forwarder_pid, self.forwarder_start)
+
+
+class ConnectionAttempt(msgspec.Struct, frozen=True):
+    harness_pid: int
+    harness_start: float
+    attempted_at: float
 
 
 class ConnectionStore:
@@ -129,15 +136,43 @@ class ConnectionStore:
         return candidates[0] if candidates else None
 
     def save(self, record: Connection) -> None:
+        self._save(self.path(record.identity), record)
+
+    def attempted(self, identity: str, owner: ProcessHandle) -> bool:
+        path = self.root / "attempts" / self.path(identity).name
         try:
-            self.root.mkdir(parents=True, mode=0o700, exist_ok=True)
+            attempt = msgspec.json.decode(
+                path.read_bytes(), type=ConnectionAttempt
+            )
+        except FileNotFoundError:
+            return False
+        except (OSError, msgspec.DecodeError) as error:
+            raise PairInputError(
+                "Could not read the automatic Pair connection attempt."
+            ) from error
+        return (attempt.harness_pid, attempt.harness_start) == (
+            owner.pid,
+            owner.started,
+        )
+
+    def mark_attempted(self, identity: str, owner: ProcessHandle) -> None:
+        path = self.root / "attempts" / self.path(identity).name
+        self._save(
+            path, ConnectionAttempt(owner.pid, owner.started, time.time())
+        )
+
+    def _save(
+        self, path: Path, record: Connection | ConnectionAttempt
+    ) -> None:
+        try:
+            path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
             descriptor, temporary = tempfile.mkstemp(
-                dir=self.root, suffix=".tmp"
+                dir=path.parent, suffix=".tmp"
             )
             try:
                 with os.fdopen(descriptor, "wb") as stream:
                     stream.write(msgspec.json.encode(record))
-                os.replace(temporary, self.path(record.identity))
+                os.replace(temporary, path)
             finally:
                 Path(temporary).unlink(missing_ok=True)
         except OSError as error:

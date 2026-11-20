@@ -21,7 +21,7 @@ Being a responsible notebook user means running code from sources you trust, and
 
 ### Static loading
 
-Although marimo notebook are just python files, opening a notebook through `marimo edit` does not execute it as a module.
+Although marimo notebooks are just Python files, opening a notebook through `marimo edit` does not execute it as a module.
 marimo notebooks are statically loaded, meaning they are parsed but not executed as Python modules when opened.
 This prevents arbitrary code execution at load time.
 Code only runs when you explicitly execute cells.
@@ -44,6 +44,12 @@ marimo behaves differently depending on how you run it:
 - With `marimo run <folder> --watch`, newly created notebooks in the watched folder can appear in gallery mode without restarting the server
 
 This distinction reflects the different threat models: editing is exploratory and may involve untrusted notebooks; deployed apps are intentional publications.
+
+Use `--untrusted` with either command to open one local or remote notebook in a container. Docker is the default. Use `--container-engine` to select `podman`, `nerdctl`, `finch`, Apple `container`, or another Docker-compatible executable.
+
+For a local notebook, marimo mounts a temporary copy. To keep edits, save and download the notebook source before closing the session.
+
+The engine uses its own certificates to pull images. Notebook and package downloads use the certificates inside the container.
 
 ### Project files
 

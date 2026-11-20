@@ -16,7 +16,6 @@ from typing import (
 import msgspec
 import pytest
 
-from marimo._config.config import ExperimentalConfigType
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._runtime.commands import UpdateCellConfigCommand
 from marimo._types.ids import CellId_t
@@ -278,7 +277,7 @@ class TestParseRaw:
         # Similar to MarimoConfig and PartialMarimoConfig
         @dataclass
         class TestConfig:
-            experimental: ExperimentalConfigType
+            experimental: dict[str, Any]
 
         # Test 1: Known features
         structured_data = {

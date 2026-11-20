@@ -98,23 +98,6 @@ async def test_a_failed_start_reports_the_reason(
     assert observed.messages == [be.Exited(RT1, "KeyError")]
 
 
-async def test_a_notebook_without_a_file_cannot_start(
-    manager: FakeManager, observed: Observed
-) -> None:
-    SessionBackend(
-        protocol.NotebookId("n1"),
-        lambda: None,
-        manager,  # type: ignore[arg-type]
-        observed,
-        Stream(),
-    ).start(RT1)
-    await observed.wait_for(be.Exited)
-    assert observed.messages == [
-        be.Exited(RT1, "The notebook has no file to run")
-    ]
-    assert manager.starts == []
-
-
 async def test_stop_closes_the_session_and_reports_the_exit(
     manager: FakeManager, observed: Observed
 ) -> None:
@@ -213,7 +196,7 @@ async def test_interrupt_waits_for_the_kernel_result(
     )
     observed.messages.clear()
 
-    b.interrupt(protocol.RunId("run-1"))
+    b.cancel(protocol.RunId("run-1"))
     session.broadcast(
         CellNotification(
             cell_id=SCRATCH_CELL_ID, status="running", run_id="run-1"
@@ -232,7 +215,7 @@ async def test_interrupt_waits_for_the_kernel_result(
     assert concluded[-1].outcome == (
         protocol.InterruptedOutcome()
         if takes_effect
-        else protocol.ValueOutcome(None)
+        else protocol.SucceededOutcome()
     )
     assert observed.messages[-1] == be.Done(
         protocol.RunId("run-1"), "interrupted" if takes_effect else "succeeded"
@@ -282,7 +265,7 @@ async def test_interrupting_a_run_started_by_another_client(
             run_id="browser",
         )
     )
-    b.interrupt(protocol.RunId("browser"))
+    b.cancel(protocol.RunId("browser"))
     assert session.interrupts == 1
     session.broadcast(
         CompletedRunNotification(run_id="browser", outcome="interrupted")
@@ -290,7 +273,7 @@ async def test_interrupting_a_run_started_by_another_client(
     assert observed.messages[-1] == be.Done(
         protocol.RunId("browser"), "interrupted"
     )
-    b.interrupt(protocol.RunId("browser"))
+    b.cancel(protocol.RunId("browser"))
     assert session.interrupts == 1
 
 
@@ -312,6 +295,9 @@ async def test_external_scratch_is_adopted_before_compilation(
         )
     )
     assert observed.kinds() == ["Scheduled", "Planned"]
+    assert observed.messages[0] == be.Scheduled(
+        protocol.RunId("browser"), protocol.RunCodeOrigin(code="3 * 3")
+    )
     planned = observed.messages[-1]
     assert isinstance(planned, be.Planned)
     execution = planned.executions[0]
@@ -330,6 +316,27 @@ async def test_external_scratch_is_adopted_before_compilation(
     session.broadcast(CompletedRunNotification(run_id="browser"))
     assert observed.messages[-1] == be.Done(
         protocol.RunId("browser"), "succeeded"
+    )
+
+
+async def test_a_run_the_kernel_schedules_on_its_own_has_a_runtime_origin(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    session.broadcast(
+        ExecutionNotification(
+            cell_id=CellId_t("a"),
+            phase="planned",
+            code_fingerprint=code_fingerprint("slider.value"),
+            execution_id="attempt",
+            run_id="reaction",
+        )
+    )
+    assert observed.messages[0] == be.Scheduled(
+        protocol.RunId("reaction"), protocol.RunRuntimeOrigin()
     )
 
 
@@ -356,7 +363,7 @@ async def test_canceling_a_queued_run_preserves_other_execution(
         b.run(protocol.RunId("canceled"), "must_not_execute()", request=None)
         if not before_start:
             await asyncio.wait_for(lock.entered.wait(), 5)
-        b.interrupt(protocol.RunId("canceled"))
+        b.cancel(protocol.RunId("canceled"))
         await observed.wait_for(be.Done)
         assert session.interrupts == 0
         [outcome] = [
@@ -687,7 +694,7 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
     session.broadcast(CompletedRunNotification(run_id="run-2"))
     expected = [
         be.Completed(
-            protocol.ExecutionId("attempt-2"), protocol.ValueOutcome(None)
+            protocol.ExecutionId("attempt-2"), protocol.SucceededOutcome()
         ),
         be.Done(protocol.RunId("run-2"), "succeeded"),
     ]
@@ -809,7 +816,7 @@ async def test_interrupting_a_waiting_cell_run_preserves_submission_order(
             request=None,
         )
 
-    b.interrupt(protocol.RunId("run-3"))
+    b.cancel(protocol.RunId("run-3"))
     await observed.wait_for(be.Done)
     if accept_after_interrupt:
         b.run_cells(
@@ -845,7 +852,7 @@ async def test_interrupting_a_queued_cell_run_cancels_it_in_the_kernel(
     b.run_cells(
         protocol.RunId("run-1"), document, [protocol.CellId("a")], request=None
     )
-    b.interrupt(protocol.RunId("run-1"))
+    b.cancel(protocol.RunId("run-1"))
 
     assert session.interrupts == 0
     assert session.commands[-1] == CancelRunCommand(run_id="run-1")
@@ -871,7 +878,7 @@ async def test_a_cancelled_run_that_starts_anyway_is_interrupted(
     b.run_cells(
         protocol.RunId("run-1"), document, [protocol.CellId("a")], request=None
     )
-    b.interrupt(protocol.RunId("run-1"))
+    b.cancel(protocol.RunId("run-1"))
     assert session.interrupts == 0
 
     # The kernel dequeued the run before the cancellation reached it.
@@ -919,10 +926,77 @@ async def test_interrupting_a_started_cell_run_interrupts_the_kernel(
         )
     )
 
-    b.interrupt(protocol.RunId("run-1"))
+    b.cancel(protocol.RunId("run-1"))
 
     assert session.interrupts == 1
     assert not any(isinstance(c, CancelRunCommand) for c in session.commands)
+
+
+async def test_a_runtime_interrupt_ends_every_run_and_signals_the_kernel_once(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+    observed.messages.clear()
+    document = Document([DocumentCell(protocol.CellId("a"), "x = 1")], {})
+    cells = [protocol.CellId("a")]
+    # The kernel has started the first run and holds the next two queued.
+    # The last waits for the scratchpad, so the kernel does not have it.
+    b.run_cells(protocol.RunId("run-1"), document, cells, request=None)
+    session.broadcast(
+        ExecutionNotification(
+            cell_id=CellId_t("a"),
+            phase="planned",
+            execution_id="e1",
+            code="x = 1",
+            code_fingerprint=code_fingerprint("x = 1"),
+            run_id="run-1",
+        )
+    )
+    b.run_cells(protocol.RunId("run-2"), document, cells, request=None)
+    b.run(protocol.RunId("run-3"), "3", request=None)
+    b.run(protocol.RunId("run-4"), "4", request=None)
+    assert await submitted(session, 3) == ["run-1", "run-2", "run-3"]
+
+    tasks = [run.task for run in b._runs.values() if run.task]
+    b.interrupt()
+
+    assert session.interrupts == 1
+    assert session.commands[3:] == [
+        CancelRunCommand(run_id="run-2"),
+        CancelRunCommand(run_id="run-3"),
+    ]
+    await observed.wait_for(be.Done)
+    for run_id in ("run-1", "run-2", "run-3"):
+        session.broadcast(
+            CompletedRunNotification(run_id=run_id, outcome="interrupted")
+        )
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+    assert {
+        m.run_id: m.outcome
+        for m in observed.messages
+        if isinstance(m, be.Done)
+    } == {f"run-{n}": "interrupted" for n in (1, 2, 3, 4)}
+    assert b._runs == {}
+    assert session.interrupts == 1
+    assert len(session.commands) == 5
+
+
+async def test_a_runtime_interrupt_signals_a_kernel_with_no_host_run(
+    manager: FakeManager, observed: Observed
+) -> None:
+    b = backend(manager, observed)
+    session = manager.next_session
+    b.adopt(RT1, session)
+
+    # The kernel may be running work the host did not submit, and it
+    # ignores the signal while idle.
+    b.interrupt()
+
+    assert session.interrupts == 1
+    assert session.commands == []
 
 
 async def test_an_edit_reaches_the_kernel_at_once_when_nothing_is_ahead(

@@ -2,6 +2,9 @@
 
 /** The editor session's replica, following its backend while mounted. */
 
+import type { Execution } from "@marimo-team/client/protocol";
+import { consoleObservers } from "../cells/execution-console";
+import { useReducerActions } from "../cells/cells";
 import { useStore } from "jotai";
 import { useEffect, useMemo } from "react";
 import useEvent from "react-use-event-hook";
@@ -17,11 +20,13 @@ import { activeNotebookReplicaAtom } from "./active-notebook";
 import { createEditorBackend, type EditorBackendOptions } from "./backend";
 
 type Options = EditorBackendOptions & {
+  onExecution: (execution: Execution) => void;
   onNotification: (notification: NotificationPayload) => void;
 };
 
 export function useNotebookReplica(options: Options): NotebookReplica {
   const store = useStore();
+  const { addLogs, startCellConsole } = useReducerActions();
   const { static: isStatic, snapshot, transportType } = options;
   const replica = useMemo(() => createNotebookReplica(store), [store]);
   const url = useEvent(options.url);
@@ -29,6 +34,7 @@ export function useNotebookReplica(options: Options): NotebookReplica {
   const notebookUrl = useEvent(options.notebookUrl);
   const waitUntilReady = useEvent(options.waitUntilReady);
   const checkHealth = useEvent(options.checkHealth);
+  const onExecution = useEvent(options.onExecution);
   const onNotification = useEvent(options.onNotification);
   // Opens nothing until the replica follows it.
   const backend = useMemo(
@@ -58,9 +64,12 @@ export function useNotebookReplica(options: Options): NotebookReplica {
   useEffect(() => {
     store.set(activeNotebookReplicaAtom, replica);
     const disconnect = replica.connect(backend, {
+      ...consoleObservers({ addLogs, startCellConsole }, onExecution),
       // The host validates the envelope, not the native notification contents.
-      onNotification: (notification) =>
-        onNotification({ data: notification as NotificationMessage }),
+      onNotification: (notification) => {
+        const data = notification as NotificationMessage;
+        onNotification({ data });
+      },
     });
     return () => {
       disconnect();
@@ -68,7 +77,15 @@ export function useNotebookReplica(options: Options): NotebookReplica {
         store.set(activeNotebookReplicaAtom, null);
       }
     };
-  }, [replica, backend, store, onNotification]);
+  }, [
+    replica,
+    backend,
+    store,
+    onNotification,
+    onExecution,
+    addLogs,
+    startCellConsole,
+  ]);
 
   return replica;
 }

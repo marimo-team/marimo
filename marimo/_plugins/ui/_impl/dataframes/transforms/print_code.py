@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, assert_never
 
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     FilterCondition,
@@ -9,7 +9,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Transform,
     TransformType,
 )
-from marimo._utils.assert_never import assert_never
+from marimo._plugins.ui._impl.tables.table_manager import regex_literal
 
 POLARS_EXPLICIT_EXPLODE_MIN_VERSION = "1.36.0"
 
@@ -371,13 +371,14 @@ def python_print_polars(
         )
         if temporal_parser is not None:
             dtype, parser = temporal_parser
-            column = _as_literal(column_id)
+            column = repr(column_id)
+            selector = repr(f"^{regex_literal(column_id)}$")
             strict = transform.errors == "raise"
             return "\n".join(
                 [
                     df_name,
                     f"if {df_name}.collect_schema()[{column}] == pl.String:",
-                    f"    {df_name} = {df_name}.with_columns(pl.col({column}).str.{parser}())",
+                    f"    {df_name} = {df_name}.with_columns(pl.col({selector}).str.{parser}(strict={strict}))",
                     "else:",
                     f"    {df_name} = {df_name}.cast({{{column}: pl.{dtype}}}, strict={strict})",
                 ]
@@ -561,7 +562,7 @@ def python_print_polars(
             else ""
         )
         lambda_code = (
-            f'lambda col,replacements=replacements: f"{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}"'
+            f'lambda col,replacements=replacements: {_as_literal(transform.value_column_ids[0])} + f"_{{col.translate(replacements)}}_{transform.aggregation}"'
             if len(transform.value_column_ids) == 1
             else f"lambda col, replacements=replacements: f'{{col.translate(replacements)}}_{transform.aggregation}'"
         ) + f" if col not in {index_column_ids} else col"
@@ -684,7 +685,7 @@ def python_print_ibis(
             for column_id in transform.column_ids:
                 name = f"{column_id}_{agg_func}"
                 agg_dict.append(
-                    f"'{name}' : {df_name}['{column_id}'].{agg_func}()"
+                    f"{_as_literal(name)} : {df_name}[{_as_literal(column_id)}].{agg_func}()"
                 )
         return f"{df_name}.agg(**{{{','.join(agg_dict)}}})"
 
@@ -696,7 +697,7 @@ def python_print_ibis(
         for column_id in aggregation_columns:
             agg_alias = f"{column_id}_{aggregation}"
             aggs.append(
-                f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()'
+                f"{_as_literal(agg_alias)} : {df_name}[{_as_literal(column_id)}].{aggregation}()"
             )
         return f"{df_name}.group_by({_list_of_strings(column_ids)}).aggregate(**{{{','.join(aggs)}}})"
 

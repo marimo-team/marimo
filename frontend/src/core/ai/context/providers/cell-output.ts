@@ -7,6 +7,7 @@ import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
 import { isOutputEmpty } from "@/core/cells/outputs";
+import { type CellOutput, cellOutputAtom } from "@/core/executions";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
 import { toPng } from "@/utils/html-to-image";
@@ -19,7 +20,7 @@ export interface BaseOutput {
   processedContent?: string;
   imageUrl?: string;
   shouldDownloadImage?: boolean;
-  output: OutputMessage;
+  output: CellOutput;
   outputType: "text" | "media";
 }
 
@@ -94,7 +95,11 @@ export class CellOutputContextProvider extends AIContextProvider<CellOutputConte
     const items: CellOutputContextItem[] = [];
 
     for (const cellId of notebook.cellIds) {
-      const cellContextData = getCellContextData(cellId, notebook);
+      const cellContextData = getCellContextData(
+        cellId,
+        notebook,
+        this.store.get(cellOutputAtom(cellId)),
+      );
       const cellOutput = cellContextData.cellOutput;
 
       // Skip cells with no output
@@ -308,7 +313,7 @@ export async function getAttachmentsForOutputs(
   }
 }
 
-function getBaseOutput(output: OutputMessage): BaseOutput | null {
+function getBaseOutput(output: CellOutput): BaseOutput | null {
   if (isOutputEmpty(output)) {
     return null;
   }
@@ -350,28 +355,20 @@ function getBaseOutput(output: OutputMessage): BaseOutput | null {
 export function getCellContextData(
   cellId: CellId,
   notebook: NotebookState,
-  opts?: {
-    includeConsoleOutput: boolean;
-  },
+  output: CellOutput | null,
+  rows?: readonly OutputMessage[],
 ): CellOutputData {
-  const { includeConsoleOutput = false } = opts || {};
-  const cellRuntime = notebook.cellRuntime[cellId];
-
   const cellData = notebook.cellData[cellId];
   const cellIndex = notebook.cellIds.indexOf(cellId);
   const cellName = displayCellName(cellData.name, cellIndex);
 
-  let consoleOutputs: BaseOutput[] | undefined;
-  if (includeConsoleOutput) {
-    consoleOutputs = cellRuntime.consoleOutputs
-      .map((output) => getBaseOutput(output))
-      .filter((output) => output !== null);
-  }
+  const consoleOutputs = rows
+    ?.map(getBaseOutput)
+    .filter((output) => output !== null);
 
   let cellOutput: BaseOutput | undefined;
-  const rawCellOutput = cellRuntime.output;
-  if (rawCellOutput && !isOutputEmpty(rawCellOutput)) {
-    cellOutput = getBaseOutput(rawCellOutput) ?? undefined;
+  if (output !== null && !isOutputEmpty(output)) {
+    cellOutput = getBaseOutput(output) ?? undefined;
   }
 
   return {

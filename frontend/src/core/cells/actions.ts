@@ -6,7 +6,12 @@ import { historyField } from "@codemirror/commands";
 import { atom, type Getter, type Setter, useSetAtom } from "jotai";
 import { useMemo } from "react";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
-import { cellExecutionInputsAtom, runningCellIds } from "@/core/executions";
+import {
+  cellExecutionInputsAtom,
+  cellOutlineAtom,
+  clearCellOutputs,
+  runningCellIds,
+} from "@/core/executions";
 import type { EditableDocument } from "@/core/notebook/document";
 import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
@@ -40,6 +45,7 @@ import {
   useReducerActions,
 } from "./cells";
 import { resolveColumns } from "./columns";
+import { consoleExecution } from "./execution-console";
 import { documentOf, focusWhenMounted, modelOf } from "./edit";
 import {
   isCodeHidden,
@@ -196,7 +202,7 @@ export const splitCellAtom = atom(
       tx.setCode(cellId, beforeCursorCode);
       tx.createCell({ id, code: afterCursorCode }, { after: cellId });
     });
-    clearOutput(set, cellId);
+    clearOutput(get, set, cellId);
     focusWhenMounted(set, id);
     return id;
   },
@@ -227,16 +233,65 @@ export const undoSplitCellAtom = atom(
       }
     });
     releaseCellAtoms(newCellId);
-    clearOutput(set, cellId);
+    clearOutput(get, set, cellId);
   },
 );
 
 /** The output belonged to the code before the change; neither version has run. */
-function clearOutput(set: Setter, cellId: CellId): void {
-  set(notebookAtom, (state) =>
-    notebookReducer(state, { type: "clearCellOutput", payload: { cellId } }),
-  );
+function clearOutput(get: Getter, set: Setter, cellId: CellId): void {
+  clearOutputs({ get, set }, [cellId]);
 }
+
+/**
+ * Hide what `cellIds` show, in the output area and the console.
+ *
+ * The output stays hidden until a newer result lands. A prompt the kernel
+ * is still waiting on stays, since the cell cannot finish without it.
+ */
+function clearOutputs(
+  store: { get: Getter; set: Setter },
+  cellIds: readonly CellId[],
+): void {
+  clearCellOutputs(store, cellIds);
+  for (const cellId of cellIds) {
+    store.set(clearCellConsoleOutputAtom, { cellId });
+  }
+}
+
+export const clearCellConsoleOutputAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }) => {
+    const execution = consoleExecution(get, cellId);
+    const clearedConsole = execution && {
+      executionId: execution.record.id,
+      seq: execution.lastSeq ?? -1,
+      prompts: new Set(
+        [...execution.items.values()]
+          .filter((item) => item.kind === "input" && item.status === "pending")
+          .map((item) => item.id),
+      ),
+    };
+    set(notebookAtom, (state) =>
+      notebookReducer(state, {
+        type: "clearCellConsole",
+        payload: { cellId, clearedConsole },
+      }),
+    );
+  },
+);
+
+/** Clear one cell's output. */
+export const clearCellOutputAtom = atom(
+  null,
+  (get, set, { cellId }: { cellId: CellId }): void => {
+    clearOutputs({ get, set }, [cellId]);
+  },
+);
+
+/** Clear every cell's output. */
+export const clearAllCellOutputsAtom = atom(null, (get, set): void => {
+  clearOutputs({ get, set }, get(notebookAtom).cellIds);
+});
 
 /**
  * Focus the cell before or after `cellId`. Past the edge of the column,
@@ -350,7 +405,7 @@ function unfoldSections(set: Setter, headers: readonly CellId[]): void {
 export const collapseCellAtom = atom(
   null,
   (get, set, { cellId }: { cellId: CellId }): void => {
-    if (!canCollapseOutline(get(notebookAtom).cellRuntime[cellId]?.outline)) {
+    if (!canCollapseOutline(get(cellOutlineAtom(cellId)))) {
       return;
     }
     set(collapsedAtom, (collapsed) => new Set([...collapsed, cellId]));
@@ -369,11 +424,12 @@ export const expandCellAtom = atom(
 
 /** Fold every section in the notebook. */
 export const collapseAllCellsAtom = atom(null, (get, set): void => {
-  const { cellIds, cellRuntime } = get(notebookAtom);
   set(
     collapsedAtom,
     new Set(
-      cellIds.filter((id) => canCollapseOutline(cellRuntime[id]?.outline)),
+      get(notebookAtom).cellIds.filter((id) =>
+        canCollapseOutline(get(cellOutlineAtom(id))),
+      ),
     ),
   );
 });
@@ -600,7 +656,7 @@ export function useCellActions() {
   // The session feeds the kernel's messages and the document into the
   // notebook through `useReducerActions`; components get the operations.
   const {
-    handleCellMessage: _handleCellMessage,
+    setCellReusability: _setCellReusability,
     addLogs: _addLogs,
     reconcileDocument: _reconcileDocument,
     resetCellRuntimes: _resetCellRuntimes,
@@ -619,6 +675,9 @@ export function useCellActions() {
   const expandCell = useSetAtom(expandCellAtom);
   const collapseAllCells = useSetAtom(collapseAllCellsAtom);
   const expandAllCells = useSetAtom(expandAllCellsAtom);
+  const clearCellOutput = useSetAtom(clearCellOutputAtom);
+  const clearCellConsoleOutput = useSetAtom(clearCellConsoleOutputAtom);
+  const clearAllCellOutputs = useSetAtom(clearAllCellOutputsAtom);
   const showCellIfHidden = useSetAtom(showCellIfHiddenAtom);
   const moveCell = useSetAtom(moveCellAtom);
   const moveCellToIndex = useSetAtom(moveCellToIndexAtom);
@@ -668,6 +727,9 @@ export function useCellActions() {
       expandCell,
       collapseAllCells,
       expandAllCells,
+      clearCellOutput,
+      clearCellConsoleOutput,
+      clearAllCellOutputs,
       showCellIfHidden,
     }),
     // The reducer's actions and the atom setters are stable for the store's lifetime.

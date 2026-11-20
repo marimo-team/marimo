@@ -18,11 +18,12 @@ export const activeNotebookBackendAtom = atom((get) => {
 
 /**
  * The document the host last confirmed, or null while no notebook is
- * connected. Facts the host owns read this one, such as permission, the
- * app config, saved state and whether source is available. What the user
- * is editing reads the model's document, which adds this browser's drafts.
+ * connected. Through a reset it is the document the reset replaced. Facts
+ * the host owns read this one, such as permission, the app config, saved
+ * state and whether source is available. What the user is editing reads
+ * the model's document, which adds this browser's drafts.
  */
 export const confirmedDocumentAtom = atom((get) => {
   const replica = get(activeNotebookReplicaAtom);
-  return replica === null ? null : get(replica.documentAtom);
+  return replica === null ? null : get(replica.shownDocumentAtom);
 });

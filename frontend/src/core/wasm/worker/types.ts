@@ -72,7 +72,6 @@ export interface WasmSession {
 
 export interface RawBridge {
   put_control_request(operation: ClientCommand): Promise<string>;
-  put_input(input: string): Promise<string>;
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
   read_snippets(): Promise<Snippets>;
@@ -122,6 +121,7 @@ export type SerializedBridge = {
       id: string,
       cursor: string | null,
       emit: (event: string) => void,
+      types?: string,
     ): Promise<void>;
     unsubscribe(id: string): void;
     call(call: string): Promise<string>;
@@ -131,6 +131,7 @@ export type SerializedBridge = {
       persist: (contents: string, filename: string) => Promise<void>,
     ): void;
     set_package_loader(load: (code: string) => Promise<void>): void;
+    allow_input(allowed: boolean): void;
     destroy(): void;
   };
 };

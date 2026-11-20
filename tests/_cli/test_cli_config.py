@@ -99,6 +99,26 @@ path = "/data"
     assert tomlkit.parse(output).unwrap() == values
 
 
+def test_config_show_sources_omits_nulls_without_mutating_config() -> None:
+    import copy
+
+    import tomlkit
+
+    values = {
+        "sharing": None,
+        "ai": {"max_tokens": None, "mode": "ask"},
+        "file_browser": {"folders": [{"path": "/data", "name": None}]},
+    }
+    resolved = resolve_config_with_sources([ConfigLayer(values, "env_var")])
+    original = copy.deepcopy(resolved.config)
+    output = format_config_with_sources(resolved)
+    assert tomlkit.parse(output).unwrap() == {
+        "ai": {"mode": "ask"},
+        "file_browser": {"folders": [{"path": "/data"}]},
+    }
+    assert resolved.config == original
+
+
 @pytest.mark.parametrize("show_sources", [False, True])
 def test_config_show_includes_notebook_sources_and_does_not_save(
     tmp_path: Path,
@@ -265,7 +285,7 @@ def test_config_describe_nested_and_optional_sections(
     assert "Enable live debugging with gutter breakpoints and pdb." in output
     assert "completion.model (Deprecated)\n" in output
     assert "completion.api_key (Deprecated, Sensitive)\n" in output
-    assert "completion.codeium_api_key (Sensitive)\n" in output
+    assert "completion.codeium_api_key" not in output
     assert "completion.activate_on_typing (Sensitive)" not in output
     assert "experimental.debugger (Experimental)\n" in output
     assert "[Deprecated]" not in output

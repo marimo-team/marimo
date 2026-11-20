@@ -19,7 +19,6 @@ def build_kernel_ready(
     resumed: bool,
     ui_values: dict[str, JSONType],
     kiosk: bool,
-    auto_instantiated: bool = False,
 ) -> KernelReadyNotification:
     """Build a KernelReady message.
 
@@ -28,9 +27,6 @@ def build_kernel_ready(
         resumed: Whether this is a resumed session
         ui_values: UI element values
         kiosk: Whether this is kiosk mode
-        auto_instantiated: Whether the kernel has already been instantiated
-            server-side (run mode). If True, the frontend does not need
-            to instantiate the app.
 
     Returns:
         KernelReady message operation.
@@ -47,6 +43,5 @@ def build_kernel_ready(
             else ConsumerCapabilities.EDITOR
         ),
         capabilities=KernelCapabilitiesNotification(),
-        auto_instantiated=auto_instantiated,
         stable_session_id=session.stable_id,
     )

@@ -12,6 +12,7 @@ import pytest
 
 from marimo._ast.cell import CellConfig
 from marimo._ast.type_inference import Inferred
+from marimo._config.config_schema import MarimoConfig
 from marimo._messaging.notebook.document import NotebookCell
 from marimo._session.notebook import (
     AppFileManager,
@@ -241,9 +242,11 @@ class _ConfigReader:
     def __init__(self, infer_types: str) -> None:
         self.infer_types = infer_types
 
-    def get_config(self, *, hide_secrets: bool = True) -> dict:
+    def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         del hide_secrets
-        return {"formatting": {"infer_types": self.infer_types}}
+        return MarimoConfig.from_dict(
+            {"formatting": {"infer_types": self.infer_types}}
+        )
 
 
 class _FakeBackend:
@@ -349,9 +352,9 @@ def test_line_length_follows_config_and_defaults_to_79(tmp_path: Path) -> None:
     fm = load_notebook(_write_notebook(tmp_path / "nb.py"))
     assert fm.line_length == 79
     reader = _ConfigReader(infer_types="jedi")
-    reader.get_config = lambda **_: {  # type: ignore[method-assign]
-        "formatting": {"infer_types": "jedi", "line_length": 100}
-    }
+    reader.get_config = lambda **_: MarimoConfig.from_dict(
+        {"formatting": {"infer_types": "jedi", "line_length": 100}}
+    )
     fm.config_reader = reader  # type: ignore[assignment]
     assert fm.line_length == 100
 

@@ -3,11 +3,31 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import msgspec
 
 from marimo._core import protocol
 from marimo._core.stream import ExtensionEvent, RoutedEvent, event_name
-from marimo._messaging.notification import NotificationMessage
+from marimo._messaging.notification import (
+    CallbackOutputNotification,
+    CellNotification,
+    ConsoleInputsClearedNotification,
+    EditorCellNotification,
+    EditorNotification,
+    ExecutionNotification,
+    KernelReadyNotification,
+    NotificationMessage,
+    PdbInputNotification,
+    PdbOutputNotification,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from marimo._messaging.command_output import CommandOutput
+    from marimo._session.state.session_view import SessionView
+    from marimo._types.ids import CellId_t
 
 
 class MarimoMessage(msgspec.Struct, frozen=True):
@@ -16,7 +36,7 @@ class MarimoMessage(msgspec.Struct, frozen=True):
     This type is internal to marimo and may change between releases.
     """
 
-    marimo: NotificationMessage
+    marimo: EditorNotification
 
 
 class MarimoEvent(ExtensionEvent, frozen=True, tag="marimo"):
@@ -25,10 +45,128 @@ class MarimoEvent(ExtensionEvent, frozen=True, tag="marimo"):
     data: MarimoMessage
 
 
+class EditorNotifications:
+    """Project kernel updates onto one editor subscription."""
+
+    def __init__(self) -> None:
+        self._cleared_inputs: dict[CellId_t, tuple[str, int]] = {}
+        self._command_output: dict[CellId_t, set[CommandOutput]] = {}
+        self._blocked: set[CellId_t] = set()
+        self._reusability: dict[CellId_t, str | None] = {}
+
+    def events(
+        self,
+        notebook_id: protocol.NotebookId | None,
+        notification: NotificationMessage,
+        view: SessionView | None = None,
+    ) -> Iterator[RoutedEvent]:
+        if isinstance(notification, CellNotification):
+            if (
+                notification.console == []
+                and notification.execution_id is not None
+                and view is not None
+            ):
+                if notification.execution_id == view.current_execution_id(
+                    notification.cell_id
+                ):
+                    kinds = self._command_output.pop(
+                        notification.cell_id, None
+                    )
+                    if kinds and notification.status != "running":
+                        for kind in kinds:
+                            yield self._event(
+                                notebook_id,
+                                kind(notification.cell_id, [], replace=True),
+                            )
+                cleared = view.cleared_console_inputs(
+                    notification.cell_id, notification.execution_id
+                )
+                if cleared is not None:
+                    yield from self.events(notebook_id, cleared)
+            cell_id = notification.cell_id
+            hint = notification.serialization
+            if hint == self._reusability.get(cell_id, msgspec.UNSET):
+                hint = msgspec.UNSET
+            elif hint is not msgspec.UNSET:
+                self._reusability[cell_id] = hint
+            status = notification.status
+            if status is not None:
+                blocked = status == "disabled-transitively"
+                if blocked == (cell_id in self._blocked):
+                    status = None
+                elif status == "disabled-transitively":
+                    self._blocked.add(cell_id)
+                else:
+                    self._blocked.remove(cell_id)
+                    status = "idle"
+            if hint is not msgspec.UNSET or status is not None:
+                yield self._event(
+                    notebook_id,
+                    EditorCellNotification(
+                        cell_id=cell_id, serialization=hint, status=status
+                    ),
+                )
+            return
+        if view is not None and isinstance(
+            notification, (PdbOutputNotification, CallbackOutputNotification)
+        ):
+            if notification.entries:
+                self._command_output.setdefault(
+                    notification.cell_id, set()
+                ).add(type(notification))
+            elif kinds := self._command_output.get(notification.cell_id):
+                kinds.discard(type(notification))
+            if (
+                isinstance(notification, CallbackOutputNotification)
+                and notification.clears_cell_console
+            ):
+                self._command_output.pop(notification.cell_id, None)
+                cleared = view.cleared_console_inputs(notification.cell_id)
+                if cleared is not None:
+                    yield from self.events(notebook_id, cleared)
+            notification = view.position_command_output(notification)
+        if isinstance(notification, KernelReadyNotification):
+            # The renderer resets on kernel-ready, before the session replay.
+            self._cleared_inputs.clear()
+        if isinstance(notification, ConsoleInputsClearedNotification):
+            revision = (notification.execution_id, len(notification.input_ids))
+            if self._cleared_inputs.get(notification.cell_id) == revision:
+                return
+            self._cleared_inputs[notification.cell_id] = revision
+        event = notification_event(
+            notebook_id, notification, editor_session=True
+        )
+        if event is not None:
+            yield event
+
+    @staticmethod
+    def _event(
+        notebook_id: protocol.NotebookId | None, message: EditorNotification
+    ) -> RoutedEvent:
+        return RoutedEvent(
+            MarimoEvent(MarimoMessage(message)), notebook_id=notebook_id
+        )
+
+
 def notification_event(
-    notebook_id: protocol.NotebookId | None, notification: NotificationMessage
-) -> RoutedEvent:
-    """Wrap a notification with its notebook and optional run scope."""
+    notebook_id: protocol.NotebookId | None,
+    notification: NotificationMessage,
+    *,
+    editor_session: bool = False,
+) -> RoutedEvent | None:
+    """Project a kernel notification onto the host or attached editor stream."""
+    if isinstance(notification, (ExecutionNotification, CellNotification)):
+        return None
+    if not editor_session and isinstance(
+        notification,
+        (
+            PdbInputNotification,
+            CallbackOutputNotification,
+            PdbOutputNotification,
+            ConsoleInputsClearedNotification,
+        ),
+    ):
+        return None
     run_id = getattr(notification, "run_id", None)
     return RoutedEvent(
         MarimoEvent(MarimoMessage(notification)),

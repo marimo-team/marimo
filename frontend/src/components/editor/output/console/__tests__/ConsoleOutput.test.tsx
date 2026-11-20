@@ -5,9 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createStore, Provider } from "jotai";
 import { SetupMocks } from "@/__mocks__/common";
 import { mockDocumentModel } from "@/__mocks__/document";
+import { MockRequestClient } from "@/__mocks__/requests";
+import * as requests from "@/core/network/requests";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { WithResponse } from "@/core/cells/types";
+import { pendingPdbInputAtom } from "@/core/codemirror/cells/debugger-state";
 import { DocumentProvider } from "@/core/notebook/document";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { CONSOLE_CLEAR_DEBOUNCE_MS, ConsoleOutput } from "../ConsoleOutput";
@@ -40,8 +43,6 @@ describe("ConsoleOutput integration", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
-    interrupted: false,
-    debuggerActive: false,
     onSubmitDebugger: () => {
       // noop
     },
@@ -72,20 +73,49 @@ describe("ConsoleOutput pdb history", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
-    interrupted: false,
-    debuggerActive: false,
     onSubmitDebugger: vi.fn(),
   };
 
   const stdinPrompt = (
     data: string,
-    response?: string,
+    response?: string | null,
   ): WithResponse<OutputMessage> => ({
     channel: "stdin" as const,
+    input_id: "prompt-1",
     mimetype: "text/plain",
     data,
     timestamp: 0,
     response,
+  });
+
+  it("answers the failed cell's debugger prompt by ID and allows a retry", () => {
+    const client = MockRequestClient.create();
+    client.sendPdbReply.mockRejectedValueOnce(new Error("disconnected"));
+    const getter = vi
+      .spyOn(requests, "getRequestClient")
+      .mockReturnValue(client);
+    try {
+      store.set(pendingPdbInputAtom, {
+        cellId: defaultProps.cellId,
+        inputId: "prompt-1",
+      });
+      renderWithProvider(<ConsoleOutput {...defaultProps} />);
+      const input = screen.getByTestId("console-input");
+      for (let attempt = 0; attempt < 2; attempt++) {
+        fireEvent.change(input, { target: { value: "where" } });
+        fireEvent.keyDown(input, { key: "Enter" });
+      }
+      expect(client.sendPdbReply).toHaveBeenCalledTimes(2);
+      expect(client.sendPdbReply).toHaveBeenLastCalledWith({
+        cellId: defaultProps.cellId,
+        inputId: "prompt-1",
+        value: "where",
+      });
+      expect(defaultProps.onSubmitDebugger).not.toHaveBeenCalled();
+    } finally {
+      act(() => store.set(pendingPdbInputAtom, null));
+      getter.mockRestore();
+    }
   });
 
   it("should persist command history across StdInput remounts", () => {
@@ -107,7 +137,7 @@ describe("ConsoleOutput pdb history", () => {
     fireEvent.change(input, { target: { value: "next" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(onSubmitDebugger).toHaveBeenCalledWith("next", 0);
+    expect(onSubmitDebugger).toHaveBeenCalledWith("next", "prompt-1");
 
     // Simulate server response: old stdin gets a response, new stdin prompt appears
     const outputs2: WithResponse<OutputMessage>[] = [
@@ -139,6 +169,7 @@ describe("ConsoleOutput pdb history", () => {
   it("submits passwords without making them available to input history", () => {
     const passwordPrompt: WithResponse<OutputMessage> = {
       ...stdinPrompt("Password: "),
+      input_id: "password-1",
       mimetype: "text/password",
     };
     const onSubmitDebugger = vi.fn();
@@ -176,7 +207,7 @@ describe("ConsoleOutput pdb history", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onSubmitDebugger).toHaveBeenLastCalledWith(
       "getpass-regression-secret",
-      1,
+      passwordPrompt.input_id,
     );
     expect(input).toHaveValue("");
 
@@ -218,7 +249,7 @@ describe("ConsoleOutput pdb history", () => {
     input.value = "marimo";
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(onSubmitDebugger).toHaveBeenCalledWith("marimo", 0);
+    expect(onSubmitDebugger).toHaveBeenCalledWith("marimo", "prompt-1");
   });
 
   it("should submit an empty string when Enter is pressed with no input", () => {
@@ -239,7 +270,7 @@ describe("ConsoleOutput pdb history", () => {
     const input = screen.getByTestId("console-input");
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(onSubmitDebugger).toHaveBeenCalledWith("", 0);
+    expect(onSubmitDebugger).toHaveBeenCalledWith("", "prompt-1");
   });
 
   it("should not record empty submissions in input history", () => {
@@ -388,43 +419,18 @@ describe("ConsoleOutput pdb history", () => {
     expect(input).toHaveValue("");
   });
 
-  it("should distinguish an interrupted prompt from a bare-Enter submission", () => {
-    // After interrupt, cell.ts coerces pending stdin prompts to response: "".
-    // We must render that case differently from a real bare-Enter response,
-    // so the user isn't told they "submitted" a blank value.
-    const interruptedOutputs: WithResponse<OutputMessage>[] = [
-      stdinPrompt("Press Enter to continue: ", ""),
-    ];
-
-    const { rerender } = renderWithProvider(
+  it.each([
+    [null, false],
+    ["", true],
+  ] as const)("renders a closed prompt with response %s", (response, empty) => {
+    renderWithProvider(
       <ConsoleOutput
         {...defaultProps}
-        consoleOutputs={interruptedOutputs}
-        interrupted={true}
+        consoleOutputs={[stdinPrompt("Press Enter to continue: ", response)]}
       />,
     );
-
-    // No response chunk should be rendered for an interrupted pending prompt.
-    expect(screen.queryByLabelText("stdin response")).not.toBeInTheDocument();
-
-    // Same outputs, but the cell isn't interrupted -- this is a real
-    // bare-Enter submission, so we should render the (empty) placeholder.
-    rerender(
-      <Provider store={store}>
-        <DocumentProvider model={model}>
-          <TooltipProvider>
-            <ConsoleOutput
-              {...defaultProps}
-              consoleOutputs={interruptedOutputs}
-              interrupted={false}
-            />
-          </TooltipProvider>
-        </DocumentProvider>
-      </Provider>,
-    );
-
-    expect(screen.getByLabelText("stdin response")).toBeInTheDocument();
-    expect(screen.getByText("(empty)")).toBeInTheDocument();
+    expect(screen.queryByTestId("console-input")).not.toBeInTheDocument();
+    expect(screen.queryByText("(empty)") !== null).toBe(empty);
   });
 });
 
@@ -453,8 +459,6 @@ describe("ConsoleOutput debounced clearing", () => {
     cellName: "test_cell",
     consoleOutputs: [] as WithResponse<OutputMessage>[],
     stale: false,
-    interrupted: false,
-    debuggerActive: false,
     onSubmitDebugger: vi.fn(),
   };
 

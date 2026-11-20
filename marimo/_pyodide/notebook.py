@@ -21,6 +21,7 @@ from marimo._core.host import Host
 from marimo._core.ids import mint
 from marimo._core.notebook import Notebook
 from marimo._core.operations import Mutations, problem
+from marimo._messaging.input import InputReply
 from marimo._messaging.notebook.outputs import scratchpad_snapshot
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
@@ -43,7 +44,7 @@ from marimo._runtime.layout.layout import (
     layout_config_to_data_uri,
 )
 from marimo._server.host import document as documents
-from marimo._server.host.events import notification_event, serialize_event
+from marimo._server.host.events import EditorNotifications, serialize_event
 from marimo._server.host.handover import Handover, Turn
 from marimo._server.host.translate import (
     RunTranslator,
@@ -72,7 +73,10 @@ _OPERATIONS = (
     "notebook.edit",
     "notebook.save",
     "runtime.run",
+    "runtime.input",
+    "runtime.execute",
     "runtime.interrupt",
+    "runtime.cancel",
 )
 
 
@@ -177,6 +181,7 @@ class WorkerBackend:
         code: str,
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         del request  # The worker's runs arrive without an HTTP request.
         session = self._session
@@ -193,7 +198,7 @@ class WorkerBackend:
                 notebook_cells=cells,
                 cell_outputs=outputs,
                 run_id=run_id,
-                allow_stdin=True,
+                allow_stdin=allow_input,
             )
 
         self._prepare(
@@ -207,6 +212,7 @@ class WorkerBackend:
         cell_ids: Sequence[protocol.CellId],
         *,
         request: be.RequestInfo | None,
+        allow_input: bool = False,
     ) -> None:
         del request  # The worker's runs arrive without an HTTP request.
 
@@ -223,7 +229,7 @@ class WorkerBackend:
                 execution_requests=[cells[cell_id] for cell_id in cell_ids],
                 request=None,
                 run_id=run_id,
-                allow_stdin=True,
+                allow_stdin=allow_input,
             )
 
         # Dependents run too, so every cell's imports are loaded, each
@@ -234,7 +240,16 @@ class WorkerBackend:
             build,
         )
 
-    def interrupt(self, run_id: protocol.RunId) -> None:
+    def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
+        self._session.reply_input(InputReply(input_id, value))
+        self._session.session_view.add_stdin(value, input_id=input_id)
+
+    def interrupt(self) -> None:
+        # The kernel's translators include the runs it scheduled itself.
+        for run_id in [*self._preparing, *self._translators]:
+            self.cancel(run_id)
+
+    def cancel(self, run_id: protocol.RunId) -> None:
         preparing = self._preparing.get(run_id)
         if preparing is not None:
             preparing.task.cancel()
@@ -362,7 +377,10 @@ class WorkerBackend:
         notification = deserialize_kernel_message(message)
         for reported in variable_messages(notification):
             self._observe(reported)
-        translator, reports = self._translators.feed(notification)
+        translator, reports = self._translators.feed(
+            notification,
+            view=self._session.session_view,
+        )
         for reported in reports:
             self._observe(reported)
         if translator is None:
@@ -384,6 +402,7 @@ class PyodideNotebook:
         self._save_lock = asyncio.Lock()
         self._persist: Callable[[str, str], Awaitable[None]] | None = None
         self._load_packages: Callable[[str], Awaitable[None]] | None = None
+        self._allow_input = False
         self._backend: WorkerBackend | None = None
         self.host = Host(operations=_OPERATIONS)
         project_id = mint(protocol.ProjectId, "p")
@@ -454,6 +473,16 @@ class PyodideNotebook:
         """Load the packages a run's code imports before the kernel runs it."""
         self._load_packages = load
 
+    def allow_input(self, allowed: bool = True) -> None:
+        """Let runs prompt for input, as an editor's runs may.
+
+        A worker that serves no editor, such as the one behind islands,
+        leaves this off, so `input()` fails at once instead of waiting on
+        an answer that nothing can give. The server applies the same rule
+        by allowing input only for the notebook's own editor session.
+        """
+        self._allow_input = allowed
+
     def refresh(self) -> None:
         """Observe changes from session operations not yet exposed by the host."""
         if self._closed:
@@ -470,6 +499,7 @@ class PyodideNotebook:
         subscription_id: str,
         cursor: str | None,
         emit: Callable[[str], None],
+        types: str | None = None,
     ) -> None:
         if self._closed:
             raise RuntimeError("The notebook is closed")
@@ -478,18 +508,26 @@ class PyodideNotebook:
             raise RuntimeError("The notebook is closed")
         self.refresh()
         self.unsubscribe(subscription_id)
+        kinds = set(types.split(",")) if types else None
+
+        notifications = EditorNotifications()
 
         def notify(notification: NotificationMessage) -> None:
-            emit(serialize_event(notification_event(self.id, notification)))
+            for event in notifications.events(
+                self.id, notification, self._session.session_view
+            ):
+                if event.wanted(kinds):
+                    emit(serialize_event(event))
 
         def consume(message: KernelMessage) -> None:
             notify(deserialize_kernel_message(message))
 
         # Snapshot and subscriptions are established in the same event-loop turn.
-        initial = self.host.events(cursor, notebook_id=self.id)
+        initial = self.host.events(cursor, notebook_id=self.id, types=kinds)
         unsubscribe = self.host.subscribe(
             lambda event: emit(serialize_event(event)),
             notebook_id=self.id,
+            types=kinds,
         )
         session = self._session
         session.consumers.append(consume)
@@ -510,7 +548,7 @@ class PyodideNotebook:
                     session.app_manager, view if session.instantiated else None
                 )
             )
-            for notification in view.snapshot_notifications():
+            for notification in view.snapshot_notifications(scope="editor"):
                 notify(notification)
         except BaseException:
             self.unsubscribe(subscription_id)
@@ -524,15 +562,20 @@ class PyodideNotebook:
     async def call(self, raw: str) -> str:
         """Serve an operation call and reply with its status and body."""
         self.mutations.expire()
+        status: int
         body: msgspec.Struct | None
         try:
             call = msgspec.json.decode(raw, type=OperationCall)
         except msgspec.DecodeError as e:
-            failure = problem(400, "invalid-request", str(e))
+            failure = problem("invalid-request", str(e))
             status, body = failure.status, failure
         else:
             status, body = await dispatch(
-                self.mutations, self, call, request=None
+                self.mutations,
+                self,
+                call,
+                request=None,
+                allow_input=self._allow_input,
             )
         return msgspec.json.encode({"status": status, "body": body}).decode()
 

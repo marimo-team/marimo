@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, field, fields
 from typing import Any
 
 from marimo import _loggers
-from marimo._config.config import ExportType, SqlOutputType, WidthType
+from marimo._config.types import ExportType, SqlOutputType, WidthType
 from marimo._utils.env import env_to_value
 
 LOGGER = _loggers.marimo_logger()

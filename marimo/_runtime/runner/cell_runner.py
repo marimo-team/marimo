@@ -5,6 +5,7 @@ import ast
 import asyncio
 import io
 import traceback
+from contextlib import nullcontext
 from pathlib import Path
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
@@ -14,7 +15,8 @@ from marimo._ast.variables import (
     is_local,
     unmangle_local,
 )
-from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
+from marimo._config.config_schema import ExperimentalConfig, MarimoConfig
+from marimo._config.types import ExecutionType, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
@@ -25,7 +27,11 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.notification import InterruptedNotification
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._messaging.tracebacks import _highlight_traceback, write_traceback
+from marimo._messaging.tracebacks import (
+    _highlight_traceback,
+    format_exception,
+    write_traceback,
+)
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.context.utils import get_mode
@@ -214,9 +220,7 @@ class Runner:
         lifecycles: list[ExecutionLifecycle] = []
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
-        if user_config is not None and user_config.get("runtime", {}).get(
-            "cache_cells", False
-        ):
+        if user_config is not None and user_config.runtime.cache_cells:
             from marimo._runtime.executor.lifecycles.cached import (
                 CachedLifecycle,
             )
@@ -224,25 +228,19 @@ class Runner:
             lifecycles.append(
                 CachedLifecycle(
                     self.graph,
-                    # Default pin_modules to True for a stronger backwards compatibility
-                    # guarantee.
-                    pin_modules=bool(
-                        user_config.get("runtime", {}).get("pin_modules", True)
-                    ),
+                    pin_modules=user_config.runtime.pin_modules,
                 )
             )
         # Live debugger and line-timing highlight share one frame-watching
         # lifecycle (a single `sys.settrace` hook). Gated here so there is
         # zero tracing overhead when disabled.
         experimental = (
-            self.user_config.get("experimental", {})
+            self.user_config.experimental
             if self.user_config is not None
-            else {}
+            else ExperimentalConfig()
         )
-        debugger_on = self.debugger is not None and bool(
-            experimental.get("debugger", False)
-        )
-        line_timing_on = bool(experimental.get("line_timing", False))
+        debugger_on = self.debugger is not None and experimental.debugger
+        line_timing_on = experimental.line_timing
         if debugger_on or line_timing_on:
             lifecycles.append(
                 DebuggerLifecycle(self.debugger if debugger_on else None)
@@ -547,7 +545,7 @@ class Runner:
             and get_mode() == "edit"
         ):
             exception.traceback = _highlight_traceback(
-                "".join(traceback.format_exception(unwrapped_exception))
+                format_exception(unwrapped_exception)
             )
         return RunResult(
             output=output, exception=exception
@@ -684,28 +682,13 @@ class Runner:
             # call, so this should be lifted to a non-interruptible path.
             self.cancel(cell_id)
 
-            if should_show_traceback(run_result.exception):
-                tmpio = io.StringIO()
-                # The executors explicitly raise cell exceptions from base
-                # exceptions such that the stack trace is cleaner.
-                # Verbosity is for Python < 3.10 compat
-                # See https://docs.python.org/3/library/traceback.html
-                exception_type = (
-                    type(unwrapped_exception) if unwrapped_exception else None
+            if (
+                should_show_traceback(run_result.exception)
+                and unwrapped_exception is not None
+            ):
+                write_traceback(
+                    format_exception(unwrapped_exception), code=cell.code
                 )
-                maybe_traceback = (
-                    unwrapped_exception.__traceback__
-                    if unwrapped_exception
-                    else None
-                )
-                traceback.print_exception(
-                    exception_type,
-                    unwrapped_exception,
-                    maybe_traceback,
-                    file=tmpio,
-                )
-                tmpio.seek(0)
-                write_traceback(tmpio.read(), code=cell.code)
             return run_result
 
         # Anything else escaping the Evaluator is unexpected.
@@ -794,26 +777,31 @@ class Runner:
         ctx: PostExecutionHookContext,
         run_result: RunResult,
     ) -> None:
-        try:
-            for post_hook in self._hooks.post_execution_hooks:
-                try:
-                    post_hook(cell, ctx, run_result)
-                except KeyboardInterrupt:
-                    self.interrupted = True
-                    LOGGER.info(
-                        "Cell %s interrupted during post-execution hook",
-                        cell.cell_id,
-                    )
-        finally:
-            # Cleanup must complete even if interrupted after updating local
-            # state but before broadcasting it to the frontend.
-            while True:
-                try:
-                    for finalize in self._hooks.finalization_hooks:
-                        finalize(cell, ctx, run_result)
-                    break
-                except KeyboardInterrupt:
-                    self.interrupted = True
+        for post_hook in self._hooks.post_execution_hooks:
+            try:
+                post_hook(cell, ctx, run_result)
+            except KeyboardInterrupt:
+                self.interrupted = True
+                LOGGER.info(
+                    "Cell %s interrupted during post-execution hook",
+                    cell.cell_id,
+                )
+
+    def _finalize_cell(
+        self,
+        cell: CellImpl,
+        ctx: PostExecutionHookContext,
+        run_result: RunResult,
+    ) -> None:
+        # Cleanup must complete even if interrupted after updating local
+        # state but before broadcasting it to the frontend.
+        while True:
+            try:
+                for finalize in self._hooks.finalization_hooks:
+                    finalize(cell, ctx, run_result)
+                return
+            except KeyboardInterrupt:
+                self.interrupted = True
 
     def _take_attempt(self, cell_id: CellId_t) -> ExecutionAttempt:
         """The attempt planned for the cell, or a new one.
@@ -855,22 +843,27 @@ class Runner:
             pre_hook(cell, pre_exec_ctx)
         LOGGER.debug("Running cell %s", cell_id)
 
-        if self.execution_context is not None:
-            try:
-                with self.execution_context(cell_id) as exc_ctx:
-                    run_result = await self.run(cell_id)
+        run_result = None
+        try:
+            with (
+                self.execution_context(cell_id)
+                if self.execution_context is not None
+                else nullcontext()
+            ) as exc_ctx:
+                run_result = await self.run(cell_id)
+                if exc_ctx is not None:
                     run_result.accumulated_output = exc_ctx.output
-                    self._run_post_execution_hooks(
-                        cell, post_exec_ctx, run_result
-                    )
-            except KeyboardInterrupt:
-                LOGGER.error(
-                    "A keyboard interrupt was raised but not handled by "
-                    "the runner."
-                )
-        else:
-            run_result = await self.run(cell_id)
-            self._run_post_execution_hooks(cell, post_exec_ctx, run_result)
+                self._run_post_execution_hooks(cell, post_exec_ctx, run_result)
+        except KeyboardInterrupt:
+            if self.execution_context is None:
+                raise
+            LOGGER.error(
+                "A keyboard interrupt was raised but not handled by the runner."
+            )
+        finally:
+            # Restore the native descriptors before flushing and publishing idle.
+            if run_result is not None:
+                self._finalize_cell(cell, post_exec_ctx, run_result)
 
     async def run_all(self) -> None:
         from marimo._runtime.runner.hook_context import (

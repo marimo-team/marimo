@@ -3,9 +3,6 @@
 
 from __future__ import annotations
 
-import html
-import json
-import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -30,7 +27,9 @@ from marimo._messaging.errors import (
     SetupRootError,
     UnknownError,
 )
+from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     CellNotification,
     CompletedRunNotification,
     ExecutionNotification,
@@ -45,6 +44,10 @@ from marimo._server.host import diagnostics
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
 
+    from marimo._session.state.session_view import SessionView
+    from marimo._types.ids import CellId_t
+
+    ConsolePosition = Callable[[CellId_t, str, int], None]
     CellOrder = Callable[[], Sequence[str]]
     """The document's cell ids in order, read when an error names cells."""
 
@@ -59,7 +62,7 @@ class _Execution:
     cell_id: str
     ended: bool = False
     outcome: protocol.Outcome = field(
-        default_factory=lambda: protocol.ValueOutcome(None)
+        default_factory=protocol.SucceededOutcome
     )
     errors: list[Error] = field(default_factory=list)
     seq: int = 0
@@ -90,7 +93,12 @@ class RunTranslator:
         """Whether the kernel has planned an execution for this run."""
         return bool(self._executions)
 
-    def feed(self, notification: NotificationMessage) -> list[be.Message]:
+    def feed(
+        self,
+        notification: NotificationMessage,
+        *,
+        on_console: ConsolePosition | None = None,
+    ) -> list[be.Message]:
         """Translate an attempt's lifecycle and output by its kernel identity."""
         if isinstance(notification, InterruptedNotification):
             if notification.run_id == self.run_id and not self._finished:
@@ -131,29 +139,26 @@ class RunTranslator:
         execution = self._executions.get(notification.execution_id or "")
         if execution is None:
             return []
+        previous_seq = execution.seq
         out = self._console(execution, notification)
-        if execution.ended or self._finished:
-            return out
+        if on_console is not None and execution.seq != previous_seq:
+            on_console(notification.cell_id, execution.id, execution.seq - 1)
         if notification.output is not None:
             output = notification.output
-            if output.channel == CellChannel.MARIMO_ERROR and isinstance(
-                output.data, list
+            if (
+                not execution.ended
+                and not self._finished
+                and output.channel == CellChannel.MARIMO_ERROR
+                and isinstance(output.data, list)
             ):
                 execution.errors.extend(output.data)
             elif output.channel == CellChannel.OUTPUT:
-                text = (
-                    output.data
-                    if isinstance(output.data, str)
-                    else json.dumps(output.data)
-                )
-                execution.outcome = protocol.ValueOutcome(
+                display = (
                     None
-                    if output.mimetype == "text/plain" and text == ""
-                    else protocol.DisplayData(
-                        mimetype=str(output.mimetype), data=text
-                    )
+                    if output.mimetype == "text/plain" and output.data == ""
+                    else displayed(output.mimetype, output.data)
                 )
-                out.append(be.Concluded(execution.id, execution.outcome))
+                out.append(be.Displayed(execution.id, display))
         return out
 
     def _plan(self, notification: ExecutionNotification) -> be.Planned:
@@ -227,7 +232,7 @@ class RunTranslator:
         )
         # The core keeps the reported outcome; release the payload here
         # while the translator stays alive for late output.
-        execution.outcome = protocol.ValueOutcome(None)
+        execution.outcome = protocol.SucceededOutcome()
         execution.errors.clear()
         return out
 
@@ -274,6 +279,8 @@ class RunTranslator:
     ) -> list[be.Message]:
         if notification.console is None:
             return []
+        if notification.console == []:
+            return [be.ConsoleCleared(execution.id)]
         entries = (
             notification.console
             if isinstance(notification.console, list)
@@ -281,6 +288,44 @@ class RunTranslator:
         )
         out: list[be.Message] = []
         for entry in entries:
+            if entry is not None and entry.channel == CellChannel.STDIN:
+                if (
+                    not execution.ended
+                    and not self._finished
+                    and isinstance(entry.input_id, str)
+                ):
+                    out.append(
+                        be.Produced(
+                            protocol.Input(
+                                id=protocol.ItemId(entry.input_id),
+                                execution_id=execution.id,
+                                seq=execution.seq,
+                                prompt=str(entry.data),
+                                password=entry.mimetype == "text/password",
+                                status="pending",
+                            )
+                        )
+                    )
+                    execution.seq += 1
+                continue
+            if entry is not None and (
+                entry.channel == CellChannel.MEDIA
+                or rendered_traceback(entry.mimetype, entry.data)
+            ):
+                out.append(
+                    be.Produced(
+                        protocol.Display(
+                            id=protocol.ItemId(
+                                f"{execution.id}-{execution.seq}"
+                            ),
+                            execution_id=execution.id,
+                            seq=execution.seq,
+                            content=displayed(entry.mimetype, entry.data),
+                        )
+                    )
+                )
+                execution.seq += 1
+                continue
             if entry is None or entry.channel not in (
                 CellChannel.STDOUT,
                 CellChannel.STDERR,
@@ -295,7 +340,7 @@ class RunTranslator:
                         name="stdout"
                         if entry.channel == CellChannel.STDOUT
                         else "stderr",
-                        text=_plain(str(entry.data)),
+                        text=str(entry.data),
                     )
                 )
             )
@@ -307,8 +352,8 @@ class RunTranslators:
     """The translators for a kernel's runs, by run id.
 
     A host submits some runs itself. The kernel schedules others, such as
-    a UI interaction's reactive work or a legacy client's request, and
-    those get a translator when their first execution is planned.
+    a UI interaction's reactive work, and those get a translator when
+    their first execution is planned.
     """
 
     def __init__(self, cell_order: CellOrder = _unordered) -> None:
@@ -334,9 +379,20 @@ class RunTranslators:
         self._translators.clear()
 
     def feed(
-        self, notification: NotificationMessage
+        self,
+        notification: NotificationMessage,
+        *,
+        view: SessionView | None = None,
     ) -> tuple[RunTranslator | None, list[be.Message]]:
         """Translate a notification about a run, if it concerns one."""
+        if (
+            isinstance(notification, CallbackOutputNotification)
+            and notification.clears_cell_console
+            and view is not None
+            and (owner := view.current_execution_id(notification.cell_id))
+            is not None
+        ):
+            return None, [be.ConsoleCleared(protocol.ExecutionId(owner))]
         if not isinstance(
             notification,
             (
@@ -358,16 +414,29 @@ class RunTranslators:
                 or notification.phase != "planned"
             ):
                 return None, []
-            translator = RunTranslator(
-                protocol.RunId(run_id),
+            code = (
                 notification.code
                 if notification.cell_id == SCRATCH_CELL_ID
-                else None,
-                self._cell_order,
+                else None
+            )
+            translator = RunTranslator(
+                protocol.RunId(run_id), code, self._cell_order
             )
             self.add(translator)
-            out.append(be.Scheduled(translator.run_id))
-        out.extend(translator.feed(notification))
+            out.append(
+                be.Scheduled(
+                    translator.run_id,
+                    protocol.RunRuntimeOrigin()
+                    if code is None
+                    else protocol.RunCodeOrigin(code=code),
+                )
+            )
+        out.extend(
+            translator.feed(
+                notification,
+                on_console=view.record_console_position if view else None,
+            )
+        )
         return translator, out
 
 
@@ -399,11 +468,26 @@ def variable_messages(notification: NotificationMessage) -> list[be.Message]:
     return out
 
 
-def _plain(text: str) -> str:
-    """Remove marimo's HTML syntax highlighting from console text."""
-    if not is_code_highlighting(text):
-        return text
-    return html.unescape(re.sub(r"<[^>]+>", "", text))
+def displayed(mimetype: str, data: object) -> protocol.DisplayData:
+    """A rendered value as the stream carries it, with structured data as JSON."""
+    return protocol.DisplayData(
+        mimetype=str(mimetype),
+        data=data if isinstance(data, str) else encode_json_str(data),
+    )
+
+
+def rendered_traceback(mimetype: str | None, data: object) -> bool:
+    """Whether a console entry is a traceback the kernel rendered as HTML.
+
+    A console item is the text as it was written, so a rendered traceback
+    is a display. One written as plain text, as for a scratch run, stays
+    console text.
+    """
+    return (
+        mimetype == "application/vnd.marimo+traceback"
+        and isinstance(data, str)
+        and is_code_highlighting(data)
+    )
 
 
 def _skip_reason(error: Error) -> str | None:

@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { unstable_NotebookCall } from "@marimo-team/client";
+import { EDITOR_EVENT_TYPES } from "@/core/notebook/replica";
 import type { PyodideInterface } from "pyodide";
 import {
   createRPC,
@@ -76,6 +78,13 @@ async function startSession(
     // Follow before the session instantiates. Each subscription begins with
     // its own kernel-ready and the session's retained notifications.
     try {
+      const host = session.bridge.notebook;
+      try {
+        // Host runs name cells, so the worker loads their imports itself.
+        host.set_package_loader(loadPackagesForCode);
+      } finally {
+        host.destroy();
+      }
       await follow(session.bridge, opts.sessionGeneration);
     } catch (error) {
       await session.stop();
@@ -100,6 +109,27 @@ async function startSession(
   }
 }
 
+async function loadPackagesForCode(code: string): Promise<void> {
+  if (shouldLoadDuckDBPackages(code)) {
+    // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
+    code = `import pandas\n${code}`;
+    code = `import duckdb\n${code}`;
+    code = `import sqlglot\n${code}`;
+
+    // Polars + SQL requires pyarrow, and installing
+    // after notebook load does not work. As a heuristic,
+    // if it appears that the notebook uses polars, add pyarrow.
+    if (code.includes("polars")) {
+      code = `import pyarrow\n${code}`;
+    }
+  }
+
+  await self.pyodide.loadPackagesFromImports(code, {
+    messageCallback: Logger.log,
+    errorCallback: Logger.error,
+  });
+}
+
 async function stopActiveSession(): Promise<void> {
   // Stopping closes every session and its notebook subscriptions.
   await self.controller.stopSession();
@@ -112,9 +142,14 @@ async function follow(
 ): Promise<void> {
   const notebook = bridge.notebook;
   try {
-    await notebook.subscribe(`island-${sessionGeneration}`, null, (event) => {
-      rpc.send.notebookEvent({ event, sessionGeneration });
-    });
+    await notebook.subscribe(
+      `island-${sessionGeneration}`,
+      null,
+      (event) => {
+        rpc.send.notebookEvent({ event, sessionGeneration });
+      },
+      EDITOR_EVENT_TYPES.join(","),
+    );
   } finally {
     notebook.destroy();
   }
@@ -166,27 +201,24 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
     await enqueueSession(async () => {
       requireActiveBridge(opts);
+      await loadPackagesForCode(opts.code);
+    });
+  },
 
-      let { code } = opts;
-
-      if (shouldLoadDuckDBPackages(code)) {
-        // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-        code = `import pandas\n${code}`;
-        code = `import duckdb\n${code}`;
-        code = `import sqlglot\n${code}`;
-
-        // Polars + SQL requires pyarrow, and installing
-        // after notebook load does not work. As a heuristic,
-        // if it appears that the notebook uses polars, add pyarrow.
-        if (code.includes("polars")) {
-          code = `import pyarrow\n${code}`;
-        }
+  /** Deliver a notebook operation to the active session's host. */
+  notebookCall: async (opts: {
+    appId: string;
+    sessionGeneration: number;
+    call: unstable_NotebookCall;
+  }): Promise<unknown> => {
+    await pyodideReadyPromise;
+    return enqueueSession(async () => {
+      const { notebook } = requireActiveBridge(opts);
+      try {
+        return JSON.parse(await notebook.call(JSON.stringify(opts.call)));
+      } finally {
+        notebook.destroy();
       }
-
-      await self.pyodide.loadPackagesFromImports(code, {
-        messageCallback: Logger.log,
-        errorCallback: Logger.error,
-      });
     });
   },
 

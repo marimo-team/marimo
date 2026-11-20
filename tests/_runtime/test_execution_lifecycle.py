@@ -368,10 +368,8 @@ async def test_pending_ancestor_retains_submitted_fingerprint(
     mocked_kernel: MockedKernel,
 ) -> None:
     kernel = mocked_kernel.k
-    kernel._uninstantiated_execution_requests[CellId_t("a")] = (
-        ExecuteCellCommand(
-            cell_id=CellId_t("a"), code="x = 1", code_fingerprint="custom:a"
-        )
+    kernel._pending_execution_requests[CellId_t("a")] = ExecuteCellCommand(
+        cell_id=CellId_t("a"), code="x = 1", code_fingerprint="custom:a"
     )
     await kernel.run(
         [

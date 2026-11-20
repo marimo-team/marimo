@@ -16,6 +16,9 @@ from msgspec.structs import replace
 from marimo._core import protocol
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._session.state.serialize import get_session_cache_file
+from marimo._utils.code import hash_code
+from marimo._version import __version__
 from tests._server.host.drive import finished, wait_for
 from tests._server.host.live import key, open_host
 from tests._server.host.staleness import Snapshot, read_events, snapshot
@@ -26,7 +29,7 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
-    from marimo._config.config import OnCellChangeType
+    from marimo._config.types import OnCellChangeType
     from marimo._core.protocol import RunOutcome
     from marimo._core.stream import RoutedEvent
     from tests._server.host.drive import Response
@@ -68,7 +71,8 @@ class Client:
         accepted = await finished(
             self.app,
             "POST",
-            f"/notebooks/{self.notebook_id}/runtime/runs",
+            f"/notebooks/{self.notebook_id}/runtime/"
+            + ("execute" if code is not None else "runs"),
             headers=key(f"run-{next(self._keys)}"),
             body=json.dumps(body).encode(),
         )
@@ -81,13 +85,13 @@ class Client:
                 for r in response.records
                 if (run := r.get("data", {}).get("run", {})).get("id")
                 == run_id
-                and run["status"] == "completed"
+                and run["state"]["status"] == "completed"
             ]
 
         while not completed(self.events):
             self.events.changed.clear()
             await self.events.changed.wait()
-        assert completed(self.events)[-1]["outcome"] == outcome
+        assert completed(self.events)[-1]["state"]["outcome"] == outcome
 
     async def edit(self, cell: str, code: str) -> None:
         edited = await finished(
@@ -173,7 +177,7 @@ async def test_variables_outlive_the_run_that_bound_them(
             for i, r in enumerate(records)
             if r.get("event") == "execution"
             and r["data"]["execution"]["id"] == execution.id
-            and r["data"]["execution"]["status"] == "completed"
+            and r["data"]["execution"]["state"]["status"] == "completed"
         )
         assert bound < completed
 
@@ -205,7 +209,7 @@ async def test_edits_and_reruns_outdate_dependents(tmp_path: Path) -> None:
         x = next(v for v in initial.variables.values() if v.name == "x")
         y = initial.latest(c.cells["y"])
         assert y is not None
-        assert y.depends_on == {"x": x.revision}
+        assert y.state.depends_on == {"x": x.revision}
         assert await c.outdated() == {}
 
         await c.edit("x", "x = 2")
@@ -252,7 +256,7 @@ async def test_sql_results_follow_their_binding_revisions(
         assert set(variables) == {"mo", name, "df"}
         reader = initial.latest(c.cells["reader"])
         assert reader is not None
-        assert reader.depends_on == {
+        assert reader.state.depends_on == {
             key: variables[key].revision for key in ("mo", name)
         }
         assert await c.outdated() == {}
@@ -307,7 +311,7 @@ async def test_deleted_bindings_outdate_existing_readers(
             for i, r in enumerate(c.events.records)
             if r.get("event") == "execution"
             and r["data"]["execution"]["cell_id"] == c.cells["delete"]
-            and r["data"]["execution"]["status"] == "completed"
+            and r["data"]["execution"]["state"]["status"] == "completed"
         )
         assert removed < completed
 
@@ -323,7 +327,7 @@ async def test_autorun_leaves_every_result_current(tmp_path: Path) -> None:
         x = next(v for v in current.variables.values() if v.name == "x")
         y = current.latest(c.cells["y"])
         assert y is not None
-        assert y.depends_on == {"x": x.revision}
+        assert y.state.depends_on == {"x": x.revision}
         assert await c.outdated() == {}
 
 
@@ -362,7 +366,7 @@ async def test_state_updates_rerun_readers_in_autorun(tmp_path: Path) -> None:
         reader = current.latest(c.cells["reader"])
         assert reader is not None
         assert getter.revision.update == 1
-        assert reader.depends_on == {"get_x": getter.revision}
+        assert reader.state.depends_on == {"get_x": getter.revision}
         records = c.events.records
         updated = next(
             i
@@ -399,7 +403,7 @@ async def test_a_setter_that_reads_its_own_update_is_current(
         setter = current.latest(c.cells["setter"])
         assert setter is not None
         assert getter.revision.update == 3
-        assert setter.depends_on["get_x"] == getter.revision
+        assert setter.state.depends_on["get_x"] == getter.revision
         assert await c.outdated() == {}
 
 
@@ -415,7 +419,7 @@ async def test_reimporting_keeps_dependents_current(tmp_path: Path) -> None:
         before = initial.latest(c.cells["value"])
         math = next(v for v in initial.variables.values() if v.name == "math")
         assert before is not None
-        assert before.depends_on == {"math": math.revision}
+        assert before.state.depends_on == {"math": math.revision}
 
         await c.edit("imports", "import math\nimport os")
         await c.run("imports")
@@ -460,7 +464,7 @@ async def test_binding_a_name_outdates_its_unbound_readers(
         await c.run("binder", "reader", outcome=outcome)
         reader = (await c.snapshot()).latest(c.cells["reader"])
         assert reader is not None
-        assert reader.depends_on == {name: None}
+        assert reader.state.depends_on == {name: None}
         assert await c.outdated() == {}
 
         await c.edit("binder", binding)
@@ -525,8 +529,8 @@ async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
         )
         latest = (await c.snapshot()).latest(c.cells["reader"])
         assert latest is not None
-        assert isinstance(latest.outcome, reader)
-        assert latest.depends_on == {"x": None}
+        assert isinstance(latest.state.outcome, reader)
+        assert latest.state.depends_on == {"x": None}
         assert await c.outdated() == {}
 
 
@@ -612,7 +616,7 @@ async def test_state_updates_precede_nested_readers(tmp_path: Path) -> None:
             for i, r in enumerate(records)
             if r.get("event") == "execution"
             and r["data"]["execution"]["cell_id"] == c.cells["reader"]
-            and r["data"]["execution"]["status"] == "running"
+            and r["data"]["execution"]["state"]["status"] == "running"
         )
         assert updated < started
         current = await c.snapshot()
@@ -621,7 +625,7 @@ async def test_state_updates_precede_nested_readers(tmp_path: Path) -> None:
         )
         reader = current.latest(c.cells["reader"])
         assert reader is not None
-        assert reader.depends_on == {"get_x": getter.revision}
+        assert reader.state.depends_on == {"get_x": getter.revision}
         assert getter.revision.update == 1
         assert await c.outdated() == {}
 
@@ -700,7 +704,7 @@ async def test_restart_retains_results_without_restoring_python_values(
         reader = current.latest(c.cells["reader"])
         assert reader is not None
         assert reader.runtime_id == runtime_id
-        assert reader.depends_on == {"x": None}
+        assert reader.state.depends_on == {"x": None}
         assert current.latest(c.cells["binder"]) == binder
         assert next(
             v for v in current.variables.values() if v.name == "x"
@@ -729,3 +733,70 @@ async def test_formatting_preserves_freshness_but_output_suppression_does_not(
         assert await c.outdated() == {}
         await c.edit("y", "x + 2;")
         assert await c.outdated() == {"y": "edited"}
+
+
+async def test_outputs_restored_from_the_session_cache_are_current_results(
+    tmp_path: Path,
+) -> None:
+    shown, silent = "x = 41 + 1\nprint('hello')\nx", "y = 2"
+    # An earlier session of this notebook left its outputs on disk.
+    cache = get_session_cache_file(tmp_path / "notebook.py")
+    cache.parent.mkdir(parents=True)
+    cache.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "metadata": {
+                    "marimo_version": __version__,
+                    "script_metadata_hash": None,
+                },
+                "cells": [
+                    {
+                        "id": "earlier-shown",
+                        "code_hash": hash_code(shown),
+                        "outputs": [
+                            {"type": "data", "data": {"text/plain": "42"}}
+                        ],
+                        "console": [
+                            {
+                                "type": "stream",
+                                "name": "stdout",
+                                "text": "hello\n",
+                                "mimetype": "text/plain",
+                            }
+                        ],
+                    },
+                    {
+                        "id": "earlier-silent",
+                        "code_hash": hash_code(silent),
+                        "outputs": [],
+                        "console": [],
+                    },
+                ],
+            }
+        )
+    )
+
+    async with client(
+        tmp_path, on_cell_change="lazy", shown=shown, silent=silent
+    ) as c:
+        restored = (await c.snapshot()).latest(c.cells["shown"])
+        assert restored is not None
+        assert restored.state.outcome == protocol.SucceededOutcome()
+        # No run of this notebook's runtime produced it.
+        assert (restored.run_id, restored.runtime_id) == (None, None)
+        assert [
+            r["data"]["console"]["text"]
+            for r in c.events.records
+            if r.get("event") == "console"
+        ] == ["hello\n"]
+        # The cache cannot tell a cell that printed nothing from one that
+        # never ran, so that cell has no result.
+        assert (await c.snapshot()).latest(c.cells["silent"]) is None
+        assert await c.outdated() == {}
+
+        await c.run("shown")
+        rerun = (await c.snapshot()).latest(c.cells["shown"])
+        assert rerun is not None
+        assert rerun.id != restored.id
+        assert rerun.runtime_id is not None

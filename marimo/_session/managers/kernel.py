@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._config.config import parse_config
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
@@ -73,6 +74,7 @@ class KernelManagerImpl(KernelManager):
         resolved = self.config_manager.get_config_with_sources(
             hide_secrets=False
         )
+        user_config = parse_config(resolved.config)
         listener = None
         if is_edit_mode:
             # Need to use a socket for windows compatibility
@@ -90,7 +92,7 @@ class KernelManagerImpl(KernelManager):
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    resolved.config,
+                    user_config,
                     self._virtual_file_storage,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
@@ -146,7 +148,7 @@ class KernelManagerImpl(KernelManager):
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    resolved.config,
+                    user_config,
                     self._virtual_file_storage,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue

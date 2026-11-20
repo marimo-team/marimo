@@ -17,9 +17,15 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.command_output import (
+    CommandOutput,
+    console_notification,
+)
 from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
+    BreakpointsNotification,
+    CallbackOutputNotification,
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
@@ -30,6 +36,7 @@ from marimo._messaging.notification import (
     EnvironmentState,
     EnvironmentStateNotification,
     EsmSpec,
+    ExecutionNotification,
     ModelClose,
     ModelCustom,
     ModelLifecycleNotification,
@@ -40,6 +47,8 @@ from marimo._messaging.notification import (
     OperationRunning,
     OperationSucceeded,
     PackageStatusType,
+    PdbInputNotification,
+    PdbOutputNotification,
     SQLDatabaseMetadata,
     SQLMetadata,
     SQLSchemaListPreviewNotification,
@@ -114,6 +123,77 @@ def test_session_view_cell_notification(session_view: SessionView) -> None:
 
     assert session_view.cell_notifications[cell_id].output == updated_output
     assert session_view.cell_notifications[cell_id].status == updated_status
+
+
+def test_replaced_execution_cannot_write_to_retained_cell(
+    session_view: SessionView,
+) -> None:
+    for execution_id in ("old", "new"):
+        session_view.add_notification(
+            ExecutionNotification(execution_id, cell_id, "run", "planned")
+        )
+        session_view.add_notification(
+            CellNotification(
+                cell_id,
+                execution_id=execution_id,
+                console=CellOutput.stdout(execution_id),
+            )
+        )
+    session_view.add_notification(
+        CellNotification(cell_id, serialization="Valid")
+    )
+    session_view.add_notification(
+        CellNotification(
+            cell_id,
+            output=initial_output,
+            execution_id="old",
+            console=CellOutput.stdout("late"),
+        )
+    )
+    assert session_view.get_cell_outputs([cell_id]) == {}
+    assert [
+        entry.data
+        for entry in session_view.get_cell_console_outputs([cell_id])[cell_id]
+    ] == ["new"]
+    assert session_view.cell_notifications[cell_id].serialization == "Valid"
+
+
+def test_clear_hides_only_closed_inputs_until_execution_replaced(
+    session_view: SessionView,
+) -> None:
+    def send(console: CellOutput | list[CellOutput]) -> None:
+        session_view.add_notification(
+            CellNotification(cell_id, execution_id="first", console=console)
+        )
+
+    session_view.add_notification(
+        ExecutionNotification("first", cell_id, "run", "planned")
+    )
+    send(CellOutput.stdin("password?", password=True, input_id="password"))
+    session_view.add_stdin("secret", input_id="password")
+    send(CellOutput.stdin("next?", input_id="next"))
+    session_view.add_notification(CallbackOutputNotification(cell_id, []))
+    hint = session_view.cleared_console_inputs(cell_id, "first")
+    assert hint is not None
+    assert hint.input_ids == ["password"]
+    assert hint in session_view.snapshot_notifications(scope="editor")
+    assert hint not in session_view.snapshot_notifications(scope="host")
+    assert [
+        entry.input_id
+        for entry in session_view.cell_console(
+            cell_id, include_callbacks=False
+        )
+    ] == ["next"]
+    session_view.add_stdin("reply", input_id="next")
+    send([])
+    hint = session_view.cleared_console_inputs(cell_id, "first")
+    assert hint is not None
+    assert hint.input_ids == ["password", "next"]
+    session_view.add_notification(
+        ExecutionNotification("second", cell_id, "run", "planned")
+    )
+    assert session_view.cleared_console_inputs(cell_id, "first") is None
+    assert hint not in session_view.snapshot_notifications(scope="editor")
 
 
 def test_session_view_serialization_hint_survives_status_updates(
@@ -1289,7 +1369,7 @@ def test_combine_console_outputs(session_view: SessionView) -> None:
     )
 
     # Consecutive text/plain stdout outputs are merged
-    assert session_view.cell_notifications[cell_id].console == [
+    assert session_view.cell_console(cell_id, include_callbacks=False) == [
         CellOutput.stdout("onetwo"),
     ]
 
@@ -1302,7 +1382,7 @@ def test_combine_console_outputs(session_view: SessionView) -> None:
         )
     )
 
-    assert session_view.cell_notifications[cell_id].console == [
+    assert session_view.cell_console(cell_id, include_callbacks=False) == [
         CellOutput.stdout("onetwo"),
     ]
 
@@ -1348,7 +1428,7 @@ def test_explicit_empty_console_clears_mid_run(
             status="running",
         )
     )
-    assert session_view.cell_notifications[cell_id].console == [
+    assert session_view.cell_console(cell_id, include_callbacks=False) == [
         CellOutput.stdout("secret code"),
     ]
 
@@ -1404,6 +1484,37 @@ def test_stdin(session_view: SessionView) -> None:
 
 
 @pytest.mark.usefixtures("fixed_time")
+def test_stdin_merging_preserves_prompt_identity(
+    session_view: SessionView,
+) -> None:
+    for prompt, input_id in (
+        ("First", "first"),
+        (": ", "first"),
+        ("Second", "second"),
+    ):
+        session_view.add_notification(
+            CellNotification(
+                cell_id=cell_id,
+                console=CellOutput.stdin(prompt, input_id=input_id),
+            )
+        )
+    assert session_view.cell_notifications[cell_id].console == [
+        CellOutput.stdin("First: ", input_id="first"),
+        CellOutput.stdin("Second", input_id="second"),
+    ]
+    session_view.add_stdin("reply", input_id="second")
+    assert session_view.cell_notifications[cell_id].console == [
+        CellOutput.stdin("First: ", input_id="first"),
+        CellOutput(
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data="Second reply\n",
+            input_id="second",
+        ),
+    ]
+
+
+@pytest.mark.usefixtures("fixed_time")
 def test_merge_consecutive_text_plain_outputs(
     session_view: SessionView,
 ) -> None:
@@ -1433,15 +1544,9 @@ def test_merge_consecutive_text_plain_outputs(
     )
 
     # Should be merged into a single output
-    assert len(session_view.cell_notifications[cell_id].console) == 1
-    assert (
-        session_view.cell_notifications[cell_id].console[0].data
-        == "Hello World!"
-    )
-    assert (
-        session_view.cell_notifications[cell_id].console[0].channel
-        == CellChannel.STDOUT
-    )
+    assert session_view.cell_console(cell_id, include_callbacks=False) == [
+        CellOutput.stdout("Hello World!")
+    ]
 
 
 @pytest.mark.usefixtures("fixed_time")
@@ -2479,6 +2584,21 @@ def test_preparation_remains_available_after_package_changes(
     ]
 
 
+def test_host_snapshot_omits_private_cell_state(
+    session_view: SessionView,
+) -> None:
+    initial = session_view.snapshot_notifications(scope="host")
+    output = CellOutput.stdout("result")
+    for message in (
+        CellNotification(cell_id="cell", console=output),
+        CallbackOutputNotification("cell", [output]),
+        PdbOutputNotification("cell", [output]),
+        PdbInputNotification("cell", "question"),
+    ):
+        session_view.add_notification(message)
+    assert session_view.snapshot_notifications(scope="host") == initial
+
+
 def test_snapshot_notifications_preserve_replay_order(
     session_view: SessionView,
 ) -> None:
@@ -2513,6 +2633,7 @@ def test_snapshot_notifications_preserve_replay_order(
             state=EnvironmentState(restart_required=False, operations=[]),
         ),
         progress,
+        BreakpointsNotification(breakpoints={}),
         model,
         cell,
     ]
@@ -2527,3 +2648,28 @@ def test_snapshot_notifications_preserve_replay_order(
     assert (
         msgspec.json.encode(session_view.snapshot_notifications()) != captured
     )
+
+
+@pytest.mark.parametrize(
+    "kind", [PdbOutputNotification, CallbackOutputNotification]
+)
+def test_command_writes_keep_their_identity_on_replay(
+    kind: CommandOutput,
+) -> None:
+    view = SessionView()
+    cell = CellId_t("cell")
+    row = CellOutput.stdout("identical")
+    live = console_notification(cell, [row, row], destination=kind)
+    assert isinstance(
+        live, (PdbOutputNotification, CallbackOutputNotification)
+    )
+    view.add_notification(live)
+    [replayed] = [
+        msg
+        for msg in view.snapshot_notifications(scope="editor")
+        if isinstance(msg, (PdbOutputNotification, CallbackOutputNotification))
+    ]
+    assert type(replayed) is kind
+    assert replayed.entries == live.entries
+    assert all(isinstance(entry.command_id, str) for entry in replayed.entries)
+    assert replayed.entries[0].command_id != replayed.entries[1].command_id

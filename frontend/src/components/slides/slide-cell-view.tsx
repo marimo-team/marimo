@@ -17,20 +17,18 @@ import { outputIsStale } from "@/core/cells/cell";
 import { useCellActions } from "@/core/cells/actions";
 import { autoInstantiateAtom, useUserConfig } from "@/core/config/config";
 import {
-  cellNeedsRun,
+  cellRunReason,
   cellStatusClasses,
   isUninstantiated,
 } from "@/core/cells/utils";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { RuntimeCell } from "@/core/cells/types";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { useCellExecution, useCellFreshness } from "@/core/executions";
+import { useCellPresentation } from "@/core/executions";
 import { connectionAtom } from "@/core/network/connection";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { ReadonlyCode } from "../editor/code/readonly-python-code";
 import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
-
-type RuntimeCell = CellRuntimeState & CellData;
 
 /**
  * Renders a single cell in the slides view as an editable CodeMirror editor
@@ -63,20 +61,14 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
 
   const cellOutputPosition = userConfig.display.cell_output;
   const hasOutput = cell.output != null;
-  const execution = useCellExecution(cell.id);
-  const freshness = useCellFreshness(cell.id);
+  const { execution, freshness } = useCellPresentation(cell.id);
   const errored = execution.outcome === "error";
   const interrupted = execution.outcome === "interrupted";
   const stopped = execution.outcome === "skipped";
 
   const uninstantiated = isUninstantiated(execution);
 
-  const needsRun = cellNeedsRun({
-    freshness,
-    interrupted,
-    disabled: cell.config.disabled,
-    blocked: execution.blocked,
-  });
+  const needsRun = cellRunReason(execution, freshness, cell) !== null;
 
   const editorWrapperClassName = cn(
     "marimo-cell",
@@ -117,7 +109,8 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         code={cell.code}
         editorViewRef={editorViewRef}
         currentLanguageAdapter={languageAdapter}
-        onAfterToggle={afterToggleLanguage}
+        onAfterToggleSQL={afterToggleLanguage}
+        onAfterToggleMarkdown={afterToggleLanguage}
         className="flex items-center gap-1"
       />
       <div className="flex items-center shadow-none gap-1">
@@ -190,8 +183,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
 export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
   const [userConfig] = useUserConfig();
   const cellOutputPosition = userConfig.display.cell_output;
-  const execution = useCellExecution(cell.id);
-  const freshness = useCellFreshness(cell.id);
+  const { execution, freshness } = useCellPresentation(cell.id);
 
   const display = useMemo(() => getReadonlyCodeDisplay(cell.code), [cell.code]);
 

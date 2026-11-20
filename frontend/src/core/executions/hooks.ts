@@ -5,14 +5,19 @@ import { dequal } from "dequal";
 import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
 import { useMemo } from "react";
-import { parseOutline } from "@/core/dom/outline";
+import { autoRunOnChangeAtom } from "@/core/config/config";
+import { useDelayElapsed } from "@/hooks/useDelayElapsed";
+import type { CellId } from "@/core/cells/ids";
+import type { Outline } from "@/core/cells/outline";
 import {
   cellExecutionInputsAtom,
   cellFreshnessAtom,
+  cellOutlineAtom,
+  cellOutputAtom,
   cellOutputInputsAtom,
 } from "./atoms";
 import type { CellFreshness } from "./freshness";
-import { type CellOutput, cellOutputView, scratchOutputView } from "./output";
+import { type CellOutput, scratchOutputView } from "./output";
 import { type CellExecutionView, cellExecutionView } from "./select";
 
 /**
@@ -51,14 +56,44 @@ export function useCellFreshness(id: Protocol.CellId): CellFreshness {
   return useAtomValue(cellAtom);
 }
 
+/** A variable revision can arrive just before the host queues its readers. */
+export function useShowChangedInputs(changed: boolean): boolean {
+  const autorun = useAtomValue(autoRunOnChangeAtom);
+  const delayElapsed = useDelayElapsed(autorun && changed ? 200 : 0);
+  return changed && delayElapsed;
+}
+
+export function useCellPresentation(id: Protocol.CellId) {
+  const execution = useCellExecution(id);
+  const actual = useCellFreshness(id);
+  const inputsChanged = useShowChangedInputs(
+    actual.inputsChanged && execution.status === "idle",
+  );
+  return {
+    execution,
+    freshness:
+      inputsChanged === actual.inputsChanged
+        ? actual
+        : { ...actual, inputsChanged },
+  };
+}
+
 /** What the cell shows: its running value so far, else its result's outcome. */
-export function useCellOutput(id: Protocol.CellId): CellOutput | null {
+export function useCellOutput(id: CellId): CellOutput | null {
+  return useAtomValue(cellOutputAtom(id));
+}
+
+/**
+ * Whether the cell has completed an execution, even one that shows nothing.
+ *
+ * Tells a cell that ran and has no output from one that has not run yet.
+ */
+export function useCellHasResult(id: Protocol.CellId): boolean {
   const cellAtom = useMemo(
     () =>
       selectAtom(
         cellOutputInputsAtom,
-        (inputs) => cellOutputView(inputs, id),
-        dequal,
+        (inputs) => inputs.results.get(id) != null,
       ),
     [id],
   );
@@ -66,9 +101,8 @@ export function useCellOutput(id: Protocol.CellId): CellOutput | null {
 }
 
 /** The headings in the cell's output, for the table of contents. */
-export function useCellOutline(id: Protocol.CellId) {
-  const output = useCellOutput(id);
-  return useMemo(() => parseOutline(output), [output]);
+export function useCellOutline(id: CellId): Outline | null {
+  return useAtomValue(cellOutlineAtom(id));
 }
 
 /** What the scratchpad shows, from its latest scratch execution. */

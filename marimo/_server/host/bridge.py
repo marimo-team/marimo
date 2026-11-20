@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import copy
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -26,6 +27,7 @@ from marimo._server.host.analysis import HostAnalyzer
 from marimo._server.host.backend import RequestMetadata, SessionBackend
 from marimo._server.host.events import notification_event
 from marimo._server.host.index import WorkspaceIndex
+from marimo._server.host.restore import restored_executions
 from marimo._server.host.sessions import AppSessionNotebooks
 from marimo._session.events import SessionEventListener
 from marimo._session.model import SessionMode
@@ -37,7 +39,6 @@ from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
-    from pathlib import Path
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._core.backend import Message
@@ -174,10 +175,19 @@ class SessionBridge(SessionEventListener):
         session = self.app_sessions.session(record.id)
         cells, app_config = documents.from_session(session)
         document = Document(cells, app_config)
+        path = session.app_file_manager.path
+        executions = Executions()
+        if (
+            path is not None
+            and session.config_manager.get_config().runtime.serve_cached_sessions_in_apps
+        ):
+            executions = await self._restore(Path(path), cells)
+            # The session may have closed while its file was read.
+            self.app_sessions.session(record.id)
         return Notebook(
             record.id,
             document,
-            Executions(),
+            executions,
             self._make_backend(record.id, sink),
             sink,
             saved_etag=document.etag,
@@ -219,12 +229,20 @@ class SessionBridge(SessionEventListener):
             return Notebook(
                 record.id,
                 document,
-                Executions(),
+                await self._restore(file, cells),
                 backend,
                 sink,
                 saved_etag=saved_etag,
                 analyzer=HostAnalyzer(),
             )
+
+    async def _restore(
+        self, file: Path | None, cells: Sequence[DocumentCell]
+    ) -> Executions:
+        """The results stored for the notebook's file, if they are its cells'."""
+        if file is None:
+            return Executions()
+        return await asyncio.to_thread(restored_executions, file, cells)
 
     async def _load(self, file: Path) -> _FileContents | None:
         """Read a notebook file, or return `None` if it cannot be loaded."""
@@ -282,7 +300,7 @@ class SessionBridge(SessionEventListener):
 
         Raises:
             Conflict: If the notebook has no file or the write fails.
-            EditConflict: If `if_match` does not name the document's etag,
+            PreconditionFailed: If `if_match` does not name the document's etag,
                 or the document changed while the file was being read
                 for a reload.
             DecisionRequired: If the file changed and `decisions` has no
@@ -413,7 +431,7 @@ class SessionBridge(SessionEventListener):
         stands after that, which is the one the client reads next.
 
         Raises:
-            EditConflict: If a precondition is stale.
+            PreconditionFailed: If a precondition is stale.
             Invalid: If a change could not apply to any state.
         """
         notebook = await self.host.notebook(notebook_id)
@@ -440,8 +458,12 @@ class SessionBridge(SessionEventListener):
         if session is None:
             return []
         return [
-            notification_event(notebook_id, notification)
-            for notification in session.session_view.snapshot_notifications()
+            event
+            for notification in session.session_view.snapshot_notifications(
+                scope="host"
+            )
+            if (event := notification_event(notebook_id, notification))
+            is not None
         ]
 
     def session_for_notebook(
@@ -721,13 +743,12 @@ class SessionBridge(SessionEventListener):
     def _make_backend(
         self, notebook_id: protocol.NotebookId, sink: Sink
     ) -> SessionBackend:
-        def file() -> str | None:
+        def file_key() -> str:
             if self.app_sessions is not None:
-                return self.app_sessions.session(
-                    notebook_id
-                ).app_file_manager.path
-            path = self.index.file_of(notebook_id)
-            return None if path is None else str(path)
+                session = self.app_sessions.session(notebook_id)
+                path = session.app_file_manager.path
+                return session.initialization_id if path is None else path
+            return self.index.file_key(notebook_id)
 
         def observe(message: Message) -> None:
             try:
@@ -749,7 +770,7 @@ class SessionBridge(SessionEventListener):
 
         backend = SessionBackend(
             notebook_id,
-            file,
+            file_key,
             self._manager,
             observe,
             sink,
@@ -791,7 +812,7 @@ class SessionBridge(SessionEventListener):
             notebook = self.index.notebook_for(path)
             if notebook is None:
                 notebook = (
-                    self.index.untitled()
+                    self.index.untitled(session.initialization_id)
                     if path is None
                     else self.index.ensure(path)
                 )

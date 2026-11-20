@@ -92,7 +92,7 @@ async def test_marimo_http_exception_403_preserved():
     request = Request(
         {
             "type": "http",
-            "path": "/api/kernel/run",
+            "path": "/api/marimo/v1/notebooks/nb-1/runtime/runs",
             "headers": [(b"accept", b"application/json")],
         }
     )

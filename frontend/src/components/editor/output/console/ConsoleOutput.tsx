@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
 import {
   ChevronRightIcon,
   ChevronsDownUpIcon,
@@ -8,6 +9,9 @@ import {
 } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useState } from "react";
 import { ToggleButton } from "react-aria-components";
+import { pendingPdbInputAtom } from "@/core/codemirror/cells/debugger-state";
+import { kioskModeAtom } from "@/core/mode";
+import { getRequestClient } from "@/core/network/requests";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Button } from "@/components/ui/button";
@@ -74,11 +78,9 @@ interface Props {
   className?: string;
   consoleOutputs: ConsoleOutputMessage[];
   stale: boolean;
-  interrupted: boolean;
-  debuggerActive: boolean;
   onRefactorWithAI?: OnRefactorWithAI;
   onClear?: () => void;
-  onSubmitDebugger: (text: string, index: number) => void;
+  onSubmitDebugger: (text: string, inputId?: string) => void;
 }
 
 export const ConsoleOutput = (props: Props) => {
@@ -101,7 +103,6 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const {
     consoleOutputs: rawConsoleOutputs,
     stale,
-    interrupted,
     cellName,
     cellId,
     onSubmitDebugger,
@@ -113,18 +114,11 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   // Debounce clearing to prevent flickering when cells re-run
   const consoleOutputs = useDebouncedConsoleOutputs(rawConsoleOutputs);
 
-  /* The debugger UI needs some work. For now just use the regular
-  /* console output. */
-  /* if (debuggerActive) {
-    return (
-      <Debugger
-        code={consoleOutputs.map((output) => output.data).join("\n")}
-        onSubmit={(text) => onSubmitDebugger(text, consoleOutputs.length - 1)}
-      />
-    );
-  } */
-
-  const hasOutputs = consoleOutputs.length > 0;
+  const kioskMode = useAtomValue(kioskModeAtom);
+  const prompt = useAtomValue(pendingPdbInputAtom);
+  const pdbInput =
+    !kioskMode && prompt?.cellId === cellId ? prompt.inputId : null;
+  const hasOutputs = consoleOutputs.length > 0 || pdbInput != null;
 
   // Enable Ctrl/Cmd-A to select all content within the console output
   const selectAllProps = useSelectAllContent(hasOutputs);
@@ -235,6 +229,24 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
         )}
         style={isExpanded ? { maxHeight: "none" } : undefined}
       >
+        {pdbInput != null && (
+          <StdInput
+            key={pdbInput}
+            output=""
+            isPdb={true}
+            onSubmit={(value) => {
+              void getRequestClient()
+                .sendPdbReply({ cellId, inputId: pdbInput, value })
+                .catch(() => {
+                  /* The request client reports the failure. */
+                });
+            }}
+            onClear={onClear}
+            value={stdinValue}
+            setValue={setStdinValue}
+            inputHistory={inputHistory}
+          />
+        )}
         {reversedOutputs.map((output, idx) => {
           if (output.channel === "pdb") {
             return null;
@@ -254,14 +266,14 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
             const isPassword = output.mimetype === "text/password";
 
-            if (output.response == null && lastStdInputIdx === idx) {
+            if (output.response === undefined && lastStdInputIdx === idx) {
               return (
                 <StdInput
                   key={key}
                   output={output.data}
                   isPdb={isPdb}
                   isPassword={isPassword}
-                  onSubmit={(text) => onSubmitDebugger(text, originalIdx)}
+                  onSubmit={(text) => onSubmitDebugger(text, output.input_id)}
                   onClear={onClear}
                   value={stdinValue}
                   setValue={setStdinValue}
@@ -276,7 +288,6 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
                 output={output.data}
                 response={output.response}
                 isPassword={isPassword}
-                interrupted={interrupted}
               />
             );
           }
@@ -379,24 +390,21 @@ const StdInput = (props: {
 
 const StdInputWithResponse = (props: {
   output: string;
-  response?: string;
+  response?: string | null;
   isPassword?: boolean;
-  interrupted?: boolean;
 }) => {
-  const { output, response, isPassword, interrupted } = props;
-  const hasResponse = response != null && response !== "";
-  const wasInterruptedWithoutResponse = interrupted && !hasResponse;
+  const { output, response, isPassword } = props;
 
   return (
     <div className="flex gap-2 items-center">
       {renderText(output)}
-      {!isPassword && !wasInterruptedWithoutResponse && (
+      {!isPassword && response != null && (
         <span
           className="inline-flex items-center gap-1 text-(--sky-11)"
           aria-label="stdin response"
         >
           <ChevronRightIcon className="w-4 h-4 shrink-0 opacity-70" />
-          {hasResponse ? (
+          {response !== "" ? (
             response
           ) : (
             <span className="italic opacity-70">(empty)</span>

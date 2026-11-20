@@ -47,6 +47,7 @@ const appToOptions = {
   "slides.py": { command: "edit" },
   "slides_sizing.py": { command: "edit" },
   "visual_tokens.py": { command: "edit" },
+  "sliders.py": { command: "edit" },
   // Custom server for shutdown
   "shutdown.py": { command: "edit", port: port() },
   // Run

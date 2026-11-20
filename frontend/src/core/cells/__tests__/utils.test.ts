@@ -8,7 +8,7 @@ import type { CellData } from "@/core/cells/types";
 import type { CellFreshnessLookup } from "@/core/executions";
 import type { OutputMessage } from "@/core/kernel/messages";
 import {
-  cellNeedsRun,
+  cellRunReason,
   disabledCellIds,
   enabledCellIds,
   isUninstantiated,
@@ -27,7 +27,7 @@ function notebook(cells: Cells): NotebookState {
     cellData: Object.fromEntries(
       Object.entries(cells).map(([id, cell]) => [
         id,
-        { config: { disabled: cell.disabled } },
+        { code: "x", config: { disabled: cell.disabled } },
       ]),
     ),
     cellRuntime: Object.fromEntries(Object.keys(cells).map((id) => [id, {}])),
@@ -131,57 +131,87 @@ describe("staleCellIds with a run in progress", () => {
     const state = notebook(cells);
     const ran = MockExecutions.completed("cell1");
     const executions = MockExecutions.inputs([ran], {
-      submissions: new Map([["cell1", ran.id]]),
+      requested: new Set(["cell1"]),
     });
 
     expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);
   });
 });
 
-describe("cellNeedsRun", () => {
-  const blocked = { interrupted: false, disabled: false, blocked: true };
+describe("cellRunReason", () => {
+  const view = {
+    status: "idle",
+    outcome: "succeeded",
+    live: true,
+    blocked: false,
+  } as const;
+  const changes = { sourceChanged: false, inputsChanged: true };
+  const cell = { code: "x", config: { disabled: false, hide_code: false } };
 
-  it("flags a blocked cell whose source changed, whatever its inputs did", () => {
+  it("shows queued and running instead of a manual warning, then exposes intervening edits", () => {
+    const edited = { ...changes, sourceChanged: true };
+    expect(cellRunReason(view, changes, cell)).toBe("inputs");
     expect(
-      cellNeedsRun({
-        ...blocked,
-        freshness: freshness({ c: { edited: true, staleInputs: true } })("c"),
-      }),
-    ).toBe(true);
+      cellRunReason({ ...view, status: "queued" }, changes, cell),
+    ).toBeNull();
+    expect(
+      cellRunReason({ ...view, status: "running" }, edited, cell),
+    ).toBeNull();
+    expect(cellRunReason(view, edited, cell)).toBe("source");
   });
 
-  it("does not flag a blocked cell for changed inputs alone", () => {
-    expect(
-      cellNeedsRun({
-        ...blocked,
-        freshness: freshness({ c: { staleInputs: true } })("c"),
-      }),
-    ).toBe(false);
+  it("only asks for an initial run when the cell contains code", () => {
+    const fresh = { inputsChanged: false, sourceChanged: false };
+    const unrun = { ...view, outcome: null };
+    expect(cellRunReason(unrun, fresh, cell)).toBe("not-run");
+    expect(cellRunReason(unrun, fresh, { ...cell, code: " " })).toBeNull();
+    expect(cellRunReason(view, fresh, cell)).toBeNull();
   });
 });
 
 describe("isUninstantiated", () => {
   it("should return true if the cell has not run", () => {
-    expect(isUninstantiated({ status: "idle", outcome: null })).toBe(true);
+    expect(
+      isUninstantiated({ status: "idle", outcome: null, live: true }),
+    ).toBe(true);
   });
 
   it("should return false if the cell has run", () => {
-    expect(isUninstantiated({ status: "idle", outcome: "value" })).toBe(false);
+    expect(
+      isUninstantiated({ status: "idle", outcome: "succeeded", live: true }),
+    ).toBe(false);
+  });
+
+  it("should return true if another runtime produced the cell's result", () => {
+    // Restored from storage, or kept across a kernel restart: the output
+    // shows, and nothing the cell bound exists in this runtime.
+    expect(
+      isUninstantiated({ status: "idle", outcome: "succeeded", live: false }),
+    ).toBe(true);
+    expect(
+      isUninstantiated({ status: "running", outcome: null, live: false }),
+    ).toBe(false);
   });
 
   it("should return false if the cell is currently queued or running", () => {
-    expect(isUninstantiated({ status: "queued", outcome: null })).toBe(false);
-    expect(isUninstantiated({ status: "running", outcome: null })).toBe(false);
+    expect(
+      isUninstantiated({ status: "queued", outcome: null, live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "running", outcome: null, live: true }),
+    ).toBe(false);
   });
 
   it("should return false if the cell ended without a value", () => {
-    expect(isUninstantiated({ status: "idle", outcome: "error" })).toBe(false);
-    expect(isUninstantiated({ status: "idle", outcome: "interrupted" })).toBe(
-      false,
-    );
-    expect(isUninstantiated({ status: "idle", outcome: "skipped" })).toBe(
-      false,
-    );
+    expect(
+      isUninstantiated({ status: "idle", outcome: "error", live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "idle", outcome: "interrupted", live: true }),
+    ).toBe(false);
+    expect(
+      isUninstantiated({ status: "idle", outcome: "skipped", live: true }),
+    ).toBe(false);
   });
 });
 

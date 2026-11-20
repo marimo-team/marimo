@@ -1,17 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { invalidatePackageData } from "@/core/packages/package-data";
-import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useMemo } from "react";
-import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
-import {
-  getNotebook,
-  notebookAtom,
-  useReducerActions,
-} from "@/core/cells/cells";
+import { notebookAtom, useReducerActions } from "@/core/cells/cells";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import { followDocument } from "@/core/cells/document";
+import { SCRATCH_CELL_ID, type CellId } from "@/core/cells/ids";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { createDocumentModel } from "@/core/notebook/document";
 import type { NotificationPayload } from "@/core/kernel/messages";
@@ -25,13 +21,15 @@ import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
 import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
 import { cacheInfoAtom } from "../cache/requests";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import {
-  resyncBreakpoints,
+  breakpointsAtom,
+  pendingPdbInputAtom,
   setActiveLine,
 } from "../codemirror/cells/debugger-state";
 import { notebookCells } from "../cells/utils";
@@ -51,18 +49,16 @@ import { useDatasetsActions } from "../datasets/state";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { kernelStartupErrorAtom, useBannersActions } from "../errors/state";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
-import {
-  handleCellNotificationeration,
-  handleKernelReady,
-  handleRemoveUIElements,
-} from "../kernel/handlers";
+import { handleKernelReady, handleRemoveUIElements } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import {
   type SessionId,
   type StableSessionId,
   stableSessionIdAtom,
 } from "../kernel/session";
-import { observeCellMessage } from "../executions";
+import { cellError } from "../executions/output";
+import { getCellLogsForMessage } from "../cells/logs";
+import { setCellBlocked } from "../executions";
 import { initialRunCompletedAtom } from "../kernel/state";
 import { useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
@@ -72,6 +68,7 @@ import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
+import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import {
   DownloadStorage,
   ListStorageEntries,
@@ -79,23 +76,30 @@ import {
 import { useStorageActions } from "../storage/state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
-import { activeDocumentModelAtom } from "./active-notebook";
+import {
+  activeDocumentModelAtom,
+  confirmedDocumentAtom,
+} from "./active-notebook";
+import { completedAt, startedAt } from "@/core/notebook/replica";
+import { executionSource } from "@/core/executions";
 import { embeddedSnapshotAtom } from "./embedded";
 import { WebSocketClosedReason, ConnectionState } from "./types";
 
 /** Coordinate session startup and apply notifications to the editor. */
-export function useNotebookSession(opts: {
-  sessionId: SessionId;
-  autoInstantiate: boolean;
-}) {
-  const { autoInstantiate, sessionId } = opts;
-  const { showBoundary } = useErrorBoundary();
+export function useNotebookSession(opts: { sessionId: SessionId }) {
+  const { sessionId } = opts;
   const store = useStore();
 
-  const { handleCellMessage, reconcileDocument, resetCellRuntimes } =
-    useReducerActions();
+  const {
+    setCellReusability,
+    showCommandOutput,
+    hideConsoleInputs,
+    clearDebuggerOutput,
+    reconcileDocument,
+    resetCellRuntimes,
+  } = useReducerActions();
   const { reconcileStagedCells } = useStagedAICellsActions();
-  const { addCellNotification } = useRunsActions();
+  const { addExecution } = useRunsActions();
   const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -142,18 +146,12 @@ export function useNotebookSession(opts: {
         return;
       }
       case "kernel-ready": {
-        setKernelStartupError(null);
-        setConnection({ state: ConnectionState.OPEN });
-        setInitialRunCompleted(
-          Boolean(msg.data.resumed || msg.data.auto_instantiated),
-        );
+        setInitialRunCompleted(msg.data.resumed);
         const layout = handleKernelReady(msg.data, {
-          autoInstantiate,
           cells: notebookCells(store.get(notebookAtom)),
           resetCellRuntimes,
           setLayoutData,
           setCapabilities,
-          onError: showBoundary,
         });
         store.set(savedLayoutAtom, layout);
         if (!msg.data.resumed) {
@@ -167,18 +165,22 @@ export function useNotebookSession(opts: {
           (msg.data.stable_session_id as StableSessionId | null | undefined) ??
             null,
         );
-        // A freshly started kernel has no breakpoints of its own; re-push
-        // the client's set so they still apply, and clear the stale
-        // highlighted line from the previous kernel instance.
         setActiveLine(null);
-        resyncBreakpoints();
+        store.set(pendingPdbInputAtom, null);
+        return;
+      }
+
+      case "pdb-input": {
+        const { cell_id, input_id } = msg.data;
+        store.set(
+          pendingPdbInputAtom,
+          input_id === null ? null : { cellId: cell_id, inputId: input_id },
+        );
         return;
       }
 
       case "completed-run":
         setInitialRunCompleted(true);
-        return;
-      case "execution":
         return;
       case "interrupted":
         return;
@@ -215,20 +217,35 @@ export function useNotebookSession(opts: {
       case "function-call-result":
         FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
         return;
-      case "cell-op": {
-        observeCellMessage(store, msg.data);
-        handleCellNotificationeration(msg.data, handleCellMessage);
-        const cellData = getNotebook().cellData[msg.data.cell_id];
-        if (!cellData) {
-          return;
-        }
-        addCellNotification({
-          cellNotification: msg.data,
-          code: cellData.code,
+      case "console-inputs-cleared":
+        hideConsoleInputs({
+          cellId: msg.data.cell_id,
+          executionId: msg.data.execution_id,
+          inputIds: msg.data.input_ids,
         });
         return;
-      }
-
+      case "cell-op":
+        if (msg.data.status != null) {
+          setCellBlocked(
+            store,
+            msg.data.cell_id,
+            msg.data.status === "disabled-transitively",
+          );
+        }
+        if (msg.data.serialization !== undefined) {
+          setCellReusability({
+            cell_id: msg.data.cell_id,
+            serialization: msg.data.serialization,
+          });
+        }
+        return;
+      case "callback-output":
+        VirtualFileTracker.INSTANCE.trackCallbackOutput(msg.data);
+        showCommandOutput(msg.data);
+        return;
+      case "pdb-output":
+        showCommandOutput(msg.data);
+        return;
       case "variables":
         const variableNames = msg.data.variables.map((v) => v.name);
         setVariables(
@@ -359,13 +376,18 @@ export function useNotebookSession(opts: {
         DownloadStorage.resolve(msg.data.request_id as RequestId, msg.data);
         return;
 
-      case "reconnected":
-        setKernelStartupError(null);
-        setConnection({ state: ConnectionState.OPEN });
-        return;
-
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
+        return;
+      case "breakpoints":
+        store.set(
+          breakpointsAtom,
+          new Map(
+            Objects.entries<CellId, number[]>(msg.data.breakpoints).map(
+              ([cellId, lines]) => [cellId, new Set(lines)],
+            ),
+          ),
+        );
         return;
       case "active-line":
         setActiveLine(
@@ -379,6 +401,10 @@ export function useNotebookSession(opts: {
         return;
       case "consumer-capabilities":
         setKioskMode(!msg.data.consumer_capabilities.edit);
+        if (!msg.data.consumer_capabilities.edit) {
+          store.set(pendingPdbInputAtom, null);
+          clearDebuggerOutput();
+        }
         return;
       default:
         logNever(msg.data);
@@ -410,6 +436,32 @@ export function useNotebookSession(opts: {
       }
     },
     checkHealth: () => runtimeManager.reconcileFromHealth(),
+    onExecution: (record) => {
+      const cellId = (record.cell_id ?? SCRATCH_CELL_ID) as CellId;
+      const time = completedAt(record) ?? startedAt(record);
+      const timestamp =
+        time === null ? Date.now() / 1000 : Date.parse(time) / 1000;
+      if (
+        record.state.status === "completed" &&
+        record.state.outcome?.kind === "error"
+      ) {
+        getCellLogsForMessage({
+          cell_id: cellId,
+          timestamp,
+          output: {
+            channel: "marimo-error",
+            mimetype: "application/vnd.marimo+error",
+            data: [cellError(record.state.outcome.error)],
+            timestamp,
+          },
+        });
+      }
+      addExecution({
+        record,
+        code: executionSource(record, store.get(confirmedDocumentAtom)?.cells),
+        receivedAt: timestamp,
+      });
+    },
     onNotification: (notification) => {
       try {
         handleNotification(notification);
@@ -425,6 +477,7 @@ export function useNotebookSession(opts: {
       createDocumentModel({
         store,
         documentAtom: replica.documentAtom,
+        shownDocumentAtom: replica.shownDocumentAtom,
         backendAtom: replica.backendAtom,
       }),
     [store, replica],
@@ -454,14 +507,25 @@ export function useNotebookSession(opts: {
 
   // Subscribe before passive connection setup: static/WASM transports can emit synchronously.
   useLayoutEffect(() => {
+    const readyAtom = atom((get) => get(replica.notebookAtom) !== null);
     const updateConnection = () => {
-      const status = store.get(replica.connectionAtom);
+      let status = store.get(replica.connectionAtom);
       if (status.state === ConnectionState.NOT_STARTED) {
         return;
       }
       if (status.state === ConnectionState.OPEN) {
         updateStartupProgress(null);
-        return; // kernel-ready, not the socket, establishes session readiness.
+        // The stream's snapshot, not the socket, establishes readiness. A
+        // static page has a snapshot but no host to be connected to.
+        if (isStaticNotebook()) {
+          return;
+        }
+        if (store.get(readyAtom)) {
+          setKernelStartupError(null);
+          setConnection({ state: ConnectionState.OPEN });
+          return;
+        }
+        status = { state: ConnectionState.CONNECTING };
       }
       if (status.state === ConnectionState.CONNECTING) {
         setKernelStartupError(null);
@@ -486,9 +550,16 @@ export function useNotebookSession(opts: {
         return status;
       });
     };
-    const unsubscribe = store.sub(replica.connectionAtom, updateConnection);
+    const unsubscribes = [
+      store.sub(replica.connectionAtom, updateConnection),
+      store.sub(readyAtom, updateConnection),
+      // Same-session reconnects replay only the prompt that is still pending.
+      store.sub(replica.generationAtom, () =>
+        store.set(pendingPdbInputAtom, null),
+      ),
+    ];
     updateConnection();
-    return unsubscribe;
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [
     replica,
     store,

@@ -21,6 +21,44 @@ from tests._messaging.mocks import MockStream
 
 
 class TestConsoleOutputWorker:
+    def test_command_output_keeps_its_owner_through_a_shared_buffer(
+        self,
+    ) -> None:
+        from marimo._messaging.command_output import command_console
+        from marimo._messaging.context import execution_id_context
+        from marimo._messaging.notification import (
+            CallbackOutputNotification,
+            PdbOutputNotification,
+        )
+
+        buffered = {}
+
+        def write(text: str) -> None:
+            _add_output_to_buffer(
+                ConsoleMsg(CellChannel.STDOUT, "cell", text, "text/plain"),
+                buffered,
+            )
+
+        with command_console("cell", PdbOutputNotification):
+            write("debugger")
+            with command_console("cell", CallbackOutputNotification):
+                write("callback")
+                with execution_id_context("cell", "exec"):
+                    write("execution")
+        write("unattributed")
+        stream = MockStream()
+        _flush_outputs(buffered, stream)
+        assert [msg.name for msg in stream.parsed_operations] == [
+            "pdb-output",
+            "callback-output",
+            "cell-op",
+            "cell-op",
+        ]
+        assert [msg.execution_id for msg in stream.cell_notifications] == [
+            "exec",
+            None,
+        ]
+
     def test_repeated_evaluations_keep_separate_buffered_output(self) -> None:
         buffered = {}
         for execution_id in ("first", "second"):
@@ -71,7 +109,8 @@ class TestConsoleOutputWorker:
     def test_write_console_output_omits_code_when_absent(self) -> None:
         stream = MockStream()
         _write_console_output(
-            stream, CellChannel.STDERR, "cell1", "Hello", "text/plain"
+            stream,
+            ConsoleMsg(CellChannel.STDERR, "cell1", "Hello", "text/plain"),
         )
         assert "code" not in stream.operations[0]["console"]
 
@@ -200,10 +239,7 @@ class TestConsoleOutputWorker:
         stream = MockStream()
         _write_console_output(
             stream,
-            CellChannel.STDOUT,
-            "cell1",
-            "Hello",
-            "text/plain",
+            ConsoleMsg(CellChannel.STDOUT, "cell1", "Hello", "text/plain"),
         )
 
         assert len(stream.operations) == 1

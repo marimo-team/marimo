@@ -2,7 +2,7 @@
 
 /** A backend that serves a document snapshot without a host. */
 
-import type { NotebookClient } from "@marimo-team/client";
+import type { Result } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { NotebookBackend } from "../notebook/replica";
 
@@ -11,6 +11,14 @@ export interface StaticNotebookSnapshot {
   readonly notebook: Omit<Protocol.Notebook, "operations">;
   readonly document: Protocol.Document;
   readonly cells: readonly Protocol.Cell[];
+  /** What the cells last produced, as completed executions and their outputs. */
+  readonly results: readonly StaticResult[];
+}
+
+/** A completed execution and the output it showed, if it set one. */
+export interface StaticResult {
+  readonly execution: Protocol.Execution;
+  readonly output: Protocol.Output | null;
 }
 
 /** The events that describe a snapshot, in the order a host sends them. */
@@ -25,6 +33,12 @@ function snapshotFrames(snapshot: StaticNotebookSnapshot): Protocol.Event[] {
       data: { cell },
     })),
     { event: "document", data: { document: snapshot.document } },
+    ...snapshot.results.flatMap(({ execution, output }): Protocol.Event[] => [
+      { event: "execution", data: { execution } },
+      ...(output === null
+        ? []
+        : [{ event: "output" as const, data: { output } }]),
+    ]),
   ];
 }
 
@@ -49,6 +63,7 @@ export function emptySnapshot(notebookId: string): StaticNotebookSnapshot {
       version: 1,
     },
     cells: [],
+    results: [],
   };
 }
 
@@ -144,13 +159,17 @@ export function createStaticNotebookBackend(
         }
       }),
     notebook: () => {
-      const unsupported: NotebookClient["save"] = async (options) => {
+      const unsupported = async (options?: {
+        signal?: AbortSignal;
+      }): Promise<
+        Result<never, Protocol.UnsupportedOperationProblemOutput>
+      > => {
         options?.signal?.throwIfAborted();
         return {
-          ok: false,
+          ok: false as const,
           status: 501,
           problem: {
-            type: "tag:marimo.io,2026:host/unsupported-operation",
+            type: "urn:marimo:problem:unsupported-operation",
             title: "Unsupported operation",
             status: 501,
             detail: "Static notebooks do not support mutations",
@@ -160,6 +179,9 @@ export function createStaticNotebookBackend(
       return {
         edit: (_changes, options) => unsupported(options),
         save: unsupported,
+        run: unsupported,
+        input: (_inputId, _reply, options) => unsupported(options),
+        interrupt: unsupported,
       };
     },
   };

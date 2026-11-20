@@ -7,7 +7,9 @@ import {
   ChevronRight,
   CircleCheck,
   CircleEllipsis,
+  CircleMinus,
   CirclePlayIcon,
+  CircleStop,
   CircleX,
 } from "lucide-react";
 import React, { type JSX, Suspense, useEffect, useRef, useState } from "react";
@@ -353,6 +355,8 @@ const StatusIcons: Record<CellRun["status"], JSX.Element> = {
   success: <CircleCheck color="green" size={14} />,
   running: <CirclePlayIcon color="var(--blue-10)" size={14} />,
   error: <CircleX color="red" size={14} />,
+  skipped: <CircleMinus color="grey" size={14} />,
+  interrupted: <CircleStop color="var(--amber-10)" size={14} />,
   queued: <CircleEllipsis color="grey" size={14} />,
 };
 

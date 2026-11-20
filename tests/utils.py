@@ -78,3 +78,20 @@ def explore_module(
             results.extend(explore_module(obj, indent + 1, visited))
 
     return results
+
+
+def host_openapi(*, experimental: bool = False) -> dict[str, Any]:
+    """The OpenAPI document that the host protocol package prints.
+
+    Skips the test where the JavaScript workspace is not installed.
+    """
+    import pytest
+
+    from protocols.host.generate import OPENAPI, openapi
+
+    if not (OPENAPI.parents[1] / "node_modules").exists():
+        pytest.skip(
+            "needs the host protocol package, run "
+            "pnpm install --filter @marimo-team/host-protocol --prod"
+        )
+    return openapi(experimental=experimental)
