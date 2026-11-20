@@ -106,7 +106,7 @@ describe("useNotebookReplica", () => {
         identity: null,
         kind: "agent",
         name: "Notebook CLI",
-        since: "2026-10-01T09:20:03Z",
+        created_at: "2026-10-01T09:20:03Z",
       },
     ] satisfies AttachmentOutput[]);
     expect(attachments.result.current.all).toEqual(

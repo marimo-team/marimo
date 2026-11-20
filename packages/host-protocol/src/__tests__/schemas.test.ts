@@ -149,7 +149,7 @@ it("enforces integer, array, and nullable attachment constraints without narrowi
     identity: null,
     name: null,
     kind: "client",
-    since: "2026-01-01T00:00:00Z",
+    created_at: "2026-01-01T00:00:00Z",
   };
   expect(Schema.decodeUnknownSync(S.Attachment)(attachment)).toEqual(
     attachment,

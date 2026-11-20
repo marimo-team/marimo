@@ -876,6 +876,7 @@ class VariableMessage(Struct, frozen=True):
 
 
 class Attachment(Struct, frozen=True):
+    created_at: Annotated[Timestamp, Meta(description="When it attached.")]
     id: AttachmentId
     identity: (
         Annotated[
@@ -903,7 +904,6 @@ class Attachment(Struct, frozen=True):
         | None
     )
     notebook_id: NotebookId
-    since: Annotated[Timestamp, Meta(description="When it attached.")]
 
 
 class AttachmentMessage(Struct, frozen=True):

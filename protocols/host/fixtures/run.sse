@@ -22,7 +22,7 @@ data: {"console":{"id":"o3","execution_id":"e7","seq":0,"content":{"kind":"text"
 
 id: 95
 event: attachment
-data: {"attachment":{"id":"a2","notebook_id":"n1","identity":null,"kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:03Z"},"time":"2026-10-01T09:20:03Z"}
+data: {"attachment":{"id":"a2","notebook_id":"n1","identity":null,"kind":"agent","name":"Notebook CLI","created_at":"2026-10-01T09:20:03Z"},"time":"2026-10-01T09:20:03Z"}
 
 id: 96
 event: output

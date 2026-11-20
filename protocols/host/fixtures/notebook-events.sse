@@ -17,7 +17,7 @@ event: runtime
 data: {"runtime":{"id":"r1","notebook_id":"n1","marimo_version":"0.25.0","created_at":"2026-10-01T09:14:02Z","state":{"status":"ready"}}}
 
 event: attachment
-data: {"attachment":{"id":"a1","notebook_id":"n1","identity":null,"kind":"browser","name":"Chrome","since":"2026-10-01T09:14:30Z"}}
+data: {"attachment":{"id":"a1","notebook_id":"n1","identity":null,"kind":"browser","name":"Chrome","created_at":"2026-10-01T09:14:30Z"}}
 
 event: run
 data: {"run":{"id":"run-scratch","notebook_id":"n1","runtime_id":"r1","origin":{"kind":"code","code":"import marimo as mo\nmo.output.append(mo.md(\"working…\"))\nprint(1 + 1)\n3 * 3"},"created_at":"2026-10-01T09:20:00Z","state":{"status":"running","started_at":"2026-10-01T09:20:01Z"}},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
@@ -32,7 +32,7 @@ event: console
 data: {"console":{"id":"o3","execution_id":"e7","seq":0,"content":{"kind":"text","stream":"stdout","text":"2\n"}},"request_id":"7c1e9a3f-5b2d-4e8a-9f10-3c6d7e8f9a0b"}
 
 event: attachment
-data: {"attachment":{"id":"a2","notebook_id":"n1","identity":null,"kind":"agent","name":"Notebook CLI","since":"2026-10-01T09:20:03Z"}}
+data: {"attachment":{"id":"a2","notebook_id":"n1","identity":null,"kind":"agent","name":"Notebook CLI","created_at":"2026-10-01T09:20:03Z"}}
 
 id: 95
 event: ready

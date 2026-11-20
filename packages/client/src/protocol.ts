@@ -599,7 +599,7 @@ export const Attachment = zod
       .describe(
         "A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
       ),
-    since: Timestamp.describe("When it attached."),
+    created_at: Timestamp.describe("When it attached."),
   })
   .describe(
     "An attachment is a consumer connected to a notebook, such as a\nbrowser tab, an editor, or an agent. Opening the notebook's stream\ncreates one. It is removed when that connection closes, and not\nwhen the notebook's runtime stops or restarts. Each stream has its\nown attachment, even when several share a client identity.\n",

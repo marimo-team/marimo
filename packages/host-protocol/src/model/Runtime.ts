@@ -105,7 +105,7 @@ export const Attachment = Schema.Struct({
     description:
       "A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
   }),
-  since: Timestamp.annotateKey({
+  created_at: Timestamp.annotateKey({
     description: "When it attached.",
   }),
 }).annotate({
