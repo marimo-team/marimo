@@ -319,6 +319,7 @@ def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
             (
                 protocol.RunEvent,
                 protocol.ExecutionEvent,
+                protocol.OutputEvent,
                 protocol.ConsoleEvent,
                 protocol.DisplayEvent,
             ),
@@ -330,6 +331,7 @@ def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
             (
                 protocol.RunRemovedEvent,
                 protocol.ExecutionRemovedEvent,
+                protocol.OutputRemovedEvent,
                 protocol.ConsoleRemovedEvent,
                 protocol.DisplayRemovedEvent,
             ),

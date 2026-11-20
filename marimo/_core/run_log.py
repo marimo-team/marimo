@@ -91,6 +91,10 @@ class RunLog:
                             entry.scratch[execution.id] = _Scratch(event)
                         else:
                             scratch.execution = event
+            case protocol.OutputEvent(
+                data=protocol.OutputMessage(output=item)
+            ):
+                self._record_output(event, item)
             case protocol.ConsoleEvent(
                 data=protocol.ConsoleMessage(console=item)
             ):
@@ -172,7 +176,10 @@ class RunLog:
     def _record_output(
         self,
         event: RoutedEvent,
-        item: protocol.Console | protocol.Display | protocol.Input,
+        item: protocol.Output
+        | protocol.Console
+        | protocol.Display
+        | protocol.Input,
     ) -> None:
         entry = self._entry(event)
         if entry is None:
@@ -191,7 +198,11 @@ class RunLog:
                     continue  # Inputs leave with their execution.
                 assert isinstance(
                     output.event,
-                    (protocol.ConsoleEvent, protocol.DisplayEvent),
+                    (
+                        protocol.OutputEvent,
+                        protocol.ConsoleEvent,
+                        protocol.DisplayEvent,
+                    ),
                 )
                 body = protocol_events.body(output.event)
                 events.append(self._removal(entry, type(body), body.id))
