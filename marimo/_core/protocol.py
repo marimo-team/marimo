@@ -190,22 +190,6 @@ class DeleteCell(
     id: Annotated[CellId, Meta(description="The cell to remove.")]
 
 
-class DisplayData(Struct, frozen=True):
-    data: Annotated[
-        str,
-        Meta(
-            description="The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64."
-        ),
-    ]
-    mimetype: Annotated[
-        str,
-        Meta(
-            description="The format of `data`, such as `text/html` or `image/png`.",
-            examples=["text/html"],
-        ),
-    ]
-
-
 if TYPE_CHECKING:
     Etag = NewType("Etag", str)
 else:
@@ -320,6 +304,22 @@ else:
     )
 
 
+class Media(Struct, frozen=True):
+    data: Annotated[
+        str,
+        Meta(
+            description="The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64."
+        ),
+    ]
+    mimetype: Annotated[
+        str,
+        Meta(
+            description="The format of `data`, such as `text/html` or `image/png`.",
+            examples=["text/html"],
+        ),
+    ]
+
+
 class MethodNotAllowedProblem(
     Struct,
     frozen=True,
@@ -403,7 +403,7 @@ class Output(Struct, frozen=True):
     id: ItemId
     media: (
         Annotated[
-            DisplayData,
+            Media,
             Meta(
                 description="The output as last rendered. Null when the code set it to nothing or cleared it."
             ),
@@ -1006,7 +1006,7 @@ Change: TypeAlias = Annotated[
 
 class ConsoleMedia(Struct, frozen=True, tag_field="kind", tag="media"):
     media: Annotated[
-        DisplayData,
+        Media,
         Meta(
             description="Something rendered into the console, such as a figure from `plt.show()` or a formatted traceback."
         ),
@@ -1226,7 +1226,7 @@ class Error(Struct, frozen=True):
     )
     traceback: (
         Annotated[
-            DisplayData,
+            Media,
             Meta(
                 description="The traceback as rendered by the runtime, plain text or HTML by its mimetype. Null when unavailable or not shown."
             ),

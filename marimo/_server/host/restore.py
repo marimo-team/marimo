@@ -205,7 +205,7 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
 
 def _outcome(
     cell: DocumentCell, outputs: Sequence[OutputType]
-) -> tuple[protocol.Outcome, protocol.DisplayData | None]:
+) -> tuple[protocol.Outcome, protocol.Media | None]:
     """How the stored result ended, and the first output that shows something."""
     for output in outputs:
         if output["type"] == "error":

@@ -252,7 +252,7 @@ class Displayed:
     """Set an execution's output while its result is retained."""
 
     execution_id: protocol.ExecutionId
-    display: protocol.DisplayData | None
+    display: protocol.Media | None
 
 
 RunEnding = Literal["succeeded", "failed", "cancelled"]

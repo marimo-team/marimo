@@ -118,7 +118,7 @@ def test_clear_console_removes_only_this_executions_output_items() -> None:
             execution_id=eid,
             seq=1,
             content=protocol.ConsoleMedia(
-                protocol.DisplayData(mimetype="text/html", data="plot")
+                protocol.Media(mimetype="text/html", data="plot")
             ),
         ),
         protocol.Input(
@@ -239,7 +239,7 @@ def test_late_display_updates_preserve_completion_and_stop_after_replacement() -
     assert before is not None
     completed_run = executions.run(protocol.RunId("r1"))
     for display in (
-        protocol.DisplayData(mimetype="text/plain", data="late"),
+        protocol.Media(mimetype="text/plain", data="late"),
         None,
     ):
         expected = protocol.Output(
@@ -565,9 +565,7 @@ def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
         id=protocol.ItemId("d1"),
         seq=0,
         content=protocol.ConsoleMedia(
-            protocol.DisplayData(
-                mimetype="application/json", data='{"values":[1]}'
-            )
+            protocol.Media(mimetype="application/json", data='{"values":[1]}')
         ),
     )
     executions.observe(be.Produced(output), RUNTIME)
@@ -580,7 +578,7 @@ def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
     updated = replace(
         output,
         content=protocol.ConsoleMedia(
-            protocol.DisplayData(
+            protocol.Media(
                 mimetype="application/json", data='{"values":[1,2]}'
             )
         ),

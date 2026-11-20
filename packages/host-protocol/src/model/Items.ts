@@ -5,7 +5,7 @@
 import { Schema } from "effect";
 import { Integer } from "../internal/schema.ts";
 import { ExecutionId, ItemId } from "./Ids.ts";
-import { DisplayData, Revision } from "./Execution.ts";
+import { Media, Revision } from "./Execution.ts";
 
 export const ConsoleText = Schema.Struct({
   kind: Schema.Literal("text"),
@@ -19,7 +19,7 @@ export const ConsoleText = Schema.Struct({
 
 export const ConsoleMedia = Schema.Struct({
   kind: Schema.Literal("media"),
-  media: DisplayData.annotateKey({
+  media: Media.annotateKey({
     description:
       "Something rendered into the console, such as a figure from `plt.show()` or a formatted traceback.",
   }),
@@ -49,7 +49,7 @@ export const Console = Schema.Struct({
 export const Output = Schema.Struct({
   id: ItemId,
   execution_id: ExecutionId,
-  media: Schema.NullOr(DisplayData).annotateKey({
+  media: Schema.NullOr(Media).annotateKey({
     description:
       "The output as last rendered. Null when the code set it to nothing or cleared it.",
   }),

@@ -28,10 +28,10 @@ from marimo._core.protocol import (
     Console,
     ConsoleMedia,
     ConsoleText,
-    DisplayData,
     Error,
     ExecutionFailedOutcome,
     ExecutionId,
+    Media,
     Position,
     Range,
     Related,
@@ -172,7 +172,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
             ),
             Displayed(
                 execution_id=ExecutionId("scratch"),
-                display=DisplayData(data="<pre>9</pre>", mimetype="text/html"),
+                display=Media(data="<pre>9</pre>", mimetype="text/html"),
             ),
             Completed(
                 execution_id=ExecutionId("scratch"),
@@ -217,7 +217,7 @@ def test_structured_displays_preserve_message_encoding(
         mimetype="application/json",
         data=data,
     )
-    display = DisplayData(mimetype="application/json", data=expected)
+    display = Media(mimetype="application/json", data=expected)
     if console:
         assert t.feed(scratch(console=output)) == [
             Produced(
@@ -284,7 +284,7 @@ def test_an_exception_ends_the_run_in_error() -> None:
                         kind="exception",
                         message="division by zero",
                         name="ZeroDivisionError",
-                        traceback=DisplayData(
+                        traceback=Media(
                             data="""\
 Traceback...
 ZeroDivisionError: division by zero
@@ -389,9 +389,7 @@ def test_media_written_to_the_console_is_an_entry_among_the_text() -> None:
     ]
     assert len({item.id for item in items}) == 3
     assert items[1].content == ConsoleMedia(
-        protocol.DisplayData(
-            mimetype="image/png", data="data:image/png;base64,AAAA"
-        )
+        protocol.Media(mimetype="image/png", data="data:image/png;base64,AAAA")
     )
 
 
@@ -420,7 +418,7 @@ def test_a_rendered_traceback_is_media_and_a_plain_one_is_text() -> None:
 
     rendered, text = (m.item for m in out if isinstance(m, Produced))
     assert rendered.content == ConsoleMedia(
-        protocol.DisplayData(
+        protocol.Media(
             mimetype="application/vnd.marimo+traceback", data=highlighted
         )
     )

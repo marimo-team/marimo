@@ -123,7 +123,7 @@ export const Run = Schema.Struct({
   identifier: "Run",
 });
 
-export const DisplayData = Schema.Struct({
+export const Media = Schema.Struct({
   mimetype: Schema.String.annotateKey({
     description: "The format of `data`, such as `text/html` or `image/png`.",
     examples: ["text/html"],
@@ -134,7 +134,7 @@ export const DisplayData = Schema.Struct({
   }),
 }).annotate({
   description: "A rendered value.",
-  identifier: "DisplayData",
+  identifier: "Media",
 });
 
 export const Revision = Schema.Struct({
@@ -215,7 +215,7 @@ export const Error = Schema.Struct({
     description:
       "The exception class, such as `ZeroDivisionError`. Set when kind is exception, null otherwise.",
   }),
-  traceback: Schema.NullOr(DisplayData).annotateKey({
+  traceback: Schema.NullOr(Media).annotateKey({
     description:
       "The traceback as rendered by the runtime, plain text or HTML by its mimetype. Null when unavailable or not shown.",
   }),

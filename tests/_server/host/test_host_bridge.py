@@ -751,7 +751,7 @@ async def test_stored_results_are_on_the_stream_without_a_runtime(
     result = notebook.executions.current(cell.id)
     assert result is not None
     assert result.output is not None
-    assert result.output.media == protocol.DisplayData(
+    assert result.output.media == protocol.Media(
         mimetype="text/plain", data="1"
     )
     events = bridge.host.events(notebook_id=record.id)

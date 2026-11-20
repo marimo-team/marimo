@@ -6,7 +6,7 @@ import type * as Protocol from "@marimo-team/client/protocol";
 
 /** What an execution shows in place of a cell's output. */
 export type Shown =
-  | { readonly kind: "output"; readonly media: Protocol.DisplayData | null }
+  | { readonly kind: "output"; readonly media: Protocol.Media | null }
   | Exclude<Protocol.Outcome, { kind: "succeeded" }>;
 
 /**

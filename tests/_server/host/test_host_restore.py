@@ -129,7 +129,7 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
     assert restored.output == protocol.Output(
         id=protocol.ItemId(f"{execution.id}:output"),
         execution_id=execution.id,
-        media=protocol.DisplayData(mimetype="text/plain", data="42"),
+        media=protocol.Media(mimetype="text/plain", data="42"),
     )
     # Text and media keep the order they were written in.
     assert restored.outputs == (
@@ -144,7 +144,7 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
             execution_id=execution.id,
             seq=1,
             content=protocol.ConsoleMedia(
-                protocol.DisplayData(
+                protocol.Media(
                     mimetype="image/png", data="data:image/png;base64,"
                 )
             ),
@@ -185,7 +185,7 @@ def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
             kind="exception",
             name="ZeroDivisionError",
             message="division by zero",
-            traceback=protocol.DisplayData(
+            traceback=protocol.Media(
                 mimetype="text/plain", data="Traceback\nZeroDivisionError"
             ),
             source="marimo",
@@ -340,7 +340,7 @@ def test_stored_values_and_text_keep_their_formats() -> None:
     value = executions.current(protocol.CellId("a"))
     assert value is not None
     assert value.output is not None
-    assert value.output.media == protocol.DisplayData(
+    assert value.output.media == protocol.Media(
         mimetype="application/vnd.marimo+mimebundle",
         data='{"text/plain":"NaN","application/json":[null]}',
     )
@@ -349,9 +349,8 @@ def test_stored_values_and_text_keep_their_formats() -> None:
     assert isinstance(
         raised.execution.state.outcome, protocol.ExecutionFailedOutcome
     )
-    assert (
-        raised.execution.state.outcome.error.traceback
-        == protocol.DisplayData(mimetype="text/html", data=highlighted)
+    assert raised.execution.state.outcome.error.traceback == protocol.Media(
+        mimetype="text/html", data=highlighted
     )
     # An old password entry is dropped, and the rendered traceback is
     # media, not console text.
@@ -361,7 +360,7 @@ def test_stored_values_and_text_keep_their_formats() -> None:
             execution_id=raised.execution.id,
             seq=0,
             content=protocol.ConsoleMedia(
-                protocol.DisplayData(
+                protocol.Media(
                     mimetype="application/vnd.marimo+traceback",
                     data=highlighted,
                 )

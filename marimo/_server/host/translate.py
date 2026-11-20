@@ -464,9 +464,9 @@ def variable_messages(notification: NotificationMessage) -> list[be.Message]:
     return out
 
 
-def displayed(mimetype: str, data: object) -> protocol.DisplayData:
+def displayed(mimetype: str, data: object) -> protocol.Media:
     """A rendered value as the stream carries it, with structured data as JSON."""
-    return protocol.DisplayData(
+    return protocol.Media(
         mimetype=str(mimetype),
         data=data if isinstance(data, str) else encode_json_str(data),
     )
@@ -584,7 +584,7 @@ def _describe(
     if isinstance(error, MarimoExceptionRaisedError):
         traceback = None
         if error.traceback:
-            traceback = protocol.DisplayData(
+            traceback = protocol.Media(
                 mimetype="text/html"
                 if is_code_highlighting(error.traceback)
                 else "text/plain",

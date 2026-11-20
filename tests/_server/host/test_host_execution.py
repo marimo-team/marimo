@@ -587,9 +587,7 @@ def _():
         assert before.output is not None
         expected = replace(
             before.output,
-            media=protocol.DisplayData(
-                mimetype="text/html", data="<b>late</b>"
-            ),
+            media=protocol.Media(mimetype="text/html", data="<b>late</b>"),
         )
         assert notebook.executions.current(cell.id) == dataclasses.replace(
             before, output=expected

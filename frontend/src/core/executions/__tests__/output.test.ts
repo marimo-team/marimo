@@ -15,7 +15,7 @@ import {
 const C1 = cellId("c1");
 const C2 = cellId("c2");
 
-const HTML: Protocol.DisplayData = { mimetype: "text/html", data: "<b>1</b>" };
+const HTML: Protocol.Media = { mimetype: "text/html", data: "<b>1</b>" };
 /** After every time the execution mocks use. */
 const LATER = "2026-10-01T09:30:00Z";
 

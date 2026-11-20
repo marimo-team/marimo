@@ -873,7 +873,7 @@ export const Range = zod
 export type Range = zod.input<typeof Range>;
 export type RangeOutput = zod.output<typeof Range>;
 
-export const DisplayData = zod
+export const Media = zod
   .object({
     mimetype: zod
       .string()
@@ -886,8 +886,8 @@ export const DisplayData = zod
   })
   .describe("A rendered value.");
 
-export type DisplayData = zod.input<typeof DisplayData>;
-export type DisplayDataOutput = zod.output<typeof DisplayData>;
+export type Media = zod.input<typeof Media>;
+export type MediaOutput = zod.output<typeof Media>;
 
 export const Related = zod
   .object({
@@ -933,7 +933,7 @@ export const Error = zod
         "The exception class, such as `ZeroDivisionError`. Set when kind is exception, null otherwise.",
       ),
     traceback: zod
-      .union([DisplayData, zod.null()])
+      .union([Media, zod.null()])
       .describe(
         "The traceback as rendered by the runtime, plain text or HTML by its mimetype. Null when unavailable or not shown.",
       ),
@@ -1133,7 +1133,7 @@ export const Output = zod
     id: ItemId,
     execution_id: ExecutionId,
     media: zod
-      .union([DisplayData, zod.null()])
+      .union([Media, zod.null()])
       .describe(
         "The output as last rendered. Null when the code set it to nothing or cleared it.",
       ),
@@ -1191,7 +1191,7 @@ export type ConsoleTextOutput = zod.output<typeof ConsoleText>;
 
 export const ConsoleMedia = zod.object({
   kind: zod.enum(["media"]),
-  media: DisplayData.describe(
+  media: Media.describe(
     "Something rendered into the console, such as a figure from `plt.show()` or a formatted traceback.",
   ),
 });

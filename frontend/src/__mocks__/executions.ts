@@ -86,7 +86,7 @@ function completed(
 
 function output(
   execution: Protocol.Execution,
-  media: Protocol.DisplayData | null,
+  media: Protocol.Media | null,
 ): Protocol.Output {
   return { id: `${execution.id}:output`, execution_id: execution.id, media };
 }
@@ -169,7 +169,7 @@ export const MockExecutions = {
   /** A completed execution and the output it showed. */
   shown(
     cellId: string | null,
-    display: Protocol.DisplayData,
+    display: Protocol.Media,
     fields: Partial<Omit<Protocol.Execution, "id" | "state">> = {},
   ): readonly [Protocol.Execution, Protocol.Output] {
     const execution = { ...completed(cellId), ...fields };

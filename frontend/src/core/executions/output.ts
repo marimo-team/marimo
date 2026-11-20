@@ -77,7 +77,7 @@ function endedAt(record: Protocol.Execution): number {
 
 function valueOutput(
   record: Protocol.Execution,
-  value: Protocol.DisplayData,
+  value: Protocol.Media,
 ): CellOutput {
   return {
     channel: "output",
