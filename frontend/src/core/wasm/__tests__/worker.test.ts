@@ -63,7 +63,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-async function startWorker(subscribing = Promise.resolve()) {
+async function startWorker(subscribing = Promise.resolve(), code = "") {
   const subscribers = new Map<string, (event: string) => void>();
   const event = JSON.stringify({
     event: "marimo",
@@ -78,7 +78,9 @@ async function startWorker(subscribing = Promise.resolve()) {
     ),
     unsubscribe: (id: string) => subscribers.delete(id),
     set_persistence: vi.fn(),
-    set_package_loader: vi.fn(),
+    set_package_loader: vi.fn(
+      (_loader: (code: string) => Promise<void>) => undefined,
+    ),
     allow_input: vi.fn(),
     destroy: vi.fn(),
   };
@@ -99,7 +101,9 @@ async function startWorker(subscribing = Promise.resolve()) {
   });
   const pyodide = {
     runPython: vi.fn(() => resources),
-    loadPackagesFromImports: vi.fn(async () => undefined),
+    loadPackagesFromImports: vi.fn(
+      async (_code: string, _options?: unknown) => undefined,
+    ),
     loadedPackages: {},
   };
   vi.mocked(loadPyodide).mockResolvedValue(
@@ -114,13 +118,32 @@ async function startWorker(subscribing = Promise.resolve()) {
   await import("../worker/worker");
   handlers.bootstrap({ version: "0.25.1" });
   await handlers.requests.startSession({
-    code: "",
+    code,
     filename: "notebook.py",
     queryParameters: {},
     userConfig: defaultUserConfig(),
   });
   return { controller, init, notebook, event, pyodide };
 }
+
+it("loads Polars conversion packages when the host executes a SQL cell", async () => {
+  const { controller, notebook, pyodide } = await startWorker(
+    Promise.resolve(),
+    'app = mo.App(sql_output="pandas")',
+  );
+  try {
+    pyodide.loadPackagesFromImports.mockClear();
+    const loader = notebook.set_package_loader.mock.calls[0]?.[0];
+    await loader?.('result = mo.sql("SELECT 1", engine="polars")');
+    const code = pyodide.loadPackagesFromImports.mock.lastCall?.[0];
+    expect(code).toContain("import polars");
+    expect(code).toContain("import pyarrow");
+    expect(code).toContain("import pandas");
+    expect(code).not.toContain("import duckdb");
+  } finally {
+    await controller.stopSession();
+  }
+});
 
 it("delivers startup notifications after a delayed first subscription, without rerunning on resubscribe", async () => {
   const { controller, init, notebook, event, pyodide } = await startWorker();

@@ -109,6 +109,28 @@ jobs:
           check-name: "typecheck"
           command: "uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/"
 
+  test_polars_sql:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    name: Polars SQL / ${{ matrix.polars }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        polars: ["==2.0.0", ">=2.0.0"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+      - name: Install SQL test dependencies
+        run: |
+          uv sync --group test --extra sql
+          uv pip install 'polars${{ matrix.polars }}' pandas altair
+      - name: Test Polars SQL execution and reactivity
+        run: |
+          uv run --no-sync pytest tests/_sql/test_polars.py tests/_ast/test_visitor.py tests/_runtime/test_runtime.py \
+            -k 'PolarsEngine or polars_sql or polars_two'
+
   # For PRs, we only run the tests for the changed files.
   # If there is a `test-all` label, we run the tests across unchanged files as well.
   #

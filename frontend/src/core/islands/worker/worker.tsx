@@ -10,7 +10,11 @@ import {
   type RPCSchema,
 } from "rpc-anywhere";
 import type { ParentSchema } from "@/core/wasm/rpc";
-import { shouldLoadDuckDBPackages } from "@/core/wasm/utils";
+import type { SqlOutputType } from "@/core/config/config-schema";
+import {
+  getNotebookSQLOutput,
+  prependSQLPackageImports,
+} from "@/core/wasm/utils";
 import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
 import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
 import type { RawBridge, SerializedBridge } from "@/core/wasm/worker/types";
@@ -55,7 +59,10 @@ interface SessionRequest {
 }
 
 let activeSession:
-  | (Omit<SessionRequest, "code"> & { bridge: SerializedBridge })
+  | (Omit<SessionRequest, "code"> & {
+      bridge: SerializedBridge;
+      sqlOutput: SqlOutputType;
+    })
   | undefined;
 let sessionQueue = Promise.resolve();
 
@@ -98,6 +105,7 @@ async function startSession(
         appId: opts.appId,
         bridge: session.bridge,
         sessionGeneration: opts.sessionGeneration,
+        sqlOutput: getNotebookSQLOutput(opts.code),
       };
     }
     rpc.send.initialized({});
@@ -110,19 +118,9 @@ async function startSession(
 }
 
 async function loadPackagesForCode(code: string): Promise<void> {
-  if (shouldLoadDuckDBPackages(code)) {
-    // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-    code = `import pandas\n${code}`;
-    code = `import duckdb\n${code}`;
-    code = `import sqlglot\n${code}`;
-
-    // Polars + SQL requires pyarrow, and installing
-    // after notebook load does not work. As a heuristic,
-    // if it appears that the notebook uses polars, add pyarrow.
-    if (code.includes("polars")) {
-      code = `import pyarrow\n${code}`;
-    }
-  }
+  code = prependSQLPackageImports(code, {
+    sqlOutput: activeSession?.sqlOutput,
+  });
 
   await self.pyodide.loadPackagesFromImports(code, {
     messageCallback: Logger.log,

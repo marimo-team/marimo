@@ -9,7 +9,8 @@ import {
   createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { UserConfig } from "@/core/config/config-schema";
+import { parseAppConfig } from "@/core/config/config-schema";
+import type { SqlOutputType, UserConfig } from "@/core/config/config-schema";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
@@ -33,7 +34,7 @@ import type {
   WasmSession,
   WasmController,
 } from "./types";
-import { shouldLoadDuckDBPackages } from "../utils";
+import { getNotebookSQLOutput, prependSQLPackageImports } from "../utils";
 
 /**
  * Web worker responsible for running the notebook.
@@ -72,6 +73,7 @@ async function loadPyodideAndPackages() {
 
 const sessionReady = new Deferred<WasmSession>();
 let started = false;
+let sqlOutput: SqlOutputType = "auto";
 
 // Handle RPC requests
 const notebookSubscriptions = new Map<
@@ -88,19 +90,7 @@ async function loadPackagesForCode(code: string) {
   const span = t.startSpan("loadPackages");
   await pyodideReadyPromise; // Make sure loading is done
 
-  if (shouldLoadDuckDBPackages(code)) {
-    // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-    code = `import pandas\n${code}`;
-    code = `import duckdb\n${code}`;
-    code = `import sqlglot\n${code}`;
-
-    // Polars + SQL requires pyarrow, and installing
-    // after notebook load does not work. As a heuristic,
-    // if it appears that the notebook uses polars, add pyarrow.
-    if (code.includes("polars")) {
-      code = `import pyarrow\n${code}`;
-    }
-  }
+  code = prependSQLPackageImports(code, { sqlOutput });
 
   await self.pyodide.loadPackagesFromImports(code, {
     messageCallback: Logger.log,
@@ -177,6 +167,10 @@ const requestHandler = createRPCRequestHandler({
       return;
     }
 
+    sqlOutput = getNotebookSQLOutput(
+      opts.code,
+      opts.userConfig.runtime.default_sql_output,
+    );
     started = true;
     try {
       invariant(self.controller, "Controller not loaded");
@@ -226,7 +220,10 @@ const requestHandler = createRPCRequestHandler({
     return;
   },
 
-  loadPackages: (code: string) => loadPackagesForCode(code),
+  loadPackages: (opts: { code: string; sqlOutput: SqlOutputType }) => {
+    sqlOutput = opts.sqlOutput;
+    return loadPackagesForCode(opts.code);
+  },
 
   /**
    * Read a file
@@ -333,6 +330,14 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
 
     const { functionName, payload } = opts;
+    if (
+      functionName === "save_app_config" &&
+      payload &&
+      typeof payload === "object" &&
+      "config" in payload
+    ) {
+      sqlOutput = parseAppConfig(payload.config).sql_output;
+    }
 
     // Special case to lazily install black on format
     // Don't return early; still need to ask the pyodide kernel to run

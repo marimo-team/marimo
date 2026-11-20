@@ -54,6 +54,7 @@ const KNOWN_DIALECTS_ARRAY = [
   "datafusion",
   "microsoft sql server",
   "dremio",
+  "polars",
 ] as const;
 const KNOWN_DIALECTS: ReadonlySet<string> = new Set(KNOWN_DIALECTS_ARRAY);
 type KnownDialect = (typeof KNOWN_DIALECTS_ARRAY)[number];
@@ -102,6 +103,8 @@ export function guessDialect(
       return DremioDialect;
     case "timescaledb":
       return PostgreSQL; // TimescaleDB is a PostgreSQL dialect
+    case "polars":
+      return ModifiedStandardSQL;
     case "awsathena":
     case "athena":
     case "db2i":

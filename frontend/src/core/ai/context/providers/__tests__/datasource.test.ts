@@ -8,7 +8,7 @@ import type {
   ConnectionsMap,
   DatasetTablesMap,
 } from "@/core/datasets/data-source-connections";
-import { DUCKDB_ENGINE } from "@/core/datasets/engines";
+import { DUCKDB_ENGINE, POLARS_ENGINE } from "@/core/datasets/engines";
 import type { DataSourceConnection, DataTable } from "@/core/kernel/messages";
 import { Boosts, Sections } from "../common";
 import { DatasourceContextProvider, getDatasourceContext } from "../datasource";
@@ -382,6 +382,27 @@ describe("DatasourceContextProvider", () => {
         boost: Boosts.MEDIUM,
         type: "datasource",
         section: Sections.DATA_SOURCES,
+      });
+    });
+
+    it("uses an engine-specific label for Polars", () => {
+      const polarsConnection = createMockDataSourceConnection(POLARS_ENGINE, {
+        dialect: "polars",
+        source: "polars",
+        display_name: "Polars",
+      });
+      const providerWithPolars = new DatasourceContextProvider(
+        createMockConnectionsMap([polarsConnection]),
+        tablesMap,
+      );
+      const polarsItem = providerWithPolars
+        .getItems()
+        .find((item) => item.name === POLARS_ENGINE)!;
+
+      expect(providerWithPolars.formatCompletion(polarsItem)).toMatchObject({
+        label: "@Polars",
+        displayLabel: "Polars",
+        detail: "Polars",
       });
     });
   });
