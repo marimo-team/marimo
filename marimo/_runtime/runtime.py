@@ -455,6 +455,48 @@ def notebook_location() -> pathlib.PurePath | None:
 
 
 @dataclasses.dataclass
+class StartupCellCache:
+    """Compilation results consumed once when startup cells enter the graph."""
+
+    _entries: dict[CellId_t, tuple[str, CellImpl | None, Error | None]] = (
+        dataclasses.field(default_factory=dict)
+    )
+
+    def __bool__(self) -> bool:
+        return bool(self._entries)
+
+    def store(
+        self,
+        cell_id: CellId_t,
+        code: str,
+        cell: CellImpl | None,
+        error: Error | None,
+    ) -> None:
+        self._entries[cell_id] = (code, cell, error)
+
+    def take(
+        self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
+    ) -> tuple[CellImpl | None, Error | None] | None:
+        cached = self._entries.pop(cell_id, None)
+        if cached is not None and cached[0] == code and not carried_imports:
+            return cached[1], cached[2]
+        return None
+
+    def invalidate(self, cell_id: CellId_t, code: str | None = None) -> None:
+        """Discard a result unless it still matches the supplied source."""
+        cached = self._entries.get(cell_id)
+        if cached is not None and cached[0] != code:
+            del self._entries[cell_id]
+
+    def retain(self, cell_ids: Iterable[CellId_t]) -> None:
+        for cell_id in self._entries.keys() - set(cell_ids):
+            del self._entries[cell_id]
+
+    def clear(self) -> None:
+        self._entries.clear()
+
+
+@dataclasses.dataclass
 class CellMetadata:
     """CellMetadata class for storing cell metadata.
 
@@ -651,6 +693,7 @@ class Kernel:
         self._pending_execution_requests: dict[
             CellId_t, ExecuteCellCommand
         ] = {}
+        self._startup_cell_cache = StartupCellCache()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
             cell_id: CellMetadata(config=config)
             for cell_id, config in cell_configs.items()
@@ -737,6 +780,7 @@ class Kernel:
 
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
+        self._startup_cell_cache.clear()
         if self.stdout is not None:
             self.stdout._stop()
         if self.stderr is not None:
@@ -927,6 +971,10 @@ class Kernel:
     def _try_compiling_cell(
         self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
     ) -> tuple[CellImpl | None, Error | None]:
+        cached = self._startup_cell_cache.take(cell_id, code, carried_imports)
+        if cached is not None:
+            return cached
+
         error: Error | None = None
         try:
             # In run mode or debugpy, pass the notebook filename so
@@ -1348,6 +1396,7 @@ class Kernel:
 
         for dr in deletion_requests:
             self._pending_execution_requests.pop(dr.cell_id, None)
+            self._startup_cell_cache.invalidate(dr.cell_id)
             if dr.cell_id not in cells_before_mutation:
                 self.cell_metadata.pop(dr.cell_id, None)
                 continue
@@ -1947,6 +1996,7 @@ class Kernel:
     async def delete_cell(self, request: DeleteCellCommand) -> None:
         """Delete a cell from kernel and graph."""
         cell_id = request.cell_id
+        self._startup_cell_cache.invalidate(cell_id)
         if cell_id in self._pending_execution_requests:
             del self._pending_execution_requests[cell_id]
 
@@ -1977,6 +2027,9 @@ class Kernel:
             run_ids: Cell IDs that should be executed/updated
             delete_ids: Cell IDs that should be deleted
         """
+        # A file reload may change source positions even for unchanged code.
+        self._startup_cell_cache.clear()
+
         # Find orphaned cells: in graph but not known to file manager
         orphaned_cells = set(self.graph.cells.keys()) - set(cells.keys())
         all_delete_ids = set(delete_ids) | orphaned_cells
@@ -2015,6 +2068,7 @@ class Kernel:
         kernel holds for them.
         """
         for cell_id, code in request.codes.items():
+            self._startup_cell_cache.invalidate(cell_id, code)
             if cell_id not in self.graph.cells:
                 self._pending_execution_requests[cell_id] = ExecuteCellCommand(
                     cell_id=cell_id, code=code
@@ -2210,6 +2264,7 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
+        self._startup_cell_cache.clear()
         self.globals["__file__"] = filename
         self.app_metadata.filename = filename
         self.packages_callbacks.rename_file(filename)
@@ -2755,20 +2810,24 @@ class Kernel:
         execution_requests = {
             er.cell_id: er for er in request.execution_requests
         }
-        self._handle_markdown_cells_on_instantiate(execution_requests)
+        try:
+            self._handle_markdown_cells_on_instantiate(execution_requests)
 
-        if request.auto_run:
-            self.reset_ui_initializers()
-            for (
-                object_id,
-                initial_value,
-            ) in request.set_ui_element_value_request.ids_and_values:
-                self.ui_initializers[object_id] = initial_value
+            if request.auto_run:
+                self.reset_ui_initializers()
+                for (
+                    object_id,
+                    initial_value,
+                ) in request.set_ui_element_value_request.ids_and_values:
+                    self.ui_initializers[object_id] = initial_value
 
-            await self.run(list(execution_requests.values()))
-            self.reset_ui_initializers()
-        else:
-            self._pending_execution_requests = execution_requests
+                await self.run(list(execution_requests.values()))
+                self.reset_ui_initializers()
+            else:
+                self._pending_execution_requests = execution_requests
+        finally:
+            # Only lazy startup requests can still use compiled results.
+            self._startup_cell_cache.retain(self._pending_execution_requests)
 
     def _handle_markdown_cells_on_instantiate(
         self, execution_requests: dict[CellId_t, ExecuteCellCommand]
@@ -2796,10 +2855,10 @@ class Kernel:
 
             # If cell doesn't exist in graph, try to compile it
             if cell is None:
-                # TODO: Don't bother compiling whole cell.
-                # However, since we still need to extract defs
-                # for mo / marimo, this is OK for now.
                 cell, error = self._try_compiling_cell(cid, er.code, [])
+                # Reuse startup compilation when the cell enters the graph,
+                # including when auto-run is disabled.
+                self._startup_cell_cache.store(cid, er.code, cell, error)
 
             if cell is None or error is not None:
                 continue
@@ -2828,6 +2887,7 @@ class Kernel:
             # The rendered markdown is the cell's result, so it is reported
             # as an execution like any other.
             request = execution_requests.pop(cell_id)
+            self._startup_cell_cache.invalidate(cell_id)
             execution = ExecutionAttempt.plan(
                 cell_id, request.code, request.code_fingerprint
             )
