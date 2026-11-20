@@ -110,7 +110,7 @@ async def test_stop_closes_the_session_and_reports_the_exit(
 
     assert manager.sessions == {}
     assert manager.next_session.closed
-    assert observed.messages == [be.Exited(RT1, None)]
+    assert observed.messages == [be.Stopped(RT1)]
 
 
 async def test_commands_for_another_runtime_are_ignored(
@@ -136,8 +136,8 @@ async def test_stop_before_the_session_exists_is_carried_out_after(
     await manager.started.wait()
     b.stop(RT1)
     manager.release.set()
-    await observed.wait_for(be.Exited)
-    assert observed.kinds() == ["Running", "Exited"]
+    await observed.wait_for(be.Stopped)
+    assert observed.kinds() == ["Running", "Stopped"]
     assert manager.next_session.closed
 
 
@@ -241,8 +241,7 @@ async def test_a_session_closing_mid_run_releases_every_run(
     await asyncio.gather(*(t for t in tasks if t), return_exceptions=True)
     await asyncio.sleep(0)
 
-    # `Exited` tells the notebook to end the unfinished runs.
-    assert observed.kinds() == ["Exited"]
+    assert observed.messages == [be.Stopped(RT1)]
     assert not session.scratchpad_lock.locked()
     assert len(tasks) == 2
     assert all(t and t.cancelled() for t in tasks)

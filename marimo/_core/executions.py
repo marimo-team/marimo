@@ -516,14 +516,10 @@ class Executions:
                     changes.extend(self._finish_run(tracked))
         return changes
 
-    def interrupt(
-        self,
-        outcome: be.RunEnding = "cancelled",
-        message: str | None = None,
-    ) -> list[Change]:
+    def interrupt(self, *, failure: str | None = None) -> list[Change]:
         """Complete every unfinished execution and run.
 
-        `message` says why the runs failed, when they did. The execution
+        `failure` says why the runs failed, when they did. The execution
         that was running fails with it too, and queued ones are cancelled.
         """
         changes: list[Change] = []
@@ -532,14 +528,14 @@ class Executions:
             state = result.execution.state
             if not isinstance(state, protocol.ExecutionCompleted):
                 ended: protocol.Outcome = protocol.CancelledOutcome()
-                if outcome == "failed" and isinstance(
+                if failure is not None and isinstance(
                     state, protocol.ExecutionRunning
                 ):
                     ended = protocol.ExecutionFailedOutcome(
                         error=protocol.Error(
                             kind="internal",
                             name=None,
-                            message=message or "The kernel exited.",
+                            message=failure,
                             traceback=None,
                             source="marimo",
                             severity="error",
@@ -555,7 +551,12 @@ class Executions:
             if not isinstance(tracked.run.state, protocol.RunCompleted):
                 changes.append(
                     self._set_run(
-                        _completed(tracked.run, outcome, now, message)
+                        _completed(
+                            tracked.run,
+                            "failed" if failure is not None else "cancelled",
+                            now,
+                            failure,
+                        )
                     )
                 )
             tracked.retired.clear()

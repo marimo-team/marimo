@@ -299,7 +299,7 @@ def test_a_kernel_exit_fails_the_running_execution_and_cancels_the_queued() -> (
     executions.observe(planned("r1", ("e1", "a"), ("e2", "b")), RUNTIME)
     executions.observe(be.Started(protocol.ExecutionId("e1")), RUNTIME)
 
-    ended = executions.interrupt("failed", "killed")
+    ended = executions.interrupt(failure="killed")
 
     outcomes = {
         change.id: change.state.outcome

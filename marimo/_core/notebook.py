@@ -450,7 +450,11 @@ class Notebook:
     ) -> None:
         """Settle the runtime's work, then publish it as ended."""
         if isinstance(outcome, protocol.RuntimeFailedOutcome):
-            self._apply(self.executions.interrupt("failed", outcome.message))
+            self._apply(
+                self.executions.interrupt(
+                    failure=outcome.message or "The kernel exited."
+                )
+            )
         else:
             self._apply(self.executions.interrupt())
         self._set_runtime(
@@ -665,7 +669,7 @@ class Notebook:
         if self._closed:
             return
         match msg:
-            case be.Starting() | be.Running() | be.Exited():
+            case be.Starting() | be.Running() | be.Stopped() | be.Exited():
                 runtime = self._runtime
                 if runtime is None or msg.runtime_id != runtime.id:
                     return  # A kernel this notebook no longer tracks.
@@ -697,29 +701,30 @@ class Notebook:
                             marimo_version=version,
                         )
                     )
-            case be.Exited(reason=reason):
-                self._observe_exited(runtime, reason)
+            case be.Stopped() | be.Exited():
+                with self.sink.deferred():
+                    self._observe_exited(runtime, report)
 
     def _observe_exited(
-        self, runtime: protocol.Runtime, reason: str | None
+        self, runtime: protocol.Runtime, report: be.Stopped | be.Exited
     ) -> None:
         if isinstance(runtime.state, protocol.RuntimeEnded):
             return
-        if not isinstance(runtime.state, protocol.RuntimeStopping):
+        request_id = self._runtime_request
+        if isinstance(report, be.Exited) and not isinstance(
+            runtime.state, protocol.RuntimeStopping
+        ):
             self._end_runtime(
-                runtime, protocol.RuntimeFailedOutcome(message=reason)
+                runtime, protocol.RuntimeFailedOutcome(message=report.reason)
             )
-        elif self._replacement is None:
-            self._end_runtime(runtime, protocol.RuntimeStoppedOutcome())
         else:
+            self._end_runtime(runtime, protocol.RuntimeStoppedOutcome())
+        if self._replacement is not None:
             replacement, self._replacement = self._replacement, None
-            request_id = self._runtime_request
-            with self.sink.deferred():
-                self._end_runtime(runtime, protocol.RuntimeStoppedOutcome())
-                self._remove_runtime(request_id)
-                self._runtime_request = request_id
-                self._set_runtime(replacement)
-                self.backend.start(replacement.id)
+            self._remove_runtime(request_id)
+            self._runtime_request = request_id
+            self._set_runtime(replacement)
+            self.backend.start(replacement.id)
 
     def _new_runtime(self) -> protocol.Runtime:
         return protocol.Runtime(
