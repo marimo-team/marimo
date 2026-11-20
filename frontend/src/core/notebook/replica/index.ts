@@ -10,7 +10,7 @@ export {
   type ConnectionStatus,
 } from "./connection";
 export {
-  EDITOR_EVENT_TYPES,
+  EDITOR_EVENT_KINDS,
   createNotebookReplica,
   type NotebookReplica,
 } from "./replica";

@@ -232,7 +232,7 @@ class Mutations:
                             unsubscribe()
 
             unsubscribe = self.host.subscribe(
-                updated, notebook_id=notebook_id, types={"run"}
+                updated, notebook_id=notebook_id, kinds={"run"}
             )
         elif operation in {"runtime.start", "runtime.stop", "runtime.restart"}:
             assert notebook_id is not None
@@ -314,7 +314,7 @@ def _watch_lifecycle(
                 settle()
 
     unsubscribe = context.host.subscribe(
-        updated, notebook_id=notebook_id, types={"runtime", "notebook"}
+        updated, notebook_id=notebook_id, kinds={"runtime", "notebook"}
     )
 
     def accepted(reply: Reply) -> None:

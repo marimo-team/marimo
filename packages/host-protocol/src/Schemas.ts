@@ -10,7 +10,7 @@ export * from "./model/Runtime.ts";
 export * from "./model/Execution.ts";
 export * from "./model/Items.ts";
 export * from "./api/Requests.ts";
-export { Custom, ObjectType } from "./Events.ts";
+export { Custom, ObjectKind } from "./Events.ts";
 export {
   Decision,
   DecisionOption,

@@ -71,7 +71,7 @@ class SessionEventStream(SessionHandler):
         bridge: SessionBridge,
         manager: SessionManager,
         params: ConnectionParams,
-        types: set[str] | None,
+        kinds: set[str] | None,
         cursor: str | None,
         heartbeat_seconds: float = 20.0,
     ) -> None:
@@ -86,7 +86,7 @@ class SessionEventStream(SessionHandler):
         self.notebook = notebook
         self.bridge = bridge
         self._notifications = EditorNotifications()
-        self.types = types
+        self.kinds = kinds
         self.cursor = cursor
         self._attachment: protocol.Attachment | None = None
         self._unsubscribe: Callable[[], None] | None = None
@@ -117,7 +117,7 @@ class SessionEventStream(SessionHandler):
             message,
             self._session.session_view if self._session is not None else None,
         ):
-            if event.wanted(self.types):
+            if event.wanted(self.kinds):
                 self._events.put_nowait(event)
 
     def _on_host_event(self, event: RoutedEvent) -> None:
@@ -151,10 +151,10 @@ class SessionEventStream(SessionHandler):
         self.notebook = notebook
         self._attachment = notebook.attach(identity=self.params.session_id)
         self._unsubscribe = self.bridge.host.subscribe(
-            self._on_host_event, notebook_id=notebook.id, types=self.types
+            self._on_host_event, notebook_id=notebook.id, kinds=self.kinds
         )
         initial = self.bridge.host.events(
-            self.cursor, notebook_id=notebook.id, types=self.types
+            self.cursor, notebook_id=notebook.id, kinds=self.kinds
         )
         self._ready_id = initial[-1].position or 0
         for event in initial:

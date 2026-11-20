@@ -97,7 +97,7 @@ describe.each(["getWsURL", "getSseURL"] as const)(
 
     it("keeps notebook parameters out of the stream options", () => {
       const notebookParams = new URLSearchParams([
-        ["types", "scatter"],
+        ["kinds", "scatter"],
         ["cursor", "page-2"],
         ["run_id", "experiment"],
         ["query_params", "nested=value&other=1"],

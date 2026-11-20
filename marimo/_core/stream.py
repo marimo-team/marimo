@@ -129,16 +129,16 @@ class RoutedEvent:
         )
 
     def wanted(
-        self, types: Collection[str] | None, run_id: str | None = None
+        self, kinds: Collection[str] | None, run_id: str | None = None
     ) -> bool:
         """Apply kind and run filters, always including `ready` and `reset`."""
         if isinstance(self.event, (protocol.ReadyEvent, protocol.ResetEvent)):
             return True
-        if types is not None:
+        if kinds is not None:
             kind = event_name(self.event)
             if isinstance(self.event, protocol_events.RemovalEvent):
                 kind = kind.removesuffix(".removed")
-            if kind not in types:
+            if kind not in kinds:
                 return False
         return run_id is None or self.run_id == run_id
 

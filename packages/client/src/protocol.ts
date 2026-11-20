@@ -1810,7 +1810,7 @@ export const NotebookStreamEvent = zod
 export type NotebookStreamEvent = zod.input<typeof NotebookStreamEvent>;
 export type NotebookStreamEventOutput = zod.output<typeof NotebookStreamEvent>;
 
-export const ObjectType = zod
+export const ObjectKind = zod
   .enum([
     "host",
     "project",
@@ -1829,11 +1829,11 @@ export const ObjectType = zod
     "custom",
   ])
   .describe(
-    "The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, input, variable, analysis, and custom. Custom events describe occurrences rather than object state.",
+    "The kinds a stream carries, and the values `kinds` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, input, variable, analysis, and custom. Custom events describe occurrences rather than object state.",
   );
 
-export type ObjectType = zod.input<typeof ObjectType>;
-export type ObjectTypeOutput = zod.output<typeof ObjectType>;
+export type ObjectKind = zod.input<typeof ObjectKind>;
+export type ObjectKindOutput = zod.output<typeof ObjectKind>;
 
 export const Process = zod
   .object({

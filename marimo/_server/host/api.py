@@ -142,18 +142,18 @@ def _record(request: Request) -> protocol.Notebook:
 async def _events(request: Request) -> Response:
     """Stream catalog snapshots and updates.
 
-    `Last-Event-ID` resumes from a cursor. `types` filters event kinds.
+    `Last-Event-ID` resumes from a cursor. `kinds` filters event kinds.
     """
     context = _context(request)
     cursor = _cursor(request)
     if isinstance(cursor, Response):
         return cursor
-    types = _types(request)
-    if isinstance(types, Response):
-        return types
+    kinds = _kinds(request)
+    if isinstance(kinds, Response):
+        return kinds
     # Refresh on connection because the catalog has no directory watcher.
     await context.bridge.refresh()
-    return _stream(context, cursor, types, notebook_id=None)
+    return _stream(context, cursor, kinds, notebook_id=None)
 
 
 async def _notebook_events(request: Request) -> Response:
@@ -168,9 +168,9 @@ async def _notebook_events(request: Request) -> Response:
     cursor = _cursor(request)
     if isinstance(cursor, Response):
         return cursor
-    types = _types(request)
-    if isinstance(types, Response):
-        return types
+    kinds = _kinds(request)
+    if isinstance(kinds, Response):
+        return kinds
     run_id = request.query_params.get("run_id")
     if run_id == "":
         return problem("invalid-request", "run_id must not be empty")
@@ -185,7 +185,7 @@ async def _notebook_events(request: Request) -> Response:
     return _stream(
         context,
         cursor,
-        types,
+        kinds,
         notebook_id=notebook.id,
         run_id=run_id,
         on_close=lambda: notebook.detach(attachment.id),
@@ -227,9 +227,9 @@ async def _editor_events_ws(websocket: WebSocket) -> None:
     if isinstance(cursor, Response):
         await websocket.close(code=1008, reason="Invalid event cursor")
         return
-    types = _types(websocket)
-    if isinstance(types, Response):
-        await websocket.close(code=1008, reason="Invalid event types")
+    kinds = _kinds(websocket)
+    if isinstance(kinds, Response):
+        await websocket.close(code=1008, reason="Invalid event kinds")
         return
     app_state = AppState(websocket)
     params = parse_connection_params(app_state)
@@ -263,7 +263,7 @@ async def _editor_events_ws(websocket: WebSocket) -> None:
         bridge=bridge,
         manager=manager,
         params=params,
-        types=types,
+        kinds=kinds,
         cursor=cursor,
     ).start()
 
@@ -274,9 +274,9 @@ async def _notebook_events_ws(websocket: WebSocket) -> None:
     if isinstance(cursor, Response):
         await websocket.close(code=1008, reason="Invalid event cursor")
         return
-    types = _types(websocket)
-    if isinstance(types, Response):
-        await websocket.close(code=1008, reason="Invalid event types")
+    kinds = _kinds(websocket)
+    if isinstance(kinds, Response):
+        await websocket.close(code=1008, reason="Invalid event kinds")
         return
     run_id = websocket.query_params.get("run_id")
     if run_id == "":
@@ -315,7 +315,7 @@ async def _notebook_events_ws(websocket: WebSocket) -> None:
         with _subscribe_events(
             bridge,
             cursor,
-            types,
+            kinds,
             notebook_id=notebook.id,
             run_id=run_id,
             include_session=True,
@@ -347,9 +347,9 @@ def _cursor(request: HTTPConnection) -> str | Response | None:
         return problem("invalid-request", str(exc))
 
 
-def _types(request: HTTPConnection) -> set[str] | Response | None:
+def _kinds(request: HTTPConnection) -> set[str] | Response | None:
     try:
-        return stream_options.types(request)
+        return stream_options.kinds(request)
     except ValueError as exc:
         return problem("invalid-request", str(exc))
 
@@ -366,7 +366,7 @@ def _attachment_problem(error: msgspec.ValidationError) -> str:
 def _initial_events(
     bridge: SessionBridge,
     cursor: str | None,
-    types: set[str] | None,
+    kinds: set[str] | None,
     *,
     notebook_id: protocol.NotebookId | None,
     run_id: str | None = None,
@@ -374,7 +374,7 @@ def _initial_events(
 ) -> list[RoutedEvent]:
     """Capture a snapshot or replay, with `ready` marking its end."""
     events = bridge.host.events(
-        cursor, notebook_id=notebook_id, types=types, run_id=run_id
+        cursor, notebook_id=notebook_id, kinds=kinds, run_id=run_id
     )
     needs_snapshot = cursor is None or isinstance(
         events[0].event, protocol.ResetEvent
@@ -384,7 +384,7 @@ def _initial_events(
         events.extend(
             event
             for event in bridge.session_snapshot(notebook_id)
-            if event.wanted(types, run_id)
+            if event.wanted(kinds, run_id)
         )
         events.append(ready)
     return events
@@ -410,7 +410,7 @@ class _EventSubscription:
 def _subscribe_events(
     bridge: SessionBridge,
     cursor: str | None,
-    types: set[str] | None,
+    kinds: set[str] | None,
     *,
     notebook_id: protocol.NotebookId | None,
     run_id: str | None = None,
@@ -421,14 +421,14 @@ def _subscribe_events(
     unsubscribe = bridge.host.subscribe(
         queue.put_nowait,
         notebook_id=notebook_id,
-        types=types,
+        kinds=kinds,
         run_id=run_id,
     )
     try:
         initial = _initial_events(
             bridge,
             cursor,
-            types,
+            kinds,
             notebook_id=notebook_id,
             run_id=run_id,
             include_session=include_session,
@@ -441,7 +441,7 @@ def _subscribe_events(
 def _stream(
     context: HostContext,
     cursor: str | None,
-    types: set[str] | None,
+    kinds: set[str] | None,
     *,
     notebook_id: protocol.NotebookId | None,
     run_id: str | None = None,
@@ -452,7 +452,7 @@ def _stream(
             with _subscribe_events(
                 context.bridge,
                 cursor,
-                types,
+                kinds,
                 notebook_id=notebook_id,
                 run_id=run_id,
             ) as subscription:

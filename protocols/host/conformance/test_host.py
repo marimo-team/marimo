@@ -99,7 +99,7 @@ async def test_catalog_snapshot(catalog):
 
 
 async def test_stream_types_filter(host):
-    snapshot = await host.snapshot(params={"types": "runtime"})
+    snapshot = await host.snapshot(params={"kinds": "runtime"})
     assert {frame.event for frame in snapshot if frame.comment is None} <= {
         "runtime",
         "ready",
@@ -125,7 +125,7 @@ async def test_stream_ping(host, pytestconfig):
     if not pytestconfig.getoption("--slow"):
         pytest.skip("pass --slow to wait for idle pings")
     # Filter out attachments caused by other stream checks.
-    async with host.watch(params={"types": "host"}, timeout=20) as watch:
+    async with host.watch(params={"kinds": "host"}, timeout=20) as watch:
         await watch.ready()
         watch.timeout = 20
         await watch.until(lambda frame: frame.comment == "ping")
@@ -140,7 +140,7 @@ async def test_notebook_document(host, catalog):
     document_state(snapshot)
     assert objects(snapshot, "attachment"), "notebook stream has no attachment"
     filtered = await host.snapshot(
-        path + "/events", params={"types": "cell,document"}
+        path + "/events", params={"kinds": "cell,document"}
     )
     assert {f.event for f in filtered if f.comment is None} <= {
         "cell",

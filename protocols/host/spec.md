@@ -391,7 +391,7 @@ event marks the end of the snapshot, after which the stream delivers changes
 as they happen. A client that only needs the current state can disconnect at
 `ready`.
 
-Clients can select object kinds with `types`. On a notebook stream, `run_id`
+Clients can select object kinds with `kinds`. On a notebook stream, `run_id`
 narrows the view to one run and its executions and items. Because filters also
 select removal events, a client retaining inputs MUST subscribe to both `input`
 and `execution` to learn when those inputs are removed. The same filters apply
@@ -434,7 +434,7 @@ appear in snapshots. Once their replay history expires, a
 reset cannot recover them. Features that need recoverable state MUST
 represent that state separately rather than relying on custom events alone.
 
-`types=custom` selects custom events, regardless of their namespaced type.
+`kinds=custom` selects custom events, regardless of their namespaced type.
 Custom events do not belong to a run and are excluded when `run_id` is set.
 They do not appear on the catalog stream.
 

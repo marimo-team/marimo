@@ -54,7 +54,7 @@ const client = new Client("http://127.0.0.1:2718/api/marimo/v1", {
 });
 let state = reducer.initial;
 
-for await (const event of client.events({ types: ["notebook"] })) {
+for await (const event of client.events({ kinds: ["notebook"] })) {
   state = reducer.reduce(state, event);
   if (event.event === "ready") break;
 }
@@ -105,7 +105,7 @@ function useNotebooks(client: Client) {
 
   useEffect(() => {
     setState(reducer.initial);
-    const events = client.events({ types: ["notebook"] });
+    const events = client.events({ kinds: ["notebook"] });
     const unsubscribe = events.subscribe((event) => {
       setState((current) => reducer.reduce(current, event));
     });

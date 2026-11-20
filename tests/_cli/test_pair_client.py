@@ -186,7 +186,7 @@ def test_open_events_uses_host_headers_and_cursor(
     assert calls == [
         {
             "method": "GET",
-            "url": "http://localhost:2718/base/api/marimo/v1/notebooks/nb-one/events?types=custom,attachment",
+            "url": "http://localhost:2718/base/api/marimo/v1/notebooks/nb-one/events?kinds=custom,attachment",
             "headers": {
                 "Marimo-Attachment-Identity": "p1_one",
                 "Marimo-Attachment-Kind": "agent",
@@ -665,7 +665,7 @@ def test_events_preserve_query_and_drop_fragment(monkeypatch, suffix):
     assert endpoint.fragment == ""
     assert parse_qs(endpoint.query) == {
         **({"key": ["value"]} if "?" in suffix else {}),
-        "types": ["custom,attachment"],
+        "kinds": ["custom,attachment"],
     }
 
 

@@ -128,7 +128,7 @@ describe("websocket", () => {
     vi.stubGlobal("WebSocket", FakeSocket);
     const events = new NotebookEvents(
       websocket(() => "ws://localhost/ws?session_id=s1&cursor=stale"),
-      { types: ["marimo"] },
+      { kinds: ["marimo"] },
     );
     const received = collect(events);
     await vi.waitFor(() => expect(FakeSocket.opened).toHaveLength(1));
@@ -271,7 +271,7 @@ describe("sessionSse", () => {
         () => "http://localhost/sse",
         () => ({}),
       ),
-      { types: ["marimo"] },
+      { kinds: ["marimo"] },
     );
     const received = collect(events);
     onTestFinished(() => events.close());

@@ -170,15 +170,15 @@ def test_editor_opens_with_the_results_an_earlier_session_stored(
 
 
 @pytest.mark.parametrize(
-    "types",
+    "kinds",
     [None, "marimo", "marimo,run", "marimo,run,execution,output,console"],
 )
 def test_editor_starts_and_runs_through_the_host_socket(
-    client: TestClient, editor_host: SessionBridge, types: str | None
+    client: TestClient, editor_host: SessionBridge, kinds: str | None
 ) -> None:
     url = socket_url(editor_host)
-    if types is not None:
-        url += f"&types={types}"
+    if kinds is not None:
+        url += f"&kinds={kinds}"
     with client.websocket_connect(url) as websocket:
         messages = []
         while True:
@@ -197,7 +197,7 @@ def test_editor_starts_and_runs_through_the_host_socket(
         )
         assert all("id" not in event for event in messages[:boundary])
         assert messages[boundary]["data"] == {}
-        if types is None:
+        if kinds is None:
             names = [event["event"] for event in messages[:boundary]]
             assert names[0] == "notebook"
             assert names.index("cell") < names.index("document")
@@ -216,7 +216,7 @@ def test_editor_starts_and_runs_through_the_host_socket(
             if completed(event, response.json()["id"]):
                 break
         received_types = {event["event"] for event in messages}
-        if types is None:
+        if kinds is None:
             assert "run" in received_types
             host_url = f"{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?access_token=fake-token"
             with client.websocket_connect(host_url) as observer:
@@ -233,8 +233,8 @@ def test_editor_starts_and_runs_through_the_host_socket(
                 for event in retained
             )
         else:
-            assert received_types == {*types.split(","), "ready"}
-        if types and "output" in types:
+            assert received_types == {*kinds.split(","), "ready"}
+        if kinds and "output" in kinds:
             assert any(
                 event["event"] == "output"
                 and "1234567" in str(event["data"]["output"]["media"])
@@ -256,7 +256,7 @@ def test_editor_starts_and_runs_through_the_host_socket(
             event["event"] == "console"
             and "host socket" in event["data"]["console"]["content"]["text"]
             for event in messages
-        ) == (types is None or "console" in types)
+        ) == (kinds is None or "console" in kinds)
 
 
 def test_widget_callback_console_is_routed_to_its_defining_cell(
@@ -445,7 +445,7 @@ def test_editor_receives_native_attachment_snapshots_and_changes(
     agent = client.portal.call(
         lambda: notebook.attach(kind="agent", name="Test Agent")
     )
-    url = f"{socket_url(editor_host)}&types=attachment"
+    url = f"{socket_url(editor_host)}&kinds=attachment"
     with client.websocket_connect(url) as socket:
         snapshot = socket_snapshot(socket)
         assert [event["event"] for event in snapshot] == [
@@ -482,7 +482,7 @@ def test_editor_receives_native_attachment_snapshots_and_changes(
 def test_reconnect_keeps_state_and_refresh_replays_it(
     client: TestClient, editor_host: SessionBridge
 ) -> None:
-    url = f"{socket_url(editor_host)}&types=marimo,console,execution"
+    url = f"{socket_url(editor_host)}&kinds=marimo,console,execution"
     with client.websocket_connect(url) as websocket:
         receive_notification(websocket, "kernel-ready")
         cell_id = first_cell_id(client, "s1")
@@ -511,7 +511,7 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
         )
         assert_reconnect_alert(websocket)
     with client.websocket_connect(
-        f"{socket_url(editor_host, 's2')}&types=marimo,console,execution"
+        f"{socket_url(editor_host, 's2')}&kinds=marimo,console,execution"
     ) as websocket:
         retained = socket_snapshot(websocket)
         [console] = [
@@ -538,7 +538,7 @@ def test_reconnect_keeps_state_and_refresh_replays_it(
 def test_reconnect_recovers_offline_notifications(
     client: TestClient, editor_host: SessionBridge, replay: str
 ) -> None:
-    url = f"{socket_url(editor_host)}&types=marimo"
+    url = f"{socket_url(editor_host)}&kinds=marimo"
     with client.websocket_connect(url) as socket:
         cursor = socket_snapshot(socket)[-1]["id"]
         receive_notification(socket, "kernel-ready")
@@ -738,10 +738,10 @@ def test_invalid_event_types_are_rejected_before_starting_a_session(
 ) -> None:
     with pytest.raises(WebSocketDisconnect) as exc:
         with client.websocket_connect(
-            f"{socket_url(editor_host)}&types=unknown"
+            f"{socket_url(editor_host)}&kinds=unknown"
         ):
-            pytest.fail("Invalid event types were accepted")
-    assert (exc.value.code, exc.value.reason) == (1008, "Invalid event types")
+            pytest.fail("Invalid event kinds were accepted")
+    assert (exc.value.code, exc.value.reason) == (1008, "Invalid event kinds")
     assert not get_session_manager(client).sessions
 
 
@@ -754,7 +754,7 @@ def test_editor_resumes_host_events_without_replaying_private_notifications(
         if session_route
         else socket_url(editor_host)
     )
-    url = f"{endpoint}&types=marimo,custom"
+    url = f"{endpoint}&kinds=marimo,custom"
     with client.websocket_connect(url) as socket:
         cursor = socket_snapshot(socket)[-1]["id"]
         receive_notification(socket, "kernel-ready")

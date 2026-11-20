@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { unstable_NotebookCall } from "@marimo-team/client";
-import { EDITOR_EVENT_TYPES } from "@/core/notebook/replica";
+import { EDITOR_EVENT_KINDS } from "@/core/notebook/replica";
 import type { PyodideInterface } from "pyodide";
 import {
   createRPC,
@@ -122,7 +122,7 @@ const requestHandler = createRPCRequestHandler({
           (event) => {
             rpc.send.notebookEvent({ id: request.id, event });
           },
-          EDITOR_EVENT_TYPES.join(","),
+          EDITOR_EVENT_KINDS.join(","),
         );
         if (!canceled) {
           void session.start().catch((error: unknown) => {

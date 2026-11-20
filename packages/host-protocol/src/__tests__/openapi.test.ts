@@ -77,14 +77,14 @@ it("adds experimental features without changing the stable protocol", () => {
     if (
       name === "Event" ||
       name === "NotebookStreamEvent" ||
-      name === "ObjectType"
+      name === "ObjectKind"
     ) {
       continue;
     }
     expect(extended[name]).toEqual(schema);
   }
-  expect(new Set(extended.ObjectType.enum as string[])).toEqual(
-    new Set([...(schemas.ObjectType.enum as string[]), "analysis"]),
+  expect(new Set(extended.ObjectKind.enum as string[])).toEqual(
+    new Set([...(schemas.ObjectKind.enum as string[]), "analysis"]),
   );
   expect(
     Object.keys(extended)

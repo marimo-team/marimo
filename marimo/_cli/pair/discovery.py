@@ -90,7 +90,7 @@ def _read_host(host: HostEndpoint) -> Listing:
 def _snapshot(host: HostEndpoint) -> Listing:
     response = open_response(
         method="GET",
-        url=host.url.rstrip("/") + "/events?types=project,notebook,runtime",
+        url=host.url.rstrip("/") + "/events?kinds=project,notebook,runtime",
         headers={"Authorization": f"Bearer {host.token}"},
         body=None,
         read_timeout=_TIMEOUT,

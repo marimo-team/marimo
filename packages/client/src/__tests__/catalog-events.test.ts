@@ -141,7 +141,7 @@ describe("CatalogEvents", () => {
       ...snapshot,
       { event: "future", id: "46", data: "unknown" },
     ]);
-    const events = new CatalogEvents(transport, { types: ["notebook"] });
+    const events = new CatalogEvents(transport, { kinds: ["notebook"] });
     const received: CatalogStreamEvent<"notebook">[] = [];
     events.subscribe((event) => received.push(event));
     await vi.waitFor(() => expect(events.cursor).toBe("46"));
@@ -154,7 +154,7 @@ describe("CatalogEvents", () => {
       "notebook" | "notebook.removed" | "ready" | "reset"
     >();
     expectTypeOf<CatalogEventsOptions>().not.toHaveProperty("runId");
-    expectTypeOf<CatalogEventsOptions["types"]>().toEqualTypeOf<
+    expectTypeOf<CatalogEventsOptions["kinds"]>().toEqualTypeOf<
       | readonly ("host" | "project" | "notebook" | "runtime" | "attachment")[]
       | undefined
     >();

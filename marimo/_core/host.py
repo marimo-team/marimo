@@ -305,7 +305,7 @@ class Host:
         cursor: str | None = None,
         *,
         notebook_id: str | None = None,
-        types: Collection[str] | None = None,
+        kinds: Collection[str] | None = None,
         run_id: str | None = None,
     ) -> list[RoutedEvent]:
         """Return a snapshot or replay followed by `ready`.
@@ -334,7 +334,7 @@ class Host:
                 ]
             else:
                 events = [e for e in missed if e.visible_in(notebook_id)]
-        return [e for e in [*events, ready] if e.wanted(types, run_id)]
+        return [e for e in [*events, ready] if e.wanted(kinds, run_id)]
 
     def expire(self) -> None:
         """Remove scratch results whose retention has ended."""
@@ -348,13 +348,13 @@ class Host:
         listener: Listener,
         *,
         notebook_id: str | None = None,
-        types: Collection[str] | None = None,
+        kinds: Collection[str] | None = None,
         run_id: str | None = None,
     ) -> Callable[[], None]:
         """Subscribe to matching events and return an unsubscribe function."""
 
         def filtered(event: RoutedEvent) -> None:
-            if event.visible_in(notebook_id) and event.wanted(types, run_id):
+            if event.visible_in(notebook_id) and event.wanted(kinds, run_id):
                 listener(event)
 
         return self._stream.subscribe(filtered)

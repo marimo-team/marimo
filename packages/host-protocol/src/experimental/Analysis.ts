@@ -49,7 +49,7 @@ export const objects = [
     streams: ["notebook"],
     removable: false,
   },
-] as const satisfies ReadonlyArray<Objects.ObjectKind>;
+] as const satisfies ReadonlyArray<Objects.ObjectDefinition>;
 
 export const Api = Host.make(objects);
 

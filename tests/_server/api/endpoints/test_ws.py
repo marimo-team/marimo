@@ -89,7 +89,7 @@ async def test_failed_startup_progress_delivery_detaches_session(
         connection=websocket,
         notebook=None,
         bridge=MagicMock(),
-        types=None,
+        kinds=None,
         cursor=None,
         manager=manager,
         params=ConnectionParams(
