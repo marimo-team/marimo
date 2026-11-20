@@ -2,7 +2,7 @@ event: run
 data: {"run":{"id":"run-input","notebook_id":"n1","runtime_id":"r1","origin":{"kind":"code","code":"from getpass import getpass\nprint(\"Starting\")\nname = input(\"Name: \")\nprint(\"Name accepted\")\npassword = getpass(\"Password: \")"},"state":{"status":"running","started_at":"2026-11-03T14:00:00Z"}},"request_id":"start-input"}
 
 event: execution
-data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code_fingerprint":"c62108f175239e74","caused_by":null,"state":{"status":"running","started_at":"2026-11-03T14:00:00Z","value":null}},"request_id":"start-input"}
+data: {"execution":{"id":"e-input","run_id":"run-input","runtime_id":"r1","cell_id":null,"code_fingerprint":"c62108f175239e74","caused_by":null,"state":{"status":"running","started_at":"2026-11-03T14:00:00Z"}},"request_id":"start-input"}
 
 event: console
 data: {"console":{"id":"o-input-0","execution_id":"e-input","seq":0,"name":"stdout","text":"Starting\n"},"request_id":"start-input"}

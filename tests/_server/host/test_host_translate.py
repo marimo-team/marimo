@@ -36,7 +36,7 @@ from marimo._core.protocol import (
     Revision,
     RunId,
     SkippedOutcome,
-    ValueOutcome,
+    SucceededOutcome,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
@@ -176,9 +176,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
             ),
             Completed(
                 execution_id=ExecutionId("scratch"),
-                outcome=ValueOutcome(
-                    DisplayData(data="<pre>9</pre>", mimetype="text/html")
-                ),
+                outcome=SucceededOutcome(),
                 depends_on=inputs,
             ),
             Done(run_id=RunId("r1"), outcome="succeeded"),
@@ -236,7 +234,7 @@ def test_structured_displays_preserve_message_encoding(
             Displayed(ExecutionId("scratch"), display)
         ]
         assert t.feed(attempt("completed")) == [
-            Completed(ExecutionId("scratch"), ValueOutcome(display))
+            Completed(ExecutionId("scratch"), SucceededOutcome())
         ]
 
 

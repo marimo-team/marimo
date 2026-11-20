@@ -525,13 +525,17 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
             )
         )
     )
+    media = protocol.DisplayData(mimetype="text/plain", data="9")
+    notebook.observe(be.Displayed(execution, media))
     finish(notebook, execution)
     notebook.observe(be.Done(run.id, "succeeded"))
     snapshot = host.events(notebook_id=notebook.id, run_id=run.id)
     initial = fold(snapshot)
+    assert initial["output", "e:output"].media == media
     assert {kind for kind, _ in initial} == {
         "run",
         "execution",
+        "output",
         "console",
         "display",
     }
@@ -545,6 +549,7 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
     assert names(live) == [
         "console.removed",
         "display.removed",
+        "output.removed",
         "execution.removed",
         "run.removed",
     ]

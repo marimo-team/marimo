@@ -738,14 +738,21 @@ async def test_stored_results_are_on_the_stream_without_a_runtime(
     (cell,) = notebook.document
     result = notebook.executions.current(cell.id)
     assert result is not None
-    assert result.execution.state.outcome == protocol.ValueOutcome(
-        protocol.DisplayData(mimetype="text/plain", data="1")
+    assert result.output is not None
+    assert result.output.media == protocol.DisplayData(
+        mimetype="text/plain", data="1"
     )
+    events = bridge.host.events(notebook_id=record.id)
     assert [
         event.event.data.execution
-        for event in bridge.host.events(notebook_id=record.id)
+        for event in events
         if isinstance(event.event, protocol.ExecutionEvent)
     ] == [result.execution]
+    assert [
+        event.event.data.output
+        for event in events
+        if isinstance(event.event, protocol.OutputEvent)
+    ] == [result.output]
     bridge.close()
 
 

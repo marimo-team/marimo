@@ -1015,7 +1015,7 @@ async def test_run_filter_over_http(harness: Harness) -> None:
         )
     )
     notebook.observe(
-        be.Completed(protocol.ExecutionId("e1"), protocol.ValueOutcome(None))
+        be.Completed(protocol.ExecutionId("e1"), protocol.SucceededOutcome())
     )
     notebook.observe(be.Done(first.id, "succeeded"))
     notebook.run("2", request_id="second", request=None)
@@ -1323,7 +1323,7 @@ async def test_request_receipts_expire_independently_of_results(
     )
     assert active.json()["id"] == run_id
     assert active.json()["state"]["status"] == "running"
-    notebook.observe(be.Completed(eid, protocol.ValueOutcome(None)))
+    notebook.observe(be.Completed(eid, protocol.SucceededOutcome()))
     notebook.observe(be.Done(run_id, "succeeded"))
     harness.now = 129
     harness.host.expire()

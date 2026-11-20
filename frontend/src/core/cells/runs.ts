@@ -47,7 +47,7 @@ function traceStatus(record: Execution): CellRun["status"] {
     return record.state.status;
   }
   const outcome = record.state.outcome.kind;
-  return outcome === "value" ? "success" : outcome;
+  return outcome === "succeeded" ? "success" : outcome;
 }
 
 const {

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class CellExecution:
-    """A completed cell execution with its outputs and bound variables.
+    """A completed cell execution with its items and bound variables.
 
     Its source may be older than the cell's current source.
     """
@@ -30,6 +30,7 @@ class CellExecution:
     execution: protocol.Execution
     outputs: tuple[protocol.Console | protocol.Display, ...] = ()
     variables: tuple[protocol.Variable, ...] = ()
+    output: protocol.Output | None = None
 
 
 @dataclass
@@ -56,6 +57,13 @@ class _Result:
         default_factory=dict
     )
     inputs: dict[protocol.ItemId, protocol.Input] = field(default_factory=dict)
+    output: protocol.Output | None = None
+
+    def items(
+        self,
+    ) -> list[protocol.Output | protocol.Console | protocol.Display]:
+        own = [] if self.output is None else [self.output]
+        return [*own, *self.outputs.values()]
 
 
 @dataclass(frozen=True)
@@ -64,6 +72,7 @@ class Removed:
 
     record_type: type[
         protocol.Execution
+        | protocol.Output
         | protocol.Console
         | protocol.Display
         | protocol.Variable
@@ -93,6 +102,7 @@ class Released:
 Record = (
     protocol.Run
     | protocol.Execution
+    | protocol.Output
     | protocol.Console
     | protocol.Display
     | protocol.Variable
@@ -104,7 +114,7 @@ Change = Record | Removed | Released | InputChanged
 def _settled(outcome: protocol.Outcome | None) -> bool:
     """Whether an outcome lets its run succeed: a value, or a skip by design."""
     return isinstance(
-        outcome, (protocol.ValueOutcome, protocol.SkippedOutcome)
+        outcome, (protocol.SucceededOutcome, protocol.SkippedOutcome)
     )
 
 
@@ -191,7 +201,11 @@ class Executions:
                     f"result for cell {cell_id} not in the document"
                 )
             outputs = sorted(retained.outputs, key=lambda item: item.seq)
-            items = [*outputs, *retained.variables]
+            items = [
+                *([] if retained.output is None else [retained.output]),
+                *outputs,
+                *retained.variables,
+            ]
             if not isinstance(execution.state, protocol.ExecutionCompleted):
                 raise ValueError(
                     "initial results must be completed executions"
@@ -209,6 +223,7 @@ class Executions:
                 execution,
                 {item.id: item for item in outputs},
                 {item.id: item for item in retained.variables},
+                output=retained.output,
             )
             restored._cells[cell_id] = execution.id
         return restored
@@ -232,6 +247,7 @@ class Executions:
                 current.execution,
                 tuple(current.outputs.values()),
                 tuple(current.variables.values()),
+                current.output,
             )
         )
 
@@ -260,7 +276,7 @@ class Executions:
                     item
                     for result in self._results.values()
                     for item in (
-                        *result.outputs.values(),
+                        *result.items(),
                         *result.variables.values(),
                         *result.inputs.values(),
                     )
@@ -441,22 +457,17 @@ class Executions:
                                 )
                             )
             case be.Displayed(execution_id=execution_id, display=display):
-                if (result := self._results.get(execution_id)) is not None:
-                    state = result.execution.state
-                    value = protocol.ValueOutcome(display)
-                    shown: protocol.ExecutionState | None = None
-                    if isinstance(state, protocol.ExecutionRunning):
-                        shown = replace(state, value=value)
-                    elif isinstance(
-                        state, protocol.ExecutionCompleted
-                    ) and isinstance(state.outcome, protocol.ValueOutcome):
-                        shown = replace(state, outcome=value)
-                    if shown is not None:
-                        changes.append(
-                            self._set_execution(
-                                replace(result.execution, state=shown)
-                            )
-                        )
+                if (
+                    result := self._results.get(execution_id)
+                ) is not None and not isinstance(
+                    result.execution.state, protocol.ExecutionQueued
+                ):
+                    result.output = protocol.Output(
+                        id=protocol.ItemId(f"{execution_id}:output"),
+                        execution_id=execution_id,
+                        media=display,
+                    )
+                    changes.append(result.output)
             case be.Done(run_id=run_id, outcome=outcome):
                 if (
                     tracked := self._runs.get(run_id)
@@ -591,7 +602,7 @@ class Executions:
         now = utcnow()
         execution = replace(
             execution,
-            state=protocol.ExecutionRunning(started_at=now, value=None),
+            state=protocol.ExecutionRunning(started_at=now),
         )
         assert execution.run_id is not None
         run = self._runs[execution.run_id].run
@@ -676,7 +687,7 @@ class Executions:
                 item.id,
                 run_id,
             )
-            for item in (*result.outputs.values(), *result.variables.values())
+            for item in (*result.items(), *result.variables.values())
         ]
         changes.append(Removed(protocol.Execution, execution_id, run_id))
         self._forget_result(execution_id)

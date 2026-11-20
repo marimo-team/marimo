@@ -75,10 +75,15 @@ function consoleEntry(
 export function consoleObservers(
   actions: Pick<ReducerCellActions, "addLogs" | "startCellConsole">,
   onExecution?: (record: Execution) => void,
-): Pick<Parameters<NotebookReplica["connect"]>[1], "onExecution" | "onItem"> {
+): Pick<
+  Parameters<NotebookReplica["connect"]>[1],
+  "onExecution" | "onOutput" | "onItem"
+> {
   return {
+    onOutput(output, execution) {
+      VirtualFileTracker.INSTANCE.trackOutput(output, execution);
+    },
     onExecution(record, changed) {
-      VirtualFileTracker.INSTANCE.trackExecution(record);
       if (changed) {
         if (record.state.status === "running") {
           actions.startCellConsole({

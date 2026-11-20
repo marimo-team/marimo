@@ -46,7 +46,7 @@ describe("execution traces", () => {
     } satisfies Execution["state"];
     const runId = "r1" as RunId;
     const running = observe(observe(initialState()), {
-      state: { started_at, status: "running", value: null },
+      state: { started_at, status: "running" },
     });
     for (const state of [
       observe(running, { state: completed }),
@@ -63,7 +63,7 @@ describe("execution traces", () => {
     }
     expect(
       observe(running, {
-        state: { ...completed, outcome: { kind: "value", display: null } },
+        state: { ...completed, outcome: { kind: "succeeded" } },
       })
         .runMap.get(runId)
         ?.cellRuns.get(cellId("cell"))?.status,

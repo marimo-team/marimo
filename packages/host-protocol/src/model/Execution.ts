@@ -209,13 +209,9 @@ export const Error = Schema.Struct({
   identifier: "Error",
 });
 
-export const ValueOutcome = Schema.Struct({
-  kind: Schema.Literal("value"),
-  display: Schema.NullOr(DisplayData).annotateKey({
-    description:
-      "The value as last rendered. Replaced as it grows. Null when the code produced no value.",
-  }),
-}).annotate({ identifier: "ValueOutcome" });
+export const SucceededOutcome = Schema.Struct({
+  kind: Schema.Literal("succeeded"),
+}).annotate({ identifier: "SucceededOutcome" });
 
 export const ErrorOutcome = Schema.Struct({
   kind: Schema.Literal("error"),
@@ -241,13 +237,13 @@ export const SkippedOutcome = Schema.Struct({
 }).annotate({ identifier: "SkippedOutcome" });
 
 export const Outcome = Schema.Union([
-  ValueOutcome,
+  SucceededOutcome,
   ErrorOutcome,
   InterruptedOutcome,
   SkippedOutcome,
 ]).annotate({
   description:
-    "How an execution ended, tagged on `kind`. A `value` carries the\nlast rendered display. Background work can replace or clear that\ndisplay while the completed execution is retained. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
+    "How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
   identifier: "Outcome",
 });
 
@@ -259,10 +255,6 @@ export const ExecutionRunning = Schema.Struct({
   status: Schema.Literal("running"),
   started_at: Timestamp.annotateKey({
     description: "When the code started executing.",
-  }),
-  value: Schema.NullOr(ValueOutcome).annotateKey({
-    description:
-      "The value as rendered so far. Null until the execution shows something.",
   }),
 }).annotate({ identifier: "ExecutionRunning" });
 

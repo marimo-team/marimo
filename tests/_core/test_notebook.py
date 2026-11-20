@@ -48,7 +48,7 @@ from marimo._core.protocol import (
     Runtime,
     RuntimeId,
     RuntimeMessage,
-    ValueOutcome,
+    SucceededOutcome,
 )
 from marimo._core.stream import RoutedEvent, Stream, event_name
 from tests._core.conftest import (
@@ -298,7 +298,7 @@ class TestStop:
         running(notebook, backend)
         run = scratch(notebook)
         notebook.observe(be.Produced(console("o1", "e1", "x")))
-        notebook.observe(be.Completed(ExecutionId("e1"), value("")))
+        notebook.observe(be.Completed(ExecutionId("e1"), SucceededOutcome()))
         notebook.observe(be.Done(run.id, "succeeded"))
         log.clear()
 
@@ -509,8 +509,8 @@ def console(
     )
 
 
-def value(data: str) -> ValueOutcome:
-    return ValueOutcome(display=DisplayData(mimetype="text/html", data=data))
+def value(data: str) -> DisplayData:
+    return DisplayData(mimetype="text/html", data=data)
 
 
 class TestRun:
@@ -519,7 +519,7 @@ class TestRun:
     ) -> None:
         running(notebook, backend)
         run = scratch(notebook)
-        notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
+        notebook.observe(be.Completed(ExecutionId("e1"), SucceededOutcome()))
         notebook.observe(be.Done(run.id, "succeeded"))
         cursor = host.events()[-1].event.id
         live: list[RoutedEvent] = []
@@ -573,13 +573,12 @@ class TestRun:
             )
         )
         notebook.observe(be.Started(ExecutionId("e7")))
-        notebook.observe(
-            be.Displayed(ExecutionId("e7"), value("working").display)
-        )
+        notebook.observe(be.Displayed(ExecutionId("e7"), value("working")))
         notebook.observe(be.Produced(console("o3", "e7", "2\n")))
         notebook.observe(
-            be.Completed(ExecutionId("e7"), value("working<pre>9</pre>"))
+            be.Displayed(ExecutionId("e7"), value("working<pre>9</pre>"))
         )
+        notebook.observe(be.Completed(ExecutionId("e7"), SucceededOutcome()))
         notebook.observe(be.Done(run.id, "succeeded"))
 
         assert notebook.runtime is not None
@@ -589,8 +588,9 @@ class TestRun:
             "execution",
             "run",
             "execution",
-            "execution",
+            "output",
             "console",
+            "output",
             "execution",
             "run",
         ]
@@ -617,17 +617,21 @@ class TestRun:
         ]
         assert [e.state for e in executions] == [
             protocol.ExecutionQueued(),
-            protocol.ExecutionRunning(started_at=IsDatetime(), value=None),
-            protocol.ExecutionRunning(
-                started_at=IsDatetime(), value=value("working")
-            ),
+            protocol.ExecutionRunning(started_at=IsDatetime()),
             protocol.ExecutionCompleted(
                 started_at=IsDatetime(),
                 completed_at=IsDatetime(),
-                outcome=value("working<pre>9</pre>"),
+                outcome=SucceededOutcome(),
                 depends_on={},
             ),
         ]
+        # The output changes on its own item, so the execution is not resent.
+        outputs = [
+            data.output.media
+            for event in log
+            if isinstance(data := event.event.data, protocol.OutputMessage)
+        ]
+        assert outputs == [value("working"), value("working<pre>9</pre>")]
         retained = [
             event.event.data
             for event in host.events(notebook_id=notebook.id)
@@ -668,12 +672,7 @@ class TestRun:
                     state=protocol.ExecutionCompleted(
                         started_at=IsDatetime(),
                         completed_at=IsDatetime(),
-                        outcome=ValueOutcome(
-                            display=DisplayData(
-                                data="working<pre>9</pre>",
-                                mimetype="text/html",
-                            )
-                        ),
+                        outcome=SucceededOutcome(),
                         depends_on={},
                     ),
                 ),
@@ -788,7 +787,7 @@ class TestRunCompletion:
     ) -> None:
         running(notebook, backend)
         original = scratch(notebook)
-        notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
+        notebook.observe(be.Completed(ExecutionId("e1"), SucceededOutcome()))
         notebook.observe(be.Done(original.id, "succeeded"))
         log.clear()
         notebook.observe(
@@ -839,7 +838,7 @@ class TestRunCompletion:
         run = scratch(notebook)
         with pytest.raises(ValueError, match="unfinished"):
             notebook.observe(be.Done(run.id, "succeeded"))
-        notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
+        notebook.observe(be.Completed(ExecutionId("e1"), SucceededOutcome()))
         notebook.observe(
             be.Planned(
                 run.id,
@@ -890,9 +889,7 @@ class TestRunCompletion:
         log.clear()
         # Released scratch records cannot reopen or acquire more output.
         notebook.observe(be.Started(ExecutionId("e1")))
-        notebook.observe(
-            be.Displayed(ExecutionId("e1"), value("changed").display)
-        )
+        notebook.observe(be.Displayed(ExecutionId("e1"), value("changed")))
         notebook.observe(be.Done(run.id, "succeeded"))
         notebook.observe(
             be.Planned(
@@ -963,7 +960,7 @@ class TestCancel:
         with pytest.raises(NotFound):
             notebook.cancel("nope")
         run = scratch(notebook)
-        notebook.observe(be.Completed(ExecutionId("e1"), value("9")))
+        notebook.observe(be.Completed(ExecutionId("e1"), SucceededOutcome()))
         notebook.observe(be.Done(run.id, "succeeded"))
         with pytest.raises(NotFound):
             notebook.cancel(run.id)
@@ -1031,7 +1028,7 @@ class TestCellResults:
             if isinstance(event.event.data, ExecutionMessage)
         ]
         assert visible == [new]
-        notebook.observe(be.Completed(new, ValueOutcome(None)))
+        notebook.observe(be.Completed(new, SucceededOutcome()))
         if same_run:
             with pytest.raises(ValueError, match="successful run"):
                 notebook.observe(be.Done(second.id, "succeeded"))

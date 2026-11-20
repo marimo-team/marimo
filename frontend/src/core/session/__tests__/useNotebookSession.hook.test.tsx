@@ -490,7 +490,7 @@ it.each(["", "latest"])(
       ...MockExecutions.execution(null, {
         status: "completed",
         depends_on: {},
-        outcome: { kind: "value", display: null },
+        outcome: { kind: "succeeded" },
         started_at: "2026-10-01T09:21:01Z",
         completed_at: "2026-10-01T09:21:02Z",
       }),
@@ -505,7 +505,6 @@ it.each(["", "latest"])(
             state: {
               status: "running",
               started_at: "2026-10-01T09:21:01Z",
-              value: null,
             },
           },
         },
@@ -1044,7 +1043,7 @@ it("clears the private debugger prompt and transcript when editing moves to anot
   expect(store.get(pendingPdbInputAtom)).toBeNull();
 });
 
-it("collects exported files from execution values and public callback media", async () => {
+it("collects exported files from execution outputs and public callback media", async () => {
   const store = createStore();
   const fake = withTransport();
   vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
@@ -1058,16 +1057,13 @@ it("collects exported files from execution values and public callback media", as
   const callbackFile = "/@file/callback-image.png";
   const previousFile = "/@file/previous-callback.png";
   const debuggerFile = "/@file/debugger-image.png";
-  const record = MockExecutions.shown(id, {
+  const [execution, output] = MockExecutions.shown(id, {
     mimetype: "text/html",
     data: `<img src="${file}">`,
   });
   act(() => {
-    conn.receive({
-      event: "execution",
-      id: "updated",
-      data: { execution: record },
-    });
+    conn.receive({ event: "execution", id: "planned", data: { execution } });
+    conn.receive({ event: "output", id: "updated", data: { output } });
     const media = (path: string) => ({
       channel: "media",
       mimetype: "text/html",

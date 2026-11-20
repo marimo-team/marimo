@@ -12,6 +12,7 @@ import {
 import type {
   Attachment,
   Execution as HostExecution,
+  Output as HostOutput,
   NotebookOutput,
   Runtime,
 } from "@marimo-team/client/protocol";
@@ -50,6 +51,7 @@ export const EDITOR_EVENT_TYPES = [
   "console",
   "display",
   "input",
+  "output",
   "variable",
   "marimo",
 ] as const;
@@ -121,12 +123,10 @@ export interface NotebookReplica {
       onNotification: (notification: unknown) => void;
       /** Observe an item for live logs and virtual files in an export. */
       onItem?: (record: HostExecution, item: Item, live: boolean) => void;
-      /**
-       * Export tracks file references from each execution as it arrives, including
-       * restored results and updates to completed values. Execution history uses
-       * `lifecycleChanged` to record restored executions and live status changes.
-       */
+      /** Observe restored executions and live status changes for execution history. */
       onExecution?: (record: HostExecution, lifecycleChanged: boolean) => void;
+      /** Observe outputs as they arrive, including retained ones on reconnect. */
+      onOutput?: (output: HostOutput, execution: HostExecution) => void;
     },
   ): () => void;
   /** Restore the current connection after its stream closed, if the host is healthy. */
@@ -291,6 +291,7 @@ export function createNotebookReplica(
       onNotification,
       onExecution,
       onItem,
+      onOutput,
     }: Parameters<NotebookReplica["connect"]>[1],
   ) {
     current?.end();
@@ -359,6 +360,14 @@ export function createNotebookReplica(
       }
     }
 
+    function observeOutput(output: HostOutput, record: HostExecution) {
+      try {
+        onOutput?.(output, record);
+      } catch (error) {
+        Logger.error("Failed to handle output update", error);
+      }
+    }
+
     function apply(source: NotebookEvents<string>, event: EditorEvent) {
       if (event.event === "marimo") {
         const message = MarimoMessage.safeParse(event.data);
@@ -398,6 +407,9 @@ export function createNotebookReplica(
       if (event.event === "ready" && before.phase === "snapshot") {
         for (const execution of after.resources.executions.executions.values()) {
           observeExecution(execution.record, true);
+          if (execution.output) {
+            observeOutput(execution.output, execution.record);
+          }
           if (onItem) {
             for (const item of execution.items.values()) {
               if (item.kind === "display") {
@@ -431,6 +443,14 @@ export function createNotebookReplica(
           const record = event.data.execution;
           const changed = previous?.record.state.status !== record.state.status;
           observeExecution(record, changed);
+          return;
+        }
+        case "output": {
+          const { output } = event.data;
+          const execution = executions.get(output.execution_id);
+          if (execution) {
+            observeOutput(output, execution.record);
+          }
           return;
         }
         case "console":

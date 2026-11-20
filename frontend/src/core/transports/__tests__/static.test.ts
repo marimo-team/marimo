@@ -106,7 +106,7 @@ describe("static notebook backend", () => {
   it("delivers embedded results as completed executions after the document", async () => {
     const source = snapshot();
     const cell = source.cells[0];
-    const result: Protocol.Execution = {
+    const execution: Protocol.Execution = {
       id: "embedded:result",
       run_id: "embedded:run",
       runtime_id: "embedded",
@@ -117,29 +117,36 @@ describe("static notebook backend", () => {
         status: "completed",
         started_at: null,
         completed_at: null,
-        outcome: {
-          kind: "value",
-          display: { mimetype: "text/html", data: "<b>1</b>" },
-        },
+        outcome: { kind: "succeeded" },
         depends_on: {},
       },
     };
+    const output: Protocol.Output = {
+      id: "embedded:result:output",
+      execution_id: execution.id,
+      media: { mimetype: "text/html", data: "<b>1</b>" },
+    };
     const { events } = await read(
-      createStaticNotebookBackend({ ...source, results: [result] }),
+      createStaticNotebookBackend({
+        ...source,
+        results: [{ execution, output }],
+      }),
     );
     const reducer = createNotebookReducer({
       document: documentResource,
       executions,
     });
     const state = events.reduce(reducer.reduce, reducer.initial);
-    expect(events.map((event) => event.event).slice(-3)).toEqual([
+    expect(events.map((event) => event.event).slice(-4)).toEqual([
       "document",
       "execution",
+      "output",
       "ready",
     ]);
-    expect(state.resources.executions.results.get(cell.id)?.record).toEqual(
-      result,
-    );
+    expect(state.resources.executions.results.get(cell.id)).toMatchObject({
+      record: execution,
+      output,
+    });
   });
 
   it("preserves withheld source and its revision metadata", async () => {

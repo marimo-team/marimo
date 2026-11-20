@@ -397,7 +397,7 @@ const GridCell = memo(
     const hidden =
       hideWithoutValue &&
       execution.outcome !== null &&
-      execution.outcome !== "value";
+      execution.outcome !== "succeeded";
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output

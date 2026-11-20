@@ -381,7 +381,7 @@ describe.each(["websocket", "sse"] as const)(
       first.drop();
       await vi.advanceTimersByTimeAsync(2000);
       const second = await connection.opened();
-      expect(second.cursor).toBe("97");
+      expect(second.cursor).toBe("98");
       expect(store.get(client.documentAtom)).toBe(document);
       second.receive({ event: "ready", id: "100", data: {} });
       await vi.waitFor(() =>

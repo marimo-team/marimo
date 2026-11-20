@@ -62,7 +62,7 @@ class _Execution:
     cell_id: str
     ended: bool = False
     outcome: protocol.Outcome = field(
-        default_factory=lambda: protocol.ValueOutcome(None)
+        default_factory=protocol.SucceededOutcome
     )
     errors: list[Error] = field(default_factory=list)
     seq: int = 0
@@ -158,8 +158,6 @@ class RunTranslator:
                     if output.mimetype == "text/plain" and output.data == ""
                     else displayed(output.mimetype, output.data)
                 )
-                if not execution.ended:
-                    execution.outcome = protocol.ValueOutcome(display)
                 out.append(be.Displayed(execution.id, display))
         return out
 
@@ -234,7 +232,7 @@ class RunTranslator:
         )
         # The core keeps the reported outcome; release the payload here
         # while the translator stays alive for late output.
-        execution.outcome = protocol.ValueOutcome(None)
+        execution.outcome = protocol.SucceededOutcome()
         execution.errors.clear()
         return out
 

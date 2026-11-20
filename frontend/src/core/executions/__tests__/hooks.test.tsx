@@ -4,7 +4,7 @@ import { act, renderHook } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { MockExecutions } from "@/__mocks__/executions";
+import { type ExecutionEntries, MockExecutions } from "@/__mocks__/executions";
 import { configOverridesAtom } from "@/core/config/config";
 import { cellId } from "@/__tests__/branded";
 import {
@@ -27,7 +27,7 @@ function ran(id: string) {
   return { ...MockExecutions.completed(id), code_fingerprint: `${id}-hash` };
 }
 
-function setup(records: ReturnType<typeof ran>[]) {
+function setup(records: ExecutionEntries) {
   const store = createStore();
   const document = documentOf();
   const replica = MockExecutions.seed(store, records, null, document);
@@ -153,13 +153,12 @@ describe("input-change warnings", () => {
 });
 
 describe("useCellOutput", () => {
-  const shown = (id: string) => ({
-    ...MockExecutions.shown(id, {
-      mimetype: "text/plain",
-      data: `${id} value`,
-    }),
-    code_fingerprint: `${id}-hash`,
-  });
+  const shown = (id: string) =>
+    MockExecutions.shown(
+      id,
+      { mimetype: "text/plain", data: `${id} value` },
+      { code_fingerprint: `${id}-hash` },
+    );
 
   it("reads the result's value and hides it once cleared, until a newer result", () => {
     const { store, replica, wrapper } = setup([shown(C1)]);

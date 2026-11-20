@@ -25,7 +25,7 @@ const LONG_REPR =
 
 /** Show the long repr as the cell's result. */
 function seedLongRepr(store: ReturnType<typeof createStore>, cellId: CellId) {
-  const record = MockExecutions.shown(cellId, {
+  const [record, output] = MockExecutions.shown(cellId, {
     mimetype: "text/plain",
     data: LONG_REPR,
   });
@@ -43,6 +43,7 @@ function seedLongRepr(store: ReturnType<typeof createStore>, cellId: CellId) {
         },
       ],
     },
+    output,
   ]);
 }
 

@@ -193,7 +193,7 @@ describe("NotebookReplica lifetime", () => {
     expect(store.get(client.documentAtom)?.revision.notebook_id).toBe("n1");
     expect(store.get(client.notebookAtom)).toBeNull();
     const second = await opened();
-    expect(second.cursor).toBe("97");
+    expect(second.cursor).toBe("98");
     second.receive({ event: "reset", data: {} });
     // What was on show stays until the snapshot that replaces it is ready.
     const replacement = fixtureMessages("notebook-events.sse").map((event) =>
@@ -306,10 +306,10 @@ describe("NotebookReplica lifetime", () => {
     connect(current.signal);
     const attempt = await opened();
     const snapshot = fixtureMessages("notebook-events.sse");
-    snapshot.slice(0, -3).forEach(attempt.receive);
+    snapshot.slice(0, -4).forEach(attempt.receive);
     expect(store.get(client.documentAtom)).toBeNull();
     expect(store.get(client.runtimeAtom)).toBeNull();
-    snapshot.slice(-3).forEach(attempt.receive);
+    snapshot.slice(-4).forEach(attempt.receive);
     expect(store.get(client.documentAtom)?.revision.order).toEqual([
       "c1",
       "c3",

@@ -17,7 +17,7 @@ import {
   type Results,
   type Result,
 } from "@/core/notebook/replica";
-import { shownOutcome } from "@/core/notebook/replica";
+import { shown } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 
 type Store = ReturnType<typeof createStore>;
@@ -33,7 +33,25 @@ const T1 = "2026-10-01T09:20:12.500Z";
 
 let sequence = 0;
 
-const NO_VALUE: Protocol.ValueOutcome = { kind: "value", display: null };
+const SUCCEEDED: Protocol.Outcome = { kind: "succeeded" };
+
+/** An execution, or the output it set, as the stream delivers them. */
+type ExecutionFixture = Protocol.Execution & { items?: readonly Item[] };
+type Entry = ExecutionFixture | Protocol.Output;
+export type ExecutionEntries = ReadonlyArray<Entry | readonly Entry[]>;
+
+function split(entries: ExecutionEntries) {
+  const records: ExecutionFixture[] = [];
+  const outputs = new Map<Protocol.ExecutionId, Protocol.Output>();
+  for (const entry of entries.flat()) {
+    if ("execution_id" in entry) {
+      outputs.set(entry.execution_id, entry);
+    } else {
+      records.push(entry);
+    }
+  }
+  return { records, outputs };
+}
 
 function execution(
   cellId: string | null,
@@ -53,7 +71,7 @@ function execution(
 
 function completed(
   cellId: string | null,
-  outcome: Protocol.Outcome = NO_VALUE,
+  outcome: Protocol.Outcome = SUCCEEDED,
 ): Protocol.Execution {
   return execution(cellId, {
     status: "completed",
@@ -64,9 +82,15 @@ function completed(
   });
 }
 
-type ExecutionFixture = Protocol.Execution & { items?: readonly Item[] };
+function output(
+  execution: Protocol.Execution,
+  media: Protocol.DisplayData | null,
+): Protocol.Output {
+  return { id: `${execution.id}:output`, execution_id: execution.id, media };
+}
 
-function mirror(records: readonly ExecutionFixture[]): Executions {
+function mirror(entries: ExecutionEntries): Executions {
+  const { records, outputs } = split(entries);
   const executions = new Map<Protocol.ExecutionId, Execution>();
   const latest = new Map<Protocol.CellId, Protocol.ExecutionId>();
   for (const { items = [], ...record } of records) {
@@ -80,25 +104,30 @@ function mirror(records: readonly ExecutionFixture[]): Executions {
     }
     executions.set(record.id, {
       record,
+      output: outputs.get(record.id) ?? null,
       outputVersion: 0,
       items: new Map(items.map((item) => [item.id, item])),
       variables: new Map(),
     });
   }
-  const scratch = records.findLast(
-    (record) => record.cell_id === null && shownOutcome(record) !== null,
+  const scratch = [...executions.values()].findLast(
+    (execution) =>
+      execution.record.cell_id === null && shown(execution) !== null,
   );
   return {
     runs: new Map(),
     executions,
     latest,
-    results: results(records),
+    results: results(entries),
     scratch:
-      scratch === undefined ? null : { record: scratch, outputVersion: 0 },
+      scratch === undefined
+        ? null
+        : { record: scratch.record, output: scratch.output, outputVersion: 0 },
   };
 }
 
-function results(records: readonly Protocol.Execution[]): Results {
+function results(entries: ExecutionEntries): Results {
+  const { records, outputs } = split(entries);
   const results = new Map<Protocol.CellId, Result | null>();
   for (const record of records) {
     if (record.cell_id !== null) {
@@ -106,7 +135,11 @@ function results(records: readonly Protocol.Execution[]): Results {
         results.set(record.cell_id, null);
       }
       if (record.state.status === "completed") {
-        results.set(record.cell_id, { record, outputVersion: 0 });
+        results.set(record.cell_id, {
+          record,
+          output: outputs.get(record.id) ?? null,
+          outputVersion: 0,
+        });
       }
     }
   }
@@ -117,6 +150,7 @@ export const MockExecutions = {
   T0,
   T1,
   execution,
+  output,
   completed,
 
   /** A completed execution that took `elapsedMs`. */
@@ -125,18 +159,19 @@ export const MockExecutions = {
       status: "completed",
       started_at: T0,
       completed_at: new Date(Date.parse(T0) + elapsedMs).toISOString(),
-      outcome: NO_VALUE,
+      outcome: SUCCEEDED,
       depends_on: {},
     });
   },
 
-  /** A completed execution that showed `display`. */
+  /** A completed execution and the output it showed. */
   shown(
     cellId: string | null,
     display: Protocol.DisplayData,
     fields: Partial<Omit<Protocol.Execution, "id" | "state">> = {},
-  ): Protocol.Execution {
-    return { ...completed(cellId, { kind: "value", display }), ...fields };
+  ): readonly [Protocol.Execution, Protocol.Output] {
+    const execution = { ...completed(cellId), ...fields };
+    return [execution, output(execution, display)];
   },
 
   /** A completed execution that ended in `error`, a ValueError by default. */
@@ -177,12 +212,8 @@ export const MockExecutions = {
     });
   },
 
-  /** A running execution that has shown `value` so far. */
-  running(
-    cellId: string | null,
-    value: Protocol.ValueOutcome | null = null,
-  ): Protocol.Execution {
-    return execution(cellId, { status: "running", started_at: T0, value });
+  running(cellId: string | null): Protocol.Execution {
+    return execution(cellId, { status: "running", started_at: T0 });
   },
 
   queued(cellId: string | null): Protocol.Execution {
@@ -213,18 +244,18 @@ export const MockExecutions = {
 
   /**
    * What the selectors read. `latest` and the results are derived from
-   * `records`, and the document is taken to have every cell they name,
+   * `entries`, and the document is taken to have every cell they name,
    * with nothing keeping it from running.
    */
   inputs(
-    records: readonly Protocol.Execution[],
+    entries: ExecutionEntries,
     extra: Partial<Pick<CellExecutionInputs, "requested" | "blocked">> = {},
   ): CellExecutionInputs {
     return {
-      executions: mirror(records),
-      results: results(records),
+      executions: mirror(entries),
+      results: results(entries),
       cells: new Map(
-        records.flatMap((record) =>
+        split(entries).records.flatMap((record) =>
           record.cell_id === null ? [] : [[record.cell_id, { config: CONFIG }]],
         ),
       ),
@@ -235,10 +266,10 @@ export const MockExecutions = {
     };
   },
 
-  /** Make the store's active replica report `records`, `runtime`, and `document`. */
+  /** Make the store's active replica report `entries`, `runtime`, and `document`. */
   seed(
     store: Store,
-    records: ExecutionFixture[],
+    entries: ExecutionEntries,
     runtime: Protocol.Runtime | null = null,
     document: Document | null = null,
   ) {
@@ -258,8 +289,8 @@ export const MockExecutions = {
       documentAtom,
       shownDocumentAtom: documentAtom,
       runtimeAtom: atom(runtime),
-      executionsAtom: atom(mirror(records)),
-      resultsAtom: atom(results(records)),
+      executionsAtom: atom(mirror(entries)),
+      resultsAtom: atom(results(entries)),
     } satisfies NotebookReplica;
     store.set(activeNotebookReplicaAtom, replica);
     return replica;

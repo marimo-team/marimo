@@ -1,12 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Execution } from "@marimo-team/client/protocol";
+import type { Execution, Output } from "@marimo-team/client/protocol";
 import { type CellId, SCRATCH_CELL_ID } from "../cells/ids";
 import type {
   OutputMessage,
   NotificationMessageData,
 } from "../kernel/messages";
-import { shownOutcome } from "@/core/notebook/replica";
 
 // Virtual files are of the form /@file/<file-name>.<extension>
 const VIRTUAL_FILE_REGEX = /\/@file\/([^\s"&'/]+)\.([\dA-Za-z]+)/g;
@@ -37,13 +36,11 @@ export class VirtualFileTracker {
     this.trackValue(message.cell_id, message.output);
   }
 
-  public trackExecution(record: Execution): void {
-    const outcome = shownOutcome(record);
-    const value = outcome?.kind === "value" ? outcome.display : null;
-    if (value) {
+  public trackOutput(output: Output, execution: Execution): void {
+    if (output.media) {
       this.trackValue(
-        (record.cell_id as CellId | null) ?? SCRATCH_CELL_ID,
-        value,
+        (execution.cell_id as CellId | null) ?? SCRATCH_CELL_ID,
+        output.media,
       );
     }
   }

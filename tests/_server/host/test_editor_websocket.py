@@ -163,19 +163,15 @@ def test_editor_opens_with_the_results_an_earlier_session_stored(
         opening = socket_snapshot(websocket)
 
     assert [
-        event["data"]["execution"]["state"]["outcome"]
+        event["data"]["output"]["media"]
         for event in opening
-        if event["event"] == "execution"
-    ] == [
-        {
-            "kind": "value",
-            "display": {"mimetype": "text/plain", "data": "stored"},
-        }
-    ]
+        if event["event"] == "output"
+    ] == [{"mimetype": "text/plain", "data": "stored"}]
 
 
 @pytest.mark.parametrize(
-    "types", [None, "marimo", "marimo,run", "marimo,run,execution,console"]
+    "types",
+    [None, "marimo", "marimo,run", "marimo,run,execution,output,console"],
 )
 def test_editor_starts_and_runs_through_the_host_socket(
     client: TestClient, editor_host: SessionBridge, types: str | None
@@ -237,10 +233,10 @@ def test_editor_starts_and_runs_through_the_host_socket(
             )
         else:
             assert received_types == {*types.split(","), "ready"}
-        if types and "execution" in types:
+        if types and "output" in types:
             assert any(
-                event["event"] == "execution"
-                and "1234567" in str(event["data"]["execution"]["state"])
+                event["event"] == "output"
+                and "1234567" in str(event["data"]["output"]["media"])
                 for event in messages
             )
             assert not any(
@@ -433,7 +429,7 @@ def test_editor_with_autorun_reports_the_startup_run_on_the_host_socket(
                 execution = event["data"]["execution"]
                 break
         assert execution["cell_id"] == first_cell_id(client, "s1")
-        assert execution["state"]["outcome"]["kind"] == "value"
+        assert execution["state"]["outcome"]["kind"] == "succeeded"
 
 
 def test_editor_receives_native_attachment_snapshots_and_changes(

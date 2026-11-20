@@ -471,7 +471,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
             if state["status"] == "queued":
                 assert state == {"status": "queued"}
             elif state["status"] == "running":
-                assert set(state) == {"status", "started_at", "value"}
+                assert set(state) == {"status", "started_at"}
             else:
                 assert state["outcome"] is not None
                 assert state["completed_at"] is not None
@@ -522,8 +522,7 @@ def test_cell_run_request_and_results() -> None:
             == cells[execution["cell_id"]]["code_fingerprint"]
         )
         assert execution["state"]["outcome"] == {
-            "kind": "value",
-            "display": None,
+            "kind": "succeeded",
         }
     variables = {
         m["variable"]["name"]: m["variable"]

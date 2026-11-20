@@ -248,7 +248,7 @@ class Unbound:
 
 @dataclass(frozen=True)
 class Displayed:
-    """Replace a value display while its execution's result is retained."""
+    """Set an execution's output while its result is retained."""
 
     execution_id: protocol.ExecutionId
     display: protocol.DisplayData | None

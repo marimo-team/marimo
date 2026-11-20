@@ -6,7 +6,10 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import type * as api from "@marimo-team/marimo-api";
 import { mergeArray } from "@/utils/edit-distance";
 import { Logger } from "@/utils/Logger";
-import type { StaticNotebookSnapshot } from "../transports/static";
+import type {
+  StaticNotebookSnapshot,
+  StaticResult,
+} from "../transports/static";
 import { CellId, SETUP_CELL_ID } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
 import { type CellRuntimeState, createCellRuntimeState } from "./types";
@@ -213,9 +216,11 @@ function normalizeTraceback(lines: readonly string[]): string | null {
 function resultRecord(
   cell: Protocol.Cell,
   sessionCell: SessionCell | null | undefined,
-): Protocol.Execution | null {
+): StaticResult | null {
   const primary = primaryOutputOf(sessionCell);
+  const id = `${EMBEDDED}:${cell.id}:result`;
   let outcome: Protocol.Outcome;
+  let output: Protocol.Output | null = null;
   if (primary === undefined) {
     return null;
   } else if (primary.type === "error") {
@@ -238,9 +243,11 @@ function resultRecord(
     };
   } else if (primary.type === "data") {
     const [mimetype, data] = Object.entries(primary.data)[0] ?? [];
-    outcome = {
-      kind: "value",
-      display:
+    outcome = { kind: "succeeded" };
+    output = {
+      id: `${id}:output`,
+      execution_id: id,
+      media:
         mimetype === undefined
           ? null
           : {
@@ -252,19 +259,22 @@ function resultRecord(
     return null;
   }
   return {
-    id: `${EMBEDDED}:${cell.id}:result`,
-    run_id: `${EMBEDDED}:run`,
-    runtime_id: EMBEDDED,
-    caused_by: null,
-    cell_id: cell.id,
-    code_fingerprint: cell.code_fingerprint,
-    state: {
-      status: "completed",
-      started_at: null,
-      completed_at: null,
-      outcome,
-      depends_on: {},
+    execution: {
+      id,
+      run_id: `${EMBEDDED}:run`,
+      runtime_id: EMBEDDED,
+      caused_by: null,
+      cell_id: cell.id,
+      code_fingerprint: cell.code_fingerprint,
+      state: {
+        status: "completed",
+        started_at: null,
+        completed_at: null,
+        outcome,
+        depends_on: {},
+      },
     },
+    output,
   };
 }
 
@@ -342,7 +352,7 @@ export function readExport({
   }
 
   const cells: Protocol.Cell[] = [];
-  const results: Protocol.Execution[] = [];
+  const results: StaticResult[] = [];
   const cellRuntime: Record<CellId, CellRuntimeState> = {};
   for (const cellId of cellIds) {
     const cell = cellRecord(

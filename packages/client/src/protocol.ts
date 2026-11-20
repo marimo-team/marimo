@@ -740,46 +740,20 @@ export const ExecutionQueued = zod.object({
 export type ExecutionQueued = zod.input<typeof ExecutionQueued>;
 export type ExecutionQueuedOutput = zod.output<typeof ExecutionQueued>;
 
-export const DisplayData = zod
-  .object({
-    mimetype: zod
-      .string()
-      .describe("The format of `data`, such as `text/html` or `image/png`."),
-    data: zod
-      .string()
-      .describe(
-        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
-      ),
-  })
-  .describe("A rendered value.");
-
-export type DisplayData = zod.input<typeof DisplayData>;
-export type DisplayDataOutput = zod.output<typeof DisplayData>;
-
-export const ValueOutcome = zod.object({
-  kind: zod.enum(["value"]),
-  display: zod
-    .union([DisplayData, zod.null()])
-    .describe(
-      "The value as last rendered. Replaced as it grows. Null when the code produced no value.",
-    ),
-});
-
-export type ValueOutcome = zod.input<typeof ValueOutcome>;
-export type ValueOutcomeOutput = zod.output<typeof ValueOutcome>;
-
 export const ExecutionRunning = zod.object({
   status: zod.enum(["running"]),
   started_at: Timestamp.describe("When the code started executing."),
-  value: zod
-    .union([ValueOutcome, zod.null()])
-    .describe(
-      "The value as rendered so far. Null until the execution shows something.",
-    ),
 });
 
 export type ExecutionRunning = zod.input<typeof ExecutionRunning>;
 export type ExecutionRunningOutput = zod.output<typeof ExecutionRunning>;
+
+export const SucceededOutcome = zod.object({
+  kind: zod.enum(["succeeded"]),
+});
+
+export type SucceededOutcome = zod.input<typeof SucceededOutcome>;
+export type SucceededOutcomeOutput = zod.output<typeof SucceededOutcome>;
 
 export const positionLineMin = 0;
 
@@ -812,6 +786,22 @@ export const Range = zod
 
 export type Range = zod.input<typeof Range>;
 export type RangeOutput = zod.output<typeof Range>;
+
+export const DisplayData = zod
+  .object({
+    mimetype: zod
+      .string()
+      .describe("The format of `data`, such as `text/html` or `image/png`."),
+    data: zod
+      .string()
+      .describe(
+        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
+      ),
+  })
+  .describe("A rendered value.");
+
+export type DisplayData = zod.input<typeof DisplayData>;
+export type DisplayDataOutput = zod.output<typeof DisplayData>;
 
 export const Related = zod
   .object({
@@ -908,9 +898,9 @@ export type SkippedOutcome = zod.input<typeof SkippedOutcome>;
 export type SkippedOutcomeOutput = zod.output<typeof SkippedOutcome>;
 
 export const Outcome = zod
-  .union([ValueOutcome, ErrorOutcome, InterruptedOutcome, SkippedOutcome])
+  .union([SucceededOutcome, ErrorOutcome, InterruptedOutcome, SkippedOutcome])
   .describe(
-    "How an execution ended, tagged on `kind`. A `value` carries the\nlast rendered display. Background work can replace or clear that\ndisplay while the completed execution is retained. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
+    "How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
   );
 
 export type Outcome = zod.input<typeof Outcome>;
@@ -1041,11 +1031,61 @@ export const ItemId = zod
   .string()
   .min(1)
   .describe(
-    "Identifies a console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
+    "Identifies an output, console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
   );
 
 export type ItemId = zod.input<typeof ItemId>;
 export type ItemIdOutput = zod.output<typeof ItemId>;
+
+export const Output = zod
+  .object({
+    id: ItemId,
+    execution_id: ExecutionId,
+    media: zod
+      .union([DisplayData, zod.null()])
+      .describe(
+        "The output as last rendered. Null when the code set it to nothing or cleared it.",
+      ),
+  })
+  .describe(
+    "What an execution's code shows as its result, such as the value of\na cell's last expression. An execution has at most one, published\nonce the code first sets it. A producer replaces it by sending it\nagain with the same id, including after the execution completes,\nand it is removed with its execution.\n",
+  );
+
+export type Output = zod.input<typeof Output>;
+export type OutputOutput = zod.output<typeof Output>;
+
+export const OutputMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+    ),
+    output: Output,
+  })
+  .describe("The data of the `output` event. The output as it now is.");
+
+export type OutputMessage = zod.input<typeof OutputMessage>;
+export type OutputMessageOutput = zod.output<typeof OutputMessage>;
+
+export const OutputEvent = zod
+  .object({
+    event: zod.enum(["output"]),
+    id: zod
+      .string()
+      .min(1)
+      .optional()
+      .describe("The resume cursor. Omitted on snapshot and reset events."),
+    data: OutputMessage,
+  })
+  .describe("The `output` event, carried by the notebook stream.");
+
+export type OutputEvent = zod.input<typeof OutputEvent>;
+export type OutputEventOutput = zod.output<typeof OutputEvent>;
 
 export const consoleSeqMin = 0;
 
@@ -1544,6 +1584,21 @@ export type ExecutionRemovedEventOutput = zod.output<
   typeof ExecutionRemovedEvent
 >;
 
+export const OutputRemovedEvent = zod
+  .object({
+    event: zod.enum(["output.removed"]),
+    id: zod
+      .string()
+      .min(1)
+      .optional()
+      .describe("The resume cursor. Omitted on snapshot and reset events."),
+    data: RemovedMessage,
+  })
+  .describe("The `output.removed` event, carried by the notebook stream.");
+
+export type OutputRemovedEvent = zod.input<typeof OutputRemovedEvent>;
+export type OutputRemovedEventOutput = zod.output<typeof OutputRemovedEvent>;
+
 export const ConsoleRemovedEvent = zod
   .object({
     event: zod.enum(["console.removed"]),
@@ -1631,6 +1686,7 @@ export const Event = zod
     AttachmentEvent,
     RunEvent,
     ExecutionEvent,
+    OutputEvent,
     ConsoleEvent,
     DisplayEvent,
     InputEvent,
@@ -1644,6 +1700,7 @@ export const Event = zod
     AttachmentRemovedEvent,
     RunRemovedEvent,
     ExecutionRemovedEvent,
+    OutputRemovedEvent,
     ConsoleRemovedEvent,
     DisplayRemovedEvent,
     VariableRemovedEvent,
@@ -1668,6 +1725,7 @@ export const ObjectType = zod
     "attachment",
     "run",
     "execution",
+    "output",
     "console",
     "display",
     "input",
@@ -1676,7 +1734,7 @@ export const ObjectType = zod
     "custom",
   ])
   .describe(
-    "The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, console, display, input, variable, analysis, and custom. Custom events describe occurrences rather than object state.",
+    "The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, display, input, variable, analysis, and custom. Custom events describe occurrences rather than object state.",
   );
 
 export type ObjectType = zod.input<typeof ObjectType>;

@@ -37,7 +37,10 @@ export function setupNotebook(
   const controller = new AbortController();
   stops.push(stop, () => controller.abort());
   /** What the host shows for each cell, by cell id. */
-  const results = new Map<string, Protocol.Execution>();
+  const results = new Map<
+    string,
+    readonly [Protocol.Execution, Protocol.Output]
+  >();
   followDocument({
     store,
     model,

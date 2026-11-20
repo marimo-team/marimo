@@ -121,11 +121,14 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
         state=protocol.ExecutionCompleted(
             started_at=None,
             completed_at=None,
-            outcome=protocol.ValueOutcome(
-                protocol.DisplayData(mimetype="text/plain", data="42")
-            ),
+            outcome=protocol.SucceededOutcome(),
             depends_on={},
         ),
+    )
+    assert restored.output == protocol.Output(
+        id=protocol.ItemId(f"{execution.id}:output"),
+        execution_id=execution.id,
+        media=protocol.DisplayData(mimetype="text/plain", data="42"),
     )
     # Text and media keep the order they were written in.
     assert restored.outputs == (
@@ -327,11 +330,10 @@ def test_stored_values_and_text_keep_their_formats() -> None:
 
     value = executions.current(protocol.CellId("a"))
     assert value is not None
-    assert value.execution.state.outcome == protocol.ValueOutcome(
-        protocol.DisplayData(
-            mimetype="application/vnd.marimo+mimebundle",
-            data='{"text/plain":"NaN","application/json":[null]}',
-        )
+    assert value.output is not None
+    assert value.output.media == protocol.DisplayData(
+        mimetype="application/vnd.marimo+mimebundle",
+        data='{"text/plain":"NaN","application/json":[null]}',
     )
     raised = executions.current(protocol.CellId("b"))
     assert raised is not None
@@ -386,10 +388,9 @@ def test_stored_cells_follow_the_documents_order() -> None:
         result = executions.current(protocol.CellId(cell_id))
         if result is None:
             return None
-        outcome = result.execution.state.outcome
-        assert isinstance(outcome, protocol.ValueOutcome)
-        assert outcome.display is not None
-        return outcome.display.data
+        assert result.output is not None
+        assert result.output.media is not None
+        return result.output.media.data
 
     assert [display(cell_id) for cell_id in "abcde"] == [
         "first",

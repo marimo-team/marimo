@@ -8,7 +8,7 @@ import {
   retainResult,
   retainScratchResult,
 } from "./results";
-import { shownOutcome, startedAt } from "../execution-state";
+import { shown, startedAt } from "../execution-state";
 
 /** A console line, display, or input an execution produced, tagged by kind. */
 type ProducedItem =
@@ -52,6 +52,7 @@ type Kind =
   | "cell"
   | "run"
   | "execution"
+  | "output"
   | "console"
   | "display"
   | "input"
@@ -183,9 +184,20 @@ function unbind(state: Executions, itemId: Protocol.ItemId): Executions {
   return state;
 }
 
-function sameOutcome(a: Protocol.Execution, b: Protocol.Execution): boolean {
-  const [x, y] = [shownOutcome(a), shownOutcome(b)];
-  return x === y || JSON.stringify(x) === JSON.stringify(y);
+function sameShown(
+  a: Pick<Result, "record" | "output">,
+  b: Pick<Result, "record" | "output">,
+): boolean {
+  return JSON.stringify(shown(a)) === JSON.stringify(shown(b));
+}
+
+/** Replace an execution and keep its retained copies in step. */
+function update(state: Executions, execution: Execution): Executions {
+  return {
+    ...set(state, execution),
+    results: retainResult(state.results, execution),
+    scratch: retainScratchResult(state.scratch, execution),
+  };
 }
 
 /** Carry displayed results and their revisions through a replacement snapshot. */
@@ -207,8 +219,7 @@ export function resumeResults(
       resumed.set(id, {
         ...execution,
         outputVersion:
-          before.outputVersion +
-          (sameOutcome(before.record, execution.record) ? 0 : 1),
+          before.outputVersion + (sameShown(before, execution) ? 0 : 1),
       });
     }
   }
@@ -220,7 +231,11 @@ export function resumeResults(
       cellId,
       execution === undefined
         ? (previous.results.get(cellId) ?? null)
-        : { record: execution.record, outputVersion: execution.outputVersion },
+        : {
+            record: execution.record,
+            output: execution.output,
+            outputVersion: execution.outputVersion,
+          },
     );
   }
   const scratch =
@@ -269,25 +284,34 @@ export const executions: NotebookResource<Executions, Kind> = {
         : state,
     execution: (state, { data: { execution: record } }) => {
       const previous = state.executions.get(record.id);
-      const execution: Execution = {
-        record,
+      const next = { record, output: previous?.output ?? null };
+      return update(state, {
+        ...next,
         outputVersion:
           previous === undefined
             ? 0
-            : previous.outputVersion +
-              (sameOutcome(previous.record, record) ? 0 : 1),
+            : previous.outputVersion + (sameShown(previous, next) ? 0 : 1),
         append: previous?.append,
         lastSeq: previous?.lastSeq,
         items: previous?.items ?? new Map(),
         variables: previous?.variables ?? new Map(),
-      };
-      return {
-        ...set(state, execution),
-        results: retainResult(state.results, execution),
-        scratch: retainScratchResult(state.scratch, execution),
-      };
+      });
     },
     "execution.removed": (state, { data }) => remove(state, data.id),
+    output: (state, { data: { output } }) => {
+      const execution = state.executions.get(output.execution_id);
+      if (execution === undefined) {
+        return state;
+      }
+      const next = { ...execution, output };
+      return update(state, {
+        ...next,
+        outputVersion:
+          execution.outputVersion + (sameShown(execution, next) ? 0 : 1),
+      });
+    },
+    // The output leaves with its execution, and a retained result keeps its copy.
+    "output.removed": (state) => state,
     console: (state, { data }) =>
       attach(state, { ...data.console, kind: "console", time: data.time }),
     "console.removed": (state, { data }) => detach(state, data.id),

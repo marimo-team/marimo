@@ -5,17 +5,13 @@
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { Execution, Executions, Results } from "@/core/notebook/replica";
 import { type Milliseconds, Time } from "@/utils/time";
-import {
-  completedAt,
-  shownOutcome,
-  startedAt as startedAtOf,
-} from "@/core/notebook/replica";
+import { completedAt, startedAt as startedAtOf } from "@/core/notebook/replica";
 
 /** Where a cell is in its run. */
 export type CellRunStatus = "idle" | "queued" | "running";
 
 /** How a cell's last completed execution ended. */
-export type CellOutcome = "value" | "error" | "interrupted" | "skipped";
+export type CellOutcome = Protocol.Outcome["kind"];
 
 export interface CellExecutionView {
   readonly status: CellRunStatus;
@@ -59,11 +55,7 @@ export interface CellExecutionInputs {
 }
 
 export function outcomeOf(record: Protocol.Execution): CellOutcome | null {
-  const outcome = shownOutcome(record);
-  if (outcome === null) {
-    return null;
-  }
-  return outcome.kind;
+  return record.state.status === "completed" ? record.state.outcome.kind : null;
 }
 
 function millis(iso: string | null): Milliseconds | null {

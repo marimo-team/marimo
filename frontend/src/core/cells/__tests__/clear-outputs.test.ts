@@ -94,28 +94,31 @@ describe("clearing a running cell", () => {
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [A]: {} } }),
     );
-    const running = MockExecutions.running(A, {
-      kind: "value",
-      display: { mimetype: "text/plain", data: "so far" },
+    const running = MockExecutions.running(A);
+    const soFar = MockExecutions.output(running, {
+      mimetype: "text/plain",
+      data: "so far",
     });
-    const replica = MockExecutions.seed(store, [running], null, DOCUMENT);
+    const replica = MockExecutions.seed(
+      store,
+      [running, soFar],
+      null,
+      DOCUMENT,
+    );
     store.set(clearCellOutputAtom, { cellId: A });
     expect(store.get(cellOutputAtom(A))).toBeNull();
 
     store.set(replica.executionsAtom, (state) =>
-      executions.on.execution!(
+      executions.on.output!(
         state,
         {
-          event: "execution",
+          event: "output",
           id: "more",
           data: {
-            execution: {
-              ...MockExecutions.running(A, {
-                kind: "value",
-                display: { mimetype: "text/plain", data: "more" },
-              }),
-              id: running.id,
-            },
+            output: MockExecutions.output(running, {
+              mimetype: "text/plain",
+              data: "more",
+            }),
           },
         },
         { phase: "live" },
@@ -124,13 +127,9 @@ describe("clearing a running cell", () => {
     expect(store.get(cellOutputAtom(A))?.data).toBe("more");
 
     store.set(replica.executionsAtom, (state) =>
-      executions.on.execution!(
+      executions.on.output!(
         state,
-        {
-          event: "execution",
-          id: "again",
-          data: { execution: { ...running } },
-        },
+        { event: "output", id: "again", data: { output: soFar } },
         { phase: "live" },
       ),
     );

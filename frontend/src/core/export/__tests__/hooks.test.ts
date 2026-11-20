@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockModules, Mocks } from "@/__mocks__/common";
-import { MockExecutions } from "@/__mocks__/executions";
+import { type ExecutionEntries, MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
 import { CellOutputId } from "@/core/cells/ids";
 import type { CellOutput } from "@/core/executions";
@@ -46,23 +46,21 @@ describe("useEnrichCellOutputs", () => {
     React.createElement(Provider, { store }, children);
 
   /** Make the host report `records` as the cells' results. */
-  const setCellsRuntime = (records: Protocol.Execution[]) => {
+  const setCellsRuntime = (records: ExecutionEntries) => {
     MockExecutions.seed(store, records);
   };
 
   /** A completed execution per cell that shows its `output`. */
   const createMockCellRuntimes = (
     cells: Record<string, { output: CellOutput | null }>,
-  ): Protocol.Execution[] =>
+  ): Array<Protocol.Execution | Protocol.Output> =>
     Object.entries(cells).flatMap(([cellId, { output }]) =>
       output === null
         ? []
-        : [
-            MockExecutions.shown(cellId, {
-              mimetype: output.mimetype,
-              data: String(output.data),
-            }),
-          ],
+        : MockExecutions.shown(cellId, {
+            mimetype: output.mimetype,
+            data: String(output.data),
+          }),
     );
 
   it("should return empty object when no cells need screenshots", async () => {

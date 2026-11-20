@@ -21,7 +21,6 @@ const QUEUED: Protocol.ExecutionState = { status: "queued" };
 const RUNNING: Protocol.ExecutionState = {
   status: "running",
   started_at: T0,
-  value: null,
 };
 
 function record(
@@ -37,7 +36,7 @@ function record(
       status: "completed",
       started_at: T0,
       completed_at: T1,
-      outcome: { kind: "value", display: null },
+      outcome: { kind: "succeeded" },
       depends_on: {},
     },
     ...overrides,
@@ -47,6 +46,7 @@ function record(
 function execution(overrides: Partial<Protocol.Execution> & { id: string }) {
   return {
     record: record(overrides),
+    output: null,
     outputVersion: 0,
     items: new Map(),
     variables: new Map(),
@@ -143,7 +143,7 @@ describe("cellExecutionView", () => {
       executions: [
         execution({
           id: "e1",
-          state: { status: "running", started_at: T2, value: null },
+          state: { status: "running", started_at: T2 },
         }),
       ],
       results: new Map([["c1", execution({ id: "e0" })]]),
@@ -200,11 +200,11 @@ describe("cellExecutionView", () => {
         }),
         "c1",
       );
-    const value = ended({ kind: "value", display: null });
+    const value = ended({ kind: "succeeded" });
     expect(value).toEqual({
       status: "idle",
       blocked: false,
-      outcome: "value",
+      outcome: "succeeded",
       startedAt: Date.parse(T0),
       duration: 1500,
       live: true,
@@ -276,7 +276,7 @@ describe("cellExecutionView", () => {
       results: new Map([["c1", execution({ id: "e2", run_id: "run-2" })]]),
     });
     expect(cellExecutionView(done, "c1").status).toBe("idle");
-    expect(cellExecutionView(done, "c1").outcome).toBe("value");
+    expect(cellExecutionView(done, "c1").outcome).toBe("succeeded");
     expect(cellExecutionView(done, "c2").status).toBe("queued");
 
     // The stream let the execution go while its run goes on with other cells.
@@ -325,7 +325,7 @@ describe("cellExecutionView", () => {
     );
     expect(view.status).toBe("idle");
     expect(view.blocked).toBe(true);
-    expect(view.outcome).toBe("value");
+    expect(view.outcome).toBe("succeeded");
   });
 });
 
