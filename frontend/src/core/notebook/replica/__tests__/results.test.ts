@@ -168,7 +168,7 @@ describe("retained results", () => {
         status: "completed",
         started_at: null,
         completed_at: time,
-        outcome: { kind: "interrupted" },
+        outcome: { kind: "cancelled" },
         depends_on: {},
       },
     };
@@ -196,7 +196,7 @@ describe("retained results", () => {
     expect(resource(cancelled).get("c3")?.record.state).toHaveProperty(
       "outcome",
       {
-        kind: "interrupted",
+        kind: "cancelled",
       },
     );
   });

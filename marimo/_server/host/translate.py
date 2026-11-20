@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from marimo._core import backend as be, protocol
-from marimo._core.code import code_fingerprint
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     ANCESTOR_RAISED,
@@ -204,11 +203,11 @@ class RunTranslator:
             if not isinstance(e, MarimoInterruptionError) and e not in skips
         ]
         if error is not None:
-            execution.outcome = protocol.ErrorOutcome(error)
+            execution.outcome = protocol.ExecutionFailedOutcome(error)
         elif skipped is not None:
             execution.outcome = _declined(skipped, execution.cell_id)
         elif exceptions:
-            execution.outcome = protocol.ErrorOutcome(
+            execution.outcome = protocol.ExecutionFailedOutcome(
                 _describe(
                     exceptions[0],
                     cell_id=None
@@ -221,14 +220,16 @@ class RunTranslator:
         elif skips:
             execution.outcome = _skipped(skips[0], execution.cell_id)
         elif interrupted or execution.errors:
-            execution.outcome = protocol.InterruptedOutcome()
+            execution.outcome = protocol.CancelledOutcome()
         execution.ended = True
         out: list[be.Message] = [
             be.Completed(execution.id, execution.outcome, depends_on or {})
         ]
-        self._failed |= isinstance(execution.outcome, protocol.ErrorOutcome)
+        self._failed |= isinstance(
+            execution.outcome, protocol.ExecutionFailedOutcome
+        )
         self.interrupted |= isinstance(
-            execution.outcome, protocol.InterruptedOutcome
+            execution.outcome, protocol.CancelledOutcome
         )
         # The core keeps the reported outcome; release the payload here
         # while the translator stays alive for late output.
@@ -245,19 +246,6 @@ class RunTranslator:
         self._finished = True
         error = error or self._error
         out: list[be.Message] = []
-        if self._code is not None and not self._executions:
-            out.append(
-                self._plan(
-                    ExecutionNotification(
-                        execution_id=f"{self.run_id}-unsubmitted",
-                        cell_id=SCRATCH_CELL_ID,
-                        run_id=self.run_id,
-                        phase="planned",
-                        code=self._code,
-                        code_fingerprint=code_fingerprint(self._code),
-                    )
-                )
-            )
         for execution in self._executions.values():
             out.extend(
                 self._conclude(
@@ -266,12 +254,20 @@ class RunTranslator:
             )
         self._code = None
         self._error = None
-        outcome: protocol.RunOutcome = "succeeded"
+        outcome: be.RunEnding = "succeeded"
         if error is not None or self._failed:
             outcome = "failed"
         if self.interrupted:
-            outcome = "interrupted"
-        out.append(be.Done(self.run_id, outcome))
+            outcome = "cancelled"
+        out.append(
+            be.Done(
+                self.run_id,
+                outcome,
+                error.message
+                if error is not None and outcome == "failed"
+                else None,
+            )
+        )
         return out
 
     def _console(

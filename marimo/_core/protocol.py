@@ -47,6 +47,10 @@ else:
     )
 
 
+class CancelledOutcome(Struct, frozen=True, tag_field="kind", tag="cancelled"):
+    pass
+
+
 class CellConfig(Struct, frozen=True):
     column: (
         Annotated[
@@ -287,12 +291,6 @@ class InternalProblem(
     instance: str | UnsetType = UNSET
     status: Literal[500] = 500
     title: str = "Internal error"
-
-
-class InterruptedOutcome(
-    Struct, frozen=True, tag_field="kind", tag="interrupted"
-):
-    pass
 
 
 class InvalidRequestProblem(
@@ -584,6 +582,18 @@ class RunCodeOrigin(Struct, frozen=True, tag_field="kind", tag="code"):
     ]
 
 
+class RunFailedOutcome(Struct, frozen=True, tag_field="kind", tag="failed"):
+    message: (
+        Annotated[
+            str,
+            Meta(
+                description="Why the host could not finish the cycle, to show people. Null when the run failed because an execution's code raised."
+            ),
+        ]
+        | None
+    )
+
+
 if TYPE_CHECKING:
     RunId = NewType("RunId", str)
 else:
@@ -597,14 +607,6 @@ else:
             ),
         ],
     )
-
-
-RunOutcome: TypeAlias = Annotated[
-    Literal["succeeded", "failed", "interrupted"],
-    Meta(
-        description="How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution's\ncode raised or the host could not finish the cycle. An execution\nskipped because of another cell does not fail its run. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n"
-    ),
-]
 
 
 class RunQueued(Struct, frozen=True, tag_field="status", tag="queued"):
@@ -1150,7 +1152,7 @@ class Error(Struct, frozen=True):
     kind: Annotated[
         str,
         Meta(
-            description="The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors."
+            description="The producer's identifier, scoped by source. Open; this protocol defines `exception` and `internal` for executions. Clients show unrecognized kinds as plain errors."
         ),
     ]
     message: Annotated[
@@ -1201,7 +1203,9 @@ class Error(Struct, frozen=True):
     )
 
 
-class ErrorOutcome(Struct, frozen=True, tag_field="kind", tag="error"):
+class ExecutionFailedOutcome(
+    Struct, frozen=True, tag_field="kind", tag="failed"
+):
     error: Error
 
 
@@ -1340,9 +1344,12 @@ class NotebookMessage(Struct, frozen=True):
 
 
 Outcome: TypeAlias = Annotated[
-    SucceededOutcome | ErrorOutcome | InterruptedOutcome | SkippedOutcome,
+    SucceededOutcome
+    | ExecutionFailedOutcome
+    | CancelledOutcome
+    | SkippedOutcome,
     Meta(
-        description="How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n"
+        description="How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. A `failed` execution carries the error that ended it.\nA `cancelled` execution was stopped before or while it ran.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n"
     ),
 ]
 
@@ -1506,29 +1513,18 @@ class RemovedMessage(Struct, frozen=True):
     ) = UNSET
 
 
-class RunCompleted(Struct, frozen=True, tag_field="status", tag="completed"):
-    completed_at: Annotated[Timestamp, Meta(description="When the run ended.")]
-    outcome: Annotated[
-        RunOutcome,
-        Meta(
-            description="An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested."
-        ),
-    ]
-    started_at: (
-        Annotated[
-            Timestamp,
-            Meta(
-                description="When the first execution started. Null if none started."
-            ),
-        ]
-        | None
-    )
-
-
 RunOrigin: TypeAlias = Annotated[
     RunCellsOrigin | RunCodeOrigin | RunRuntimeOrigin,
     Meta(
         description="What a run was given when it was created, tagged on `kind`. A\n`cells` run was given the cells in `cell_ids`. A `code` run was\ngiven the code in `code`, which its scratch execution evaluates. A\n`runtime` run was given neither. The runtime scheduled it in\nresponse to a change, such as the cells that read a UI element\nafter its value changes. Other kinds are defined by later versions\nof this protocol.\n"
+    ),
+]
+
+
+RunOutcome: TypeAlias = Annotated[
+    SucceededOutcome | RunFailedOutcome | CancelledOutcome,
+    Meta(
+        description="How a run ended, tagged on `kind`. `succeeded` means its work\nsettled without an execution failing or being cancelled. `failed`\nmeans an execution's code raised or the host could not finish the\ncycle. An execution skipped because of another cell does not fail\nits run. `cancelled` means the cycle was cut short by a cancel,\nan interrupt, or its runtime stopping, even if an earlier execution\nfailed. Execution outcomes retain their individual results.\n"
     ),
 ]
 
@@ -1553,14 +1549,6 @@ class RunRunning(Struct, frozen=True, tag_field="status", tag="running"):
     started_at: Annotated[
         Timestamp, Meta(description="When the first execution started.")
     ]
-
-
-RunState: TypeAlias = Annotated[
-    RunQueued | RunRunning | RunCompleted,
-    Meta(
-        description="Where a run is in its lifecycle, tagged on `status`. A run is\n`queued` until its first execution starts and `running` until the\ncycle has settled or been terminated. It is `completed` once all\nmember executions are terminal and no more can be scheduled in this\nrun, and that state is final. A run can complete with no executions.\n"
-    ),
-]
 
 
 class Runtime(Struct, frozen=True):
@@ -1986,36 +1974,31 @@ class ProjectRemovedEvent(
     ) = UNSET
 
 
-class Run(Struct, frozen=True):
-    id: RunId
-    notebook_id: NotebookId
-    origin: RunOrigin
-    runtime_id: Annotated[
-        RuntimeId, Meta(description="The runtime that produced this run.")
+class RunCompleted(Struct, frozen=True, tag_field="status", tag="completed"):
+    completed_at: Annotated[Timestamp, Meta(description="When the run ended.")]
+    outcome: Annotated[
+        RunOutcome,
+        Meta(
+            description="An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested."
+        ),
     ]
-    state: RunState
-
-
-class RunMessage(Struct, frozen=True):
-    run: Run
-    request_id: (
-        Annotated[
-            str,
-            Meta(
-                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
-            ),
-        ]
-        | UnsetType
-    ) = UNSET
-    time: (
+    started_at: (
         Annotated[
             Timestamp,
             Meta(
-                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
+                description="When the first execution started. Null if none started."
             ),
         ]
-        | UnsetType
-    ) = UNSET
+        | None
+    )
+
+
+RunState: TypeAlias = Annotated[
+    RunQueued | RunRunning | RunCompleted,
+    Meta(
+        description="Where a run is in its lifecycle, tagged on `status`. A run is\n`queued` until its first execution starts and `running` until the\ncycle has settled or been terminated. It is `completed` once all\nmember executions are terminal and no more can be scheduled in this\nrun, and that state is final. A run can complete with no executions.\n"
+    ),
+]
 
 
 class RuntimeEvent(Struct, frozen=True, tag_field="event", tag="runtime"):
@@ -2176,14 +2159,32 @@ class ExecutionMessage(Struct, frozen=True):
     ) = UNSET
 
 
-class RunEvent(Struct, frozen=True, tag_field="event", tag="run"):
-    data: RunMessage
-    id: (
+class Run(Struct, frozen=True):
+    id: RunId
+    notebook_id: NotebookId
+    origin: RunOrigin
+    runtime_id: Annotated[
+        RuntimeId, Meta(description="The runtime that produced this run.")
+    ]
+    state: RunState
+
+
+class RunMessage(Struct, frozen=True):
+    run: Run
+    request_id: (
         Annotated[
             str,
             Meta(
-                description="The resume cursor. Omitted on snapshot and reset events.",
-                min_length=1,
+                description="The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress."
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    time: (
+        Annotated[
+            Timestamp,
+            Meta(
+                description="When the host made this change. Present on live and replayed events; omitted on snapshots."
             ),
         ]
         | UnsetType
@@ -2220,6 +2221,20 @@ class ConsoleEvent(Struct, frozen=True, tag_field="event", tag="console"):
 
 class ExecutionEvent(Struct, frozen=True, tag_field="event", tag="execution"):
     data: ExecutionMessage
+    id: (
+        Annotated[
+            str,
+            Meta(
+                description="The resume cursor. Omitted on snapshot and reset events.",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class RunEvent(Struct, frozen=True, tag_field="event", tag="run"):
+    data: RunMessage
     id: (
         Annotated[
             str,

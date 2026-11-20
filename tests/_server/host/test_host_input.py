@@ -110,7 +110,7 @@ def test_editor_input_replies_require_interact(
                         and run["state"]["status"] == "completed"
                     ):
                         break
-            assert run["state"]["outcome"] == "succeeded"
+            assert run["state"]["outcome"]["kind"] == "succeeded"
 
 
 @pytest.mark.parametrize("scratch", [False, True])
@@ -213,7 +213,7 @@ async def test_input_replies_and_retries(
             if record.get("event") == "run"
             and record["data"]["run"]["state"]["status"] == "completed"
         ]
-        assert run["state"]["outcome"] == "succeeded"
+        assert run["state"]["outcome"]["kind"] == "succeeded"
         inputs = [
             record
             for record in events.records
@@ -429,7 +429,7 @@ def test_failed_cell_debugger_prompt_survives_reconnect(
                 retained = event["data"]["execution"]
                 if retained["state"]["status"] == "completed":
                     break
-        assert retained["state"]["outcome"]["kind"] == "error"
+        assert retained["state"]["outcome"]["kind"] == "failed"
         start = client.post(
             "/api/kernel/pdb/pm",
             headers=headers("editor"),
@@ -571,7 +571,9 @@ def test_failed_cell_debugger_prompt_survives_reconnect(
                     completed_run["id"] == resumed.json()["id"]
                     and completed_run["state"]["status"] == "completed"
                 ):
-                    assert completed_run["state"]["outcome"] == "succeeded"
+                    assert completed_run["state"]["outcome"] == {
+                        "kind": "succeeded"
+                    }
                     break
         sockets.close()
         snapshot = socket_snapshot(connect("after"))

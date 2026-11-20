@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
 
     from marimo._config.types import OnCellChangeType
-    from marimo._core.protocol import RunOutcome
+    from marimo._core.backend import RunEnding
     from marimo._core.stream import RoutedEvent
     from tests._server.host.drive import Response
     from tests._server.host.staleness import Outdated
@@ -60,7 +60,7 @@ class Client:
         self,
         *cells: str,
         code: str | None = None,
-        outcome: RunOutcome = "succeeded",
+        outcome: RunEnding = "succeeded",
     ) -> None:
         """Run the named cells, or code in the scratchpad, to `outcome`."""
         body: dict[str, object] = (
@@ -91,7 +91,9 @@ class Client:
         while not completed(self.events):
             self.events.changed.clear()
             await self.events.changed.wait()
-        assert completed(self.events)[-1]["state"]["outcome"] == outcome
+        assert (
+            completed(self.events)[-1]["state"]["outcome"]["kind"] == outcome
+        )
 
     async def edit(self, cell: str, code: str) -> None:
         edited = await finished(
@@ -448,7 +450,7 @@ async def test_binding_a_name_outdates_its_unbound_readers(
     name: str,
     expression: str,
     binding: str,
-    outcome: RunOutcome,
+    outcome: RunEnding,
 ) -> None:
     async with client(
         tmp_path,
@@ -497,14 +499,14 @@ async def test_replaced_inputs_take_precedence_over_updates_and_edits(
 @pytest.mark.parametrize(
     ("code", "outcome", "reader"),
     [
-        ("if False:\n    x = 2", "succeeded", protocol.ErrorOutcome),
+        ("if False:\n    x = 2", "succeeded", protocol.ExecutionFailedOutcome),
         ("1 / 0\nx = 2", "failed", protocol.SkippedOutcome),
     ],
 )
 async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
     tmp_path: Path,
     code: str,
-    outcome: RunOutcome,
+    outcome: RunEnding,
     reader: type[protocol.Outcome],
 ) -> None:
     async with client(
@@ -524,7 +526,7 @@ async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
         await c.run(
             "reader",
             outcome="failed"
-            if reader is protocol.ErrorOutcome
+            if reader is protocol.ExecutionFailedOutcome
             else "succeeded",
         )
         latest = (await c.snapshot()).latest(c.cells["reader"])

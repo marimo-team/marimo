@@ -171,7 +171,7 @@ describe("readExport", () => {
         expect(result.snapshot.results?.[0]?.execution.state).toHaveProperty(
           "outcome",
           {
-            kind: "error",
+            kind: "failed",
             error: expect.objectContaining({
               kind: "exception",
               name: "ValueError",
@@ -325,7 +325,7 @@ describe("readExport", () => {
       expect(result.snapshot?.results[0]?.execution.state).toHaveProperty(
         "outcome",
         {
-          kind: "error",
+          kind: "failed",
           error: expect.objectContaining({
             kind: "exception",
             name: "ValueError",

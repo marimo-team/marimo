@@ -645,10 +645,36 @@ export const RunRunning = zod.object({
 export type RunRunning = zod.input<typeof RunRunning>;
 export type RunRunningOutput = zod.output<typeof RunRunning>;
 
+export const SucceededOutcome = zod.object({
+  kind: zod.enum(["succeeded"]),
+});
+
+export type SucceededOutcome = zod.input<typeof SucceededOutcome>;
+export type SucceededOutcomeOutput = zod.output<typeof SucceededOutcome>;
+
+export const RunFailedOutcome = zod.object({
+  kind: zod.enum(["failed"]),
+  message: zod
+    .union([zod.string(), zod.null()])
+    .describe(
+      "Why the host could not finish the cycle, to show people. Null when the run failed because an execution's code raised.",
+    ),
+});
+
+export type RunFailedOutcome = zod.input<typeof RunFailedOutcome>;
+export type RunFailedOutcomeOutput = zod.output<typeof RunFailedOutcome>;
+
+export const CancelledOutcome = zod.object({
+  kind: zod.enum(["cancelled"]),
+});
+
+export type CancelledOutcome = zod.input<typeof CancelledOutcome>;
+export type CancelledOutcomeOutput = zod.output<typeof CancelledOutcome>;
+
 export const RunOutcome = zod
-  .enum(["succeeded", "failed", "interrupted"])
+  .union([SucceededOutcome, RunFailedOutcome, CancelledOutcome])
   .describe(
-    "How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution's\ncode raised or the host could not finish the cycle. An execution\nskipped because of another cell does not fail its run. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n",
+    "How a run ended, tagged on `kind`. `succeeded` means its work\nsettled without an execution failing or being cancelled. `failed`\nmeans an execution's code raised or the host could not finish the\ncycle. An execution skipped because of another cell does not fail\nits run. `cancelled` means the cycle was cut short by a cancel,\nan interrupt, or its runtime stopping, even if an earlier execution\nfailed. Execution outcomes retain their individual results.\n",
   );
 
 export type RunOutcome = zod.input<typeof RunOutcome>;
@@ -748,13 +774,6 @@ export const ExecutionRunning = zod.object({
 export type ExecutionRunning = zod.input<typeof ExecutionRunning>;
 export type ExecutionRunningOutput = zod.output<typeof ExecutionRunning>;
 
-export const SucceededOutcome = zod.object({
-  kind: zod.enum(["succeeded"]),
-});
-
-export type SucceededOutcome = zod.input<typeof SucceededOutcome>;
-export type SucceededOutcomeOutput = zod.output<typeof SucceededOutcome>;
-
 export const positionLineMin = 0;
 
 export const positionCharacterMin = 0;
@@ -823,7 +842,7 @@ export const Error = zod
     kind: zod
       .string()
       .describe(
-        "The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors.",
+        "The producer's identifier, scoped by source. Open; this protocol defines `exception` and `internal` for executions. Clients show unrecognized kinds as plain errors.",
       ),
     message: zod
       .string()
@@ -864,20 +883,15 @@ export const Error = zod
 export type Error = zod.input<typeof Error>;
 export type ErrorOutput = zod.output<typeof Error>;
 
-export const ErrorOutcome = zod.object({
-  kind: zod.enum(["error"]),
+export const ExecutionFailedOutcome = zod.object({
+  kind: zod.enum(["failed"]),
   error: Error,
 });
 
-export type ErrorOutcome = zod.input<typeof ErrorOutcome>;
-export type ErrorOutcomeOutput = zod.output<typeof ErrorOutcome>;
-
-export const InterruptedOutcome = zod.object({
-  kind: zod.enum(["interrupted"]),
-});
-
-export type InterruptedOutcome = zod.input<typeof InterruptedOutcome>;
-export type InterruptedOutcomeOutput = zod.output<typeof InterruptedOutcome>;
+export type ExecutionFailedOutcome = zod.input<typeof ExecutionFailedOutcome>;
+export type ExecutionFailedOutcomeOutput = zod.output<
+  typeof ExecutionFailedOutcome
+>;
 
 export const SkippedOutcome = zod.object({
   kind: zod.enum(["skipped"]),
@@ -898,9 +912,14 @@ export type SkippedOutcome = zod.input<typeof SkippedOutcome>;
 export type SkippedOutcomeOutput = zod.output<typeof SkippedOutcome>;
 
 export const Outcome = zod
-  .union([SucceededOutcome, ErrorOutcome, InterruptedOutcome, SkippedOutcome])
+  .union([
+    SucceededOutcome,
+    ExecutionFailedOutcome,
+    CancelledOutcome,
+    SkippedOutcome,
+  ])
   .describe(
-    "How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
+    "How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. A `failed` execution carries the error that ended it.\nA `cancelled` execution was stopped before or while it ran.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
   );
 
 export type Outcome = zod.input<typeof Outcome>;

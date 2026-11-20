@@ -173,7 +173,7 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
     """
     name, message = stored["ename"], stored["evalue"]
     if name == "interruption":
-        return protocol.InterruptedOutcome()
+        return protocol.CancelledOutcome()
     if name in _SKIPPED:
         return protocol.SkippedOutcome(
             reason=_SKIPPED[name],
@@ -185,7 +185,7 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
             ),
         )
     traceback = restore_traceback(stored.get("traceback"))
-    return protocol.ErrorOutcome(
+    return protocol.ExecutionFailedOutcome(
         diagnostics.error(
             _KINDS.get(name, "exception"),
             message,

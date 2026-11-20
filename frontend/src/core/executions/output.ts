@@ -130,8 +130,6 @@ export function cellError(error: Protocol.Error): CellError {
       };
     case "internal":
       return { type: "unknown", msg: error.message, error_type: error.name };
-    case "interrupted":
-      return { type: "interruption" };
     default:
       return {
         type: "diagnostic",
@@ -221,9 +219,9 @@ function resultDisplay(result: Result): CellOutput | null {
   switch (showing.kind) {
     case "output":
       return showing.media === null ? null : valueOutput(record, showing.media);
-    case "error":
+    case "failed":
       return errorOutput(record, [cellError(showing.error)]);
-    case "interrupted":
+    case "cancelled":
       return errorOutput(record, [{ type: "interruption" }]);
     case "skipped":
       return skippedOutput(record, showing);
@@ -321,5 +319,19 @@ export function cellOutputsView(
  * The latest scratch display, retained until a newer execution shows one.
  */
 export function scratchOutputView(executions: Executions): CellOutput | null {
+  const failure = executions.scratchFailure;
+  // A run that failed before the kernel saw its code has no execution to
+  // show, so its own reason stands in for the result.
+  if (
+    failure !== undefined &&
+    executions.scratch?.record.run_id !== failure.runId
+  ) {
+    return {
+      channel: "marimo-error",
+      mimetype: ERROR_MIMETYPE,
+      data: [{ type: "unknown", msg: failure.message, error_type: null }],
+      timestamp: seconds(failure.completedAt),
+    };
+  }
   return executions.scratch === null ? null : resultOutput(executions.scratch);
 }

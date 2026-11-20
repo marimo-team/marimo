@@ -26,6 +26,7 @@ from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.protocol import (
     AttachmentMessage,
+    CancelledOutcome,
     CellId,
     Console,
     ConsoleMedia,
@@ -35,17 +36,15 @@ from marimo._core.protocol import (
     CustomMessage,
     DisplayData,
     Error,
-    ErrorOutcome,
     Execution,
+    ExecutionFailedOutcome,
     ExecutionId,
     ExecutionMessage,
-    InterruptedOutcome,
     ItemId,
     NotebookId,
     Run,
     RunId,
     RunMessage,
-    RunOutcome,
     Runtime,
     RuntimeId,
     RuntimeMessage,
@@ -260,7 +259,7 @@ class TestStop:
             interrupted.execution.state, protocol.ExecutionCompleted
         )
         assert isinstance(
-            interrupted.execution.state.outcome, InterruptedOutcome
+            interrupted.execution.state.outcome, CancelledOutcome
         )
         assert names(host.events(notebook_id=notebook.id)) == [
             "notebook",
@@ -659,7 +658,7 @@ class TestRun:
                     state=protocol.RunCompleted(
                         started_at=IsDatetime(),
                         completed_at=IsDatetime(),
-                        outcome="succeeded",
+                        outcome=protocol.SucceededOutcome(),
                     ),
                 ),
                 Execution(
@@ -737,7 +736,9 @@ class TestRun:
             (second.id, protocol.RunCompleted),
         ]
         assert runs[2].state == protocol.RunCompleted(
-            started_at=None, completed_at=IsDatetime(), outcome="succeeded"
+            started_at=None,
+            completed_at=IsDatetime(),
+            outcome=protocol.SucceededOutcome(),
         )
         assert request_ids(log) == ["first", "second", "first", "second"]
 
@@ -803,18 +804,25 @@ class TestRunCompletion:
         assert isinstance(final, RunMessage)
         assert notebook.executions.run(original.id) is None
 
-    @pytest.mark.parametrize("outcome", ["failed", "interrupted"])
+    @pytest.mark.parametrize(
+        ("ending", "outcome"),
+        [
+            ("failed", protocol.RunFailedOutcome(message=None)),
+            ("cancelled", protocol.CancelledOutcome()),
+        ],
+    )
     def test_can_end_before_any_execution(
         self,
         notebook: Notebook,
         backend: ScriptedBackend,
         log: list[RoutedEvent],
-        outcome: RunOutcome,
+        ending: be.RunEnding,
+        outcome: protocol.RunOutcome,
     ) -> None:
         running(notebook, backend)
         run = notebook.run("pass", request_id="never-started", request=None)
         assert run.state == protocol.RunQueued()
-        notebook.observe(be.Done(run.id, outcome))
+        notebook.observe(be.Done(run.id, ending))
         final = next(
             event.event.data
             for event in reversed(log)
@@ -825,13 +833,20 @@ class TestRunCompletion:
             started_at=None, completed_at=IsDatetime(), outcome=outcome
         )
 
-    @pytest.mark.parametrize("outcome", ["failed", "interrupted"])
+    @pytest.mark.parametrize(
+        ("ending", "outcome"),
+        [
+            ("failed", protocol.RunFailedOutcome(message=None)),
+            ("cancelled", protocol.CancelledOutcome()),
+        ],
+    )
     def test_downstream_work_outlives_the_root_execution(
         self,
         notebook: Notebook,
         backend: ScriptedBackend,
         log: list[RoutedEvent],
-        outcome: RunOutcome,
+        ending: be.RunEnding,
+        outcome: protocol.RunOutcome,
     ) -> None:
         running(notebook, backend)
         run = scratch(notebook)
@@ -856,7 +871,7 @@ class TestRunCompletion:
         notebook.observe(
             be.Completed(
                 ExecutionId("child"),
-                ErrorOutcome(
+                ExecutionFailedOutcome(
                     Error(
                         kind="exception",
                         message="boom",
@@ -876,7 +891,7 @@ class TestRunCompletion:
         assert isinstance(current.state, protocol.RunRunning)
         with pytest.raises(ValueError, match="successful"):
             notebook.observe(be.Done(run.id, "succeeded"))
-        notebook.observe(be.Done(run.id, outcome))
+        notebook.observe(be.Done(run.id, ending))
         final = next(
             event.event.data
             for event in reversed(log)
@@ -983,7 +998,7 @@ class TestCellResults:
             )
         )
         notebook.observe(be.Started(old))
-        failed = ErrorOutcome(
+        failed = ExecutionFailedOutcome(
             Error(
                 kind="exception",
                 name="ValueError",

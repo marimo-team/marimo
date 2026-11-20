@@ -46,8 +46,16 @@ function traceStatus(record: Execution): CellRun["status"] {
   if (record.state.status !== "completed") {
     return record.state.status;
   }
-  const outcome = record.state.outcome.kind;
-  return outcome === "succeeded" ? "success" : outcome;
+  switch (record.state.outcome.kind) {
+    case "succeeded":
+      return "success";
+    case "failed":
+      return "error";
+    case "cancelled":
+      return "interrupted";
+    case "skipped":
+      return "skipped";
+  }
 }
 
 const {

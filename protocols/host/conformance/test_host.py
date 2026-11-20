@@ -334,7 +334,7 @@ async def finish_run(watch, run, key, outcome):
     assert all(
         e["state"]["status"] == "completed" for e in executions.values()
     ), "run completed before its executions"
-    assert live(events[-1], key)["run"]["state"]["outcome"] == outcome
+    assert live(events[-1], key)["run"]["state"]["outcome"]["kind"] == outcome
     return events, list(executions.values())
 
 
@@ -342,7 +342,7 @@ async def finish_run(watch, run, key, outcome):
     ("code", "outcome", "kind"),
     [
         ('print("conformance")', "succeeded", "succeeded"),
-        ("raise RuntimeError('conformance')", "failed", "error"),
+        ("raise RuntimeError('conformance')", "failed", "failed"),
     ],
 )
 async def test_run(host, scratch, code, outcome, kind):
@@ -556,9 +556,9 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
 
         # Either run may publish its terminal event first.
         events = await watch.until(both_completed)
-        assert completed[run["id"]]["state"]["outcome"] == "interrupted"
-        assert completed[queued["id"]]["state"]["outcome"] == (
-            "interrupted" if operation == "interrupt" else "succeeded"
+        assert completed[run["id"]]["state"]["outcome"]["kind"] == "cancelled"
+        assert completed[queued["id"]]["state"]["outcome"]["kind"] == (
+            "cancelled" if operation == "interrupt" else "succeeded"
         )
         executions = objects(events, "execution")
         active_executions = {
@@ -567,7 +567,7 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
         assert active_executions
         assert all(
             e["state"]["status"] == "completed"
-            and e["state"]["outcome"]["kind"] == "interrupted"
+            and e["state"]["outcome"]["kind"] == "cancelled"
             for e in active_executions.values()
         )
         if operation == "interrupt":
@@ -645,7 +645,10 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
                 and f.message()["run"]["state"]["status"] == "completed"
             )
         )
-        assert events[-1].message()["run"]["state"]["outcome"] == "interrupted"
+        assert (
+            events[-1].message()["run"]["state"]["outcome"]["kind"]
+            == "cancelled"
+        )
         # The queued run may leave an execution, but it never started.
         assert not any(
             e["run_id"] == queued["id"]
@@ -666,7 +669,7 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             202,
             "Run",
         )
-        await finish_run(watch, active, active_key, "interrupted")
+        await finish_run(watch, active, active_key, "cancelled")
         await finish_run(watch, successor, next_key, "succeeded")
 
 

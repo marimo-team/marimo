@@ -473,7 +473,7 @@ async def test_running_a_cell_loads_its_imports_and_queues_the_command(
     assert execution["state"]["status"] == "completed"
     assert execution["code_fingerprint"] == cell["code_fingerprint"]
     run = latest(events, "run")
-    assert (run["state"]["status"], run["state"]["outcome"]) == (
+    assert (run["state"]["status"], run["state"]["outcome"]["kind"]) == (
         "completed",
         "succeeded",
     )
@@ -652,7 +652,7 @@ async def test_a_failed_package_load_fails_the_run(bridge):
     run = latest(events, "run")
     assert (run["state"]["status"], run["state"]["outcome"]) == (
         "completed",
-        "failed",
+        {"kind": "failed", "message": "no wheel for x = 1"},
     )
 
 
@@ -674,9 +674,9 @@ async def test_interrupting_a_queued_run_cancels_it_in_the_kernel(bridge):
         bridge, CompletedRunNotification(run_id=run_id, outcome="interrupted")
     )
     run = latest(events, "run")
-    assert (run["state"]["status"], run["state"]["outcome"]) == (
+    assert (run["state"]["status"], run["state"]["outcome"]["kind"]) == (
         "completed",
-        "interrupted",
+        "cancelled",
     )
 
 
@@ -776,9 +776,9 @@ async def test_interrupting_before_submission_ends_the_run(bridge):
     await settle()
     assert queued(bridge) == []
     run = latest(events, "run")
-    assert (run["state"]["status"], run["state"]["outcome"]) == (
+    assert (run["state"]["status"], run["state"]["outcome"]["kind"]) == (
         "completed",
-        "interrupted",
+        "cancelled",
     )
 
 
@@ -853,9 +853,9 @@ async def test_a_runtime_interrupt_ends_started_queued_and_preparing_runs(
     await settle()
     assert queued(bridge) == []
     assert {
-        run_id: run["state"]["outcome"]
+        run_id: run["state"]["outcome"]["kind"]
         for run_id, run in latest_by_id(events, "run").items()
-    } == dict.fromkeys((first, second, third), "interrupted")
+    } == dict.fromkeys((first, second, third), "cancelled")
 
 
 async def test_a_runtime_interrupt_halts_a_run_the_kernel_scheduled(
@@ -889,7 +889,10 @@ async def test_runs_the_kernel_schedules_appear_on_the_stream(bridge):
         event["data"]["run"] for event in events if event["event"] == "run"
     ]
     assert runs[0]["id"] == "legacy"
-    assert (runs[-1]["state"]["status"], runs[-1]["state"]["outcome"]) == (
+    assert (
+        runs[-1]["state"]["status"],
+        runs[-1]["state"]["outcome"]["kind"],
+    ) == (
         "completed",
         "succeeded",
     )
@@ -949,7 +952,7 @@ async def test_a_later_run_proceeds_after_a_failed_load(bridge):
     )
     await settle()
     runs = latest_by_id(events, "run")
-    assert runs[first["body"]["id"]]["state"]["outcome"] == "failed"
+    assert runs[first["body"]["id"]]["state"]["outcome"]["kind"] == "failed"
     assert runs[second["body"]["id"]]["state"]["status"] == "queued"
     assert [command.run_id for command in queued(bridge)] == [
         second["body"]["id"]
@@ -980,7 +983,7 @@ async def test_a_later_run_proceeds_after_its_predecessor_is_interrupted(
     assert reply["status"] == 202
     await settle()
     runs = latest_by_id(events, "run")
-    assert runs[first["body"]["id"]]["state"]["outcome"] == "interrupted"
+    assert runs[first["body"]["id"]]["state"]["outcome"]["kind"] == "cancelled"
     assert [command.run_id for command in queued(bridge)] == [
         second["body"]["id"]
     ]
@@ -1002,18 +1005,18 @@ async def test_a_kernel_exit_mid_run_fails_the_run(bridge):
     await settle()
     assert latest(events, "runtime")["status"] == "failed"
     run = latest(events, "run")
-    assert (run["state"]["status"], run["state"]["outcome"]) == (
+    assert (run["state"]["status"], run["state"]["outcome"]["kind"]) == (
         "completed",
         "failed",
     )
     assert latest(events, "execution")["state"]["outcome"] == {
-        "kind": "interrupted"
+        "kind": "cancelled"
     }
 
     # The dying kernel's late completion changes nothing.
     for notification in finished(cell["id"], run_id):
         deliver(bridge, notification)
-    assert latest(events, "run")["state"]["outcome"] == "failed"
+    assert latest(events, "run")["state"]["outcome"]["kind"] == "failed"
     reply = await call(
         bridge, "runtime.run", {"cells": [{"id": cell["id"]}]}, key="run-2"
     )
@@ -1129,8 +1132,8 @@ async def test_cancelling_a_middle_run_keeps_the_order(bridge):
     # The third still waits for the first, which is loading a package.
     assert queued(bridge) == []
     assert (
-        latest_by_id(events, "run")[second]["state"]["outcome"]
-        == "interrupted"
+        latest_by_id(events, "run")[second]["state"]["outcome"]["kind"]
+        == "cancelled"
     )
 
     gate.set()
@@ -1188,8 +1191,8 @@ async def test_interrupting_a_scratch_run_waiting_for_the_scratchpad(bridge):
     assert reply["status"] == 202
     await settle()
     assert (
-        latest_by_id(events, "run")[second]["state"]["outcome"]
-        == "interrupted"
+        latest_by_id(events, "run")[second]["state"]["outcome"]["kind"]
+        == "cancelled"
     )
     assert queued(bridge) == []
 
@@ -1250,7 +1253,8 @@ async def test_a_queued_scratch_run_reads_the_document_the_run_ahead_leaves(
     await handlers._handle_execute_scratchpad(command)
     await settle()
     assert (
-        latest_by_id(events, "run")[first]["state"]["outcome"] == "succeeded"
+        latest_by_id(events, "run")[first]["state"]["outcome"]["kind"]
+        == "succeeded"
     ), latest(events, "execution")
     document = bridge.session.app_manager.app.cell_manager.document
     assert document.cells[0].code == "x = 2"
@@ -1259,5 +1263,5 @@ async def test_a_queued_scratch_run_reads_the_document_the_run_ahead_leaves(
     assert command.run_id == second
     await handlers._handle_execute_scratchpad(command)
     runs = latest_by_id(events, "run")
-    assert runs[first]["state"]["outcome"] == "succeeded"
-    assert runs[second]["state"]["outcome"] == "succeeded"
+    assert runs[first]["state"]["outcome"]["kind"] == "succeeded"
+    assert runs[second]["state"]["outcome"]["kind"] == "succeeded"

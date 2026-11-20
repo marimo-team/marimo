@@ -405,7 +405,7 @@ def assert_document_hash(
         ("run.sse", "succeeded"),
         ("run-cells.sse", "succeeded"),
         ("run-failed.sse", "failed"),
-        ("run-interrupted.sse", "interrupted"),
+        ("run-cancelled.sse", "cancelled"),
         ("run-stopped.sse", "succeeded"),
         ("notebook-events.sse", "succeeded"),
     ],
@@ -437,7 +437,7 @@ def test_run_lifecycles(name: str, outcome: str) -> None:
                 assert all(
                     e["state"]["status"] == "completed" for e in members
                 )
-                assert run["state"]["outcome"] == outcome
+                assert run["state"]["outcome"]["kind"] == outcome
             else:
                 assert "outcome" not in run["state"]
                 assert "completed_at" not in run["state"]

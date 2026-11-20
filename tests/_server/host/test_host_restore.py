@@ -179,7 +179,7 @@ def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
 
     restored = executions.current(protocol.CellId("a"))
     assert restored is not None
-    assert restored.execution.state.outcome == protocol.ErrorOutcome(
+    assert restored.execution.state.outcome == protocol.ExecutionFailedOutcome(
         protocol.Error(
             kind="exception",
             name="ZeroDivisionError",
@@ -274,7 +274,7 @@ def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
     # that raised.
     assert (
         outcome_of(failed("interruption", "This cell was interrupted"))
-        == protocol.InterruptedOutcome()
+        == protocol.CancelledOutcome()
     )
     assert outcome_of(
         failed("ancestor-stopped", "An ancestor stopped: ")
@@ -288,7 +288,7 @@ def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
         ),
     )
     conflict = outcome_of(failed("multiple-defs", "x was defined twice"))
-    assert isinstance(conflict, protocol.ErrorOutcome)
+    assert isinstance(conflict, protocol.ExecutionFailedOutcome)
     assert (conflict.error.kind, conflict.error.name) == (
         "multiple-definitions",
         None,
@@ -345,7 +345,9 @@ def test_stored_values_and_text_keep_their_formats() -> None:
     )
     raised = executions.current(protocol.CellId("b"))
     assert raised is not None
-    assert isinstance(raised.execution.state.outcome, protocol.ErrorOutcome)
+    assert isinstance(
+        raised.execution.state.outcome, protocol.ExecutionFailedOutcome
+    )
     assert (
         raised.execution.state.outcome.error.traceback
         == protocol.DisplayData(mimetype="text/html", data=highlighted)
