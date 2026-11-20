@@ -54,6 +54,12 @@ import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { cellExecutionInputsAtom } from "@/core/executions";
+import {
+  cell,
+  CONFIG,
+  document as documentOf,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { initialRunCompletedAtom } from "../../kernel/state";
 import { connectionAtom, startupProgressAtom } from "../../network/connection";
 import { generateSessionId } from "../../kernel/session";
@@ -352,6 +358,65 @@ describe("useNotebookSession messages", () => {
   function receive(payload: unknown) {
     act(() => connection(fake).receive(payload));
   }
+
+  it("blocks descendants before a run and drops stale analysis after an edit", () => {
+    const revision = documentOf().revision;
+    const graph = { a: [], b: ["a"], c: ["b"], d: [] };
+    function publish(version: number, disabled: string) {
+      for (const id of Object.keys(graph)) {
+        const record = cell(id, "", {
+          version,
+          etag: id + version,
+          config: { ...CONFIG, disabled: id === disabled },
+        });
+        receive({ event: "cell", data: { cell: record } });
+      }
+      const document = {
+        ...revision,
+        version,
+        etag: String(version),
+        order: Object.keys(graph),
+      };
+      receive({ event: "document", data: { document } });
+    }
+    function analyze(version: number, includeGraph = true) {
+      const analysis = {
+        notebook_id: revision.notebook_id,
+        document_etag: String(version),
+        cells: Object.fromEntries(
+          Object.entries(graph).map(([id, parents]) => [
+            id,
+            {
+              defs: [],
+              refs: [],
+              errors: [],
+              ...(includeGraph && { parents }),
+            },
+          ]),
+        ),
+      };
+      receive({ event: "analysis", data: { analysis } });
+    }
+
+    receive({
+      event: "notebook",
+      data: { notebook: MockExecutions.notebook() },
+    });
+    publish(1, "a");
+    receive({ event: "ready", id: "1", data: {} });
+    const blocked = () => store.get(cellExecutionInputsAtom).blocked;
+    expect(blocked().size).toBe(0);
+    analyze(1, false);
+    expect(blocked().size).toBe(0);
+    analyze(1);
+    expect(blocked()).toEqual(new Set(["b", "c"]));
+
+    publish(2, "b");
+    analyze(1);
+    expect(blocked().size).toBe(0);
+    analyze(2);
+    expect(blocked()).toEqual(new Set(["c"]));
+  });
 
   it("records completion of the initial run", () => {
     const notification = {
