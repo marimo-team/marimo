@@ -446,6 +446,8 @@ export function toChanges(
 ): Protocol.Change[] | null {
   const changes: Protocol.Change[] = [];
   const stagedOrder = new Set(confirmed.revision.order);
+  const { cells, order } = viewDocument(confirmed, draft);
+  let hasAnchoredCreate = false;
   for (const [id, local] of draft.cells) {
     const base = confirmed.cells.get(id);
     if (local.kind === "delete") {
@@ -456,6 +458,11 @@ export function toChanges(
     } else if (local.kind === "create") {
       changes.push({ kind: "create_cell", cell: local.cell });
       stagedOrder.add(id);
+      const anchor = local.placement.after ?? local.placement.before;
+      if (anchor !== undefined && cells.has(anchor)) {
+        // A concurrent append can separate a new cell from its anchor.
+        hasAnchoredCreate = true;
+      }
     } else if (base !== undefined) {
       const cell = applyEdit(base, local.edit);
       if (!sameCell(base, cell)) {
@@ -473,8 +480,8 @@ export function toChanges(
       return null;
     }
   }
-  const { order } = viewDocument(confirmed, draft);
   if (
+    hasAnchoredCreate ||
     (draft.order !== null && !sameOrder(order, confirmed.revision.order)) ||
     !sameOrder(order, [...stagedOrder])
   ) {

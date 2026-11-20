@@ -2,6 +2,7 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { createStore } from "jotai/vanilla";
+import type { Placement } from "../draft";
 import type { DocumentModel } from "../model";
 
 /** Translate user actions and observations without keeping any expected state. */
@@ -36,8 +37,8 @@ export function createUser(
         }
       });
     },
-    createCell(cell: Protocol.CellInput) {
-      store.set(model.editAtom, (tx) => tx.createCell(cell));
+    createCell(cell: Protocol.CellInput, placement?: Placement) {
+      store.set(model.editAtom, (tx) => tx.createCell(cell, placement));
     },
     deleteCell(id: Protocol.CellId) {
       store.set(model.editAtom, (tx) => tx.deleteCell(id));
