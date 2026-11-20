@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import errno
 import http.client
 import io
 import json
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -405,26 +407,32 @@ def test_stream_close_interrupts_blocked_read() -> None:
     from marimo._cli.pair.client import EventStream
 
     left, right = socket.socketpair()
-    finished = threading.Event()
+    reading = threading.Event()
 
-    def read() -> None:
-        try:
-            assert left.recv(1) == b""
-        finally:
-            finished.set()
+    def read() -> bytes:
+        # As with an HTTP response, keep the socket handle alive during the read.
+        with left.makefile("rb") as reader:
+            reading.set()
+            return reader.read(1)
 
-    thread = threading.Thread(target=read)
-    try:
-        thread.start()
+    with ThreadPoolExecutor(max_workers=1) as executor, left, right:
+        result = executor.submit(read)
+        assert reading.wait(timeout=1)
+        assert not result.done()
         response = Mock()
         EventStream(response, left).close()
-        assert finished.wait(timeout=1)
+        try:
+            data = result.result(timeout=1)
+        except OSError as error:
+            if (
+                sys.platform != "win32"
+                or getattr(error, "winerror", None) != errno.WSAESHUTDOWN
+            ):
+                raise
+        else:
+            assert data == b""
         response.close.assert_called_once()
         assert left.fileno() == -1
-    finally:
-        left.close()
-        right.close()
-        thread.join(timeout=1)
 
 
 def test_heartbeat_parser_is_opt_in() -> None:
