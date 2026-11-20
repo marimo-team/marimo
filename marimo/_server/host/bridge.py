@@ -132,7 +132,7 @@ class SessionBridge(SessionEventListener):
             else None
         )
         self._unsubscribe = self.host.subscribe(
-            self._on_host_event, types={"notebook"}
+            self._on_host_event, kinds={"notebook"}
         )
 
     @property

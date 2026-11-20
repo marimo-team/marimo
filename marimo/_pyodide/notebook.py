@@ -497,7 +497,7 @@ class PyodideNotebook:
         subscription_id: str,
         cursor: str | None,
         emit: Callable[[str], None],
-        types: str | None = None,
+        kinds: str | None = None,
     ) -> None:
         if self._closed:
             raise RuntimeError("The notebook is closed")
@@ -506,7 +506,7 @@ class PyodideNotebook:
             raise RuntimeError("The notebook is closed")
         self.refresh()
         self.unsubscribe(subscription_id)
-        kinds = set(types.split(",")) if types else None
+        wanted = set(kinds.split(",")) if kinds else None
 
         notifications = EditorNotifications()
 
@@ -514,18 +514,18 @@ class PyodideNotebook:
             for event in notifications.events(
                 self.id, notification, self._session.session_view
             ):
-                if event.wanted(kinds):
+                if event.wanted(wanted):
                     emit(serialize_event(event))
 
         def consume(message: KernelMessage) -> None:
             notify(deserialize_kernel_message(message))
 
         # Snapshot and subscriptions are established in the same event-loop turn.
-        initial = self.host.events(cursor, notebook_id=self.id, types=kinds)
+        initial = self.host.events(cursor, notebook_id=self.id, kinds=wanted)
         unsubscribe = self.host.subscribe(
             lambda event: emit(serialize_event(event)),
             notebook_id=self.id,
-            types=kinds,
+            kinds=wanted,
         )
         session = self._session
         session.consumers.append(consume)

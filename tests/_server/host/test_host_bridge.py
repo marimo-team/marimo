@@ -167,7 +167,7 @@ async def running(bridge: SessionBridge, runtime: protocol.Runtime) -> None:
         ):
             reached.set()
 
-    unsubscribe = bridge.host.subscribe(watch, types={"runtime"})
+    unsubscribe = bridge.host.subscribe(watch, kinds={"runtime"})
     try:
         await asyncio.wait_for(reached.wait(), 5)
     finally:
@@ -298,7 +298,7 @@ async def test_a_subscriber_can_stop_an_adopted_session(
         ):
             notebook.stop()
 
-    bridge.host.subscribe(stop_on_starting, types={"runtime"})
+    bridge.host.subscribe(stop_on_starting, kinds={"runtime"})
 
     await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
 
@@ -1306,7 +1306,7 @@ async def test_session_notifications_join_the_notebook_stream_once(
     bridge.host.subscribe(second.append, notebook_id=a.id)
     bridge.host.subscribe(catalog.append)
     bridge.host.subscribe(other.append, notebook_id=b.id)
-    bridge.host.subscribe(filtered.append, notebook_id=a.id, types={"marimo"})
+    bridge.host.subscribe(filtered.append, notebook_id=a.id, kinds={"marimo"})
 
     variables = VariablesNotification(variables=[])
     planned = ExecutionNotification(

@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { ObjectType } from "./protocol.ts";
+import { ObjectKind } from "./protocol.ts";
 
 export const catalogKinds = [
   "host",
@@ -8,11 +8,11 @@ export const catalogKinds = [
   "notebook",
   "runtime",
   "attachment",
-] as const satisfies readonly ObjectType[];
+] as const satisfies readonly ObjectKind[];
 
 export type CatalogKind = (typeof catalogKinds)[number];
 
-export const notebookKinds = ObjectType.options.filter(
+export const notebookKinds = ObjectKind.options.filter(
   (kind) => kind !== "host" && kind !== "project",
 );
 

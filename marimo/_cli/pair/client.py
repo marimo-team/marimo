@@ -433,7 +433,7 @@ def open_events(
     name: str,
     cursor: str | None = None,
     kind: str = "agent",
-    types: str = "custom,attachment",
+    kinds: str = "custom,attachment",
     read_timeout: float | None = 45,
 ) -> EventStream:
     headers = {
@@ -451,9 +451,9 @@ def open_events(
     query = [
         (key, value)
         for key, value in parse_qsl(endpoint.query, keep_blank_values=True)
-        if key != "types"
+        if key != "kinds"
     ]
-    query.append(("types", types))
+    query.append(("kinds", kinds))
     return open_response(
         method="GET",
         url=endpoint._replace(query=urlencode(query, safe=",")).geturl(),

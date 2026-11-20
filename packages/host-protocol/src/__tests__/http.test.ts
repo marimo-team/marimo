@@ -185,7 +185,7 @@ describe("native HTTP implementation", () => {
 
   it("decodes event selection and encodes the protocol SSE envelope", async () => {
     const response = await request(
-      "/notebooks/n/events?types=ready&run_id=run",
+      "/notebooks/n/events?kinds=ready&run_id=run",
       {
         headers: { "Last-Event-ID": "97", "Marimo-Attachment-Name": "Test" },
       },
@@ -194,7 +194,7 @@ describe("native HTTP implementation", () => {
     expect(await response.text()).toBe("id: 98\nevent: ready\ndata: {}\n\n");
     expect(events.mock.lastCall?.[0]).toMatchObject({
       params: { notebookId: "n" },
-      query: { types: "ready", runId: "run" },
+      query: { kinds: "ready", runId: "run" },
       headers: { cursor: "97", attachmentName: "Test" },
     });
   });

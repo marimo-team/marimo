@@ -57,7 +57,7 @@ describe("RuntimeManager", () => {
       expect(url.protocol).toBe("wss:");
       expect(url.hostname).toBe("example.com");
       expect(url.pathname).toBe("/ws");
-      expect(url.searchParams.has("types")).toBe(false);
+      expect(url.searchParams.has("kinds")).toBe(false);
       expect(url.searchParams.get("session_id")).toBe(sessionId);
     });
 

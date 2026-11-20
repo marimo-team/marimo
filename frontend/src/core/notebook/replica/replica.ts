@@ -40,7 +40,7 @@ import { runtime } from "./resources/runtime";
  *
  * Execution items provide the console, side-effect displays and input prompts.
  */
-export const EDITOR_EVENT_TYPES = [
+export const EDITOR_EVENT_KINDS = [
   "notebook",
   "cell",
   "document",
@@ -55,7 +55,7 @@ export const EDITOR_EVENT_TYPES = [
   "marimo",
 ] as const;
 
-type EditorEvent = NotebookStreamEvent<(typeof EDITOR_EVENT_TYPES)[number]>;
+type EditorEvent = NotebookStreamEvent<(typeof EDITOR_EVENT_KINDS)[number]>;
 
 /** A native marimo notification, passed through without interpretation. */
 const MarimoMessage = z.object({ marimo: z.unknown() });
@@ -299,7 +299,7 @@ export function createNotebookReplica(
     const checkHealth = connected.checkHealth ?? (async () => true);
     store.set(backendAtom, connected);
     const { transport } = connected;
-    let events: NotebookEvents<(typeof EDITOR_EVENT_TYPES)[number]> | undefined;
+    let events: NotebookEvents<(typeof EDITOR_EVENT_KINDS)[number]> | undefined;
     let checkingHealth = false;
     let pendingNotifications: unknown[] = [];
     /** Mirror one stream into the atoms until it closes. */
@@ -309,7 +309,7 @@ export function createNotebookReplica(
         setStream(reducer.initial);
       }
       const current = new NotebookEvents(transport, {
-        types: EDITOR_EVENT_TYPES,
+        kinds: EDITOR_EVENT_KINDS,
         cursor,
         signal,
         // TODO(MO-8051): Gate editing and running on the notebook's operations

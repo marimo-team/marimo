@@ -103,7 +103,7 @@ def test_snapshot_is_private_and_precedes_updates_during_accept(
         client.portal.call(bridge.open)
         try:
             (notebook_id,) = bridge.host.notebooks
-            url = f"ws://{AUTHORITY}{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?types=marimo"
+            url = f"ws://{AUTHORITY}{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?kinds=marimo"
             with client.websocket_connect(url, headers=dict(AUTH)) as first:
                 opening = socket_snapshot(first)
                 initial = opening[:-1]
@@ -155,9 +155,9 @@ def test_snapshot_is_private_and_precedes_updates_during_accept(
 @pytest.mark.parametrize(
     ("query", "run_id"),
     [
-        ("types=marimo&run_id=r1", "r1"),
-        ("types=marimo&run_id=other", "other"),
-        ("types=custom", None),
+        ("kinds=marimo&run_id=r1", "r1"),
+        ("kinds=marimo&run_id=other", "other"),
+        ("kinds=custom", None),
     ],
 )
 def test_snapshot_obeys_type_and_run_filters(
@@ -179,7 +179,7 @@ def test_snapshot_obeys_type_and_run_filters(
                 opening = socket_snapshot(websocket)
                 # The kernel's retained cell-op is private to its session view.
                 assert [frame["event"] for frame in opening] == ["ready"]
-                if query == "types=custom":
+                if query == "kinds=custom":
                     client.portal.call(notebook.emit, "test.marker", {})
                     assert websocket.receive_json()["event"] == "custom"
                 else:
@@ -239,7 +239,7 @@ def test_reconnect_replays_original_events_then_continues_live(
         client.portal.call(bridge.open)
         try:
             (notebook_id,) = bridge.host.notebooks
-            url = f"ws://{AUTHORITY}{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?types=marimo"
+            url = f"ws://{AUTHORITY}{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?kinds=marimo"
             with client.websocket_connect(url, headers=dict(AUTH)) as socket:
                 cursor = socket_snapshot(socket)[-1]["id"]
                 client.portal.call(
@@ -276,7 +276,7 @@ def test_expired_cursor_resets_to_current_state(
         try:
             (notebook_id,) = bridge.host.notebooks
             notebook = client.portal.call(bridge.host.notebook, notebook_id)
-            url = f"ws://{AUTHORITY}{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?types=cell,document,marimo,custom"
+            url = f"ws://{AUTHORITY}{HOST_API_PATH}/notebooks/{notebook_id}/events/ws?kinds=cell,document,marimo,custom"
             with client.websocket_connect(url, headers=dict(AUTH)) as socket:
                 initial = socket_snapshot(socket)
                 cursor = initial[-1]["id"]

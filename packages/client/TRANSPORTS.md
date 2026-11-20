@@ -22,11 +22,11 @@ same error. Use `StreamStopped` to describe the failure. Calls to `open()` or
 The stream validates known events, tracks the cursor, delivers events to
 subscribers, and reconnects. Malformed known events stop the stream. Unknown
 event names retain their cursor and are ignored unless explicitly requested
-through `types`; requested extension events carry unvalidated data.
+through `kinds`; requested extension events carry unvalidated data.
 It delivers `reset` when an interrupted snapshot must be discarded. The host
 must also send `reset` when it cannot resume from the supplied cursor.
 
-The transport sends any filters the host needs. The stream's `types` option
+The transport sends any filters the host needs. The stream's `kinds` option
 filters delivered events locally. A notebook transport must apply `runId`
 itself. Each reconnect must use the same filters.
 
@@ -68,15 +68,15 @@ connection options in addition to the host protocol's event behavior.
 See the [session endpoints](../../marimo/_server/api/endpoints/ws_endpoint.py)
 for their implementation.
 
-Pass connection options such as `session_id`, `types`, and `cursor` as
+Pass connection options such as `session_id`, `kinds`, and `cursor` as
 top-level URL parameters. The host notebook event endpoint accepts `run_id`;
 the editor session routes reject that filter.
 
 Forward notebook page parameters inside the `query_params` parameter as an
 encoded query string. For example, a page query of
-`?types=scatter&tag=a&tag=b` becomes
-`query_params=types%3Dscatter%26tag%3Da%26tag%3Db` on the connection URL.
-It does not change the stream's `types` filter, and repeated values are
+`?kinds=scatter&tag=a&tag=b` becomes
+`query_params=kinds%3Dscatter%26tag%3Da%26tag%3Db` on the connection URL.
+It does not change the stream's `kinds` filter, and repeated values are
 preserved. Missing or empty `query_params` supplies no notebook parameters;
 top-level connection parameters are not forwarded as notebook parameters.
 

@@ -1272,7 +1272,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     host.subscribe(
         updated,
         notebook_id=notebook.id,
-        types={"run", "execution", "console"},
+        kinds={"run", "execution", "console"},
     )
     if cleanup == "expire":
         clock.now = 10

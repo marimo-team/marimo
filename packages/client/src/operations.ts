@@ -35,7 +35,7 @@ export const operations = {
   events: {
     method: "GET",
     path: "/events",
-    query: { types: false },
+    query: { kinds: false },
     headers: { "last-event-id": false },
     body: null,
     responses: { 200: "text/event-stream" },
@@ -106,7 +106,7 @@ export const operations = {
   "notebook.events": {
     method: "GET",
     path: "/notebooks/{notebook_id}/events",
-    query: { types: false, run_id: false },
+    query: { kinds: false, run_id: false },
     headers: {
       "last-event-id": false,
       "marimo-attachment-identity": false,

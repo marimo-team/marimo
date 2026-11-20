@@ -87,7 +87,7 @@ def test_message_is_an_opaque_custom_event(
     notebook.attach(kind="agent", identity="claude", name="Claude")
     events = []
     client.app.state.host_context.bridge.host.subscribe(
-        events.append, notebook_id=notebook.id, types={"custom"}
+        events.append, notebook_id=notebook.id, kinds={"custom"}
     )
     response = client.post(
         path(session, "messages"),

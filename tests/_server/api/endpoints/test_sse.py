@@ -479,7 +479,7 @@ def _make_handler(
         connection=request,
         notebook=None,
         bridge=MagicMock(),
-        types=None,
+        kinds=None,
         cursor=None,
         manager=MagicMock(mode=mode),
         params=params,
@@ -692,7 +692,7 @@ async def test_sse_host_snapshot_and_cursor_replay(
     manager = get_session_manager(client)
     manager.mode = mode
     manager.include_code = False
-    query = SSE_QUERY + "&types=notebook,cell,custom,marimo"
+    query = SSE_QUERY + "&kinds=notebook,cell,custom,marimo"
     async with _connect(client, query) as connection:
         snapshot = []
         while True:
@@ -731,7 +731,7 @@ async def test_sse_host_snapshot_and_cursor_replay(
 
 
 @pytest.mark.parametrize(
-    "options", ["cursor=", "types=invalid", "run_id=unknown"]
+    "options", ["cursor=", "kinds=invalid", "run_id=unknown"]
 )
 async def test_sse_rejects_invalid_subscription_before_startup(
     client: TestClient, options: str

@@ -590,7 +590,7 @@ class TestNotebook:
             "document",
             "ready",
         ]
-        assert names(host.events(notebook_id="n1", types={"document"})) == [
+        assert names(host.events(notebook_id="n1", kinds={"document"})) == [
             "document",
             "ready",
         ]

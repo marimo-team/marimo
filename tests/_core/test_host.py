@@ -206,9 +206,9 @@ async def test_resume_replays_or_resets() -> None:
 async def test_types_filter_keeps_ready_and_reset(host: Host) -> None:
     host.update_project(project())
     await add_notebook(host, record(), ScriptedBackend())
-    assert names(host.events(types={"notebook"})) == ["notebook", "ready"]
+    assert names(host.events(kinds={"notebook"})) == ["notebook", "ready"]
     future = host._stream.cursor_at(10**6)
-    assert names(host.events(future, types={"notebook"})) == [
+    assert names(host.events(future, kinds={"notebook"})) == [
         "reset",
         "notebook",
         "ready",
@@ -223,7 +223,7 @@ async def test_subscribe_filters_the_live_stream(host: Host) -> None:
     runtimes: list[RoutedEvent] = []
     host.subscribe(catalog.append)
     host.subscribe(mine.append, notebook_id="n1")
-    unsubscribe = host.subscribe(runtimes.append, types={"runtime"})
+    unsubscribe = host.subscribe(runtimes.append, kinds={"runtime"})
 
     notebook.start()
     notebook.observe(be.Running(runtime_id_of(notebook)))
@@ -285,13 +285,13 @@ async def test_updating_a_notebook_publishes_only_changes(host: Host) -> None:
     assert (await host.notebook("n1")) is notebook
     assert notebook.runtime is runtime
     assert backend.calls == []
-    assert host.events(notebook_id="n1", types={"run"})[
+    assert host.events(notebook_id="n1", kinds={"run"})[
         0
     ].event.data == protocol.RunMessage(run=run, request_id="run")
     assert host.events(notebook_id="n1")[
         0
     ].event.data == protocol.NotebookMessage(notebook=moved)
-    assert host.events(types={"notebook"})[
+    assert host.events(kinds={"notebook"})[
         0
     ].event.data == protocol.NotebookMessage(notebook=moved)
     assert names(log) == ["notebook"]
@@ -364,7 +364,7 @@ async def test_catalog_updates_do_not_share_mutable_records(
     source = replace(source, name="changed", operations=())
     host.update_project(source)
 
-    replay = host.events(host._stream.cursor_at(0), types={"project"})
+    replay = host.events(host._stream.cursor_at(0), kinds={"project"})
     projects = [
         e.event.data.project
         for e in replay

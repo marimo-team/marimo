@@ -12,7 +12,7 @@ import { Attachment, Runtime } from "./model/Runtime.ts";
 /** The catalog stream is `/events`. A notebook stream is `/notebooks/{notebook_id}/events`. */
 export type StreamName = "catalog" | "notebook";
 
-export interface ObjectKind {
+export interface ObjectDefinition {
   /** Names the object's event and its field in that event's data. */
   readonly kind: string;
   readonly schema: Schema.Constraint;
@@ -39,4 +39,4 @@ export const objects = [
   { kind: "console", schema: Console, streams: notebook, removable: true },
   { kind: "input", schema: Input, streams: notebook, removable: false },
   { kind: "variable", schema: Variable, streams: notebook, removable: true },
-] as const satisfies ReadonlyArray<ObjectKind>;
+] as const satisfies ReadonlyArray<ObjectDefinition>;

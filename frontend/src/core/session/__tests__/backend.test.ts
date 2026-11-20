@@ -83,7 +83,7 @@ describe("createEditorBackend", () => {
     const kinds =
       networkUrl === undefined
         ? undefined
-        : new URL(String(networkUrl)).searchParams.get("types")?.split(",");
+        : new URL(String(networkUrl)).searchParams.get("kinds")?.split(",");
     const executionKinds = [
       "execution",
       "console",

@@ -44,7 +44,7 @@ export const RunFilter = S.RunId.annotateKey({
   description: "Narrows the notebook stream to one run.",
 });
 
-export const Types = Schema.String.annotateKey({
+export const Kinds = Schema.String.annotateKey({
   description:
     "Which kinds to send, as a comma-separated list of kind names such as `runtime,project`. Omit it to receive every kind the stream carries.",
 });
