@@ -138,7 +138,7 @@ def serialize_session_view(
     cell_ids: Iterable[CellId_t],
     *,
     drop_virtual_file_outputs: bool,
-    include_callback_output: bool = False,
+    for_display: bool = False,
     script_metadata_hash: str | None = None,
 ) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema.
@@ -148,8 +148,8 @@ def serialize_session_view(
     schema). When not provided, this method attempts to recover the notebook
     order from the SessionView object, but this is not always possible.
 
-    Rendered exports include callback output. The execution cache omits it
-    because a restored console belongs to a cell execution.
+    Rendered exports include the displayed value and callback writes. Execution
+    caches only include output belonging to the current execution.
 
     `./@file/...` URLs are backed by per-process buffers, so
     `drop_virtual_file_outputs` depends on where the snapshot will be
@@ -168,20 +168,15 @@ def serialize_session_view(
     cells: list[Cell] = []
 
     for cell_id in cell_ids:
-        cell_notif = view.cell_notifications.get(cell_id)
-        cell_console = view.cell_console(
-            cell_id, include_callbacks=include_callback_output
+        selected = view.outputs_for_export(
+            cell_id,
+            view.last_executed_code.get(cell_id),
+            for_display=for_display,
         )
-        if cell_notif is None and not cell_console:
-            # We haven't seen any outputs or notifications for this cell.
-            cells.append(
-                Cell(id=cell_id, code_hash=None, outputs=[], console=[])
-            )
-            continue
+        cell_output = selected.output
         outputs: list[OutputType] = []
         console: list[ConsoleType] = []
 
-        cell_output = cell_notif.output if cell_notif is not None else None
         if cell_output:
             if cell_output.channel == CellChannel.MARIMO_ERROR:
                 for error in cast(
@@ -207,7 +202,7 @@ def serialize_session_view(
                 output["code"] = cell_output.code
 
         # Convert console outputs
-        for console_out in cell_console:
+        for console_out in selected.console:
             assert isinstance(console_out, CellOutput)
             if console_out.channel == CellChannel.MEDIA:
                 console.append(
@@ -236,16 +231,10 @@ def serialize_session_view(
             if console_out.traceback_format is not msgspec.UNSET:
                 console[-1]["traceback_format"] = console_out.traceback_format
 
-        code_hash = (
-            _hash_code(view.last_executed_code[cell_id])
-            if cell_id in view.last_executed_code
-            else view.cached_code_hashes.get(cell_id)
-        )
-
         cells.append(
             Cell(
                 id=cell_id,
-                code_hash=code_hash,
+                code_hash=selected.code_hash,
                 outputs=outputs,
                 console=console,
             )
@@ -264,6 +253,8 @@ def serialize_session_view(
 def deserialize_session(
     session: NotebookSessionV1,
     code_hash_to_cell_id: dict[str, CellId_t],
+    *,
+    view: SessionView | None = None,
 ) -> SessionView:
     """Convert a NotebookSession schema to a SessionView.
 
@@ -272,9 +263,9 @@ def deserialize_session(
         code_hash_to_cell_id: Mapping from code hash to current cell ID.
             Cells are matched by code hash instead of using the stored cell_id,
             which handles cases where cells were added/deleted.
+        view: Existing session whose cached outputs should be restored.
     """
-    view = SessionView()
-
+    cells: dict[CellId_t, CellNotification] = {}
     for cell in session["cells"]:
         cell_outputs: list[CellOutput] = []
 
@@ -398,8 +389,7 @@ def deserialize_session(
             )
             continue
 
-        view.cached_code_hashes[cell_id] = cell["code_hash"]
-        view.cell_notifications[cell_id] = CellNotification(
+        cells[cell_id] = CellNotification(
             cell_id=cell_id,
             status="idle",
             output=cell_outputs[0] if cell_outputs else None,
@@ -407,6 +397,9 @@ def deserialize_session(
             timestamp=0,
         )
 
+    if view is None:
+        view = SessionView()
+    view.restore_cell_outputs(cells, code_hash_to_cell_id)
     return view
 
 
@@ -652,10 +645,9 @@ class SessionCacheManager:
                 # Map the code_hash to the current cell_id from the key
                 code_hash_to_cell_id[code_hash] = cell_id
 
-        cached = deserialize_session(notebook_session, code_hash_to_cell_id)
-        # Cached cell output must not replace this launch's environment state.
-        self.session_view.cell_notifications = cached.cell_notifications
-        self.session_view.cached_code_hashes = cached.cached_code_hashes
-        # The restored view already matches the cache file.
+        deserialize_session(
+            notebook_session, code_hash_to_cell_id, view=self.session_view
+        )
+        # The loaded outputs already match the file.
         self.session_view.mark_auto_export_session()
         return self.session_view

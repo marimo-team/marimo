@@ -158,6 +158,37 @@ def test_replaced_execution_cannot_write_to_retained_cell(
     assert session_view.cell_notifications[cell_id].serialization == "Valid"
 
 
+def test_rerun_keeps_display_until_a_new_output_or_clear(
+    session_view: SessionView,
+) -> None:
+    session_view.add_notification(
+        CellNotification(cell_id, execution_id="first", output=initial_output)
+    )
+    session_view.add_notification(
+        ExecutionNotification("second", cell_id, "run", "planned")
+    )
+    assert session_view.get_cell_outputs([cell_id]) == {
+        cell_id: initial_output
+    }
+    session_view.add_notification(
+        CellNotification(
+            cell_id, execution_id="second", status="running", console=[]
+        )
+    )
+    assert session_view.get_cell_outputs([cell_id]) == {
+        cell_id: initial_output
+    }
+    assert session_view.current_execution_id(cell_id) == "second"
+    assert session_view.current_execution_output(cell_id) is None
+    assert session_view.cell_notifications[cell_id].execution_id is None
+    for output in (updated_output, CellOutput.empty()):
+        session_view.add_notification(
+            CellNotification(cell_id, execution_id="second", output=output)
+        )
+        assert session_view.get_cell_outputs([cell_id]) == {cell_id: output}
+        assert session_view.current_execution_output(cell_id) == output
+
+
 def test_clear_hides_only_closed_inputs_until_execution_replaced(
     session_view: SessionView,
 ) -> None:

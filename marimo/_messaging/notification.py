@@ -109,6 +109,8 @@ class ExecutionNotification(Notification, tag="execution"):
     caused_by: str | None = None
     depends_on: dict[str, Revision | None] | None = None
     skipped: str | None = None
+    # Exact session-cache source identity when run mode withholds the code.
+    code_hash: str | None = None
 
 
 class CellNotification(Notification, tag="cell-op"):

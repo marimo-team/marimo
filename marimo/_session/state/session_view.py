@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import copy
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import groupby
 from typing import Any, Literal, TypeVar, cast
 
@@ -68,6 +68,7 @@ from marimo._sql.connection_utils import (
 )
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
+from marimo._utils.code import hash_code
 from marimo._utils.lists import as_list
 
 LOGGER = _loggers.marimo_logger()
@@ -180,6 +181,20 @@ class _CommandEntry:
     console_offset: int
 
 
+@dataclass(frozen=True)
+class _OutputOwner:
+    execution_id: str | None
+    code_hash: str | None
+    awaiting_plan: bool = False
+
+
+@dataclass(frozen=True)
+class CellExport:
+    code_hash: str | None
+    output: CellOutput | None
+    console: list[CellOutput]
+
+
 class SessionView:
     """A representation of a session state for replay and serialization.
 
@@ -196,7 +211,8 @@ class SessionView:
     def __init__(self) -> None:
         # A mapping from cell (IDs) to their last seen notification
         self.cell_notifications: dict[CellId_t, CellNotification] = {}
-        self._planned_executions: dict[CellId_t, str] = {}
+        self._output_owners: dict[CellId_t, _OutputOwner] = {}
+        self._previous_output_hashes: dict[CellId_t, str | None] = {}
         self._cleared_inputs: dict[
             CellId_t, ConsoleInputsClearedNotification
         ] = {}
@@ -230,8 +246,6 @@ class SessionView:
         self.pending_pdb_input: PdbInputNotification | None = None
         # Map of cell id to the last code that was executed in that cell.
         self.last_executed_code: dict[CellId_t, str] = {}
-        # Restored outputs retain their source identity without implying execution.
-        self.cached_code_hashes: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
         self.last_execution_time: dict[CellId_t, float] = {}
         # Aggregated model state — one snapshot per live model.
@@ -265,7 +279,18 @@ class SessionView:
         self.ui_values[name] = value
 
     def _add_last_run_code(self, req: ExecuteCellCommand) -> None:
-        self.cached_code_hashes.pop(req.cell_id, None)
+        cell = self.cell_notifications.get(req.cell_id)
+        if cell is not None:
+            owner = self._output_owners.get(req.cell_id)
+            if owner is None:
+                previous = self.last_executed_code.get(req.cell_id)
+                owner = _OutputOwner(
+                    None, hash_code(previous) if previous is not None else None
+                )
+            self._output_owners[req.cell_id] = replace(
+                owner, awaiting_plan=True
+            )
+            self._retain_previous_output(cell)
         self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_notification(self, raw_notification: KernelMessage) -> None:
@@ -352,7 +377,7 @@ class SessionView:
         if isinstance(notification, ExecutionNotification):
             self._observe_execution(notification)
         elif isinstance(notification, CellNotification):
-            owner = self._planned_executions.get(notification.cell_id)
+            owner = self.current_execution_id(notification.cell_id)
             if (
                 owner is not None
                 and notification.execution_id is not None
@@ -369,6 +394,13 @@ class SessionView:
             ):
                 self._clear_console_inputs(
                     notification.cell_id, notification.execution_id, previous
+                )
+            if notification.output is not None:
+                self._previous_output_hashes.pop(notification.cell_id, None)
+            elif notification.cell_id in self._previous_output_hashes:
+                # The merged status and displayed value have different owners.
+                notification = msgspec.structs.replace(
+                    notification, run_id=None, execution_id=None
                 )
             self.cell_notifications[notification.cell_id] = (
                 merge_cell_notification(previous, notification)
@@ -633,24 +665,41 @@ class SessionView:
                 outputs[cell_id] = cell_notif.output
         return outputs
 
+    def _retain_previous_output(self, cell: CellNotification) -> None:
+        if cell.output is None or cell.cell_id in self._previous_output_hashes:
+            return
+        owner = self._output_owners.get(cell.cell_id)
+        self._previous_output_hashes[cell.cell_id] = (
+            owner.code_hash if owner is not None else None
+        )
+
     def _observe_execution(self, notification: ExecutionNotification) -> None:
         cell_id = notification.cell_id
-        owner = self._planned_executions.get(cell_id)
+        owner = self.current_execution_id(cell_id)
         cell = self.cell_notifications.get(cell_id)
         if (
             notification.phase == "planned"
             and owner != notification.execution_id
         ):
-            self._planned_executions[cell_id] = notification.execution_id
             self._console_positions[cell_id] = -1
             self._cleared_inputs.pop(cell_id, None)
             if cell is not None:
+                self._retain_previous_output(cell)
                 self.cell_notifications[cell_id] = msgspec.structs.replace(
                     cell,
-                    execution_id=notification.execution_id,
-                    output=None,
+                    execution_id=(
+                        cell.execution_id
+                        if cell.output is not None
+                        else notification.execution_id
+                    ),
                     console=None,
                 )
+            self._output_owners[cell_id] = _OutputOwner(
+                notification.execution_id,
+                hash_code(notification.code)
+                if notification.code is not None
+                else notification.code_hash,
+            )
         elif (
             notification.phase == "completed"
             and owner == notification.execution_id
@@ -684,7 +733,64 @@ class SessionView:
             )
 
     def current_execution_id(self, cell_id: CellId_t) -> str | None:
-        return self._planned_executions.get(cell_id)
+        owner = self._output_owners.get(cell_id)
+        return owner.execution_id if owner is not None else None
+
+    def restore_cell_outputs(
+        self,
+        cells: dict[CellId_t, CellNotification],
+        hashes: dict[str, CellId_t],
+    ) -> None:
+        self.cell_notifications = cells
+        self._output_owners = {
+            cell_id: _OutputOwner(None, code_hash)
+            for code_hash, cell_id in hashes.items()
+            if cell_id in cells
+        }
+        self._previous_output_hashes.clear()
+
+    def outputs_for_export(
+        self, cell_id: CellId_t, code: str | None, *, for_display: bool
+    ) -> CellExport:
+        """Select the value and console for the source written to the artifact."""
+        code_hash = hash_code(code) if code else None
+        owner = self._output_owners.get(cell_id)
+        if code is None and owner is not None and owner.execution_id is None:
+            # A reopened cache still has its original hash before any submission.
+            code_hash = owner.code_hash
+        if owner is None:
+            # Legacy producers emit cell updates without an execution plan.
+            submitted = self.last_executed_code.get(cell_id)
+            matches = submitted is None or hash_code(submitted) == code_hash
+        else:
+            matches = (
+                code_hash is not None
+                and owner.code_hash == code_hash
+                and (for_display or not owner.awaiting_plan)
+            )
+
+        output = self.current_execution_output(cell_id) if matches else None
+        if (
+            for_display
+            and code_hash is not None
+            and self._previous_output_hashes.get(cell_id) == code_hash
+        ):
+            output = self.cell_notifications[cell_id].output
+        console = (
+            self.cell_console(cell_id, include_callbacks=for_display)
+            if matches
+            else []
+        )
+        if cell_id not in self.cell_notifications and not console:
+            code_hash = None
+        return CellExport(code_hash, output, console)
+
+    def current_execution_output(self, cell_id: CellId_t) -> CellOutput | None:
+        """Return only output produced by the current execution."""
+        cell = self.cell_notifications.get(cell_id)
+        if cell is None or cell_id in self._previous_output_hashes:
+            return None
+        return cell.output
 
     def cleared_console_inputs(
         self, cell_id: CellId_t, execution_id: str | None = None
@@ -809,7 +915,7 @@ class SessionView:
         self, cell_id: CellId_t, execution_id: str, seq: int
     ) -> None:
         """Remember where private command writes fit among this execution's items."""
-        if self._planned_executions.get(cell_id) == execution_id:
+        if self.current_execution_id(cell_id) == execution_id:
             self._console_positions[cell_id] = seq
 
     def position_command_output(
