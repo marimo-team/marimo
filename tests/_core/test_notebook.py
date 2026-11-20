@@ -104,7 +104,7 @@ def scratch(notebook: Notebook, run_id: str = "run-1") -> Run:
     notebook.observe(
         be.Planned(
             run.id,
-            (be.PlannedExecution(ExecutionId("e1"), None, "9f", "3 * 3"),),
+            (be.PlannedExecution(ExecutionId("e1"), None, "9f"),),
         )
     )
     notebook.observe(be.Started(ExecutionId("e1")))
@@ -619,7 +619,7 @@ class TestRun:
         notebook.observe(
             be.Planned(
                 run.id,
-                (be.PlannedExecution(ExecutionId("e7"), None, "9f", "3 * 3"),),
+                (be.PlannedExecution(ExecutionId("e7"), None, "9f"),),
             )
         )
         notebook.observe(be.Started(ExecutionId("e7")))
@@ -822,7 +822,7 @@ class TestRun:
         notebook.observe(
             be.Planned(
                 RunId("ghost"),
-                (be.PlannedExecution(ExecutionId("e9"), None, "x", "3 * 3"),),
+                (be.PlannedExecution(ExecutionId("e9"), None, "x"),),
             )
         )
         notebook.observe(be.Started(ExecutionId("e9")))
@@ -914,7 +914,6 @@ class TestRunCompletion:
                         ExecutionId("child"),
                         "cell",
                         "hash",
-                        None,
                         ExecutionId("e1"),
                     ),
                 ),
@@ -963,7 +962,7 @@ class TestRunCompletion:
                 run.id,
                 (
                     be.PlannedExecution(
-                        ExecutionId("late"), "late-cell", "hash", None
+                        ExecutionId("late"), "late-cell", "hash"
                     ),
                 ),
             )
@@ -1046,9 +1045,7 @@ class TestCellResults:
         first = notebook.run("pass", request_id="first", request=None)
         old, new = ExecutionId("old"), ExecutionId("new")
         notebook.observe(
-            be.Planned(
-                first.id, (be.PlannedExecution(old, "cell", "h1", None),)
-            )
+            be.Planned(first.id, (be.PlannedExecution(old, "cell", "h1"),))
         )
         notebook.observe(be.Started(old))
         failed = ExecutionFailedOutcome(
@@ -1078,9 +1075,7 @@ class TestCellResults:
             second = notebook.run("pass", request_id="second", request=None)
         log.clear()
         notebook.observe(
-            be.Planned(
-                second.id, (be.PlannedExecution(new, "cell", "h2", None),)
-            )
+            be.Planned(second.id, (be.PlannedExecution(new, "cell", "h2"),))
         )
         assert names(log) == [
             "console.removed",
@@ -1114,18 +1109,14 @@ class TestCellResults:
         notebook.observe(
             be.Planned(
                 run.id,
-                (be.PlannedExecution(ExecutionId("old"), "cell", "h1", None),),
+                (be.PlannedExecution(ExecutionId("old"), "cell", "h1"),),
             )
         )
         with pytest.raises(ValueError, match="unfinished cell execution"):
             notebook.observe(
                 be.Planned(
                     run.id,
-                    (
-                        be.PlannedExecution(
-                            ExecutionId("new"), "cell", "h2", None
-                        ),
-                    ),
+                    (be.PlannedExecution(ExecutionId("new"), "cell", "h2"),),
                 )
             )
 

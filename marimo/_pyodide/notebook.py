@@ -201,9 +201,7 @@ class WorkerBackend:
                 allow_stdin=allow_input,
             )
 
-        self._prepare(
-            RunTranslator(run_id, code), [code], build, scratchpad=True
-        )
+        self._prepare(RunTranslator(run_id), [code], build, scratchpad=True)
 
     def run_cells(
         self,
@@ -235,7 +233,7 @@ class WorkerBackend:
         # Dependents run too, so every cell's imports are loaded, each
         # on its own: a cell that does not parse hides no other's imports.
         self._prepare(
-            RunTranslator(run_id, None),
+            RunTranslator(run_id),
             [cell.code for cell in document],
             build,
         )

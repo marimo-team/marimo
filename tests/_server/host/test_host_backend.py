@@ -300,7 +300,7 @@ async def test_external_scratch_is_adopted_before_compilation(
     planned = observed.messages[-1]
     assert isinstance(planned, be.Planned)
     execution = planned.executions[0]
-    assert execution.code == "3 * 3"
+    assert execution.cell_id is None
 
     session.broadcast(
         ExecutionNotification(
@@ -679,7 +679,6 @@ async def test_cell_runs_queue_in_the_kernel_in_order(
                     protocol.ExecutionId("attempt-2"),
                     "b",
                     code_fingerprint("y = 2"),
-                    None,
                 ),
             ),
         ),

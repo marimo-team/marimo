@@ -87,7 +87,7 @@ def attempt(phase: str, **fields: object) -> ExecutionNotification:
 
 
 def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
-    t = RunTranslator(RunId("r1"), None)
+    t = RunTranslator(RunId("r1"))
     planned = ExecutionNotification(
         cell_id=CellId_t("b"),
         run_id="r1",
@@ -124,7 +124,7 @@ def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
 
 
 def test_a_run_that_prints_and_shows_a_value() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
 
     messages = t.feed(attempt("planned"))
     messages.extend(t.feed(attempt("running")))
@@ -157,7 +157,6 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                         id=ExecutionId("scratch"),
                         cell_id=None,
                         code_fingerprint=code_fingerprint("3 * 3"),
-                        code="3 * 3",
                         caused_by=None,
                     ),
                 ),
@@ -240,7 +239,7 @@ def test_structured_displays_preserve_message_encoding(
 
 
 def test_unrelated_output_does_not_belong_to_the_scratch_execution() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     other = CellNotification(
         cell_id=CellId_t("c1"), console=CellOutput.stdout("x")
     )
@@ -261,7 +260,7 @@ def test_unrelated_output_does_not_belong_to_the_scratch_execution() -> None:
 
 
 def test_an_exception_ends_the_run_in_error() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     error = MarimoExceptionRaisedError(
@@ -304,7 +303,7 @@ ZeroDivisionError: division by zero
 def test_an_interruption_ends_the_run_interrupted(
     interrupted_by: str,
 ) -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     if interrupted_by == "kernel":
@@ -324,7 +323,7 @@ def test_an_interruption_ends_the_run_interrupted(
 
 
 def test_console_items_keep_literal_text_in_order() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     out = t.feed(
@@ -365,7 +364,7 @@ def test_console_items_keep_literal_text_in_order() -> None:
 def test_media_written_to_the_console_is_an_entry_among_the_text() -> None:
     # A figure shown with `plt.show()` arrives on the console, between
     # whatever the cell printed before and after it.
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     out = t.feed(
@@ -398,7 +397,7 @@ def test_media_written_to_the_console_is_an_entry_among_the_text() -> None:
 
 def test_a_rendered_traceback_is_media_and_a_plain_one_is_text() -> None:
     highlighted = '<span class="codehilite">Traceback</span>'
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     out = t.feed(
@@ -432,7 +431,7 @@ def test_a_rendered_traceback_is_media_and_a_plain_one_is_text() -> None:
 
 
 def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
-    translator = RunTranslator(RunId("r1"), None)
+    translator = RunTranslator(RunId("r1"))
     ids = []
     for identity in ("first", "second"):
         planned = translator.feed(
@@ -472,11 +471,11 @@ def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
 def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
     None
 ):
-    cancelled = RunTranslator(RunId("r1"), "print('never ran')")
+    cancelled = RunTranslator(RunId("r1"))
     cancelled.interrupted = True
     assert cancelled.finish() == [Done(RunId("r1"), "cancelled")]
 
-    failed = RunTranslator(RunId("r2"), "print('never ran')")
+    failed = RunTranslator(RunId("r2"))
     error = protocol.Error(
         kind="internal",
         name=None,
@@ -543,7 +542,7 @@ def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
 def test_skipped_cells_report_their_error_after_becoming_idle(
     error: object, outcome_type: type, run_outcome: str
 ) -> None:
-    translator = RunTranslator(RunId("r1"), None)
+    translator = RunTranslator(RunId("r1"))
 
     def cell(**fields: object) -> CellNotification:
         return CellNotification(
@@ -583,7 +582,7 @@ def test_skipped_cells_report_their_error_after_becoming_idle(
 def test_planned_fingerprint_is_preserved_without_rehashing(
     code: str | None,
 ) -> None:
-    translator = RunTranslator(RunId("r1"), None)
+    translator = RunTranslator(RunId("r1"))
     assert translator.feed(
         ExecutionNotification(
             cell_id=CellId_t("a"),
@@ -596,11 +595,7 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
     ) == [
         Planned(
             RunId("r1"),
-            (
-                PlannedExecution(
-                    ExecutionId("execution"), "a", "custom:v1:a", None
-                ),
-            ),
+            (PlannedExecution(ExecutionId("execution"), "a", "custom:v1:a"),),
         )
     ]
 
@@ -643,7 +638,7 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
 def test_a_skipped_cell_names_its_reason_and_the_cells_involved(
     error: object, reason: str, related: list[tuple[str, str]]
 ) -> None:
-    translator = RunTranslator(RunId("r1"), None)
+    translator = RunTranslator(RunId("r1"))
     translator.feed(
         ExecutionNotification(
             cell_id=CellId_t("c"),
@@ -805,7 +800,7 @@ def test_each_kernel_error_keeps_its_kind_and_names_the_cells_involved(
     related: tuple[Related, ...],
     range_: Range | None,
 ) -> None:
-    t = RunTranslator(RunId("r1"), None)
+    t = RunTranslator(RunId("r1"))
     t.feed(planned("c", "x = 1\nmo.sql('select * from t')"))
     t.feed(running("c"))
     t.feed(cell_output("c", CellOutput.errors([error])))  # type: ignore[list-item]
@@ -822,7 +817,7 @@ def test_each_kernel_error_keeps_its_kind_and_names_the_cells_involved(
 
 def test_every_cell_in_a_cycle_describes_it_in_the_same_order() -> None:
     edges = (("a", ("x",), "b"), ("b", ("y",), "c"), ("c", ("z",), "a"))
-    t = RunTranslator(RunId("r1"), None)
+    t = RunTranslator(RunId("r1"))
     related = []
     for cell, start in (("a", 2), ("b", 0), ("c", 1)):
         rotated = CycleError(edges_with_vars=edges[start:] + edges[:start])
@@ -838,7 +833,7 @@ def test_every_cell_in_a_cycle_describes_it_in_the_same_order() -> None:
 
 
 def test_a_sql_error_keeps_its_hint_and_counts_its_column_in_utf16() -> None:
-    t = RunTranslator(RunId("r1"), None)
+    t = RunTranslator(RunId("r1"))
     t.feed(planned("c", 'x = "𝄞"; mo.sql("select * from t")'))
     t.feed(running("c"))
     error = MarimoSQLError(
@@ -862,7 +857,7 @@ def test_a_sql_error_keeps_its_hint_and_counts_its_column_in_utf16() -> None:
 
 
 def test_definers_follow_the_document_when_the_translator_knows_it() -> None:
-    t = RunTranslator(RunId("r1"), None, lambda: ["c", "a", "b"])
+    t = RunTranslator(RunId("r1"), lambda: ["c", "a", "b"])
     t.feed(planned("a", "x = 1"))
     t.feed(running("a"))
     error = MultipleDefinitionError(name="x", cells=("b", "c"))
@@ -885,7 +880,7 @@ def test_a_conflict_reads_the_same_from_analysis_and_from_execution() -> None:
     )
     (analyzed,) = CellAnalyzer()(document)[CellId("a")].errors
 
-    t = RunTranslator(RunId("r1"), None, lambda: list(codes))
+    t = RunTranslator(RunId("r1"), lambda: list(codes))
     t.feed(planned("a", "x = 1"))
     t.feed(running("a"))
     error = MultipleDefinitionError(name="x", cells=("b",))
@@ -911,7 +906,7 @@ def test_a_conflict_reads_the_same_from_analysis_and_from_execution() -> None:
 
 
 def test_an_internal_error_is_named_by_its_id() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     t.feed(

@@ -74,11 +74,9 @@ class RunTranslator:
     def __init__(
         self,
         run_id: protocol.RunId,
-        code: str | None,
         cell_order: CellOrder = _unordered,
     ) -> None:
         self.run_id = run_id
-        self._code = code
         self._cell_order = cell_order
         self._finished = False
         self.completed = False
@@ -179,7 +177,6 @@ class RunTranslator:
                     if execution.cell_id == SCRATCH_CELL_ID
                     else execution.cell_id,
                     notification.code_fingerprint,
-                    code if execution.cell_id == SCRATCH_CELL_ID else None,
                     caused_by=parent.id if parent is not None else None,
                 ),
             ),
@@ -252,7 +249,6 @@ class RunTranslator:
                     execution, error=error, interrupted=self.interrupted
                 )
             )
-        self._code = None
         self._error = None
         outcome: be.RunEnding = "succeeded"
         if error is not None or self._failed:
@@ -420,7 +416,7 @@ class RunTranslators:
                 else None
             )
             translator = RunTranslator(
-                protocol.RunId(run_id), code, self._cell_order
+                protocol.RunId(run_id), self._cell_order
             )
             self.add(translator)
             out.append(

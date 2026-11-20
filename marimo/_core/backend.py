@@ -192,7 +192,6 @@ class PlannedExecution:
     id: protocol.ExecutionId
     cell_id: str | None
     code_fingerprint: str
-    code: str | None
     caused_by: protocol.ExecutionId | None = None
 
 

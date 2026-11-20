@@ -52,7 +52,6 @@ def planned(run_id: str, *executions: tuple[str, str | None]) -> be.Planned:
                 protocol.ExecutionId(eid),
                 cell,
                 "hash",
-                "code" if cell is None else None,
             )
             for eid, cell in executions
         ),

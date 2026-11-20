@@ -116,7 +116,7 @@ async def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
     notebook.observe(
         be.Planned(
             run.id,
-            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
+            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h"),),
         )
     )
     notebook.attach()
@@ -148,7 +148,7 @@ async def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
     first.observe(
         be.Planned(
             run.id,
-            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
+            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h"),),
         )
     )
     second.start()
