@@ -645,6 +645,11 @@ class Runner:
 
         if isinstance(exc, asyncio.exceptions.CancelledError):
             self.cancel(cell_id)
+            if self.interrupted:
+                # The interrupt handler cancelled the cell. A sync cell and
+                # a body that took the interrupt directly print nothing, so
+                # neither does this path.
+                return RunResult(output=None, exception=MarimoInterrupt())
             # Drop the two marimo frames above user code (the evaluator's
             # `await execute_cell_async` and the executor's `await eval`)
             # before surfacing as MarimoInterrupt.

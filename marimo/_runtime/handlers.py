@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -63,29 +62,14 @@ def construct_interrupt_handler() -> SigintHandler:
                 )
 
         if sched is not None and sched.has_active_tasks():
-            task = asyncio.current_task()
-            if sched.is_running_cell_body(task):
-                # A cell body is executing, so raise into it as in a sync
-                # cell. A cancel takes effect only at the body's next
-                # `await`. Do not cancel the task as well, because that
-                # cancel interrupts the cell's cleanup at its first `await`.
-                sched.interrupted = True
-                assert task is not None
-                if not sched.owns_task(task):
-                    # The signal arrived in a child task that the body
-                    # started. A `KeyboardInterrupt` that escapes a child
-                    # task stops the event loop, so raise `CancelledError`
-                    # here instead. The child's cancellation alone does not
-                    # always stop the cell, because `gather` can return it
-                    # as a value and a task group ignores it. So the cell's
-                    # own task is also cancelled once the child ends.
-                    sched.interrupt_cell_body(task)
-                    raise asyncio.CancelledError
-                raise MarimoInterrupt
+            interrupt = sched.interrupt_current_task()
+            if interrupt is not None:
+                raise interrupt
             # The signal arrived somewhere else in the async run, such as a
-            # lifecycle hook or the loop itself. A raise there escapes into
-            # asyncio internals or skips lifecycle teardown, so cancel
-            # through the loop instead.
+            # lifecycle hook, the loop itself, or a task left over from a
+            # cell that already ended. A raise there escapes into asyncio
+            # internals or skips lifecycle teardown, so cancel through the
+            # loop instead.
             sched.cancel_all()
             return
 

@@ -22,12 +22,11 @@ from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
-    import asyncio
     from collections.abc import Iterator
 
     from marimo._ast.app import InternalApp
     from marimo._messaging.types import KernelStreams
-    from marimo._runtime.runner.scheduler import Scheduler
+    from marimo._runtime.runner.scheduler import CellBody, Scheduler
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.state import State
     from marimo._runtime.virtual_file import VirtualFileStorageType
@@ -56,9 +55,7 @@ class KernelRuntimeContext(RuntimeContext):
     # that a hook started. A task started inside a body inherits the value,
     # so the SIGINT handler can interrupt a child task that blocks and can
     # still find the cell task that the child belongs to.
-    _running_cell_body: ContextVar[
-        tuple[Scheduler, asyncio.Task[Any]] | None
-    ] = field(
+    _running_cell_body: ContextVar[CellBody | None] = field(
         default_factory=lambda: ContextVar("running_cell_body", default=None)
     )
 

@@ -611,12 +611,11 @@ def kernel_context_stub() -> Iterator[MagicMock]:
         _THREAD_LOCAL_CONTEXT.runtime_context = prior
 
 
-@pytest.mark.usefixtures("kernel_context_stub")
 @pytest.mark.parametrize(
     "exception", [None, ValueError("body failed"), asyncio.CancelledError()]
 )
 async def test_cell_body_scope_belongs_to_its_scheduler_and_task(
-    exception: BaseException | None,
+    kernel_context_stub: MagicMock, exception: BaseException | None
 ) -> None:
     schedulers = [SequentialScheduler([], DirectedGraph()) for _ in range(2)]
     cell_id = CellId_t("shared")
@@ -625,11 +624,12 @@ async def test_cell_body_scope_belongs_to_its_scheduler_and_task(
     log: list[tuple[str, list[bool]]] = []
 
     def record(event: str) -> None:
+        body = kernel_context_stub._running_cell_body.get()
         log.append(
             (
                 event,
                 [
-                    sched.is_running_cell_body(asyncio.current_task())
+                    body is not None and body.scheduler() is sched
                     for sched in schedulers
                 ],
             )

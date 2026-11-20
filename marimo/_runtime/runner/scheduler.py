@@ -21,26 +21,29 @@ re-enters only after `run_all()` returns.
 
 Cell body marker
 ----------------
-`KernelRuntimeContext._running_cell_body` is a `ContextVar` that holds the
-scheduler and the cell task whose body the current task is executing.
-`cell_body` sets it around the body and resets it after, so it is `None`
-in a lifecycle hook, between cells, and in a task that a hook started.
-A task started inside the body inherits the value. So for any task, the
-marker records the scheduler whose cell body it is executing and the cell
-task that the body belongs to.
+`KernelRuntimeContext._running_cell_body` is a `ContextVar` that holds a
+`CellBody`, the scheduler and the cell task whose body the current task
+is executing. `cell_body` sets it around the body and resets it after, so
+it is `None` in a lifecycle hook, between cells, and in a task that a
+hook started. A task started inside the body inherits the value, so the
+marker also names the cell that a child task belongs to. A marker whose
+cell task is done is stale. It belongs to a task that outlived its cell,
+and it is ignored.
 
 SIGINT routing
 --------------
-The interrupt handler reads the active scheduler and the body marker and
-takes one of four paths. If the signal arrived in a cell's own task while
-its body was executing, `MarimoInterrupt` is raised into the body, as in
-a sync cell. If the signal arrived in a child task that the body started,
-`interrupt_cell_body` arranges to cancel the cell's task once the child
-ends, and `CancelledError` is raised into the child. If a cell task is
-active but the signal arrived somewhere else, for example in a lifecycle
-hook, `cancel_all` cancels the cell tasks through the event loop. If no
-cell task is active, the signal arrived in a sync cell or between cells,
-so `cancel_all` halts the queue and `MarimoInterrupt` is raised.
+The interrupt handler asks the active scheduler what to raise in the
+current task, through `interrupt_current_task`, and takes one of four
+paths. If the signal arrived in a cell's own task while its body was
+executing, `MarimoInterrupt` is raised into the body, as in a sync cell.
+If the signal arrived in a child task that the body started, the cell's
+task is cancelled at once, which also cancels the other children through
+`gather` or a task group, and `CancelledError` is raised into the child.
+If a cell task is active but the signal arrived somewhere else, for
+example in a lifecycle hook or in a task left over from an earlier cell,
+`cancel_all` cancels the cell tasks through the event loop. If no cell
+task is active, the signal arrived in a sync cell or between cells, so
+`cancel_all` halts the queue and `MarimoInterrupt` is raised.
 
 A future non-blocking `AsyncScheduler.submit()` that returns before
 dispatch completes would allow concurrent schedulers on one context. That
@@ -51,12 +54,15 @@ change must promote `_active_scheduler` from a saved stack to a plural
 from __future__ import annotations
 
 import asyncio
+import weakref
 from collections import deque
 from contextlib import asynccontextmanager, contextmanager
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._runtime import dataflow
 from marimo._runtime.context.types import safe_get_context
+from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.runner.hook_context import CancelledCells
 
 if TYPE_CHECKING:
@@ -85,6 +91,14 @@ def _kernel_context() -> KernelRuntimeContext | None:
     return ctx if isinstance(ctx, KernelRuntimeContext) else None
 
 
+@dataclass(frozen=True)
+class CellBody:
+    """The scheduler and cell task whose body a task is executing."""
+
+    scheduler: weakref.ref[Scheduler]
+    task: asyncio.Task[Any]
+
+
 class Scheduler(Protocol):
     """Cell queue + cancellation + async task tracking."""
 
@@ -108,8 +122,7 @@ class Scheduler(Protocol):
     def has_active_tasks(self) -> bool: ...
     def owns_task(self, task: asyncio.Task[Any] | None) -> bool: ...
     def cell_body(self) -> AbstractContextManager[None]: ...
-    def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool: ...
-    def interrupt_cell_body(self, task: asyncio.Task[Any]) -> None: ...
+    def interrupt_current_task(self) -> type[BaseException] | None: ...
     def cancel_all(self) -> None: ...
 
     async def __aenter__(self) -> Self: ...
@@ -261,48 +274,46 @@ class SequentialScheduler:
             return
         owner = asyncio.current_task()
         assert owner is not None
-        token = ctx._running_cell_body.set((self, owner))
+        # A weak reference, so a long-lived task that a body started does
+        # not keep a finished run's graph and task table alive.
+        token = ctx._running_cell_body.set(CellBody(weakref.ref(self), owner))
         try:
             yield
         finally:
             ctx._running_cell_body.reset(token)
 
-    def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool:
-        """Whether `task` is the current task and is inside a cell body of
-        this scheduler.
+    def interrupt_current_task(self) -> type[BaseException] | None:
+        """Halt this run from the current task and return what to raise there.
 
-        A task counts if the body started it. A lifecycle hook does not
-        count, and neither does a task that a hook started.
+        Returns `MarimoInterrupt` when the current task is executing a cell
+        body of this run, `CancelledError` when the current task is one that
+        such a body started, and `None` when the signal arrived anywhere
+        else, including in a task left over from a cell that already ended.
         """
-        if task is None or task is not asyncio.current_task():
-            return False
         ctx = _kernel_context()
-        if ctx is None:
-            return False
-        body = ctx._running_cell_body.get()
-        return body is not None and body[0] is self
-
-    def interrupt_cell_body(self, task: asyncio.Task[Any]) -> None:
-        """Cancel the cell task whose body started `task`, once `task` ends."""
-        ctx = _kernel_context()
-        if ctx is None:
-            return
-        body = ctx._running_cell_body.get()
-        if body is None or body[0] is not self or body[1] is task:
-            return
-        owner = body[1]
-
-        def cancel_owner(_: asyncio.Future[Any]) -> None:
-            if not owner.done():
-                owner.cancel()
-
-        # Wait for the child to end. If the owner were cancelled now while
-        # it awaits the child, the cancel would also reach the child and cut
-        # the child's cleanup short. Afterwards the owner's cancel takes effect
-        # at its next `await`, even when `gather` returned the child's
-        # cancellation as a value, a task group ignored it, or the owner was
-        # awaiting something else.
-        task.add_done_callback(cancel_owner)
+        task = asyncio.current_task()
+        body = ctx._running_cell_body.get() if ctx is not None else None
+        if (
+            task is None
+            or body is None
+            or body.scheduler() is not self
+            or body.task.done()
+        ):
+            return None
+        self._interrupted = True
+        if task is body.task:
+            # Raise into the body as in a sync cell. A cancel would take
+            # effect only at the body's next `await`, and it would also cut
+            # the cell's cleanup short at its first `await`.
+            return MarimoInterrupt
+        # A `KeyboardInterrupt` that escapes a child task stops the event
+        # loop, so the child gets a cancellation. The cell's own task is
+        # cancelled as well, because `gather` can return the child's
+        # cancellation as a value and a task group ignores it. Cancelling
+        # the cell now also cancels its other children through `gather` or
+        # the task group.
+        body.task.cancel()
+        return asyncio.CancelledError
 
     def cancel_all(self) -> None:
         """Halt the queue and cancel every active cell task."""
