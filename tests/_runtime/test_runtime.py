@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import gc
 import pathlib
 import sys
 import textwrap
+import weakref
 from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, Mock, patch
@@ -13,6 +15,7 @@ from unittest.mock import MagicMock, Mock, patch
 import msgspec
 import pytest
 
+from marimo._ast.compiler import compile_cell
 from marimo._ast.variables import is_mangled_local
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._config.config_schema import MarimoConfig
@@ -5065,6 +5068,166 @@ async def test_annotation_walrus_in_lambda_stays_local(
 
 class TestMarkdownHandling:
     """Test markdown cell handling during kernel instantiation."""
+
+    @pytest.mark.parametrize("auto_run", [True, False])
+    @pytest.mark.parametrize("with_markdown", [True, False])
+    async def test_startup_compiles_cells_once(
+        self, k: Kernel, auto_run: bool, with_markdown: bool
+    ) -> None:
+        requests = [
+            ExecuteCellCommand(cell_id="value", code="x = 1"),
+            ExecuteCellCommand(cell_id="dependent", code="y = x + 1"),
+            ExecuteCellCommand(cell_id="invalid", code="z ="),
+        ]
+        if with_markdown:
+            requests.extend(
+                [
+                    ExecuteCellCommand(
+                        cell_id="mo", code="import marimo as mo"
+                    ),
+                    ExecuteCellCommand(cell_id="md", code='mo.md("hello")'),
+                ]
+            )
+        with patch(
+            "marimo._runtime.runtime.compile_cell", wraps=compile_cell
+        ) as compile_mock:
+            await k.instantiate(
+                CreateNotebookCommand(
+                    execution_requests=requests,
+                    cell_ids=tuple(r.cell_id for r in requests),
+                    auto_run=auto_run,
+                    set_ui_element_value_request=UpdateUIElementCommand(
+                        object_ids=[], values=[]
+                    ),
+                )
+            )
+            if not auto_run:
+                await k.edit_cells(
+                    EditCellsCommand(
+                        codes={
+                            cid: r.code
+                            for cid, r in k._pending_execution_requests.items()
+                        },
+                        configs={},
+                        delete_ids=[],
+                    )
+                )
+                await k.run(list(k._pending_execution_requests.values()))
+            assert compile_mock.call_count == len(requests)
+
+        assert k.globals["y"] == 2
+        assert isinstance(k.errors["invalid"][0], MarimoSyntaxError)
+        assert not k._startup_cell_cache
+
+    async def test_startup_cache_after_edit_and_delete(
+        self, k: Kernel
+    ) -> None:
+        requests = [
+            ExecuteCellCommand(cell_id="edited", code="x = 1"),
+            ExecuteCellCommand(cell_id="deleted", code="y = 1"),
+        ]
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=requests,
+                cell_ids=tuple(r.cell_id for r in requests),
+                auto_run=False,
+                set_ui_element_value_request=UpdateUIElementCommand(
+                    object_ids=[], values=[]
+                ),
+            )
+        )
+        await k.delete_cell(DeleteCellCommand(cell_id="deleted"))
+        await k.run([ExecuteCellCommand(cell_id="edited", code="x = 2")])
+        assert k.globals["x"] == 2
+        assert "y" not in k.globals
+        assert not k._startup_cell_cache
+
+    @pytest.mark.parametrize(
+        "action",
+        ["edit", "delete", "batch_delete", "reload", "rename", "close"],
+    )
+    async def test_startup_cache_releases_unused_cells(
+        self, k: Kernel, action: str
+    ) -> None:
+        await k.instantiate(
+            CreateNotebookCommand(
+                execution_requests=[
+                    ExecuteCellCommand(cell_id="cell", code="x = 1")
+                ],
+                cell_ids=("cell",),
+                auto_run=False,
+                set_ui_element_value_request=UpdateUIElementCommand(
+                    object_ids=[], values=[]
+                ),
+            )
+        )
+        compiled = k._startup_cell_cache._entries["cell"][1]
+        assert compiled is not None
+        cell_ref = weakref.ref(compiled)
+        del compiled
+
+        if action == "edit":
+            await k.edit_cells(
+                EditCellsCommand(
+                    codes={"cell": "x = 2"}, configs={}, delete_ids=[]
+                )
+            )
+        elif action == "delete":
+            await k.delete_cell(DeleteCellCommand(cell_id="cell"))
+        elif action == "batch_delete":
+            await k.edit_cells(
+                EditCellsCommand(codes={}, configs={}, delete_ids=["cell"])
+            )
+        elif action == "reload":
+            await k.sync_graph(cells={}, run_ids=[], delete_ids=["cell"])
+        elif action == "rename":
+            await k.rename_file("renamed.py")
+        else:
+            k.teardown()
+
+        gc.collect()
+        assert cell_ref() is None
+        assert not k._startup_cell_cache
+        if action == "edit":
+            await k.run_stale_cells()
+            assert k.globals["x"] == 2
+        elif action == "rename":
+            await k.run_stale_cells()
+            assert k.globals["x"] == 1
+        elif action != "close":
+            await k.run_stale_cells()
+            assert "x" not in k.globals
+
+    @pytest.mark.parametrize("failure", ["markdown", "run", "cancel"])
+    async def test_failed_startup_clears_cache(
+        self, k: Kernel, failure: str
+    ) -> None:
+        target = (
+            "marimo._output.md.md"
+            if failure == "markdown"
+            else "marimo._runtime.runtime.Kernel.run"
+        )
+        error = asyncio.CancelledError if failure == "cancel" else RuntimeError
+        with patch(target, side_effect=error), pytest.raises(error):
+            await k.instantiate(
+                CreateNotebookCommand(
+                    execution_requests=[
+                        ExecuteCellCommand(
+                            cell_id="mo", code="import marimo as mo"
+                        ),
+                        ExecuteCellCommand(
+                            cell_id="md", code='mo.md("hello")'
+                        ),
+                        ExecuteCellCommand(cell_id="cell", code="x = 1"),
+                    ],
+                    cell_ids=("mo", "md", "cell"),
+                    auto_run=failure != "markdown",
+                    set_ui_element_value_request=UpdateUIElementCommand(
+                        object_ids=[], values=[]
+                    ),
+                )
+            )
+        assert not k._startup_cell_cache
 
     async def test_markdown_cells_rendered_on_instantiate(
         self, mocked_kernel: MockedKernel
