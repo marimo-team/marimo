@@ -35,12 +35,12 @@ function cell(
   };
 }
 
-const SUCCEEDED: Protocol.Outcome = { kind: "succeeded" };
+const SUCCEEDED: Protocol.ExecutionOutcome = { kind: "succeeded" };
 
 /** A completed state that read `depends_on`. */
 function completed(
   depends_on: Protocol.ExecutionCompleted["depends_on"] = {},
-  outcome: Protocol.Outcome = SUCCEEDED,
+  outcome: Protocol.ExecutionOutcome = SUCCEEDED,
 ): Protocol.ExecutionCompleted {
   return {
     status: "completed",

@@ -109,10 +109,10 @@ Record = (
 Change = Record | Removed | Released | InputChanged
 
 
-def _settled(outcome: protocol.Outcome | None) -> bool:
+def _settled(outcome: protocol.ExecutionOutcome | None) -> bool:
     """Whether an outcome lets its run succeed: a value, or a skip by design."""
     return isinstance(
-        outcome, (protocol.SucceededOutcome, protocol.SkippedOutcome)
+        outcome, (protocol.SucceededOutcome, protocol.ExecutionSkippedOutcome)
     )
 
 
@@ -142,7 +142,9 @@ def _completed(
     )
 
 
-def _outcome(execution: protocol.Execution) -> protocol.Outcome | None:
+def _outcome(
+    execution: protocol.Execution,
+) -> protocol.ExecutionOutcome | None:
     state = execution.state
     return (
         state.outcome
@@ -153,7 +155,7 @@ def _outcome(execution: protocol.Execution) -> protocol.Outcome | None:
 
 def _ended(
     execution: protocol.Execution,
-    outcome: protocol.Outcome,
+    outcome: protocol.ExecutionOutcome,
     now: datetime,
     depends_on: dict[str, protocol.Revision | None] | None = None,
 ) -> protocol.Execution:
@@ -528,7 +530,7 @@ class Executions:
         for result in list(self._results.values()):
             state = result.execution.state
             if not isinstance(state, protocol.ExecutionCompleted):
-                ended: protocol.Outcome = protocol.CancelledOutcome()
+                ended: protocol.ExecutionOutcome = protocol.CancelledOutcome()
                 if failure is not None and isinstance(
                     state, protocol.ExecutionRunning
                 ):

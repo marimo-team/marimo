@@ -60,7 +60,7 @@ class _Execution:
     id: protocol.ExecutionId
     cell_id: str
     ended: bool = False
-    outcome: protocol.Outcome = field(
+    outcome: protocol.ExecutionOutcome = field(
         default_factory=protocol.SucceededOutcome
     )
     errors: list[Error] = field(default_factory=list)
@@ -502,14 +502,14 @@ def _skip_reason(error: Error) -> str | None:
     return None
 
 
-def _declined(reason: str, cell_id: str) -> protocol.SkippedOutcome:
+def _declined(reason: str, cell_id: str) -> protocol.ExecutionSkippedOutcome:
     """Describe an attempt the kernel ended without evaluating it."""
     message = (
         "Replaced by a newer execution of this cell before it started"
         if reason == "superseded"
         else "Did not run"
     )
-    return protocol.SkippedOutcome(
+    return protocol.ExecutionSkippedOutcome(
         reason=reason,
         message=message,
         related=(
@@ -522,7 +522,7 @@ def _declined(reason: str, cell_id: str) -> protocol.SkippedOutcome:
     )
 
 
-def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
+def _skipped(error: Error, cell_id: str) -> protocol.ExecutionSkippedOutcome:
     """Describe a cell that did not evaluate because of the cells it names.
 
     The kernel's message ends where the editor appends a link to the cause,
@@ -542,7 +542,7 @@ def _skipped(error: Error, cell_id: str) -> protocol.SkippedOutcome:
         involved.append((error.raising_cell, "Raised an exception"))
     involved = [(cell, part) for cell, part in involved if cell != cell_id]
     involved.append((cell_id, "Did not run"))
-    return protocol.SkippedOutcome(
+    return protocol.ExecutionSkippedOutcome(
         reason=reason,
         message=error.describe().rstrip(": "),
         related=tuple(

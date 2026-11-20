@@ -215,7 +215,7 @@ class Completed:
     """An execution finished with its outcome and input revisions."""
 
     execution_id: protocol.ExecutionId
-    outcome: protocol.Outcome
+    outcome: protocol.ExecutionOutcome
     depends_on: dict[str, protocol.Revision | None] = field(
         default_factory=dict
     )

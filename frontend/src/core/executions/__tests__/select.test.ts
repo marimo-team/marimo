@@ -185,14 +185,14 @@ describe("cellExecutionView", () => {
   });
 
   it("reports how the last completed execution ended, with its timing", () => {
-    const completedWith = (outcome: Protocol.Outcome) => ({
+    const completedWith = (outcome: Protocol.ExecutionOutcome) => ({
       status: "completed" as const,
       started_at: T0,
       completed_at: T1,
       outcome,
       depends_on: {},
     });
-    const ended = (outcome: Protocol.Outcome) =>
+    const ended = (outcome: Protocol.ExecutionOutcome) =>
       cellExecutionView(
         inputs({
           executions: [execution({ id: "e1", state: completedWith(outcome) })],
@@ -211,7 +211,7 @@ describe("cellExecutionView", () => {
       duration: 1500,
       live: true,
     });
-    const error = (kind: string): Protocol.Outcome => ({
+    const error = (kind: string): Protocol.ExecutionOutcome => ({
       kind: "failed",
       error: {
         kind,
@@ -225,7 +225,7 @@ describe("cellExecutionView", () => {
       },
     });
     expect(ended(error("exception")).outcome).toBe("failed");
-    const skipped: Protocol.Outcome = {
+    const skipped: Protocol.ExecutionOutcome = {
       kind: "skipped",
       reason: "ancestor-stopped",
       message: "",

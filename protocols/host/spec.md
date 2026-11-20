@@ -177,14 +177,14 @@ When a run fails because an execution raised an exception, the execution
 records the error and the run's failure message is null. When the host
 cannot finish the cycle, the run's failure message gives the reason.
 
-    RunOutcome { kind: "succeeded" }
-             | { kind: "failed", message }
-             | { kind: "cancelled" }
+    RunOutcome       { kind: "succeeded" }
+                   | { kind: "failed", message }
+                   | { kind: "cancelled" }
 
-    Outcome    { kind: "succeeded" }
-             | { kind: "failed", error }
-             | { kind: "cancelled" }
-             | { kind: "skipped", reason, message, related }
+    ExecutionOutcome { kind: "succeeded" }
+                   | { kind: "failed", error }
+                   | { kind: "cancelled" }
+                   | { kind: "skipped", reason, message, related }
 
 Hosts MUST wait until scheduling for a run has finished before completing it.
 If one cell raises an exception, other cells in the run may still need to

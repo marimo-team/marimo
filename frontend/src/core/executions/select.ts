@@ -11,7 +11,7 @@ import { completedAt, startedAt as startedAtOf } from "@/core/notebook/replica";
 export type CellRunStatus = "idle" | "queued" | "running";
 
 /** How a cell's last completed execution ended. */
-export type CellOutcome = Protocol.Outcome["kind"];
+export type CellOutcome = Protocol.ExecutionOutcome["kind"];
 
 export interface CellExecutionView {
   readonly status: CellRunStatus;

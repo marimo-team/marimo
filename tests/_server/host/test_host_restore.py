@@ -260,7 +260,7 @@ def failed(ename: str, evalue: str) -> list[OutputType]:
     ]
 
 
-def outcome_of(outputs: list[OutputType]) -> protocol.Outcome | None:
+def outcome_of(outputs: list[OutputType]) -> protocol.ExecutionOutcome | None:
     executions = executions_from_session(
         session(stored("x", outputs)), [cell("a", "x")]
     )
@@ -279,7 +279,7 @@ def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
     )
     assert outcome_of(
         failed("ancestor-stopped", "An ancestor stopped: ")
-    ) == protocol.SkippedOutcome(
+    ) == protocol.ExecutionSkippedOutcome(
         reason="upstream-stopped",
         message="An ancestor stopped",
         related=(

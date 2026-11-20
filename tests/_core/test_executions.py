@@ -61,7 +61,7 @@ def planned(run_id: str, *executions: tuple[str, str | None]) -> be.Planned:
 def complete(
     executions: Executions,
     eid: str,
-    outcome: protocol.Outcome | None = None,
+    outcome: protocol.ExecutionOutcome | None = None,
 ) -> list[Change]:
     execution = protocol.ExecutionId(eid)
     changes: list[Change] = []
@@ -353,7 +353,7 @@ def test_a_run_with_skipped_cells_succeeds() -> None:
     complete(
         executions,
         "e2",
-        protocol.SkippedOutcome(
+        protocol.ExecutionSkippedOutcome(
             reason="upstream-stopped",
             message="This cell wasn't run because an ancestor was stopped",
             related=(),

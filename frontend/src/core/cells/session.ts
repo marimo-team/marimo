@@ -219,7 +219,7 @@ function resultRecord(
 ): StaticResult | null {
   const primary = primaryOutputOf(sessionCell);
   const id = `${EMBEDDED}:${cell.id}:result`;
-  let outcome: Protocol.Outcome;
+  let outcome: Protocol.ExecutionOutcome;
   let output: Protocol.Output | null = null;
   if (primary === undefined) {
     return null;

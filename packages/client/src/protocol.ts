@@ -960,7 +960,7 @@ export type ExecutionFailedOutcomeOutput = zod.output<
   typeof ExecutionFailedOutcome
 >;
 
-export const SkippedOutcome = zod.object({
+export const ExecutionSkippedOutcome = zod.object({
   kind: zod.enum(["skipped"]),
   reason: zod
     .string()
@@ -975,22 +975,24 @@ export const SkippedOutcome = zod.object({
     .describe("The cells involved, the cause first and this cell last."),
 });
 
-export type SkippedOutcome = zod.input<typeof SkippedOutcome>;
-export type SkippedOutcomeOutput = zod.output<typeof SkippedOutcome>;
+export type ExecutionSkippedOutcome = zod.input<typeof ExecutionSkippedOutcome>;
+export type ExecutionSkippedOutcomeOutput = zod.output<
+  typeof ExecutionSkippedOutcome
+>;
 
-export const Outcome = zod
+export const ExecutionOutcome = zod
   .union([
     SucceededOutcome,
     ExecutionFailedOutcome,
     CancelledOutcome,
-    SkippedOutcome,
+    ExecutionSkippedOutcome,
   ])
   .describe(
     "How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. A `failed` execution carries the error that ended it.\nA `cancelled` execution was stopped before or while it ran.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
   );
 
-export type Outcome = zod.input<typeof Outcome>;
-export type OutcomeOutput = zod.output<typeof Outcome>;
+export type ExecutionOutcome = zod.input<typeof ExecutionOutcome>;
+export type ExecutionOutcomeOutput = zod.output<typeof ExecutionOutcome>;
 
 export const revisionUpdateMin = 0;
 
@@ -1025,7 +1027,7 @@ export const ExecutionCompleted = zod.object({
     .describe(
       "When the execution ended. Null for a restored result whose store does not record it.",
     ),
-  outcome: Outcome,
+  outcome: ExecutionOutcome,
   depends_on: zod
     .record(zod.string(), zod.union([Revision, zod.null()]))
     .describe(

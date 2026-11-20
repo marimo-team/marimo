@@ -31,13 +31,13 @@ from marimo._core.protocol import (
     Error,
     ExecutionFailedOutcome,
     ExecutionId,
+    ExecutionSkippedOutcome,
     Media,
     Position,
     Range,
     Related,
     Revision,
     RunId,
-    SkippedOutcome,
     SucceededOutcome,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -109,7 +109,7 @@ def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
     messages.extend(t.finish())
 
     completed = next(m for m in messages if isinstance(m, be.Completed))
-    assert completed.outcome == protocol.SkippedOutcome(
+    assert completed.outcome == protocol.ExecutionSkippedOutcome(
         reason="superseded",
         message="Replaced by a newer execution of this cell before it started",
         related=(
@@ -506,7 +506,7 @@ def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
                 "Ancestor raised",
                 CellId_t("a"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
         (
@@ -523,7 +523,7 @@ def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
                 "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
                 CellId_t("a"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
         (
@@ -532,7 +532,7 @@ def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
                 CellId_t("a"),
                 CellId_t("b"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
     ],
@@ -665,7 +665,7 @@ def test_a_skipped_cell_names_its_reason_and_the_cells_involved(
     )
     assert isinstance(completed, Completed)
     outcome = completed.outcome
-    assert isinstance(outcome, SkippedOutcome)
+    assert isinstance(outcome, ExecutionSkippedOutcome)
     assert outcome.reason == reason
     assert outcome.message.startswith(("This cell wasn't run", "An ancestor"))
     assert not outcome.message.endswith((":", " "))

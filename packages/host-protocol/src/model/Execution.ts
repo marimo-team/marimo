@@ -234,7 +234,7 @@ export const ExecutionFailedOutcome = Schema.Struct({
   error: Error,
 }).annotate({ identifier: "ExecutionFailedOutcome" });
 
-export const SkippedOutcome = Schema.Struct({
+export const ExecutionSkippedOutcome = Schema.Struct({
   kind: Schema.Literal("skipped"),
   reason: Schema.String.annotateKey({
     description:
@@ -246,17 +246,17 @@ export const SkippedOutcome = Schema.Struct({
   related: Schema.Array(Related).annotateKey({
     description: "The cells involved, the cause first and this cell last.",
   }),
-}).annotate({ identifier: "SkippedOutcome" });
+}).annotate({ identifier: "ExecutionSkippedOutcome" });
 
-export const Outcome = Schema.Union([
+export const ExecutionOutcome = Schema.Union([
   SucceededOutcome,
   ExecutionFailedOutcome,
   CancelledOutcome,
-  SkippedOutcome,
+  ExecutionSkippedOutcome,
 ]).annotate({
   description:
     "How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. A `failed` execution carries the error that ended it.\nA `cancelled` execution was stopped before or while it ran.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
-  identifier: "Outcome",
+  identifier: "ExecutionOutcome",
 });
 
 export const ExecutionQueued = Schema.Struct({
@@ -280,7 +280,7 @@ export const ExecutionCompleted = Schema.Struct({
     description:
       "When the execution ended. Null for a restored result whose store does not record it.",
   }),
-  outcome: Outcome,
+  outcome: ExecutionOutcome,
   depends_on: Schema.Record(Schema.String, Schema.NullOr(Revision)).annotateKey(
     {
       description:

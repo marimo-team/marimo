@@ -34,7 +34,7 @@ const T1 = "2026-10-01T09:20:12.500Z";
 let sequence = 0;
 
 const READY: Protocol.RuntimeState = { status: "ready" };
-const SUCCEEDED: Protocol.Outcome = { kind: "succeeded" };
+const SUCCEEDED: Protocol.ExecutionOutcome = { kind: "succeeded" };
 
 /** An execution, or the output it set, as the stream delivers them. */
 type ExecutionFixture = Protocol.Execution & { items?: readonly Item[] };
@@ -73,7 +73,7 @@ function execution(
 
 function completed(
   cellId: string | null,
-  outcome: Protocol.Outcome = SUCCEEDED,
+  outcome: Protocol.ExecutionOutcome = SUCCEEDED,
 ): Protocol.Execution {
   return execution(cellId, {
     status: "completed",

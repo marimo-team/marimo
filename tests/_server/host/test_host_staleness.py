@@ -502,14 +502,14 @@ async def test_replaced_inputs_take_precedence_over_updates_and_edits(
     ("code", "outcome", "reader"),
     [
         ("if False:\n    x = 2", "succeeded", protocol.ExecutionFailedOutcome),
-        ("1 / 0\nx = 2", "failed", protocol.SkippedOutcome),
+        ("1 / 0\nx = 2", "failed", protocol.ExecutionSkippedOutcome),
     ],
 )
 async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
     tmp_path: Path,
     code: str,
     outcome: RunEnding,
-    reader: type[protocol.Outcome],
+    reader: type[protocol.ExecutionOutcome],
 ) -> None:
     async with client(
         tmp_path,
