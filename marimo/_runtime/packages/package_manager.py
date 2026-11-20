@@ -338,10 +338,25 @@ class CanonicalizingPackageManager(PackageManager):
             self._initialize_mappings()
         assert self._module_name_to_repo_name is not None
 
-        if module_name in self._module_name_to_repo_name:
-            return self._module_name_to_repo_name[module_name]
-        else:
-            return module_name.replace("_", "-")
+        # Async variants ship in the same distribution as the sync module
+        # (e.g. "azure.identity.aio" is part of azure-identity).
+        while module_name.endswith(".aio"):
+            module_name = module_name[: -len(".aio")]
+
+        # Walk from the full name up through its parents, so a nested name
+        # resolves to the closest ancestor with a known package
+        # (e.g. "azure.core.pipeline.policies" -> "azure-core", via
+        # "azure.core"), instead of only ever consulting the top level.
+        parts = module_name.split(".")
+        for i in range(len(parts), 0, -1):
+            prefix = ".".join(parts[:i])
+            if prefix in self._module_name_to_repo_name:
+                return self._module_name_to_repo_name[prefix]
+
+        # No known package for any ancestor: guess from the top-level name
+        # only. Anything deeper is not a plausible package name, and the
+        # top level is what callers resolved before full names were passed.
+        return parts[0].replace("_", "-")
 
     def package_to_module(self, package_name: str) -> str:
         """Canonicalizes a package name to a module name."""

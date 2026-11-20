@@ -57,6 +57,47 @@ def test_module_to_package() -> None:
     assert mgr.module_to_package("sklearn") == "scikit-learn"
 
 
+def test_module_to_package_nested() -> None:
+    mgr = PipPackageManager()
+    # Nested names with a known mapping resolve to their own package,
+    # not to a package for the top-level namespace.
+    assert mgr.module_to_package("azure.identity") == "azure-identity"
+    assert mgr.module_to_package("azure.storage.blob") == "azure-storage-blob"
+    assert (
+        mgr.module_to_package("azure.storage.queue") == "azure-storage-queue"
+    )
+    # Unlisted submodules fall back to the top-level namespace's package.
+    assert mgr.module_to_package("sklearn.ensemble") == "scikit-learn"
+    # Deeper names resolve to the closest ancestor with a known package:
+    # azure.core.pipeline.policies ships in azure-core.
+    assert mgr.module_to_package("azure.core.pipeline") == "azure-core"
+    assert (
+        mgr.module_to_package("azure.core.pipeline.policies") == "azure-core"
+    )
+    # Async variants ship in the same distribution as the sync module.
+    assert mgr.module_to_package("azure.identity.aio") == "azure-identity"
+    assert (
+        mgr.module_to_package("azure.storage.blob.aio") == "azure-storage-blob"
+    )
+    assert mgr.module_to_package("azure.cosmos.aio") == "azure-cosmos"
+    assert (
+        mgr.module_to_package("azure.storage.queue.aio")
+        == "azure-storage-queue"
+    )
+    # Names whose top level is not in the mapping resolve as the bare
+    # top-level name used to, instead of keeping the dots.
+    assert mgr.module_to_package("numpy.linalg") == "numpy"
+    assert mgr.module_to_package("matplotlib.pyplot") == "matplotlib"
+    assert mgr.module_to_package("foo.bar") == "foo"
+    assert mgr.module_to_package("my_module.sub_module") == "my-module"
+    # The bare "azure" namespace no longer maps to the deprecated
+    # azure-storage package.
+    assert mgr.module_to_package("azure") == "azure"
+    # The reverse mapping resolves nested packages back to their module.
+    assert mgr.package_to_module("azure-identity") == "azure.identity"
+    assert mgr.package_to_module("azure-storage-blob") == "azure.storage.blob"
+
+
 def test_package_to_module() -> None:
     mgr = PipPackageManager()
     assert mgr.package_to_module("marimo") == "marimo"
