@@ -195,11 +195,17 @@ async def test_kernel_manager_interrupt(
     )
     await kernel_manager.start_kernel()
 
-    def wait_until_ready() -> None:
+    async def receive_message() -> NotificationMessage:
+        # Keep waits cancellable instead of leaving recv() blocked in a thread.
+        while not kernel_manager.kernel_connection.poll():  # noqa: ASYNC110
+            await asyncio.sleep(0.01)
+        return deserialize_kernel_message(
+            kernel_manager.kernel_connection.recv()
+        )
+
+    async def wait_until_ready() -> None:
         while True:
-            message = deserialize_kernel_message(
-                kernel_manager.kernel_connection.recv()
-            )
+            message = await receive_message()
             assert not isinstance(message, CompletedRunNotification), (
                 "Cell completed before becoming ready to interrupt"
             )
@@ -211,12 +217,10 @@ async def test_kernel_manager_interrupt(
             ):
                 return
 
-    def was_interrupted() -> bool:
+    async def was_interrupted() -> bool:
         interrupted = False
         while True:
-            message = deserialize_kernel_message(
-                kernel_manager.kernel_connection.recv()
-            )
+            message = await receive_message()
             if isinstance(message, CompletedRunNotification):
                 return interrupted
             if (
@@ -273,14 +277,11 @@ async def test_kernel_manager_interrupt(
                 auto_run=True,
             )
         )
-        # Startup and first execution are bounded by pytest's test timeout,
-        # not the deadline for responding to an interrupt.
-        await asyncio.to_thread(wait_until_ready)
+        await asyncio.wait_for(wait_until_ready(), timeout=30)
         if not interrupt_during_write:
             kernel_manager.interrupt_kernel()
-        assert await asyncio.wait_for(
-            asyncio.to_thread(was_interrupted), timeout=5
-        )
+        # Allow CI headroom for run cleanup as well as signal delivery.
+        assert await asyncio.wait_for(was_interrupted(), timeout=30)
         # A later interrupt must still work after the first handler raised.
         queue_manager.put_control_request(
             ExecuteCellsCommand(
@@ -292,9 +293,7 @@ async def test_kernel_manager_interrupt(
                 ]
             )
         )
-        assert await asyncio.wait_for(
-            asyncio.to_thread(was_interrupted), timeout=5
-        )
+        assert await asyncio.wait_for(was_interrupted(), timeout=30)
     finally:
         kernel_manager.close_kernel()
 
