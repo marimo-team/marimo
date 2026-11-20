@@ -10,6 +10,7 @@ import {
   StreamStopped,
 } from "@marimo-team/client";
 import type {
+  Analysis,
   Attachment,
   Execution as HostExecution,
   Output as HostOutput,
@@ -24,6 +25,7 @@ import {
   ConnectionState,
   type ConnectionStatus,
 } from "./connection";
+import { analysis } from "./resources/analysis";
 import { attachments } from "./resources/attachments";
 import { type Document, document } from "./resources/document";
 import {
@@ -52,6 +54,7 @@ export const EDITOR_EVENT_KINDS = [
   "input",
   "output",
   "variable",
+  "analysis",
   "marimo",
 ] as const;
 
@@ -77,6 +80,8 @@ export interface NotebookReplica {
    * submit against this one.
    */
   readonly documentAtom: Atom<Document | null>;
+  /** Host analysis for the confirmed document revision, when available. */
+  readonly analysisAtom: Atom<Analysis | null>;
   /**
    * The document on show: `documentAtom`, or through a reset, the one it
    * replaced until the snapshot that follows is complete.
@@ -176,6 +181,7 @@ export function createNotebookReplica(
   // One atom holds the whole stream, which resource atoms derive from.
   const reducer = createNotebookReducer({
     document,
+    analysis,
     attachments,
     runtime,
     executions,
@@ -209,6 +215,12 @@ export function createNotebookReplica(
   const documentAtom = atom(
     (get) => get(streamAtom).resources.document.current,
   );
+  const analysisAtom = atom((get) => {
+    const latest = get(streamAtom).resources.analysis;
+    return latest?.document_etag === get(documentAtom)?.revision.etag
+      ? latest
+      : null;
+  });
   const shownDocumentAtom = atom(
     (get) => get(shownAtom).resources.document.current,
   );
@@ -274,6 +286,7 @@ export function createNotebookReplica(
     generationAtom,
     notebookAtom,
     documentAtom,
+    analysisAtom,
     shownDocumentAtom,
     backendAtom,
     attachmentsAtom,
