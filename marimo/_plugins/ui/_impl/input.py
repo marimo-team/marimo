@@ -27,6 +27,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
 from marimo._plugins.validators import (
     validate_between_range,
+    validate_positive_step,
     validate_range,
     warn_js_safe_number,
 )
@@ -216,6 +217,7 @@ class slider(UIElement[Numeric, Numeric]):
         ValueError: If `steps` is provided along with `start`, `stop`, or `step`.
         ValueError: If neither `steps` nor both `start` and `stop` are provided.
         ValueError: If `stop` is less than `start`.
+        ValueError: If `step` is not positive.
         ValueError: If `value` is out of bounds.
         TypeError: If `steps` is not a sequence of numbers.
 
@@ -322,6 +324,7 @@ class slider(UIElement[Numeric, Numeric]):
             self._dtype = _infer_dtype([start, stop, step, value])
             value = start if value is None else value
 
+            validate_positive_step(step)
             if stop < start:
                 raise ValueError(
                     f"Invalid bounds: stop value ({stop}) "
@@ -438,6 +441,16 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         full_width (bool): Whether the input should take up the full width of its container.
         disabled (bool, optional): Whether the slider is disabled. Defaults to False.
 
+    Raises:
+        ValueError: If `steps` is provided along with `start`, `stop`, or `step`.
+        ValueError: If neither `steps` nor both `start` and `stop` are provided.
+        ValueError: If `stop` is less than `start`.
+        ValueError: If `step` is not positive.
+        ValueError: If `value` does not have exactly two elements, or is out
+            of bounds.
+        TypeError: If `value` is not a sequence.
+        TypeError: If `steps` is not a sequence of numbers.
+
     Methods:
         from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
             Create a range slider from a dataframe series.
@@ -466,6 +479,8 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         self.stop: Numeric
         self.step: Numeric | None
         self.steps: Sequence[Numeric] | None
+        if value is not None:
+            value = _as_range_value(value)
         warn_js_safe_number(start, stop, *(value or []))
 
         if steps is not None and (
@@ -538,6 +553,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
 
             value = [start, stop] if value is None else value
 
+            validate_positive_step(step)
             if stop < start or value[1] < value[0]:
                 raise ValueError(
                     "Invalid bounds: stop value must be "
@@ -1688,3 +1704,20 @@ def _convert_numpy_array(steps: Any) -> list[Numeric]:
         if isinstance(steps, np.ndarray):
             return steps.tolist()  # type: ignore[return-value,no-any-return]
     return steps  # type: ignore[no-any-return]
+
+
+def _as_range_value(value: Any) -> list[Numeric]:
+    """Validate a range slider value and return it as a `[low, high]` list."""
+    value = _convert_numpy_array(value)
+    if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
+        raise TypeError(
+            "Invalid value: default value must be a sequence of two "
+            f"numbers [low, high], got {value!r}."
+        )
+    values: list[Numeric] = list(value)
+    if len(values) != 2:
+        raise ValueError(
+            "Invalid value: default value must be a sequence of two "
+            f"numbers [low, high], got {values!r}."
+        )
+    return values
