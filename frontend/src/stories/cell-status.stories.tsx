@@ -87,7 +87,7 @@ export const DisabledTransitively = Template.bind({});
 DisabledTransitively.args = {
   editing: true,
   status: "idle",
-  blocked: true,
+  blocked: "current",
   freshness: { sourceChanged: false, inputsChanged: false },
   interrupted: false,
   disabled: false,
@@ -98,7 +98,7 @@ export const DisabledTransitivelyAndEdited = Template.bind({});
 DisabledTransitivelyAndEdited.args = {
   editing: true,
   status: "idle",
-  blocked: true,
+  blocked: "current",
   freshness: { sourceChanged: true, inputsChanged: false },
   interrupted: false,
   disabled: false,
@@ -109,7 +109,7 @@ export const Stale = Template.bind({});
 Stale.args = {
   editing: true,
   status: "idle",
-  blocked: true,
+  blocked: "current",
   freshness: { sourceChanged: false, inputsChanged: true },
   interrupted: false,
   disabled: false,
@@ -120,7 +120,7 @@ export const StaleAndDisabled = Template.bind({});
 StaleAndDisabled.args = {
   editing: true,
   status: "idle",
-  blocked: true,
+  blocked: "current",
   freshness: { sourceChanged: false, inputsChanged: true },
   interrupted: false,
   disabled: true,
@@ -131,7 +131,7 @@ export const EditedStaleAndDisabled = Template.bind({});
 EditedStaleAndDisabled.args = {
   editing: true,
   status: "idle",
-  blocked: true,
+  blocked: "current",
   freshness: { sourceChanged: false, inputsChanged: true },
   interrupted: false,
   disabled: true,
@@ -142,7 +142,7 @@ export const EditedAndStale = Template.bind({});
 EditedAndStale.args = {
   editing: true,
   status: "idle",
-  blocked: true,
+  blocked: "current",
   freshness: { sourceChanged: true, inputsChanged: false },
   interrupted: false,
   disabled: false,

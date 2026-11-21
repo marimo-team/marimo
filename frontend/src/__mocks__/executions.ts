@@ -262,6 +262,7 @@ export const MockExecutions = {
       ),
       requested: new Set(),
       blocked: new Set(),
+      shownBlocked: new Set(),
       runtimeId: null,
       ...extra,
     };

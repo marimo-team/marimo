@@ -77,7 +77,7 @@ describe("CellStatusComponent", () => {
     interrupted: false,
     elapsedTime: null,
     startedAt: null,
-    blocked: false,
+    blocked: null,
     uninstantiated: false,
   };
 
@@ -124,7 +124,7 @@ describe("CellStatusComponent", () => {
   test("renders disabled transitively state", () => {
     const props = {
       ...baseProps,
-      blocked: true,
+      blocked: "current" as const,
       startedAt: 1_704_096_000_000 as Milliseconds,
     };
 
@@ -139,7 +139,7 @@ describe("CellStatusComponent", () => {
   test("renders stale and disabled transitively state", () => {
     const props = {
       ...baseProps,
-      blocked: true,
+      blocked: "current" as const,
       freshness: { sourceChanged: false, inputsChanged: true } as CellFreshness,
       startedAt: 1_704_096_000_000 as Milliseconds,
     };

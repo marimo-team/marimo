@@ -126,18 +126,17 @@ const requestedCellsAtom = atom((get) => {
     : new Set([...requests].flatMap((request) => request.cells));
 });
 
-/** Descendants of explicitly disabled cells in the confirmed document. */
-const blockedByAncestorAtom = atom((get): ReadonlySet<Protocol.CellId> => {
+/** Use the disabled flags from the same revision as the dependency graph. */
+const blockedCellsAtom = atom((get) => {
   const replica = get(activeNotebookReplicaAtom);
-  if (replica === null) {
-    return NO_BLOCKED;
-  }
-  const analysis = get(replica.analysisAtom);
-  const document = get(replica.documentAtom);
-  if (analysis === null || document === null) {
-    return NO_BLOCKED;
-  }
-  return blockedDescendants(analysis, document.cells.values());
+  const view = replica && get(replica.analysisAtom);
+  const shownBlocked = view
+    ? blockedDescendants(view.analysis, view.document.cells.values())
+    : NO_BLOCKED;
+  return {
+    shownBlocked,
+    blocked: view?.freshness === "current" ? shownBlocked : NO_BLOCKED,
+  };
 });
 
 /** What every cell's view derives from. Pair with `cellExecutionView`. */
@@ -149,7 +148,7 @@ export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
     cells: document?.cells ?? NO_CELLS,
     requested: get(requestedCellsAtom),
-    blocked: get(blockedByAncestorAtom),
+    ...get(blockedCellsAtom),
     runtimeId: replica === null ? null : (get(replica.runtimeAtom)?.id ?? null),
   };
 });

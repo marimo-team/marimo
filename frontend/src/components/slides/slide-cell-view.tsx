@@ -102,7 +102,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
         interrupted={interrupted}
         elapsedTime={execution.duration}
         startedAt={execution.startedAt}
-        blocked={execution.blocked}
+        blocked={execution.shownBlock}
         uninstantiated={uninstantiated}
       />
       <LanguageToggles

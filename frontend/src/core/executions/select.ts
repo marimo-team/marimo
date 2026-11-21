@@ -17,6 +17,7 @@ export interface CellExecutionView {
   readonly status: CellRunStatus;
   /** Whether a cell it depends on is disabled, so it cannot run. */
   readonly blocked: boolean;
+  readonly shownBlock: "current" | "stale" | null;
   /** Null until the cell completes once, and while it runs again. */
   readonly outcome: CellOutcome | null;
   /**
@@ -50,6 +51,7 @@ export interface CellExecutionInputs {
   readonly requested: ReadonlySet<Protocol.CellId>;
   /** Cells with a disabled ancestor in the confirmed document. */
   readonly blocked: ReadonlySet<Protocol.CellId>;
+  readonly shownBlocked: ReadonlySet<Protocol.CellId>;
   /** The notebook's runtime, null while it has none or the stream is not ready. */
   readonly runtimeId: Protocol.RuntimeId | null;
 }
@@ -182,9 +184,15 @@ export function cellExecutionView(
     settled && began !== null && ended !== null
       ? Time.parse(ended).since(Time.parse(began))
       : null;
+  const blocked = inputs.blocked.has(id);
   return {
     status,
-    blocked: inputs.blocked.has(id),
+    blocked,
+    shownBlock: blocked
+      ? "current"
+      : inputs.shownBlocked.has(id)
+        ? "stale"
+        : null,
     outcome: settled && result !== null ? outcomeOf(result) : null,
     live:
       result === null ||
