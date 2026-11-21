@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import json
+import re
 import shutil
+import subprocess
+import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pytest
 
 from marimo._convert.ipynb.to_ir import (
+    _PIP_INSTALL_OPTIONS_WITH_VALUE,
     CellsTransform,
     CodeCell,
     PrivateRenamer,
@@ -550,6 +555,54 @@ def test_transform_exclamation_mark_pip_variants():
 def test_transform_exclamation_mark_pip_option_values(command: str) -> None:
     result = transform_exclamation_mark([command])
     assert result.pip_packages == ["numpy"]
+
+
+_PIP_HELP_OPTION_RE = re.compile(r"^  (?:(-\w), )?(--[\w-]+) <", re.MULTILINE)
+_PIP_OPTIONS_COLLECTED_AS_PACKAGES = frozenset({"-e", "--editable"})
+
+
+def _pip_install_help() -> str | None:
+    commands: list[list[str]] = []
+    if importlib.util.find_spec("pip") is not None:
+        commands.append([sys.executable, "-m", "pip"])
+    pip_executable = shutil.which("pip")
+    if pip_executable is not None:
+        commands.append([pip_executable])
+    for command in commands:
+        try:
+            completed = subprocess.run(
+                [*command, "install", "--help"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=True,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        return completed.stdout
+    return None
+
+
+def test_pip_install_options_with_value_match_pip() -> None:
+    help_text = _pip_install_help()
+    if help_text is None:
+        pytest.skip("pip is not available")
+    pip_options = {
+        option
+        for match in _PIP_HELP_OPTION_RE.finditer(help_text)
+        for option in match.groups()
+        if option is not None
+    }
+    assert "--requirement" in pip_options
+    missing = (
+        pip_options
+        - _PIP_INSTALL_OPTIONS_WITH_VALUE
+        - _PIP_OPTIONS_COLLECTED_AS_PACKAGES
+    )
+    assert not missing, (
+        f"Add these pip install options to _PIP_INSTALL_OPTIONS_WITH_VALUE: "
+        f"{sorted(missing)}"
+    )
 
 
 def test_transform_exclamation_mark_pip_non_install():
