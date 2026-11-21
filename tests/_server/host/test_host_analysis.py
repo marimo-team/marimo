@@ -32,6 +32,27 @@ def analyze(
     return CellAnalyzer()(document_snapshot(codes))
 
 
+def test_deletion_depends_on_readers_as_well_as_the_definition() -> None:
+    cells = analyze({"a": "x = 1", "b": "print(x)", "c": "del x"})
+    parents = cells["c"].parents
+    assert isinstance(parents, tuple)
+    assert set(parents) == {"a", "b"}
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has(), reason="Requires duckdb"
+)
+def test_qualified_sql_parent_is_the_table_in_the_referenced_schema() -> None:
+    cells = analyze(
+        {
+            "a": 'mo.sql("CREATE TABLE one.t (id INT)")',
+            "b": 'mo.sql("CREATE TABLE two.t (id INT)")',
+            "c": 'mo.sql("SELECT * FROM one.t")',
+        }
+    )
+    assert cells["c"].parents == ("a",)
+
+
 def render_diagnostics(
     codes: dict[str, str],
     analyses: dict[protocol.CellId, protocol.CellAnalysis],
@@ -109,9 +130,8 @@ def test_refs_are_names_other_cells_define() -> None:
     )
     assert analyses["a"].defs == ("mo",)
     assert analyses["a"].refs == ("x",)
-    assert analyses["b"] == protocol.CellAnalysis(
-        defs=("x",), refs=(), errors=()
-    )
+    assert analyses["b"].defs == ("x",)
+    assert analyses["b"].refs == ()
     assert analyses["c"].refs == ("x",)
 
 

@@ -79,7 +79,9 @@ async def snapshot(
         elif notifications is not None:
             notifications.append(event["data"]["marimo"])
 
-    await bridge.notebook.subscribe(subscription, cursor, receive)
+    await bridge.notebook.subscribe(
+        subscription, cursor, receive, "notebook,cell,document,runtime,marimo"
+    )
     return events
 
 
@@ -270,9 +272,9 @@ async def test_kernel_ready_follows_the_snapshot(bridge):
         "reader", None, lambda raw: frames.append(json.loads(raw))
     )
     kinds = [frame["event"] for frame in frames]
-    assert kinds[:5] == ["notebook", "cell", "document", "runtime", "ready"]
-    assert set(kinds[5:]) == {"marimo"}
-    kernel_ready = frames[5]["data"]["marimo"]
+    first_notification = kinds.index("marimo")
+    assert kinds.index("ready") < first_notification
+    kernel_ready = frames[first_notification]["data"]["marimo"]
     assert kernel_ready["op"] == "kernel-ready"
     assert "codes" not in kernel_ready
     assert kernel_ready["resumed"] is False

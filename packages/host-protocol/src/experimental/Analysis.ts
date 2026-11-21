@@ -13,13 +13,19 @@ export const CellAnalysis = Schema.Struct({
   refs: Schema.Array(Schema.String).annotateKey({
     description: "Names this cell reads from other cells.",
   }),
+  parents: Schema.optionalKey(
+    Schema.Array(S.CellId).annotateKey({
+      description:
+        "Cell IDs of the direct dependencies in this revision. An empty list means no parents. Omitted when the host does not provide the graph.",
+    }),
+  ),
   errors: Schema.Array(S.Error).annotateKey({
     description:
       "Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`.",
   }),
 }).annotate({
   description:
-    "What a cell's text implies: the names it defines and reads, which\nare the edges of the dependency graph, and the errors found in the\ntext alone or across the set of cells. A pure function of the\ncode, so two producers compute the same values.\n",
+    "The definitions, references, direct dependencies, and diagnostics for one cell at this document revision.",
   identifier: "CellAnalysis",
 });
 
