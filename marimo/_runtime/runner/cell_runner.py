@@ -555,9 +555,11 @@ class Runner:
         """Evaluate `cell`. Coroutine cells run as a scheduler-tracked
         task so the SIGINT-handler's `cancel_all` can preempt them — a
         plain `await` is not cancellable from another thread."""
-        coro = self._evaluator.evaluate(cell, self.glbls)
         if not cell.is_coroutine():
-            return await coro
+            return await self._evaluator.evaluate(cell, self.glbls)
+        coro = self._evaluator.evaluate(
+            cell, self.glbls, body=self._scheduler.cell_body(cell.cell_id)
+        )
         try:
             async with self._scheduler.start_task(cell.cell_id, coro) as task:
                 return await task
@@ -639,6 +641,7 @@ class Runner:
             return raw_result
 
         if isinstance(exc, asyncio.exceptions.CancelledError):
+            self.cancel(cell_id)
             # Drop the two marimo frames above user code (the evaluator's
             # `await execute_cell_async` and the executor's `await eval`)
             # before surfacing as MarimoInterrupt.

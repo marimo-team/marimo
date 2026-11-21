@@ -24,7 +24,8 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._runtime import dataflow
@@ -39,7 +40,7 @@ if TYPE_CHECKING:
         Iterator,
         Sequence,
     )
-    from contextlib import AbstractAsyncContextManager
+    from contextlib import AbstractAsyncContextManager, AbstractContextManager
     from typing import Self
 
     from marimo._runtime.dataflow import DirectedGraph
@@ -49,6 +50,8 @@ if TYPE_CHECKING:
 
 class Scheduler(Protocol):
     """Cell queue + cancellation + async task tracking."""
+
+    interrupted: bool
 
     def pending(self) -> bool: ...
     def pop_cell(self) -> CellId_t: ...
@@ -67,10 +70,17 @@ class Scheduler(Protocol):
     ) -> AbstractAsyncContextManager[asyncio.Task[RunResult]]: ...
     def has_active_tasks(self) -> bool: ...
     def owns_task(self, task: asyncio.Task[Any] | None) -> bool: ...
+    def cell_body(self, cell_id: CellId_t) -> AbstractContextManager[None]: ...
+    def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool: ...
     def cancel_all(self) -> None: ...
 
     async def __aenter__(self) -> Self: ...
     async def __aexit__(self, *exc_info: object) -> None: ...
+
+
+_RUNNING_CELL_SCHEDULER: ContextVar[Scheduler | None] = ContextVar(
+    "running_cell_scheduler", default=None
+)
 
 
 class SequentialScheduler:
@@ -208,6 +218,26 @@ class SequentialScheduler:
     def owns_task(self, task: asyncio.Task[Any] | None) -> bool:
         """Whether this task is a cell evaluation the scheduler awaits."""
         return task is not None and task in self._active.values()
+
+    @contextmanager
+    def cell_body(self, cell_id: CellId_t) -> Iterator[None]:
+        del cell_id
+        token = None
+        try:
+            # Child tasks inherit the body scope even while their parent awaits.
+            token = _RUNNING_CELL_SCHEDULER.set(self)
+            yield
+        finally:
+            if token is not None:
+                _RUNNING_CELL_SCHEDULER.reset(token)
+
+    def is_running_cell_body(self, task: asyncio.Task[Any] | None) -> bool:
+        """Whether this task is in a cell body rather than a lifecycle hook."""
+        return (
+            task is not None
+            and task is asyncio.current_task()
+            and _RUNNING_CELL_SCHEDULER.get() is self
+        )
 
     def cancel_all(self) -> None:
         # Set `_interrupted` first so a SIGINT arriving between cells

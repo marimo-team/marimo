@@ -1,8 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import os
 import signal
+import sys
 import threading
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,8 +15,14 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.streams import ThreadSafeStream
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import ExecutionContext
+from marimo._runtime.executor.evaluator import Evaluator
 from marimo._runtime.handlers import construct_interrupt_handler
 from marimo._runtime.runtime import MarimoInterrupt
+
+if TYPE_CHECKING:
+    from marimo._runtime.runner.result import RunResult
+    from marimo._runtime.runtime import Kernel
+    from tests.conftest import ExecReqProvider
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 
@@ -127,13 +137,16 @@ def test_sigint_between_cells_cancels_queue_and_raises() -> None:
     sched.cancel_all.assert_called_once()
 
 
-def test_sigint_with_active_async_task_cancels_without_raising() -> None:
-    """When an async cell is in flight (scheduler reports active tasks),
-    the handler must call `cancel_all` and return — raising from a
-    signal handler would escape into asyncio internals and surface as
-    an internal-error empty RunResult."""
+async def test_sigint_with_suspended_async_task_cancels_without_raising() -> (
+    None
+):
+    """When an async cell is in flight but not running (the scheduler does
+    not own the current task), the handler must call `cancel_all` and
+    return — raising from a signal handler would escape into asyncio
+    internals and surface as an internal-error empty RunResult."""
     sched = MagicMock()
     sched.has_active_tasks.return_value = True
+    sched.is_running_cell_body.return_value = False
 
     ctx = MagicMock(spec=KernelRuntimeContext)
     ctx.execution_context = None
@@ -253,3 +266,143 @@ def test_handler_finishes_while_stream_lock_is_held() -> None:
         worker.join(timeout=2)
         assert not worker.is_alive(), "handler blocked on stream_lock"
     assert outcome == ["raised"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+@pytest.mark.parametrize(
+    "body",
+    [
+        # SIGINT during blocking code after, then before, the only `await`.
+        "await asyncio.sleep(0)\nos.kill(os.getpid(), signal.SIGINT)\n"
+        + "time.sleep(5)",
+        "os.kill(os.getpid(), signal.SIGINT)\ntime.sleep(5)\n"
+        + "await asyncio.sleep(0)",
+    ],
+    ids=["await-then-block", "block-then-await"],
+)
+async def test_sigint_interrupts_async_cell_running_blocking_code(
+    k: Kernel, exec_req: ExecReqProvider, body: str
+) -> None:
+    previous = signal.signal(signal.SIGINT, construct_interrupt_handler())
+    try:
+        await k.run(
+            [
+                cell := exec_req.get(
+                    f"import asyncio, os, signal, time\n{body}\nz = 1"
+                ),
+                child := exec_req.get("w = z + 1"),
+            ]
+        )
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+    assert "z" not in k.globals
+    assert k.graph.cells[cell.cell_id].run_result_status == "interrupted"
+    assert k.graph.cells[child.cell_id].run_result_status == "cancelled"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+@pytest.mark.parametrize("spawn", ["gather", "create_task"])
+async def test_sigint_interrupts_blocking_child_coroutine(
+    k: Kernel, exec_req: ExecReqProvider, spawn: str
+) -> None:
+    previous = signal.signal(signal.SIGINT, construct_interrupt_handler())
+    try:
+        await k.run(
+            [
+                exec_req.get("log = []"),
+                cell := exec_req.get(
+                    "import asyncio, os, signal, time\n"
+                    "async def work():\n"
+                    "    log.append('child started')\n"
+                    "    try:\n"
+                    "        os.kill(os.getpid(), signal.SIGINT)\n"
+                    "        time.sleep(5)\n"
+                    "        log.append('continued')\n"
+                    "    finally:\n"
+                    "        await asyncio.sleep(0)\n"
+                    "        log.append('cleanup finished')\n"
+                    f"await asyncio.{spawn}(work())\n"
+                    "z = 1"
+                ),
+                dependent := exec_req.get("w = z + 1"),
+            ]
+        )
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+    assert k.globals["log"] == ["child started", "cleanup finished"]
+    assert k.graph.cells[cell.cell_id].run_result_status == "interrupted"
+    assert k.graph.cells[dependent.cell_id].run_result_status == "cancelled"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+@pytest.mark.parametrize("kernel", ["k", "strict_kernel"])
+def test_sigint_outside_async_cell_body_halts_run_and_keeps_kernel(
+    request: pytest.FixtureRequest, kernel: str, exec_req: ExecReqProvider
+) -> None:
+    k: Kernel = request.getfixturevalue(kernel)
+    asyncio.run(k.run([exec_req.get("sentinel = 42")]))
+
+    teardown_chain = Evaluator._teardown_chain
+
+    def interrupt_then_teardown(
+        self: Evaluator, *args: Any, **kwargs: Any
+    ) -> RunResult:
+        # The handler runs in the cell's task after the body finished,
+        # before the lifecycles (strict mode's globals restore) tear down.
+        os.kill(os.getpid(), signal.SIGINT)
+        return teardown_chain(self, *args, **kwargs)
+
+    previous = signal.signal(signal.SIGINT, construct_interrupt_handler())
+    try:
+        with patch.object(
+            Evaluator, "_teardown_chain", interrupt_then_teardown
+        ):
+            asyncio.run(
+                k.run(
+                    [
+                        cell := exec_req.get(
+                            "import asyncio\nawait asyncio.sleep(0)\nz = 1"
+                        ),
+                        exec_req.get("w = z + 1"),
+                    ]
+                )
+            )
+    except KeyboardInterrupt:
+        pytest.fail("SIGINT escaped the cell's task and stopped the loop")
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+    assert "w" not in k.globals
+    asyncio.run(k.run([exec_req.get("y = sentinel + 1")]))
+    assert k.globals["y"] == 43
+    # The body finished before the interrupt.
+    assert k.graph.cells[cell.cell_id].run_result_status == "success"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+async def test_sigint_in_async_cell_lets_awaited_cleanup_finish(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    previous = signal.signal(signal.SIGINT, construct_interrupt_handler())
+    try:
+        await k.run(
+            [
+                exec_req.get("log = []"),
+                cell := exec_req.get(
+                    "import asyncio, os, signal, time\n"
+                    "try:\n"
+                    "    os.kill(os.getpid(), signal.SIGINT)\n"
+                    "    time.sleep(5)\n"
+                    "finally:\n"
+                    "    await asyncio.sleep(0)\n"
+                    "    log.append('cleanup finished')"
+                ),
+            ]
+        )
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+    assert k.globals["log"] == ["cleanup finished"]
+    assert k.graph.cells[cell.cell_id].run_result_status == "interrupted"

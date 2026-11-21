@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -15,6 +16,7 @@ from marimo._types.globals import MutableGlobals
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from contextlib import AbstractContextManager
 
     from marimo._ast.cell import CellImpl
 
@@ -34,7 +36,11 @@ class Evaluator:
         self.lifecycles: list[ExecutionLifecycle] = lifecycles
 
     async def evaluate(
-        self, cell: CellImpl, glbls: MutableGlobals
+        self,
+        cell: CellImpl,
+        glbls: MutableGlobals,
+        *,
+        body: AbstractContextManager[None] | None = None,
     ) -> RunResult:
         """Compose `ExecutionLifecycle`s around an `Executor` run.
 
@@ -56,7 +62,8 @@ class Evaluator:
             )
         else:
             try:
-                value = await self.executor.execute_cell_async(cell, glbls)
+                with body if body is not None else nullcontext():
+                    value = await self.executor.execute_cell_async(cell, glbls)
                 result = RunResult(output=value, exception=None)
             except BaseException as e:
                 result = RunResult(output=None, exception=e)
