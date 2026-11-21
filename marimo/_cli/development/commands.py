@@ -246,7 +246,7 @@ def print_routes() -> None:
     "--port",
     default=8080,
     help="Port to serve the preview on",
-    type=int,
+    type=click.IntRange(0, 65535),
 )
 @click.option(
     "--host",

@@ -2698,3 +2698,34 @@ def test_cli_edit_with_session_ttl() -> None:
     finally:
         p.kill()
         p.wait(timeout=5)
+
+
+@pytest.mark.parametrize("bad_port", ["-1", "65536", "70000"])
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        ["edit"],
+        ["run"],
+        ["new"],
+        ["tutorial", "intro"],
+    ],
+)
+def test_cli_port_out_of_range(cmd: list[str], bad_port: str) -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli_main, [*cmd, "--port", bad_port])
+    assert result.exit_code == 2
+    assert "not in the range 0<=x<=65535" in result.output
+
+
+@pytest.mark.parametrize("bad_port", ["-1", "65536"])
+def test_cli_development_preview_port_out_of_range(
+    tmp_path: Path, bad_port: str
+) -> None:
+    nb = tmp_path / "app.py"
+    nb.write_text("")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_main, ["development", "preview", str(nb), "--port", bad_port]
+    )
+    assert result.exit_code == 2
+    assert "not in the range 0<=x<=65535" in result.output
