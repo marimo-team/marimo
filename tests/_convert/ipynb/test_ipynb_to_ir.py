@@ -818,6 +818,106 @@ def test_transform_remove_duplicate_imports_single():
     ]
 
 
+def test_transform_remove_duplicate_imports_keeps_different_object():
+    sources = [
+        "from PIL import Image",
+        "from IPython.display import Image",
+    ]
+    result = transform_remove_duplicate_imports(sources)
+    assert result == sources
+
+
+def test_transform_remove_duplicate_imports_keeps_import_after_assignment():
+    sources = [
+        "path = 'x'",
+        "from os import path",
+    ]
+    result = transform_remove_duplicate_imports(sources)
+    assert result == sources
+
+
+def test_transform_remove_duplicate_imports_same_cell_rebinding():
+    sources = [
+        "from PIL import Image",
+        "from IPython.display import Image\nfrom PIL import Image",
+        "from PIL import Image",
+    ]
+    result = transform_remove_duplicate_imports(sources)
+    assert result == sources[:2] + [""]
+
+
+def test_transform_remove_duplicate_imports_keeps_submodule_alias():
+    # `import xml.etree` binds the package, `import xml.etree as xml` binds
+    # the submodule, so neither is a duplicate of the other.
+    for second in ("import xml.etree as xml", "from xml import etree as xml"):
+        sources = ["import xml.etree", second]
+        assert transform_remove_duplicate_imports(sources) == sources
+
+
+def test_transform_remove_duplicate_imports_removes_repeated_dotted_import():
+    sources = ["import os.path", "import os.path"]
+    result = transform_remove_duplicate_imports(sources)
+    assert result == ["import os.path", ""]
+
+
+def test_transform_remove_duplicate_imports_keeps_star_import():
+    sources = [
+        "import math",
+        "from os.path import *\nimport math",
+    ]
+    result = transform_remove_duplicate_imports(sources)
+    assert result == ["import math", "from os.path import *\nimport math"]
+
+
+def test_transform_remove_duplicate_imports_star_import_invalidates():
+    # The star import may rebind `join`, so the later import is not a duplicate.
+    sources = [
+        "from posixpath import join",
+        "from ntpath import *",
+        "from posixpath import join",
+    ]
+    assert transform_remove_duplicate_imports(sources) == sources
+
+
+def test_transform_fixup_multiple_definitions_keeps_dotted_import():
+    sources = [
+        "import os.path\nprint(os.path.sep)",
+        "os = 1",
+    ]
+    result = transform_fixup_multiple_definitions(sources)
+    assert result == [sources[0], "_os = 1"]
+
+
+def test_transform_fixup_multiple_definitions_renames_import():
+    sources = [
+        "from datetime import date\nprint(date.today())",
+        "date = 1",
+    ]
+    result = transform_fixup_multiple_definitions(sources)
+    assert result == [
+        "from datetime import date as _date\nprint(_date.today())",
+        "_date = 1",
+    ]
+
+
+def test_transform_duplicate_definitions_renames_import():
+    sources = [
+        "date = 1\nprint(date)",
+        "from datetime import date\nprint(date.today())",
+    ]
+    result = transform_duplicate_definitions(sources)
+    assert result == [
+        "date = 1\nprint(date)",
+        "from datetime import date as date_1\nprint(date_1.today())",
+    ]
+
+
+def test_rename_in_scope_does_not_rename_inner_import():
+    source = "x = 1\ndef f():\n    import x\n    return x"
+    result = _rename_in_scope(source, 0, PrivateRenamer({"x": "_x"}))
+    assert result == "_x = 1\n\ndef f():\n    import x\n    return x"
+
+
 # This test currently fails because import deduplication doesn't handle
 # multiple imports on one line
 @pytest.mark.xfail(
