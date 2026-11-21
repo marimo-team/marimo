@@ -15,7 +15,7 @@ from multiprocessing import get_context
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from textwrap import dedent
-from typing import Any
+from typing import Any, NoReturn
 from unittest.mock import MagicMock
 
 import pytest
@@ -179,10 +179,77 @@ async def test_kernel_manager_edit_mode() -> None:
     queue_manager.control_queue.join_thread()  # type: ignore
 
 
+_INTERRUPT_DEADLINE_SECONDS = 30
+
+
+def _stack_dump_setup(stack_dump: Path) -> str:
+    """Cell code that lets the test ask a stuck kernel for its thread stacks.
+
+    The dump goes to a file because the kernel redirects its own stderr.
+    """
+    if not hasattr(signal, "SIGUSR1"):
+        return ""
+    return inspect.cleandoc(f"""
+        import faulthandler, signal
+        _stack_dump = open({str(stack_dump)!r}, "w")
+        faulthandler.register(
+            signal.SIGUSR1, file=_stack_dump, all_threads=True
+        )
+    """)
+
+
+class _InterruptTrace:
+    """Timeline of what the test observed, reported if the deadline is missed."""
+
+    def __init__(self) -> None:
+        self._start = time.monotonic()
+        self._events: list[str] = []
+
+    def record(self, event: str) -> None:
+        self._events.append(f"+{time.monotonic() - self._start:.3f}s {event}")
+
+    def __str__(self) -> str:
+        return "\n".join(self._events)
+
+
+def _read_if_exists(path: Path) -> str:
+    return path.read_text() if path.exists() else ""
+
+
+async def _fail_missed_interrupt(
+    kernel_manager: KernelManagerImpl,
+    trace: _InterruptTrace,
+    stage: str,
+    stack_dump: Path,
+) -> NoReturn:
+    task = kernel_manager.kernel_task
+    assert task is not None
+    assert not isinstance(task, threading.Thread)
+    alive = task.is_alive()
+    stacks = ""
+    if alive and task.pid is not None and hasattr(signal, "SIGUSR1"):
+        os.kill(task.pid, signal.SIGUSR1)
+        for _ in range(20):
+            stacks = await asyncio.to_thread(_read_if_exists, stack_dump)
+            if stacks:
+                break
+            await asyncio.sleep(0.1)
+    pytest.fail(
+        f"Kernel did not finish {stage} within "
+        f"{_INTERRUPT_DEADLINE_SECONDS}s.\n"
+        f"kernel alive: {alive}\n"
+        f"observed by the test:\n{trace}\n"
+        f"kernel thread stacks:\n{stacks or '<unavailable>'}",
+        pytrace=False,
+    )
+
+
 @pytest.mark.parametrize("interrupt_during_write", [False, True])
 async def test_kernel_manager_interrupt(
-    interrupt_during_write: bool,
+    interrupt_during_write: bool, tmp_path: Path
 ) -> None:
+    trace = _InterruptTrace()
+    stack_dump = tmp_path / "kernel_stacks.txt"
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
     kernel_manager = KernelManagerImpl(
         queue_manager=queue_manager,
@@ -221,6 +288,7 @@ async def test_kernel_manager_interrupt(
         interrupted = False
         while True:
             message = await receive_message()
+            trace.record(type(message).__name__)
             if isinstance(message, CompletedRunNotification):
                 return interrupted
             if (
@@ -229,11 +297,21 @@ async def test_kernel_manager_interrupt(
             ):
                 continue
             output = message.output.data
-            if isinstance(output, list):
-                interrupted |= any(
-                    isinstance(error, MarimoInterruptionError)
-                    for error in output
-                )
+            if isinstance(output, list) and any(
+                isinstance(error, MarimoInterruptionError) for error in output
+            ):
+                trace.record("MarimoInterruptionError")
+                interrupted = True
+
+    async def wait_for_interrupt(stage: str) -> bool:
+        try:
+            return await asyncio.wait_for(
+                was_interrupted(), timeout=_INTERRUPT_DEADLINE_SECONDS
+            )
+        except TimeoutError:
+            await _fail_missed_interrupt(
+                kernel_manager, trace, stage, stack_dump
+            )
 
     code = inspect.cleandoc("""
         import marimo as mo
@@ -260,6 +338,7 @@ async def test_kernel_manager_interrupt(
             _pipe.send = _send_and_interrupt
             mo.output.append("ready-to-interrupt")
         """)
+    code = f"{_stack_dump_setup(stack_dump)}\n{code}"
 
     try:
         queue_manager.put_control_request(
@@ -278,10 +357,13 @@ async def test_kernel_manager_interrupt(
             )
         )
         await asyncio.wait_for(wait_until_ready(), timeout=30)
+        trace.record("ready-to-interrupt received")
         if not interrupt_during_write:
+            trace.record("interrupt_kernel() called")
             kernel_manager.interrupt_kernel()
+            trace.record("interrupt_kernel() returned")
         # Allow CI headroom for run cleanup as well as signal delivery.
-        assert await asyncio.wait_for(was_interrupted(), timeout=30)
+        assert await wait_for_interrupt("the first interrupt")
         # A later interrupt must still work after the first handler raised.
         queue_manager.put_control_request(
             ExecuteCellsCommand(
@@ -293,7 +375,8 @@ async def test_kernel_manager_interrupt(
                 ]
             )
         )
-        assert await asyncio.wait_for(was_interrupted(), timeout=30)
+        trace.record("second interrupt requested")
+        assert await wait_for_interrupt("the second interrupt")
     finally:
         kernel_manager.close_kernel()
 
