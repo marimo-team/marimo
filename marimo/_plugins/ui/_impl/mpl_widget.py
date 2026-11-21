@@ -17,6 +17,7 @@ from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.backend_bases import DrawEvent
+    from matplotlib.figure import Figure
     from numpy.typing import NDArray
 
     from marimo._plugins.core.web_component import JSONType
@@ -38,16 +39,19 @@ class _CloseView(CellLifecycleItem):
 
 
 class _NavigationWidget(_FigureWidget):
-    geometry = traitlets.Dict().tag(sync=True)
+    geometry = traitlets.List(traitlets.Dict()).tag(sync=True)
 
     def __init__(
         self,
-        ax: Axes,
+        panels: tuple[Axes, ...],
         *,
         pan: Dimension,
         zoom: Dimension,
+        figure: Figure | None = None,
     ) -> None:
-        canvas = ax.figure.canvas
+        canvas = (
+            figure.canvas if figure is not None else panels[0].figure.canvas
+        )
         if not isinstance(canvas, FigureCanvas):
             canvas = FigureCanvas(canvas.figure)
         self._navigation_size: tuple[int, int] | None = None
@@ -55,9 +59,9 @@ class _NavigationWidget(_FigureWidget):
         # The composed plot owns the cell output.
         with hide_ipython_display(Output):
             super().__init__(canvas)
-        self.ax = ax
+        self.panels = panels
         self.directions = {"pan": pan, "zoom": zoom}
-        self.home = ax.get_xlim(), ax.get_ylim()
+        self.home = {ax: (ax.get_xlim(), ax.get_ylim()) for ax in panels}
         self.resizable = False
         self.on_msg(self._navigate)
         self.canvas.mpl_connect("draw_event", self._geometry)
@@ -82,7 +86,7 @@ class _NavigationWidget(_FigureWidget):
     def _geometry(self, event: DrawEvent) -> None:
         if event.canvas is not self.canvas or self.canvas.is_saving():
             return
-        self.geometry = _panel_geometry(self.ax)
+        self.geometry = [_panel_geometry(ax) for ax in self.panels]
 
     def _navigate(
         self, _widget: Any, message: dict[str, Any], _buffers: Any
@@ -96,9 +100,9 @@ class _NavigationWidget(_FigureWidget):
     def _apply_gesture(self, message: dict[str, Any]) -> None:
         action = message.get("navigation")
         if action == "reset":
-            xlim, ylim = self.home
-            self.ax.set_xlim(xlim)
-            self.ax.set_ylim(ylim)
+            for ax, (xlim, ylim) in self.home.items():
+                ax.set_xlim(xlim)
+                ax.set_ylim(ylim)
         elif action in ("pan", "zoom"):
             if not all(
                 isinstance(message.get(key), (int, float))
@@ -113,7 +117,10 @@ class _NavigationWidget(_FigureWidget):
                 or factor <= 0
             ):
                 return
-            ax = self.ax
+            index = message.get("panel", 0)
+            if not isinstance(index, int) or not 0 <= index < len(self.panels):
+                return
+            ax = self.panels[index]
             enabled = self.directions[action]
             for dim, axis, get_lim, set_lim in (
                 ("x", ax.xaxis, ax.get_xlim, ax.set_xlim),
@@ -199,13 +206,14 @@ class _PlotWidget(anywidget.AnyWidget):
 
     def __init__(
         self,
-        ax: Axes,
+        figure: Figure,
+        panels: tuple[Axes, ...],
         *,
         selection: dict[str, JSONType],
         **options: Dimension,
     ) -> None:
         self.figure_widget = _NavigationWidget(
-            ax, pan=options["pan"], zoom=options["zoom"]
+            panels, figure=figure, pan=options["pan"], zoom=options["zoom"]
         )
         super().__init__(
             figure_ref=f"anywidget:{self.figure_widget.model_id}",
