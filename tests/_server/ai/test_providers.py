@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from pathlib import Path
 
+    from marimo._server.models.completion import ReasoningEffort
+
 
 @pytest.mark.parametrize(
     ("pydantic_reason", "vercel_reason"),
@@ -592,6 +594,20 @@ async def test_anthropic_request_with_tool_history() -> None:
             "https://litellm.proxy.com/api/v1",
             False,
             id="openai_gpt5_litellm_proxy",
+        ),
+        pytest.param(
+            "openai",
+            "gpt-5",
+            "https://api.openai.com.attacker.example/v1",
+            False,
+            id="openai_lookalike_host",
+        ),
+        pytest.param(
+            "openai",
+            "gpt-5",
+            "https://custom.example/api.openai.com",
+            False,
+            id="openai_hostname_in_path",
         ),
         # Azure: thinking is always suppressed (only custom Azure deployments
         # support reasoning_effort, which we don't expose yet).
@@ -1817,3 +1833,61 @@ def test_session_headers_do_not_affect_other_providers() -> None:
         config, "openai/gpt-4o", session_id="chat-1"
     )
     assert provider.config.extra_headers is None
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+@pytest.mark.parametrize(
+    ("model_id", "effort"),
+    [
+        ("openai/gpt-5.6-terra", "max"),
+        ("custom-endpoint/gpt-5", "xhigh"),
+        ("ollama/minimax-m3.1-flash", "max"),
+        ("ollama/minimax-m3.1-flash", None),
+        ("wandb/reflection/Beam-1.0-501B-A23B", "max"),
+        ("opencode-go/kimi-k3.1-pro", "max"),
+        ("openrouter/openai/gpt-5", "none"),
+    ],
+)
+async def test_agent_sends_reasoning_effort_to_provider(
+    model_id: str, effort: ReasoningEffort | None
+) -> None:
+    import httpx
+    from openai import AsyncOpenAI
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    requests: list[dict[str, Any]] = []
+
+    def capture(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        return httpx.Response(
+            400, json={"error": {"message": "Captured request"}}
+        )
+
+    base_url = "https://example.test/v1"
+    async with AsyncOpenAI(
+        api_key="test-key",
+        base_url=base_url,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(capture)),
+    ) as client:
+        with patch.object(
+            OpenAIClientMixin, "get_openai_client", return_value=client
+        ):
+            provider = get_completion_provider(
+                AnyProviderConfig(api_key="test-key", base_url=base_url),
+                model=model_id,
+            )
+        agent = provider.create_agent(
+            name="chat",
+            system_prompt="Help with the notebook.",
+            max_tokens=512,
+            enable_capabilities=False,
+            reasoning_effort=effort,
+        )
+        with pytest.raises(ModelHTTPError, match="Captured request"):
+            await agent.run("Hello")
+
+    (body,) = requests
+    assert (
+        body.get("reasoning_effort", body.get("reasoning", {}).get("effort"))
+        == effort
+    )

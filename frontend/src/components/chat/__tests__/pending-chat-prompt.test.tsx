@@ -84,11 +84,10 @@ vi.mock("@/components/editor/actions/pair-with-agent", () => ({
 vi.mock("@/components/editor/chrome/wrapper/pending-ai-cells", () => ({
   PendingAICells: () => null,
 }));
-vi.mock("@/components/ai/ai-model-dropdown", () => ({
-  AIModelDropdown: () => null,
+vi.mock("../chat-model-picker", () => ({
+  ChatModelPicker: () => null,
 }));
 vi.mock("../chat-history-popover", () => ({ ChatHistoryPopover: () => null }));
-vi.mock("../capabilities-popover", () => ({ CapabilitiesPopover: () => null }));
 vi.mock("../notebook-access-selector", () => ({
   NotebookAccessSelector: () => null,
 }));

@@ -21,6 +21,12 @@ import {
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
+import {
+  getChatModelId,
+  getEffectiveChatOptions,
+} from "@/core/ai/chat-model-config";
+import { getKnownModelMaps } from "@/core/ai/model-registry";
+import { getChatReasoningOptions } from "@/core/ai/reasoning-options";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
 import { getSupportedAttachmentTypes } from "@/core/ai/attachments";
 import { useAIConfigActions } from "@/core/ai/config";
@@ -38,13 +44,12 @@ import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import { useCellActions } from "@/core/cells/actions";
 import { aiAtom, aiModelConfiguredAtom } from "@/core/config/config";
-import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { isWasm } from "@/core/wasm/utils";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Logger } from "@/utils/Logger";
-import { AIModelDropdown } from "../ai/ai-model-dropdown";
+import { ChatModelPicker } from "./chat-model-picker";
 import { useOpenSettingsToTab } from "../app-config/state";
 import {
   PairWithAgentBanner,
@@ -53,7 +58,6 @@ import {
 import { PromptInput } from "../editor/ai/prompt-input";
 import { PendingAICells } from "../editor/chrome/wrapper/pending-ai-cells";
 import {
-  addContextCompletion,
   isContextAttachment,
   resolveChatContext,
 } from "../editor/ai/completion-utils";
@@ -66,7 +70,6 @@ import { MCPStatusIndicator } from "../mcp/mcp-status-indicator";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import {
-  AddContextButton,
   AttachFileButton,
   AttachmentRenderer,
   FileAttachmentPill,
@@ -80,7 +83,6 @@ import {
 import { AgentActivity } from "./agent-activity";
 import { getAnswerText, renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
-import { CapabilitiesPopover } from "./capabilities-popover";
 import { NotebookAccessSelector } from "./notebook-access-selector";
 import {
   type ChatMessagePart,
@@ -294,19 +296,11 @@ interface ChatInputFooterProps {
   onStop: () => void;
   onAddFiles: (files: File[]) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
-  onAddContext: () => void;
 }
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
-  ({
-    isEmpty,
-    onSendClick,
-    isLoading,
-    onStop,
-    fileInputRef,
-    onAddFiles,
-    onAddContext,
-  }) => {
+  ({ isEmpty, onSendClick, isLoading, onStop, fileInputRef, onAddFiles }) => {
+    const footerRef = useRef<HTMLDivElement>(null);
     const ai = useAtomValue(aiAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
 
@@ -314,26 +308,18 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 
     return (
       <TooltipProvider>
-        <div className="chat-input-footer px-3 py-2 border-t border-border/20 flex items-center gap-2">
-          <div className="chat-input-selectors flex min-w-0 flex-1 items-center gap-1">
+        <div
+          ref={footerRef}
+          className="px-3 py-2 border-t border-border/20 flex items-center gap-2"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-1">
             <NotebookAccessSelector
               value={currentMode}
               onValueChange={saveModeChange}
             />
-            <AIModelDropdown
-              placeholder="Model"
-              triggerClassName="chat-control chat-selector h-6 text-xs rounded-sm min-w-0 max-w-[200px] flex-1"
-              iconSize="small"
-              showAddCustomModelDocs={true}
-              forRole="chat"
-            />
+            <ChatModelPicker anchorRef={footerRef} />
           </div>
-          <div className="chat-input-actions flex shrink-0 items-center gap-0.5 ml-auto">
-            <CapabilitiesPopover />
-            <AddContextButton
-              handleAddContext={onAddContext}
-              isLoading={isLoading}
-            />
+          <div className="flex shrink-0 items-center gap-0.5 ml-auto">
             <AttachFileButton
               fileInputRef={fileInputRef}
               isLoading={isLoading}
@@ -387,7 +373,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
         isWasm()
           ? undefined
           : {
-              beforeText: "Type your message or ",
+              beforeText: "Ask anything or ",
               linkText: "pair your own coding agent",
               afterText: ". Use @ to reference variables and cells.",
               onClick: openPairWithAgentModal,
@@ -412,13 +398,12 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={onClose}
             onAddFiles={onAddFiles}
-            placeholder="Type your message. Use @ to reference variables and cells."
+            placeholder="Ask anything. Use @ to reference variables and cells."
             placeholderAction={placeholderAction}
           />
         </div>
         <ChatInputFooter
           isEmpty={!input.trim() || isReadingFiles}
-          onAddContext={() => addContextCompletion(inputRef)}
           onSendClick={handleSendClick}
           isLoading={isLoading}
           onStop={onStop}
@@ -470,9 +455,7 @@ const ChatPanelBody = () => {
   const [newThreadInput, setNewThreadInput] = useState("");
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
   const ai = useAtomValue(aiAtom);
-  const supportedTypes = getSupportedAttachmentTypes(
-    ai?.models?.chat_model || DEFAULT_AI_MODEL,
-  );
+  const supportedTypes = getSupportedAttachmentTypes(getChatModelId(ai).id);
   const {
     files,
     addFiles,
@@ -552,13 +535,19 @@ const ChatPanelBody = () => {
             );
           }
 
+          const ai = store.get(aiAtom);
+          const model = getKnownModelMaps().modelMap.get(getChatModelId(ai).id);
+          const storedOptions = store.get(chatOptionsAtom);
           const completionBody = {
             uiMessages: options.messages,
-            options: store.get(chatOptionsAtom),
+            options: getEffectiveChatOptions(
+              storedOptions,
+              getChatReasoningOptions(model),
+            ),
           };
 
           // Call this here to ensure the value is not stale
-          const chatMode = store.get(aiAtom)?.mode || DEFAULT_MODE;
+          const chatMode = ai?.mode || DEFAULT_MODE;
           const tools = FRONTEND_TOOL_REGISTRY.getToolSchemas(chatMode);
 
           return {
@@ -652,8 +641,7 @@ const ChatPanelBody = () => {
   );
 
   const validateMessageAttachments = useEvent((parts: ChatMessagePart[]) => {
-    const currentModel =
-      store.get(aiAtom)?.models?.chat_model || DEFAULT_AI_MODEL;
+    const currentModel = getChatModelId(store.get(aiAtom)).id;
     return validateChatAttachments(
       parts,
       getSupportedAttachmentTypes(currentModel),

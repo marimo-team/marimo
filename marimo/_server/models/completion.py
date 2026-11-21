@@ -61,12 +61,18 @@ class AiInlineCompletionRequest(msgspec.Struct, rename="camel"):
     language: Language = "python"
 
 
+ReasoningEffort = Literal[
+    "none", "minimal", "low", "medium", "high", "xhigh", "max"
+]
+
+
 class ChatOptions(msgspec.Struct, rename="camel"):
     """
     Used to configure capabilities of the AI agent.
     """
 
     web_search: bool = False
+    reasoning_effort: ReasoningEffort | None = None
 
 
 class ChatRequest(msgspec.Struct, rename="camel"):
