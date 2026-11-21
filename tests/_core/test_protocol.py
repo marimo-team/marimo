@@ -26,7 +26,7 @@ MODELS = {
     "cell.json": protocol.Cell,
     "cell-withheld.json": protocol.Cell,
     "analysis.json": protocol.Analysis,
-    "diagnostic.json": protocol.Error,
+    "diagnostic.json": protocol.CellDiagnostic,
     "edit.json": protocol.EditRequest,
     "stale-edit-request.json": protocol.EditRequest,
     "edit-response.json": protocol.EditResponse,

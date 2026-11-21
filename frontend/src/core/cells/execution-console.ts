@@ -203,7 +203,6 @@ export function consoleView(
     return {
       ...inputs,
       rendered: {
-        serialization: local.serialization,
         consoleOutputs: added ? collapseConsoleOutputs([...rows, added]) : rows,
       },
     };
@@ -231,7 +230,6 @@ export function consoleView(
   return {
     ...inputs,
     rendered: {
-      serialization: local.serialization,
       consoleOutputs: collapseConsoleBatch(entries),
     },
   };

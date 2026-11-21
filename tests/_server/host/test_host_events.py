@@ -146,40 +146,14 @@ def test_extension_routing_and_control_filters() -> None:
         assert not control.visible_in(notebook_id)
 
 
-def test_editor_sends_cell_hints_only_when_they_change() -> None:
+def test_editor_does_not_forward_cell_status_changes() -> None:
     editor = EditorNotifications()
     cell = CellId_t("cell")
-    blocked = CellNotification(
-        cell_id=cell, status="disabled-transitively", serialization="class"
+    assert (
+        list(
+            editor.events(
+                None, CellNotification(cell, status="disabled-transitively")
+            )
+        )
+        == []
     )
-    unblocked = CellNotification(
-        cell_id=cell, status="running", serialization=None
-    )
-
-    def hints(message: CellNotification) -> list[dict[str, Any]]:
-        return [
-            json.loads(serialize_event(event))["data"]["marimo"]
-            for event in editor.events(None, message)
-        ]
-
-    assert hints(blocked) == [
-        {
-            "op": "cell-op",
-            "cell_id": cell,
-            "status": "disabled-transitively",
-            "serialization": "class",
-        }
-    ]
-    assert hints(blocked) == []
-    assert hints(unblocked) == [
-        {
-            "op": "cell-op",
-            "cell_id": cell,
-            "status": "idle",
-            "serialization": None,
-        }
-    ]
-    assert hints(unblocked) == []
-    assert hints(CellNotification(cell, status="disabled-transitively")) == [
-        {"op": "cell-op", "cell_id": cell, "status": "disabled-transitively"}
-    ]

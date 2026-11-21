@@ -3,11 +3,7 @@ import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-  HelpCircleIcon,
-  MoreHorizontalIcon,
-  SquareFunctionIcon,
-} from "lucide-react";
+import { HelpCircleIcon, MoreHorizontalIcon } from "lucide-react";
 import {
   type FocusEvent,
   forwardRef,
@@ -30,6 +26,7 @@ import {
   outputIsLoading,
   outputIsStale,
 } from "@/core/cells/cell";
+import { useReusableDefinition } from "@/core/cells/reusable-definition";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
@@ -79,6 +76,7 @@ import { Logger } from "../../utils/Logger";
 import { renderShortcut } from "../shortcuts/renderShortcut";
 import { CellStatusComponent } from "./cell/CellStatus";
 import { CreateCellButton } from "./cell/CreateCellButton";
+import { ReusableDefinitionBadge } from "./cell/ReusableDefinitionBadge";
 import {
   CellActionsDropdown,
   type CellActionsDropdownHandle,
@@ -389,6 +387,7 @@ const EditableCellComponent = ({
   const cellRef = useRef<HTMLDivElement>(null);
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
+  const reusable = useReusableDefinition(cellId);
   const output = useCellOutput(cellId);
   const outline = useCellOutline(cellId);
   const { execution, freshness } = useCellPresentation(cellId);
@@ -625,8 +624,6 @@ const EditableCellComponent = ({
     return undefined;
   };
 
-  const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
-
   return (
     <TooltipProvider>
       <CellActionsContextMenu
@@ -747,70 +744,14 @@ const EditableCellComponent = ({
               />
             )}
             {cellOutput === "below" && (outputArea || emptyMarkdownPlaceholder)}
-            {!isPresenting && cellRuntime.serialization && (
-              <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">
-                {isToplevel && (
-                  <a
-                    href="https://links.marimo.app/reusable-definitions"
-                    target="_blank"
-                    className="hover:underline text-muted-foreground text-xs font-bold"
-                    rel="noreferrer"
-                  >
-                    reusable
-                  </a>
-                )}
-                <Tooltip
-                  content={
-                    <span className="max-w-16 text-xs">
-                      {(isToplevel &&
-                        "This function or class can be imported into other Python notebooks or modules.") || (
-                        <>
-                          This definition can't be reused in other Python
-                          modules:
-                          <br />
-                          <br />
-                          <pre>{cellRuntime.serialization}</pre>
-                          <br />
-                          Click this icon to learn more.
-                        </>
-                      )}
-                    </span>
-                  }
-                >
-                  {isToplevel ? (
-                    <a
-                      href="https://links.marimo.app/reusable-definitions"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <SquareFunctionIcon
-                        size={16}
-                        strokeWidth={1.5}
-                        className="rounded-lg text-muted-foreground"
-                      />
-                    </a>
-                  ) : (
-                    <a
-                      href="https://links.marimo.app/reusable-definitions"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <HelpCircleIcon
-                        size={16}
-                        strokeWidth={1.5}
-                        className="rounded-lg text-muted-foreground"
-                      />
-                    </a>
-                  )}
-                </Tooltip>
-              </div>
+            {!isPresenting && reusable && (
+              <ReusableDefinitionBadge finding={reusable} />
             )}
             {!isPresenting && (
               <ConsoleOutput
                 consoleOutputs={cellRuntime.consoleOutputs}
                 stale={consoleOutputStale}
-                // Empty name if serialization triggered
-                cellName={cellRuntime.serialization ? "_" : cellData.name}
+                cellName={reusable ? "_" : cellData.name}
                 onRefactorWithAI={handleRefactorWithAI}
                 onClear={() => {
                   actions.clearCellConsoleOutput({ cellId });

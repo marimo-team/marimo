@@ -114,12 +114,7 @@ class ExecutionNotification(Notification, tag="execution"):
 
 
 class CellNotification(Notification, tag="cell-op"):
-    """A kernel update. The editor still receives serialization and blocked-state changes.
-
-    This is a partial update: each field carries its own "unchanged" semantics,
-    documented per field below. Most fields treat None as "unchanged"; fields
-    that need to distinguish "unchanged" from "clear" use msgspec.UNSET for the
-    former and None for the latter.
+    """A partial update to the kernel session view.
 
     Attributes:
         cell_id: Unique identifier of the cell being updated.
@@ -128,7 +123,6 @@ class CellNotification(Notification, tag="cell-op"):
         status: Execution status (idle/running/stale/queued/disabled-transitively).
         run_id: Execution run ID for tracing. Auto-set from context.
         execution_id: Evaluation of this cell producing the update, when known.
-        serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
         timestamp: Creation timestamp, auto-set.
     """
 
@@ -139,10 +133,6 @@ class CellNotification(Notification, tag="cell-op"):
     status: RuntimeStateType | None = None
     run_id: RunId_t | None = None
     execution_id: str | None = None
-    # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
-    # serialization hint unchanged; None explicitly clears it (cell is no
-    # longer a top-level definition); a string sets it.
-    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -160,20 +150,6 @@ class CellNotification(Notification, tag="cell-op"):
         except Exception as e:
             LOGGER.error("Error getting run id: %s", e)
             self.run_id = None
-
-
-# TODO(MO-8407): Remove once the editor and islands read reusability from
-# analysis (MO-8414) and blocked cells from the document and analysis (MO-8463).
-class EditorCellNotification(Notification, tag="cell-op"):
-    """A cell enters the blocked set with `disabled-transitively` and leaves with `idle`.
-
-    An omitted serialization hint is unchanged. A null hint clears reusability.
-    """
-
-    name: ClassVar[str] = "cell-op"
-    cell_id: CellId_t
-    status: Literal["disabled-transitively", "idle"] | None = None
-    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
 
 
 class HumanReadableStatus(msgspec.Struct):
@@ -1181,7 +1157,7 @@ class NotebookDocumentTransactionNotification(
     transaction: Transaction
 
 
-_SharedNotification = (
+EditorNotification = (
     FunctionCallResultNotification
     | UIElementMessageNotification
     | ModelLifecycleNotification
@@ -1243,7 +1219,6 @@ _SharedNotification = (
     | ConsumerCapabilitiesNotification
 )
 
-EditorNotification = _SharedNotification | EditorCellNotification
 NotificationMessage = (
-    _SharedNotification | CellNotification | ExecutionNotification
+    EditorNotification | CellNotification | ExecutionNotification
 )

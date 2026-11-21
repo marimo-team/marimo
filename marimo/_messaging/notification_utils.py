@@ -35,7 +35,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from marimo._ast.cell import RuntimeStateType
-    from marimo._ast.toplevel import TopLevelHints, TopLevelStatus
     from marimo._messaging.cell_output import CellChannel
     from marimo._messaging.errors import Error
     from marimo._messaging.mimetypes import KnownMimeType
@@ -279,32 +278,4 @@ class CellNotificationUtils:
                 status=None,
                 execution_id=execution_id,
             )
-        )
-
-    @staticmethod
-    def broadcast_serialization(
-        cell_id: CellId_t,
-        serialization: TopLevelStatus,
-        stream: Stream | None = None,
-    ) -> None:
-        status: TopLevelHints | None = serialization.hint
-        broadcast_notification(
-            CellNotification(cell_id=cell_id, serialization=str(status)),
-            stream,
-        )
-
-    @staticmethod
-    def broadcast_serialization_cleared(
-        cell_id: CellId_t,
-        stream: Stream | None = None,
-    ) -> None:
-        """Clear a cell's reusability hint (it is no longer a top-level def).
-
-        Sends an explicit None: in the partial-update cell-op contract a
-        missing field means "unchanged", so a concrete None is required to
-        remove a previously shown hint.
-        """
-        broadcast_notification(
-            CellNotification(cell_id=cell_id, serialization=None),
-            stream,
         )

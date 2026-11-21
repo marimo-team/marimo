@@ -438,28 +438,33 @@ json.dumps(result)
       assert.equal(frames.at(-1).event, "ready");
       const cell = frames.find((frame) => frame.event === "cell").data.cell;
       await testIdleInterrupt(pyodide, notebook, cell.notebook_id, frames);
+      const code = "def seven():\n    return 7";
       const call = JSON.stringify({
         operation: "notebook.edit",
         params: { notebook_id: cell.notebook_id },
         headers: { "idempotency-key": "wasm-acceptance-edit" },
         body: { changes: [{
           kind: "replace_cell", base_etag: cell.etag,
-          cell: { id: cell.id, code: "x = 7", name: cell.name, config: cell.config },
+          cell: { id: cell.id, code, name: cell.name, config: cell.config },
         }] },
       });
       const reply = JSON.parse(await notebook.call(call));
       assert.equal(reply.status, 200);
       assert.deepEqual(frames.at(-1).data.document, reply.body.document);
-      assert.equal(frames.at(-2).data.cell.code, "x = 7");
+      assert.equal(frames.at(-2).data.cell.code, code);
       assert.equal(frames.at(-1).data.request_id, "wasm-acceptance-edit");
       const count = frames.length;
       assert.deepEqual(JSON.parse(await notebook.call(call)), reply);
       assert.equal(frames.length, count);
-      assert.equal(pyodide.runPython("list(session.app_manager.app.cell_manager.codes())[0]"), "x = 7");
+      assert.equal(pyodide.runPython("list(session.app_manager.app.cell_manager.codes())[0]"), code);
       const { data: { analysis } } = await waitForFrame(analyses, (frame) =>
         frame.data.analysis.document_etag === reply.body.document.etag,
       );
       assert.deepEqual(analysis.cells[cell.id].parents, []);
+      assert.deepEqual(analysis.cells[cell.id].defs, ["seven"]);
+      const [hint] = analysis.cells[cell.id].diagnostics;
+      assert.equal(hint.kind, "reusable-definition");
+      assert.equal(hint.severity, "information");
       notebook.set_persistence(async (contents, filename) => {
         await Promise.resolve();
         pyodide.FS.writeFile(filename, contents);
@@ -475,7 +480,7 @@ json.dumps(result)
       assert.equal(saved.body.document.etag, saved.body.document.saved_etag);
       assert.match(
         pyodide.FS.readFile("/home/pyodide/test_notebook.py", { encoding: "utf8" }),
-        /x = 7/,
+        /@app\.function\s+def seven\(/,
       );
 
       await testHostInputs(notebook, cell.notebook_id, frames);

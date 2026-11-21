@@ -21,7 +21,7 @@ const records = {
   "cell.json": Protocol.Cell,
   "cell-withheld.json": Protocol.Cell,
   "../experimental/analysis/fixtures/analysis.json": Protocol.Analysis,
-  "../experimental/analysis/fixtures/diagnostic.json": Protocol.Error,
+  "../experimental/analysis/fixtures/diagnostic.json": Protocol.CellDiagnostic,
   "edit.json": Protocol.EditRequest,
   "stale-edit-request.json": Protocol.EditRequest,
   "edit-response.json": Protocol.EditResponse,

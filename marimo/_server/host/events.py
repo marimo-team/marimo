@@ -13,7 +13,6 @@ from marimo._messaging.notification import (
     CallbackOutputNotification,
     CellNotification,
     ConsoleInputsClearedNotification,
-    EditorCellNotification,
     EditorNotification,
     ExecutionNotification,
     KernelReadyNotification,
@@ -51,8 +50,6 @@ class EditorNotifications:
     def __init__(self) -> None:
         self._cleared_inputs: dict[CellId_t, tuple[str, int]] = {}
         self._command_output: dict[CellId_t, set[CommandOutput]] = {}
-        self._blocked: set[CellId_t] = set()
-        self._reusability: dict[CellId_t, str | None] = {}
 
     def events(
         self,
@@ -83,29 +80,6 @@ class EditorNotifications:
                 )
                 if cleared is not None:
                     yield from self.events(notebook_id, cleared)
-            cell_id = notification.cell_id
-            hint = notification.serialization
-            if hint == self._reusability.get(cell_id, msgspec.UNSET):
-                hint = msgspec.UNSET
-            elif hint is not msgspec.UNSET:
-                self._reusability[cell_id] = hint
-            status = notification.status
-            if status is not None:
-                blocked = status == "disabled-transitively"
-                if blocked == (cell_id in self._blocked):
-                    status = None
-                elif status == "disabled-transitively":
-                    self._blocked.add(cell_id)
-                else:
-                    self._blocked.remove(cell_id)
-                    status = "idle"
-            if hint is not msgspec.UNSET or status is not None:
-                yield self._event(
-                    notebook_id,
-                    EditorCellNotification(
-                        cell_id=cell_id, serialization=hint, status=status
-                    ),
-                )
             return
         if view is not None and isinstance(
             notification, (PdbOutputNotification, CallbackOutputNotification)

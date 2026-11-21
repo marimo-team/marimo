@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import type { Variable, VariableName, Variables } from "@/core/variables/types";
-import { createCellRuntimeState } from "@/core/cells/types";
+import type { CellDiagnostic } from "@marimo-team/client/protocol";
 import {
   collapsedNodeWidth,
   computeDefsByCell,
@@ -136,16 +136,25 @@ describe("reusableCellIds", () => {
   const c2 = "c2" as CellId;
   const c3 = "c3" as CellId;
 
-  it("collects cells whose serialization hint is valid, case-insensitively", () => {
-    const runtime = {
-      [c1]: createCellRuntimeState({ serialization: "Valid" }),
-      [c2]: createCellRuntimeState({ serialization: "Unparsable" }),
-      [c3]: createCellRuntimeState(),
+  it("hides only reusable definitions reported by marimo", () => {
+    const valid: CellDiagnostic = {
+      source: "marimo",
+      kind: "reusable-definition",
+      severity: "information",
+      message: "Importable when saved as Python.",
+      range: null,
+      related: [],
     };
-    expect(reusableCellIds([c1, c2, c3], runtime)).toEqual(new Set([c1]));
-  });
-
-  it("ignores cells with no runtime entry", () => {
-    expect(reusableCellIds([c1], {})).toEqual(new Set());
+    const cell = { defs: [], refs: [], diagnostics: [valid] };
+    const cells = {
+      [c1]: cell,
+      [c2]: {
+        ...cell,
+        diagnostics: [{ ...valid, kind: "non-reusable-definition" }],
+      },
+      [c3]: { ...cell, diagnostics: [{ ...valid, source: "other" }] },
+    };
+    expect(reusableCellIds([c1, c2, c3], cells)).toEqual(new Set([c1]));
+    expect(reusableCellIds([c1], undefined)).toEqual(new Set());
   });
 });

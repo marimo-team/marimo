@@ -639,7 +639,9 @@ def generate_filecontents(
     toplevel_defs: set[Name] = set()
     if setup_cell:
         toplevel_defs = set(setup_cell.defs)
-    extraction = TopLevelExtraction(codes, names, cell_configs, toplevel_defs)
+    extraction = TopLevelExtraction.from_codes(
+        codes, names, cell_configs, toplevel_defs
+    )
     if infer_types != "off":
         extraction.add_default_annotations(
             infer_annotations(

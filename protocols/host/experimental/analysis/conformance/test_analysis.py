@@ -32,7 +32,7 @@ async def lines(text: str) -> AsyncIterator[str]:
 
 @pytest.mark.parametrize(
     ("filename", "schema"),
-    [("analysis.json", "Analysis"), ("diagnostic.json", "Error")],
+    [("analysis.json", "Analysis"), ("diagnostic.json", "CellDiagnostic")],
 )
 def test_examples(filename: str, schema: str) -> None:
     validate(schema, json.loads((FIXTURES / filename).read_text()))

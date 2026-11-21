@@ -28,12 +28,14 @@ import {
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
+import { notebookAnalysisAtom } from "@/core/session/active-notebook";
 import { store } from "@/core/state/jotai";
 import type { Variables } from "@/core/variables/types";
 import { Events } from "@/utils/events";
 import { Tooltip } from "../ui/tooltip";
 import {
   computeDefsByCell,
+  reusableCellIds,
   type NodeData,
   nodeDimensions,
   TreeElementsBuilder,
@@ -80,6 +82,18 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   layoutDirection,
   settings,
 }) => {
+  const hiddenReusable = useAtomValue(
+    useMemo(
+      () =>
+        atom((get) =>
+          settings.hideReusableFunctions
+            ? reusableCellIds(cellIds, get(notebookAnalysisAtom)?.cells)
+            : new Set<CellId>(),
+        ),
+      [cellIds, settings.hideReusableFunctions],
+    ),
+  );
+
   // Cells whose node is expanded to show its full code (toggled by double-click).
   const [expandedIds, setExpandedIds] = useState<Set<CellId>>(() => new Set());
 
@@ -90,7 +104,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
       cellAtoms,
       variables,
       hidePureMarkdown: settings.hidePureMarkdown,
-      hideReusableFunctions: settings.hideReusableFunctions,
+      hiddenReusable,
     });
     return layoutElements({
       nodes: withExpansion(elements.nodes, expandedIds),
@@ -168,7 +182,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
       cellAtoms,
       variables,
       hidePureMarkdown: settings.hidePureMarkdown,
-      hideReusableFunctions: settings.hideReusableFunctions,
+      hiddenReusable,
     });
     syncChanges({
       nodes: withExpansion(elements.nodes, expandedIds),
@@ -180,7 +194,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
     cellAtoms,
     syncChanges,
     settings.hidePureMarkdown,
-    settings.hideReusableFunctions,
+    hiddenReusable,
     expandedIds,
     sizeSignature,
   ]);

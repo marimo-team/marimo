@@ -1740,11 +1740,16 @@ async def test_the_notebook_stream_carries_cells_then_the_document(
     assert analysis["notebook_id"] == harness.notebook_id
     assert analysis["document_etag"] == document["etag"]
     assert analysis["cells"] == {
-        first["id"]: {"defs": ["x"], "refs": [], "errors": [], "parents": []},
+        first["id"]: {
+            "defs": ["x"],
+            "refs": [],
+            "diagnostics": [],
+            "parents": [],
+        },
         second["id"]: {
             "defs": ["y"],
             "refs": ["x"],
-            "errors": [],
+            "diagnostics": [],
             "parents": [first["id"]],
         },
     }

@@ -259,14 +259,6 @@ function handleNotification(
           inputIds: msg.input_ids,
         });
         return;
-      case "cell-op":
-        if (msg.serialization !== undefined) {
-          actions.setCellReusability({
-            cell_id: msg.cell_id,
-            serialization: msg.serialization,
-          });
-        }
-        return;
       case "callback-output":
         VirtualFileTracker.INSTANCE.trackCallbackOutput(msg);
         actions.showCommandOutput(msg);

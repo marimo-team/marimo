@@ -28,7 +28,7 @@ const records = {
   "input-reply-response.json": S.Input,
   "interrupt-runtime-response.json": S.Runtime,
   "../experimental/analysis/fixtures/analysis.json": Analysis.Analysis,
-  "../experimental/analysis/fixtures/diagnostic.json": S.Error,
+  "../experimental/analysis/fixtures/diagnostic.json": Analysis.CellDiagnostic,
 };
 
 it.each(Object.entries(records))(

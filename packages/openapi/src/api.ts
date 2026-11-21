@@ -4711,20 +4711,6 @@ export interface components {
       theme: "dark" | "light" | "system";
     };
     /**
-     * EditorCellNotification
-     * @description A cell enters the blocked set with `disabled-transitively` and leaves with `idle`.
-     *
-     *     An omitted serialization hint is unchanged. A null hint clears reusability.
-     */
-    EditorCellNotification: {
-      cell_id: components["schemas"]["CellId"];
-      /** @enum {unknown} */
-      op: "cell-op";
-      serialization?: string | null;
-      /** @default null */
-      status?: ("disabled-transitively" | "idle") | null;
-    };
-    /**
      * EnvironmentOperation
      * @description Current progress and logs for one execution of environment work.
      */
@@ -6303,8 +6289,7 @@ export interface components {
       | components["schemas"]["BreakpointsNotification"]
       | components["schemas"]["ActiveLineNotification"]
       | components["schemas"]["NotebookDocumentTransactionNotification"]
-      | components["schemas"]["ConsumerCapabilitiesNotification"]
-      | components["schemas"]["EditorCellNotification"];
+      | components["schemas"]["ConsumerCapabilitiesNotification"];
     /**
      * OpenAiConfig
      * @description Configuration options for OpenAI or OpenAI-compatible services.

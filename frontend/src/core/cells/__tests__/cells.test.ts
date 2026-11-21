@@ -421,7 +421,6 @@ describe("kernel-ready", () => {
         [CELL_B]: { id: CELL_B, code: "2" },
       },
       cellRuntime: {
-        [CELL_A]: { serialization: "Valid" },
         [CELL_B]: {
           embeddedConsole: [
             {
@@ -441,7 +440,6 @@ describe("kernel-ready", () => {
       payload: undefined,
     });
 
-    expect(next.cellRuntime[CELL_A].serialization).toBeUndefined();
     expect(next.cellRuntime[CELL_B].embeddedConsole).toEqual([]);
   });
 
@@ -486,7 +484,6 @@ describe("kernel-ready", () => {
         payload: undefined,
       });
 
-      expect(next.cellRuntime[CELL_A].serialization).toBeUndefined();
       expect(next.cellRuntime[CELL_B].embeddedConsole[0]).toMatchObject({
         data: "hydrated-B-stdout",
       });

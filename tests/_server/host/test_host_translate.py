@@ -876,7 +876,7 @@ def test_a_conflict_reads_the_same_from_analysis_and_from_execution() -> None:
     document = Document(
         [DocumentCell(CellId(cid), code) for cid, code in codes.items()], {}
     )
-    (analyzed,) = CellAnalyzer()(document)[CellId("a")].errors
+    (analyzed,) = CellAnalyzer()(document)[CellId("a")].diagnostics
 
     t = RunTranslator(RunId("r1"), lambda: list(codes))
     t.feed(planned("a", "x = 1"))
@@ -888,18 +888,18 @@ def test_a_conflict_reads_the_same_from_analysis_and_from_execution() -> None:
     assert isinstance(completed.outcome, ExecutionFailedOutcome)
     executed = completed.outcome.error
 
-    def without_ranges(described: Error) -> Error:
-        return msgspec.structs.replace(
-            described,
-            range=None,
-            related=tuple(
-                msgspec.structs.replace(r, range=None)
-                for r in described.related
-            ),
-        )
-
-    assert executed.range is None
-    assert without_ranges(executed) == without_ranges(analyzed)
+    assert executed == Error(
+        kind=analyzed.kind,
+        source=analyzed.source,
+        message=analyzed.message,
+        severity=analyzed.severity,
+        related=tuple(
+            msgspec.structs.replace(r, range=None) for r in analyzed.related
+        ),
+        range=None,
+        name=None,
+        traceback=None,
+    )
     assert [r.cell_id for r in executed.related] == ["b", "a"]
 
 

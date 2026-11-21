@@ -398,7 +398,7 @@ describe("useNotebookSession messages", () => {
             {
               defs: [],
               refs: [],
-              errors: [],
+              diagnostics: [],
               ...(parents && { parents: parents[id] }),
             },
           ]),

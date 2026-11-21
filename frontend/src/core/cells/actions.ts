@@ -656,7 +656,6 @@ export function useCellActions() {
   // The session feeds the kernel's messages and the document into the
   // notebook through `useReducerActions`; components get the operations.
   const {
-    setCellReusability: _setCellReusability,
     addLogs: _addLogs,
     reconcileDocument: _reconcileDocument,
     resetCellRuntimes: _resetCellRuntimes,

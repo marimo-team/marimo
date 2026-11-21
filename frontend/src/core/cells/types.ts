@@ -78,15 +78,10 @@ export interface CellRuntimeState {
     seq: number;
     prompts: ReadonlySet<string>;
   };
-  /** serialization message. TODO(MO-8414) */
-  serialization?: string | null;
 }
 
 /** The cell runtime fields available to renderers. */
-export interface CellRuntimeView extends Pick<
-  CellRuntimeState,
-  "serialization"
-> {
+export interface CellRuntimeView {
   consoleOutputs: ConsoleOutputMessage[];
 }
 

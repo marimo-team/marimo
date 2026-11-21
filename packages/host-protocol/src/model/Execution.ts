@@ -3,7 +3,7 @@
 /** Runs, their executions, and how each one ended. */
 
 import { Schema } from "effect";
-import { Integer } from "../internal/schema.ts";
+import { DiagnosticSeverity, Integer } from "../internal/schema.ts";
 import {
   NotebookId,
   RuntimeId,
@@ -199,12 +199,7 @@ export const Error = Schema.Struct({
     description:
       "Who produced it, such as `marimo` or a SQL analyzer. Scopes kind.",
   }),
-  severity: Schema.Literals([
-    "error",
-    "warning",
-    "information",
-    "hint",
-  ]).annotateKey({
+  severity: DiagnosticSeverity.annotateKey({
     description:
       "Error unless the producer says otherwise. Only error affects scheduling.",
   }),

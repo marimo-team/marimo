@@ -5,6 +5,11 @@ so clients can understand its dependency graph and identify problems before
 execution. Because editing one cell can affect others, analysis covers the
 whole document at one revision.
 
+Each cell carries its analyzer findings in `diagnostics`. A finding identifies
+its `source` and `kind`, gives a severity and a message, and has a range
+relative to that cell or null. Related locations can point to other cells
+in the same revision. An empty list clears earlier findings.
+
 A host that provides the dependency graph includes `parents` on every cell.
 Each entry is the ID of a distinct direct dependency in the same revision.
 The list is unordered, and the graph can contain cycles. An empty list means

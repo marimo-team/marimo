@@ -19,8 +19,8 @@ it("counts only distinct disabled ancestors in a cycle", () => {
     notebook_id: "n1",
     document_etag: "v1",
     cells: {
-      a: { defs: [], refs: [], parents: ["b"], errors: [] },
-      b: { defs: [], refs: [], parents: ["a"], errors: [] },
+      a: { defs: [], refs: [], parents: ["b"], diagnostics: [] },
+      b: { defs: [], refs: [], parents: ["a"], diagnostics: [] },
     },
   };
   const disabled = (id: string) =>
