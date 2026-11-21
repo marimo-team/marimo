@@ -292,6 +292,28 @@ def test_altair_formatter_embed_options():
         alt.renderers.set_embed_options()
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
+def test_altair_formatter_does_not_mutate_chart():
+    AltairFormatter().register()
+    import altair as alt
+
+    chart = (
+        alt.Chart(get_data())
+        .mark_point()
+        .encode(x="Horsepower", y="Miles_per_Gallon")
+    )
+    formatter = get_formatter(chart)
+    assert formatter is not None
+    _, content = formatter(chart)
+
+    # embed options still make it to the output ...
+    assert "usermeta" in json.loads(content)
+    # ... but the user's chart is untouched, so it can be concatenated
+    assert chart.usermeta is alt.Undefined
+    (chart | chart).to_dict()
+    (chart + chart).to_dict()
+
+
 def test_apply_format_locales_with_vl_convert() -> None:
     format_locale = {"decimal": "."}
     time_format_locale = {"date": "%m/%d/%Y"}
