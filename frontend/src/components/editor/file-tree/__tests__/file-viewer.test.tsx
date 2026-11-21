@@ -154,6 +154,40 @@ describe("FileViewer bounded previews", () => {
     expect(editor).not.toHaveAttribute("readonly");
   });
 
+  it("toggles Markdown files between editable source and rendered preview", async () => {
+    const readme: FileInfo = {
+      ...file,
+      id: "/workspace/README.md",
+      path: "/workspace/README.md",
+      name: "README.md",
+      size: 30,
+    };
+
+    renderViewer({
+      file: readme,
+      contents: "# Project README\n\nThis is the project guide.",
+      mimeType: "text/plain",
+      isBase64: false,
+      isTooLarge: false,
+    });
+
+    const editor =
+      await screen.findByTestId<HTMLTextAreaElement>("code-editor");
+    expect(editor).toBeVisible();
+    expect(editor).not.toHaveAttribute("readonly");
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Preview" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Project README" }),
+    ).toBeVisible();
+    expect(screen.queryByTestId("code-editor")).not.toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Source" }));
+
+    expect(await screen.findByTestId("code-editor")).toBeVisible();
+  });
+
   it("preserves edits to an initially empty text file across remount", async () => {
     const emptyFile: FileInfo = {
       id: "/workspace/empty.txt",
