@@ -7,7 +7,7 @@ import { store } from "@/core/state/jotai";
 /**
  * Whether a URL can be trusted to point at a marimo-served virtual file.
  *
- * Plugins that load remote scripts or stylesheets (e.g. MplInteractive, Panel)
+ * Plugins that load remote scripts or stylesheets (e.g. Panel)
  * must call this before turning a plugin-supplied URL into a `<script src>` or
  * `<link href>`. The backend normally serializes these URLs as virtual file
  * paths of the form `./@file/<byte_length>-<filename>` (see

@@ -111,13 +111,6 @@ alt.data_transformers.enable('marimo_csv')
 
 ::: marimo.ui.plotly
 
-## Interactive matplotlib
-
-::: marimo.mpl.interactive
-    options:
-      show_root_heading: true
-      show_source: true
-
 ## Leafmap
 
 marimo supports rendering [Leafmap](https://leafmap.org/) maps using the `folium` and `plotly` backends.

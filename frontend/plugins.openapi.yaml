@@ -1681,34 +1681,6 @@ paths:
       responses:
         "204":
           description: Accepted.
-  /plugins/marimo-mpl-interactive/data:
-    summary: marimo-mpl-interactive data
-    get:
-      operationId: read_marimo_mpl_interactive_data
-      summary: Read marimo-mpl-interactive data
-      tags:
-        - plugin-data
-      responses:
-        "200":
-          description: marimo-mpl-interactive data accepted by a plugin consumer.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/marimo-mpl-interactive.data"
-    put:
-      operationId: write_marimo_mpl_interactive_data
-      summary: Write marimo-mpl-interactive data
-      tags:
-        - plugin-data
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/marimo-mpl-interactive.data"
-      responses:
-        "204":
-          description: Accepted.
   /plugins/marimo-multiselect/data:
     summary: marimo-multiselect data
     get:
@@ -4258,29 +4230,6 @@ components:
       required:
         - mime
         - data
-    marimo-mpl-interactive.data:
-      type: object
-      properties:
-        mplJsUrl:
-          type: string
-        cssUrl:
-          type: string
-        toolbarImages:
-          type: object
-          propertyNames:
-            type: string
-          additionalProperties:
-            type: string
-        width:
-          type: number
-        height:
-          type: number
-      required:
-        - mplJsUrl
-        - cssUrl
-        - toolbarImages
-        - width
-        - height
     marimo-multiselect.data:
       type: object
       properties:

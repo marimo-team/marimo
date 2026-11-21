@@ -433,8 +433,9 @@ If you want to output the plot in the console area, use `plt.show()` or
 
 ### Interactive plots with pan and zoom
 
-To make matplotlib plots interactive with pan and zoom, use
-[mo.mpl.interactive][marimo.mpl.interactive]. This does not support reactive selection.
+Pass `brush=False, pan=True, zoom=True` to `mo.ui.matplotlib` for a plot you
+can explore by dragging and scrolling.
+See [Brush, pan, and zoom](#brush-pan-and-zoom) for more options.
 
 ## Chart builder
 
