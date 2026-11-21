@@ -56,6 +56,8 @@ from marimo._utils.narwhals_utils import (
 )
 
 if TYPE_CHECKING:
+    from duckdb.sqltypes import DuckDBPyType
+
     from marimo._plugins.ui._impl.table import SortArgs
 
 LOGGER = _loggers.marimo_logger()
@@ -66,6 +68,18 @@ UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API althou
 NAN_VALUE = "NaN"
 POSITIVE_INF = str(float("inf"))
 NEGATIVE_INF = str(float("-inf"))
+
+
+def _duckdb_type_contains_variant(dtype: DuckDBPyType) -> bool:
+    if dtype.id == "variant":
+        return True
+    if dtype.id in {"list", "struct", "map", "array", "union"}:
+        return any(
+            _duckdb_type_contains_variant(child)
+            for _, child in dtype.children
+            if not isinstance(child, (int, list))
+        )
+    return False
 
 
 def _duckdb_snapshot_needs_text(dtype: Any) -> bool:
@@ -137,6 +151,19 @@ class NarwhalsTableManager(
         if is_narwhals_lazyframe(self.data):
             return self.data
         return self.data.lazy()
+
+    @cached_property
+    def _duckdb_variant_columns(self) -> dict[str, str]:
+        if not self.data.implementation.is_duckdb():
+            return {}
+        native = self.data.to_native()
+        if not is_duckdb_relation(native):
+            return {}
+        return {
+            name: str(dtype)
+            for name, dtype in zip(native.columns, native.types, strict=True)
+            if _duckdb_type_contains_variant(dtype)
+        }
 
     def with_new_data(
         self, data: nw.DataFrame[Any] | nw.LazyFrame[Any]
@@ -426,6 +453,8 @@ class NarwhalsTableManager(
         info = self._geometry_columns.get(column_name)
         if info is not None:
             return ("geometry", info.external_type)
+        if column_name in self._duckdb_variant_columns:
+            return ("unknown", self._duckdb_variant_columns[column_name])
         return self._get_field_type_from_dtype(column_name)
 
     def _get_field_type_from_dtype(
