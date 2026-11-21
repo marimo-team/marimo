@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Final,
+    Literal,
     Protocol,
     cast,
 )
@@ -23,9 +23,26 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure  # type: ignore[import-untyped]
     from numpy.typing import ArrayLike, NDArray
 
+    from marimo._messaging.mimetypes import KnownMimeType
+
+
+Dimension = bool | Literal["x", "y"]
+
 
 class MatplotlibSelection(Protocol):
     def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]: ...
+
+
+def _panel_geometry(ax: Axes) -> dict[str, JSONType]:
+    figure = ax.figure.canvas.figure
+    bbox = ax.bbox.transformed(figure.transFigure.inverted())
+    return {
+        "rect": [bbox.x0, 1 - bbox.y1, bbox.x1, 1 - bbox.y0],
+        "x": list(ax.get_xlim()),
+        "y": list(ax.get_ylim()),
+        "xScale": ax.get_xscale(),
+        "yScale": ax.get_yscale(),
+    }
 
 
 def _to_numeric(arr: NDArray[Any]) -> NDArray[Any]:
@@ -88,6 +105,23 @@ class BoxSelection:
                 & (y_arr >= self.y_min)
                 & (y_arr <= self.y_max)
             )
+
+
+@dataclass(frozen=True)
+class RangeSelection:
+    axis: Literal["x", "y"]
+    minimum: float
+    maximum: float
+
+    def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]:
+        import numpy as np
+
+        values = np.asarray(x if self.axis == "x" else y)
+        try:
+            return (values >= self.minimum) & (values <= self.maximum)
+        except TypeError:
+            values = _to_numeric(values)
+            return (values >= self.minimum) & (values <= self.maximum)
 
 
 @dataclass(frozen=True)
@@ -155,20 +189,17 @@ class EmptySelection:
         return False
 
 
-def _figure_pixel_size(figure: Figure) -> tuple[float, float]:
-    """Get figure dimensions in pixels."""
-    dpi = figure.get_dpi()
-    width_in, height_in = figure.get_size_inches()
-    return width_in * dpi, height_in * dpi
-
-
 def _figure_to_base64(figure: Figure) -> str:
     """Render a matplotlib figure to a base64-encoded PNG data URL."""
-    buf = io.BytesIO()
-    figure.savefig(buf, format="png", dpi=figure.get_dpi(), bbox_inches=None)
-    buf.seek(0)
-    encoded = base64.b64encode(buf.read()).decode("utf-8")
-    buf.close()
+    # Keep the full figure in the snapshot so the brush can use figure coordinates.
+    with io.BytesIO() as buf:
+        figure.savefig(
+            buf,
+            format="png",
+            dpi=2 * figure.get_dpi(),
+            bbox_inches=figure.bbox_inches.frozen(),
+        )
+        encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
 
@@ -180,8 +211,7 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
     selection or a freehand lasso selection on the frontend, then use the
     selection geometry in Python to filter your data.
 
-    The figure is rendered as a static image with an interactive selection
-    overlay:
+    The Matplotlib widget renders the figure. By default, you can:
 
     - click and drag for box selection;
     - hold the `Shift` key and drag for lasso selection.
@@ -212,19 +242,18 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         ```
 
     Attributes:
-        value: The selected data, with `get_mask(x, y)` returning a
-            mask array corresponding to the selection.
+        value: The current selection. Use `get_mask(x, y)` to find the selected points.
 
     Args:
-        axes: A matplotlib `Axes` object. The full figure is rendered,
-            but selections map to this axes' coordinate space.
+        axes: The Matplotlib Axes to display.
         value: Initial box selection as `{"x": (min, max), "y": (min, max)}`.
+            A one-dimensional brush needs only its selected dimension.
             The selection is clamped to the axes' bounds.
+        brush: Enable selection in both dimensions (the default), disable it
+            with `False`, or select a range with `"x"` or `"y"`.
         debounce: If `True`, the selection is only sent to Python on
             mouse-up. If `False` (the default), it streams while dragging.
     """
-
-    name: Final[str] = "marimo-matplotlib"
 
     def __init__(
         self,
@@ -232,55 +261,40 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         value: dict[str, tuple[float, float]] | None = None,
         *,
         debounce: bool = False,
+        brush: Dimension = True,
     ) -> None:
         DependencyManager.matplotlib.require("for `mo.ui.matplotlib`")
 
-        from matplotlib.figure import Figure  # type: ignore[import-untyped]
+        from matplotlib.axes import Axes
 
-        figure = axes.get_figure()
-        if not isinstance(figure, Figure):
+        if not isinstance(axes, Axes):
+            raise TypeError("Expected a Matplotlib Axes.")
+        if axes.get_figure() is None:
             raise ValueError("Axes must be attached to a figure.")
-        self._ax: Axes = axes
+        self._ax = axes
+        figure = axes.figure.canvas.figure
+        if not isinstance(brush, bool) and brush not in ("x", "y"):
+            raise ValueError("brush must be True, False, 'x', or 'y'.")
+        self._brush = brush
 
-        # Validate scales first (fail fast, no side effects)
-        _SUPPORTED_SCALES = ("linear", "log")
-        x_scale = axes.get_xscale()
-        y_scale = axes.get_yscale()
-        if x_scale not in _SUPPORTED_SCALES:
-            raise ValueError(
-                f"Unsupported x-axis scale {x_scale!r}. "
-                f"mo.ui.matplotlib supports: {', '.join(_SUPPORTED_SCALES)}."
-            )
-        if y_scale not in _SUPPORTED_SCALES:
-            raise ValueError(
-                f"Unsupported y-axis scale {y_scale!r}. "
-                f"mo.ui.matplotlib supports: {', '.join(_SUPPORTED_SCALES)}."
-            )
+        for dim, scale in (("x", axes.get_xscale()), ("y", axes.get_yscale())):
+            if scale not in ("linear", "log"):
+                raise ValueError(
+                    f"Unsupported {dim}-axis scale {scale!r}. "
+                    "mo.ui.matplotlib supports: linear, log."
+                )
 
-        # Render the figure first — savefig triggers the draw which
-        # finalizes layout (tight_layout, constrained_layout, etc.)
-        chart_base64 = _figure_to_base64(figure)
-
-        # Now capture axes position — reflects post-layout bounds
-        fig_width_px, fig_height_px = _figure_pixel_size(figure)
-        bbox = axes.get_position()
-        axes_pixel_bounds: list[float] = [
-            bbox.x0 * fig_width_px,  # left
-            (1 - bbox.y1) * fig_height_px,  # top
-            bbox.x1 * fig_width_px,  # right
-            (1 - bbox.y0) * fig_height_px,  # bottom
-        ]
-
-        x_bounds = axes.get_xlim()
-        y_bounds = axes.get_ylim()
+        self._figure = figure
         initial_value: dict[str, JSONType] = {}
-        if value is not None:
+        if value is not None and brush is not False:
+            x_bounds = axes.get_xlim()
+            y_bounds = axes.get_ylim()
             try:
                 selection_x_min, selection_x_max = sorted(
-                    map(float, value["x"])
+                    map(float, x_bounds if brush == "y" else value["x"])
                 )
                 selection_y_min, selection_y_max = sorted(
-                    map(float, value["y"])
+                    map(float, y_bounds if brush == "x" else value["y"])
                 )
             except Exception:
                 raise ValueError(
@@ -303,39 +317,103 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
                         "y_max": y_max,
                     },
                 }
+
+        from marimo._output.hypertext import is_non_interactive
+        from marimo._runtime.context import safe_get_context
+        from marimo._runtime.context.kernel_context import KernelRuntimeContext
+
+        ctx = safe_get_context()
+        self._plot_widget = None
+        if not is_non_interactive() and (
+            not isinstance(ctx, KernelRuntimeContext)
+            or ctx.virtual_files_supported
+        ):
+            try:
+                from marimo._plugins.ui._impl.mpl_widget import (
+                    _CloseView,
+                    _PlotWidget,
+                )
+            except ModuleNotFoundError as exc:
+                if exc.name not in {
+                    "matplotlib.backends.backend_anywidget",
+                    "jupyter_rfb",
+                    "anywidget",
+                    "ipywidgets",
+                    "traitlets",
+                }:
+                    raise
+                raise ImportError(
+                    "Live plots require a Matplotlib version with the anywidget "
+                    "backend. Install its widget extra with "
+                    "pip install 'matplotlib[widget]'."
+                ) from exc
+            self._plot_widget = _PlotWidget(
+                axes,
+                selection=initial_value,
+                brush=brush,
+                debounce=debounce,
+            )
+            if isinstance(ctx, KernelRuntimeContext):
+                ctx.cell_lifecycle_registry.add(_CloseView(self._plot_widget))
+        model_id = (
+            self._plot_widget.model_id if self._plot_widget is not None else ""
+        )
         super().__init__(
-            component_name=matplotlib.name,
+            component_name="marimo-anywidget",
             initial_value=initial_value,
             label="",
-            args={
-                "chart-base64": chart_base64,
-                "x-bounds": list(x_bounds),
-                "y-bounds": list(y_bounds),
-                "axes-pixel-bounds": axes_pixel_bounds,
-                "width": fig_width_px,
-                "height": fig_height_px,
-                "debounce": debounce,
-                "x-scale": x_scale,
-                "y-scale": y_scale,
-            },
+            args={"model-id": model_id},
             on_change=None,
         )
+        if self._plot_widget is not None:
+            from marimo._plugins.ui._impl.comm import MarimoComm
+
+            if isinstance(self._plot_widget.comm, MarimoComm):
+                self._plot_widget.comm.ui_element_id = self._id
+
+    def _frontend_initial_value(
+        self, value: dict[str, JSONType]
+    ) -> dict[str, JSONType]:
+        del value
+        return {
+            "model_id": self._plot_widget.model_id if self._plot_widget else ""
+        }
+
+    @property
+    def text(self) -> str:
+        if self._plot_widget is None:
+            return f'<img alt="Matplotlib figure" src="{_figure_to_base64(self._figure)}">'
+        return super().text
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        if self._plot_widget is None:
+            return ("image/png", _figure_to_base64(self._figure))
+        return super()._mime_()
 
     @property
     def axes(self) -> Axes:
-        """The associated matplotlib Axes object."""
+        """The Matplotlib object passed to the constructor."""
         return self._ax
 
     def _convert_value(
         self, value: dict[str, JSONType]
     ) -> MatplotlibSelection:
-        if not value or not value.get("has_selection"):
+        if "selection" in value:
+            value = cast(dict[str, JSONType], value["selection"])
+        if not self._brush or not value or not value.get("has_selection"):
             return EmptySelection()
         sel_type = value.get("type")
         data = value.get("data")
 
         if sel_type == "box":
             data = cast(dict[str, float], data)
+            if isinstance(self._brush, str):
+                axis = self._brush
+                return RangeSelection(
+                    axis,
+                    float(data[f"{axis}_min"]),
+                    float(data[f"{axis}_max"]),
+                )
             return BoxSelection(
                 x_min=float(data["x_min"]),
                 x_max=float(data["x_max"]),

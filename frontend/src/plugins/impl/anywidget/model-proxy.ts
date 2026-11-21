@@ -31,9 +31,7 @@ export function modelProxy<T extends ModelState>(
     set(key, value) {
       model.set(key, value);
     },
-    save_changes() {
-      model.save_changes();
-    },
+    save_changes: model.save_changes.bind(model),
     send: model.send.bind(model),
     on(name: string, callback: ModelEventCallback): void {
       if (signal.aborted) {

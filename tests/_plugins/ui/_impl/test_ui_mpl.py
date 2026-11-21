@@ -1,9 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import io
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -11,10 +12,20 @@ from marimo._plugins.ui._impl.mpl import (
     BoxSelection,
     EmptySelection,
     LassoSelection,
-    _figure_pixel_size,
-    _figure_to_base64,
+    RangeSelection,
     matplotlib,
 )
+
+if TYPE_CHECKING:
+    from typing import assert_type
+
+    from matplotlib.axes import Axes
+
+    from marimo._plugins.ui._impl.mpl import MatplotlibSelection
+
+    def _check_value(ax: Axes) -> None:
+        assert_type(matplotlib(ax).value, MatplotlibSelection)
+
 
 mpl = pytest.importorskip("matplotlib")
 mpl.use("Agg")  # Non-interactive backend for testing
@@ -124,30 +135,18 @@ def test_unsupported_yscale_raises() -> None:
         matplotlib(ax)
 
 
-def test_construction_args() -> None:
+@pytest.mark.parametrize("brush", [True, False, "x", "y"])
+def test_modes_share_the_figure_widget(brush) -> None:
     ax = _make_scatter_ax()
-    fig = matplotlib(ax)
-
-    args = fig._component_args
-    assert "chart-base64" in args
-    assert "x-bounds" in args
-    assert "y-bounds" in args
-    assert "axes-pixel-bounds" in args
-    assert "width" in args
-    assert "height" in args
-
-    assert isinstance(args["chart-base64"], str)
-    assert args["chart-base64"].startswith("data:image/png;base64,")
-    assert len(args["x-bounds"]) == 2
-    assert len(args["y-bounds"]) == 2
-    assert len(args["axes-pixel-bounds"]) == 4
-    assert args["width"] > 0
-    assert args["height"] > 0
-
-    # Style args should NOT be present (removed from public API)
-    assert "selection-color" not in args
-    assert "selection-opacity" not in args
-    assert "stroke-width" not in args
+    view = matplotlib(ax, brush=brush)
+    widget = view._plot_widget
+    assert view._component_args == {"model-id": widget.model_id}
+    assert widget.figure_ref == f"anywidget:{widget.figure_widget.model_id}"
+    assert widget.figure_widget.canvas.figure is ax.figure
+    assert widget.options == {
+        "brush": brush,
+        "debounce": False,
+    }
 
 
 # ============================================================================
@@ -289,22 +288,20 @@ def test_lasso_selection_get_mask() -> None:
 # ============================================================================
 
 
-def test_figure_pixel_size() -> None:
-    fig, ax = plt.subplots()
-    ax.scatter([1, 2, 3], [4, 5, 6])
+def test_figure_to_base64(monkeypatch) -> None:
+    monkeypatch.setenv("MARIMO_NO_JS", "true")
+    fig, ax = plt.subplots(figsize=(6.4, 2.3), dpi=100)
     plt.close(fig)
-    w, h = _figure_pixel_size(fig)
-    assert w > 0
-    assert h > 0
-
-
-def test_figure_to_base64() -> None:
-    fig, ax = plt.subplots()
-    ax.scatter([1, 2, 3], [4, 5, 6])
-    plt.close(fig)
-    result = _figure_to_base64(fig)
-    assert result.startswith("data:image/png;base64,")
-    assert len(result) > 50
+    with mpl.rc_context({"savefig.bbox": "tight"}):
+        widget = matplotlib(ax)
+    mimetype, uri = widget._mime_()
+    assert mimetype == "image/png"
+    assert widget._plot_widget is None
+    prefix, data = uri.split(",", 1)
+    assert prefix == "data:image/png;base64"
+    pixels = plt.imread(io.BytesIO(base64.b64decode(data)), format="png")
+    assert pixels.shape[:2] == (460, 1280)
+    assert fig.get_dpi() == 100
 
 
 # ============================================================================
@@ -312,77 +309,58 @@ def test_figure_to_base64() -> None:
 # ============================================================================
 
 
-def test_axes_bounds_match_constrained_layout() -> None:
-    """Axes bounds should reflect post-layout position with constrained_layout."""
-    fig, ax = plt.subplots(constrained_layout=True)
-    ax.scatter([1, 2, 3], [4, 5, 6])
-    ax.set_xlabel("X label")
-    ax.set_ylabel("Y label")
-    ax.set_title("Title")
-    plt.close(fig)
-
-    widget = matplotlib(ax)
-    args = widget._component_args
-
-    # Render independently with the same settings to get expected bounds
-    fig2 = ax.get_figure()
-    fig2.savefig(
-        io.BytesIO(), format="png", dpi=fig2.get_dpi(), bbox_inches=None
-    )
-    bbox = ax.get_position()
-    w, h = _figure_pixel_size(fig2)
-
-    expected = [
-        bbox.x0 * w,
-        (1 - bbox.y1) * h,
-        bbox.x1 * w,
-        (1 - bbox.y0) * h,
-    ]
-    for actual, exp in zip(args["axes-pixel-bounds"], expected, strict=False):
-        assert abs(actual - exp) < 1e-6
+@pytest.mark.parametrize("layout", ["constrained", "tight"])
+def test_axes_bounds_follow_layout(layout):
+    fig, ax = plt.subplots(layout=layout)
+    ax.set(xlabel="Time", ylabel="Temperature", title="Weather")
+    widget = matplotlib(ax)._plot_widget.figure_widget
+    try:
+        widget.canvas.draw()
+        bbox = ax.get_position()
+        assert widget.geometry["rect"] == pytest.approx(
+            [bbox.x0, 1 - bbox.y1, bbox.x1, 1 - bbox.y0]
+        )
+    finally:
+        widget.close()
+        plt.close(fig)
 
 
-def test_axes_bounds_match_tight_layout() -> None:
-    """Axes bounds should reflect post-layout position with tight_layout."""
-    fig, ax = plt.subplots()
-    ax.scatter([1, 2, 3], [4, 5, 6])
-    ax.set_xlabel("X label")
-    ax.set_ylabel("Y label")
-    ax.set_title("Title")
-    fig.tight_layout()
-    plt.close(fig)
+def test_constructing_plot_does_not_display_a_jupyter_output(monkeypatch):
+    pytest.importorskip("matplotlib.backends.backend_anywidget")
+    import IPython.display
+    import jupyter_rfb.widget
+    from ipywidgets import Output
 
-    widget = matplotlib(ax)
-    args = widget._component_args
+    from marimo._output.formatters.ipython_formatters import IPythonFormatter
+    from marimo._runtime.output import _output
 
-    # Render independently with the same settings to get expected bounds
-    fig2 = ax.get_figure()
-    fig2.savefig(
-        io.BytesIO(), format="png", dpi=fig2.get_dpi(), bbox_inches=None
-    )
-    bbox = ax.get_position()
-    w, h = _figure_pixel_size(fig2)
-
-    expected = [
-        bbox.x0 * w,
-        (1 - bbox.y1) * h,
-        bbox.x1 * w,
-        (1 - bbox.y0) * h,
-    ]
-    for actual, exp in zip(args["axes-pixel-bounds"], expected, strict=False):
-        assert abs(actual - exp) < 1e-6
-
-
-# ============================================================================
-# HTML output tests
-# ============================================================================
+    emitted = []
+    monkeypatch.setattr(_output, "append", emitted.append)
+    restore = IPythonFormatter().register()
+    try:
+        monkeypatch.setattr(
+            jupyter_rfb.widget, "display", IPython.display.display
+        )
+        plot = matplotlib(_make_scatter_ax())
+        try:
+            assert emitted == []
+            output = Output()
+            try:
+                IPython.display.display(output)
+                assert emitted == [output]
+            finally:
+                output.close()
+        finally:
+            plot._plot_widget.close()
+    finally:
+        restore()
 
 
 def test_html_contains_tag() -> None:
     ax = _make_scatter_ax()
     fig = matplotlib(ax)
     html = fig.text
-    assert "marimo-matplotlib" in html
+    assert "marimo-anywidget" in html
 
 
 # ============================================================================
@@ -461,3 +439,34 @@ def test_lasso_selection_get_mask_datetime() -> None:
     assert not mask[0]  # outside triangle
     assert mask[1]  # inside triangle
     assert not mask[2]  # outside triangle
+
+
+def test_single_axes_in_right_subfigure():
+    fig = plt.figure()
+    _, right = fig.subfigures(1, 2)
+    ax = right.subplots()
+    try:
+        view = matplotlib(ax)
+        left = view._plot_widget.figure_widget.geometry["rect"][0]
+        assert left > 0.5
+    finally:
+        plt.close(fig)
+
+
+def test_invalid_dimension():
+    with pytest.raises(ValueError, match="brush"):
+        matplotlib(_make_scatter_ax(), brush="z")
+
+
+@pytest.mark.parametrize("axis", ["x", "y"])
+def test_range_brush_filters_only_its_dimension(axis):
+    fig = matplotlib(_make_scatter_ax(), brush=axis, value={axis: (2, 4)})
+    assert fig.value == RangeSelection(axis, 2, 4)
+    points = [1, 2, 4, 5]
+    outside_view = [100] * len(points)
+    coordinates = (
+        (points, outside_view) if axis == "x" else (outside_view, points)
+    )
+    np.testing.assert_array_equal(
+        fig.value.get_mask(*coordinates), [False, True, True, False]
+    )
