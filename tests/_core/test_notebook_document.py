@@ -691,7 +691,7 @@ def cell_analyses(
 ) -> dict[protocol.CellId, protocol.CellAnalysis]:
     """A placeholder analysis of every cell in the document."""
     return {
-        cell.id: protocol.CellAnalysis(defs=(), refs=(), errors=())
+        cell.id: protocol.CellAnalysis(defs=(), refs=(), diagnostics=())
         for cell in document
     }
 

@@ -39,7 +39,7 @@ class HostAnalyzer:
 @dataclass(frozen=True)
 class _CachedCell:
     code: str
-    result: CellImpl | protocol.Error
+    result: CellImpl | protocol.CellDiagnostic
 
 
 class CellAnalyzer:
@@ -57,7 +57,7 @@ class CellAnalyzer:
             cached = self._cache.get(cell.id)
             if cached is None or cached.code != cell.code:
                 try:
-                    result: CellImpl | protocol.Error = compile_cell(
+                    result: CellImpl | protocol.CellDiagnostic = compile_cell(
                         cell.code, CellId_t(cell.id)
                     )
                 except (SyntaxError, ValueError) as error:
@@ -74,9 +74,9 @@ class CellAnalyzer:
         analyses: dict[protocol.CellId, protocol.CellAnalysis] = {}
         for cell in document:
             compiled = cache[cell.id].result
-            if isinstance(compiled, protocol.Error):
+            if isinstance(compiled, protocol.CellDiagnostic):
                 analyses[cell.id] = protocol.CellAnalysis(
-                    defs=(), refs=(), parents=(), errors=(compiled,)
+                    defs=(), refs=(), parents=(), diagnostics=(compiled,)
                 )
             else:
                 refs = resolve_cell_references(
@@ -92,7 +92,7 @@ class CellAnalyzer:
                         protocol.CellId(parent)
                         for parent in sorted(graph.parents[CellId_t(cell.id)])
                     ),
-                    errors=tuple(
+                    diagnostics=tuple(
                         diagnostics.multiple_definitions(
                             cell.id,
                             error.name,
@@ -147,14 +147,12 @@ class CellAnalyzer:
         )
 
 
-def _syntax_error(code: str, e: Exception) -> protocol.Error:
+def _syntax_error(code: str, e: Exception) -> protocol.CellDiagnostic:
     where = None
     if isinstance(e, SyntaxError) and e.lineno is not None:
         line = e.lineno - 1
         character = diagnostics.utf16(code, line, (e.offset or 1) - 1)
-        where = protocol.Range(
-            start=protocol.Position(line=line, character=character),
-            end=protocol.Position(line=line, character=character),
-        )
+        point = protocol.Position(line=line, character=character)
+        where = protocol.Range(start=point, end=point)
     message = e.msg if isinstance(e, SyntaxError) else str(e)
-    return diagnostics.error("invalid-syntax", message, range_=where)
+    return diagnostics.analysis_error("invalid-syntax", message, range_=where)

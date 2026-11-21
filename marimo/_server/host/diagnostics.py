@@ -38,6 +38,36 @@ def error(
     )
 
 
+def analysis_error(
+    kind: str,
+    message: str,
+    *,
+    range_: protocol.Range | None = None,
+    related: tuple[protocol.Related, ...] = (),
+) -> protocol.CellDiagnostic:
+    return protocol.CellDiagnostic(
+        source=SOURCE,
+        kind=kind,
+        severity="error",
+        message=message,
+        range=range_,
+        related=related,
+    )
+
+
+def as_execution_error(finding: protocol.CellDiagnostic) -> protocol.Error:
+    return protocol.Error(
+        source=finding.source,
+        kind=finding.kind,
+        severity=finding.severity,
+        message=finding.message,
+        range=finding.range,
+        related=finding.related,
+        name=None,
+        traceback=None,
+    )
+
+
 def utf16(code: str, line: int, column: int) -> int:
     """Convert a source column to UTF-16 code units."""
     lines = code.split("\n")
@@ -72,11 +102,11 @@ def depends_on(edges: Iterable[EdgeWithVar]) -> tuple[protocol.Related, ...]:
     )
 
 
-def cycle(found: CycleError) -> protocol.Error:
+def cycle(found: CycleError) -> protocol.CellDiagnostic:
     """The cycle in dependency order, starting at the same cell for any rotation."""
     edges = found.edges_with_vars
     start = min(range(len(edges)), key=lambda index: edges[index][2])
-    return error(
+    return analysis_error(
         "cycle-dependencies",
         found.describe(),
         related=depends_on(edges[start:] + edges[:start]),
@@ -90,9 +120,9 @@ def multiple_definitions(
     where: Callable[[protocol.CellId, str], protocol.Range | None] = (
         lambda _cell, _name: None
     ),
-) -> protocol.Error:
+) -> protocol.CellDiagnostic:
     """Every cell defining `name`, in the order given, placed at each definition."""
-    return error(
+    return analysis_error(
         "multiple-definitions",
         f"Multiple cells define {name}",
         range_=None if cell_id is None else where(cell_id, name),

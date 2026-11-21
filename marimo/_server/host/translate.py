@@ -611,7 +611,7 @@ def _describe(
             "invalid-syntax", error.msg, range_=_point(error.lineno)
         )
     if isinstance(error, CycleError):
-        return diagnostics.cycle(error)
+        return diagnostics.as_execution_error(diagnostics.cycle(error))
     if isinstance(error, SetupRootError):
         return diagnostics.error(
             "setup-refs",
@@ -622,16 +622,13 @@ def _describe(
         definers: set[str] = set(error.cells)
         if cell_id is not None:
             definers.add(cell_id)
-        return diagnostics.multiple_definitions(
+        ordered = sorted(definers, key=diagnostics.by_position(cell_order()))
+        finding = diagnostics.multiple_definitions(
             None if cell_id is None else protocol.CellId(cell_id),
             error.name,
-            [
-                protocol.CellId(definer)
-                for definer in sorted(
-                    definers, key=diagnostics.by_position(cell_order())
-                )
-            ],
+            (protocol.CellId(definer) for definer in ordered),
         )
+        return diagnostics.as_execution_error(finding)
     if isinstance(error, ImportStarError):
         return diagnostics.error(
             "import-star", error.msg, range_=_point(error.lineno)

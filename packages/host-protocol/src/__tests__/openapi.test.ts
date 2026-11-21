@@ -91,5 +91,11 @@ it("adds experimental features without changing the stable protocol", () => {
     Object.keys(extended)
       .filter((name) => !(name in schemas))
       .toSorted(),
-  ).toEqual(["Analysis", "AnalysisEvent", "AnalysisMessage", "CellAnalysis"]);
+  ).toEqual([
+    "Analysis",
+    "AnalysisEvent",
+    "AnalysisMessage",
+    "CellAnalysis",
+    "CellDiagnostic",
+  ]);
 });

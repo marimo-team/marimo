@@ -933,6 +933,23 @@ class Cell(Struct, frozen=True):
     ]
 
 
+class CellDiagnostic(Struct, frozen=True):
+    kind: Annotated[str, Meta(description="Identifier scoped to the source.")]
+    message: str
+    range: (
+        Annotated[
+            Range,
+            Meta(
+                description="Span in this cell, or null for a whole-cell finding or unknown location."
+            ),
+        ]
+        | None
+    )
+    related: tuple[Related, ...]
+    severity: Literal["error", "warning", "information", "hint"]
+    source: Annotated[str, Meta(description="Analyzer that defines the kind.")]
+
+
 class CellMessage(Struct, frozen=True):
     cell: Cell
     request_id: (
@@ -1650,8 +1667,8 @@ class CellAnalysis(Struct, frozen=True):
     defs: Annotated[
         tuple[str, ...], Meta(description="Names this cell defines.")
     ]
-    errors: Annotated[
-        tuple[Error, ...],
+    diagnostics: Annotated[
+        tuple[CellDiagnostic, ...],
         Meta(
             description="Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`."
         ),
