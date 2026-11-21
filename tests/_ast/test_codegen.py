@@ -109,6 +109,13 @@ class TestGeneration:
         )
 
     @staticmethod
+    def test_definition_ending_in_a_line_continuation_is_saved() -> None:
+        code = "def one():\n    return 1 \\\n\n"
+        contents = wrap_generate_filecontents([code], ["_"])
+        ast.parse(contents)
+        assert "return 1 \\" in contents
+
+    @staticmethod
     def test_generate_filecontents_empty_with_config() -> None:
         config = _AppConfig(
             app_title="test_title", width="full", css_file=r"a\b.css"

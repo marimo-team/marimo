@@ -1,16 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import token as token_types
 from dataclasses import replace
 from enum import Enum
-from io import BytesIO
-from tokenize import tokenize
 from typing import TYPE_CHECKING, Literal, get_args
 
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.dedent import split_source_lines
 from marimo._ast.names import (
     DEFAULT_CELL_NAME,
     SETUP_CELL_NAME,
@@ -57,21 +55,15 @@ TopLevelHints = Literal["Valid"] | TopLevelInvalidHints
 HINT_VALID: Literal["Valid"] = "Valid"
 
 
-def has_trailing_comment(code: str) -> bool:
-    # Requires tokenization because multiline strings can start a line with #.
-    tokens = tokenize(BytesIO(code.strip().encode("utf-8")).readline)
-    for token in reversed(list(tokens)):
-        if token.type in (
-            token_types.ENDMARKER,
-            token_types.NEWLINE,
-            token_types.NL,
-            token_types.INDENT,
-            token_types.DEDENT,
-            token_types.ENCODING,
-        ):
-            continue
-        return token.type == token_types.COMMENT and token.start[1] == 0
-    return False
+def has_trailing_comment(cell: CellImpl) -> bool:
+    """Whether the cell's last nonblank line is an unindented comment."""
+    # Only blank lines and comments can follow the last statement.
+    body = cell.mod.body
+    tail = split_source_lines(cell.code)[body[-1].end_lineno if body else 0 :]
+    return next(
+        (line.startswith("#") for line in reversed(tail) if line.strip()),
+        False,
+    )
 
 
 class TopLevelType(Enum):
@@ -153,7 +145,7 @@ class TopLevelStatus:
 
         # Trailing comments are not allowed, since no easy way to recapture
         # them.
-        if has_trailing_comment(self.code):
+        if has_trailing_comment(self._cell):
             self.demote(HINT_HAS_COMMENT)
             return
 
