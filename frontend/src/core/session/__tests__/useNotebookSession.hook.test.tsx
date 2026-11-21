@@ -54,7 +54,7 @@ import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { cellExecutionInputsAtom } from "@/core/executions";
+import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
 import {
   cell,
   CONFIG,
@@ -359,15 +359,21 @@ describe("useNotebookSession messages", () => {
     act(() => connection(fake).receive(payload));
   }
 
-  it("blocks descendants before a run and drops stale analysis after an edit", () => {
+  it("keeps the last blocked indicator across edits until the host replaces the graph", () => {
     const revision = documentOf().revision;
     const graph = { a: [], b: ["a"], c: ["b"], d: [] };
-    function publish(version: number, disabled: string) {
-      for (const id of Object.keys(graph)) {
-        const record = cell(id, "", {
+    function publish(version: number) {
+      const codes = {
+        a: "x = 1",
+        b: version < 3 ? "y = x" : "y = 0",
+        c: "print(y)",
+        d: version === 1 ? "0" : "1",
+      };
+      for (const [id, code] of Object.entries(codes)) {
+        const record = cell(id, code, {
           version,
           etag: id + version,
-          config: { ...CONFIG, disabled: id === disabled },
+          config: { ...CONFIG, disabled: id === "a" },
         });
         receive({ event: "cell", data: { cell: record } });
       }
@@ -379,18 +385,21 @@ describe("useNotebookSession messages", () => {
       };
       receive({ event: "document", data: { document } });
     }
-    function analyze(version: number, includeGraph = true) {
+    function analyze(
+      version: number,
+      parents: Record<string, string[]> | null,
+    ) {
       const analysis = {
         notebook_id: revision.notebook_id,
         document_etag: String(version),
         cells: Object.fromEntries(
-          Object.entries(graph).map(([id, parents]) => [
+          Object.keys(graph).map((id) => [
             id,
             {
               defs: [],
               refs: [],
               errors: [],
-              ...(includeGraph && { parents }),
+              ...(parents && { parents: parents[id] }),
             },
           ]),
         ),
@@ -402,20 +411,30 @@ describe("useNotebookSession messages", () => {
       event: "notebook",
       data: { notebook: MockExecutions.notebook() },
     });
-    publish(1, "a");
+    publish(1);
     receive({ event: "ready", id: "1", data: {} });
     const blocked = () => store.get(cellExecutionInputsAtom).blocked;
     expect(blocked().size).toBe(0);
-    analyze(1, false);
+    analyze(1, null);
     expect(blocked().size).toBe(0);
-    analyze(1);
+    analyze(1, graph);
     expect(blocked()).toEqual(new Set(["b", "c"]));
 
-    publish(2, "b");
-    analyze(1);
+    const badge = () =>
+      cellExecutionView(store.get(cellExecutionInputsAtom), "b").shownBlock;
+    expect(badge()).toBe("current");
+    publish(2);
     expect(blocked().size).toBe(0);
-    analyze(2);
-    expect(blocked()).toEqual(new Set(["c"]));
+    expect(badge()).toBe("stale");
+    analyze(2, graph);
+    expect(badge()).toBe("current");
+
+    publish(3);
+    analyze(2, graph);
+    expect(badge()).toBe("stale");
+    analyze(3, { ...graph, b: [] });
+    expect(badge()).toBeNull();
+    expect(blocked().size).toBe(0);
   });
 
   it("records completion of the initial run", () => {

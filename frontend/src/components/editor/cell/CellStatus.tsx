@@ -7,7 +7,11 @@ import {
 } from "lucide-react";
 import { useDateFormatter } from "react-aria";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import type { CellFreshness, CellRunStatus } from "@/core/executions";
+import type {
+  CellExecutionView,
+  CellFreshness,
+  CellRunStatus,
+} from "@/core/executions";
 import { Logger } from "@/utils/Logger";
 import { useElapsedTime } from "../../../hooks/useElapsedTime";
 import { Tooltip } from "../../ui/tooltip";
@@ -20,7 +24,7 @@ export interface CellStatusComponentProps {
   editing: boolean;
   disabled: boolean;
   /** Whether a cell it depends on is disabled. */
-  blocked: boolean;
+  blocked: CellExecutionView["shownBlock"];
   /** Whether the cell's result is current. */
   freshness: CellFreshness;
   status: CellRunStatus;
@@ -109,15 +113,20 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
     );
   }
 
-  // disabled from parent
-  if (!staleInputs && blocked) {
+  // A live run takes precedence over a badge from an earlier revision.
+  if (blocked === "current" || (blocked === "stale" && status === "idle")) {
+    let message = "An ancestor of this cell is disabled, so it can't be run";
+    if (blocked === "stale") {
+      message = "Blocked in the last analysis";
+    } else if (staleInputs) {
+      message =
+        "This cell is stale, but an ancestor is disabled so it can't be run";
+    }
     return (
       <Tooltip
         content={
           <div className="flex flex-col gap-1">
-            <span>
-              An ancestor of this cell is disabled, so it can't be run
-            </span>
+            <span>{message}</span>
             {lastRanTime}
           </div>
         }
@@ -126,38 +135,14 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className="cell-status-icon cell-status-stale"
           data-testid="cell-status"
-          data-status="disabled-transitively"
+          data-status={staleInputs ? "stale" : "disabled-transitively"}
         >
-          <MultiIcon layerTop={true}>
-            <WorkflowIcon className="h-5 w-5" strokeWidth={1.5} />
-            <BanIcon className="h-3 w-3" strokeWidth={2.5} />
-          </MultiIcon>
-        </div>
-      </Tooltip>
-    );
-  }
-
-  // stale from parent being disabled
-  if (staleInputs && blocked) {
-    return (
-      <Tooltip
-        content={
-          <div className="flex flex-col gap-1">
-            <span>
-              This cell is stale, but an ancestor is disabled so it can't be run
-            </span>
-            {lastRanTime}
-          </div>
-        }
-        usePortal={true}
-      >
-        <div
-          className="cell-status-icon cell-status-stale"
-          data-testid="cell-status"
-          data-status="stale"
-        >
-          <MultiIcon>
-            <RefreshCwIcon className="h-5 w-5" strokeWidth={1} />
+          <MultiIcon layerTop={!staleInputs}>
+            {staleInputs ? (
+              <RefreshCwIcon className="h-5 w-5" strokeWidth={1} />
+            ) : (
+              <WorkflowIcon className="h-5 w-5" strokeWidth={1.5} />
+            )}
             <BanIcon className="h-3 w-3" strokeWidth={2.5} />
           </MultiIcon>
         </div>

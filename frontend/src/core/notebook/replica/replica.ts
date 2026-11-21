@@ -63,6 +63,30 @@ type EditorEvent = NotebookStreamEvent<(typeof EDITOR_EVENT_KINDS)[number]>;
 /** A native marimo notification, passed through without interpretation. */
 const MarimoMessage = z.object({ marimo: z.unknown() });
 
+interface AnalysisView {
+  readonly freshness: "current" | "stale";
+  readonly analysis: Analysis;
+  readonly document: Document;
+}
+
+function analysisView(
+  previous: AnalysisView | null,
+  document: Document | null,
+  analysis: Analysis | null,
+): AnalysisView | null {
+  if (document === null) {
+    return null;
+  }
+  if (analysis?.document_etag === document.revision.etag) {
+    return previous?.analysis === analysis && previous.freshness === "current"
+      ? previous
+      : { freshness: "current", document, analysis };
+  }
+  return previous?.freshness === "current"
+    ? { ...previous, freshness: "stale" }
+    : previous;
+}
+
 /** A notebook as its backend's stream reports it, kept current while connected. */
 export interface NotebookReplica {
   /** Connection status, independent of application session readiness. */
@@ -80,8 +104,8 @@ export interface NotebookReplica {
    * submit against this one.
    */
   readonly documentAtom: Atom<Document | null>;
-  /** Host analysis for the confirmed document revision, when available. */
-  readonly analysisAtom: Atom<Analysis | null>;
+  /** Last analysis paired with its document. Only current analysis can gate actions. */
+  readonly analysisAtom: Atom<AnalysisView | null>;
   /**
    * The document on show: `documentAtom`, or through a reset, the one it
    * replaced until the snapshot that follows is complete.
@@ -195,9 +219,14 @@ export function createNotebookReplica(
    * whose session changed. Showing the new snapshot as it arrives would
    * empty every view for as long as that takes.
    */
-  const followedAtom = atom<{ stream: Stream; retained: Stream | null }>({
+  const followedAtom = atom<{
+    stream: Stream;
+    retained: Stream | null;
+    analyzed: AnalysisView | null;
+  }>({
     stream: reducer.initial,
     retained: null,
+    analyzed: null,
   });
   const streamAtom = atom((get) => get(followedAtom).stream);
   const shownAtom = atom((get) => {
@@ -215,12 +244,7 @@ export function createNotebookReplica(
   const documentAtom = atom(
     (get) => get(streamAtom).resources.document.current,
   );
-  const analysisAtom = atom((get) => {
-    const latest = get(streamAtom).resources.analysis;
-    return latest?.document_etag === get(documentAtom)?.revision.etag
-      ? latest
-      : null;
-  });
+  const analysisAtom = atom((get) => get(followedAtom).analyzed);
   const shownDocumentAtom = atom(
     (get) => get(shownAtom).resources.document.current,
   );
@@ -259,10 +283,16 @@ export function createNotebookReplica(
             },
           };
         }
-        return { stream: next, retained: null };
+        const { analysis, document } = next.resources;
+        return {
+          stream: next,
+          retained: null,
+          analyzed: analysisView(followed.analyzed, document.current, analysis),
+        };
       }
       return {
         stream: next,
+        analyzed: null,
         retained: stream.phase === "snapshot" ? retained : stream,
       };
     });
@@ -277,7 +307,11 @@ export function createNotebookReplica(
 
   /** Drop what the stream reported and show `status`. */
   function clear(status: ConnectionStatus) {
-    store.set(followedAtom, { stream: reducer.initial, retained: null });
+    store.set(followedAtom, {
+      stream: reducer.initial,
+      retained: null,
+      analyzed: null,
+    });
     setStatus(status);
   }
 

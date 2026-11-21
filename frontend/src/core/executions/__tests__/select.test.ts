@@ -137,7 +137,15 @@ function inputs({
       { config: { ...CONFIG, disabled: disabled.includes(id) } },
     ]),
   );
-  return { executions: stream, results, cells, requested, blocked, runtimeId };
+  return {
+    executions: stream,
+    results,
+    cells,
+    requested,
+    blocked,
+    shownBlocked: blocked,
+    runtimeId,
+  };
 }
 
 describe("cellExecutionView", () => {
@@ -145,6 +153,7 @@ describe("cellExecutionView", () => {
     expect(cellExecutionView(inputs({}), "c1")).toEqual({
       status: "idle",
       blocked: false,
+      shownBlock: null,
       outcome: null,
       startedAt: null,
       duration: null,
@@ -174,6 +183,7 @@ describe("cellExecutionView", () => {
     expect(cellExecutionView(running, "c1")).toEqual({
       status: "running",
       blocked: false,
+      shownBlock: null,
       outcome: null,
       startedAt: Date.parse(T2),
       duration: null,
@@ -227,6 +237,7 @@ describe("cellExecutionView", () => {
     expect(value).toEqual({
       status: "idle",
       blocked: false,
+      shownBlock: null,
       outcome: "succeeded",
       startedAt: Date.parse(T0),
       duration: 1500,

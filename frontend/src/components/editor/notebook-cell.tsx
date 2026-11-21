@@ -864,7 +864,7 @@ const CellRightSideActions = memo(
         disabled={disabled}
         elapsedTime={execution.duration}
         startedAt={execution.startedAt}
-        blocked={execution.blocked}
+        blocked={execution.shownBlock}
         uninstantiated={uninstantiated}
       />
     );
