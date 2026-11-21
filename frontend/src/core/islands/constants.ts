@@ -21,6 +21,8 @@ export const ISLAND_DATA_ATTRIBUTES = {
   CELL_IDX: "data-cell-idx",
   CELL_ID: "data-cell-id",
   REACTIVE: "data-reactive",
+  /** Marks the island's own code editor, so it is still found after render. */
+  CODE_EDITOR: "data-island-code-editor",
 } as const;
 
 /**

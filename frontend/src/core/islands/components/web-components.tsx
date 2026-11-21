@@ -20,7 +20,12 @@ import {
   ISLAND_SOURCE_CHANGED_EVENT,
   ISLAND_TAG_NAMES,
 } from "../constants";
-import { extractIslandCodeFromEmbed, retainIslandSource } from "../parse";
+import {
+  extractIslandCodeFromEmbed,
+  findIslandCodeEditor,
+  retainIslandSource,
+  trackIslandCodeEditor,
+} from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
 
 /**
@@ -187,6 +192,8 @@ export class MarimoIslandElement extends HTMLElement {
   private extractRenderConfig(): IslandRenderConfig {
     const output = this.querySelectorOrThrow(MarimoIslandElement.outputTagName);
     const initialOutput = output.innerHTML;
+    // Mark the code editor before rendering replaces the source DOM.
+    trackIslandCodeEditor(this);
     const optionalEditor = this.getOptionalEditor();
     const code = this.code;
     retainIslandSource(this, { code, output: initialOutput });
@@ -194,7 +201,7 @@ export class MarimoIslandElement extends HTMLElement {
     // Read objectId directly from the DOM before createRoot clears children.
     // optionalEditor is a <RenderHTML> wrapper, so its .props don't carry the
     // underlying element's attributes — we must grab objectId here instead.
-    const editorElement = this.querySelector(MarimoIslandElement.editorTagName);
+    const editorElement = findIslandCodeEditor(this);
     const editorObjectId = (
       editorElement?.parentElement as Element | null
     )?.getAttribute(OBJECT_ID_ATTR) as UIElementId | null;
@@ -266,21 +273,21 @@ export class MarimoIslandElement extends HTMLElement {
    * Attempts to find and render an optional code editor.
    *
    * The DOM structure is:
-   *   <marimo-cell-output>
-   *     <div data-marimo-element> ← parent wrapper from Python render
-   *       <marimo-code-editor .../>
-   *     </div>
-   *   </marimo-cell-output>
+   *   <marimo-cell-output>...</marimo-cell-output>
+   *   <marimo-ui-element object-id="..."> ← parent wrapper from Python render
+   *     <marimo-code-editor .../>
+   *   </marimo-ui-element>
    *
-   * We take the parent's outerHTML (the wrapper div) so that the rendered
+   * A code editor inside <marimo-cell-output> is the cell's output, not its
+   * code, so it is left to the output.
+   *
+   * We take the parent's outerHTML (the wrapper element) so that the rendered
    * React element includes the UI element registration attributes.
    *
    * @returns A React element for the editor, or null if not found
    */
   private getOptionalEditor(): JSX.Element | null {
-    const optionalElement = this.querySelector(
-      MarimoIslandElement.editorTagName,
-    );
+    const optionalElement = findIslandCodeEditor(this);
     const html = (optionalElement?.parentNode as Element)?.outerHTML;
     if (html) {
       // Convert HTML to virtual DOM
