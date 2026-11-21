@@ -1795,34 +1795,6 @@ components:
       - code_lens
       title: DisplayConfig
       type: object
-    EditorCellNotification:
-      description: 'A cell enters the blocked set with `disabled-transitively` and
-        leaves with `idle`.
-
-
-        An omitted serialization hint is unchanged. A null hint clears reusability.'
-      properties:
-        cell_id:
-          $ref: '#/components/schemas/CellId'
-        op:
-          enum:
-          - cell-op
-        serialization:
-          anyOf:
-          - type: string
-          - type: 'null'
-        status:
-          anyOf:
-          - enum:
-            - disabled-transitively
-            - idle
-          - type: 'null'
-          default: null
-      required:
-      - op
-      - cell_id
-      title: EditorCellNotification
-      type: object
     EnvironmentOperation:
       description: Current progress and logs for one execution of environment work.
       properties:
@@ -4435,7 +4407,6 @@ components:
       - $ref: '#/components/schemas/ActiveLineNotification'
       - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
       - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
-      - $ref: '#/components/schemas/EditorCellNotification'
       discriminator:
         mapping:
           active-line: '#/components/schemas/ActiveLineNotification'
@@ -4445,7 +4416,6 @@ components:
           cache-cleared: '#/components/schemas/CacheClearedNotification'
           cache-info: '#/components/schemas/CacheInfoNotification'
           callback-output: '#/components/schemas/CallbackOutputNotification'
-          cell-op: '#/components/schemas/EditorCellNotification'
           completed-run: '#/components/schemas/CompletedRunNotification'
           completion-result: '#/components/schemas/CompletionResultNotification'
           console-inputs-cleared: '#/components/schemas/ConsoleInputsClearedNotification'

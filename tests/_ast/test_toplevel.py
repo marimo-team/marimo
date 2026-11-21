@@ -624,27 +624,6 @@ class GenericTypeParameter[T]:
         status = TopLevelStatus.from_cell(cell, BUILTINS)
         assert status.type == TopLevelType.TOPLEVEL, status.hint
 
-
-class TestTopLevelHook:
-    @staticmethod
-    def test_toplevel_hook(app) -> None:
-        @app.class_definition
-        class Example: ...
-
-        @app.cell()
-        def f():
-            def f():
-                return Example()
-
-        extraction = TopLevelExtraction.from_graph(
-            InternalApp(app).graph,
-            cell=f._cell,
-        )
-        assert [
-            TopLevelType.TOPLEVEL,
-            TopLevelType.TOPLEVEL,
-        ] == [s.type for s in extraction], [s.hint for s in extraction]
-
     @staticmethod
     def test_class_builtin_ignored(app) -> None:
         @app.cell

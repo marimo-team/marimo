@@ -41,7 +41,9 @@ def make_extraction(
         configs = [CellConfig(), *configs]
     setup_cell = pop_setup_cell(codes, names, configs)
     toplevel_defs = set(setup_cell.defs) if setup_cell else set()
-    return TopLevelExtraction(codes, names, configs, toplevel_defs), setup_cell
+    return TopLevelExtraction.from_codes(
+        codes, names, configs, toplevel_defs
+    ), setup_cell
 
 
 def instance(full_name: str, hint: str | None = None) -> Inferred:

@@ -140,9 +140,6 @@ def test_replaced_execution_cannot_write_to_retained_cell(
             )
         )
     session_view.add_notification(
-        CellNotification(cell_id, serialization="Valid")
-    )
-    session_view.add_notification(
         CellNotification(
             cell_id,
             output=initial_output,
@@ -155,7 +152,6 @@ def test_replaced_execution_cannot_write_to_retained_cell(
         entry.data
         for entry in session_view.get_cell_console_outputs([cell_id])[cell_id]
     ] == ["new"]
-    assert session_view.cell_notifications[cell_id].serialization == "Valid"
 
 
 def test_rerun_keeps_display_until_a_new_output_or_clear(
@@ -225,57 +221,6 @@ def test_clear_hides_only_closed_inputs_until_execution_replaced(
     )
     assert session_view.cleared_console_inputs(cell_id, "first") is None
     assert hint not in session_view.snapshot_notifications(scope="editor")
-
-
-def test_session_view_serialization_hint_survives_status_updates(
-    session_view: SessionView,
-) -> None:
-    # A top-level definition advertises its reusability hint.
-    session_view.add_notification(
-        CellNotification(cell_id=cell_id, serialization="Valid")
-    )
-    assert session_view.cell_notifications[cell_id].serialization == "Valid"
-
-    # Subsequent lifecycle updates omit serialization (UNSET) and must not
-    # wipe the hint — otherwise a reconnect snapshot loses the badge.
-    for status in ("queued", "running", "idle"):
-        status_update = CellNotification(cell_id=cell_id, status=status)
-        assert status_update.serialization is msgspec.UNSET
-        session_view.add_notification(status_update)
-        assert (
-            session_view.cell_notifications[cell_id].serialization == "Valid"
-        )
-
-
-def test_session_view_serialization_hint_explicit_clear(
-    session_view: SessionView,
-) -> None:
-    session_view.add_notification(
-        CellNotification(cell_id=cell_id, serialization="Valid")
-    )
-    # An explicit None clears the hint (cell is no longer a top-level def).
-    session_view.add_notification(
-        CellNotification(cell_id=cell_id, serialization=None)
-    )
-    assert session_view.cell_notifications[cell_id].serialization is None
-
-
-def test_cell_notification_serialization_wire_encoding() -> None:
-    # UNSET is omitted (unchanged), None is sent explicitly (clear), a string
-    # is sent verbatim (set).
-    assert "serialization" not in serialize(CellNotification(cell_id=cell_id))
-    assert (
-        serialize(CellNotification(cell_id=cell_id, serialization=None))[
-            "serialization"
-        ]
-        is None
-    )
-    assert (
-        serialize(CellNotification(cell_id=cell_id, serialization="Valid"))[
-            "serialization"
-        ]
-        == "Valid"
-    )
 
 
 # Test adding Variables to SessionView

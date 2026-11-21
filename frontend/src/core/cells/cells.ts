@@ -168,18 +168,6 @@ const {
   useActions,
   valueAtom: notebookAtom,
 } = createReducerAndAtoms(initialNotebookState, {
-  setCellReusability: (
-    state,
-    message: { cell_id: CellId; serialization: string | null },
-  ) =>
-    updateCellRuntimeState({
-      state,
-      cellId: message.cell_id,
-      cellReducer: (cell) => ({
-        ...cell,
-        serialization: message.serialization,
-      }),
-    }),
   startCellConsole: (state, { cellId }: { cellId: CellId }) =>
     updateCellRuntimeState({
       state,

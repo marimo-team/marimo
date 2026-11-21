@@ -124,10 +124,9 @@ def _global_scope_defs() -> set[str]:
     if ctx is None:
         return set()
     graph = ctx.graph
-    hint = graph.cells_serving_serialization_hint
     out: set[str] = set()
     for cid, cell in graph.cells.items():
-        if str(cid) == SETUP_CELL_NAME or cid in hint:
+        if str(cid) == SETUP_CELL_NAME or cell.toplevel_variable is not None:
             out |= cell.defs
     return out
 

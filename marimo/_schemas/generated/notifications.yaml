@@ -831,34 +831,6 @@ components:
       - substrings
       title: DialectHidesWhen
       type: object
-    EditorCellNotification:
-      description: 'A cell enters the blocked set with `disabled-transitively` and
-        leaves with `idle`.
-
-
-        An omitted serialization hint is unchanged. A null hint clears reusability.'
-      properties:
-        cell_id:
-          type: string
-        op:
-          enum:
-          - cell-op
-        serialization:
-          anyOf:
-          - type: string
-          - type: 'null'
-        status:
-          anyOf:
-          - enum:
-            - disabled-transitively
-            - idle
-          - type: 'null'
-          default: null
-      required:
-      - op
-      - cell_id
-      title: EditorCellNotification
-      type: object
     EnvironmentOperation:
       description: Current progress and logs for one execution of environment work.
       properties:

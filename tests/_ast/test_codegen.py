@@ -102,6 +102,15 @@ async def get_idempotent_marimo_source(name: str) -> str:
 
 class TestGeneration:
     @staticmethod
+    def test_unparsable_cell_name_is_not_an_importable_binding() -> None:
+        contents = wrap_generate_filecontents(
+            ["x =", "def f():\n    return x"], ["x", "_"]
+        )
+        assert "app._unparsable_cell(" in contents
+        assert "@app.cell" in contents
+        assert "@app.function" not in contents
+
+    @staticmethod
     def test_generate_filecontents_empty() -> None:
         contents = wrap_generate_filecontents([], [])
         assert contents == get_expected_filecontents(

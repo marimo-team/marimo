@@ -181,8 +181,8 @@ def create_default_hooks() -> NotebookCellHooks:
     """Create hooks with standard defaults.
 
     Returns a NotebookCellHooks instance with all standard hooks registered.
-    Callers should add mode-specific hooks (e.g., render_toplevel_defs for
-    edit mode, attempt_pytest for reactive tests) after calling this.
+    Callers should add mode-specific hooks (e.g., attempt_pytest for
+    reactive tests) after calling this.
     """
     from marimo._runtime.runner.hooks_on_finish import ON_FINISH_HOOKS
     from marimo._runtime.runner.hooks_post_execution import (

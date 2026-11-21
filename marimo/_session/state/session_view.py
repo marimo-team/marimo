@@ -970,8 +970,8 @@ class SessionView:
     ) -> list[NotificationMessage]:
         """Copy retained notifications for a connecting client.
 
-        Editors receive cell hints alongside their execution snapshot. The
-        shared host stream omits cell updates and private debugger state.
+        The editor snapshot carries command transcripts and debugger state.
+        Only a full session snapshot includes kernel cell updates.
         """
         notifications: list[NotificationMessage] = [
             EnvironmentStateNotification(source=source, state=state)
@@ -1018,12 +1018,6 @@ class SessionView:
                 )
                 if isinstance(cell.console, list)
                 else cell
-                for cell in self.cell_notifications.values()
-            )
-        elif scope == "editor":
-            # Console items and values already arrive in the execution snapshot.
-            all_notifications.extend(
-                msgspec.structs.replace(cell, console=None, output=None)
                 for cell in self.cell_notifications.values()
             )
         if scope != "host":
@@ -1189,11 +1183,5 @@ def merge_cell_notification(
 
     if current.output is None:
         current.output = previous.output
-
-    # UNSET means "unchanged" — inherit the previously broadcast hint so a
-    # reconnect snapshot keeps the reusability badge. None (explicit clear) and
-    # concrete values are left as-is.
-    if current.serialization is msgspec.UNSET:
-        current.serialization = previous.serialization
 
     return current

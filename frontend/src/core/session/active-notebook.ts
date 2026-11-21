@@ -7,6 +7,12 @@ import type { NotebookReplica } from "../notebook/replica";
 /** The replica owned by the mounted notebook session. */
 export const activeNotebookReplicaAtom = atom<NotebookReplica | null>(null);
 
+/** The last analysis, kept while the host analyzes a newer revision. */
+export const notebookAnalysisAtom = atom((get) => {
+  const replica = get(activeNotebookReplicaAtom);
+  return (replica && get(replica.analysisAtom)?.analysis) ?? null;
+});
+
 /** The document model owned by the mounted notebook session. */
 export const activeDocumentModelAtom = atom<DocumentModel | null>(null);
 

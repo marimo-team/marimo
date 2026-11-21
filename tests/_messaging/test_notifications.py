@@ -1,14 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import msgspec
 import pytest
 
-from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
 from marimo._messaging.notification import (
-    CellNotification,
     EnvironmentOperationNotification,
     EnvironmentOperationStatus,
     KernelCapabilitiesNotification,
@@ -23,7 +21,6 @@ from marimo._messaging.notification import (
     UIElementMessageNotification,
 )
 from marimo._messaging.notification_utils import (
-    CellNotificationUtils,
     broadcast_notification,
 )
 from marimo._messaging.serde import (
@@ -34,8 +31,6 @@ from marimo._messaging.types import KernelMessage
 from marimo._messaging.variables import create_variable_value
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
-from marimo._types.ids import CellId_t
-from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStream
 
 
@@ -76,26 +71,6 @@ def test_variable_value_broken_str() -> None:
     assert variable_value.datatype == "Broken"
     assert variable_value.value is not None
     assert variable_value.value.startswith("<Broken object at")
-
-
-def test_broadcast_serialization() -> None:
-    cell_id = CellId_t("test_cell_id")
-
-    stream = MockStream()
-    status = MagicMock(TopLevelStatus)
-    status.hint = HINT_UNPARSABLE
-
-    CellNotificationUtils.broadcast_serialization(
-        cell_id=cell_id, serialization=status, stream=stream
-    )
-
-    assert len(stream.messages) == 1
-    assert stream.operations[0]["serialization"] == str(HINT_UNPARSABLE)
-    cell_notification = stream.operations[0]
-
-    assert isinstance(
-        parse_raw(cell_notification, CellNotification), CellNotification
-    )
 
 
 def test_startup_logs_creation() -> None:

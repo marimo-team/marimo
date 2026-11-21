@@ -12,6 +12,7 @@ from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.definition_range import find_definition_range
 from marimo._core import protocol
 from marimo._core.document import Document, DocumentCell
 from marimo._dependencies.dependencies import DependencyManager
@@ -133,6 +134,42 @@ def test_refs_are_names_other_cells_define() -> None:
     assert analyses["b"].defs == ("x",)
     assert analyses["b"].refs == ()
     assert analyses["c"].refs == ("x",)
+
+
+def test_reusable_definition_follows_edits_and_document_order() -> None:
+    analyzer = CellAnalyzer()
+    factory = DocumentCell("factory", "def make():\n    return 1")
+    widget = DocumentCell("widget", "class Widget:\n    default = make()")
+
+    def findings(*cells: DocumentCell) -> tuple[protocol.CellDiagnostic, ...]:
+        return analyzer(Document(cells, {}))[widget.id].diagnostics
+
+    expected = protocol.CellDiagnostic(
+        kind="reusable-definition",
+        source="marimo",
+        severity="information",
+        message="This definition is importable when the notebook is saved as Python.",
+        range=span(0, 6, 12),
+        related=(),
+    )
+    assert findings(factory, widget) == (expected,)
+    (demoted,) = findings(widget, factory)
+    assert demoted.kind == "non-reusable-definition"
+    assert demoted.severity == "hint"
+    assert "make" in demoted.message
+    assert findings(
+        DocumentCell("factory", "make = lambda: 1", name="setup"), widget
+    ) == (expected,)
+    assert findings(factory, DocumentCell("widget", "value = make()")) == ()
+
+
+def test_a_definition_other_cells_also_define_is_not_reusable() -> None:
+    analyses = analyze(
+        {"a": "def f():\n    return 1", "b": "def f():\n    return 2"}
+    )
+    for cid in ("a", "b"):
+        (finding,) = analyses[cid].diagnostics
+        assert finding.kind == "multiple-definitions"
 
 
 def test_a_name_defined_twice_is_an_error_on_each_definer() -> None:
@@ -313,6 +350,7 @@ def test_qualified_sql_definitions_only_conflict_with_the_same_table() -> None:
         ("s = '😀'; x = 1", span(0, 10, 11)),
         ("def f():\n    x = 1\nx = 2", span(2, 0, 1)),
         ("[x for x in ()]\nx = 2", span(1, 0, 1)),
+        ("# \u2028é\nx = 2", span(1, 0, 1)),
     ],
 )
 def test_definition_ranges_use_shared_scope_and_token_handling(code, expected):
@@ -463,6 +501,31 @@ def test_compilation_cache_uses_identity_and_exact_source(
     )
     analyzer(document)
     assert compiler.call_count == 6
+
+
+def test_definition_ranges_are_located_once_per_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    finder = Mock(wraps=find_definition_range)
+    monkeypatch.setattr(
+        "marimo._server.host.analysis.find_definition_range", finder
+    )
+    analyzer = CellAnalyzer()
+
+    def located(code: str, other: str) -> protocol.Range | None:
+        document = Document(
+            [DocumentCell("f", code), DocumentCell("x", other)], {}
+        )
+        (finding,) = analyzer(document)[protocol.CellId("f")].diagnostics
+        return finding.range
+
+    sync = "def f():\n    return 1"
+    assert located(sync, "x = 1") == span(0, 4, 5)
+    assert located(sync, "x = 2") == span(0, 4, 5)
+    assert finder.call_count == 1
+
+    assert located("async def f():\n    return 1", "x = 2") == span(0, 10, 11)
+    assert finder.call_count == 2
 
 
 @pytest.mark.skipif(

@@ -8,6 +8,8 @@ import io
 import tokenize
 from dataclasses import dataclass
 
+from marimo._ast.dedent import split_source_lines
+
 
 @dataclass(frozen=True)
 class DefinitionRange:
@@ -42,7 +44,7 @@ _SCOPES = (
 class _DefinitionVisitor(ast.NodeVisitor):
     def __init__(self, name: str, source: str) -> None:
         self._name = name
-        self._lines = source.splitlines()
+        self._lines = split_source_lines(source)
         self._tokens = tuple(
             tokenize.generate_tokens(io.StringIO(source).readline)
         )
