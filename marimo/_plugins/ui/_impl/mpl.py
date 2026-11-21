@@ -251,6 +251,10 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
             The selection is clamped to the axes' bounds.
         brush: Enable selection in both dimensions (the default), disable it
             with `False`, or select a range with `"x"` or `"y"`.
+        pan: Enable drag-to-pan in both dimensions, or only `"x"` or `"y"`.
+            With `pan="x"`, a horizontal trackpad swipe also pans the plot.
+        zoom: Enable wheel zoom in both dimensions, or only `"x"` or `"y"`.
+            Pan and zoom use the anywidget Matplotlib backend in a live notebook.
         debounce: If `True`, the selection is only sent to Python on
             mouse-up. If `False` (the default), it streams while dragging.
     """
@@ -262,6 +266,8 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         *,
         debounce: bool = False,
         brush: Dimension = True,
+        pan: Dimension = False,
+        zoom: Dimension = False,
     ) -> None:
         DependencyManager.matplotlib.require("for `mo.ui.matplotlib`")
 
@@ -273,8 +279,9 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
             raise ValueError("Axes must be attached to a figure.")
         self._ax = axes
         figure = axes.figure.canvas.figure
-        if not isinstance(brush, bool) and brush not in ("x", "y"):
-            raise ValueError("brush must be True, False, 'x', or 'y'.")
+        for name, option in (("brush", brush), ("pan", pan), ("zoom", zoom)):
+            if not isinstance(option, bool) and option not in ("x", "y"):
+                raise ValueError(f"{name} must be True, False, 'x', or 'y'.")
         self._brush = brush
 
         for dim, scale in (("x", axes.get_xscale()), ("y", axes.get_yscale())):
@@ -351,6 +358,8 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
                 axes,
                 selection=initial_value,
                 brush=brush,
+                pan=pan,
+                zoom=zoom,
                 debounce=debounce,
             )
             if isinstance(ctx, KernelRuntimeContext):

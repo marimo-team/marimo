@@ -251,6 +251,60 @@ describe("BrushOverlay", () => {
     vi.restoreAllMocks();
   });
 
+  it("routes wheel input by its dominant direction and only consumes enabled gestures", () => {
+    const navigate = vi.fn();
+    const state = {
+      ...createState(),
+      axesPixelBounds: [10, 0, 90, 100],
+      pan: "x",
+      zoom: "y",
+      dragMode: "brush",
+      navigate,
+    };
+    const container = document.createElement("div");
+    const controller = new AbortController();
+    const renderer = new BrushOverlay(container, {
+      state,
+      signal: controller.signal,
+    });
+    const surface = container.getElementsByTagName("svg")[0];
+    vi.spyOn(surface, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ width: 50, height: 50 }),
+    );
+
+    function wheel(deltaX: number, deltaY: number, deltaMode = 0) {
+      navigate.mockClear();
+      const event = new WheelEvent("wheel", {
+        deltaX,
+        deltaY,
+        deltaMode,
+        clientX: 15,
+        clientY: 20,
+        cancelable: true,
+      });
+      surface.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(navigate.mock.calls.length > 0);
+      return navigate.mock.calls;
+    }
+
+    expect(wheel(10, 2)).toEqual([[{ navigation: "pan", x: -0.25, y: 0 }]]);
+    expect(wheel(2, -10)).toEqual([
+      [{ navigation: "zoom", x: 0.25, y: 0.6, factor: Math.exp(-0.02) }],
+    ]);
+    expect(wheel(0, 0)).toEqual([]);
+    renderer.update({ ...state, pan: true });
+    expect(wheel(10, 2)).toEqual([]);
+    expect(wheel(0, -10)[0][0].navigation).toBe("zoom");
+    renderer.update({ ...state, pan: "y" });
+    expect(wheel(10, 2)).toEqual([]);
+    renderer.update({ ...state, zoom: false });
+    expect(wheel(2, -10)).toEqual([]);
+    expect(wheel(-1, 0, WheelEvent.DOM_DELTA_LINE)).toEqual([
+      [{ navigation: "pan", x: 0.4, y: 0 }],
+    ]);
+    controller.abort();
+  });
+
   it("restores a new selection from widget state", () => {
     const value = {
       type: "box",

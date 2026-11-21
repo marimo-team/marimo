@@ -30,7 +30,8 @@ follow the notebook theme.
 
 Use [`mo.ui.matplotlib`][marimo.ui.matplotlib] to make reactive selections on
 Matplotlib plots. When you select points, cells that use the selection update
-automatically.
+automatically. You can also enable pan and zoom to redraw the plot as you
+explore the data.
 
 Live plots require a Matplotlib version with the anywidget backend.
 Install its widget extra with `pip install 'matplotlib[widget]'`.
@@ -98,14 +99,20 @@ def __():
 Drag inside a selection to move it. Drag an edge or corner of a box to resize
 it. When nothing is selected, `plot.value` is falsy and the mask is all `False`.
 
-#### Select a range
+#### Brush, pan, and zoom
 
-Pass `brush="x"` or `brush="y"` to select a range along one axis. For a time
-series, an x selection includes every point in the selected time interval.
+By default, dragging selects points. Enable `pan` to move around the plot or
+`zoom` to zoom with the scroll wheel. For each of `brush`, `pan`, and `zoom`,
+use `True` for both dimensions, `"x"` or `"y"` for one, or `False` to turn it off.
 
 ```python
-plot = mo.ui.matplotlib(ax, brush="x")
+plot = mo.ui.matplotlib(ax, brush="x", pan="x", zoom="y")
 ```
+
+Drag to select a range of hours. On a trackpad, swipe sideways with two
+fingers to move along the time axis, or scroll vertically to zoom in on
+temperature. With a mouse, choose the hand to pan and use the wheel to zoom.
+The same hours stay selected as you move around.
 
 #### Debouncing
 
@@ -137,7 +144,7 @@ plot = mo.ui.matplotlib(ax, value={"x": (4, 8), "y": (20, 24)})
 
 !!! tip "Need more control?"
 
-    `mo.ui.matplotlib` keeps the controls focused on selection.
+    `mo.ui.matplotlib` keeps the controls focused on selection and navigation.
     Matplotlib’s anywidget backend draws the figure, and marimo draws the
     selection in the browser.
 
