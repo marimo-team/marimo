@@ -20,7 +20,6 @@ import {
   cellOutputAtom,
   clearCellOutputs,
   isCurrent,
-  setCellBlocked,
   requestRun,
   withdrawRequest,
 } from "../atoms";
@@ -128,9 +127,7 @@ describe("output lifetime", () => {
       const pending = requestRun(store, [C1])!;
       acceptRun(store, pending, run);
       const late = requestRun(store, [C1])!;
-      setCellBlocked(store, C1, true);
       clearCellOutputs(store, [C1]);
-      expect(store.get(cellExecutionInputsAtom).blocked.has(C1)).toBe(true);
       expect(store.get(cellOutputAtom(C1))).toBeNull();
 
       if (recovery !== "in-place reset") {
@@ -141,9 +138,8 @@ describe("output lifetime", () => {
       } else {
         message({ event: "ready", id: "120", data: {} });
       }
-      const { requested, blocked } = store.get(cellExecutionInputsAtom);
+      const { requested } = store.get(cellExecutionInputsAtom);
       expect([...requested]).toEqual([]);
-      expect([...blocked]).toEqual([]);
       expect(store.get(cellOutputAtom(C1))?.data).toBe("A");
       expect(isCurrent(store, late)).toBe(false);
 

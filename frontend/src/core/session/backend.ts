@@ -4,7 +4,7 @@
 
 import { NotebookClient, StreamStopped } from "@marimo-team/client";
 import type { NotebookId } from "@marimo-team/client/protocol";
-import { EDITOR_EVENT_KINDS, type NotebookBackend } from "../notebook/replica";
+import type { NotebookBackend } from "../notebook/replica";
 import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
 import { sessionSse, websocket, withHeaders } from "../transports/server";
@@ -59,9 +59,9 @@ function afterStartup({
         });
       }
     }
-    const target = new URL(url());
-    target.searchParams.set("kinds", EDITOR_EVENT_KINDS.join(","));
-    return target;
+    // The replica filters locally. A host may reject a filter naming an
+    // experimental kind it does not implement.
+    return new URL(url());
   };
 }
 

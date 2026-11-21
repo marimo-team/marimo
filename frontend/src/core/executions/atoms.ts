@@ -26,6 +26,7 @@ import {
 } from "./output";
 import {
   anyRunning,
+  blockedDescendants,
   type CellExecutionInputs,
   queuedOrRunningCount,
 } from "./select";
@@ -82,14 +83,6 @@ export interface RunRequest {
  */
 const requestsAtom = atom<Marks<ReadonlySet<RunRequest>>>(null);
 
-/**
- * Cells the kernel reports as blocked by a disabled ancestor. Written only
- * by the editor session.
- *
- * TODO(MO-8463): Derive from the document and the analysis stream.
- */
-const blockedCellsAtom = atom<Marks<ReadonlySet<Protocol.CellId>>>(null);
-
 function sameNotebook(
   marked: ShownNotebook,
   shown: ShownNotebook | null,
@@ -133,6 +126,20 @@ const requestedCellsAtom = atom((get) => {
     : new Set([...requests].flatMap((request) => request.cells));
 });
 
+/** Descendants of explicitly disabled cells in the confirmed document. */
+const blockedByAncestorAtom = atom((get): ReadonlySet<Protocol.CellId> => {
+  const replica = get(activeNotebookReplicaAtom);
+  if (replica === null) {
+    return NO_BLOCKED;
+  }
+  const analysis = get(replica.analysisAtom);
+  const document = get(replica.documentAtom);
+  if (analysis === null || document === null) {
+    return NO_BLOCKED;
+  }
+  return blockedDescendants(analysis, document.cells.values());
+});
+
 /** What every cell's view derives from. Pair with `cellExecutionView`. */
 export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
   const replica = get(activeNotebookReplicaAtom);
@@ -142,7 +149,7 @@ export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
     cells: document?.cells ?? NO_CELLS,
     requested: get(requestedCellsAtom),
-    blocked: current(get(blockedCellsAtom), get(shownNotebookAtom), NO_BLOCKED),
+    blocked: get(blockedByAncestorAtom),
     runtimeId: replica === null ? null : (get(replica.runtimeAtom)?.id ?? null),
   };
 });
@@ -335,7 +342,7 @@ export function waitForRuntimeRunning(store: Store): Promise<void> {
  * Record that this browser is asking the host to run `cellIds`, so that
  * they read as queued before the host has answered.
  *
- * A disabled cell, or one the kernel reports as blocked, may be among them
+ * A disabled cell, or one with a disabled ancestor, may be among them
  * so the kernel can set it aside, but the views do not show it as queued.
  * Returns null while no notebook is shown, since there is nothing to
  * record the request against.
@@ -390,25 +397,4 @@ export function acceptRun(
     withdrawRequest(store, request);
   }
   check();
-}
-
-export function setCellBlocked(
-  store: Store,
-  cellId: Protocol.CellId,
-  blocked: boolean,
-): void {
-  const known = store.get(cellExecutionInputsAtom).blocked;
-  if (known.has(cellId) === blocked) {
-    return;
-  }
-  const next = new Set(known);
-  if (blocked) {
-    next.add(cellId);
-  } else {
-    next.delete(cellId);
-  }
-  const notebook = store.get(shownNotebookAtom);
-  if (notebook !== null) {
-    store.set(blockedCellsAtom, { notebook, value: next });
-  }
 }

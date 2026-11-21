@@ -80,20 +80,11 @@ describe("createEditorBackend", () => {
       ).toBe(true),
     );
     const networkUrl = opened[0] ?? fetch.mock.calls[0]?.[0];
-    const kinds =
+    const params =
       networkUrl === undefined
         ? undefined
-        : new URL(String(networkUrl)).searchParams.get("kinds")?.split(",");
-    const executionKinds = [
-      "execution",
-      "console",
-      "output",
-      "input",
-      "marimo",
-    ];
-    expect(executionKinds.filter((kind) => kinds?.includes(kind))).toEqual(
-      expected === "socket" || expected === "fetch" ? executionKinds : [],
-    );
+        : new URL(String(networkUrl)).searchParams;
+    expect(params?.has("kinds")).toBeFalsy();
     events.close();
   });
 

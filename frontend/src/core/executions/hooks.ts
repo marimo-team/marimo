@@ -23,9 +23,8 @@ import { type CellExecutionView, cellExecutionView } from "./select";
 /**
  * A cell's status, timing, and how it last ended.
  *
- * Read from the host's executions, with the editor's own marks for a run
- * it has requested and the kernel has not planned yet, and for a cell the
- * kernel reports blocked by a disabled ancestor.
+ * Host executions describe the run, document analysis identifies blocked
+ * cells, and local requests account for runs the host has yet to plan.
  */
 export function useCellExecution(id: Protocol.CellId): CellExecutionView {
   // One atom per mounted cell, kept for its subscription and compared by

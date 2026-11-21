@@ -14,7 +14,6 @@ import {
   acceptRun,
   cellExecutionInputsAtom,
   notebookQueuedOrRunningCountAtom,
-  setCellBlocked,
   requestRun,
   type RunRequest,
   withdrawRequest,
@@ -111,53 +110,14 @@ describe("requestRun", () => {
     expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
   });
 
-  it("forgets requests and blocked cells with the notebook they were made in", () => {
+  it("forgets requests when the notebook changes", () => {
     const { store, replica } = shown();
     request(store, [C1]);
-    setCellBlocked(store, C2, true);
 
     store.set(replica.notebookAtom, MockExecutions.notebook("n2"));
 
     expect(requested(store)).toEqual([]);
     expect(statusOf(store)).toBe("idle");
-    expect(store.get(cellExecutionInputsAtom).blocked.size).toBe(0);
-  });
-});
-
-describe("setCellBlocked", () => {
-  it("does not show a requested cell as queued once the kernel reports it blocked", () => {
-    const { store } = shown();
-    request(store, [C1]);
-    expect(statusOf(store)).toBe("queued");
-
-    setCellBlocked(store, C1, true);
-
-    const view = cellExecutionView(store.get(cellExecutionInputsAtom), C1);
-    expect(view.status).toBe("idle");
-    expect(view.blocked).toBe(true);
-    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
-  });
-
-  it("forgets requests and blocked cells with the replica they were made for", () => {
-    const { store } = shown();
-    request(store, [C1]);
-    setCellBlocked(store, C1, true);
-
-    MockExecutions.seed(store, [], null, documentOf());
-
-    const view = cellExecutionView(store.get(cellExecutionInputsAtom), C1);
-    expect(view.status).toBe("idle");
-    expect(view.blocked).toBe(false);
-    expect(store.get(notebookQueuedOrRunningCountAtom)).toBe(0);
-  });
-
-  it("keeps a request while the cell is merely queued", () => {
-    const { store } = shown();
-    request(store, [C1]);
-
-    setCellBlocked(store, C1, false);
-
-    expect(statusOf(store)).toBe("queued");
   });
 });
 

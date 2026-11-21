@@ -48,7 +48,7 @@ export interface CellExecutionInputs {
    * shown the run.
    */
   readonly requested: ReadonlySet<Protocol.CellId>;
-  /** Cells the kernel reports as blocked by a disabled ancestor. */
+  /** Cells with a disabled ancestor in the confirmed document. */
   readonly blocked: ReadonlySet<Protocol.CellId>;
   /** The notebook's runtime, null while it has none or the stream is not ready. */
   readonly runtimeId: Protocol.RuntimeId | null;
@@ -70,6 +70,51 @@ function latestOf(
   return executionId === undefined
     ? null
     : (executions.executions.get(executionId) ?? null);
+}
+
+/** Cells with a distinct disabled ancestor in the host's dependency graph. */
+export function blockedDescendants(
+  analysis: Protocol.Analysis,
+  cells: Iterable<Protocol.Cell>,
+): ReadonlySet<Protocol.CellId> {
+  const blocked = new Set<Protocol.CellId>();
+  const roots = [...cells].filter((cell) => cell.config.disabled);
+  if (roots.length === 0) {
+    return blocked;
+  }
+  const children = new Map<Protocol.CellId, Protocol.CellId[]>();
+  for (const id of Object.keys(analysis.cells)) {
+    children.set(id, []);
+  }
+  for (const [id, { parents }] of Object.entries(analysis.cells)) {
+    if (parents === undefined) {
+      return blocked;
+    }
+    for (const parent of parents) {
+      children.get(parent)?.push(id);
+    }
+  }
+
+  // A second distinct root blocks even the first root in a cycle.
+  // Beyond two roots, visiting the same subtree cannot add any blocked cells.
+  const visits = new Map<Protocol.CellId, number>();
+  for (const root of roots) {
+    const reachable = new Set([root.id]);
+    for (const id of reachable) {
+      if (id !== root.id) {
+        blocked.add(id);
+      }
+      const count = visits.get(id) ?? 0;
+      if (count === 2) {
+        continue;
+      }
+      visits.set(id, count + 1);
+      for (const child of children.get(id) ?? []) {
+        reachable.add(child);
+      }
+    }
+  }
+  return blocked;
 }
 
 /**

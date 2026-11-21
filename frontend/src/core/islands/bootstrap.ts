@@ -26,7 +26,6 @@ import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import { createNotebookReplica } from "../notebook/replica";
 import { consoleObservers } from "../cells/execution-console";
-import { setCellBlocked } from "../executions";
 import { handleKernelReady, handleRemoveUIElements } from "../kernel/handlers";
 import type { NotificationMessage } from "../kernel/messages";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
@@ -261,13 +260,6 @@ function handleNotification(
         });
         return;
       case "cell-op":
-        if (msg.status != null) {
-          setCellBlocked(
-            store,
-            msg.cell_id,
-            msg.status === "disabled-transitively",
-          );
-        }
         if (msg.serialization !== undefined) {
           actions.setCellReusability({
             cell_id: msg.cell_id,
