@@ -278,7 +278,7 @@ export const DataSources: React.FC = () => {
           value={searchValue}
           onValueChange={(value) => {
             // If searching, remove open previews
-            closeAllColumns(value.length > 0);
+            closeAllColumns(value.trim().length > 0);
             setSearchValue(value);
           }}
           rootClassName="flex-1 border-r border-b-0"
@@ -785,12 +785,10 @@ export const TableList: React.FC<{
     return <EmptyState content="No tables found" style={stateStyle} />;
   }
 
-  const filteredTables = tables.filter((table) => {
-    if (searchValue) {
-      return table.name.toLowerCase().includes(searchValue.toLowerCase());
-    }
-    return true;
-  });
+  const query = searchValue?.trim().toLowerCase();
+  const filteredTables = query
+    ? tables.filter((table) => table.name.toLowerCase().includes(query))
+    : tables;
 
   return (
     <>
@@ -799,7 +797,7 @@ export const TableList: React.FC<{
           key={table.name}
           table={table}
           sqlTableContext={sqlTableContext}
-          isSearching={!!searchValue}
+          isSearching={!!query}
           tableIndentRem={tableIndentRem}
           columnIndentRem={columnIndentRem}
         />
