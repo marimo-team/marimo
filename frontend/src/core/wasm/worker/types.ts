@@ -121,6 +121,7 @@ export type SerializedBridge = {
       id: string,
       cursor: string | null,
       emit: (event: string) => void,
+      kinds?: string,
     ): Promise<void>;
     unsubscribe(id: string): void;
     call(call: string): Promise<string>;

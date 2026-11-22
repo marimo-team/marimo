@@ -87,7 +87,11 @@ async def open_host(
         await wait_for(
             events,
             lambda response: any(
-                r.get("data", {}).get("runtime", {}).get("status") == "running"
+                r.get("data", {})
+                .get("runtime", {})
+                .get("state", {})
+                .get("status")
+                == "ready"
                 for r in response.records
             ),
             timeout=15,

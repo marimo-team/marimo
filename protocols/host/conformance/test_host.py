@@ -10,7 +10,7 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import pytest
-from contract import accepted, document_state, objects, problem
+from contract import accepted, document_state, ended, objects, problem
 
 
 def notebook_path(notebook):
@@ -99,7 +99,7 @@ async def test_catalog_snapshot(catalog):
 
 
 async def test_stream_types_filter(host):
-    snapshot = await host.snapshot(params={"types": "runtime"})
+    snapshot = await host.snapshot(params={"kinds": "runtime"})
     assert {frame.event for frame in snapshot if frame.comment is None} <= {
         "runtime",
         "ready",
@@ -125,7 +125,7 @@ async def test_stream_ping(host, pytestconfig):
     if not pytestconfig.getoption("--slow"):
         pytest.skip("pass --slow to wait for idle pings")
     # Filter out attachments caused by other stream checks.
-    async with host.watch(params={"types": "host"}, timeout=20) as watch:
+    async with host.watch(params={"kinds": "host"}, timeout=20) as watch:
         await watch.ready()
         watch.timeout = 20
         await watch.until(lambda frame: frame.comment == "ping")
@@ -140,7 +140,7 @@ async def test_notebook_document(host, catalog):
     document_state(snapshot)
     assert objects(snapshot, "attachment"), "notebook stream has no attachment"
     filtered = await host.snapshot(
-        path + "/events", params={"types": "cell,document"}
+        path + "/events", params={"kinds": "cell,document"}
     )
     assert {f.event for f in filtered if f.comment is None} <= {
         "cell",
@@ -184,9 +184,13 @@ async def test_create_duplicate_replay_and_missing_key(host, scratch):
     )
 
 
-def put(cell_id, code, base_etag=None):
+def create_cell(cell_id, code):
+    return {"kind": "create_cell", "cell": {"id": cell_id, "code": code}}
+
+
+def replace_cell(cell_id, code, base_etag):
     return {
-        "kind": "put_cell",
+        "kind": "replace_cell",
         "base_etag": base_etag,
         "cell": {"id": cell_id, "code": code},
     }
@@ -205,7 +209,7 @@ async def test_edit_atomicity_and_conflicts(host, scratch):
     async with host.watch(path + "/events") as watch:
         await watch.ready()
         answer = accepted(
-            await edit(host, path, [put("check_a", "x = 1")], key=key),
+            await edit(host, path, [create_cell("check_a", "x = 1")], key=key),
             200,
             "EditResponse",
         )
@@ -222,7 +226,12 @@ async def test_edit_atomicity_and_conflicts(host, scratch):
     before, cells = document_state(await host.snapshot(path + "/events"))
     # A valid change followed by a stale one must apply neither.
     response = await edit(
-        host, path, [put("check_b", "y = 2"), put("check_a", "x = 3", "stale")]
+        host,
+        path,
+        [
+            create_cell("check_b", "y = 2"),
+            replace_cell("check_a", "x = 3", "stale"),
+        ],
     )
     stale = problem(response, 412, "precondition-failed")
     assert stale["index"] == 1
@@ -247,8 +256,8 @@ async def test_concurrent_edits(host, scratch):
     require(scratch, "notebook.edit")
     path = notebook_path(scratch)
     responses = await asyncio.gather(
-        edit(host, path, [put("check_a", "x = 1")]),
-        edit(host, path, [put("check_b", "y = 2")]),
+        edit(host, path, [create_cell("check_a", "x = 1")]),
+        edit(host, path, [create_cell("check_b", "y = 2")]),
     )
     for response in responses:
         accepted(response, 200, "EditResponse")
@@ -260,7 +269,9 @@ async def test_save(host, scratch):
     require(scratch, "notebook.edit", "notebook.save")
     path = notebook_path(scratch)
     answer = accepted(
-        await edit(host, path, [put("check_a", "x = 1")]), 200, "EditResponse"
+        await edit(host, path, [create_cell("check_a", "x = 1")]),
+        200,
+        "EditResponse",
     )
     response = await host.request(
         "POST",
@@ -302,15 +313,15 @@ async def start(host, path, watch):
     ).endswith("decision-required"):
         pytest.skip("runtime requires a user decision")
     runtime = accepted(response, 202, "Runtime")
-    assert runtime["status"] == "starting"
+    assert runtime["state"]["status"] == "starting"
     events = await watch.until(
         lambda f: (
             f.event == "runtime"
             and f.message()["runtime"]["id"] == runtime["id"]
-            and f.message()["runtime"]["status"] in ("running", "failed")
+            and f.message()["runtime"]["state"]["status"] in ("ready", "ended")
         )
     )
-    assert events[-1].message()["runtime"]["status"] == "running"
+    assert events[-1].message()["runtime"]["state"]["status"] == "ready"
     live(events[-1], key)
     return runtime
 
@@ -320,7 +331,7 @@ async def finish_run(watch, run, key, outcome):
         lambda f: (
             f.event == "run"
             and f.message()["run"]["id"] == run["id"]
-            and f.message()["run"]["status"] == "completed"
+            and f.message()["run"]["state"]["status"] == "completed"
         )
     )
     executions = {}
@@ -332,18 +343,17 @@ async def finish_run(watch, run, key, outcome):
                 executions[execution["id"]] = execution
     assert executions, "run completed without executions"
     assert all(
-        e["status"] == "completed" and e["outcome"] is not None
-        for e in executions.values()
+        e["state"]["status"] == "completed" for e in executions.values()
     ), "run completed before its executions"
-    assert live(events[-1], key)["run"]["outcome"] == outcome
+    assert live(events[-1], key)["run"]["state"]["outcome"]["kind"] == outcome
     return events, list(executions.values())
 
 
 @pytest.mark.parametrize(
     ("code", "outcome", "kind"),
     [
-        ('print("conformance")', "succeeded", "value"),
-        ("raise RuntimeError('conformance')", "failed", "error"),
+        ('print("conformance")', "succeeded", "succeeded"),
+        ("raise RuntimeError('conformance')", "failed", "failed"),
     ],
 )
 async def test_run(host, scratch, code, outcome, kind):
@@ -360,16 +370,15 @@ async def test_run(host, scratch, code, outcome, kind):
             202,
             "Run",
         )
-        assert run["status"] in ("queued", "running")
+        assert run["state"]["status"] in ("queued", "running")
         assert run["id"] != key
         events, executions = await finish_run(watch, run, key, outcome)
-        assert all(
-            e["code"] == code and e["cell_id"] is None for e in executions
-        )
-        assert executions[-1]["outcome"]["kind"] == kind
-        if kind == "value":
+        assert run["origin"] == {"kind": "code", "code": code}
+        assert all(e["cell_id"] is None for e in executions)
+        assert executions[-1]["state"]["outcome"]["kind"] == kind
+        if kind == "succeeded":
             assert "conformance" in "".join(
-                item["text"] for item in objects(events, "console")
+                item["content"]["text"] for item in objects(events, "console")
             )
         replay = accepted(
             await host.request(
@@ -379,7 +388,7 @@ async def test_run(host, scratch, code, outcome, kind):
             "Run",
         )
         assert replay["id"] == run["id"]
-        assert replay["status"] == "completed"
+        assert replay["state"]["status"] == "completed"
 
 
 async def test_runtime_lifecycle(host, scratch):
@@ -402,12 +411,13 @@ async def test_runtime_lifecycle(host, scratch):
             "Runtime",
         )
         assert replacement["id"] != runtime["id"]
-        assert replacement["status"] == "starting"
+        assert replacement["state"]["status"] == "starting"
         events = await watch.until(
             lambda f: (
                 f.event == "runtime"
                 and f.message()["runtime"]["id"] == replacement["id"]
-                and f.message()["runtime"]["status"] in ("running", "failed")
+                and f.message()["runtime"]["state"]["status"]
+                in ("ready", "ended")
             )
         )
         restart_events = [
@@ -417,14 +427,18 @@ async def test_runtime_lifecycle(host, scratch):
             and frame.message().get("request_id") == key
         ]
         transitions = [
-            (f.event, f.message().get("runtime", {}).get("status"))
+            (
+                f.event,
+                f.message().get("runtime", {}).get("state", {}).get("status"),
+            )
             for f in restart_events
         ]
         assert [transition for transition, _ in groupby(transitions)] == [
-            ("runtime", "terminating"),
+            ("runtime", "stopping"),
+            ("runtime", "ended"),
             ("runtime.removed", None),
             ("runtime", "starting"),
-            ("runtime", "running"),
+            ("runtime", "ready"),
         ]
         for frame in restart_events:
             live(frame, key)
@@ -434,8 +448,10 @@ async def test_runtime_lifecycle(host, scratch):
             202,
             "Runtime",
         )
-        events = await watch.until(lambda f: f.event == "runtime.removed")
-        assert live(events[-1], key)["id"] == replacement["id"]
+        events = await watch.until(ended)
+        stopped = live(events[-1], key)["runtime"]
+        assert stopped["id"] == replacement["id"]
+        assert stopped["state"]["outcome"] == {"kind": "stopped"}
 
 
 async def test_run_cells(host, scratch):
@@ -448,7 +464,9 @@ async def test_run_cells(host, scratch):
     )
     path = notebook_path(scratch)
     answer = accepted(
-        await edit(host, path, [put("check_a", "x = 1")]), 200, "EditResponse"
+        await edit(host, path, [create_cell("check_a", "x = 1")]),
+        200,
+        "EditResponse",
     )
     async with host.watch(path + "/events") as watch:
         await watch.ready()
@@ -472,9 +490,7 @@ async def test_run_cells(host, scratch):
             "Run",
         )
         _, executions = await finish_run(watch, run, key, "succeeded")
-        assert any(
-            e["cell_id"] == "check_a" and e["code"] is None for e in executions
-        )
+        assert any(e["cell_id"] == "check_a" for e in executions)
         response = await host.request(
             "POST",
             path + "/runtime/runs",
@@ -514,7 +530,7 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
             lambda f: (
                 f.event == "execution"
                 and f.message()["execution"]["run_id"] == run["id"]
-                and f.message()["execution"]["status"] == "running"
+                and f.message()["execution"]["state"]["status"] == "running"
             )
         )
         queued_key = uuid4().hex
@@ -529,7 +545,7 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
             "Run",
         )
         assert queued["id"] != run["id"]
-        assert queued["status"] == "queued"
+        assert queued["state"] == {"status": "queued"}
         if operation == "interrupt":
             method, endpoint, schema = (
                 "POST",
@@ -554,15 +570,15 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
         def both_completed(frame):
             if frame.event == "run":
                 record = frame.message()["run"]
-                if record["status"] == "completed":
+                if record["state"]["status"] == "completed":
                     completed[record["id"]] = record
             return run["id"] in completed and queued["id"] in completed
 
         # Either run may publish its terminal event first.
         events = await watch.until(both_completed)
-        assert completed[run["id"]]["outcome"] == "interrupted"
-        assert completed[queued["id"]]["outcome"] == (
-            "interrupted" if operation == "interrupt" else "succeeded"
+        assert completed[run["id"]]["state"]["outcome"]["kind"] == "cancelled"
+        assert completed[queued["id"]]["state"]["outcome"]["kind"] == (
+            "cancelled" if operation == "interrupt" else "succeeded"
         )
         executions = objects(events, "execution")
         active_executions = {
@@ -570,14 +586,15 @@ async def test_interrupt_and_cancel_have_different_queue_scope(
         }
         assert active_executions
         assert all(
-            e["status"] == "completed"
-            and e["outcome"]["kind"] == "interrupted"
+            e["state"]["status"] == "completed"
+            and e["state"]["outcome"]["kind"] == "cancelled"
             for e in active_executions.values()
         )
         if operation == "interrupt":
             # The queued run may leave an execution, but it never started.
             assert not any(
-                e["run_id"] == queued["id"] and e["started_at"] is not None
+                e["run_id"] == queued["id"]
+                and e["state"].get("started_at") is not None
                 for e in executions
             )
             assert (
@@ -614,7 +631,7 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             lambda f: (
                 f.event == "execution"
                 and f.message()["execution"]["run_id"] == active["id"]
-                and f.message()["execution"]["status"] == "running"
+                and f.message()["execution"]["state"]["status"] == "running"
             )
         )
         queued = accepted(
@@ -635,7 +652,7 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             202,
             "Run",
         )
-        assert queued["status"] == successor["status"] == "queued"
+        assert queued["state"] == successor["state"] == {"status": "queued"}
         endpoint = path + "/runtime/runs/" + quote(queued["id"], safe="")
         assert (
             accepted(await host.request("DELETE", endpoint), 202, "Run")["id"]
@@ -645,18 +662,22 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             lambda f: (
                 f.event == "run"
                 and f.message()["run"]["id"] == queued["id"]
-                and f.message()["run"]["status"] == "completed"
+                and f.message()["run"]["state"]["status"] == "completed"
             )
         )
-        assert events[-1].message()["run"]["outcome"] == "interrupted"
+        assert (
+            events[-1].message()["run"]["state"]["outcome"]["kind"]
+            == "cancelled"
+        )
         # The queued run may leave an execution, but it never started.
         assert not any(
-            e["run_id"] == queued["id"] and e["started_at"] is not None
+            e["run_id"] == queued["id"]
+            and e["state"].get("started_at") is not None
             for e in objects(events, "execution")
         )
         assert not any(
             r["id"] in (active["id"], successor["id"])
-            and r["status"] == "completed"
+            and r["state"]["status"] == "completed"
             for r in objects(events, "run")
         )
         problem(await host.request("DELETE", endpoint), 409, "conflict")
@@ -668,7 +689,7 @@ async def test_cancel_queued_run_leaves_other_runs_untouched(host, scratch):
             202,
             "Run",
         )
-        await finish_run(watch, active, active_key, "interrupted")
+        await finish_run(watch, active, active_key, "cancelled")
         await finish_run(watch, successor, next_key, "succeeded")
 
 
@@ -685,7 +706,7 @@ async def test_idle_interrupt_does_not_arm_future_work(host, scratch):
             "Runtime",
         )
         assert receipt["id"] == runtime["id"]
-        assert receipt["status"] == "running"
+        assert receipt["state"]["status"] == "ready"
         key = uuid4().hex
         run = accepted(
             await host.request(

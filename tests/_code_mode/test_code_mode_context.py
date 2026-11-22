@@ -1461,13 +1461,13 @@ class TestPendingExecutionRequests:
             "table": "CREATE TABLE schema1.t1 (i INTEGER)",
             "select": "SELECT * FROM schema1.t1",
         }
-        k._uninstantiated_execution_requests = {
+        k._pending_execution_requests = {
             CellId_t(cid): ExecuteCellCommand(
                 cell_id=CellId_t(cid), code=f"mo.sql({query!r})"
             )
             for cid, query in queries.items()
         }
-        k._uninstantiated_execution_requests[CellId_t("unrelated")] = (
+        k._pending_execution_requests[CellId_t("unrelated")] = (
             ExecuteCellCommand(
                 cell_id=CellId_t("unrelated"),
                 code="raise RuntimeError('must not run')",
@@ -1483,7 +1483,7 @@ class TestPendingExecutionRequests:
 
         cells_to_run = k.mutate_graph(prepared, deletion_requests=[])
         assert k.graph.ancestors(CellId_t("select")) == {"schema", "table"}
-        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+        assert set(k._pending_execution_requests) == {"unrelated"}
         # Execute SQL in the scheduler's order to catch an omitted schema or
         # a table scheduled before its schema, without shared database state.
         with duckdb.connect() as connection:
@@ -1536,7 +1536,7 @@ class TestPendingExecutionRequests:
             for cid, cell in k.graph.cells.items()
         }
         notifications_before = list(k.stream.operations)
-        pending_before = dict(k._uninstantiated_execution_requests)
+        pending_before = dict(k._pending_execution_requests)
         request = ExecuteCellCommand(
             cell_id=CellId_t("child" if existing_target else "final"),
             code="y = x + 1" if existing_target else "z = y + 1",
@@ -1557,7 +1557,7 @@ class TestPendingExecutionRequests:
             for cid, cell in k.graph.cells.items()
         } == state_before
         assert k.stream.operations == notifications_before
-        assert k._uninstantiated_execution_requests == pending_before
+        assert k._pending_execution_requests == pending_before
 
     @pytest.mark.parametrize(
         "bridge_change", ["unchanged", "replace", "invalid", "delete"]
@@ -1584,7 +1584,7 @@ class TestPendingExecutionRequests:
         elif bridge_change == "delete":
             deletions.append(DeleteCellCommand(cell_id=CellId_t("child")))
 
-        pending_before = dict(k._uninstantiated_execution_requests)
+        pending_before = dict(k._pending_execution_requests)
         prepared = k.prepare_execution_requests(
             requests,
             run_cell_ids={CellId_t("final")},
@@ -1594,7 +1594,7 @@ class TestPendingExecutionRequests:
         if bridge_change == "unchanged":
             expected.append(pending_before[CellId_t("root")])
         assert prepared == expected
-        assert k._uninstantiated_execution_requests == pending_before
+        assert k._pending_execution_requests == pending_before
         assert _graph_codes(k) == {"child": "y = x + 2"}
 
     @pytest.mark.parametrize("execution_path", ["ui", "code_mode"])
@@ -1625,7 +1625,7 @@ class TestPendingExecutionRequests:
             "y": 3,
             "z": 4 if execution_path == "ui" else 5,
         }
-        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+        assert set(k._pending_execution_requests) == {"unrelated"}
 
     @pytest.mark.parametrize("explicit_ancestor", [False, True])
     @pytest.mark.parametrize("disabled", [False, True])
@@ -1663,7 +1663,7 @@ class TestPendingExecutionRequests:
                 nb.edit_cell("child", code="y = x + 2")
                 nb.run_cell("child")
         assert k.globals["y"] == 3
-        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+        assert set(k._pending_execution_requests) == {"unrelated"}
         assert "unrelated" not in k.graph.cells
 
     @pytest.mark.parametrize("run_edited_cell", [False, True])
@@ -1686,7 +1686,7 @@ class TestPendingExecutionRequests:
         assert k.globals["x"] == 10
         assert k.globals["y"] == 11
         assert k.graph.cells["root"].code == "x = 10"
-        assert set(k._uninstantiated_execution_requests) == {"unrelated"}
+        assert set(k._pending_execution_requests) == {"unrelated"}
 
     async def test_later_run_does_not_restore_deleted_pending_cell(
         self, any_kernel: Kernel

@@ -19,7 +19,6 @@ export {
   clearCellOutputs,
   notebookIsRunningAtom,
   notebookQueuedOrRunningCountAtom,
-  observeCellMessage,
   releaseCellOutputAtoms,
   runtimeStatusAtom,
   waitForRuntimeRunning,
@@ -34,6 +33,8 @@ export {
   useCellHasResult,
   useCellOutline,
   useCellOutput,
+  useCellPresentation,
+  useShowChangedInputs,
   useScratchOutput,
 } from "./hooks";
 export {
@@ -41,6 +42,7 @@ export {
   type CellOutput,
   cellOutputsView,
   cellOutputView,
+  executionSource,
   type HostDiagnostic,
   scratchOutputView,
 } from "./output";

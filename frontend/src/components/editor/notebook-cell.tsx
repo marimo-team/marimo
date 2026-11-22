@@ -2,12 +2,8 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
-import { useAtomValue, useSetAtom, useStore } from "jotai";
-import {
-  HelpCircleIcon,
-  MoreHorizontalIcon,
-  SquareFunctionIcon,
-} from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { HelpCircleIcon, MoreHorizontalIcon } from "lucide-react";
 import {
   type FocusEvent,
   forwardRef,
@@ -30,6 +26,7 @@ import {
   outputIsLoading,
   outputIsStale,
 } from "@/core/cells/cell";
+import { useReusableDefinition } from "@/core/cells/reusable-definition";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
@@ -44,14 +41,11 @@ import {
   type CellExecutionView,
   type CellFreshness,
   type CellRunStatus,
-  replyInput,
-  useCellExecution,
-  useCellFreshness,
+  useCellPresentation,
   useCellOutline,
   useCellOutput,
 } from "@/core/executions";
-import type { WithResponse } from "@/core/cells/types";
-import type { OutputMessage } from "@/core/kernel/messages";
+import { useAnswerPrompt } from "@/core/cells/useAnswerPrompt";
 import type { CellConfig } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
@@ -67,7 +61,7 @@ import {
 } from "../../core/cells/editor";
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import {
-  cellNeedsRun,
+  cellRunReason,
   cellStatusClasses,
   isUninstantiated,
   publishedCellClasses,
@@ -82,6 +76,7 @@ import { Logger } from "../../utils/Logger";
 import { renderShortcut } from "../shortcuts/renderShortcut";
 import { CellStatusComponent } from "./cell/CellStatus";
 import { CreateCellButton } from "./cell/CreateCellButton";
+import { ReusableDefinitionBadge } from "./cell/ReusableDefinitionBadge";
 import {
   CellActionsDropdown,
   type CellActionsDropdownHandle,
@@ -245,30 +240,6 @@ export interface CellHandle {
   editorViewOrNull: EditorView | null;
 }
 
-/**
- * Answer the prompt at `index` of the cell's console through the host.
- *
- * The console entry is marked answered right away, as before. The reply
- * itself names the prompt, so the host can mark it answered and turn away
- * a late reply meant for an earlier prompt.
- */
-function useAnswerPrompt(
-  cellId: CellId,
-  consoleOutputs: readonly WithResponse<OutputMessage>[],
-) {
-  const store = useStore();
-  const actions = useCellActions();
-  return useEvent((text: string, index: number) => {
-    actions.setStdinResponse({ cellId, response: text, outputIndex: index });
-    const prompt = consoleOutputs[index];
-    if (prompt?.input_id === undefined) {
-      Logger.error("The prompt has no id to answer it by", prompt);
-      return;
-    }
-    void replyInput(store, prompt.input_id, text);
-  });
-}
-
 export interface CellProps {
   cellId: CellId;
   theme: Theme;
@@ -353,10 +324,9 @@ const ReadonlyCellComponent = forwardRef(
     const { cellId } = props;
     const cellData = useCellData(cellId);
     const output = useCellOutput(cellId);
-    const execution = useCellExecution(cellId);
-    const freshness = useCellFreshness(cellId);
-    const errored = execution.outcome === "error";
-    const interrupted = execution.outcome === "interrupted";
+    const { execution, freshness } = useCellPresentation(cellId);
+    const errored = execution.outcome === "failed";
+    const interrupted = execution.outcome === "cancelled";
     const stopped = execution.outcome === "skipped";
 
     const className = clsx("marimo-cell", "hover-actions-parent z-10", {
@@ -417,12 +387,12 @@ const EditableCellComponent = ({
   const cellRef = useRef<HTMLDivElement>(null);
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
+  const reusable = useReusableDefinition(cellId);
   const output = useCellOutput(cellId);
   const outline = useCellOutline(cellId);
-  const execution = useCellExecution(cellId);
-  const freshness = useCellFreshness(cellId);
-  const errored = execution.outcome === "error";
-  const interrupted = execution.outcome === "interrupted";
+  const { execution, freshness } = useCellPresentation(cellId);
+  const errored = execution.outcome === "failed";
+  const interrupted = execution.outcome === "cancelled";
   const stopped = execution.outcome === "skipped";
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
@@ -434,19 +404,14 @@ const EditableCellComponent = ({
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
   const runCell = useRunCell(cellId);
-  const answerPrompt = useAnswerPrompt(cellId, cellRuntime.consoleOutputs);
+  const answerPrompt = useAnswerPrompt(cellId);
   const isPendingCut = useIsPendingCut(cellId);
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
   const uninstantiated = isUninstantiated(execution);
 
-  const needsRun = cellNeedsRun({
-    freshness,
-    interrupted,
-    disabled: cellData.config.disabled,
-    blocked: execution.blocked,
-  });
+  const needsRun = cellRunReason(execution, freshness, cellData) !== null;
 
   const loading = outputIsLoading(execution.status);
 
@@ -659,8 +624,6 @@ const EditableCellComponent = ({
     return undefined;
   };
 
-  const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
-
   return (
     <TooltipProvider>
       <CellActionsContextMenu
@@ -781,71 +744,14 @@ const EditableCellComponent = ({
               />
             )}
             {cellOutput === "below" && (outputArea || emptyMarkdownPlaceholder)}
-            {!isPresenting && cellRuntime.serialization && (
-              <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">
-                {isToplevel && (
-                  <a
-                    href="https://links.marimo.app/reusable-definitions"
-                    target="_blank"
-                    className="hover:underline text-muted-foreground text-xs font-bold"
-                    rel="noreferrer"
-                  >
-                    reusable
-                  </a>
-                )}
-                <Tooltip
-                  content={
-                    <span className="max-w-16 text-xs">
-                      {(isToplevel &&
-                        "This function or class can be imported into other Python notebooks or modules.") || (
-                        <>
-                          This definition can't be reused in other Python
-                          modules:
-                          <br />
-                          <br />
-                          <pre>{cellRuntime.serialization}</pre>
-                          <br />
-                          Click this icon to learn more.
-                        </>
-                      )}
-                    </span>
-                  }
-                >
-                  {isToplevel ? (
-                    <a
-                      href="https://links.marimo.app/reusable-definitions"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <SquareFunctionIcon
-                        size={16}
-                        strokeWidth={1.5}
-                        className="rounded-lg text-muted-foreground"
-                      />
-                    </a>
-                  ) : (
-                    <a
-                      href="https://links.marimo.app/reusable-definitions"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <HelpCircleIcon
-                        size={16}
-                        strokeWidth={1.5}
-                        className="rounded-lg text-muted-foreground"
-                      />
-                    </a>
-                  )}
-                </Tooltip>
-              </div>
+            {!isPresenting && reusable && (
+              <ReusableDefinitionBadge finding={reusable} />
             )}
             {!isPresenting && (
               <ConsoleOutput
                 consoleOutputs={cellRuntime.consoleOutputs}
                 stale={consoleOutputStale}
-                interrupted={interrupted}
-                // Empty name if serialization triggered
-                cellName={cellRuntime.serialization ? "_" : cellData.name}
+                cellName={reusable ? "_" : cellData.name}
                 onRefactorWithAI={handleRefactorWithAI}
                 onClear={() => {
                   actions.clearCellConsoleOutput({ cellId });
@@ -855,7 +761,6 @@ const EditableCellComponent = ({
                 }}
                 onSubmitDebugger={answerPrompt}
                 cellId={cellId}
-                debuggerActive={cellRuntime.debuggerActive}
               />
             )}
             <PendingDeleteConfirmation cellId={cellId} />
@@ -895,12 +800,12 @@ const CellRightSideActions = memo(
       <CellStatusComponent
         status={execution.status}
         freshness={freshness}
-        interrupted={execution.outcome === "interrupted"}
+        interrupted={execution.outcome === "cancelled"}
         editing={true}
         disabled={disabled}
         elapsedTime={execution.duration}
         startedAt={execution.startedAt}
-        blocked={execution.blocked}
+        blocked={execution.shownBlock}
         uninstantiated={uninstantiated}
       />
     );
@@ -1073,10 +978,8 @@ const SetupCellComponent = ({
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
   const output = useCellOutput(cellId);
-  const execution = useCellExecution(cellId);
-  const freshness = useCellFreshness(cellId);
-  const errored = execution.outcome === "error";
-  const interrupted = execution.outcome === "interrupted";
+  const { execution, freshness } = useCellPresentation(cellId);
+  const errored = execution.outcome === "failed";
   const stopped = execution.outcome === "skipped";
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
@@ -1087,16 +990,11 @@ const SetupCellComponent = ({
   const deleteCell = useDeleteCellCallback();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const runCell = useRunCell(cellId);
-  const answerPrompt = useAnswerPrompt(cellId, cellRuntime.consoleOutputs);
+  const answerPrompt = useAnswerPrompt(cellId);
 
   const uninstantiated = isUninstantiated(execution);
 
-  const needsRun = cellNeedsRun({
-    freshness,
-    interrupted,
-    disabled: cellData.config.disabled,
-    blocked: execution.blocked,
-  });
+  const needsRun = cellRunReason(execution, freshness, cellData) !== null;
   const loading =
     execution.status === "running" || execution.status === "queued";
 
@@ -1307,7 +1205,6 @@ const SetupCellComponent = ({
             <ConsoleOutput
               consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
-              interrupted={interrupted}
               // Don't show name
               cellName={"_"}
               onRefactorWithAI={handleRefactorWithAI}
@@ -1319,7 +1216,6 @@ const SetupCellComponent = ({
               }}
               onSubmitDebugger={answerPrompt}
               cellId={cellId}
-              debuggerActive={cellRuntime.debuggerActive}
             />
           </div>
         </div>

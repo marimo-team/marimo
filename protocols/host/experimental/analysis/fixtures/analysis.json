@@ -7,14 +7,16 @@
         "mo"
       ],
       "refs": [],
-      "errors": []
+      "diagnostics": [],
+      "parents": []
     },
     "c3": {
       "defs": [
         "x"
       ],
       "refs": [],
-      "errors": []
+      "diagnostics": [],
+      "parents": []
     },
     "k7f2": {
       "defs": [
@@ -23,7 +25,10 @@
       "refs": [
         "x"
       ],
-      "errors": []
+      "diagnostics": [],
+      "parents": [
+        "c3"
+      ]
     }
   }
 }

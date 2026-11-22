@@ -22,7 +22,7 @@ import urllib.request
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import click
 import pytest
@@ -35,6 +35,14 @@ from marimo._cli.cli import (
     _create_run_workspace,
     _split_run_paths_and_args,
     main as cli_main,
+)
+from marimo._cli.containers.engine import (
+    CleanupComplete,
+    ContainerIdentity,
+    EngineFailure,
+    LaunchRequest,
+    StartFailure,
+    WorkloadExit,
 )
 from marimo._config.manager import get_default_config_manager
 from marimo._dependencies.dependencies import DependencyManager
@@ -473,7 +481,7 @@ def test_cli_edit_checks_for_updates_after_preflight(source: str) -> None:
         runner.isolated_filesystem(),
         patch.dict(os.environ),
         patch(
-            "marimo._cli.cli.prompt_run_in_docker_container",
+            "marimo._cli.cli.prompt_run_in_container",
             return_value=False,
         ),
         patch(
@@ -2000,7 +2008,7 @@ def test_cli_run_double_dash_passes_notebook_argv(tmp_path: Path) -> None:
 
     with (
         patch(
-            "marimo._cli.cli.prompt_run_in_docker_container",
+            "marimo._cli.cli.prompt_run_in_container",
             return_value=False,
         ),
         patch("marimo._cli.cli.check_app_correctness"),
@@ -2045,7 +2053,7 @@ def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
 
     with (
         patch(
-            "marimo._cli.cli.prompt_run_in_docker_container",
+            "marimo._cli.cli.prompt_run_in_container",
             return_value=False,
         ),
         patch(
@@ -2182,8 +2190,262 @@ def test_shell_completion(
 HAS_DOCKER = DependencyManager.which("docker")
 
 
+@pytest.mark.parametrize("mode", ["edit", "run"])
+@pytest.mark.parametrize("startup_fails", [False, True])
+def test_cli_stages_only_the_local_notebook(
+    mode: str,
+    startup_fails: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.chdir(tmp_path)
+    project = Path("project with spaces")
+    project.mkdir()
+    source = project / "local notebook.py"
+    source.write_text("original source", encoding="utf-8")
+    (project / "adjacent.txt").write_text("adjacent file", encoding="utf-8")
+    staged: list[Path] = []
+
+    def start(request: LaunchRequest) -> StartFailure | Mock:
+        (mount,) = request.mounts
+        staging = Path(mount.source)
+        staged.append(staging)
+        assert staging.parent == home
+        assert {path.name for path in staging.iterdir()} == {source.name}
+        assert not mount.read_only
+        assert request.argv[-1] == f"{mount.target}/{source.name}"
+        assert request.working_directory == mount.target
+        copy = staging / source.name
+        assert copy.read_text(encoding="utf-8") == "original source"
+        copy.write_text("changed copy", encoding="utf-8")
+        if startup_fails:
+            return StartFailure(
+                EngineFailure("Docker", "start", "test failure")
+            )
+        session = Mock()
+        session.identity = ContainerIdentity("Docker", "owned")
+        session.logs.return_value = iter(())
+        session.exit_result.return_value = WorkloadExit(0)
+        session.close.return_value = CleanupComplete("removed")
+        return session
+
+    with patch("marimo._cli.containers.launcher.resolve_engine") as resolve:
+        resolve.return_value.start.side_effect = start
+        result = CliRunner().invoke(
+            cli_main, [mode, str(source), "--untrusted"]
+        )
+
+    assert result.exit_code == int(startup_fails), result.exception
+    (staging,) = staged
+    assert not staging.exists()
+    assert source.read_text(encoding="utf-8") == "original source"
+    assert ("save and download" in result.output.lower()) == (mode == "edit")
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
+@pytest.mark.parametrize("form", ["directory", "missing", "multiple", "html"])
+def test_cli_rejects_unsupported_container_inputs_before_host_execution(
+    mode: str, form: str, tmp_path: Path
+) -> None:
+    source = tmp_path / "notebook.py"
+    source.touch()
+    html = tmp_path / "regular.html"
+    html.write_text("<html>Not a notebook</html>", encoding="utf-8")
+    paths = {
+        "directory": [str(tmp_path)],
+        "missing": [str(tmp_path / "missing.py")],
+        "multiple": [str(source), str(source)],
+        "html": [str(html)],
+    }[form]
+    with (
+        patch("marimo._cli.cli.validate_name") as validate_host,
+        patch("marimo._cli.containers.launcher.resolve_engine") as resolve,
+    ):
+        result = CliRunner().invoke(cli_main, [mode, "--untrusted", *paths])
+    assert result.exit_code == 2, result.output
+    assert "notebook" in result.output
+    validate_host.assert_not_called()
+    resolve.assert_not_called()
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
+@pytest.mark.parametrize(
+    ("option", "expected"),
+    [
+        ([], "docker"),
+        (["--container-engine", " podman "], "podman"),
+        (["--container-engine", "nerdctl"], "nerdctl"),
+        (["--container-engine", "container"], "container"),
+        (
+            ["--container-engine", "/path to engine/finch"],
+            "/path to engine/finch",
+        ),
+        (["--container-engine", "custom-engine"], "custom-engine"),
+    ],
+)
+def test_cli_forwards_container_engine(
+    mode: str, option: list[str], expected: str
+) -> None:
+    with patch("marimo._cli.cli.run_in_container") as launch:
+        result = CliRunner().invoke(
+            cli_main,
+            [
+                mode,
+                "https://example.com/notebook.py",
+                "--untrusted",
+                *option,
+                "--port",
+                "9123",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    launch.assert_called_once()
+    assert launch.call_args.kwargs["container_engine"] == expected
+    assert launch.call_args.kwargs["port"] == 9123
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
+def test_cli_rejects_empty_container_engine(mode: str) -> None:
+    result = CliRunner().invoke(
+        cli_main,
+        [
+            mode,
+            "https://example.com/notebook.py",
+            "--untrusted",
+            "--container-engine",
+            "  ",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "Must not be empty" in result.output
+
+
+def test_cli_does_not_fall_back_when_container_engine_is_missing(
+    tmp_path: Path,
+) -> None:
+    executable = tmp_path / "missing engine"
+    result = CliRunner().invoke(
+        cli_main,
+        [
+            "run",
+            "https://example.com/notebook.py",
+            "--untrusted",
+            "--container-engine",
+            str(executable),
+        ],
+    )
+    assert result.exit_code == 1
+    assert str(executable) in result.output
+    assert "availability check failed" in result.output
+
+
+@pytest.mark.parametrize("mode", ["edit", "run"])
+def test_cli_container_startup_reports_engine_error(mode: str) -> None:
+    with patch("subprocess.run") as run:
+
+        def docker_command(
+            args: list[str], **_kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            if args[:2] in (["docker", "run"], ["docker", "create"]):
+                raise subprocess.CalledProcessError(
+                    125, args, stderr="image pull denied"
+                )
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        run.side_effect = docker_command
+        result = CliRunner().invoke(
+            cli_main, [mode, "https://example.com/notebook.py", "--untrusted"]
+        )
+
+    assert result.exit_code == 1
+    assert "image pull denied" in result.output
+    assert "Container removed." not in result.output
+    assert "Container is already absent." not in result.output
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        subprocess.CalledProcessError(1, "info", stderr="Service unavailable"),
+        subprocess.TimeoutExpired("info", 10),
+        PermissionError("Permission denied"),
+    ],
+)
+def test_cli_container_reports_failed_engine_availability(
+    error: Exception,
+) -> None:
+    with patch("subprocess.run", side_effect=error) as run:
+        result = CliRunner().invoke(
+            cli_main,
+            [
+                "edit",
+                "https://example.com/notebook.py",
+                "--untrusted",
+                "--container-engine",
+                "podman",
+            ],
+        )
+
+    assert result.exit_code == 1, result.output
+    assert "Podman availability check failed" in result.output
+    run.assert_called_once()
+    assert run.call_args.args[0] == ["podman", "info"]
+    assert run.call_args.kwargs["timeout"] == 10
+
+
+@pytest.mark.parametrize("status", [0, 7])
+def test_cli_container_reports_cleanup_failure(status: int) -> None:
+    session = Mock()
+    session.identity = ContainerIdentity("Docker", "owned")
+    session.logs.return_value = iter(["final output\n"])
+    session.exit_result.return_value = WorkloadExit(status)
+    session.close.return_value = EngineFailure(
+        "Docker", "remove", "permission denied", "owned"
+    )
+    with patch("marimo._cli.containers.launcher.resolve_engine") as resolve:
+        resolve.return_value.start.return_value = session
+        result = CliRunner().invoke(
+            cli_main, ["run", "https://example.com/notebook.py", "--untrusted"]
+        )
+
+    assert result.exit_code == 1
+    assert "final output" in result.output
+    assert (
+        "Docker remove failed for container owned: permission denied"
+        in result.output
+    )
+    if status:
+        assert result.output.index(
+            "Notebook exited with status 7"
+        ) < result.output.index("permission denied")
+    session.close.assert_called_once()
+
+
+def test_cli_container_closes_session_on_interrupt() -> None:
+    session = Mock()
+    session.identity = ContainerIdentity("Docker", "owned")
+    session.logs.side_effect = KeyboardInterrupt
+    session.close.return_value = CleanupComplete("removed")
+    with patch("marimo._cli.containers.launcher.resolve_engine") as resolve:
+        resolve.return_value.start.return_value = session
+        result = CliRunner().invoke(
+            cli_main,
+            ["edit", "https://example.com/notebook.py", "--untrusted"],
+        )
+
+    assert result.exit_code == 0
+    assert "Received keyboard interrupt." in result.output
+    assert "Container removed." in result.output
+    session.close.assert_called_once()
+
+
 @pytest.mark.parametrize("backend", ["uv", "pixi"])
-def test_cli_edit_remote_sandbox_prompts_for_docker_once(
+def test_cli_edit_remote_sandbox_names_container_engine_once(
     backend: str, temp_marimo_file: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from marimo._config.settings import GLOBAL_SETTINGS
@@ -2192,6 +2454,8 @@ def test_cli_edit_remote_sandbox_prompts_for_docker_once(
         "edit",
         "https://example.com/notebook.py",
         f"--sandbox={backend}",
+        "--container-engine",
+        "finch",
         "--headless",
         "--skip-update-check",
     ]
@@ -2202,9 +2466,9 @@ def test_cli_edit_remote_sandbox_prompts_for_docker_once(
     monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False)
 
     with (
-        patch("marimo._cli.run_docker.sys") as terminal,
+        patch("marimo._cli.containers.launcher.sys") as terminal,
         patch(
-            "marimo._cli.run_docker.click.confirm", return_value=False
+            "marimo._cli.containers.launcher.click.confirm", return_value=False
         ) as confirm,
         patch(
             "marimo._cli.cli.validate_name",
@@ -2227,6 +2491,7 @@ def test_cli_edit_remote_sandbox_prompts_for_docker_once(
         outer = runner.invoke(cli_main, args)
         assert outer.exit_code == 0, outer.output
         confirm.assert_called_once()
+        assert "using finch" in confirm.call_args.args[0]
         start_server.assert_not_called()
 
         plan = wait.call_args.args[0]
@@ -2250,7 +2515,7 @@ def test_cli_edit_remote_sandbox_prompts_for_docker_once(
 @pytest.mark.skipif(
     HAS_DOCKER, reason="docker is required to be not installed"
 )
-def test_cli_run_docker_remote_url():
+def test_cli_run_container_remote_url():
     remote_url = "https://example.com/notebook.py"
     p = subprocess.Popen(
         [

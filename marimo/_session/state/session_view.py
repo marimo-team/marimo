@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import copy
 import time
-from dataclasses import dataclass
-from typing import Any, Literal, cast
+from dataclasses import dataclass, replace
+from itertools import groupby
+from typing import Any, Literal, TypeVar, cast
 
 import msgspec
 
@@ -14,19 +15,24 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleTuple
 from marimo._messaging.notification import (
     BreakpointsNotification,
+    CallbackOutputNotification,
     CellNotification,
+    ConsoleInputsClearedNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
     EnvironmentOperationNotification,
     EnvironmentState,
     EnvironmentStateNotification,
     EsmSpec,
+    ExecutionNotification,
     InterruptedNotification,
     ModelClose,
     ModelLifecycleNotification,
     ModelOpen,
     ModelUpdate,
     NotificationMessage,
+    PdbInputNotification,
+    PdbOutputNotification,
     SQLSchemaListPreviewNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
@@ -62,6 +68,7 @@ from marimo._sql.connection_utils import (
 )
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
+from marimo._utils.code import hash_code
 from marimo._utils.lists import as_list
 
 LOGGER = _loggers.marimo_logger()
@@ -159,6 +166,35 @@ class AutoExportState:
         return True
 
 
+_CommandOutput = TypeVar(
+    "_CommandOutput", PdbOutputNotification, CallbackOutputNotification
+)
+
+SnapshotScope = Literal["full", "editor", "host"]
+
+
+@dataclass(frozen=True)
+class _CommandEntry:
+    output: CellOutput
+    after_seq: int | None
+    # The session also retains rows that have no host item sequence.
+    console_offset: int
+
+
+@dataclass(frozen=True)
+class _OutputOwner:
+    execution_id: str | None
+    code_hash: str | None
+    awaiting_plan: bool = False
+
+
+@dataclass(frozen=True)
+class CellExport:
+    code_hash: str | None
+    output: CellOutput | None
+    console: list[CellOutput]
+
+
 class SessionView:
     """A representation of a session state for replay and serialization.
 
@@ -175,6 +211,19 @@ class SessionView:
     def __init__(self) -> None:
         # A mapping from cell (IDs) to their last seen notification
         self.cell_notifications: dict[CellId_t, CellNotification] = {}
+        self._output_owners: dict[CellId_t, _OutputOwner] = {}
+        self._previous_output_hashes: dict[CellId_t, str | None] = {}
+        self._cleared_inputs: dict[
+            CellId_t, ConsoleInputsClearedNotification
+        ] = {}
+        self._console_positions: dict[CellId_t, int] = {}
+        self._command_output: dict[
+            tuple[
+                CellId_t,
+                type[PdbOutputNotification | CallbackOutputNotification],
+            ],
+            list[_CommandEntry],
+        ] = {}
         # The most recent datasets notification.
         self.datasets = DatasetsNotification(tables=[])
         # The most recent data-connectors notification
@@ -194,6 +243,7 @@ class SessionView:
         # Map of object id to value.
         self.ui_values: dict[str, Any] = {}
         self.breakpoints = BreakpointsNotification(breakpoints={})
+        self.pending_pdb_input: PdbInputNotification | None = None
         # Map of cell id to the last code that was executed in that cell.
         self.last_executed_code: dict[CellId_t, str] = {}
         # Map of cell id to the last cell execution time
@@ -229,6 +279,18 @@ class SessionView:
         self.ui_values[name] = value
 
     def _add_last_run_code(self, req: ExecuteCellCommand) -> None:
+        cell = self.cell_notifications.get(req.cell_id)
+        if cell is not None:
+            owner = self._output_owners.get(req.cell_id)
+            if owner is None:
+                previous = self.last_executed_code.get(req.cell_id)
+                owner = _OutputOwner(
+                    None, hash_code(previous) if previous is not None else None
+                )
+            self._output_owners[req.cell_id] = replace(
+                owner, awaiting_plan=True
+            )
+            self._retain_previous_output(cell)
         self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_notification(self, raw_notification: KernelMessage) -> None:
@@ -312,8 +374,34 @@ class SessionView:
         """Add a notification to the session view."""
         self._touch()
 
-        if isinstance(notification, CellNotification):
+        if isinstance(notification, ExecutionNotification):
+            self._observe_execution(notification)
+        elif isinstance(notification, CellNotification):
+            owner = self.current_execution_id(notification.cell_id)
+            if (
+                owner is not None
+                and notification.execution_id is not None
+                and owner != notification.execution_id
+            ):
+                return
+            if notification.status == "running" or notification.console == []:
+                self._clear_command_output(notification.cell_id)
             previous = self.cell_notifications.get(notification.cell_id)
+            if (
+                notification.console == []
+                and previous is not None
+                and notification.execution_id is not None
+            ):
+                self._clear_console_inputs(
+                    notification.cell_id, notification.execution_id, previous
+                )
+            if notification.output is not None:
+                self._previous_output_hashes.pop(notification.cell_id, None)
+            elif notification.cell_id in self._previous_output_hashes:
+                # The merged status and displayed value have different owners.
+                notification = msgspec.structs.replace(
+                    notification, run_id=None, execution_id=None
+                )
             self.cell_notifications[notification.cell_id] = (
                 merge_cell_notification(previous, notification)
             )
@@ -326,6 +414,44 @@ class SessionView:
                 self.save_execution_time(notification, "start")
             if previous.status == "running" and notification.status == "idle":
                 self.save_execution_time(notification, "end")
+
+        elif isinstance(
+            notification, (PdbOutputNotification, CallbackOutputNotification)
+        ):
+            if (
+                isinstance(notification, CallbackOutputNotification)
+                and notification.clears_cell_console
+            ):
+                self._clear_command_output(notification.cell_id)
+                cell = self.cell_notifications.get(notification.cell_id)
+                if cell is not None:
+                    owner = self.current_execution_id(notification.cell_id)
+                    if owner is not None:
+                        self._clear_console_inputs(
+                            notification.cell_id, owner, cell
+                        )
+                    cell.console = _pending_inputs(cell.console)
+            key = (notification.cell_id, type(notification))
+            entries = self._command_output.setdefault(key, [])
+            if notification.replace or not notification.entries:
+                entries.clear()
+            command = self.position_command_output(notification)
+            positions = command.after_seq
+            cell = self.cell_notifications.get(notification.cell_id)
+            offset = len(as_list(cell.console)) if cell is not None else 0
+            entries.extend(
+                _CommandEntry(
+                    entry,
+                    None if positions is msgspec.UNSET else positions[i],
+                    offset,
+                )
+                for i, entry in enumerate(command.entries)
+            )
+
+        elif isinstance(notification, PdbInputNotification):
+            self.pending_pdb_input = (
+                notification if notification.input_id is not None else None
+            )
 
         elif isinstance(notification, VariablesNotification):
             self.variable_notifications = notification
@@ -539,16 +665,185 @@ class SessionView:
                 outputs[cell_id] = cell_notif.output
         return outputs
 
+    def _retain_previous_output(self, cell: CellNotification) -> None:
+        if cell.output is None or cell.cell_id in self._previous_output_hashes:
+            return
+        owner = self._output_owners.get(cell.cell_id)
+        self._previous_output_hashes[cell.cell_id] = (
+            owner.code_hash if owner is not None else None
+        )
+
+    def _observe_execution(self, notification: ExecutionNotification) -> None:
+        cell_id = notification.cell_id
+        owner = self.current_execution_id(cell_id)
+        cell = self.cell_notifications.get(cell_id)
+        if (
+            notification.phase == "planned"
+            and owner != notification.execution_id
+        ):
+            self._console_positions[cell_id] = -1
+            self._cleared_inputs.pop(cell_id, None)
+            if cell is not None:
+                self._retain_previous_output(cell)
+                self.cell_notifications[cell_id] = msgspec.structs.replace(
+                    cell,
+                    execution_id=(
+                        cell.execution_id
+                        if cell.output is not None
+                        else notification.execution_id
+                    ),
+                    console=None,
+                )
+            self._output_owners[cell_id] = _OutputOwner(
+                notification.execution_id,
+                hash_code(notification.code)
+                if notification.code is not None
+                else notification.code_hash,
+            )
+        elif (
+            notification.phase == "completed"
+            and owner == notification.execution_id
+            and cell is not None
+        ):
+            for entry in as_list(cell.console):
+                if entry.channel == CellChannel.STDIN:
+                    entry.channel = CellChannel.STDOUT
+                    entry.mimetype = "text/plain"
+
+    def _clear_command_output(self, cell_id: CellId_t) -> None:
+        for kind in (PdbOutputNotification, CallbackOutputNotification):
+            if entries := self._command_output.get((cell_id, kind)):
+                entries.clear()
+
+    def _clear_console_inputs(
+        self, cell_id: CellId_t, execution_id: str, previous: CellNotification
+    ) -> None:
+        ids = [
+            entry.input_id
+            for entry in as_list(previous.console)
+            if isinstance(entry.input_id, str)
+            and entry.channel != CellChannel.STDIN
+        ]
+        if ids:
+            cleared = self.cleared_console_inputs(cell_id, execution_id)
+            self._cleared_inputs[cell_id] = ConsoleInputsClearedNotification(
+                cell_id,
+                execution_id,
+                [*(cleared.input_ids if cleared else []), *ids],
+            )
+
+    def current_execution_id(self, cell_id: CellId_t) -> str | None:
+        owner = self._output_owners.get(cell_id)
+        return owner.execution_id if owner is not None else None
+
+    def restore_cell_outputs(
+        self,
+        cells: dict[CellId_t, CellNotification],
+        hashes: dict[str, CellId_t],
+    ) -> None:
+        self.cell_notifications = cells
+        self._output_owners = {
+            cell_id: _OutputOwner(None, code_hash)
+            for code_hash, cell_id in hashes.items()
+            if cell_id in cells
+        }
+        self._previous_output_hashes.clear()
+
+    def outputs_for_export(
+        self, cell_id: CellId_t, code: str | None, *, for_display: bool
+    ) -> CellExport:
+        """Select the value and console for the source written to the artifact."""
+        code_hash = hash_code(code) if code else None
+        owner = self._output_owners.get(cell_id)
+        if code is None and owner is not None and owner.execution_id is None:
+            # A reopened cache still has its original hash before any submission.
+            code_hash = owner.code_hash
+        if owner is None:
+            # Legacy producers emit cell updates without an execution plan.
+            submitted = self.last_executed_code.get(cell_id)
+            matches = submitted is None or hash_code(submitted) == code_hash
+        else:
+            matches = (
+                code_hash is not None
+                and owner.code_hash == code_hash
+                and (for_display or not owner.awaiting_plan)
+            )
+
+        output = self.current_execution_output(cell_id) if matches else None
+        if (
+            for_display
+            and code_hash is not None
+            and self._previous_output_hashes.get(cell_id) == code_hash
+        ):
+            output = self.cell_notifications[cell_id].output
+        console = (
+            self.cell_console(cell_id, include_callbacks=for_display)
+            if matches
+            else []
+        )
+        if cell_id not in self.cell_notifications and not console:
+            code_hash = None
+        return CellExport(code_hash, output, console)
+
+    def current_execution_output(self, cell_id: CellId_t) -> CellOutput | None:
+        """Return only output produced by the current execution."""
+        cell = self.cell_notifications.get(cell_id)
+        if cell is None or cell_id in self._previous_output_hashes:
+            return None
+        return cell.output
+
+    def cleared_console_inputs(
+        self, cell_id: CellId_t, execution_id: str | None = None
+    ) -> ConsoleInputsClearedNotification | None:
+        """Return the input rows hidden by this execution's console clears."""
+        cleared = self._cleared_inputs.get(cell_id)
+        return (
+            cleared
+            if cleared
+            and (execution_id is None or cleared.execution_id == execution_id)
+            else None
+        )
+
+    def has_cell_console_output(self, cell_id: CellId_t) -> bool:
+        """Whether the cell has public console output, including callback writes."""
+        cell = self.cell_notifications.get(cell_id)
+        return bool(
+            (cell is not None and cell.console)
+            or self._command_output.get((cell_id, CallbackOutputNotification))
+        )
+
+    def cell_console(
+        self, cell_id: CellId_t, *, include_callbacks: bool
+    ) -> list[CellOutput]:
+        cell = self.cell_notifications.get(cell_id)
+        entries = as_list(cell.console) if cell is not None else []
+        if include_callbacks and (
+            callbacks := self._command_output.get(
+                (cell_id, CallbackOutputNotification)
+            )
+        ):
+            combined: list[CellOutput] = []
+            start = 0
+            for callback in callbacks:
+                combined.extend(entries[start : callback.console_offset])
+                combined.append(callback.output)
+                start = callback.console_offset
+            combined.extend(entries[start:])
+            if any(callback.after_seq is None for callback in callbacks):
+                # Unpositioned writes can arrive in separately buffered batches.
+                combined.sort(key=lambda entry: entry.timestamp)
+            entries = combined
+        return _merge_consecutive_console_outputs(entries)
+
     def get_cell_console_outputs(
         self, ids: list[CellId_t]
     ) -> dict[CellId_t, list[CellOutput]]:
-        """Get the console outputs for the given cell ids."""
-        outputs: dict[CellId_t, list[CellOutput]] = {}
-        for cell_id in ids:
-            cell_notif = self.cell_notifications.get(cell_id)
-            if cell_notif is not None and cell_notif.console:
-                outputs[cell_id] = as_list(cell_notif.console)
-        return outputs
+        """Return each cell's console, including its widget and function callbacks."""
+        return {
+            cell_id: entries
+            for cell_id in ids
+            if (entries := self.cell_console(cell_id, include_callbacks=True))
+        }
 
     def update_cell_outputs(
         self, cell_id_to_output: dict[CellId_t, MimeBundleTuple]
@@ -616,10 +911,67 @@ class SessionView:
 
         self.last_execution_time[cell_id] = time_elapsed
 
-    def snapshot_notifications(self) -> list[NotificationMessage]:
+    def record_console_position(
+        self, cell_id: CellId_t, execution_id: str, seq: int
+    ) -> None:
+        """Remember where private command writes fit among this execution's items."""
+        if self.current_execution_id(cell_id) == execution_id:
+            self._console_positions[cell_id] = seq
+
+    def position_command_output(
+        self, command: PdbOutputNotification | CallbackOutputNotification
+    ) -> PdbOutputNotification | CallbackOutputNotification:
+        if (
+            command.replace
+            or command.after_seq is not msgspec.UNSET
+            or not command.entries
+        ):
+            return command
+        position = self._console_positions.get(command.cell_id)
+        if position is None:
+            return command
+        return msgspec.structs.replace(
+            command, after_seq=[position] * len(command.entries)
+        )
+
+    @staticmethod
+    def _command_snapshot(
+        kind: type[_CommandOutput],
+        cell_id: CellId_t,
+        entries: list[_CommandEntry],
+    ) -> _CommandOutput:
+        positions = [
+            entry.after_seq for entry in entries if entry.after_seq is not None
+        ]
+        return kind(
+            cell_id,
+            [entry.output for entry in entries],
+            replace=True,
+            after_seq=positions
+            if positions and len(positions) == len(entries)
+            else msgspec.UNSET,
+        )
+
+    def debugger_notifications(
+        self,
+    ) -> list[PdbOutputNotification | PdbInputNotification]:
+        """Private state a consumer gains when it takes over the editor."""
+        notifications: list[PdbOutputNotification | PdbInputNotification] = [
+            self._command_snapshot(PdbOutputNotification, cell_id, entries)
+            for (cell_id, kind), entries in self._command_output.items()
+            if kind is PdbOutputNotification
+        ]
+        if self.pending_pdb_input is not None:
+            notifications.append(self.pending_pdb_input)
+        return notifications
+
+    def snapshot_notifications(
+        self, *, scope: SnapshotScope = "full"
+    ) -> list[NotificationMessage]:
         """Copy retained notifications for a connecting client.
 
-        The caller supplies kernel-ready before replaying these notifications.
+        The editor snapshot carries command transcripts and debugger state.
+        Only a full session snapshot includes kernel cell updates.
         """
         notifications: list[NotificationMessage] = [
             EnvironmentStateNotification(source=source, state=state)
@@ -627,10 +979,12 @@ class SessionView:
         ]
         if self.startup_progress is not None:
             notifications.append(self.startup_progress)
-        notifications.extend(self._notebook_notifications())
+        notifications.extend(self._notebook_notifications(scope))
         return copy.deepcopy(notifications)
 
-    def _notebook_notifications(self) -> list[NotificationMessage]:
+    def _notebook_notifications(
+        self, scope: SnapshotScope
+    ) -> list[NotificationMessage]:
         all_notifications: list[NotificationMessage] = [self.breakpoints]
         if self.variable_notifications.variables:
             all_notifications.append(self.variable_notifications)
@@ -656,7 +1010,26 @@ class SessionView:
             for ui_messages in self.ui_element_messages.values():
                 all_notifications.extend(ui_messages)
 
-        all_notifications.extend(self.cell_notifications.values())
+        if scope == "full":
+            all_notifications.extend(
+                msgspec.structs.replace(
+                    cell,
+                    console=_merge_consecutive_console_outputs(cell.console),
+                )
+                if isinstance(cell.console, list)
+                else cell
+                for cell in self.cell_notifications.values()
+            )
+        if scope != "host":
+            all_notifications.extend(self._cleared_inputs.values())
+            all_notifications.extend(
+                self._command_snapshot(
+                    CallbackOutputNotification, cell_id, entries
+                )
+                for (cell_id, kind), entries in self._command_output.items()
+                if kind is CallbackOutputNotification
+            )
+            all_notifications.extend(self.debugger_notifications())
         # Only include startup logs if they are in progress (not done)
         if self.startup_logs and self.startup_logs.status != "done":
             all_notifications.append(self.startup_logs)
@@ -673,6 +1046,12 @@ class SessionView:
         ]
 
     def is_empty(self) -> bool:
+        if any(
+            entries
+            for (_, kind), entries in self._command_output.items()
+            if kind is CallbackOutputNotification
+        ):
+            return False
         return all(
             notif.output is None and notif.console is None
             for notif in self.cell_notifications.values()
@@ -724,34 +1103,37 @@ def _merge_consecutive_console_outputs(
     console: list[CellOutput],
 ) -> list[CellOutput]:
     """Merge consecutive text/plain outputs with the same channel."""
-    if not console:
-        return console
-
     merged: list[CellOutput] = []
-
-    for output in console:
-        # Check if we can merge with the last output
-        if (
-            merged
-            and merged[-1].mimetype == "text/plain"
-            and output.mimetype == "text/plain"
-            and merged[-1].channel == output.channel
-            and merged[-1].input_id == output.input_id
-            and isinstance(merged[-1].data, str)
-            and isinstance(output.data, str)
-        ):
-            # Merge by concatenating the data
-            merged[-1] = CellOutput(
-                channel=merged[-1].channel,
-                mimetype=merged[-1].mimetype,
-                data=merged[-1].data + output.data,
-                timestamp=merged[-1].timestamp,
-                input_id=merged[-1].input_id,
+    for (_, mimetype, _, text), group in groupby(
+        console,
+        key=lambda entry: (
+            entry.channel,
+            entry.mimetype,
+            entry.input_id,
+            isinstance(entry.data, str),
+        ),
+    ):
+        entries = list(group)
+        if mimetype == "text/plain" and text and len(entries) > 1:
+            merged.append(
+                msgspec.structs.replace(
+                    entries[0],
+                    data="".join(cast(str, entry.data) for entry in entries),
+                )
             )
         else:
-            merged.append(output)
-
+            merged.extend(entries)
     return merged
+
+
+def _pending_inputs(
+    console: CellOutput | list[CellOutput] | None,
+) -> list[CellOutput]:
+    return [
+        entry
+        for entry in as_list(console)
+        if entry.channel == CellChannel.STDIN
+    ]
 
 
 def merge_cell_notification(
@@ -774,12 +1156,26 @@ def merge_cell_notification(
     queued_to_running = (
         current.status == "running" and previous.status == "queued"
     )
-    if explicit_clear or queued_to_running:
+    if queued_to_running:
         current.console = []
+    elif explicit_clear:
+        current.console = _pending_inputs(previous.console)
     else:
         combined_console: list[CellOutput] = as_list(previous.console)
-        combined_console.extend(as_list(current.console))
-        current.console = _merge_consecutive_console_outputs(combined_console)
+        # Keep write boundaries until export can interleave callback output.
+        # An input split across writes must still accept one reply.
+        for entry in as_list(current.console):
+            if (
+                combined_console
+                and entry.channel == CellChannel.STDIN
+                and combined_console[-1].channel == CellChannel.STDIN
+            ):
+                combined_console[-1:] = _merge_consecutive_console_outputs(
+                    [combined_console[-1], entry]
+                )
+            else:
+                combined_console.append(entry)
+        current.console = combined_console
 
     # If we went from running to running, use the previous timestamp.
     if current.status == "running" and previous.status == "running":
@@ -787,11 +1183,5 @@ def merge_cell_notification(
 
     if current.output is None:
         current.output = previous.output
-
-    # UNSET means "unchanged" — inherit the previously broadcast hint so a
-    # reconnect snapshot keeps the reusability badge. None (explicit clear) and
-    # concrete values are left as-is.
-    if current.serialization is msgspec.UNSET:
-        current.serialization = previous.serialization
 
     return current

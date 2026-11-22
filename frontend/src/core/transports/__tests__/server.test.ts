@@ -128,7 +128,7 @@ describe("websocket", () => {
     vi.stubGlobal("WebSocket", FakeSocket);
     const events = new NotebookEvents(
       websocket(() => "ws://localhost/ws?session_id=s1&cursor=stale"),
-      { types: ["marimo"] },
+      { kinds: ["marimo"] },
     );
     const received = collect(events);
     await vi.waitFor(() => expect(FakeSocket.opened).toHaveLength(1));
@@ -271,7 +271,7 @@ describe("sessionSse", () => {
         () => "http://localhost/sse",
         () => ({}),
       ),
-      { types: ["marimo"] },
+      { kinds: ["marimo"] },
     );
     const received = collect(events);
     onTestFinished(() => events.close());
@@ -381,7 +381,7 @@ describe.each(["websocket", "sse"] as const)(
       first.drop();
       await vi.advanceTimersByTimeAsync(2000);
       const second = await connection.opened();
-      expect(second.cursor).toBe("97");
+      expect(second.cursor).toBe("98");
       expect(store.get(client.documentAtom)).toBe(document);
       second.receive({ event: "ready", id: "100", data: {} });
       await vi.waitFor(() =>

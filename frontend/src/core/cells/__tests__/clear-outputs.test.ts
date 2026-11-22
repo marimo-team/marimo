@@ -13,7 +13,8 @@ import {
 } from "@/core/notebook/document/__tests__/fixtures";
 import { executions } from "@/core/notebook/replica/resources/executions";
 import { clearAllCellOutputsAtom, clearCellOutputAtom } from "../actions";
-import { notebookAtom } from "../cells";
+import { cellRuntimeAtom, notebookAtom } from "../cells";
+import { EMBEDDED } from "../session";
 import type { ConsoleOutputMessage } from "../types";
 
 const A = cellId("a");
@@ -47,16 +48,24 @@ function setup() {
     MockNotebook.notebookState({
       cellData: { [A]: {}, [B]: {} },
       cellRuntime: {
-        [A]: { consoleOutputs: [STDOUT, PROMPT] },
-        [B]: { consoleOutputs: [STDOUT] },
+        [A]: { embeddedConsole: [STDOUT, PROMPT] },
+        [B]: { embeddedConsole: [STDOUT] },
       },
     }),
   );
   MockExecutions.seed(
     store,
     [
-      MockExecutions.shown(A, { mimetype: "text/plain", data: "a" }),
-      MockExecutions.shown(B, { mimetype: "text/plain", data: "b" }),
+      MockExecutions.shown(
+        A,
+        { mimetype: "text/plain", data: "a" },
+        { runtime_id: EMBEDDED },
+      ),
+      MockExecutions.shown(
+        B,
+        { mimetype: "text/plain", data: "b" },
+        { runtime_id: EMBEDDED },
+      ),
     ],
     null,
     DOCUMENT,
@@ -70,12 +79,10 @@ describe("clearCellOutputAtom", () => {
     store.set(clearCellOutputAtom, { cellId: A });
 
     expect(store.get(cellOutputAtom(A))).toBeNull();
-    expect(store.get(notebookAtom).cellRuntime[A].consoleOutputs).toEqual([
-      PROMPT,
-    ]);
+    expect(store.get(cellRuntimeAtom(A)).consoleOutputs).toEqual([PROMPT]);
     expect(store.get(cellOutputAtom(B))?.data).toBe("b");
-    expect(store.get(notebookAtom).cellRuntime[B].consoleOutputs).toEqual([
-      STDOUT,
+    expect(store.get(cellRuntimeAtom(B)).consoleOutputs).toMatchObject([
+      { channel: "stdout", data: "printed" },
     ]);
   });
 });
@@ -87,29 +94,31 @@ describe("clearing a running cell", () => {
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [A]: {} } }),
     );
-    const running = MockExecutions.shown(
-      A,
-      { mimetype: "text/plain", data: "so far" },
-      { status: "running", completed_at: null },
+    const running = MockExecutions.running(A);
+    const soFar = MockExecutions.output(running, {
+      mimetype: "text/plain",
+      data: "so far",
+    });
+    const replica = MockExecutions.seed(
+      store,
+      [running, soFar],
+      null,
+      DOCUMENT,
     );
-    const replica = MockExecutions.seed(store, [running], null, DOCUMENT);
     store.set(clearCellOutputAtom, { cellId: A });
     expect(store.get(cellOutputAtom(A))).toBeNull();
 
     store.set(replica.executionsAtom, (state) =>
-      executions.on.execution!(
+      executions.on.output!(
         state,
         {
-          event: "execution",
+          event: "output",
           id: "more",
           data: {
-            execution: {
-              ...running,
-              outcome: {
-                kind: "value",
-                display: { mimetype: "text/plain", data: "more" },
-              },
-            },
+            output: MockExecutions.output(running, {
+              mimetype: "text/plain",
+              data: "more",
+            }),
           },
         },
         { phase: "live" },
@@ -118,13 +127,9 @@ describe("clearing a running cell", () => {
     expect(store.get(cellOutputAtom(A))?.data).toBe("more");
 
     store.set(replica.executionsAtom, (state) =>
-      executions.on.execution!(
+      executions.on.output!(
         state,
-        {
-          event: "execution",
-          id: "again",
-          data: { execution: { ...running, outcome: running.outcome } },
-        },
+        { event: "output", id: "again", data: { output: soFar } },
         { phase: "live" },
       ),
     );
@@ -143,9 +148,9 @@ describe("clearAllCellOutputsAtom", () => {
     expect(store.get(cellOutputAtom(A))).toBeNull();
     expect(store.get(cellOutputAtom(B))).toBeNull();
     const { cellRuntime } = store.get(notebookAtom);
-    expect(cellRuntime[A].consoleOutputs).toEqual([PROMPT]);
-    expect(cellRuntime[B].consoleOutputs).toEqual([]);
-    expect(before.cellRuntime[A].consoleOutputs).toEqual([STDOUT, PROMPT]);
-    expect(before.cellRuntime[B].consoleOutputs).toEqual([STDOUT]);
+    expect(cellRuntime[A].embeddedConsole).toEqual([PROMPT]);
+    expect(cellRuntime[B].embeddedConsole).toEqual([]);
+    expect(before.cellRuntime[A].embeddedConsole).toEqual([STDOUT, PROMPT]);
+    expect(before.cellRuntime[B].embeddedConsole).toEqual([STDOUT]);
   });
 });

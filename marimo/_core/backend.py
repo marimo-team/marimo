@@ -19,7 +19,7 @@ unnecessary if marimo adopts the core model directly.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from marimo._core import protocol
 
@@ -71,7 +71,7 @@ class Backend(Protocol):
         """
 
     def stop(self, runtime_id: protocol.RuntimeId) -> None:
-        """Stop the runtime's kernel and report `Exited` once it has."""
+        """Stop the runtime's kernel and report `Stopped` once it has."""
 
     def run(
         self,
@@ -110,7 +110,7 @@ class Backend(Protocol):
         """
 
     def cancel(self, run_id: protocol.RunId) -> None:
-        """End a run and report its `interrupted` outcome.
+        """End a run and report its `cancelled` outcome.
 
         A run the kernel has not started completes without running. One
         the kernel could not stop at once is stopped as it progresses.
@@ -121,7 +121,7 @@ class Backend(Protocol):
 
         Work the kernel does outside a run is interrupted too. A run the
         kernel has not started completes without running, and each run
-        reports its `interrupted` outcome. An idle kernel is left alone,
+        reports its `cancelled` outcome. An idle kernel is left alone,
         so nothing is held over for work that starts later.
         """
 
@@ -159,14 +159,21 @@ class Running:
 
 
 @dataclass(frozen=True)
+class Stopped:
+    """The kernel was deliberately stopped by the host or a client."""
+
+    runtime_id: protocol.RuntimeId
+
+
+@dataclass(frozen=True)
 class Exited:
-    """The kernel stopped or exited unexpectedly."""
+    """The kernel exited, with a reason if the backend knows it."""
 
     runtime_id: protocol.RuntimeId
     reason: str | None = None
 
 
-RuntimeReport = Starting | Running | Exited
+RuntimeReport = Starting | Running | Stopped | Exited
 
 
 # Runs
@@ -177,6 +184,7 @@ class Scheduled:
     """The runtime scheduled a run independently of a host API request."""
 
     run_id: protocol.RunId
+    origin: protocol.RunCodeOrigin | protocol.RunRuntimeOrigin
 
 
 @dataclass(frozen=True)
@@ -184,8 +192,7 @@ class PlannedExecution:
     id: protocol.ExecutionId
     cell_id: str | None
     code_fingerprint: str
-    code: str | None
-    caused_by: protocol.ExecutionId | None = None
+    caused_by_id: protocol.ExecutionId | None = None
 
 
 @dataclass(frozen=True)
@@ -208,10 +215,17 @@ class Completed:
     """An execution finished with its outcome and input revisions."""
 
     execution_id: protocol.ExecutionId
-    outcome: protocol.Outcome
+    outcome: protocol.ExecutionOutcome
     depends_on: dict[str, protocol.Revision | None] = field(
         default_factory=dict
     )
+
+
+@dataclass(frozen=True)
+class ConsoleCleared:
+    """Remove this execution's console and side-effect displays."""
+
+    execution_id: protocol.ExecutionId
 
 
 @dataclass(frozen=True)
@@ -222,12 +236,7 @@ class Produced:
     each prompt is produced once, and the host owns its later status changes.
     """
 
-    item: (
-        protocol.Console
-        | protocol.Display
-        | protocol.Variable
-        | protocol.Input
-    )
+    item: protocol.Console | protocol.Variable | protocol.Input
 
 
 @dataclass(frozen=True)
@@ -240,10 +249,13 @@ class Unbound:
 
 @dataclass(frozen=True)
 class Displayed:
-    """Replace a value display while its execution's result is retained."""
+    """Set an execution's output while its result is retained."""
 
     execution_id: protocol.ExecutionId
-    display: protocol.DisplayData | None
+    display: protocol.Media | None
+
+
+RunEnding = Literal["succeeded", "failed", "cancelled"]
 
 
 @dataclass(frozen=True)
@@ -251,22 +263,23 @@ class Done:
     """The cycle ended and will schedule no more executions.
 
     All planned executions must already have a final outcome and status.
-    The outcome also accounts for failures or interruption of the cycle
+    The outcome also accounts for failures or cancellation of the cycle
     itself, including termination before any execution was planned.
+    `message` says why the cycle failed when no execution's error does.
     """
 
     run_id: protocol.RunId
-    outcome: protocol.RunOutcome
+    outcome: RunEnding
+    message: str | None = None
 
 
 Message = (
-    Starting
-    | Running
-    | Exited
+    RuntimeReport
     | Scheduled
     | Planned
     | Started
     | Completed
+    | ConsoleCleared
     | Produced
     | Unbound
     | Displayed

@@ -26,10 +26,9 @@ NOTEBOOK = protocol.NotebookId("n1")
 RUNTIME = protocol.Runtime(
     id=protocol.RuntimeId("rt-1"),
     notebook_id=NOTEBOOK,
-    status="running",
-    message=None,
     marimo_version=None,
-    started_at=utcnow(),
+    created_at=utcnow(),
+    state=protocol.RuntimeReady(),
 )
 
 
@@ -38,11 +37,9 @@ def run(run_id: str) -> protocol.Run:
         id=protocol.RunId(run_id),
         notebook_id=NOTEBOOK,
         runtime_id=RUNTIME.id,
-        cells=(),
-        status="queued",
-        outcome=None,
-        started_at=None,
-        completed_at=None,
+        origin=protocol.RunRuntimeOrigin(),
+        created_at=utcnow(),
+        state=protocol.RunQueued(),
     )
 
 
@@ -55,7 +52,6 @@ def planned(run_id: str, *executions: tuple[str, str | None]) -> be.Planned:
                 protocol.ExecutionId(eid),
                 cell,
                 "hash",
-                "code" if cell is None else None,
             )
             for eid, cell in executions
         ),
@@ -65,13 +61,13 @@ def planned(run_id: str, *executions: tuple[str, str | None]) -> be.Planned:
 def complete(
     executions: Executions,
     eid: str,
-    outcome: protocol.Outcome | None = None,
+    outcome: protocol.ExecutionOutcome | None = None,
 ) -> list[Change]:
     execution = protocol.ExecutionId(eid)
     changes: list[Change] = []
     for msg in (
         be.Started(execution),
-        be.Completed(execution, outcome or protocol.ValueOutcome(None)),
+        be.Completed(execution, outcome or protocol.SucceededOutcome()),
     ):
         changes.extend(executions.observe(msg, RUNTIME))
     return changes
@@ -103,6 +99,51 @@ def variable(execution_id: str = "e1") -> protocol.Variable:
     )
 
 
+def test_clear_console_removes_only_this_executions_output_items() -> None:
+    executions = Executions()
+    executions.begin(run("r1"), "request")
+    [queued] = executions.observe(planned("r1", ("e1", "a")), RUNTIME)
+    assert isinstance(queued, protocol.Execution)
+    eid = queued.id
+    executions.observe(be.Started(eid), RUNTIME)
+    for item in (
+        protocol.Console(
+            id=protocol.ItemId("text"),
+            execution_id=eid,
+            seq=0,
+            content=protocol.ConsoleText(stream="stdout", text="hello"),
+        ),
+        protocol.Console(
+            id=protocol.ItemId("plot"),
+            execution_id=eid,
+            seq=1,
+            content=protocol.ConsoleMedia(
+                protocol.Media(mimetype="text/html", data="plot")
+            ),
+        ),
+        protocol.Input(
+            id=protocol.ItemId("prompt"),
+            execution_id=eid,
+            seq=2,
+            prompt="?",
+            password=False,
+            status="pending",
+        ),
+    ):
+        executions.observe(be.Produced(item), RUNTIME)
+    clear = be.ConsoleCleared(eid)
+    assert describe(executions.observe(clear, RUNTIME)) == [
+        "console.removed text",
+        "console.removed plot",
+    ]
+    assert executions.observe(clear, RUNTIME) == []
+    assert describe(executions._records()) == [
+        "run r1",
+        "execution e1",
+        "input prompt",
+    ]
+
+
 @pytest.mark.parametrize("started", [False, True])
 def test_completion_freezes_the_outcome_and_input_revisions(
     started: bool,
@@ -119,23 +160,23 @@ def test_completion_freezes_the_outcome_and_input_revisions(
         "x": protocol.Revision(protocol.ExecutionId("producer"), 2),
         "print": None,
     }
-    completed = be.Completed(eid, protocol.InterruptedOutcome(), inputs)
+    completed = be.Completed(eid, protocol.CancelledOutcome(), inputs)
     assert executions.observe(completed, RUNTIME) == [
         replace(
             queued,
-            status="completed",
-            outcome=protocol.InterruptedOutcome(),
-            depends_on=inputs,
-            started_at=IsDatetime() if started else None,
-            completed_at=IsDatetime(),
+            state=protocol.ExecutionCompleted(
+                started_at=IsDatetime() if started else None,
+                completed_at=IsDatetime(),
+                outcome=protocol.CancelledOutcome(),
+                depends_on=inputs,
+            ),
         )
     ]
     retained = executions.current(protocol.CellId("a"))
     inputs.clear()
     for message in (
         be.Started(eid),
-        be.Displayed(eid, None),
-        be.Completed(eid, protocol.ValueOutcome(None)),
+        be.Completed(eid, protocol.SucceededOutcome()),
     ):
         assert executions.observe(message, RUNTIME) == []
     assert executions.current(protocol.CellId("a")) == retained
@@ -198,16 +239,19 @@ def test_late_display_updates_preserve_completion_and_stop_after_replacement() -
     assert before is not None
     completed_run = executions.run(protocol.RunId("r1"))
     for display in (
-        protocol.DisplayData(mimetype="text/plain", data="late"),
+        protocol.Media(mimetype="text/plain", data="late"),
         None,
     ):
-        outcome = protocol.ValueOutcome(display)
-        expected = replace(before.execution, outcome=outcome)
+        expected = protocol.Output(
+            id=protocol.ItemId("e1:output"),
+            execution_id=protocol.ExecutionId("e1"),
+            media=display,
+        )
         assert executions.observe(
             be.Displayed(protocol.ExecutionId("e1"), display), RUNTIME
         ) == [expected]
         assert executions.current(protocol.CellId("a")) == dataclasses.replace(
-            before, execution=expected
+            before, output=expected
         )
         assert executions.run(protocol.RunId("r1")) == completed_run
     executions.begin(run("r2"), "second")
@@ -228,11 +272,10 @@ def test_scratch_work_leaves_with_its_run() -> None:
     produced = executions.observe(
         be.Produced(
             protocol.Console(
-                protocol.ExecutionId("e1"),
-                protocol.ItemId("c1"),
-                "stdout",
-                0,
-                "x",
+                id=protocol.ItemId("c1"),
+                execution_id=protocol.ExecutionId("e1"),
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="x"),
             )
         ),
         RUNTIME,
@@ -248,6 +291,37 @@ def test_scratch_work_leaves_with_its_run() -> None:
     assert executions._records() == []
 
 
+def test_a_kernel_exit_fails_the_running_execution_and_cancels_the_queued() -> (
+    None
+):
+    executions = Executions()
+    executions.begin(run("r1"), "request")
+    executions.observe(planned("r1", ("e1", "a"), ("e2", "b")), RUNTIME)
+    executions.observe(be.Started(protocol.ExecutionId("e1")), RUNTIME)
+
+    ended = executions.interrupt(failure="killed")
+
+    outcomes = {
+        change.id: change.state.outcome
+        for change in ended
+        if isinstance(change, protocol.Execution)
+        and isinstance(change.state, protocol.ExecutionCompleted)
+    }
+    running = outcomes[protocol.ExecutionId("e1")]
+    assert isinstance(running, protocol.ExecutionFailedOutcome)
+    assert (running.error.kind, running.error.message) == (
+        "internal",
+        "killed",
+    )
+    assert outcomes[protocol.ExecutionId("e2")] == protocol.CancelledOutcome()
+    assert [
+        change.state.outcome
+        for change in ended
+        if isinstance(change, protocol.Run)
+        and isinstance(change.state, protocol.RunCompleted)
+    ] == [protocol.RunFailedOutcome(message="killed")]
+
+
 def test_a_run_completes_only_after_its_executions_and_reports_failures() -> (
     None
 ):
@@ -257,13 +331,16 @@ def test_a_run_completes_only_after_its_executions_and_reports_failures() -> (
     executions.observe(be.Started(protocol.ExecutionId("e1")), RUNTIME)
     with pytest.raises(ValueError, match="unfinished"):
         executions.observe(be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME)
-    complete(executions, "e1", protocol.InterruptedOutcome())
+    complete(executions, "e1", protocol.CancelledOutcome())
     with pytest.raises(ValueError, match="successful"):
         executions.observe(be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME)
     done = executions.observe(be.Done(protocol.RunId("r1"), "failed"), RUNTIME)
     assert [
-        change.outcome for change in done if isinstance(change, protocol.Run)
-    ] == ["failed"]
+        change.state.outcome
+        for change in done
+        if isinstance(change, protocol.Run)
+        and isinstance(change.state, protocol.RunCompleted)
+    ] == [protocol.RunFailedOutcome(message=None)]
 
 
 def test_a_run_with_skipped_cells_succeeds() -> None:
@@ -276,7 +353,7 @@ def test_a_run_with_skipped_cells_succeeds() -> None:
     complete(
         executions,
         "e2",
-        protocol.SkippedOutcome(
+        protocol.ExecutionSkippedOutcome(
             reason="upstream-stopped",
             message="This cell wasn't run because an ancestor was stopped",
             related=(),
@@ -286,8 +363,11 @@ def test_a_run_with_skipped_cells_succeeds() -> None:
         be.Done(protocol.RunId("r1"), "succeeded"), RUNTIME
     )
     assert [
-        change.outcome for change in done if isinstance(change, protocol.Run)
-    ] == ["succeeded"]
+        change.state.outcome
+        for change in done
+        if isinstance(change, protocol.Run)
+        and isinstance(change.state, protocol.RunCompleted)
+    ] == [protocol.SucceededOutcome()]
     assert executions.current(protocol.CellId("b")) is not None
 
 
@@ -300,7 +380,8 @@ def test_interrupting_completes_everything_in_flight() -> None:
     changes = executions.interrupt()
     assert describe(changes) == ["execution e1", "execution e2", "run r1"]
     assert all(
-        isinstance(change.outcome, protocol.InterruptedOutcome)
+        isinstance(change.state, protocol.ExecutionCompleted)
+        and isinstance(change.state.outcome, protocol.CancelledOutcome)
         for change in changes
         if isinstance(change, protocol.Execution)
     )
@@ -315,11 +396,10 @@ def test_clearing_removes_results_and_releases_runs() -> None:
     executions.observe(
         be.Produced(
             protocol.Console(
-                protocol.ExecutionId("e1"),
-                protocol.ItemId("c1"),
-                "stdout",
-                0,
-                "x",
+                id=protocol.ItemId("c1"),
+                execution_id=protocol.ExecutionId("e1"),
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="x"),
             )
         ),
         RUNTIME,
@@ -336,12 +416,21 @@ def test_clearing_removes_results_and_releases_runs() -> None:
 def test_scheduling_needs_a_runtime_but_stray_updates_do_not() -> None:
     executions = Executions()
     with pytest.raises(NoRuntime):
-        executions.observe(be.Scheduled(protocol.RunId("r1")), None)
+        executions.observe(
+            be.Scheduled(protocol.RunId("r1"), protocol.RunRuntimeOrigin()),
+            None,
+        )
     assert (
         executions.observe(be.Started(protocol.ExecutionId("e1")), None) == []
     )
-    scheduled = executions.observe(be.Scheduled(protocol.RunId("r1")), RUNTIME)
+    scheduled = executions.observe(
+        be.Scheduled(protocol.RunId("r1"), protocol.RunRuntimeOrigin()),
+        RUNTIME,
+    )
     assert describe(scheduled) == ["run r1"]
+    (published,) = scheduled
+    assert isinstance(published, protocol.Run)
+    assert published.origin == protocol.RunRuntimeOrigin()
     assert executions.request_id(protocol.RunId("r1")) is None
 
 
@@ -420,7 +509,6 @@ def test_restored_executions_are_current_until_replaced() -> None:
         ("other-cell", "containing cell"),
         ("missing-cell", "not in the document"),
         ("unfinished", "completed"),
-        ("no-outcome", "outcome"),
         ("output-owner", "belong to their execution"),
         ("duplicate-output", "unique"),
         ("variable-owner", "belong to their execution"),
@@ -444,9 +532,8 @@ def test_restore_rejects_inconsistent_executions(
         key = protocol.CellId("missing")
         retained = CellExecution(replace(execution, cell_id=key), outputs)
     elif invalid == "unfinished":
-        retained = CellExecution(replace(execution, status="running"), outputs)
-    elif invalid == "no-outcome":
-        retained = CellExecution(replace(execution, outcome=None), outputs)
+        running = protocol.ExecutionRunning(started_at=utcnow())
+        retained = CellExecution(replace(execution, state=running), outputs)
     elif invalid == "output-owner":
         retained = CellExecution(
             execution,
@@ -473,12 +560,12 @@ def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
     assert executions.current(cell_id) is None
     executions.begin(run("r1"), "request")
     executions.observe(planned("r1", ("e1", "a")), RUNTIME)
-    output = protocol.Display(
+    output = protocol.Console(
         execution_id=protocol.ExecutionId("e1"),
         id=protocol.ItemId("d1"),
         seq=0,
-        content=protocol.DisplayData(
-            mimetype="application/json", data='{"values":[1]}'
+        content=protocol.ConsoleMedia(
+            protocol.Media(mimetype="application/json", data='{"values":[1]}')
         ),
     )
     executions.observe(be.Produced(output), RUNTIME)
@@ -488,16 +575,16 @@ def test_current_result_keeps_its_outputs_as_the_execution_changes() -> None:
     assert result is not None
     assert result.outputs == (output,)
 
-    updated = protocol.Display(
-        execution_id=output.execution_id,
-        id=output.id,
-        seq=output.seq,
-        content=protocol.DisplayData(
-            mimetype=output.content.mimetype, data='{"values":[1,2]}'
+    updated = replace(
+        output,
+        content=protocol.ConsoleMedia(
+            protocol.Media(
+                mimetype="application/json", data='{"values":[1,2]}'
+            )
         ),
     )
     executions.observe(be.Produced(updated), RUNTIME)
     current = executions.current(cell_id)
     assert current is not None
     assert current.outputs == (updated,)
-    assert result.outputs[0].content.data == '{"values":[1]}'
+    assert result.outputs == (output,)

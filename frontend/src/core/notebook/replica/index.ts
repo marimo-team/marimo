@@ -9,7 +9,11 @@ export {
   ConnectionState,
   type ConnectionStatus,
 } from "./connection";
-export { createNotebookReplica, type NotebookReplica } from "./replica";
+export {
+  EDITOR_EVENT_KINDS,
+  createNotebookReplica,
+  type NotebookReplica,
+} from "./replica";
 export type { Document } from "./resources/document";
 export {
   type Execution,
@@ -18,3 +22,10 @@ export {
   itemsInOrder,
 } from "./resources/executions";
 export type { Result, Results } from "./resources/results";
+export {
+  completedAt,
+  dependsOn,
+  type Shown,
+  shown,
+  startedAt,
+} from "./execution-state";

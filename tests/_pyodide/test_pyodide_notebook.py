@@ -79,7 +79,9 @@ async def snapshot(
         elif notifications is not None:
             notifications.append(event["data"]["marimo"])
 
-    await bridge.notebook.subscribe(subscription, cursor, receive)
+    await bridge.notebook.subscribe(
+        subscription, cursor, receive, "notebook,cell,document,runtime,marimo"
+    )
     return events
 
 
@@ -102,7 +104,7 @@ def edit(events, code="x = 2", request_id="edit-1"):
         "body": {
             "changes": [
                 {
-                    "kind": "put_cell",
+                    "kind": "replace_cell",
                     "base_etag": cell["etag"],
                     "cell": {
                         "id": cell["id"],
@@ -129,7 +131,7 @@ async def test_snapshot_edit_and_retry(bridge):
         "notebook.edit",
         "notebook.save",
         "runtime.run",
-        "runtime.input",
+        "input.reply",
         "runtime.execute",
         "runtime.interrupt",
         "runtime.cancel",
@@ -181,9 +183,7 @@ async def test_atomic_conflict_and_kernel_update(bridge):
     request["body"]["changes"].insert(
         0,
         {
-            "kind": "put_cell",
-            "base_etag": None,
-            "after": cell_id,
+            "kind": "create_cell",
             "cell": {"id": "new", "code": "y = 1"},
         },
     )
@@ -272,9 +272,9 @@ async def test_kernel_ready_follows_the_snapshot(bridge):
         "reader", None, lambda raw: frames.append(json.loads(raw))
     )
     kinds = [frame["event"] for frame in frames]
-    assert kinds[:5] == ["notebook", "cell", "document", "runtime", "ready"]
-    assert set(kinds[5:]) == {"marimo"}
-    kernel_ready = frames[5]["data"]["marimo"]
+    first_notification = kinds.index("marimo")
+    assert kinds.index("ready") < first_notification
+    kernel_ready = frames[first_notification]["data"]["marimo"]
     assert kernel_ready["op"] == "kernel-ready"
     assert "codes" not in kernel_ready
     assert kernel_ready["resumed"] is False
@@ -490,7 +490,7 @@ async def test_host_edits_config_layout_and_reload(bridge):
             "body": {
                 "changes": [
                     {
-                        "kind": "put_cell",
+                        "kind": "replace_cell",
                         "base_etag": cell["etag"],
                         "cell": {
                             "id": cell["id"],
@@ -500,10 +500,13 @@ async def test_host_edits_config_layout_and_reload(bridge):
                         },
                     },
                     {
-                        "kind": "put_cell",
-                        "base_etag": None,
-                        "before": cell["id"],
+                        "kind": "create_cell",
                         "cell": {"id": "new", "code": "y = 2"},
+                    },
+                    {
+                        "kind": "set_order",
+                        "base_etag": "*",
+                        "order": ["new", cell["id"]],
                     },
                 ]
             },

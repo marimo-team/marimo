@@ -183,7 +183,7 @@ function AttachmentStatusItem({ attachment }: { attachment: Attachment }) {
       <div className="min-w-0 flex-1">
         <h5 className="font-medium">{label}</h5>
         <p className="text-xs text-muted-foreground mt-1">
-          Connected {timeAgo(attachment.since)}
+          Connected {timeAgo(attachment.created_at)}
         </p>
         <p
           className="text-xs font-mono text-muted-foreground truncate mt-1"

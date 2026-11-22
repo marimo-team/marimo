@@ -702,6 +702,19 @@ def test_markdown_with_sql() -> None:
     assert "False" in app.cell_manager.cell_data_at(ids[2]).cell._cell.code
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        "\"\"\"double\"\"\" and '''single'''",
+        "a\\\"\"\" and '''",
+    ],
+)
+def test_markdown_with_both_triple_quotes_round_trips(body: str) -> None:
+    md = convert_from_py_to_md(md_to_py(body))
+    assert md.endswith(f"\n{body}")
+    assert convert_from_py_to_md(md_to_py(md)) == md
+
+
 def test_markdown_empty() -> None:
     assert md_to_py("") == ""
 

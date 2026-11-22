@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
 
     from marimo._config.types import OnCellChangeType
-    from marimo._core.protocol import RunOutcome
+    from marimo._core.backend import RunEnding
     from marimo._core.stream import RoutedEvent
     from tests._server.host.drive import Response
     from tests._server.host.staleness import Outdated
@@ -60,7 +60,7 @@ class Client:
         self,
         *cells: str,
         code: str | None = None,
-        outcome: RunOutcome = "succeeded",
+        outcome: RunEnding = "succeeded",
     ) -> None:
         """Run the named cells, or code in the scratchpad, to `outcome`."""
         body: dict[str, object] = (
@@ -85,13 +85,15 @@ class Client:
                 for r in response.records
                 if (run := r.get("data", {}).get("run", {})).get("id")
                 == run_id
-                and run["status"] == "completed"
+                and run["state"]["status"] == "completed"
             ]
 
         while not completed(self.events):
             self.events.changed.clear()
             await self.events.changed.wait()
-        assert completed(self.events)[-1]["outcome"] == outcome
+        assert (
+            completed(self.events)[-1]["state"]["outcome"]["kind"] == outcome
+        )
 
     async def edit(self, cell: str, code: str) -> None:
         edited = await finished(
@@ -103,7 +105,7 @@ class Client:
                 {
                     "changes": [
                         {
-                            "kind": "put_cell",
+                            "kind": "replace_cell",
                             "base_etag": "*",
                             "cell": {"id": self.cells[cell], "code": code},
                         }
@@ -164,7 +166,9 @@ async def test_variables_outlive_the_run_that_bound_them(
         )
         execution = before.latest(c.cells["state"])
         assert execution is not None
-        assert getter.execution_id == getter.revision.execution == execution.id
+        assert (
+            getter.execution_id == getter.revision.execution_id == execution.id
+        )
         records = c.events.records
         bound = next(
             i
@@ -177,7 +181,7 @@ async def test_variables_outlive_the_run_that_bound_them(
             for i, r in enumerate(records)
             if r.get("event") == "execution"
             and r["data"]["execution"]["id"] == execution.id
-            and r["data"]["execution"]["status"] == "completed"
+            and r["data"]["execution"]["state"]["status"] == "completed"
         )
         assert bound < completed
 
@@ -209,7 +213,7 @@ async def test_edits_and_reruns_outdate_dependents(tmp_path: Path) -> None:
         x = next(v for v in initial.variables.values() if v.name == "x")
         y = initial.latest(c.cells["y"])
         assert y is not None
-        assert y.depends_on == {"x": x.revision}
+        assert y.state.depends_on == {"x": x.revision}
         assert await c.outdated() == {}
 
         await c.edit("x", "x = 2")
@@ -256,7 +260,7 @@ async def test_sql_results_follow_their_binding_revisions(
         assert set(variables) == {"mo", name, "df"}
         reader = initial.latest(c.cells["reader"])
         assert reader is not None
-        assert reader.depends_on == {
+        assert reader.state.depends_on == {
             key: variables[key].revision for key in ("mo", name)
         }
         assert await c.outdated() == {}
@@ -311,7 +315,7 @@ async def test_deleted_bindings_outdate_existing_readers(
             for i, r in enumerate(c.events.records)
             if r.get("event") == "execution"
             and r["data"]["execution"]["cell_id"] == c.cells["delete"]
-            and r["data"]["execution"]["status"] == "completed"
+            and r["data"]["execution"]["state"]["status"] == "completed"
         )
         assert removed < completed
 
@@ -327,7 +331,7 @@ async def test_autorun_leaves_every_result_current(tmp_path: Path) -> None:
         x = next(v for v in current.variables.values() if v.name == "x")
         y = current.latest(c.cells["y"])
         assert y is not None
-        assert y.depends_on == {"x": x.revision}
+        assert y.state.depends_on == {"x": x.revision}
         assert await c.outdated() == {}
 
 
@@ -366,7 +370,7 @@ async def test_state_updates_rerun_readers_in_autorun(tmp_path: Path) -> None:
         reader = current.latest(c.cells["reader"])
         assert reader is not None
         assert getter.revision.update == 1
-        assert reader.depends_on == {"get_x": getter.revision}
+        assert reader.state.depends_on == {"get_x": getter.revision}
         records = c.events.records
         updated = next(
             i
@@ -403,7 +407,7 @@ async def test_a_setter_that_reads_its_own_update_is_current(
         setter = current.latest(c.cells["setter"])
         assert setter is not None
         assert getter.revision.update == 3
-        assert setter.depends_on["get_x"] == getter.revision
+        assert setter.state.depends_on["get_x"] == getter.revision
         assert await c.outdated() == {}
 
 
@@ -419,7 +423,7 @@ async def test_reimporting_keeps_dependents_current(tmp_path: Path) -> None:
         before = initial.latest(c.cells["value"])
         math = next(v for v in initial.variables.values() if v.name == "math")
         assert before is not None
-        assert before.depends_on == {"math": math.revision}
+        assert before.state.depends_on == {"math": math.revision}
 
         await c.edit("imports", "import math\nimport os")
         await c.run("imports")
@@ -448,7 +452,7 @@ async def test_binding_a_name_outdates_its_unbound_readers(
     name: str,
     expression: str,
     binding: str,
-    outcome: RunOutcome,
+    outcome: RunEnding,
 ) -> None:
     async with client(
         tmp_path,
@@ -464,7 +468,7 @@ async def test_binding_a_name_outdates_its_unbound_readers(
         await c.run("binder", "reader", outcome=outcome)
         reader = (await c.snapshot()).latest(c.cells["reader"])
         assert reader is not None
-        assert reader.depends_on == {name: None}
+        assert reader.state.depends_on == {name: None}
         assert await c.outdated() == {}
 
         await c.edit("binder", binding)
@@ -497,15 +501,15 @@ async def test_replaced_inputs_take_precedence_over_updates_and_edits(
 @pytest.mark.parametrize(
     ("code", "outcome", "reader"),
     [
-        ("if False:\n    x = 2", "succeeded", protocol.ErrorOutcome),
-        ("1 / 0\nx = 2", "failed", protocol.SkippedOutcome),
+        ("if False:\n    x = 2", "succeeded", protocol.ExecutionFailedOutcome),
+        ("1 / 0\nx = 2", "failed", protocol.ExecutionSkippedOutcome),
     ],
 )
 async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
     tmp_path: Path,
     code: str,
-    outcome: RunOutcome,
-    reader: type[protocol.Outcome],
+    outcome: RunEnding,
+    reader: type[protocol.ExecutionOutcome],
 ) -> None:
     async with client(
         tmp_path,
@@ -524,13 +528,13 @@ async def test_a_rerun_that_does_not_bind_a_name_outdates_its_readers(
         await c.run(
             "reader",
             outcome="failed"
-            if reader is protocol.ErrorOutcome
+            if reader is protocol.ExecutionFailedOutcome
             else "succeeded",
         )
         latest = (await c.snapshot()).latest(c.cells["reader"])
         assert latest is not None
-        assert isinstance(latest.outcome, reader)
-        assert latest.depends_on == {"x": None}
+        assert isinstance(latest.state.outcome, reader)
+        assert latest.state.depends_on == {"x": None}
         assert await c.outdated() == {}
 
 
@@ -550,10 +554,10 @@ async def test_a_ui_update_outdates_lazy_readers(tmp_path: Path) -> None:
         start = len(c.events.records)
         await c.run(code="print(slider._id)")
         [object_id] = [
-            r["data"]["console"]["text"].strip()
+            r["data"]["console"]["content"]["text"].strip()
             for r in c.events.records[start:]
             if r.get("event") == "console"
-            and r["data"]["console"]["text"].strip()
+            and r["data"]["console"]["content"]["text"].strip()
         ]
         expected = replace(
             slider, preview="5", revision=replace(slider.revision, update=1)
@@ -616,7 +620,7 @@ async def test_state_updates_precede_nested_readers(tmp_path: Path) -> None:
             for i, r in enumerate(records)
             if r.get("event") == "execution"
             and r["data"]["execution"]["cell_id"] == c.cells["reader"]
-            and r["data"]["execution"]["status"] == "running"
+            and r["data"]["execution"]["state"]["status"] == "running"
         )
         assert updated < started
         current = await c.snapshot()
@@ -625,7 +629,7 @@ async def test_state_updates_precede_nested_readers(tmp_path: Path) -> None:
         )
         reader = current.latest(c.cells["reader"])
         assert reader is not None
-        assert reader.depends_on == {"get_x": getter.revision}
+        assert reader.state.depends_on == {"get_x": getter.revision}
         assert getter.revision.update == 1
         assert await c.outdated() == {}
 
@@ -688,7 +692,7 @@ async def test_restart_retains_results_without_restoring_python_values(
             lambda response: any(
                 r.get("event") == "runtime"
                 and r["data"]["runtime"]["id"] == runtime_id
-                and r["data"]["runtime"]["status"] == "running"
+                and r["data"]["runtime"]["state"]["status"] == "ready"
                 for r in response.records
             ),
             timeout=15,
@@ -704,7 +708,7 @@ async def test_restart_retains_results_without_restoring_python_values(
         reader = current.latest(c.cells["reader"])
         assert reader is not None
         assert reader.runtime_id == runtime_id
-        assert reader.depends_on == {"x": None}
+        assert reader.state.depends_on == {"x": None}
         assert current.latest(c.cells["binder"]) == binder
         assert next(
             v for v in current.variables.values() if v.name == "x"
@@ -782,13 +786,11 @@ async def test_outputs_restored_from_the_session_cache_are_current_results(
     ) as c:
         restored = (await c.snapshot()).latest(c.cells["shown"])
         assert restored is not None
-        assert restored.outcome == protocol.ValueOutcome(
-            protocol.DisplayData(mimetype="text/plain", data="42")
-        )
+        assert restored.state.outcome == protocol.SucceededOutcome()
         # No run of this notebook's runtime produced it.
         assert (restored.run_id, restored.runtime_id) == (None, None)
         assert [
-            r["data"]["console"]["text"]
+            r["data"]["console"]["content"]["text"]
             for r in c.events.records
             if r.get("event") == "console"
         ] == ["hello\n"]

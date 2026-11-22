@@ -1,13 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import codecs
 import contextlib
 import io
 import os
 import queue
+import selectors
 import sys
 import threading
 from collections import deque
+from contextvars import Context
+from functools import cache
 from typing import (
     TYPE_CHECKING,
     Protocol,
@@ -16,6 +20,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.command_output import ConsoleContext
 from marimo._messaging.console_output_worker import (
     ConsoleMsg,
     FlushMarker,
@@ -35,7 +40,7 @@ from marimo._types.ids import CellId_t
 from marimo._utils.signals import SigintHandler
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Callable, Iterable, Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -117,6 +122,12 @@ class ThreadSafeStream(Stream):
         # worker. The lock should almost always be uncontended.
         self.stream_lock = threading.Lock()
 
+        # An inherited writer can keep its reader alive beyond redirection.
+        self._native_pipes: set[_NativePipe] = set()
+        self._native_pipes_lock = threading.Lock()
+        self._console_owner: ConsoleContext | None = None
+        self._parent_console: ThreadSafeStream | None = None
+        self._console_stopped = threading.Event()
         if self.redirect_console:
             # Console outputs are buffered
             self.console_msg_cv = threading.Condition(threading.Lock())
@@ -159,13 +170,49 @@ class ThreadSafeStream(Stream):
             redirect_console=False,
             cell_id=self.cell_id,
         )
+        # A thread can write directly between two buffered writes by its parent.
+        stream._parent_console = (
+            self if self.redirect_console else self._parent_console
+        )
         stream.input_lock = self.input_lock
         # The parent stream and thread copy write to the same pipe. Share the
         # transport lock so pipe.send() remains serialized across both views.
         stream.stream_lock = self.stream_lock
         return stream
 
-    def flush_console(self) -> None:
+    @contextlib.contextmanager
+    def own_console(self) -> Iterator[None]:
+        previous = self._console_owner
+        self._console_owner = ConsoleContext()
+        try:
+            yield
+        finally:
+            self._console_owner = previous
+
+    def queue_console(
+        self, message: ConsoleMsg, *, redirected_write: bool = False
+    ) -> None:
+        # Ordinary Python threads write to the redirected stdout/stderr but
+        # may not inherit the execution or command context.
+        owner = self._console_owner
+        if (
+            redirected_write
+            and owner is not None
+            and message.destination is None
+            and message.run_id is None
+            and message.execution_id is None
+        ):
+            if owner.execution and owner.execution.cell_id == message.cell_id:
+                message.execution_id = owner.execution.id
+                message.run_id = owner.run_id
+            elif owner.command and owner.command[0] == message.cell_id:
+                message.destination = owner.command[1]
+        with self.console_msg_cv:
+            if not self._console_stopped.is_set():
+                self.console_msg_queue.append(message)
+                self.console_msg_cv.notify()
+
+    def flush_console(self, *, clear_cell_id: CellId_t | None = None) -> None:
         """Force the buffered console writer to flush immediately.
 
         Blocks until all pending console messages have been sent to the
@@ -174,14 +221,30 @@ class ThreadSafeStream(Stream):
         produced during cell execution is delivered before the cell is
         marked idle.
         """
-        if not self.redirect_console:
+        if self._parent_console is not None:
+            self._parent_console.flush_console(clear_cell_id=clear_cell_id)
+            return
+        if (
+            not self.redirect_console
+            or threading.current_thread() is self.buffered_console_thread
+        ):
             return
         # If the buffered writer isn't alive (e.g., shutdown in progress),
         # enqueuing a marker would never be drained. Bail out early.
         if not self.buffered_console_thread.is_alive():
             return
+        with self._native_pipes_lock:
+            pipes = self._native_pipes.copy()
+        for pipe in pipes:
+            active = pipe.stream._active_pipe is pipe
+            if active:
+                _flush_redirected_stream(pipe.stream)
+            if active or pipe.cell_id == clear_cell_id:
+                pipe.flush(clear_partial=pipe.cell_id == clear_cell_id)
         marker = FlushMarker()
         with self.console_msg_cv:
+            if self._console_stopped.is_set():
+                return
             self.console_msg_queue.append(marker)
             self.console_msg_cv.notify()
         # Bounded wait: if the writer dies or stalls, don't block the
@@ -197,87 +260,212 @@ class ThreadSafeStream(Stream):
         # Sending `None` through the queue signals the console thread to exit.
         # We don't join the thread in case its processing outputs still; don't
         # want to block the entire program.
+        self._console_stopped.set()
         if self.redirect_console:
             with self.console_msg_cv:
                 self.console_msg_queue.append(None)
                 self.console_msg_cv.notify()
 
 
-def _forward_os_stream(
-    standard_stream: Stdout | Stderr, fd: int, should_exit: threading.Event
-) -> None:
-    """Watch a file descriptor and forward it to a stream object."""
+def _pending_bytes(fd: int) -> int:
+    if sys.platform == "win32":
+        import _winapi
+        import msvcrt
 
-    # This coarse try/except block silences exceptions; a raised exception
-    # at this point could cause bad errors, such as an infinite stream of data
-    # to be written to the fd/routed through the stream.
-    #
-    # TODO(akshayka): Make this loop bomb-proof, so that exceptions raised are
-    # exceptions we actually want to pay attention to; then store the exception
-    # and print it to the terminal later (outside an execution context).
-    try:
-        while not should_exit.is_set():
-            data = os.read(fd, 1024)
-            if not data:
-                break
-            standard_stream.write(data.decode())
-    except Exception:
-        ...
+        return _winapi.PeekNamedPipe(msvcrt.get_osfhandle(fd))[-2]
+
+    import fcntl
+    import termios
+    from array import array
+
+    count = array("i", [0])
+    fcntl.ioctl(fd, termios.FIONREAD, count)
+    return count[0]
 
 
-class _NoOpWatcher:
-    """A dummy watcher that does nothing, used when fd redirection is off."""
+def _wait_for_pipe(fd: int, stopped: threading.Event) -> Iterator[None]:
+    if sys.platform == "win32":
+        # Windows selectors only support sockets.
+        while not stopped.is_set():
+            try:
+                if _pending_bytes(fd):
+                    yield
+                else:
+                    stopped.wait(0.01)
+            except BrokenPipeError:
+                return
+        return
 
-    def start(self) -> None:
-        pass
-
-    def pause(self) -> None:
-        pass
-
-    def stop(self) -> None:
-        pass
+    with selectors.DefaultSelector() as selector:
+        selector.register(fd, selectors.EVENT_READ)
+        while not stopped.is_set():
+            if selector.select(timeout=0.1):
+                yield
 
 
-_NOOP_WATCHER = _NoOpWatcher()
+def _pipe_at_eof(fd: int) -> bool:
+    if sys.platform == "win32":
+        try:
+            _pending_bytes(fd)
+        except BrokenPipeError:
+            return True
+        return False
+
+    # An empty pipe is readable only after its last writer closes.
+    with selectors.DefaultSelector() as selector:
+        selector.register(fd, selectors.EVENT_READ)
+        return bool(selector.select(0)) and _pending_bytes(fd) == 0
 
 
-class Watcher:
-    """Watches and redirects a standard stream."""
-
+class _NativePipe:
     def __init__(
-        self, standard_stream: ThreadSafeStdout | ThreadSafeStderr
+        self,
+        stream: ThreadSafeStdout | ThreadSafeStderr,
+        read_end: io.FileIO,
+        cell_id: CellId_t,
     ) -> None:
-        self.standard_stream = standard_stream
-        self.fd = self.standard_stream._original_fd
-        self.read_fd, self.write_fd = os.pipe()
-        self._should_exit = threading.Event()
-        self.thread = threading.Thread(
-            target=_forward_os_stream,
-            args=(self.standard_stream, self.read_fd, self._should_exit),
-            daemon=True,
-        )
-        self.thread.start()
+        self.stream = stream
+        self._read_end = read_end
+        self.cell_id = cell_id
+        self._cv = threading.Condition()
+        self._forwarded = 0
+        self._claimed = False
+        self._decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
 
     def start(self) -> None:
-        # Save the file for the standard stream by opening a new file
-        # descriptor for it
-        self.fd_dup = os.dup(self.fd)
-        self.standard_stream._set_fileno(self.fd_dup)
-        # Change the original file descriptor for the standard stream
-        # to refer to the write end of the pipe
-        os.dup2(self.write_fd, self.fd)
+        stream = self.stream._stream
+        with stream._native_pipes_lock:
+            stream._native_pipes.add(self)
+        try:
+            owner = ConsoleContext().for_native_writer()
+            reader = threading.Thread(
+                target=self._forward, args=(owner,), daemon=True
+            )
+            Context().run(reader.start)
+        except BaseException:
+            # Thread.start() can be interrupted after the thread is running.
+            with self._cv:
+                if not self._claimed:
+                    self._close()
+            raise
 
-    def pause(self) -> None:
-        # Restore the original file descriptor to point to the standard
-        # stream file
-        os.dup2(self.fd_dup, self.fd)
-        os.close(self.fd_dup)
-        self.standard_stream._set_fileno(None)
+    def _close(self) -> None:
+        self._read_end.close()
+        stream = self.stream._stream
+        with stream._native_pipes_lock:
+            stream._native_pipes.discard(self)
 
-    def stop(self) -> None:
-        os.close(self.write_fd)
-        os.close(self.read_fd)
-        self._should_exit.set()
+    def _drain_locked(self) -> None:
+        if self._read_end.closed:
+            return
+        # A child may keep writing indefinitely. Only wait for the bytes
+        # already in the pipe when the caller requested the flush.
+        try:
+            pending = _pending_bytes(self._read_end.fileno())
+        except BrokenPipeError:
+            return
+        target = self._forwarded + pending
+        if pending and not self._cv.wait_for(
+            lambda: self._read_end.closed or self._forwarded >= target,
+            timeout=_FLUSH_CONSOLE_TIMEOUT_S,
+        ):
+            LOGGER.warning("Timed out waiting for native console output")
+
+    def flush(self, *, clear_partial: bool = False) -> None:
+        with self._cv:
+            self._drain_locked()
+            if clear_partial:
+                self._decoder.reset()
+
+    def finish(self) -> None:
+        with self._cv:
+            self._drain_locked()
+            if self._read_end.closed or not _pipe_at_eof(
+                self._read_end.fileno()
+            ):
+                return
+            # The reader also publishes any incomplete character at EOF.
+            if not self._cv.wait_for(
+                lambda: self._read_end.closed, timeout=_FLUSH_CONSOLE_TIMEOUT_S
+            ):
+                LOGGER.warning("Timed out waiting for native console EOF")
+
+    def _forward(self, owner: ConsoleContext) -> None:
+        with self._cv:
+            if self._read_end.closed:
+                return
+            self._claimed = True
+        fd = self._read_end.fileno()
+        try:
+            with owner.install():
+                for _ in _wait_for_pipe(
+                    fd, self.stream._stream._console_stopped
+                ):
+                    with self._cv:
+                        data = os.read(fd, 4096)
+                        if not data:
+                            break
+                        if text := self._decoder.decode(data):
+                            self.stream._write_with_mimetype(
+                                text, "text/plain", cell_id=self.cell_id
+                            )
+                        self._forwarded += len(data)
+                        self._cv.notify_all()
+                with self._cv:
+                    if tail := self._decoder.decode(b"", final=True):
+                        self.stream._write_with_mimetype(
+                            tail, "text/plain", cell_id=self.cell_id
+                        )
+        finally:
+            with self._cv:
+                self._close()
+                self._cv.notify_all()
+
+
+@cache
+def _c_stdio_flush(fd: int) -> Callable[[], int] | None:
+    # C extensions write through libc's FILE*, separately buffered from Python.
+    if fd not in (1, 2):
+        return None
+    from functools import partial
+
+    try:
+        import ctypes
+
+        if sys.platform == "win32":
+            libc = ctypes.CDLL("ucrtbase")
+            get_stream = libc.__acrt_iob_func
+            get_stream.argtypes = [ctypes.c_uint]
+            get_stream.restype = ctypes.c_void_p
+            c_stream = get_stream(fd)
+        else:
+            libc = ctypes.CDLL(None)
+            name = "stdout" if fd == 1 else "stderr"
+            if sys.platform == "darwin":
+                name = f"__{name}p"
+            c_stream = ctypes.c_void_p.in_dll(libc, name).value
+        if c_stream is not None:
+            flush = libc.fflush
+            flush.argtypes = [ctypes.c_void_p]
+            return partial(flush, c_stream)
+    except (ImportError, AttributeError, OSError, ValueError):
+        # Some embedded interpreters don't expose the platform's C stdio.
+        pass
+    return None
+
+
+def _flush_redirected_stream(
+    stream: ThreadSafeStdout | ThreadSafeStderr,
+) -> None:
+    if not stream._original_stream.closed:
+        stream._original_stream.flush()
+    if flush := _c_stdio_flush(stream._original_fd):
+        flush()
+
+
+def _flush_native_buffer(stream: ThreadSafeStdout | ThreadSafeStderr) -> None:
+    if stream.buffer is not None and not stream.buffer.closed:
+        stream.buffer.flush()
 
 
 # NB: Python doesn't provide a standard out class to inherit from, so
@@ -285,32 +473,25 @@ class Watcher:
 class ThreadSafeStdout(Stdout):
     encoding = sys.stdout.encoding
     errors = sys.stdout.errors
-    _fileno: int | None = None
+    _active_pipe: _NativePipe | None = None
 
     def __init__(
         self, stream: ThreadSafeStream, forward_os_streams: bool = True
     ):
         self._stream = stream
-        self._original_fd = sys.stdout.fileno()
+        self._original_stream = sys.stdout
+        self._original_fd = self._original_stream.fileno()
         # Expose the underlying binary buffer so that code writing to
         # sys.stdout.buffer (e.g. package installation logging) keeps working.
         self.buffer: io.BufferedIOBase | None = getattr(
             sys.stdout, "buffer", None
         )
-        self._watcher: Watcher | _NoOpWatcher = (
-            Watcher(self) if forward_os_streams else _NOOP_WATCHER
-        )
-
-    def _stop(self) -> None:
-        self._watcher.stop()
+        self._forward_os_streams = forward_os_streams
 
     def fileno(self) -> int:
-        if self._fileno is not None:
-            return self._fileno
+        if self._active_pipe is not None:
+            return self._original_fd
         raise io.UnsupportedOperation("Stream not redirected, no fileno.")
-
-    def _set_fileno(self, fileno: int | None) -> None:
-        self._fileno = fileno
 
     def writable(self) -> bool:
         return True
@@ -322,12 +503,19 @@ class ThreadSafeStdout(Stdout):
         return False
 
     def flush(self) -> None:
+        _flush_native_buffer(self)
         self._stream.flush_console()
 
     def _write_with_mimetype(
-        self, data: str, mimetype: ConsoleMimeType
+        self,
+        data: str,
+        mimetype: ConsoleMimeType,
+        *,
+        cell_id: CellId_t | None = None,
     ) -> int:
-        assert self._stream.cell_id is not None
+        redirected_write = cell_id is None
+        cell_id = self._stream.cell_id if cell_id is None else cell_id
+        assert cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -338,16 +526,15 @@ class ThreadSafeStdout(Stdout):
                 "Warning: marimo truncated a very large console output.\n"
             )
             data = data[: int(max_bytes)] + " ... "
-        with self._stream.console_msg_cv:
-            self._stream.console_msg_queue.append(
-                ConsoleMsg(
-                    stream=CellChannel.STDOUT,
-                    cell_id=self._stream.cell_id,
-                    data=data,
-                    mimetype=mimetype,
-                )
-            )
-            self._stream.console_msg_cv.notify()
+        self._stream.queue_console(
+            ConsoleMsg(
+                stream=CellChannel.STDOUT,
+                cell_id=cell_id,
+                data=data,
+                mimetype=mimetype,
+            ),
+            redirected_write=redirected_write,
+        )
         return len(data)
 
     # Buffer type not available python < 3.12, hence type ignore
@@ -359,32 +546,25 @@ class ThreadSafeStdout(Stdout):
 class ThreadSafeStderr(Stderr):
     encoding = sys.stderr.encoding
     errors = sys.stderr.errors
-    _fileno: int | None = None
+    _active_pipe: _NativePipe | None = None
 
     def __init__(
         self, stream: ThreadSafeStream, forward_os_streams: bool = True
     ):
         self._stream = stream
-        self._original_fd = sys.stderr.fileno()
+        self._original_stream = sys.stderr
+        self._original_fd = self._original_stream.fileno()
         # Expose the underlying binary buffer so that code writing to
         # sys.stderr.buffer keeps working.
         self.buffer: io.BufferedIOBase | None = getattr(
             sys.stderr, "buffer", None
         )
-        self._watcher: Watcher | _NoOpWatcher = (
-            Watcher(self) if forward_os_streams else _NOOP_WATCHER
-        )
-
-    def _stop(self) -> None:
-        self._watcher.stop()
+        self._forward_os_streams = forward_os_streams
 
     def fileno(self) -> int:
-        if self._fileno is not None:
-            return self._fileno
+        if self._active_pipe is not None:
+            return self._original_fd
         raise io.UnsupportedOperation("Stream not redirected, no fileno.")
-
-    def _set_fileno(self, fileno: int | None) -> None:
-        self._fileno = fileno
 
     def writable(self) -> bool:
         return True
@@ -396,6 +576,7 @@ class ThreadSafeStderr(Stderr):
         return False
 
     def flush(self) -> None:
+        _flush_native_buffer(self)
         self._stream.flush_console()
 
     def _write_with_mimetype(
@@ -404,8 +585,11 @@ class ThreadSafeStderr(Stderr):
         mimetype: ConsoleMimeType,
         *,
         code: str | None = None,
+        cell_id: CellId_t | None = None,
     ) -> int:
-        assert self._stream.cell_id is not None
+        redirected_write = cell_id is None
+        cell_id = self._stream.cell_id if cell_id is None else cell_id
+        assert cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
                 f"write() argument must be a str, not {type(data).__name__}"
@@ -418,17 +602,16 @@ class ThreadSafeStderr(Stderr):
                 + " ... "
             )
 
-        with self._stream.console_msg_cv:
-            self._stream.console_msg_queue.append(
-                ConsoleMsg(
-                    stream=CellChannel.STDERR,
-                    cell_id=self._stream.cell_id,
-                    data=data,
-                    mimetype=mimetype,
-                    code=code,
-                )
-            )
-            self._stream.console_msg_cv.notify()
+        self._stream.queue_console(
+            ConsoleMsg(
+                stream=CellChannel.STDERR,
+                cell_id=cell_id,
+                data=data,
+                mimetype=mimetype,
+                code=code,
+            ),
+            redirected_write=redirected_write,
+        )
         return len(data)
 
     def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override]
@@ -460,6 +643,7 @@ class ThreadSafeStdin(Stdin):
         self, prompt: str = "", password: bool = False
     ) -> str:
         """Read input from the standard in stream, with an optional prompt."""
+        require_active_execution()
         with self._stream.input_lock:
             return self._read_input(prompt, password)
 
@@ -483,36 +667,98 @@ class ThreadSafeStdin(Stdin):
         mimetype: ConsoleMimeType = (
             "text/password" if password else "text/plain"
         )
-        with self._stream.console_msg_cv:
-            # This sends a prompt request to the frontend.
-            self._stream.console_msg_queue.append(
-                ConsoleMsg(
-                    stream=CellChannel.STDIN,
-                    cell_id=self._stream.cell_id,
-                    data=prompt,
-                    mimetype=mimetype,
-                    input_id=input_id,
-                )
+        self._stream.queue_console(
+            ConsoleMsg(
+                stream=CellChannel.STDIN,
+                cell_id=self._stream.cell_id,
+                data=prompt,
+                mimetype=mimetype,
+                input_id=input_id,
             )
-            self._stream.console_msg_cv.notify()
+        )
 
-        while True:
+        return _wait_for_reply(self._stream, input_id, execution=True)
+
+
+def _wait_for_reply(
+    stream: ThreadSafeStream, input_id: str, *, execution: bool
+) -> str:
+    while True:
+        if execution:
             require_active_execution()
+        try:
+            reply = stream.input_queue.get(timeout=0.1)
+        except queue.Empty:
+            continue
+        if reply.input_id == input_id:
+            return reply.value
+
+
+class PdbInput(io.StringIO):
+    """Pdb's command reader while inspecting a saved traceback."""
+
+    def __init__(self, stream: ThreadSafeStream, cell_id: CellId_t) -> None:
+        super().__init__()
+        self._stream = stream
+        self._cell_id = cell_id
+
+    def readline(self, size: int | None = -1, /) -> str:  # type: ignore[override]
+        from marimo._messaging.notification import PdbInputNotification
+        from marimo._messaging.notification_utils import broadcast_notification
+
+        del size
+        with self._stream.input_lock:
+            input_id = str(uuid4())
+            self._stream.flush_console()
             try:
-                reply = self._stream.input_queue.get(timeout=0.1)
-            except queue.Empty:
-                continue
-            if reply.input_id == input_id:
-                return reply.value
+                broadcast_notification(
+                    PdbInputNotification(self._cell_id, input_id=input_id),
+                    self._stream,
+                )
+                return (
+                    _wait_for_reply(self._stream, input_id, execution=False)
+                    + "\n"
+                )
+            finally:
+                broadcast_notification(
+                    PdbInputNotification(self._cell_id, input_id=None),
+                    self._stream,
+                )
 
 
 @contextlib.contextmanager
 def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
-    """Redirect a standard stream to the frontend."""
-    try:
-        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
-            standard_stream._watcher.start()
+    """Forward native writes using the execution or command that opened the pipe."""
+    if (
+        not isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr))
+        or not standard_stream._forward_os_streams
+    ):
         yield
-    finally:
-        if isinstance(standard_stream, (ThreadSafeStdout, ThreadSafeStderr)):
-            standard_stream._watcher.pause()
+        return
+
+    cell_id = standard_stream._stream.cell_id
+    assert cell_id is not None
+    fd = standard_stream._original_fd
+    inheritable = os.get_inheritable(fd)
+    outer_pipe = standard_stream._active_pipe
+    with contextlib.ExitStack() as restore:
+        _flush_redirected_stream(standard_stream)
+        with SigintHandler.defer():
+            saved_fd = os.dup(fd)
+            restore.callback(os.close, saved_fd)
+            read_fd, write_fd = os.pipe()
+            with io.FileIO(write_fd, "wb") as writer:
+                pipe = _NativePipe(
+                    standard_stream, io.FileIO(read_fd, "rb"), cell_id
+                )
+                pipe.start()
+                restore.callback(pipe.finish)
+                restore.callback(os.dup2, saved_fd, fd, inheritable)
+                os.dup2(writer.fileno(), fd, inheritable)
+            restore.callback(_flush_redirected_stream, standard_stream)
+
+        try:
+            standard_stream._active_pipe = pipe
+            yield
+        finally:
+            standard_stream._active_pipe = outer_pipe

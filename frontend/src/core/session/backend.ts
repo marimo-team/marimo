@@ -59,7 +59,9 @@ function afterStartup({
         });
       }
     }
-    return url();
+    // The replica filters locally. A host may reject a filter naming an
+    // experimental kind it does not implement.
+    return new URL(url());
   };
 }
 

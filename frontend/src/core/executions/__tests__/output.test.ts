@@ -2,7 +2,7 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import { describe, expect, it } from "vitest";
-import { MockExecutions } from "@/__mocks__/executions";
+import { type ExecutionEntries, MockExecutions } from "@/__mocks__/executions";
 import { cellId } from "@/__tests__/branded";
 import { cell } from "@/core/notebook/document/__tests__/fixtures";
 import {
@@ -15,7 +15,7 @@ import {
 const C1 = cellId("c1");
 const C2 = cellId("c2");
 
-const HTML: Protocol.DisplayData = { mimetype: "text/html", data: "<b>1</b>" };
+const HTML: Protocol.Media = { mimetype: "text/html", data: "<b>1</b>" };
 /** After every time the execution mocks use. */
 const LATER = "2026-10-01T09:30:00Z";
 
@@ -34,7 +34,7 @@ function hostError(overrides: Partial<Protocol.Error>): Protocol.Error {
 }
 
 function inputs(
-  records: Protocol.Execution[],
+  records: ExecutionEntries,
   cleared: CellOutputInputs["cleared"] = new Map(),
   cells: CellOutputInputs["cells"] = new Map(),
 ): CellOutputInputs {
@@ -43,15 +43,8 @@ function inputs(
 }
 
 describe("cellOutputView", () => {
-  it("shows a value outcome's display as an output", () => {
-    const view = cellOutputView(
-      inputs([
-        MockExecutions.completed(C1, {
-          outcome: { kind: "value", display: HTML },
-        }),
-      ]),
-      C1,
-    );
+  it("shows a succeeded execution's output", () => {
+    const view = cellOutputView(inputs([MockExecutions.shown(C1, HTML)]), C1);
     expect(view).toMatchObject({
       channel: "output",
       mimetype: "text/html",
@@ -60,7 +53,7 @@ describe("cellOutputView", () => {
     expect(view?.timestamp).toBe(Date.parse(MockExecutions.T1) / 1000);
   });
 
-  it("shows nothing for a value that is empty, or a cell without a result", () => {
+  it("shows nothing for an execution without an output, or a cell without a result", () => {
     const state = inputs([MockExecutions.completed(C1)]);
     expect(cellOutputView(state, C1)).toBeNull();
     expect(cellOutputView(state, C2)).toBeNull();
@@ -70,13 +63,11 @@ describe("cellOutputView", () => {
     const view = cellOutputView(
       inputs([
         MockExecutions.completed(C1, {
-          outcome: {
-            kind: "error",
-            error: hostError({
-              traceback: { mimetype: "text/plain", data: "Traceback..." },
-              related: [{ cell_id: C2, range: null, message: "Raised it" }],
-            }),
-          },
+          kind: "failed",
+          error: hostError({
+            traceback: { mimetype: "text/plain", data: "Traceback..." },
+            related: [{ cell_id: C2, range: null, message: "Raised it" }],
+          }),
         }),
       ]),
       C1,
@@ -106,15 +97,13 @@ describe("cellOutputView", () => {
     const stopped = cellOutputView(
       inputs([
         MockExecutions.completed(C1, {
-          outcome: {
-            kind: "skipped",
-            reason: "upstream-stopped",
-            message: "An ancestor stopped",
-            related: [
-              { cell_id: C2, range: null, message: "stopped" },
-              { cell_id: C1, range: null, message: "did not run" },
-            ],
-          },
+          kind: "skipped",
+          reason: "upstream-stopped",
+          message: "An ancestor stopped",
+          related: [
+            { cell_id: C2, range: null, message: "stopped" },
+            { cell_id: C1, range: null, message: "did not run" },
+          ],
         }),
       ]),
       C1,
@@ -130,12 +119,10 @@ describe("cellOutputView", () => {
 
   it("takes down a did-not-run notice once the cell runs", () => {
     const skipped = MockExecutions.completed(C1, {
-      outcome: {
-        kind: "skipped",
-        reason: "upstream-stopped",
-        message: "An ancestor stopped",
-        related: [{ cell_id: C2, range: null, message: "stopped" }],
-      },
+      kind: "skipped",
+      reason: "upstream-stopped",
+      message: "An ancestor stopped",
+      related: [{ cell_id: C2, range: null, message: "stopped" }],
     });
     expect(
       cellOutputView(inputs([skipped, MockExecutions.queued(C1)]), C1),
@@ -146,28 +133,22 @@ describe("cellOutputView", () => {
   });
 
   it("prefers the running execution's value so far over the retained result", () => {
-    const previous = MockExecutions.completed(C1, {
-      outcome: { kind: "value", display: HTML },
-    });
+    const previous = MockExecutions.shown(C1, HTML);
     const running = MockExecutions.running(C1);
     const silent = inputs([previous, running]);
     expect(cellOutputView(silent, C1)?.data).toBe("<b>1</b>");
 
-    const showing = inputs([
-      previous,
-      {
-        ...running,
-        outcome: {
-          kind: "value",
-          display: { mimetype: "text/plain", data: "so far" },
-        },
-      },
-    ]);
+    const soFar = MockExecutions.output(running, {
+      mimetype: "text/plain",
+      data: "so far",
+    });
+    const showing = inputs([previous, running, soFar]);
     expect(cellOutputView(showing, C1)?.data).toBe("so far");
 
     const clearedWhileRunning = inputs([
       previous,
-      { ...running, outcome: { kind: "value", display: null } },
+      running,
+      MockExecutions.output(running, null),
     ]);
     expect(cellOutputView(clearedWhileRunning, C1)).toBeNull();
   });
@@ -177,16 +158,14 @@ describe("cellOutputView", () => {
     const prevented = cellOutputView(
       inputs([
         MockExecutions.completed(C1, {
-          outcome: {
-            kind: "skipped",
-            reason: "upstream-failed",
-            message: "An ancestor failed to resolve `x`",
-            related: [
-              { cell_id: C2, range: null, message: "could not resolve" },
-              { cell_id: C3, range: null, message: "expected to define it" },
-              { cell_id: C1, range: null, message: "did not run" },
-            ],
-          },
+          kind: "skipped",
+          reason: "upstream-failed",
+          message: "An ancestor failed to resolve `x`",
+          related: [
+            { cell_id: C2, range: null, message: "could not resolve" },
+            { cell_id: C3, range: null, message: "expected to define it" },
+            { cell_id: C1, range: null, message: "did not run" },
+          ],
         }),
       ]),
       C1,
@@ -202,7 +181,7 @@ describe("cellOutputView", () => {
   });
 
   it("carries the source that ran while the confirmed cell still has it", () => {
-    const ran = MockExecutions.failed(C1, {}, { code_fingerprint: "ran" });
+    const ran = { ...MockExecutions.failed(C1, {}), code_fingerprint: "ran" };
     const same = new Map([
       [C1, cell(C1, "1 / 0", { code_fingerprint: "ran" })],
     ]);
@@ -226,29 +205,22 @@ describe("cellOutputView", () => {
   });
 
   it("hides a cleared result until a newer one lands", () => {
-    const first = MockExecutions.completed(C1, {
-      outcome: { kind: "value", display: HTML },
-    });
-    const cleared = new Map([[C1, { execution: first.id, version: 0 }]]);
+    const first = MockExecutions.shown(C1, HTML);
+    const cleared = new Map([[C1, { execution: first[0].id, version: 0 }]]);
     expect(cellOutputView(inputs([first], cleared), C1)).toBeNull();
 
-    const second = MockExecutions.completed(C1, {
-      outcome: { kind: "value", display: HTML },
-    });
+    const second = MockExecutions.shown(C1, HTML);
     expect(cellOutputView(inputs([second], cleared), C1)).not.toBeNull();
   });
 
   it("keeps a cleared running display hidden when it completes", () => {
-    const running = MockExecutions.completed(C1, {
-      status: "running",
-      completed_at: null,
-      outcome: { kind: "value", display: HTML },
-    });
+    const running = MockExecutions.running(C1);
+    const output = MockExecutions.output(running, HTML);
     const cleared = new Map([[C1, { execution: running.id, version: 0 }]]);
-    expect(cellOutputView(inputs([running], cleared), C1)).toBeNull();
+    expect(cellOutputView(inputs([running, output], cleared), C1)).toBeNull();
 
-    const finished = { ...running, status: "completed" as const };
-    expect(cellOutputView(inputs([finished], cleared), C1)).toBeNull();
+    const finished = { ...MockExecutions.completed(C1), id: running.id };
+    expect(cellOutputView(inputs([finished, output], cleared), C1)).toBeNull();
   });
 });
 
@@ -270,9 +242,6 @@ describe("cellError", () => {
     expect(
       cellError(hostError({ kind: "internal", name: "abc", message: "oops" })),
     ).toEqual({ type: "unknown", msg: "oops", error_type: "abc" });
-    expect(
-      cellError(hostError({ kind: "interrupted", name: null, message: "" })),
-    ).toEqual({ type: "interruption" });
   });
 
   it("shows any other kind as a diagnostic with the cells involved", () => {
@@ -302,49 +271,66 @@ describe("cellError", () => {
 
 describe("scratchOutputView", () => {
   it("shows the latest scratch execution's outcome, or its value so far", () => {
-    const done = MockExecutions.completed("scratch", {
-      cell_id: null,
-      outcome: { kind: "value", display: HTML },
-    });
+    const done = MockExecutions.shown(null, HTML);
     expect(scratchOutputView(inputs([done]).executions)?.data).toBe("<b>1</b>");
 
-    const running = {
-      ...MockExecutions.running("scratch"),
-      cell_id: null,
+    const running = MockExecutions.execution(null, {
+      status: "running",
       started_at: MockExecutions.T1,
-      outcome: {
-        kind: "value" as const,
-        display: { mimetype: "text/plain", data: "so far" },
-      },
-    };
-    expect(scratchOutputView(inputs([done, running]).executions)?.data).toBe(
-      "so far",
-    );
+    });
+    const soFar = MockExecutions.output(running, {
+      mimetype: "text/plain",
+      data: "so far",
+    });
+    expect(
+      scratchOutputView(inputs([done, running, soFar]).executions)?.data,
+    ).toBe("so far");
   });
 
   it("keeps the previous output until a newer run has one to show", () => {
-    const done = MockExecutions.completed("scratch", {
-      cell_id: null,
-      outcome: { kind: "value", display: HTML },
-    });
-    const silent = {
-      ...MockExecutions.running("scratch-2"),
-      cell_id: null,
+    const done = MockExecutions.shown(null, HTML);
+    const silent = MockExecutions.execution(null, {
+      status: "running",
       started_at: LATER,
-    };
+    });
     expect(scratchOutputView(inputs([done, silent]).executions)?.data).toBe(
       "<b>1</b>",
     );
 
     // Interrupted before it started, so it has no start time to order by.
-    const interrupted = {
-      ...MockExecutions.interrupted("scratch-3"),
-      cell_id: null,
+    const interrupted = MockExecutions.execution(null, {
+      status: "completed",
       started_at: null,
       completed_at: LATER,
-    };
+      outcome: { kind: "cancelled" },
+      depends_on: {},
+    });
     expect(
       scratchOutputView(inputs([done, interrupted]).executions)?.data,
     ).toEqual([{ type: "interruption" }]);
+  });
+
+  it("shows why a run failed when it has no execution to show", () => {
+    const done = MockExecutions.shown(null, HTML);
+    const { executions } = inputs([done]);
+    const failure = { message: "Kernel channel closed", completedAt: LATER };
+
+    // The run never reached the kernel, so only the run says what happened.
+    expect(
+      scratchOutputView({
+        ...executions,
+        scratchFailure: { ...failure, runId: "run-2" },
+      })?.data,
+    ).toEqual([
+      { type: "unknown", msg: "Kernel channel closed", error_type: null },
+    ]);
+
+    // Its own execution already shows the error.
+    expect(
+      scratchOutputView({
+        ...executions,
+        scratchFailure: { ...failure, runId: done[0].run_id! },
+      })?.data,
+    ).toBe("<b>1</b>");
   });
 });

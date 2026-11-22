@@ -116,7 +116,7 @@ export function createTestNotebook(
         );
         apply([
           {
-            kind: "put_cell",
+            kind: "replace_cell",
             base_etag: cell.etag,
             cell: {
               id,
@@ -129,7 +129,7 @@ export function createTestNotebook(
         ]);
       },
       createCell(cell: Protocol.CellInput) {
-        apply([{ kind: "put_cell", base_etag: null, cell }]);
+        apply([{ kind: "create_cell", cell }]);
       },
       deleteCell(id: Protocol.CellId) {
         const cell = host.document().cells.get(id);

@@ -42,6 +42,18 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
+def _status(runtime: protocol.Runtime) -> str:
+    match runtime.state:
+        case protocol.RuntimeStarting():
+            return "starting"
+        case protocol.RuntimeReady():
+            return "ready"
+        case protocol.RuntimeStopping():
+            return "stopping"
+        case protocol.RuntimeEnded():
+            return "ended"
+
+
 class Notebook:
     """A document, its execution results, and the runtime that produces them.
 
@@ -146,8 +158,16 @@ class Notebook:
 
     @property
     def runtime(self) -> protocol.Runtime | None:
-        """The current runtime, if any."""
+        """The notebook's runtime, kept after it ends."""
         return self._runtime
+
+    @property
+    def live_runtime(self) -> protocol.Runtime | None:
+        """The runtime, unless it has ended."""
+        runtime = self._runtime
+        if runtime is None or isinstance(runtime.state, protocol.RuntimeEnded):
+            return None
+        return runtime
 
     @property
     def analysis(self) -> protocol.Analysis | None:
@@ -341,9 +361,10 @@ class Notebook:
         """Return the runtime and whether this call started it."""
         with self.sink.deferred():
             self._require_open()
-            if self._runtime is not None:
-                return self._runtime, False
-            runtime = self._new_runtime("starting", None, None)
+            if (live := self.live_runtime) is not None:
+                return live, False
+            self._remove_runtime(request_id)
+            runtime = self._new_runtime()
             self._runtime_request = request_id
             self._set_runtime(runtime)
             self.backend.start(runtime.id)
@@ -352,42 +373,39 @@ class Notebook:
     def stop(self, *, request_id: str | None = None) -> protocol.Runtime:
         """Stop the runtime and retain its results.
 
-        The runtime stays until the backend reports its exit. A failed runtime
-        is removed immediately.
+        The runtime ends once the backend reports its exit.
         """
         with self.sink.deferred():
             self._require_open()
             runtime = self._require_runtime()
             self._runtime_request = request_id
             self._replacement = None
-            if runtime.status == "terminating":
+            if isinstance(runtime.state, protocol.RuntimeStopping):
                 return runtime
-            terminating = replace(runtime, status="terminating")
-            self._set_runtime(terminating)
+            stopping = replace(runtime, state=protocol.RuntimeStopping())
+            self._set_runtime(stopping)
             self._apply(self.executions.cancel_inputs(), request_id=request_id)
-            if runtime.status == "failed":
-                self._end_runtime()
-            else:
-                self.backend.stop(runtime.id)
-            return terminating
+            self.backend.stop(runtime.id)
+            return stopping
 
     def restart(self, *, request_id: str | None = None) -> protocol.Runtime:
-        """Stop a running runtime and return its replacement.
+        """Stop a ready runtime and return its replacement.
 
         The replacement starts after the old runtime exits.
         """
         with self.sink.deferred():
             self._require_open()
             runtime = self._require_runtime()
-            if runtime.status != "running":
+            if not isinstance(runtime.state, protocol.RuntimeReady):
                 raise Conflict(
-                    f"the runtime is {runtime.status}; only a running one restarts"
+                    f"the runtime is {_status(runtime)}; only a ready one restarts"
                 )
             self._runtime_request = request_id
-            replacement = self._new_runtime("starting", None, None)
+            replacement = self._new_runtime()
             self._replacement = replacement
-            terminating = replace(runtime, status="terminating")
-            self._set_runtime(terminating)
+            self._set_runtime(
+                replace(runtime, state=protocol.RuntimeStopping())
+            )
             self._apply(self.executions.cancel_inputs(), request_id=request_id)
             self.backend.stop(runtime.id)
             return replacement
@@ -403,36 +421,56 @@ class Notebook:
         """
         with self.sink.deferred():
             self._require_open()
-            if self._runtime is not None:
-                if self._runtime.status != "failed":
-                    raise Conflict(
-                        f"the notebook has a {self._runtime.status} runtime"
-                    )
-                self._end_runtime()
-            runtime = self._new_runtime("starting", None, None)
+            if (live := self.live_runtime) is not None:
+                raise Conflict(f"the notebook has a {_status(live)} runtime")
+            self._remove_runtime(None)
+            runtime = self._new_runtime()
             self._set_runtime(runtime)
             attach(runtime.id)
             return runtime
 
     def _require_runtime(self) -> protocol.Runtime:
-        if self._runtime is None:
+        runtime = self.live_runtime
+        if runtime is None:
             raise NoRuntime(
                 f"notebook {self.id} has no runtime; start one first."
             )
-        return self._runtime
+        return runtime
 
     def _set_runtime(self, runtime: protocol.Runtime) -> None:
         self._runtime = runtime
         self._publish(runtime, self._runtime_request)
-        if runtime.status in ("running", "failed"):
+        if isinstance(
+            runtime.state, (protocol.RuntimeReady, protocol.RuntimeEnded)
+        ):
             self._runtime_request = None
 
-    def _end_runtime(self) -> None:
-        assert self._runtime is not None
-        self._apply(self.executions.interrupt())
-        runtime, self._runtime = self._runtime, None
-        self._remove(protocol.Runtime, runtime.id, self._runtime_request)
-        self._runtime_request = None
+    def _end_runtime(
+        self, runtime: protocol.Runtime, outcome: protocol.RuntimeOutcome
+    ) -> None:
+        """Settle the runtime's work, then publish it as ended."""
+        if isinstance(outcome, protocol.RuntimeFailedOutcome):
+            self._apply(
+                self.executions.interrupt(
+                    failure=outcome.message or "The kernel exited."
+                )
+            )
+        else:
+            self._apply(self.executions.interrupt())
+        self._set_runtime(
+            replace(
+                runtime,
+                state=protocol.RuntimeEnded(
+                    ended_at=utcnow(), outcome=outcome
+                ),
+            )
+        )
+
+    def _remove_runtime(self, request_id: str | None) -> None:
+        """Drop the ended runtime so another can take its place."""
+        if self._runtime is not None:
+            runtime, self._runtime = self._runtime, None
+            self._remove(protocol.Runtime, runtime.id, request_id)
 
     # ---- runs ----------------------------------------------------------
 
@@ -489,8 +527,8 @@ class Notebook:
         with self.sink.deferred():
             self._require_open()
             runtime = self._require_runtime()
-            if runtime.status != "running":
-                raise Conflict(f"the runtime is {runtime.status}.")
+            if not isinstance(runtime.state, protocol.RuntimeReady):
+                raise Conflict(f"the runtime is {_status(runtime)}.")
             targets: list[protocol.CellId] = []
             for index, requested in enumerate(cells or ()):
                 cell = self._document.cell(requested.id)
@@ -513,11 +551,11 @@ class Notebook:
                 id=mint(protocol.RunId, "run"),
                 notebook_id=self.id,
                 runtime_id=runtime.id,
-                cells=tuple(targets),
-                status="queued",
-                outcome=None,
-                started_at=None,
-                completed_at=None,
+                origin=protocol.RunCodeOrigin(code=code)
+                if code is not None
+                else protocol.RunCellsOrigin(cell_ids=tuple(targets)),
+                created_at=utcnow(),
+                state=protocol.RunQueued(),
             )
             self._apply(self.executions.begin(run, request_id))
             if code is not None:
@@ -542,12 +580,12 @@ class Notebook:
 
         Raises:
             NoRuntime: If the notebook has no runtime.
-            Conflict: If the runtime is not running.
+            Conflict: If the runtime is not ready.
         """
         self._require_open()
         runtime = self._require_runtime()
-        if runtime.status != "running":
-            raise Conflict(f"the runtime is {runtime.status}.")
+        if not isinstance(runtime.state, protocol.RuntimeReady):
+            raise Conflict(f"the runtime is {_status(runtime)}.")
         with self.sink.deferred():
             self._apply(self.executions.cancel_inputs(), request_id=request_id)
             self.backend.interrupt()
@@ -561,7 +599,7 @@ class Notebook:
         run = self.executions.run(protocol.RunId(run_id))
         if run is None:
             raise NotFound(f"notebook {self.id} has no run {run_id}.")
-        if run.status == "completed":
+        if isinstance(run.state, protocol.RunCompleted):
             raise Conflict(f"run {run_id} has already ended.")
         with self.sink.deferred():
             self._apply(
@@ -611,7 +649,7 @@ class Notebook:
             "notebook_id": self.id,
             "kind": kind or "client",
             "name": name or None,
-            "since": utcnow(),
+            "created_at": utcnow(),
         }
         fields["identity"] = identity
         attachment = msgspec.convert(fields, protocol.Attachment)
@@ -632,7 +670,7 @@ class Notebook:
         if self._closed:
             return
         match msg:
-            case be.Starting() | be.Running() | be.Exited():
+            case be.Starting() | be.Running() | be.Stopped() | be.Exited():
                 runtime = self._runtime
                 if runtime is None or msg.runtime_id != runtime.id:
                     return  # A kernel this notebook no longer tracks.
@@ -645,54 +683,57 @@ class Notebook:
     ) -> None:
         match report:
             case be.Starting(message=text):
-                if runtime.status == "starting":
-                    self._set_runtime(replace(runtime, message=text))
-            case be.Running(marimo_version=version):
-                if runtime.status in ("starting", "running"):
+                if isinstance(runtime.state, protocol.RuntimeStarting):
                     self._set_runtime(
                         replace(
                             runtime,
-                            status="running",
-                            message=None,
+                            state=protocol.RuntimeStarting(message=text),
+                        )
+                    )
+            case be.Running(marimo_version=version):
+                if isinstance(
+                    runtime.state,
+                    (protocol.RuntimeStarting, protocol.RuntimeReady),
+                ):
+                    self._set_runtime(
+                        replace(
+                            runtime,
+                            state=protocol.RuntimeReady(),
                             marimo_version=version,
                         )
                     )
-            case be.Exited(reason=reason):
-                self._observe_exited(runtime, reason)
+            case be.Stopped() | be.Exited():
+                with self.sink.deferred():
+                    self._observe_exited(runtime, report)
 
     def _observe_exited(
-        self, runtime: protocol.Runtime, reason: str | None
+        self, runtime: protocol.Runtime, report: be.Stopped | be.Exited
     ) -> None:
-        if runtime.status == "terminating" and self._replacement is not None:
-            replacement, self._replacement = self._replacement, None
-            request_id = self._runtime_request
-            with self.sink.deferred():
-                self._end_runtime()
-                self._runtime_request = request_id
-                self._set_runtime(replacement)
-                self.backend.start(replacement.id)
-        elif runtime.status == "terminating":
-            self._end_runtime()
-        else:
-            # Preserve results after an unexpected exit.
-            self._apply(self.executions.interrupt("failed"))
-            self._set_runtime(
-                replace(runtime, status="failed", message=reason)
+        if isinstance(runtime.state, protocol.RuntimeEnded):
+            return
+        request_id = self._runtime_request
+        if isinstance(report, be.Exited) and not isinstance(
+            runtime.state, protocol.RuntimeStopping
+        ):
+            self._end_runtime(
+                runtime, protocol.RuntimeFailedOutcome(message=report.reason)
             )
+        else:
+            self._end_runtime(runtime, protocol.RuntimeStoppedOutcome())
+        if self._replacement is not None:
+            replacement, self._replacement = self._replacement, None
+            self._remove_runtime(request_id)
+            self._runtime_request = request_id
+            self._set_runtime(replacement)
+            self.backend.start(replacement.id)
 
-    def _new_runtime(
-        self,
-        status: protocol.RuntimeStatus,
-        text: str | None,
-        version: str | None,
-    ) -> protocol.Runtime:
+    def _new_runtime(self) -> protocol.Runtime:
         return protocol.Runtime(
             id=mint(protocol.RuntimeId, "rt"),
             notebook_id=self.id,
-            status=status,
-            message=text,
-            marimo_version=version,
-            started_at=utcnow(),
+            marimo_version=None,
+            created_at=utcnow(),
+            state=protocol.RuntimeStarting(message=None),
         )
 
     def emit(
@@ -752,9 +793,7 @@ class Notebook:
         self._apply(self.executions.clear())
         for attachment_id in list(self._attachments):
             self.detach(attachment_id)
-        if self._runtime is not None:
-            runtime, self._runtime = self._runtime, None
-            self._remove(protocol.Runtime, runtime.id, request_id)
+        self._remove_runtime(request_id)
 
     def _publish(self, body: Body, request_id: str | None) -> None:
         self.sink.publish(

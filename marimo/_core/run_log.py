@@ -73,7 +73,10 @@ class RunLog:
                         request_id if isinstance(request_id, str) else None,
                     )
                 entry.event = event
-                if run.status == "completed" and entry.completed_at is None:
+                if (
+                    isinstance(run.state, protocol.RunCompleted)
+                    and entry.completed_at is None
+                ):
                     entry.completed_at = self._clock()
                 return self._close(run.id)
             case protocol.ExecutionEvent(
@@ -88,12 +91,12 @@ class RunLog:
                             entry.scratch[execution.id] = _Scratch(event)
                         else:
                             scratch.execution = event
-            case protocol.ConsoleEvent(
-                data=protocol.ConsoleMessage(console=item)
+            case protocol.OutputEvent(
+                data=protocol.OutputMessage(output=item)
             ):
                 self._record_output(event, item)
-            case protocol.DisplayEvent(
-                data=protocol.DisplayMessage(display=item)
+            case protocol.ConsoleEvent(
+                data=protocol.ConsoleMessage(console=item)
             ):
                 self._record_output(event, item)
             case protocol.InputEvent(data=protocol.InputMessage(input=item)):
@@ -169,7 +172,7 @@ class RunLog:
     def _record_output(
         self,
         event: RoutedEvent,
-        item: protocol.Console | protocol.Display | protocol.Input,
+        item: protocol.Output | protocol.Console | protocol.Input,
     ) -> None:
         entry = self._entry(event)
         if entry is None:
@@ -187,8 +190,7 @@ class RunLog:
                 if isinstance(output.event, protocol.InputEvent):
                     continue  # Inputs leave with their execution.
                 assert isinstance(
-                    output.event,
-                    (protocol.ConsoleEvent, protocol.DisplayEvent),
+                    output.event, (protocol.OutputEvent, protocol.ConsoleEvent)
                 )
                 body = protocol_events.body(output.event)
                 events.append(self._removal(entry, type(body), body.id))

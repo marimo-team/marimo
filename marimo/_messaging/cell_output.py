@@ -42,6 +42,8 @@ class CellOutput(msgspec.Struct):
     traceback_format: Literal["text", "html"] | msgspec.UnsetType = (
         msgspec.UNSET
     )
+    # Identifies a debugger or callback write across live delivery and replay.
+    command_id: str | msgspec.UnsetType = msgspec.UNSET
 
     def __repr__(self) -> str:
         return f"CellOutput(channel={self.channel}, mimetype={self.mimetype}, timestamp={self.timestamp})"

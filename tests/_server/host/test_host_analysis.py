@@ -12,6 +12,7 @@ from inline_snapshot import snapshot
 
 from marimo._ast.cell import CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.definition_range import find_definition_range
 from marimo._core import protocol
 from marimo._core.document import Document, DocumentCell
 from marimo._dependencies.dependencies import DependencyManager
@@ -30,6 +31,27 @@ def analyze(
     codes: dict[str, str],
 ) -> dict[protocol.CellId, protocol.CellAnalysis]:
     return CellAnalyzer()(document_snapshot(codes))
+
+
+def test_deletion_depends_on_readers_as_well_as_the_definition() -> None:
+    cells = analyze({"a": "x = 1", "b": "print(x)", "c": "del x"})
+    parents = cells["c"].parents
+    assert isinstance(parents, tuple)
+    assert set(parents) == {"a", "b"}
+
+
+@pytest.mark.skipif(
+    not DependencyManager.duckdb.has(), reason="Requires duckdb"
+)
+def test_qualified_sql_parent_is_the_table_in_the_referenced_schema() -> None:
+    cells = analyze(
+        {
+            "a": 'mo.sql("CREATE TABLE one.t (id INT)")',
+            "b": 'mo.sql("CREATE TABLE two.t (id INT)")',
+            "c": 'mo.sql("SELECT * FROM one.t")',
+        }
+    )
+    assert cells["c"].parents == ("a",)
 
 
 def render_diagnostics(
@@ -53,12 +75,12 @@ def render_diagnostics(
     annotations: dict[str, list[tuple[protocol.Range | None, str]]] = {
         cid: [
             (error.range, f"{error.severity}[{error.kind}]: {error.message}")
-            for error in analyses[cid].errors
+            for error in analyses[cid].diagnostics
         ]
         for cid in codes
     }
     for cid, analysis in analyses.items():
-        for error in analysis.errors:
+        for error in analysis.diagnostics:
             for related in error.related:
                 annotations[related.cell_id].append(
                     (related.range, f"related[{cid}]: {related.message}")
@@ -109,10 +131,45 @@ def test_refs_are_names_other_cells_define() -> None:
     )
     assert analyses["a"].defs == ("mo",)
     assert analyses["a"].refs == ("x",)
-    assert analyses["b"] == protocol.CellAnalysis(
-        defs=("x",), refs=(), errors=()
-    )
+    assert analyses["b"].defs == ("x",)
+    assert analyses["b"].refs == ()
     assert analyses["c"].refs == ("x",)
+
+
+def test_reusable_definition_follows_edits_and_document_order() -> None:
+    analyzer = CellAnalyzer()
+    factory = DocumentCell("factory", "def make():\n    return 1")
+    widget = DocumentCell("widget", "class Widget:\n    default = make()")
+
+    def findings(*cells: DocumentCell) -> tuple[protocol.CellDiagnostic, ...]:
+        return analyzer(Document(cells, {}))[widget.id].diagnostics
+
+    expected = protocol.CellDiagnostic(
+        kind="reusable-definition",
+        source="marimo",
+        severity="information",
+        message="This definition is importable when the notebook is saved as Python.",
+        range=span(0, 6, 12),
+        related=(),
+    )
+    assert findings(factory, widget) == (expected,)
+    (demoted,) = findings(widget, factory)
+    assert demoted.kind == "non-reusable-definition"
+    assert demoted.severity == "hint"
+    assert "make" in demoted.message
+    assert findings(
+        DocumentCell("factory", "make = lambda: 1", name="setup"), widget
+    ) == (expected,)
+    assert findings(factory, DocumentCell("widget", "value = make()")) == ()
+
+
+def test_a_definition_other_cells_also_define_is_not_reusable() -> None:
+    analyses = analyze(
+        {"a": "def f():\n    return 1", "b": "def f():\n    return 2"}
+    )
+    for cid in ("a", "b"):
+        (finding,) = analyses[cid].diagnostics
+        assert finding.kind == "multiple-definitions"
 
 
 def test_a_name_defined_twice_is_an_error_on_each_definer() -> None:
@@ -170,21 +227,19 @@ def test_cycles_report_the_dependency_chain_on_every_participant(
     if reverse:
         codes = dict(reversed(list(codes.items())))
     analyses = analyze(codes)
-    expected = protocol.Error(
+    expected = protocol.CellDiagnostic(
         kind="cycle-dependencies",
         message="This cell is in a cycle",
         source="marimo",
         severity="error",
         range=None,
-        name=None,
-        traceback=None,
         related=tuple(
             protocol.Related(cell_id=cid, range=None, message=message)
             for cid, message in dependencies
         ),
     )
     participants = {cid for cid, _ in dependencies}
-    assert {cid: cell.errors for cid, cell in analyses.items()} == {
+    assert {cid: cell.diagnostics for cid, cell in analyses.items()} == {
         cid: (expected,) if cid in participants else () for cid in codes
     }
 
@@ -279,9 +334,9 @@ def test_qualified_sql_definitions_only_conflict_with_the_same_table() -> None:
             "c": 'mo.sql("CREATE TABLE finance.datalake.xx (id INT)")',
         }
     )
-    assert analyses["b"].errors == ()
+    assert analyses["b"].diagnostics == ()
     for cid in ("a", "c"):
-        (error,) = analyses[cid].errors
+        (error,) = analyses[cid].diagnostics
         assert error.kind == "multiple-definitions"
         assert tuple(item.cell_id for item in error.related) == ("a", "c")
         assert error.range is None
@@ -295,30 +350,31 @@ def test_qualified_sql_definitions_only_conflict_with_the_same_table() -> None:
         ("s = '😀'; x = 1", span(0, 10, 11)),
         ("def f():\n    x = 1\nx = 2", span(2, 0, 1)),
         ("[x for x in ()]\nx = 2", span(1, 0, 1)),
+        ("# \u2028é\nx = 2", span(1, 0, 1)),
     ],
 )
 def test_definition_ranges_use_shared_scope_and_token_handling(code, expected):
     analyses = analyze({"a": code, "b": "x = 0"})
-    assert analyses["a"].errors[0].range == expected
+    assert analyses["a"].diagnostics[0].range == expected
 
 
 def test_syntax_errors_leave_the_cell_without_names() -> None:
     analyses = analyze({"a": "def (:", "b": "x = 1"})
 
-    (error,) = analyses["a"].errors
+    (error,) = analyses["a"].diagnostics
     assert error.kind == "invalid-syntax"
     assert error.source == "marimo"
     assert error.range is not None
     assert error.range.start.line == 0
     assert analyses["a"].defs == ()
     assert analyses["a"].refs == ()
-    assert analyses["b"].errors == ()
+    assert analyses["b"].diagnostics == ()
 
 
 def test_positions_count_utf16_code_units() -> None:
     analyses = analyze({"a": "s = '😀'; def (:"})
 
-    (error,) = analyses["a"].errors
+    (error,) = analyses["a"].diagnostics
     assert error.range is not None
     # Python reports the error at `def`, code point 9. The emoji before it
     # is one code point but two UTF-16 units, so LSP sees it at 10.
@@ -447,6 +503,31 @@ def test_compilation_cache_uses_identity_and_exact_source(
     assert compiler.call_count == 6
 
 
+def test_definition_ranges_are_located_once_per_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    finder = Mock(wraps=find_definition_range)
+    monkeypatch.setattr(
+        "marimo._server.host.analysis.find_definition_range", finder
+    )
+    analyzer = CellAnalyzer()
+
+    def located(code: str, other: str) -> protocol.Range | None:
+        document = Document(
+            [DocumentCell("f", code), DocumentCell("x", other)], {}
+        )
+        (finding,) = analyzer(document)[protocol.CellId("f")].diagnostics
+        return finding.range
+
+    sync = "def f():\n    return 1"
+    assert located(sync, "x = 1") == span(0, 4, 5)
+    assert located(sync, "x = 2") == span(0, 4, 5)
+    assert finder.call_count == 1
+
+    assert located("async def f():\n    return 1", "x = 2") == span(0, 10, 11)
+    assert finder.call_count == 2
+
+
 @pytest.mark.skipif(
     not DependencyManager.duckdb.has(), reason="Requires duckdb"
 )
@@ -483,8 +564,8 @@ def test_formatting_refreshes_diagnostic_locations() -> None:
     after = DocumentCell(protocol.CellId("a"), "# comment\n\nx = 1")
     other = DocumentCell(protocol.CellId("b"), "x = 2")
     assert before.code_fingerprint == after.code_fingerprint
-    first = analyzer(Document([before, other], {}))[before.id].errors[0]
-    second = analyzer(Document([after, other], {}))[after.id].errors[0]
+    first = analyzer(Document([before, other], {}))[before.id].diagnostics[0]
+    second = analyzer(Document([after, other], {}))[after.id].diagnostics[0]
     assert first.range is not None
     assert second.range is not None
     assert first.range.start.line == 0

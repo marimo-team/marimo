@@ -46,7 +46,6 @@ export type DataSourceDiscoveryResult =
   NotificationMessageData<"data-source-discovery-result">;
 export type SecretKeysResult = NotificationMessageData<"secret-keys-result">;
 export type StartupLogs = NotificationMessageData<"startup-logs">;
-export type CellMessage = NotificationMessageData<"cell-op">;
 export type Capabilities =
   NotificationMessageData<"kernel-ready">["capabilities"];
 export type CacheInfoFetched = NotificationMessageData<"cache-info">;

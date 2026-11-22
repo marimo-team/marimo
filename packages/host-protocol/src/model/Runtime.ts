@@ -5,35 +5,76 @@
 import { Schema } from "effect";
 import { NotebookId, RuntimeId, AttachmentId, Timestamp } from "./Ids.ts";
 
-export const RuntimeStatus = Schema.Literals([
-  "starting",
-  "running",
-  "terminating",
-  "failed",
+export const RuntimeStarting = Schema.Struct({
+  status: Schema.Literal("starting"),
+  message: Schema.NullOr(Schema.String).annotateKey({
+    description:
+      "A note about progress, such as the packages being installed. Null when the host has nothing to report.",
+  }),
+}).annotate({ identifier: "RuntimeStarting" });
+
+export const RuntimeReady = Schema.Struct({
+  status: Schema.Literal("ready"),
+}).annotate({ identifier: "RuntimeReady" });
+
+export const RuntimeStopping = Schema.Struct({
+  status: Schema.Literal("stopping"),
+}).annotate({ identifier: "RuntimeStopping" });
+
+export const RuntimeStoppedOutcome = Schema.Struct({
+  kind: Schema.Literal("stopped"),
+}).annotate({ identifier: "RuntimeStoppedOutcome" });
+
+export const RuntimeFailedOutcome = Schema.Struct({
+  kind: Schema.Literal("failed"),
+  message: Schema.NullOr(Schema.String).annotateKey({
+    description:
+      "Why the kernel could not start or why it exited, to show people. Null when the host does not know.",
+  }),
+}).annotate({ identifier: "RuntimeFailedOutcome" });
+
+export const RuntimeOutcome = Schema.Union([
+  RuntimeStoppedOutcome,
+  RuntimeFailedOutcome,
 ]).annotate({
   description:
-    "Where a runtime is in its life. A `starting` runtime is bringing\nits kernel up. A `running` runtime accepts work. A `terminating`\nruntime is shutting its kernel down. A `failed` runtime could not\nstart, or its kernel exited unexpectedly. A runtime that has\nended is removed rather than given a status.\n",
-  identifier: "RuntimeStatus",
+    "How a runtime ended, tagged on `kind`. A `stopped` runtime was\nended by a client or the host. A `failed` runtime could not start,\nor its kernel exited unexpectedly.\n",
+  identifier: "RuntimeOutcome",
+});
+
+export const RuntimeEnded = Schema.Struct({
+  status: Schema.Literal("ended"),
+  ended_at: Timestamp.annotateKey({
+    description: "When the runtime ended.",
+  }),
+  outcome: RuntimeOutcome,
+}).annotate({ identifier: "RuntimeEnded" });
+
+export const RuntimeState = Schema.Union([
+  RuntimeStarting,
+  RuntimeReady,
+  RuntimeStopping,
+  RuntimeEnded,
+]).annotate({
+  description:
+    "Where a runtime is in its life, tagged on `status`. A `starting`\nruntime is bringing its kernel up. A `ready` runtime accepts work.\nA `stopping` runtime is shutting its kernel down. An `ended`\nruntime has no kernel and does not change again.\n",
+  identifier: "RuntimeState",
 });
 
 export const Runtime = Schema.Struct({
   id: RuntimeId,
   notebook_id: NotebookId,
-  status: RuntimeStatus,
-  message: Schema.NullOr(Schema.String).annotateKey({
-    description:
-      "A note about the current status, such as progress while `starting` or the reason when `failed`. Null otherwise.",
-  }),
   marimo_version: Schema.NullOr(Schema.String).annotateKey({
     description:
       "The version of marimo running the kernel. Null until the host knows it.",
   }),
-  started_at: Timestamp.annotateKey({
-    description: "When this runtime started.",
+  created_at: Timestamp.annotateKey({
+    description: "When the host created this runtime and began starting it.",
   }),
+  state: RuntimeState,
 }).annotate({
   description:
-    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits, and the host then sends `runtime.removed`. Every start and restart creates\na new runtime with a new id. Results carry their producer's runtime\nid so clients can tell which are live.\n",
+    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits. The notebook keeps the ended runtime, so clients can\nsee how it ended, until another one starts or the notebook closes.\nThe host then sends `runtime.removed`. Every start and restart\ncreates a new runtime with a new id. Executions carry their producer's\nruntime id, and their results are live while that runtime has not ended.\n",
   identifier: "Runtime",
 });
 
@@ -64,7 +105,7 @@ export const Attachment = Schema.Struct({
     description:
       "A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
   }),
-  since: Timestamp.annotateKey({
+  created_at: Timestamp.annotateKey({
     description: "When it attached.",
   }),
 }).annotate({

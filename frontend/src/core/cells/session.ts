@@ -6,13 +6,16 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import type * as api from "@marimo-team/marimo-api";
 import { mergeArray } from "@/utils/edit-distance";
 import { Logger } from "@/utils/Logger";
-import type { StaticNotebookSnapshot } from "../transports/static";
+import type {
+  StaticNotebookSnapshot,
+  StaticResult,
+} from "../transports/static";
 import { CellId, SETUP_CELL_ID } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
 import { type CellRuntimeState, createCellRuntimeState } from "./types";
 
 /** The identity of a snapshot the page carries. A host's own stream replaces it. */
-const EMBEDDED = "embedded";
+export const EMBEDDED = "embedded";
 
 // Constants
 const DEFAULT_TIMESTAMP = 0;
@@ -213,15 +216,17 @@ function normalizeTraceback(lines: readonly string[]): string | null {
 function resultRecord(
   cell: Protocol.Cell,
   sessionCell: SessionCell | null | undefined,
-): Protocol.Execution | null {
+): StaticResult | null {
   const primary = primaryOutputOf(sessionCell);
-  let outcome: Protocol.Outcome;
+  const id = `${EMBEDDED}:${cell.id}:result`;
+  let outcome: Protocol.ExecutionOutcome;
+  let output: Protocol.Output | null = null;
   if (primary === undefined) {
     return null;
   } else if (primary.type === "error") {
     const traceback = normalizeTraceback(primary.traceback);
     outcome = {
-      kind: "error",
+      kind: "failed",
       error: {
         kind: "exception",
         name: primary.ename,
@@ -238,9 +243,11 @@ function resultRecord(
     };
   } else if (primary.type === "data") {
     const [mimetype, data] = Object.entries(primary.data)[0] ?? [];
-    outcome = {
-      kind: "value",
-      display:
+    outcome = { kind: "succeeded" };
+    output = {
+      id: `${id}:output`,
+      execution_id: id,
+      media:
         mimetype === undefined
           ? null
           : {
@@ -252,18 +259,23 @@ function resultRecord(
     return null;
   }
   return {
-    id: `${EMBEDDED}:${cell.id}:result`,
-    run_id: `${EMBEDDED}:run`,
-    runtime_id: EMBEDDED,
-    caused_by: null,
-    cell_id: cell.id,
-    code: null,
-    code_fingerprint: cell.code_fingerprint,
-    depends_on: {},
-    status: "completed",
-    outcome,
-    started_at: null,
-    completed_at: null,
+    execution: {
+      id,
+      run_id: `${EMBEDDED}:run`,
+      runtime_id: EMBEDDED,
+      caused_by_id: null,
+      cell_id: cell.id,
+      code_fingerprint: cell.code_fingerprint,
+      created_at: null,
+      state: {
+        status: "completed",
+        started_at: null,
+        completed_at: null,
+        outcome,
+        depends_on: {},
+      },
+    },
+    output,
   };
 }
 
@@ -280,7 +292,7 @@ function createCellRuntimeFromSession(
 
   return {
     ...runtimeState,
-    consoleOutputs: consoleOutputs.map((consoleOutput) => {
+    embeddedConsole: consoleOutputs.map((consoleOutput) => {
       // Handle StreamMediaOutput (type: "streamMedia")
       if (consoleOutput.type === "streamMedia") {
         return {
@@ -341,7 +353,7 @@ export function readExport({
   }
 
   const cells: Protocol.Cell[] = [];
-  const results: Protocol.Execution[] = [];
+  const results: StaticResult[] = [];
   const cellRuntime: Record<CellId, CellRuntimeState> = {};
   for (const cellId of cellIds) {
     const cell = cellRecord(
@@ -365,7 +377,7 @@ export function readExport({
         project_id: EMBEDDED,
         path: filename,
         name: filename ?? EMPTY_STRING,
-        updated_at: null,
+        modified_at: null,
       },
       document: {
         notebook_id: EMBEDDED,

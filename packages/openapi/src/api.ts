@@ -2200,7 +2200,7 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Run a post mortem on the most recent failed cell. */
+        /** @description Open the debugger for a failed cell. */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2208,6 +2208,54 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["SuccessResponse"];
           };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/pdb/reply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PdbInputReplyRequest"];
+        };
+      };
+      responses: {
+        /** @description Accepted the command for the pending debugger prompt. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description This debugger prompt is no longer pending. */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
@@ -3895,6 +3943,24 @@ export interface components {
       time: number;
     };
     /**
+     * CallbackOutputNotification
+     * @description Show a widget callback or registered function's output in its defining cell.
+     *
+     *     Append live entries. When `replace` is true, replace the callback
+     *     transcript for this cell with the supplied entries. The editor's
+     *     `after_seq` gives the preceding execution item sequence for each entry,
+     *     or -1 before the first item.
+     */
+    CallbackOutputNotification: {
+      after_seq?: number[];
+      cell_id: components["schemas"]["CellId"];
+      entries: components["schemas"]["CellOutput"][];
+      /** @enum {unknown} */
+      op: "callback-output";
+      /** @default false */
+      replace?: boolean;
+    };
+    /**
      * CellChannel
      * @description The channel of a cell's output.
      * @enum {unknown}
@@ -3924,49 +3990,11 @@ export interface components {
     };
     /** Format: cell-id */
     CellId: TypedString<"CellId">;
-    /**
-     * CellNotification
-     * @description Updates a cell's state in the frontend.
-     *
-     *     This is a partial update: each field carries its own "unchanged" semantics,
-     *     documented per field below. Most fields treat None as "unchanged"; fields
-     *     that need to distinguish "unchanged" from "clear" use msgspec.UNSET for the
-     *     former and None for the latter.
-     *
-     *     Attributes:
-     *         cell_id: Unique identifier of the cell being updated.
-     *         output: Cell's output. Use CellOutput.empty() to clear.
-     *         console: Console messages. Single/list appends, [] clears, None unchanged.
-     *         status: Execution status (idle/running/stale/queued/disabled-transitively).
-     *         run_id: Execution run ID for tracing. Auto-set from context.
-     *         execution_id: Evaluation of this cell producing the update, when known.
-     *         serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
-     *         timestamp: Creation timestamp, auto-set.
-     */
-    CellNotification: {
-      cell_id: components["schemas"]["CellId"];
-      /** @default null */
-      console?:
-        | components["schemas"]["CellOutput"][]
-        | components["schemas"]["CellOutput"]
-        | null;
-      /** @default null */
-      execution_id?: string | null;
-      /** @enum {unknown} */
-      op: "cell-op";
-      /** @default null */
-      output?: components["schemas"]["CellOutput"] | null;
-      /** @default null */
-      run_id?: string | null;
-      serialization?: string | null;
-      /** @default null */
-      status?: ("disabled-transitively" | "idle" | "queued" | "running") | null;
-      timestamp?: number;
-    };
     /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];
       code?: string;
+      command_id?: string;
       data:
         | string
         | (
@@ -4023,7 +4051,7 @@ export interface components {
      *
      *     `output` carries the cell's last main (rich display) output;
      *     `console_outputs` carries the buffered stdout/stderr stream from
-     *     its last execution.  Both are keyed by cell id; missing keys mean
+     *     its last execution and subsequent callbacks. Both are keyed by cell id; missing keys mean
      *     "no output captured" (the cell never ran, or produced nothing on
      *     that channel).
      */
@@ -4225,6 +4253,17 @@ export interface components {
       op: "completion-result";
       options: components["schemas"]["CompletionOption"][];
       prefix_length: number;
+    };
+    /**
+     * ConsoleInputsClearedNotification
+     * @description The settled input rows hidden by clear_console() in this execution.
+     */
+    ConsoleInputsClearedNotification: {
+      cell_id: components["schemas"]["CellId"];
+      execution_id: string;
+      input_ids: string[];
+      /** @enum {unknown} */
+      op: "console-inputs-cleared";
     };
     /**
      * ConsumerCapabilities
@@ -4890,39 +4929,6 @@ export interface components {
       request?: components["schemas"]["HTTPRequest"] | null;
       /** @default null */
       runId?: string | null;
-    };
-    /**
-     * ExecutionNotification
-     * @description An attempt's lifecycle, independent of a cell's displayed status.
-     *
-     *     `planned` includes the execution ID and code fingerprint before any output.
-     *     `code` is null when source is withheld.
-     *     `running` means evaluation began. `completed` follows the final output
-     *     and errors, including for attempts that never ran. Buffered and background
-     *     console output may still arrive with the completed attempt's identity.
-     *     A completed attempt that never ran and reported no error names why in
-     *     `skipped`, such as `superseded` when a newer attempt replaced it.
-     */
-    ExecutionNotification: {
-      /** @default null */
-      caused_by?: string | null;
-      cell_id: components["schemas"]["CellId"];
-      /** @default null */
-      code?: string | null;
-      /** @default null */
-      code_fingerprint?: string | null;
-      /** @default null */
-      depends_on?: {
-        [key: string]: components["schemas"]["Revision"] | null;
-      } | null;
-      execution_id: string;
-      /** @enum {unknown} */
-      op: "execution";
-      /** @enum {unknown} */
-      phase: "completed" | "planned" | "running";
-      run_id: string | null;
-      /** @default null */
-      skipped?: string | null;
     };
     /**
      * ExperimentalConfig
@@ -6238,8 +6244,6 @@ export interface components {
       transaction: components["schemas"]["Transaction"];
     };
     NotificationMessage:
-      | components["schemas"]["CellNotification"]
-      | components["schemas"]["ExecutionNotification"]
       | components["schemas"]["FunctionCallResultNotification"]
       | components["schemas"]["UIElementMessageNotification"]
       | components["schemas"]["ModelLifecycleNotification"]
@@ -6278,6 +6282,10 @@ export interface components {
       | components["schemas"]["CacheClearedNotification"]
       | components["schemas"]["CacheInfoNotification"]
       | components["schemas"]["FocusCellNotification"]
+      | components["schemas"]["CallbackOutputNotification"]
+      | components["schemas"]["PdbOutputNotification"]
+      | components["schemas"]["ConsoleInputsClearedNotification"]
+      | components["schemas"]["PdbInputNotification"]
       | components["schemas"]["BreakpointsNotification"]
       | components["schemas"]["ActiveLineNotification"]
       | components["schemas"]["NotebookDocumentTransactionNotification"]
@@ -6398,6 +6406,42 @@ export interface components {
       /** @default false */
       restartRequired?: boolean;
       success: boolean;
+    };
+    /**
+     * PdbInputNotification
+     * @description Identify the debugger prompt waiting for a command in a failed cell.
+     *
+     *     A null input ID closes the prompt.
+     */
+    PdbInputNotification: {
+      cell_id: components["schemas"]["CellId"];
+      input_id: string | null;
+      /** @enum {unknown} */
+      op: "pdb-input";
+    };
+    /** PdbInputReplyRequest */
+    PdbInputReplyRequest: {
+      cellId: components["schemas"]["CellId"];
+      inputId: string;
+      value: string;
+    };
+    /**
+     * PdbOutputNotification
+     * @description Show debugger output in the cell that failed.
+     *
+     *     Append live entries. When `replace` is true, replace the debugger's
+     *     transcript for this cell with the supplied entries. The editor's
+     *     `after_seq` gives the preceding execution item sequence for each entry,
+     *     or -1 before the first item.
+     */
+    PdbOutputNotification: {
+      after_seq?: number[];
+      cell_id: components["schemas"]["CellId"];
+      entries: components["schemas"]["CellOutput"][];
+      /** @enum {unknown} */
+      op: "pdb-output";
+      /** @default false */
+      replace?: boolean;
     };
     /**
      * PreviewDatasetColumnCommand
@@ -6640,7 +6684,7 @@ export interface components {
     /** Revision */
     Revision: {
       /** @description Identifies an execution. Unique within the host. */
-      execution: string;
+      execution_id: string;
       /** @description How many times the value has been updated since it was produced. Zero at binding. */
       update: number;
     };
@@ -7036,7 +7080,7 @@ export interface components {
        */
       session_cookie_secure: boolean;
       /**
-       * @description Secret used to sign session cookies. Set a stable value to preserve sessions across restarts or replicas; otherwise a random secret is generated per process.
+       * @description Secret used to sign session cookies and to derive the default `marimo run` auth token. Set a stable value to preserve sessions and tokens across restarts or replicas; otherwise a random secret is generated per process.
        * @default null
        */
       session_secret: string | null;

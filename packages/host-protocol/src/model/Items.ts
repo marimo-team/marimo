@@ -5,39 +5,58 @@
 import { Schema } from "effect";
 import { Integer } from "../internal/schema.ts";
 import { ExecutionId, ItemId } from "./Ids.ts";
-import { DisplayData, Revision } from "./Execution.ts";
+import { Media, Revision } from "./Execution.ts";
+
+export const ConsoleText = Schema.Struct({
+  kind: Schema.Literal("text"),
+  stream: Schema.Literals(["stdout", "stderr"]).annotateKey({
+    description: "Which stream the text went to.",
+  }),
+  text: Schema.String.annotateKey({
+    description: "The text, exactly as written.",
+  }),
+}).annotate({ identifier: "ConsoleText" });
+
+export const ConsoleMedia = Schema.Struct({
+  kind: Schema.Literal("media"),
+  media: Media.annotateKey({
+    description:
+      "Something rendered into the console, such as a figure from `plt.show()` or a formatted traceback.",
+  }),
+}).annotate({ identifier: "ConsoleMedia" });
+
+export const ConsoleContent = Schema.Union([
+  ConsoleText,
+  ConsoleMedia,
+]).annotate({ identifier: "ConsoleContent" });
 
 export const Console = Schema.Struct({
   id: ItemId,
   execution_id: ExecutionId,
   seq: Integer.check(Schema.isGreaterThanOrEqualTo(0)).annotateKey({
     description:
-      "Position among the execution's items, increasing in the order they were produced.",
+      "Position among the execution's console and input items, increasing in the order they were produced.",
   }),
-  name: Schema.Literals(["stdout", "stderr"]).annotateKey({
-    description: "Which stream the text went to.",
-  }),
-  text: Schema.String.annotateKey({
-    description: "The text, exactly as written.",
+  content: ConsoleContent.annotateKey({
+    description: "What was written, tagged on `kind`.",
   }),
 }).annotate({
   description:
-    "Text an execution wrote to stdout or stderr. Items are ordinary\nobjects: a producer replaces one by sending it again with the\nsame id, and items are removed with their execution.\n",
+    "One entry in an execution's console, which is text written to\nstdout or stderr, or media rendered among it. A producer replaces\nan entry by sending it again with the same id, and entries are\nremoved with their execution.\n",
   identifier: "Console",
 });
 
-export const Display = Schema.Struct({
+export const Output = Schema.Struct({
   id: ItemId,
   execution_id: ExecutionId,
-  seq: Integer.check(Schema.isGreaterThanOrEqualTo(0)).annotateKey({
+  media: Schema.NullOr(Media).annotateKey({
     description:
-      "Position among the execution's items, increasing in the order they were produced.",
+      "The output as last rendered. Null when the code set it to nothing or cleared it.",
   }),
-  content: DisplayData.annotateKey({ description: "The rendered value." }),
 }).annotate({
   description:
-    "A value an execution showed as a side effect, such as a figure\nfrom `plt.show()`. A producer replaces one by sending it again\nwith the same id, which is how a progress bar updates in place.\n",
-  identifier: "Display",
+    "What an execution's code shows as its result, such as the value of\na cell's last expression. An execution has at most one, published\nonce the code first sets it. A producer replaces it by sending it\nagain with the same id, including after the execution completes,\nand it is removed with its execution.\n",
+  identifier: "Output",
 });
 
 export const InputStatus = Schema.Literals([
@@ -58,7 +77,7 @@ export const Input = Schema.Struct({
   execution_id: ExecutionId,
   seq: Integer.check(Schema.isGreaterThanOrEqualTo(0)).annotateKey({
     description:
-      "Position among the execution's console, display, and input items, increasing in production order.",
+      "Position among the execution's console and input items, increasing in production order.",
   }),
   prompt: Schema.String.annotateKey({
     description: "The prompt to display, which may be empty.",
@@ -91,6 +110,6 @@ export const Variable = Schema.Struct({
   }),
 }).annotate({
   description:
-    "A name a cell's execution bound in the notebook's namespace, with\nthe revision of its value. The execution binds it as it ends, and\nthe item is removed with the execution. An update, as when a\nstate setter runs or a client sets a value, advances the revision\nwithout binding again, and the producer sends the item again with\nthe same id. Hosts publish a cell execution's variables before its\n`completed` status, and remove a cell's previous execution and\nits items before publishing the next one. A scratch execution's\nnames live only while it runs, so it publishes no variables.\n",
+    "A name a cell's execution bound in the notebook's namespace, with\nthe revision of its value. The execution binds it as it ends, and\nthe item is removed with the execution. An update, as when a\nstate setter runs or a UI element's value changes, advances the revision\nwithout binding again, and the producer sends the item again with\nthe same id. Hosts publish a cell execution's variables before its\n`completed` status, and remove a cell's previous execution and\nits items before publishing the next one. A scratch execution's\nnames live only while it runs, so it publishes no variables.\n",
   identifier: "Variable",
 });

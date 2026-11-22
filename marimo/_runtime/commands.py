@@ -591,7 +591,7 @@ class CreateNotebookCommand(Command):
 
     Attributes:
         execution_requests: ExecuteCellCommand for each notebook cell.
-        cell_ids: Initial cell IDs in the notebook.
+        cell_ids: Ignored; accepted for older callers such as marimo-lsp.
         set_ui_element_value_request: Initial UI element values.
         auto_run: Whether to automatically execute cells on instantiation.
         request: HTTP request context if available.

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { z } from "zod";
 import { NotebookClient } from "../notebook/client.ts";
 import { NotebookEvents } from "../notebook/events.ts";
-import type { NotebookEvent } from "../notebook/events.ts";
+import type { NotebookStreamEvent } from "../notebook/events.ts";
 import { type NotebookTransport, StreamStopped } from "../transport/frame.ts";
 import { ServerSentEventStream, sse } from "../transport/sse.ts";
 
@@ -68,7 +68,7 @@ function dropsAfter(uptime: number) {
 }
 
 function collect<K extends string>(events: NotebookEvents<K>) {
-  const received: NotebookEvent<K>[] = [];
+  const received: NotebookStreamEvent<K>[] = [];
   events.subscribe((event) => received.push(event));
   return received;
 }
@@ -195,7 +195,7 @@ describe("NotebookEvents", () => {
     const { fetch, sent } = answering(stream.response);
     const events = new NotebookEvents(url, {
       token: "secret",
-      types: ["cell", "document"],
+      kinds: ["cell", "document"],
       fetch,
     });
     const received = collect(events);
@@ -213,7 +213,7 @@ describe("NotebookEvents", () => {
     `);
     expect(events.status).toBe("connected");
     const request = sent(0);
-    expect(request.url).toBe(`${url}?types=cell%2Cdocument`);
+    expect(request.url).toBe(`${url}?kinds=cell%2Cdocument`);
     expect(request.headers.get("Authorization")).toBe("Bearer secret");
     expect(request.headers.get("Last-Event-ID")).toBeNull();
     events.close();
@@ -223,13 +223,13 @@ describe("NotebookEvents", () => {
 
   it("narrows events to the requested kinds", () => {
     const events = new NotebookEvents(url, {
-      types: ["cell", "marimo"],
+      kinds: ["cell", "marimo"],
       fetch: answering().fetch,
     });
     events.close();
-    expectTypeOf<NotebookEvent<"cell" | "marimo">["event"]>().toEqualTypeOf<
-      "cell" | "cell.removed" | "ready" | "reset" | "marimo"
-    >();
+    expectTypeOf<
+      NotebookStreamEvent<"cell" | "marimo">["event"]
+    >().toEqualTypeOf<"cell" | "cell.removed" | "ready" | "reset" | "marimo">();
     events.subscribe((event) => {
       if (event.event === "cell") {
         expectTypeOf(event.data.cell.id).toBeString();
@@ -250,11 +250,11 @@ describe("NotebookEvents", () => {
       onStatus: (status) => statuses.push(status),
     });
     first.push(snapshot);
-    await vi.waitFor(() => expect(events.cursor).toBe("97"));
+    await vi.waitFor(() => expect(events.cursor).toBe("98"));
     first.end();
     await vi.advanceTimersByTimeAsync(2000);
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    expect(sent(1).headers.get("Last-Event-ID")).toBe("97");
+    expect(sent(1).headers.get("Last-Event-ID")).toBe("98");
     expect(statuses).toMatchInlineSnapshot(`
       [
         "connected",
@@ -268,7 +268,7 @@ describe("NotebookEvents", () => {
   it("gives up on a host that drops each connection soon after opening", async () => {
     vi.useFakeTimers();
     const { transport, opened } = dropsAfter(1000);
-    const events = new NotebookEvents(transport, { types: ["marimo"] });
+    const events = new NotebookEvents(transport, { kinds: ["marimo"] });
     await vi.advanceTimersByTimeAsync(200_000);
     expect(events.status).toBe("closed");
     expect(opened()).toBe(11);
@@ -277,7 +277,7 @@ describe("NotebookEvents", () => {
   it("keeps following a host whose connections stay up", async () => {
     vi.useFakeTimers();
     const { transport, opened } = dropsAfter(5000);
-    const events = new NotebookEvents(transport, { types: ["marimo"] });
+    const events = new NotebookEvents(transport, { kinds: ["marimo"] });
     await vi.advanceTimersByTimeAsync(200_000);
     expect(events.status).not.toBe("closed");
     expect(opened()).toBeGreaterThan(11);
@@ -291,7 +291,7 @@ describe("NotebookEvents", () => {
     };
     const statuses: string[] = [];
     const events = new NotebookEvents(transport, {
-      types: ["marimo"],
+      kinds: ["marimo"],
       onStatus: (status) => statuses.push(status),
     });
     const received = collect(events);
@@ -311,7 +311,7 @@ describe("NotebookEvents", () => {
     const first = body();
     const second = body();
     const { fetch, sent } = answering(first.response, second.response);
-    const events = new NotebookEvents(url, { types: ["cell"], fetch });
+    const events = new NotebookEvents(url, { kinds: ["cell"], fetch });
     const received = collect(events);
     first.push(throughReady.slice(0, throughReady.indexOf("event: document")));
     await vi.waitFor(() => expect(received).toHaveLength(3));
@@ -338,7 +338,7 @@ describe("NotebookEvents", () => {
   it("clears the cursor on reset and keeps it across unknown kinds", async () => {
     const stream = body();
     const events = new NotebookEvents(url, {
-      types: ["marimo"],
+      kinds: ["marimo"],
       fetch: answering(stream.response).fetch,
     });
     const received = collect(events);
@@ -438,7 +438,7 @@ describe("NotebookEvents", () => {
     async (withError) => {
       const stream = body();
       const events = new NotebookEvents(url, {
-        types: ["marimo"],
+        kinds: ["marimo"],
         fetch: answering(stream.response).fetch,
       });
       const received = vi.fn();
@@ -554,7 +554,7 @@ describe("NotebookEvents", () => {
   it("iterates until the caller leaves the loop", async () => {
     const stream = body();
     const events = new NotebookEvents(url, {
-      types: ["cell"],
+      kinds: ["cell"],
       fetch: answering(stream.response).fetch,
     });
     stream.push(throughReady);
@@ -590,7 +590,7 @@ describe("NotebookEvents", () => {
       handlers.message({ event: "marimo", id: "42", data: { marimo: {} } });
       throw new StreamStopped("Shutting down", { cause: "MARIMO_SHUTDOWN" });
     };
-    const events = new NotebookEvents(transport, { types: ["marimo"] });
+    const events = new NotebookEvents(transport, { kinds: ["marimo"] });
     const received = collect(events);
     await vi.advanceTimersByTimeAsync(2000);
     const error = await events.closed.catch((error: unknown) => error);
@@ -628,7 +628,7 @@ describe("NotebookEvents", () => {
       message = handlers.message;
       return new Promise(() => undefined);
     };
-    const events = new NotebookEvents(transport, { types: ["marimo"] });
+    const events = new NotebookEvents(transport, { kinds: ["marimo"] });
     const iterator = events[Symbol.asyncIterator]();
     const first = iterator.next();
     const second = iterator.next();
@@ -716,7 +716,7 @@ describe("sse", () => {
         fetch: answering(stream.response).fetch,
         stop: (frame) => (frame.event === "close" ? shutdown : undefined),
       }),
-      { types: ["marimo"] },
+      { kinds: ["marimo"] },
     );
     const received = collect(events);
     stream.push('id: 1\nevent: marimo\ndata: {"marimo":{}}\n\n');
@@ -735,10 +735,10 @@ describe("NotebookClient.events", () => {
       "http://localhost/api/marimo/v1/notebooks/n1?session_id=s1",
       { token: "secret", fetch },
     );
-    const events = notebook.events({ types: ["cell"] });
+    const events = notebook.events({ kinds: ["cell"] });
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
     expect(sent(0).url).toBe(
-      "http://localhost/api/marimo/v1/notebooks/n1/events?session_id=s1&types=cell",
+      "http://localhost/api/marimo/v1/notebooks/n1/events?session_id=s1&kinds=cell",
     );
     expect(sent(0).headers.get("Authorization")).toBe("Bearer secret");
     events.close();

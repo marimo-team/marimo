@@ -2,6 +2,13 @@
 
 import { Schema } from "effect";
 
+export const DiagnosticSeverity = Schema.Literals([
+  "error",
+  "warning",
+  "information",
+  "hint",
+]);
+
 // The protocol's integers are not restricted to JavaScript's safe-integer range.
 export const Integer = Schema.Number.check(
   Schema.isFinite(),

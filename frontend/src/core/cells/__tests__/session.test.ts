@@ -105,15 +105,19 @@ describe("readExport", () => {
       });
       invariant(result.snapshot, "no snapshot");
       expect(result.snapshot.results).toEqual([
-        expect.objectContaining({
-          cell_id: "c1",
-          code_fingerprint: "hash-1",
-          status: "completed",
-          outcome: {
-            kind: "value",
-            display: { mimetype: "text/html", data: "<b>1</b>" },
-          },
-        }),
+        {
+          execution: expect.objectContaining({
+            cell_id: "c1",
+            code_fingerprint: "hash-1",
+            state: expect.objectContaining({
+              status: "completed",
+              outcome: { kind: "succeeded" },
+            }),
+          }),
+          output: expect.objectContaining({
+            media: { mimetype: "text/html", data: "<b>1</b>" },
+          }),
+        },
       ]);
     });
 
@@ -161,19 +165,24 @@ describe("readExport", () => {
           appConfig: {},
         });
         invariant(result.snapshot, "no snapshot");
-        expect(result.snapshot.results?.map((r) => r.cell_id)).toEqual(["c1"]);
-        expect(result.snapshot.results?.[0]?.outcome).toEqual({
-          kind: "error",
-          error: expect.objectContaining({
-            kind: "exception",
-            name: "ValueError",
-            message: "bad",
-            traceback:
-              expectedTraceback === null
-                ? null
-                : { mimetype: "text/plain", data: expectedTraceback },
-          }),
-        });
+        expect(
+          result.snapshot.results?.map((r) => r.execution.cell_id),
+        ).toEqual(["c1"]);
+        expect(result.snapshot.results?.[0]?.execution.state).toHaveProperty(
+          "outcome",
+          {
+            kind: "failed",
+            error: expect.objectContaining({
+              kind: "exception",
+              name: "ValueError",
+              message: "bad",
+              traceback:
+                expectedTraceback === null
+                  ? null
+                  : { mimetype: "text/plain", data: expectedTraceback },
+            }),
+          },
+        );
       },
     );
   });
@@ -313,15 +322,18 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
-        kind: "error",
-        error: expect.objectContaining({
-          kind: "exception",
-          name: "ValueError",
-          message: "Something went wrong",
-          traceback: { mimetype: "text/plain", data: "Traceback line 1" },
-        }),
-      });
+      expect(result.snapshot?.results[0]?.execution.state).toHaveProperty(
+        "outcome",
+        {
+          kind: "failed",
+          error: expect.objectContaining({
+            kind: "exception",
+            name: "ValueError",
+            message: "Something went wrong",
+            traceback: { mimetype: "text/plain", data: "Traceback line 1" },
+          }),
+        },
+      );
 
       invariant(result.snapshot, "no snapshot");
     });
@@ -359,8 +371,8 @@ describe("readExport", () => {
         appConfig: {},
       });
       invariant(state.snapshot, "no snapshot");
-      expect(state.cellRuntime[CELL_1].consoleOutputs[0].code).toBe(code);
-      expect(state.cellRuntime[CELL_1].consoleOutputs[0]).toMatchObject({
+      expect(state.cellRuntime[CELL_1].embeddedConsole[0].code).toBe(code);
+      expect(state.cellRuntime[CELL_1].embeddedConsole[0]).toMatchObject({
         traceback_format: "text",
         data: "ValueError: cached <failure>",
       });
@@ -383,16 +395,16 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
-        kind: "value",
-        display: { mimetype: "text/plain", data: "Hello World" },
+      expect(result.snapshot?.results[0]?.output).toHaveProperty("media", {
+        mimetype: "text/plain",
+        data: "Hello World",
       });
 
       invariant(result.snapshot, "no snapshot");
     });
 
     it("handles console outputs in session cell", () => {
-      const consoleOutputs = [
+      const embeddedConsole = [
         {
           type: "stream",
           name: "stdout",
@@ -407,7 +419,7 @@ describe("readExport", () => {
         } as const,
       ];
       const session = createSession([
-        createSessionCell("cell-1", [], consoleOutputs),
+        createSessionCell("cell-1", [], embeddedConsole),
       ]);
       const result = readExport({
         session: session,
@@ -417,7 +429,7 @@ describe("readExport", () => {
       });
 
       invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([
+      expect(result.cellRuntime[CELL_1].embeddedConsole).toEqual([
         {
           channel: "stdout",
           data: "Hello stdout",
@@ -621,7 +633,7 @@ describe("readExport", () => {
         version: 1,
       });
       // Null result means no output.
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[CELL_1].embeddedConsole).toEqual([]);
     });
 
     it("creates state when cell order differs but same cells", () => {
@@ -718,7 +730,7 @@ describe("readExport", () => {
       });
 
       invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[CELL_1].embeddedConsole).toEqual([]);
     });
 
     it("handles session cell with empty console array", () => {
@@ -731,7 +743,7 @@ describe("readExport", () => {
       });
 
       invariant(result.snapshot, "no snapshot");
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[CELL_1].embeddedConsole).toEqual([]);
     });
 
     it("handles session cell with multiple outputs (uses first one)", () => {
@@ -747,9 +759,9 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
-        kind: "value",
-        display: { mimetype: "text/plain", data: "First" },
+      expect(result.snapshot?.results[0]?.output).toHaveProperty("media", {
+        mimetype: "text/plain",
+        data: "First",
       });
     });
 
@@ -771,9 +783,9 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
-        kind: "value",
-        display: { mimetype: "text/plain", data: "Plain text" },
+      expect(result.snapshot?.results[0]?.output).toHaveProperty("media", {
+        mimetype: "text/plain",
+        data: "Plain text",
       });
 
       invariant(result.snapshot, "no snapshot");
@@ -794,10 +806,7 @@ describe("readExport", () => {
         appConfig: {},
       });
 
-      expect(result.snapshot?.results[0]?.outcome).toEqual({
-        kind: "value",
-        display: null,
-      });
+      expect(result.snapshot?.results[0]?.output).toHaveProperty("media", null);
     });
 
     it("returns correct structure with all expected properties", () => {
@@ -815,7 +824,7 @@ describe("readExport", () => {
         project_id: "embedded",
         path: null,
         name: "",
-        updated_at: null,
+        modified_at: null,
       });
       expect(result.snapshot.document).toMatchObject({
         notebook_id: "embedded",
@@ -1167,7 +1176,7 @@ describe("readExport", () => {
       expect(cellIn(result, "cell-3").code).toBe("x = mo.ui.slider(0, 10)");
 
       // cell-1: No matching session cell (hash is null), gets stub session cell
-      expect(result.cellRuntime[cellId("cell-1")].consoleOutputs).toEqual([]);
+      expect(result.cellRuntime[cellId("cell-1")].embeddedConsole).toEqual([]);
 
       // cell-2: Matches session cell-1 by hash (moMd), gets its output
 

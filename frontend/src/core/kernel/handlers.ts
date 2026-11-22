@@ -8,11 +8,7 @@ import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { deserializeLayoutState } from "../layout/layout";
 import type { LayoutData, LayoutState } from "../layout/state";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import type {
-  Capabilities,
-  CellMessage,
-  NotificationMessageData,
-} from "./messages";
+import type { Capabilities, NotificationMessageData } from "./messages";
 
 type KernelReadyData = NotificationMessageData<"kernel-ready">;
 
@@ -56,7 +52,7 @@ export function handleKernelReady(
   const { cells, resetCellRuntimes, setLayoutData, setCapabilities } = opts;
   const { resumed, ui_values, capabilities } = data;
 
-  resetCellRuntimes();
+  resetCellRuntimes(resumed);
   const layoutState = buildLayoutState(data, cells, setLayoutData);
 
   setCapabilities(capabilities);
@@ -83,19 +79,4 @@ export function handleRemoveUIElements(
   const cellId = data.cell_id;
   UI_ELEMENT_REGISTRY.removeElementsByCell(cellId);
   VirtualFileTracker.INSTANCE.removeForCellId(cellId);
-}
-
-export function handleCellNotificationeration(
-  data: NotificationMessageData<"cell-op">,
-  handleCellMessage: (message: CellMessage) => void,
-) {
-  /* Register a state transition for a cell.
-   *
-   * The cell may have a new output, a new console output,
-   * it may have been queued, it may have started running, or
-   * it may have stopped running. Each of these things
-   * affects how the cell should be rendered.
-   */
-  handleCellMessage(data);
-  VirtualFileTracker.INSTANCE.track(data);
 }

@@ -1,7 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { components } from "@marimo-team/marimo-api";
+import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockExecutions } from "@/__mocks__/executions";
 import { requestId, uiElementId, widgetModelId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
@@ -394,6 +396,65 @@ describe("IslandsPyodideBridge", () => {
       expect(consumeMessage.mock.calls).toEqual([notification]);
     });
 
+    it("logs live stdout and stderr from other active apps under the owning cell", async () => {
+      const store = createStore();
+      bridge = new IslandsPyodideBridge({ store });
+      mockParseMarimoIslandApps.mockReturnValue([app(), app("app-2")]);
+      mockCreateMarimoFile
+        .mockReturnValueOnce("first")
+        .mockReturnValueOnce("second");
+      signalWorkerReady();
+      await bridge.initializeApps();
+      const handlers = { open: vi.fn(), message: vi.fn() };
+      void bridge.notebookBackend.transport(
+        { signal: new AbortController().signal, cursor: null },
+        handlers,
+      );
+      const record = {
+        event: "execution",
+        data: {
+          execution: { ...MockExecutions.running("c2"), id: "e1" },
+        },
+      };
+      const write = (name: "stdout" | "stderr", text: string, seq = 0) => ({
+        event: "console",
+        data: {
+          console: {
+            id: text,
+            execution_id: "e1",
+            seq,
+            content: { kind: "text", stream: name, text },
+          },
+        },
+      });
+      sendNotebookEvent(2, record);
+      sendNotebookEvent(2, write("stdout", "snapshot"));
+      sendNotebookEvent(2, { ...write("stdout", "hello"), id: "1" });
+      sendNotebookEvent(2, { ...write("stderr", "warning", 1), id: "2" });
+      sendNotebookEvent(2, {
+        event: "execution.removed",
+        data: { id: "e1" },
+        id: "3",
+      });
+      sendNotebookEvent(2, { ...write("stdout", "retired", 2), id: "4" });
+      sendNotebookEvent(3, { ...write("stdout", "inactive"), id: "3" });
+      const managed = { ...write("stdout", "managed"), id: "4" };
+      sendNotebookEvent(1, managed);
+      expect(handlers.message.mock.calls).toEqual([[managed]]);
+      expect(
+        store
+          .get(notebookAtom)
+          .cellLogs.map(({ level, message, source }) => [
+            level,
+            message,
+            source,
+          ]),
+      ).toEqual([
+        ["stdout", "hello", { type: "cell", cellId: "c2" }],
+        ["stderr", "warning", { type: "cell", cellId: "c2" }],
+      ]);
+    });
+
     it("forwards the managed session's host events to the notebook stream", async () => {
       await initializeSingleApp();
       const handlers = { open: vi.fn(), message: vi.fn() };
@@ -759,11 +820,9 @@ describe("IslandsPyodideBridge", () => {
           id: "run-1",
           notebook_id: "n1",
           runtime_id: "r1",
-          cells: ["c1"],
-          status: "queued",
-          outcome: null,
-          started_at: null,
-          completed_at: null,
+          origin: { kind: "cells", cell_ids: ["c1"] },
+          created_at: "2026-10-01T09:20:00Z",
+          state: { status: "queued" },
         },
       });
 

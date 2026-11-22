@@ -72,7 +72,7 @@ describe("document model", () => {
     );
     expect(store.get(changesAtom)).toEqual([
       {
-        kind: "put_cell",
+        kind: "replace_cell",
         base_etag: "latest",
         cell: {
           id: "c1",
@@ -112,8 +112,7 @@ describe("document model", () => {
       expect(store.get(orderAtom)).toEqual(["c2", "c3"]);
       expect(store.get(changesAtom)).toEqual([
         {
-          kind: "put_cell",
-          base_etag: null,
+          kind: "create_cell",
           cell: {
             id: "c3",
             code: "",
@@ -133,7 +132,7 @@ describe("document model", () => {
     expect(store.get(orderAtom)).toEqual(["c2", "c1"]);
     expect(store.get(changesAtom)).toEqual([
       {
-        kind: "put_cell",
+        kind: "replace_cell",
         base_etag: "c1-etag",
         cell: {
           id: "c1",
@@ -157,8 +156,7 @@ describe("document model", () => {
     expect(store.get(changesAtom)).toEqual([
       { kind: "delete_cell", id: "c1", base_etag: "c1-etag" },
       {
-        kind: "put_cell",
-        base_etag: null,
+        kind: "create_cell",
         cell: { id: "c3", code: "", name: "_", config: cell("c3", "").config },
       },
       { kind: "set_order", base_etag: "order-1", order: ["c3", "c2"] },
@@ -204,7 +202,7 @@ describe("document model", () => {
     expect(store.get(cellAtom("c2"))?.code).toBe("keep this draft");
     expect(store.get(changesAtom)).toEqual([
       {
-        kind: "put_cell",
+        kind: "replace_cell",
         base_etag: "c2-etag",
         cell: {
           id: "c2",

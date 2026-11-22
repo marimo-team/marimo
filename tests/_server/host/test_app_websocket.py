@@ -104,12 +104,12 @@ def test_app_executes_with_hidden_source_and_retained_hashes(
                 executions.append(event["data"]["execution"])
             if (
                 event["event"] == "run"
-                and event["data"]["run"]["status"] == "completed"
+                and event["data"]["run"]["state"]["status"] == "completed"
             ):
                 break
         assert executions
         assert executions[-1]["code_fingerprint"] == cell["code_fingerprint"]
-        assert executions[-1]["status"] == "completed"
+        assert executions[-1]["state"]["status"] == "completed"
 
 
 def test_app_visitors_are_isolated_and_reconnect_retains_identity(
@@ -190,7 +190,7 @@ def test_app_host_is_removed_when_session_expires(
         assert notebook is not None
         removed = asyncio.Event()
         unsubscribe = app_host.host.subscribe(
-            lambda _: removed.set(), types={"notebook"}
+            lambda _: removed.set(), kinds={"notebook"}
         )
         ws.close()
 
@@ -218,7 +218,7 @@ def test_app_host_is_removed_when_session_expires(
 def test_app_session_replays_host_events_or_resets_stale_cursor(
     client: TestClient, app_host: SessionBridge, stale: bool
 ) -> None:
-    endpoint = url("alice") + "&types=notebook,cell,custom,marimo"
+    endpoint = url("alice") + "&kinds=notebook,cell,custom,marimo"
     with client.websocket_connect(endpoint) as ws:
         snapshot = socket_snapshot(ws)
         cursor = snapshot[-1]["id"]

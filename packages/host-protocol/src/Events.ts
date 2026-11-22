@@ -5,7 +5,7 @@
 import { Schema } from "effect";
 import { Cursor, event, message } from "./internal/events.ts";
 import { Timestamp } from "./model/Ids.ts";
-import { objects, type ObjectKind, type StreamName } from "./Objects.ts";
+import { objects, type ObjectDefinition, type StreamName } from "./Objects.ts";
 
 const list = new Intl.ListFormat("en", { type: "conjunction" });
 const title = (kind: string) => kind[0].toUpperCase() + kind.slice(1);
@@ -80,7 +80,7 @@ const CustomMessage = Schema.Struct({
     }),
   ),
   time: Timestamp.annotateKey({
-    description: "When the host emitted this event. Preserved on replay.",
+    description: "When the host published this event. Preserved on replay.",
   }),
 }).annotate({
   description:
@@ -109,13 +109,13 @@ const ReadyEvent = event("ready", Schema.Record(Schema.String, Schema.Never), {
   identifier: "ReadyEvent",
 });
 
-type Changed<O> = O extends ObjectKind
+type Changed<O> = O extends ObjectDefinition
   ? ReturnType<typeof changed<O["kind"], O["schema"]>>
   : never;
-type Removed<O> = O extends ObjectKind & { readonly removable: true }
+type Removed<O> = O extends ObjectDefinition & { readonly removable: true }
   ? ReturnType<typeof removed<O["kind"]>>
   : never;
-type CarriedBy<O, Stream extends StreamName> = O extends ObjectKind
+type CarriedBy<O, Stream extends StreamName> = O extends ObjectDefinition
   ? Stream extends O["streams"][number]
     ? O
     : never
@@ -123,10 +123,10 @@ type CarriedBy<O, Stream extends StreamName> = O extends ObjectKind
 
 // One schema per object, so every union that carries it shares a definition.
 const built = new WeakMap<
-  ObjectKind,
+  ObjectDefinition,
   ReadonlyArray<Schema.Constraint | undefined>
 >();
-function build(object: ObjectKind) {
+function build(object: ObjectDefinition) {
   let schemas = built.get(object);
   if (!schemas) {
     schemas = [changed(object), object.removable ? removed(object) : undefined];
@@ -136,7 +136,7 @@ function build(object: ObjectKind) {
 }
 
 function carriedBy<
-  const Objects extends ReadonlyArray<ObjectKind>,
+  const Objects extends ReadonlyArray<ObjectDefinition>,
   const Stream extends StreamName,
 >(objects: Objects, stream: Stream) {
   return objects.filter(
@@ -147,7 +147,7 @@ function carriedBy<
 
 // Each object contributes its event and its `.removed` event when it has one.
 function events<
-  const Objects extends ReadonlyArray<ObjectKind>,
+  const Objects extends ReadonlyArray<ObjectDefinition>,
   const Others extends ReadonlyArray<Schema.Constraint> = readonly [],
 >(objects: Objects, others?: Others) {
   const members = [
@@ -171,28 +171,36 @@ function events<
  *
  * An extension appends a row to `objects` and derives its own streams.
  */
-export function derive<const Objects extends ReadonlyArray<ObjectKind>>(
+export function derive<const Objects extends ReadonlyArray<ObjectDefinition>>(
   objects: Objects,
 ) {
   const kinds = (stream: StreamName) =>
     carriedBy(objects, stream).map((object) => object.kind);
   return {
-    CatalogEvent: events(carriedBy(objects, "catalog")),
-    NotebookEvent: events(carriedBy(objects, "notebook"), [CustomEvent]),
+    CatalogStreamEvent: events(carriedBy(objects, "catalog")).annotate({
+      description: "Any event the catalog stream carries.",
+      identifier: "CatalogStreamEvent",
+    }),
+    NotebookStreamEvent: events(carriedBy(objects, "notebook"), [
+      CustomEvent,
+    ]).annotate({
+      description: "Any event a notebook stream carries.",
+      identifier: "NotebookStreamEvent",
+    }),
     Event: events(objects, [CustomEvent]).annotate({
       description:
         "A record, removal, or control message from a host stream. The data is decoded JSON. Snapshot records and reset events omit the cursor, and ready and live events carry it. Unknown event names belong to later versions or host extensions.",
       identifier: "Event",
     }),
-    ObjectType: Schema.Literals([
+    ObjectKind: Schema.Literals([
       ...objects.map((object) => object.kind),
       "custom",
     ]).annotate({
-      description: `The kinds a stream carries, and the values \`types\` accepts. The catalog stream carries ${list.format(kinds("catalog"))}. A notebook's stream carries ${list.format([...kinds("notebook"), "custom"])}. Custom events describe occurrences rather than object state.`,
-      identifier: "ObjectType",
+      description: `The kinds a stream carries, and the values \`kinds\` accepts. The catalog stream carries ${list.format(kinds("catalog"))}. A notebook's stream carries ${list.format([...kinds("notebook"), "custom"])}. Custom events describe occurrences rather than object state.`,
+      identifier: "ObjectKind",
     }),
   };
 }
 
-export const { CatalogEvent, NotebookEvent, Event, ObjectType } =
+export const { CatalogStreamEvent, NotebookStreamEvent, Event, ObjectKind } =
   derive(objects);

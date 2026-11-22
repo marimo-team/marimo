@@ -210,7 +210,7 @@ class PyodideSession:
                     )
                     for cell in app.cell_manager.cell_data()
                 ),
-                cell_ids=tuple(app.cell_manager.cell_ids()),
+                cell_ids=(),
                 set_ui_element_value_request=commands.UpdateUIElementCommand(
                     object_ids=[], values=[], request=None
                 ),

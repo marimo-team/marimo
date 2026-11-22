@@ -57,6 +57,7 @@ function setup(strict = false) {
     waitUntilReady: async () => undefined,
     checkHealth: async () => true,
     onNotification: vi.fn(),
+    onExecution: vi.fn(),
   };
   const wrapper = ({ children }: PropsWithChildren) => (
     <Provider store={store}>{children}</Provider>
@@ -105,7 +106,7 @@ describe("useNotebookReplica", () => {
         identity: null,
         kind: "agent",
         name: "Notebook CLI",
-        since: "2026-10-01T09:20:03Z",
+        created_at: "2026-10-01T09:20:03Z",
       },
     ] satisfies AttachmentOutput[]);
     expect(attachments.result.current.all).toEqual(

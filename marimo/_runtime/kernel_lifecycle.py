@@ -184,14 +184,12 @@ def _build_hooks(
     from marimo._runtime.runner.hooks_post_execution import (
         attempt_pytest,
         broadcast_storage_backends,
-        render_toplevel_defs,
     )
 
     hooks = create_default_hooks()
     if is_edit_mode and user_config.runtime.reactive_tests:
         hooks.add_post_execution(attempt_pytest, Priority.LATE)
     if is_edit_mode:
-        hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
         hooks.add_post_execution(broadcast_storage_backends, Priority.LATE)
     return hooks
 

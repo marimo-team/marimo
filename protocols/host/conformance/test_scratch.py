@@ -31,7 +31,7 @@ async def scratch_probe(*, root="/tmp", **overrides: Any):
         "path": "existing.py",
         "name": "existing.py",
         "operations": ["notebook.delete"],
-        "updated_at": None,
+        "modified_at": None,
     }
     catalog = [
         Frame(event=kind, data=json.dumps({kind: value}))

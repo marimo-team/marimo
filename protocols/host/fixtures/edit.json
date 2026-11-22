@@ -1,9 +1,7 @@
 {
   "changes": [
     {
-      "kind": "put_cell",
-      "base_etag": null,
-      "after": "c1",
+      "kind": "create_cell",
       "cell": {
         "id": "c2",
         "code": "print('hi')",
@@ -17,7 +15,7 @@
       }
     },
     {
-      "kind": "put_cell",
+      "kind": "replace_cell",
       "base_etag": "5cf78587dcf22d8d",
       "cell": {
         "id": "c3",
@@ -35,6 +33,11 @@
       "kind": "delete_cell",
       "id": "k7f2",
       "base_etag": "f199b5f48ae0aabb"
+    },
+    {
+      "kind": "set_order",
+      "base_etag": "b9c412c2d7d63161",
+      "order": ["c1", "c2", "c3"]
     }
   ]
 }

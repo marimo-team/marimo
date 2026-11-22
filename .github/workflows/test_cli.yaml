@@ -18,6 +18,9 @@ env:
   UV_EXCLUDE_NEWER: "7 days"
 jobs:
   changes:
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: "${{ vars.CI_RUNNER_SMALL || 'ubuntu-latest' }}"
     outputs:
       cli: ${{ steps.filter.outputs.cli }}
@@ -26,6 +29,7 @@ jobs:
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
+          token: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.token || '' }}
           filters: |
             cli:
               - 'marimo/**'

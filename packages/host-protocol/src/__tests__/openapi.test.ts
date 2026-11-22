@@ -17,12 +17,13 @@ it("closes request bodies and keeps other objects open", () => {
   expect(closed.toSorted()).toEqual([
     "CellConfigInput",
     "CellInput",
+    "CreateCell",
     "CreateNotebookRequest",
     "DeleteCell",
     "EditRequest",
     "ExecuteRequest",
     "InputReplyRequest",
-    "PutCell",
+    "ReplaceCell",
     "RequestedCell",
     "RunRequest",
     "SaveRequest",
@@ -74,17 +75,27 @@ it("adds experimental features without changing the stable protocol", () => {
   expect(experimental.paths).toEqual(stable.paths);
   const extended = experimental.components.schemas;
   for (const [name, schema] of Object.entries(schemas)) {
-    if (name === "Event" || name === "ObjectType") {
+    if (
+      name === "Event" ||
+      name === "NotebookStreamEvent" ||
+      name === "ObjectKind"
+    ) {
       continue;
     }
     expect(extended[name]).toEqual(schema);
   }
-  expect(new Set(extended.ObjectType.enum as string[])).toEqual(
-    new Set([...(schemas.ObjectType.enum as string[]), "analysis"]),
+  expect(new Set(extended.ObjectKind.enum as string[])).toEqual(
+    new Set([...(schemas.ObjectKind.enum as string[]), "analysis"]),
   );
   expect(
     Object.keys(extended)
       .filter((name) => !(name in schemas))
       .toSorted(),
-  ).toEqual(["Analysis", "AnalysisEvent", "AnalysisMessage", "CellAnalysis"]);
+  ).toEqual([
+    "Analysis",
+    "AnalysisEvent",
+    "AnalysisMessage",
+    "CellAnalysis",
+    "CellDiagnostic",
+  ]);
 });

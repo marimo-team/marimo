@@ -40,24 +40,64 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
 
-_ASYNC_LOCALS: weakref.WeakSet[AsyncLocal] = weakref.WeakSet()
+# The state is stored in the instance `__dict__`. Subclass attributes are
+# stored in per-thread namespaces, so a subclass can use every attribute name,
+# including this one.
+_STATE_ATTRIBUTE = "_AsyncLocal__state"
+
+
+class _LocalState:
+    """Per-thread attribute namespaces and constructor arguments of one local.
+
+    `namespaces` maps a thread ident to that thread's attributes. A thread has
+    a namespace from the moment its `__init__` starts, and `__init__` runs for
+    a thread that has none.
+    """
+
+    def __init__(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
+        self.args = args
+        self.kwargs = kwargs
+        self.namespaces: dict[int, dict[str, Any]] = {}
+
+
+# Thread cleanup iterates states. A `WeakSet` hashes its members, and locals of
+# user subclasses may be unhashable or compare equal to each other.
+_LOCAL_STATES: weakref.WeakSet[_LocalState] = weakref.WeakSet()
 
 
 def clear_thread_local_state(ident: int) -> None:
     """Remove per-thread storage when a synthetic thread finishes."""
-    for local in list(_ASYNC_LOCALS):
-        storage: dict[int, dict[str, Any]] = object.__getattribute__(
-            local, "_storage"
-        )
-        initialized: set[int] = object.__getattribute__(
-            local, "_initialized_idents"
-        )
-        initializing: set[int] = object.__getattribute__(
-            local, "_initializing_idents"
-        )
-        storage.pop(ident, None)
-        initialized.discard(ident)
-        initializing.discard(ident)
+    for state in list(_LOCAL_STATES):
+        state.namespaces.pop(ident, None)
+
+
+def _namespace(local: AsyncLocal) -> dict[str, Any]:
+    state: _LocalState = object.__getattribute__(local, _STATE_ATTRIBUTE)
+    ident = current_ident()
+    namespace = state.namespaces.get(ident)
+    if namespace is not None:
+        return namespace
+
+    namespace = state.namespaces[ident] = {}
+    try:
+        type(local).__init__(local, *state.args, **state.kwargs)
+    except BaseException:
+        # As in `_thread._local`, the next access reruns `__init__` on an
+        # empty namespace.
+        state.namespaces.pop(ident, None)
+        raise
+    return namespace
+
+
+def _is_data_descriptor(local: AsyncLocal, name: str) -> bool:
+    for cls in type(local).__mro__:
+        class_attribute = vars(cls).get(name)
+        if hasattr(class_attribute, "__get__") and (
+            hasattr(class_attribute, "__set__")
+            or hasattr(class_attribute, "__delete__")
+        ):
+            return True
+    return False
 
 
 class AsyncLocal:
@@ -67,62 +107,25 @@ class AsyncLocal:
         if cls is AsyncLocal and (args or kwargs):
             raise TypeError("Initialization arguments are not supported")
         self = super().__new__(cls)
-        object.__setattr__(self, "_storage", {})
-        object.__setattr__(self, "_local_args", args)
-        object.__setattr__(self, "_local_kwargs", kwargs)
-        object.__setattr__(self, "_initialized_idents", {current_ident()})
-        object.__setattr__(self, "_initializing_idents", set())
-        _ASYNC_LOCALS.add(self)
+        state = _LocalState(args, kwargs)
+        # Python calls `__init__` for the constructing thread right after
+        # `__new__`, so that thread starts out initialized.
+        state.namespaces[current_ident()] = {}
+        object.__setattr__(self, _STATE_ATTRIBUTE, state)
+        _LOCAL_STATES.add(state)
         return self
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args or kwargs:
             raise TypeError("Initialization arguments are not supported")
 
-    def _namespace(self) -> dict[str, Any]:
-        storage: dict[int, dict[str, Any]] = object.__getattribute__(
-            self, "_storage"
-        )
-        ident = current_ident()
-        namespace = storage.setdefault(ident, {})
-        initialized: set[int] = object.__getattribute__(
-            self, "_initialized_idents"
-        )
-        initializing: set[int] = object.__getattribute__(
-            self, "_initializing_idents"
-        )
-        if ident in initialized or ident in initializing:
-            return namespace
-
-        initializing.add(ident)
-        try:
-            type(self).__init__(
-                self,
-                *object.__getattribute__(self, "_local_args"),
-                **object.__getattribute__(self, "_local_kwargs"),
-            )
-        finally:
-            initializing.remove(ident)
-        initialized.add(ident)
-        return namespace
-
     def __getattribute__(self, name: str) -> Any:
-        if name in {
-            "_storage",
-            "_local_args",
-            "_local_kwargs",
-            "_initialized_idents",
-            "_initializing_idents",
-            "_namespace",
-            "_data_descriptor",
-        }:
-            return object.__getattribute__(self, name)
         if name == "__dict__":
-            return self._namespace()
-        if self._data_descriptor(name) is not None:
+            return _namespace(self)
+        if _is_data_descriptor(self, name):
             return object.__getattribute__(self, name)
 
-        namespace = self._namespace()
+        namespace = _namespace(self)
         if name in namespace:
             return namespace[name]
         try:
@@ -130,26 +133,16 @@ class AsyncLocal:
         except AttributeError:
             raise AttributeError(name) from None
 
-    def _data_descriptor(self, name: str) -> Any:
-        for cls in type(self).__mro__:
-            class_attribute = vars(cls).get(name)
-            if hasattr(class_attribute, "__get__") and (
-                hasattr(class_attribute, "__set__")
-                or hasattr(class_attribute, "__delete__")
-            ):
-                return class_attribute
-        return None
-
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "__dict__":
             raise AttributeError(
                 f"{type(self).__name__!r} object attribute "
                 f"{name!r} is read-only"
             )
-        if name == "_storage" or self._data_descriptor(name) is not None:
+        if _is_data_descriptor(self, name):
             object.__setattr__(self, name, value)
             return
-        self._namespace()[name] = value
+        _namespace(self)[name] = value
 
     def __delattr__(self, name: str) -> None:
         if name == "__dict__":
@@ -157,10 +150,10 @@ class AsyncLocal:
                 f"{type(self).__name__!r} object attribute "
                 f"{name!r} is read-only"
             )
-        if self._data_descriptor(name) is not None:
+        if _is_data_descriptor(self, name):
             object.__delattr__(self, name)
             return
-        namespace = self._namespace()
+        namespace = _namespace(self)
         try:
             del namespace[name]
         except KeyError as exc:

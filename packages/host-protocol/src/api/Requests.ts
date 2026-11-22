@@ -103,28 +103,24 @@ export const CellInput = Schema.Struct({
   identifier: "CellInput",
 });
 
-export const PutCell = Schema.Struct({
-  kind: Schema.Literal("put_cell"),
-  base_etag: Schema.NullOr(Schema.String).annotateKey({
-    description:
-      "The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is `precondition-failed`.",
+export const CreateCell = Schema.Struct({
+  kind: Schema.Literal("create_cell"),
+  cell: CellInput,
+}).annotate({
+  description: "Appends a new cell. An existing id is a failed precondition.",
+  identifier: "CreateCell",
+});
+
+export const ReplaceCell = Schema.Struct({
+  kind: Schema.Literal("replace_cell"),
+  base_etag: Schema.String.annotateKey({
+    description: "The cell's etag as last read, or `*`.",
   }),
   cell: CellInput,
-  after: Schema.optionalKey(
-    CellId.annotateKey({
-      description:
-        "The cell a created cell goes after. Ignored for an existing cell.",
-    }),
-  ),
-  before: Schema.optionalKey(
-    CellId.annotateKey({
-      description:
-        "The cell a created cell goes before. Ignored for an existing cell. With neither `after` nor `before`, a created cell goes at the end.",
-    }),
-  ),
 }).annotate({
-  description: "Replaces a whole cell, or creates one.",
-  identifier: "PutCell",
+  description:
+    "Replaces an existing cell in place. A missing cell is a failed precondition.",
+  identifier: "ReplaceCell",
 });
 
 export const DeleteCell = Schema.Struct({
@@ -152,7 +148,12 @@ export const SetOrder = Schema.Struct({
   identifier: "SetOrder",
 });
 
-export const Change = Schema.Union([PutCell, DeleteCell, SetOrder]).annotate({
+export const Change = Schema.Union([
+  CreateCell,
+  ReplaceCell,
+  DeleteCell,
+  SetOrder,
+]).annotate({
   description: "One change to the document, tagged on `kind`.",
   identifier: "Change",
 });

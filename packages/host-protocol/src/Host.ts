@@ -15,12 +15,12 @@ import * as Problems from "./Problems.ts";
 import * as P from "./api/Parameters.ts";
 import { sseEvents } from "./internal/http.ts";
 import { forGenerators } from "./internal/openapi.ts";
-import { CatalogEvent, derive } from "./Events.ts";
-import { objects, type ObjectKind } from "./Objects.ts";
+import { CatalogStreamEvent, derive } from "./Events.ts";
+import { objects, type ObjectDefinition } from "./Objects.ts";
 import * as Notebook from "./Notebook.ts";
 
-export const Event = CatalogEvent;
-export type Event = typeof Event.Type;
+export const StreamEvent = CatalogStreamEvent;
+export type StreamEvent = typeof StreamEvent.Type;
 
 /** Admits requests that carry the host record's token from this machine. */
 export class HostToken extends HttpApiMiddleware.Service<HostToken>()(
@@ -57,8 +57,8 @@ export const Create = HttpApiEndpoint.post("create", "/notebooks", {
 
 const makeEvents = <E extends Schema.Constraint>(events: E) =>
   HttpApiEndpoint.get("events", "/events", {
-    query: Schema.Struct({ types: Schema.optionalKey(P.Types) }).pipe(
-      Schema.encodeKeys({ types: "types" }),
+    query: Schema.Struct({ kinds: Schema.optionalKey(P.Kinds) }).pipe(
+      Schema.encodeKeys({ kinds: "kinds" }),
     ),
     headers: Schema.Struct({
       cursor: Schema.optionalKey(P.LastEventId),
@@ -76,7 +76,7 @@ const makeEvents = <E extends Schema.Constraint>(events: E) =>
     .annotate(OpenApi.Summary, "Read the host's catalog as a stream")
     .annotate(
       OpenApi.Description,
-      "Sends everything the host has, then every change as it happens.\nThe response is a stream of server-sent events, so it stays open\nand the host appends one event at a time. The catalog is the host\nobject, its projects, notebooks, runtimes, and attachments.\n\nA new connection starts with one event per object the host knows\nabout, parents before children, followed by a `ready` event.\nSnapshot events have no `id`; `ready` and live events have an `id`\nline. The most recent `id` a client has seen is its position in\nthe stream. When a connection drops, the client reconnects and\nsends that position in the `Last-Event-ID` header. If the host\nstill has the events after that point, it sends them with their\noriginal ids and timestamps, even before the new `ready`, and then\n`ready`. If it does not, or the cursor predates a loss of host\nstate, it sends `reset`, and the client discards what it holds and\nreceives the full state again. A client also\ndiscards an incomplete snapshot before reconnecting without a\ncursor. On `reset` it clears its cursor until the next `ready`.\n\n`types` limits the stream to some kinds of object without changing\nids or positions. It also filters the host object; `ready` and\n`reset` are always sent. Keep the same filter when resuming a\ncursor. The host writes a `: ping` comment every fifteen seconds\nwhen nothing else is happening. A client that hears nothing for 45\nseconds treats the connection as lost and reconnects.\n",
+      "Sends everything the host has, then every change as it happens.\nThe response is a stream of server-sent events, so it stays open\nand the host appends one event at a time. The catalog is the host\nobject, its projects, notebooks, runtimes, and attachments.\n\nA new connection starts with one event per object the host knows\nabout, parents before children, followed by a `ready` event.\nSnapshot events have no `id`; `ready` and live events have an `id`\nline. The most recent `id` a client has seen is its position in\nthe stream. When a connection drops, the client reconnects and\nsends that position in the `Last-Event-ID` header. If the host\nstill has the events after that point, it sends them with their\noriginal ids and timestamps, even before the new `ready`, and then\n`ready`. If it does not, or the cursor predates a loss of host\nstate, it sends `reset`, and the client discards what it holds and\nreceives the full state again. A client also\ndiscards an incomplete snapshot before reconnecting without a\ncursor. On `reset` it clears its cursor until the next `ready`.\n\n`kinds` limits the stream to some kinds of object without changing\nids or positions. It also filters the host object; `ready` and\n`reset` are always sent. Keep the same filter when resuming a\ncursor. The host writes a `: ping` comment every fifteen seconds\nwhen nothing else is happening. A client that hears nothing for 45\nseconds treats the connection as lost and reconnects.\n",
     );
 
 export const group = <E extends Schema.Constraint>(events: E) =>
@@ -87,17 +87,22 @@ export const group = <E extends Schema.Constraint>(events: E) =>
  *
  * An extension passes the table with its own rows appended.
  */
-export const make = <const Objects extends ReadonlyArray<ObjectKind>>(
+export const make = <const Objects extends ReadonlyArray<ObjectDefinition>>(
   objects: Objects,
 ) => {
   const derived = derive(objects);
   return HttpApi.make("Host")
-    .add(group(derived.CatalogEvent), Notebook.group(derived.NotebookEvent))
+    .add(
+      group(derived.CatalogStreamEvent),
+      Notebook.group(derived.NotebookStreamEvent),
+    )
     .middleware(HostToken)
     .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error" })
     .annotate(HttpApi.AdditionalSchemas, [
       derived.Event,
-      derived.ObjectType,
+      derived.CatalogStreamEvent,
+      derived.NotebookStreamEvent,
+      derived.ObjectKind,
       S.HostRecord,
       Problems.Problem,
       Problems.UnknownProblem,

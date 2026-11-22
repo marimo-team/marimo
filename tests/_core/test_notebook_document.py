@@ -59,19 +59,18 @@ def ids(document: Document) -> list[str]:
     return [c.id for c in document]
 
 
-def put(
-    cell_id: str,
-    code: str,
-    base_etag: str | None,
-    *,
-    after: str | None = None,
-    before: str | None = None,
-) -> protocol.PutCell:
-    return protocol.PutCell(
+def create(cell_id: str, code: str) -> protocol.CreateCell:
+    return protocol.CreateCell(
+        cell=protocol.CellInput(id=protocol.CellId(cell_id), code=code)
+    )
+
+
+def replace_cell(
+    cell_id: str, code: str, base_etag: str
+) -> protocol.ReplaceCell:
+    return protocol.ReplaceCell(
         base_etag=base_etag,
         cell=protocol.CellInput(id=protocol.CellId(cell_id), code=code),
-        after=UNSET if after is None else protocol.CellId(after),
-        before=UNSET if before is None else protocol.CellId(before),
     )
 
 
@@ -264,8 +263,8 @@ class TestApply:
 
         result = before.apply(
             [
-                put("c2", "print('hi')", None, after="c1"),
-                put("c3", "x = 22", c3.etag),
+                create("c2", "print('hi')"),
+                replace_cell("c3", "x = 22", c3.etag),
                 delete("k7f2", k7f2.etag),
                 set_order(before.order_etag, "c3", "c2", "c1"),
             ]
@@ -290,8 +289,8 @@ class TestApply:
 
         result = document.apply(
             [
-                put("new", "z = 1", None),
-                put("c3", "x = 22", "0000000000000000"),
+                create("new", "z = 1"),
+                replace_cell("c3", "x = 22", "0000000000000000"),
             ]
         )
 
@@ -304,34 +303,41 @@ class TestApply:
         c3 = document.cell("c3")
         assert c3 is not None
 
-        assert document.apply([put("c3", "x = 1", None)]) == Stale(0, "c3")
-        assert document.apply([put("nope", "x = 1", "*")]) == Stale(0, "nope")
+        assert document.apply([create("c3", "x = 1")]) == Stale(0, "c3")
+        assert document.apply([replace_cell("nope", "x = 1", "*")]) == Stale(
+            0, "nope"
+        )
         # The cell existed when the client read, even if the same batch
         # deletes it first.
         assert document.apply(
-            [delete("c3", c3.etag), put("c3", "x = 1", None)]
+            [delete("c3", c3.etag), create("c3", "x = 1")]
         ) == Stale(1, "c3")
 
     def test_star_skips_the_check(self) -> None:
         result = Document(fixture_cells(), {}).apply(
-            [put("c3", "x = 23", "*"), set_order("*", "k7f2", "c3", "c1")]
+            [
+                replace_cell("c3", "x = 23", "*"),
+                set_order("*", "k7f2", "c3", "c1"),
+            ]
         )
 
         assert not isinstance(result, Stale)
         assert ids(result[0]) == ["k7f2", "c3", "c1"]
 
-    def test_placement_has_no_precondition(self) -> None:
-        document = Document(fixture_cells(), {})
-        for change in (
-            put("a", "1", None, before="c1"),
-            put("b", "2", None, after="c1"),
-            put("c", "3", None),
-        ):
-            result = document.apply([change])
-            assert not isinstance(result, Stale)
-            document = result[0]
+    def test_created_cells_append_in_request_order(self) -> None:
+        result = Document(fixture_cells(), {}).apply(
+            [create("a", "1"), create("b", "2")]
+        )
+        assert not isinstance(result, Stale)
+        assert ids(result[0]) == ["c1", "c3", "k7f2", "a", "b"]
 
-        assert ids(document) == ["a", "c1", "b", "c3", "k7f2", "c"]
+    def test_stale_order_rejects_the_creation_it_would_place(self) -> None:
+        document = Document(fixture_cells(), {})
+        result = document.apply(
+            [create("new", "1"), set_order("stale", "c1", "new", "c3", "k7f2")]
+        )
+        assert result == Stale(1, None)
+        assert document.cell("new") is None
 
     def test_malformed_changes_are_invalid(self) -> None:
         document = Document(fixture_cells(), {})
@@ -340,17 +346,13 @@ class TestApply:
             document.apply([set_order("*", "c1", "c3")])
         with pytest.raises(Invalid):
             document.apply([set_order("*", "c1", "c3", "c3")])
-        with pytest.raises(Invalid):
-            document.apply([put("a", "1", None, after="nope")])
-        with pytest.raises(Invalid):
-            document.apply([put("a", "1", None, after="c1", before="c3")])
 
     def test_an_edit_that_changes_nothing_reports_nothing(self) -> None:
         before = Document(fixture_cells(), {})
         c3 = before.cell("c3")
         assert c3 is not None
 
-        result = before.apply([put("c3", "x = 21", c3.etag)])
+        result = before.apply([replace_cell("c3", "x = 21", c3.etag)])
 
         assert not isinstance(result, Stale)
         document, applied = result
@@ -468,7 +470,7 @@ class TestNotebookRecords:
         (_, c3, k7f2) = cells
 
         response = notebook.edit(
-            [put("c3", "x = 22", c3.etag), delete("k7f2", k7f2.etag)],
+            [replace_cell("c3", "x = 22", c3.etag), delete("k7f2", k7f2.etag)],
             request_id="e",
         )
 
@@ -483,7 +485,8 @@ class TestNotebookRecords:
         # Saving moves `saved_etag` only; a no-op edit changes nothing.
         assert notebook.mark_saved(record.etag).version == 2
         same = notebook.edit(
-            [put("c1", "import marimo as mo", cells[0].etag)], request_id="n"
+            [replace_cell("c1", "import marimo as mo", cells[0].etag)],
+            request_id="n",
         )
         assert same.document.version == 2
         assert same.cells["c1"] == protocol.CellVersion(
@@ -508,7 +511,8 @@ class TestNotebookRecords:
 
         with pytest.raises(PreconditionFailed) as raised:
             notebook.edit(
-                [put("c3", "x = 22", "0000000000000000")], request_id="e"
+                [replace_cell("c3", "x = 22", "0000000000000000")],
+                request_id="e",
             )
 
         assert raised.value.index == 0
@@ -536,12 +540,18 @@ class TestNotebook:
                 isinstance(event.event, protocol.CellEvent)
                 and event.event.data.request_id == "first"
             ):
-                change = delete("c1", "*") if remove else put("c1", "2", "*")
+                change = (
+                    delete("c1", "*")
+                    if remove
+                    else replace_cell("c1", "2", "*")
+                )
                 notebook.edit([change], request_id="second")
 
         host.subscribe(change_again, notebook_id=notebook.id)
         if method == "edit":
-            response = notebook.edit([put("c1", "1", "*")], request_id="first")
+            response = notebook.edit(
+                [replace_cell("c1", "1", "*")], request_id="first"
+            )
         else:
             response = notebook.replace(
                 [cell("c1", "1")], {}, request_id="first"
@@ -590,7 +600,7 @@ class TestNotebook:
             "document",
             "ready",
         ]
-        assert names(host.events(notebook_id="n1", types={"document"})) == [
+        assert names(host.events(notebook_id="n1", kinds={"document"})) == [
             "document",
             "ready",
         ]
@@ -664,7 +674,7 @@ class TestNotebook:
 
         response = notebook.edit(
             [
-                put("c2", "print('hi')", None, after="c1"),
+                create("c2", "print('hi')"),
                 delete("k7f2", k7f2.etag),
             ],
             request_id="edit-1",
@@ -681,7 +691,7 @@ def cell_analyses(
 ) -> dict[protocol.CellId, protocol.CellAnalysis]:
     """A placeholder analysis of every cell in the document."""
     return {
-        cell.id: protocol.CellAnalysis(defs=(), refs=(), errors=())
+        cell.id: protocol.CellAnalysis(defs=(), refs=(), diagnostics=())
         for cell in document
     }
 
@@ -783,7 +793,7 @@ class TestAnalysis:
         await asyncio.sleep(0)
 
         log.clear()
-        notebook.edit([put("c9", "z = 1", None)], request_id="edit-1")
+        notebook.edit([create("c9", "z = 1")], request_id="edit-1")
         analyzed, result = await analyzer.next_request()
         assert analyzed is notebook.document
         assert ids(analyzed) == ["c1", "c3", "k7f2", "c9"]

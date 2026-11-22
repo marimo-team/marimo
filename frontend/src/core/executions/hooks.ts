@@ -5,6 +5,8 @@ import { dequal } from "dequal";
 import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
 import { useMemo } from "react";
+import { autoRunOnChangeAtom } from "@/core/config/config";
+import { useDelayElapsed } from "@/hooks/useDelayElapsed";
 import type { CellId } from "@/core/cells/ids";
 import type { Outline } from "@/core/cells/outline";
 import {
@@ -21,9 +23,8 @@ import { type CellExecutionView, cellExecutionView } from "./select";
 /**
  * A cell's status, timing, and how it last ended.
  *
- * Read from the host's executions, with the editor's own marks for a run
- * it has requested and the kernel has not planned yet, and for a cell the
- * kernel reports blocked by a disabled ancestor.
+ * Host executions describe the run, document analysis identifies blocked
+ * cells, and local requests account for runs the host has yet to plan.
  */
 export function useCellExecution(id: Protocol.CellId): CellExecutionView {
   // One atom per mounted cell, kept for its subscription and compared by
@@ -52,6 +53,28 @@ export function useCellFreshness(id: Protocol.CellId): CellFreshness {
     [id],
   );
   return useAtomValue(cellAtom);
+}
+
+/** A variable revision can arrive just before the host queues its readers. */
+export function useShowChangedInputs(changed: boolean): boolean {
+  const autorun = useAtomValue(autoRunOnChangeAtom);
+  const delayElapsed = useDelayElapsed(autorun && changed ? 200 : 0);
+  return changed && delayElapsed;
+}
+
+export function useCellPresentation(id: Protocol.CellId) {
+  const execution = useCellExecution(id);
+  const actual = useCellFreshness(id);
+  const inputsChanged = useShowChangedInputs(
+    actual.inputsChanged && execution.status === "idle",
+  );
+  return {
+    execution,
+    freshness:
+      inputsChanged === actual.inputsChanged
+        ? actual
+        : { ...actual, inputsChanged },
+  };
 }
 
 /** What the cell shows: its running value so far, else its result's outcome. */

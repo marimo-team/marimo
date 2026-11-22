@@ -331,29 +331,20 @@ class CellImpl:
     @property
     def toplevel_variable(self) -> VariableData | None:
         """Return the single, scoped, toplevel variable defined if found."""
-        try:
-            tree = ast_parse(self.code)
-        except SyntaxError:
+        body = self.mod.body
+        if len(body) != 1 or not isinstance(
+            body[0], (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
             return None
-
         variables = self.defs | self.temporaries
         if len(variables) != 1:
-            return None
-
-        if not (
-            len(tree.body) == 1
-            and isinstance(
-                tree.body[0],
-                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
-            )
-        ):
             return None
 
         # Depends on cell, JIT import
         from marimo._ast.variables import unmangle_local
 
         # Check that def matches the single definition
-        name = tree.body[0].name
+        name = body[0].name
         ast_name = unmangle_local(variables.pop()).name
         if name != ast_name:
             return None

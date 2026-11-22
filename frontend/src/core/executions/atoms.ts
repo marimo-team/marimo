@@ -9,7 +9,6 @@ import { atomFamily, selectAtom } from "jotai/utils";
 import type { CellId } from "@/core/cells/ids";
 import type { Outline } from "@/core/cells/outline";
 import { parseOutline } from "@/core/dom/outline";
-import type { CellMessage } from "@/core/kernel/messages";
 import {
   ConnectionState,
   type Executions,
@@ -27,9 +26,11 @@ import {
 } from "./output";
 import {
   anyRunning,
+  blockedDescendants,
   type CellExecutionInputs,
   queuedOrRunningCount,
 } from "./select";
+import { shown } from "@/core/notebook/replica";
 
 type Store = ReturnType<typeof createStore>;
 
@@ -51,15 +52,9 @@ const NO_CLEARED: ReadonlyMap<Protocol.CellId, ClearedOutput> = new Map();
 interface ShownNotebook {
   readonly replica: NotebookReplica;
   readonly id: Protocol.NotebookId;
+  readonly generation: number;
 }
 
-/**
- * What the editor marks about cells of one replica's notebook.
- *
- * The marks refer to cells by id, which another notebook, or the same one
- * after a reconnect, reuses with different executions behind it. They
- * therefore count only for the replica and host notebook they belong to.
- */
 type Marks<T> = {
   readonly notebook: ShownNotebook;
   readonly value: T;
@@ -88,80 +83,72 @@ export interface RunRequest {
  */
 const requestsAtom = atom<Marks<ReadonlySet<RunRequest>>>(null);
 
-/**
- * Cells the kernel reports as blocked by a disabled ancestor. Written only
- * by `observeCellMessage`.
- *
- * TODO(MO-8463): Derive from the document and the analysis stream.
- */
-const blockedCellsAtom = atom<Marks<ReadonlySet<Protocol.CellId>>>(null);
+function sameNotebook(
+  marked: ShownNotebook,
+  shown: ShownNotebook | null,
+): boolean {
+  return (
+    shown !== null &&
+    marked.replica === shown.replica &&
+    marked.id === shown.id &&
+    marked.generation === shown.generation
+  );
+}
 
-function current<T>(
-  marks: Marks<T>,
-  replica: NotebookReplica | null,
-  notebookId: Protocol.NotebookId | null,
-  empty: T,
-): T {
-  return marks !== null &&
-    marks.notebook.replica === replica &&
-    marks.notebook.id === notebookId
+function current<T>(marks: Marks<T>, shown: ShownNotebook | null, empty: T): T {
+  return marks !== null && sameNotebook(marks.notebook, shown)
     ? marks.value
     : empty;
 }
 
-function shownNotebook(store: Pick<Store, "get">): ShownNotebook | null {
-  const replica = store.get(activeNotebookReplicaAtom);
-  const notebook = replica === null ? null : store.get(replica.notebookAtom);
+const shownNotebookAtom = atom((get): ShownNotebook | null => {
+  const replica = get(activeNotebookReplicaAtom);
+  const notebook = replica === null ? null : get(replica.notebookAtom);
   return replica === null || notebook === null
     ? null
-    : { replica, id: notebook.id };
-}
+    : { replica, id: notebook.id, generation: get(replica.generationAtom) };
+});
 
-function mark<T>(store: Pick<Store, "get">, value: T): Marks<T> {
-  const notebook = shownNotebook(store);
-  return notebook === null ? null : { notebook, value };
-}
-
-/**
- * Whether `request` still belongs to the notebook being shown.
- *
- * Between a reset and the next snapshot the replica has no notebook for a
- * moment. That says nothing about where the request belongs, so it does
- * not count against it. Another replica, or another notebook on the same
- * replica, does.
- */
+/** Whether the request still belongs to the current stream. */
 export function isCurrent(store: Store, request: RunRequest): boolean {
-  const replica = store.get(activeNotebookReplicaAtom);
-  if (replica !== request.notebook.replica) {
-    return false;
-  }
-  const notebook = store.get(replica.notebookAtom);
-  return notebook === null || notebook.id === request.notebook.id;
+  return sameNotebook(request.notebook, store.get(shownNotebookAtom));
 }
 
 /** Cells named by pending requests made in the notebook now shown. */
 const requestedCellsAtom = atom((get) => {
-  const replica = get(activeNotebookReplicaAtom);
-  const notebookId =
-    replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
-  const requests = current(get(requestsAtom), replica, notebookId, NO_REQUESTS);
+  const requests = current(
+    get(requestsAtom),
+    get(shownNotebookAtom),
+    NO_REQUESTS,
+  );
   return requests.size === 0
     ? NO_REQUESTED
     : new Set([...requests].flatMap((request) => request.cells));
 });
 
+/** Use the disabled flags from the same revision as the dependency graph. */
+const blockedCellsAtom = atom((get) => {
+  const replica = get(activeNotebookReplicaAtom);
+  const view = replica && get(replica.analysisAtom);
+  const shownBlocked = view
+    ? blockedDescendants(view.analysis, view.document.cells.values())
+    : NO_BLOCKED;
+  return {
+    shownBlocked,
+    blocked: view?.freshness === "current" ? shownBlocked : NO_BLOCKED,
+  };
+});
+
 /** What every cell's view derives from. Pair with `cellExecutionView`. */
 export const cellExecutionInputsAtom = atom((get): CellExecutionInputs => {
   const replica = get(activeNotebookReplicaAtom);
-  const notebookId =
-    replica === null ? null : (get(replica.notebookAtom)?.id ?? null);
   const document = replica === null ? null : get(replica.shownDocumentAtom);
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
     cells: document?.cells ?? NO_CELLS,
     requested: get(requestedCellsAtom),
-    blocked: current(get(blockedCellsAtom), replica, notebookId, NO_BLOCKED),
+    ...get(blockedCellsAtom),
     runtimeId: replica === null ? null : (get(replica.runtimeAtom)?.id ?? null),
   };
 });
@@ -195,17 +182,24 @@ const displayedNotebookAtom = atom((get): ShownNotebook | null => {
   const document = replica === null ? null : get(replica.shownDocumentAtom);
   return replica === null || document === null
     ? null
-    : { replica, id: document.revision.notebook_id };
+    : {
+        replica,
+        id: document.revision.notebook_id,
+        generation: get(replica.generationAtom),
+      };
 });
 
 /** What every cell's output derives from. Pair with `cellOutputView`. */
 export const cellOutputInputsAtom = atom((get): CellOutputInputs => {
   const replica = get(activeNotebookReplicaAtom);
-  const notebookId = get(displayedNotebookAtom)?.id ?? null;
   return {
     executions: replica === null ? NO_EXECUTIONS : get(replica.executionsAtom),
     results: replica === null ? NO_RESULTS : get(replica.resultsAtom),
-    cleared: current(get(clearedOutputsAtom), replica, notebookId, NO_CLEARED),
+    cleared: current(
+      get(clearedOutputsAtom),
+      get(displayedNotebookAtom),
+      NO_CLEARED,
+    ),
     cells:
       replica === null
         ? NO_CELLS
@@ -249,11 +243,11 @@ export function clearCellOutputs(
   const inputs = store.get(cellOutputInputsAtom);
   const next = new Map(inputs.cleared);
   for (const cellId of cellIds) {
-    const shown = shownExecution(inputs, cellId);
-    if (shown?.record.outcome != null) {
+    const showing = shownExecution(inputs, cellId);
+    if (showing != null && shown(showing) !== null) {
       next.set(cellId, {
-        execution: shown.record.id,
-        version: shown.outputVersion,
+        execution: showing.record.id,
+        version: showing.outputVersion,
       });
     }
   }
@@ -267,7 +261,9 @@ export function clearCellOutputs(
 /** The runtime's status, null while the notebook has none or the stream is not ready. */
 export const runtimeStatusAtom = atom((get) => {
   const replica = get(activeNotebookReplicaAtom);
-  return replica === null ? null : (get(replica.runtimeAtom)?.status ?? null);
+  return replica === null
+    ? null
+    : (get(replica.runtimeAtom)?.state.status ?? null);
 });
 
 export const notebookIsRunningAtom = atom((get) =>
@@ -284,7 +280,7 @@ type RuntimeReadiness = "running" | "waiting" | { refused: string };
  * Whether a run can go to the host now, should wait, or has nothing to wait for.
  *
  * A runtime that is starting, or a stream that has not reported yet, will
- * settle one way or the other. A failed or absent runtime, or a connection
+ * settle one way or the other. An ended or absent runtime, or a connection
  * that has closed, will not, so a run waiting on it is refused instead.
  */
 const runtimeReadinessAtom = atom((get): RuntimeReadiness => {
@@ -304,11 +300,18 @@ const runtimeReadinessAtom = atom((get): RuntimeReadiness => {
   if (runtime === null) {
     return { refused: "The notebook has no runtime" };
   }
-  switch (runtime.status) {
-    case "running":
+  switch (runtime.state.status) {
+    case "ready":
       return "running";
-    case "failed":
-      return { refused: runtime.message ?? "The runtime failed" };
+    case "ended": {
+      const { outcome } = runtime.state;
+      return {
+        refused:
+          outcome.kind === "failed"
+            ? (outcome.message ?? "The runtime failed")
+            : "The notebook has no runtime",
+      };
+    }
     default:
       return "waiting";
   }
@@ -338,7 +341,7 @@ export function waitForRuntimeRunning(store: Store): Promise<void> {
  * Record that this browser is asking the host to run `cellIds`, so that
  * they read as queued before the host has answered.
  *
- * A disabled cell, or one the kernel reports as blocked, may be among them
+ * A disabled cell, or one with a disabled ancestor, may be among them
  * so the kernel can set it aside, but the views do not show it as queued.
  * Returns null while no notebook is shown, since there is nothing to
  * record the request against.
@@ -347,18 +350,12 @@ export function requestRun(
   store: Store,
   cellIds: readonly Protocol.CellId[],
 ): RunRequest | null {
-  const notebook = shownNotebook(store);
+  const notebook = store.get(shownNotebookAtom);
   if (notebook === null) {
     return null;
   }
   const request: RunRequest = { notebook, cells: [...cellIds] };
-  const marks = store.get(requestsAtom);
-  const kept =
-    marks !== null &&
-    marks.notebook.replica === notebook.replica &&
-    marks.notebook.id === notebook.id
-      ? marks.value
-      : NO_REQUESTS;
+  const kept = current(store.get(requestsAtom), notebook, NO_REQUESTS);
   store.set(requestsAtom, { notebook, value: new Set(kept).add(request) });
   return request;
 }
@@ -385,53 +382,18 @@ export function acceptRun(
   request: RunRequest,
   run: Protocol.Run,
 ): void {
-  const { replica } = request.notebook;
-  const unsubscribe = store.sub(replica.executionsAtom, check);
+  const waitingAtom = atom(
+    (get) =>
+      sameNotebook(request.notebook, get(shownNotebookAtom)) &&
+      !get(request.notebook.replica.executionsAtom).runs.has(run.id),
+  );
+  const unsubscribe = store.sub(waitingAtom, check);
   function check() {
-    if (
-      isCurrent(store, request) &&
-      !store.get(replica.executionsAtom).runs.has(run.id)
-    ) {
+    if (store.get(waitingAtom)) {
       return;
     }
     unsubscribe();
     withdrawRequest(store, request);
   }
   check();
-}
-
-function setCellBlocked(
-  store: Store,
-  cellId: Protocol.CellId,
-  blocked: boolean,
-): void {
-  const known = store.get(cellExecutionInputsAtom).blocked;
-  if (known.has(cellId) === blocked) {
-    return;
-  }
-  const next = new Set(known);
-  if (blocked) {
-    next.add(cellId);
-  } else {
-    next.delete(cellId);
-  }
-  store.set(blockedCellsAtom, mark(store, next));
-}
-
-/**
- * Learn from a cell-op whether the kernel considers the cell blocked by a
- * disabled ancestor. A blocked cell will not run, so a run that names it
- * does not show it as queued.
- *
- * TODO(MO-8407): Delete with the cell-op case. The blocked read goes with
- * MO-8463.
- */
-export function observeCellMessage(store: Store, message: CellMessage): void {
-  if (message.status != null) {
-    setCellBlocked(
-      store,
-      message.cell_id,
-      message.status === "disabled-transitively",
-    );
-  }
 }

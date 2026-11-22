@@ -182,7 +182,6 @@ class GetLightweightCellMap(
             # Get runtime info from cell notifications
             runtime_state: str | None = None
             has_output = False
-            has_console_output = False
             has_errors = False
             cell_notif = session_view.cell_notifications.get(cell_data.cell_id)
             if cell_notif is not None:
@@ -197,7 +196,6 @@ class GetLightweightCellMap(
                     and cell_notif.output is not None
                     and cell_notif.output.data is not None
                 )
-                has_console_output = bool(cell_notif.console)
 
             # Add cell to cell map
             cells.append(
@@ -208,7 +206,9 @@ class GetLightweightCellMap(
                     cell_type=cell_type,
                     runtime_state=runtime_state,
                     has_output=has_output,
-                    has_console_output=has_console_output,
+                    has_console_output=session_view.has_cell_console_output(
+                        cell_data.cell_id
+                    ),
                     has_errors=has_errors,
                 )
             )
@@ -432,15 +432,18 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
 
         # Empty cell_ids means "return all cells"
         cell_ids = args.cell_ids
+        cell_manager = session.app_file_manager.app.cell_manager
         if not cell_ids:
-            cell_manager = session.app_file_manager.app.cell_manager
             cell_ids = [cd.cell_id for cd in cell_manager.cell_data()]
 
         results: list[CellOutputData] = []
         for cell_id in cell_ids:
             cell_notif = session_view.cell_notifications.get(cell_id)
 
-            if cell_notif is None:
+            if (
+                cell_notif is None
+                and cell_manager.get_cell_data(cell_id) is None
+            ):
                 raise ToolExecutionError(
                     f"Cell {cell_id} not found in session {args.session_id}",
                     code="CELL_NOT_FOUND",
@@ -451,7 +454,9 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
             visual_output, visual_mimetype = self._get_visual_output(
                 cell_notif
             )
-            console_outputs = context.get_cell_console_outputs(cell_notif)
+            console_outputs = context.get_cell_console_outputs(
+                session_view, cell_id
+            )
 
             results.append(
                 CellOutputData(
@@ -473,11 +478,11 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
         )
 
     def _get_visual_output(
-        self, cell_notif: CellNotification
+        self, cell_notif: CellNotification | None
     ) -> tuple[str | None, str | None]:
         visual_output = None
         visual_mimetype = None
-        if cell_notif.output:
+        if cell_notif is not None and cell_notif.output:
             if cell_notif.output.channel == CellChannel.MARIMO_ERROR:
                 visual_output = self._get_error_output_data(
                     cell_notif.output.data

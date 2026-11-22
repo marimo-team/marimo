@@ -16,6 +16,7 @@ from marimo._messaging.notification import CellNotification
 from marimo._output.formatting import try_format
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.scratchpad import extract_result
+from marimo._session.state.session_view import SessionView
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -46,8 +47,9 @@ async def test_screenshot_reaches_model_as_image(as_data_url: bool) -> None:
     assert formatted.data == _to_data_url(png)
     assert base64.b64decode(formatted.data.split(",", 1)[1]) == png
     session = MagicMock()
-    session.session_view.cell_notifications = {
-        SCRATCH_CELL_ID: CellNotification(
+    session.session_view = SessionView()
+    session.session_view.add_notification(
+        CellNotification(
             cell_id=SCRATCH_CELL_ID,
             output=CellOutput(
                 channel=CellChannel.OUTPUT,
@@ -57,7 +59,7 @@ async def test_screenshot_reaches_model_as_image(as_data_url: bool) -> None:
             console=None,
             status="idle",
         )
-    }
+    )
     result = extract_result(session)
     calls = 0
 

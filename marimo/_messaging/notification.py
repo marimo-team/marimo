@@ -109,15 +109,12 @@ class ExecutionNotification(Notification, tag="execution"):
     caused_by: str | None = None
     depends_on: dict[str, Revision | None] | None = None
     skipped: str | None = None
+    # Exact session-cache source identity when run mode withholds the code.
+    code_hash: str | None = None
 
 
 class CellNotification(Notification, tag="cell-op"):
-    """Updates a cell's state in the frontend.
-
-    This is a partial update: each field carries its own "unchanged" semantics,
-    documented per field below. Most fields treat None as "unchanged"; fields
-    that need to distinguish "unchanged" from "clear" use msgspec.UNSET for the
-    former and None for the latter.
+    """A partial update to the kernel session view.
 
     Attributes:
         cell_id: Unique identifier of the cell being updated.
@@ -126,7 +123,6 @@ class CellNotification(Notification, tag="cell-op"):
         status: Execution status (idle/running/stale/queued/disabled-transitively).
         run_id: Execution run ID for tracing. Auto-set from context.
         execution_id: Evaluation of this cell producing the update, when known.
-        serialization: Top-level reusability hint. UNSET unchanged, None clears, str sets.
         timestamp: Creation timestamp, auto-set.
     """
 
@@ -137,10 +133,6 @@ class CellNotification(Notification, tag="cell-op"):
     status: RuntimeStateType | None = None
     run_id: RunId_t | None = None
     execution_id: str | None = None
-    # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
-    # serialization hint unchanged; None explicitly clears it (cell is no
-    # longer a top-level definition); a string sets it.
-    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -1027,6 +1019,64 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
+class PdbOutputNotification(Notification, tag="pdb-output"):
+    """Show debugger output in the cell that failed.
+
+    Append live entries. When `replace` is true, replace the debugger's
+    transcript for this cell with the supplied entries. The editor's
+    `after_seq` gives the preceding execution item sequence for each entry,
+    or -1 before the first item.
+    """
+
+    name: ClassVar[str] = "pdb-output"
+    cell_id: CellId_t
+    entries: list[CellOutput]
+    replace: bool = False
+    after_seq: list[int] | msgspec.UnsetType = msgspec.UNSET
+
+
+class CallbackOutputNotification(Notification, tag="callback-output"):
+    """Show a widget callback or registered function's output in its defining cell.
+
+    Append live entries. When `replace` is true, replace the callback
+    transcript for this cell with the supplied entries. The editor's
+    `after_seq` gives the preceding execution item sequence for each entry,
+    or -1 before the first item.
+    """
+
+    name: ClassVar[str] = "callback-output"
+    cell_id: CellId_t
+    entries: list[CellOutput]
+    replace: bool = False
+    after_seq: list[int] | msgspec.UnsetType = msgspec.UNSET
+
+    @property
+    def clears_cell_console(self) -> bool:
+        return not self.entries and not self.replace
+
+
+class ConsoleInputsClearedNotification(
+    Notification, tag="console-inputs-cleared"
+):
+    """The settled input rows hidden by clear_console() in this execution."""
+
+    name: ClassVar[str] = "console-inputs-cleared"
+    cell_id: CellId_t
+    execution_id: str
+    input_ids: list[str]
+
+
+class PdbInputNotification(Notification, tag="pdb-input"):
+    """Identify the debugger prompt waiting for a command in a failed cell.
+
+    A null input ID closes the prompt.
+    """
+
+    name: ClassVar[str] = "pdb-input"
+    cell_id: CellId_t
+    input_id: str | None
+
+
 class BreakpointsNotification(Notification, tag="breakpoints"):
     """The session's complete breakpoint set, restored on connection."""
 
@@ -1107,11 +1157,8 @@ class NotebookDocumentTransactionNotification(
     transaction: Transaction
 
 
-NotificationMessage = (
-    # Cell operations
-    CellNotification
-    | ExecutionNotification
-    | FunctionCallResultNotification
+EditorNotification = (
+    FunctionCallResultNotification
     | UIElementMessageNotification
     | ModelLifecycleNotification
     | RemoveUIElementsNotification
@@ -1160,10 +1207,18 @@ NotificationMessage = (
     # Kiosk
     | FocusCellNotification
     # Debugger
+    | CallbackOutputNotification
+    | PdbOutputNotification
+    | ConsoleInputsClearedNotification
+    | PdbInputNotification
     | BreakpointsNotification
     | ActiveLineNotification
     # Document
     | NotebookDocumentTransactionNotification
     # Consumer
     | ConsumerCapabilitiesNotification
+)
+
+NotificationMessage = (
+    EditorNotification | CellNotification | ExecutionNotification
 )

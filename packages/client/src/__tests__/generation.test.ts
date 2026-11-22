@@ -50,8 +50,8 @@ it("generates a stable protocol that tolerates experimental stream events", () =
       import * as Protocol from ${JSON.stringify(protocol)};
       import { EventStream } from ${JSON.stringify(stream)};
       assert.equal("Analysis" in Protocol, false);
-      assert.equal(Protocol.ObjectType.options.includes("analysis"), false);
-      const stream = new EventStream({}, Protocol.ObjectType.options);
+      assert.equal(Protocol.ObjectKind.options.includes("analysis"), false);
+      const stream = new EventStream({}, Protocol.ObjectKind.options);
       const received = [];
       stream.subscribe(event => received.push(event));
       stream.receive({ event: "analysis", data: {} });

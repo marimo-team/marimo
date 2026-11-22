@@ -2,9 +2,10 @@
 
 import type { Atom } from "jotai";
 import { type Edge, MarkerType, type Node, type NodeProps } from "reactflow";
-import { getNotebook } from "@/core/cells/cells";
+import type { Analysis } from "@marimo-team/client/protocol";
+import { reusableDefinition } from "@/core/cells/reusable-definition";
 import type { CellId } from "@/core/cells/ids";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { CellData } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
 import type { Variable, VariableName, Variables } from "@/core/variables/types";
 import { Arrays } from "@/utils/arrays";
@@ -47,7 +48,7 @@ interface CreateElementsOptions {
   cellAtoms: Atom<CellData>[];
   variables: Variables;
   hidePureMarkdown: boolean;
-  hideReusableFunctions: boolean;
+  hiddenReusable: ReadonlySet<CellId>;
 }
 
 const LINE_HEIGHT = 11; // matches TinyCode.css
@@ -151,21 +152,15 @@ export function nodeDimensions(data: NodeData): {
 export const OUTPUTS_HANDLE_ID = "outputs";
 export const INPUTS_HANDLE_ID = "inputs";
 
-/**
- * Cells hidden by the reusable-functions filter: those the kernel marked as
- * valid top-level definitions (serialization hint `Valid`).
- */
 export function reusableCellIds(
-  cellIds: CellId[],
-  cellRuntime: Record<CellId, CellRuntimeState>,
+  cellIds: readonly CellId[],
+  cells: Analysis["cells"] | undefined,
 ): Set<CellId> {
-  const reusable = new Set<CellId>();
-  for (const cellId of cellIds) {
-    if (cellRuntime[cellId]?.serialization?.toLowerCase() === "valid") {
-      reusable.add(cellId);
-    }
-  }
-  return reusable;
+  return new Set(
+    cellIds.filter(
+      (id) => reusableDefinition(cells?.[id])?.kind === "reusable-definition",
+    ),
+  );
 }
 
 /** Map each cell to the names of the variables it declares. */
@@ -319,17 +314,9 @@ export class TreeElementsBuilder implements ElementsBuilder {
     cellAtoms,
     variables,
     hidePureMarkdown,
-    hideReusableFunctions,
+    hiddenReusable,
   }: CreateElementsOptions) {
     const nodes: Node<NodeData>[] = [];
-
-    const cellRuntime = getNotebook().cellRuntime;
-    // Hidden reusable cells are dropped along with their edges — a reusable
-    // function is nearly always referenced somewhere, so gating on "no edges"
-    // would make the filter a no-op.
-    const hiddenReusable = hideReusableFunctions
-      ? reusableCellIds(cellIds, cellRuntime)
-      : new Set<CellId>();
 
     const nodesWithEdges = new Set<CellId>();
     // Dedupe cell→cell edges, aggregating every variable that crosses them so a

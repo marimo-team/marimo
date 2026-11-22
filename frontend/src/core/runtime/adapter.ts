@@ -169,7 +169,7 @@ export const canRunCellsAtom = atom<boolean>((get) => {
     return false;
   }
   if (adapter.kind === "remote") {
-    return get(runtimeStatusAtom) === "running";
+    return get(runtimeStatusAtom) === "ready";
   }
   return true;
 });

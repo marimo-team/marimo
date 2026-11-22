@@ -1,16 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import token as token_types
 from dataclasses import replace
 from enum import Enum
-from io import BytesIO
-from tokenize import tokenize
 from typing import TYPE_CHECKING, Literal, get_args
 
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
+from marimo._ast.dedent import split_source_lines
 from marimo._ast.names import (
     DEFAULT_CELL_NAME,
     SETUP_CELL_NAME,
@@ -57,21 +55,15 @@ TopLevelHints = Literal["Valid"] | TopLevelInvalidHints
 HINT_VALID: Literal["Valid"] = "Valid"
 
 
-def has_trailing_comment(code: str) -> bool:
-    # Requires tokenization because multiline strings can start a line with #.
-    tokens = tokenize(BytesIO(code.strip().encode("utf-8")).readline)
-    for token in reversed(list(tokens)):
-        if token.type in (
-            token_types.ENDMARKER,
-            token_types.NEWLINE,
-            token_types.NL,
-            token_types.INDENT,
-            token_types.DEDENT,
-            token_types.ENCODING,
-        ):
-            continue
-        return token.type == token_types.COMMENT and token.start[1] == 0
-    return False
+def has_trailing_comment(cell: CellImpl) -> bool:
+    """Whether the cell's last nonblank line is an unindented comment."""
+    # Only blank lines and comments can follow the last statement.
+    body = cell.mod.body
+    tail = split_source_lines(cell.code)[body[-1].end_lineno if body else 0 :]
+    return next(
+        (line.startswith("#") for line in reversed(tail) if line.strip()),
+        False,
+    )
 
 
 class TopLevelType(Enum):
@@ -91,13 +83,14 @@ class TopLevelStatus:
         name: Name,
         cell_config: CellConfig,
         allowed_refs: set[Name],
+        compiled: CellImpl | None = None,
     ):
         self.cell_id = cell_id
         self.name = name
         self.previous_name = name
         self._type: TopLevelType = TopLevelType.UNPARSABLE
         self.dependencies: set[Name] = set()
-        self._cell: CellImpl | None = None
+        self._cell = compiled
         self.hint: TopLevelHints | None = None
 
         self.code = code
@@ -107,9 +100,11 @@ class TopLevelStatus:
 
     @classmethod
     def from_cell(
-        cls, cell: CellImpl, allowed_refs: set[Name]
+        cls, cell: CellImpl, allowed_refs: set[Name], *, name: Name = "_"
     ) -> TopLevelStatus:
-        return cls(cell.cell_id, cell.code, "_", CellConfig(), allowed_refs)
+        return cls(
+            cell.cell_id, cell.code, name, cell.config, allowed_refs, cell
+        )
 
     def update(
         self,
@@ -153,7 +148,7 @@ class TopLevelStatus:
 
         # Trailing comments are not allowed, since no easy way to recapture
         # them.
-        if has_trailing_comment(self.code):
+        if has_trailing_comment(self._cell):
             self.demote(HINT_HAS_COMMENT)
             return
 
@@ -232,28 +227,38 @@ class TopLevelStatus:
 class TopLevelExtraction:
     """Graph representation of cells for serialization"""
 
-    def __init__(
-        self,
+    @classmethod
+    def from_codes(
+        cls,
         codes: list[str],
         names: list[str],
         cell_configs: list[CellConfig],
         toplevel_defs: set[Name],
+    ) -> TopLevelExtraction:
+        statuses = [
+            TopLevelStatus(
+                CellId_t(str(idx)), code, name, config, toplevel_defs
+            )
+            for idx, (code, name, config) in enumerate(
+                zip(codes, names, cell_configs, strict=False)
+            )
+        ]
+        return cls(statuses, toplevel_defs)
+
+    def __init__(
+        self, statuses: list[TopLevelStatus], toplevel_defs: set[Name]
     ):
-        self.statuses: list[TopLevelStatus] = []
+        self.statuses = statuses
 
         # Track resolution status
-        self.unparsable: dict[Name, TopLevelStatus] = {}
         self.toplevel: dict[Name, TopLevelStatus] = {}
         self.unresolved: dict[Name, TopLevelStatus] = {}
         self.cells: dict[Name, TopLevelStatus] = {}
         self._statuses: dict[TopLevelType, dict[Name, TopLevelStatus]] = {
-            TopLevelType.UNPARSABLE: self.unparsable,
             TopLevelType.TOPLEVEL: self.toplevel,
             TopLevelType.UNRESOLVED: self.unresolved,
             TopLevelType.CELL: self.cells,
         }
-        self.collection: set[TopLevelStatus] = set({})
-
         # Track definitions and references
         defs: set[Name] = set()
         refs: set[Name] = set()
@@ -261,23 +266,16 @@ class TopLevelExtraction:
         self._variables: dict[Name, VariableData] | None = None
         # Run through and get defs + refs, and a naive attempt at resolving cell
         # status.
-        for idx, (code, name, config) in enumerate(
-            zip(codes, names, cell_configs, strict=False)
-        ):
-            status = TopLevelStatus(
-                CellId_t(str(idx)), code, name, config, self.allowed_refs
-            )
+        # An unparsable cell is saved verbatim and introduces no bindings.
+        parsed = [status for status in statuses if not status.is_unparsable]
+        for status in parsed:
             self._statuses[status.type][status.name] = status
-
-            self.statuses.append(status)
-            if not status.is_unparsable:
-                defs.update(status.defs)
-                refs.update(status.refs)
-            self.collection.add(status)
+            defs.update(status.defs)
+            refs.update(status.refs)
 
         # Refresh names
         potential_refs = {
-            status.name for status in self.statuses if not status.is_toplevel
+            status.name for status in parsed if not status.is_toplevel
         }
 
         self.unshadowed = BUILTINS - defs
@@ -287,7 +285,7 @@ class TopLevelExtraction:
         # Now toplevel, "allowed" defs have been determined, we can resolve
         # references, and potentially promote cells to toplevel.
         unresolved: set[Name] = set()
-        for status in self.statuses:
+        for status in parsed:
             if status.is_unresolved or status.is_cell:
                 # Use pop with default to handle duplicate definitions gracefully
                 # If there are duplicates, only the last one is in the dict
@@ -329,7 +327,7 @@ class TopLevelExtraction:
                     return visited[name]
                 elif name in self.toplevel:
                     return True
-                elif name in self.cells or name in self.unparsable:
+                elif name in self.cells:
                     return False
                 # We are in a cycle. It's safe to serialize, but marimo will
                 # throw an error if running directly. Note, that in library
@@ -374,7 +372,7 @@ class TopLevelExtraction:
             return self._variables
         variables = {}
 
-        for status in self.collection:
+        for status in self.statuses:
             if status._cell:
                 # init_variable_data is a collected on the visitor level
                 # if a var is first defined with a type like:
@@ -402,37 +400,23 @@ class TopLevelExtraction:
                 variables[name] = replace(data, annotation_data=annotation)
 
     @classmethod
-    def from_graph(
-        cls,
-        graph: GraphTopology,
-        cell: CellImpl | None = None,
-    ) -> TopLevelExtraction:
-        if cell:
-            ancestors = graph.ancestors(cell.cell_id)
-            deps = {cid: graph.cells[cid] for cid in ancestors}
-        else:
-            deps = {**graph.cells}
+    def from_graph(cls, graph: GraphTopology) -> TopLevelExtraction:
         setup_id = CellId_t(SETUP_CELL_NAME)
-        setup = graph.cells.get(setup_id)
-        deps.pop(setup_id, None)
-
-        cell_order = topological_sort(graph, deps.keys())
-        path = [deps[cid] for cid in cell_order if deps[cid]]
-        if cell:
-            path += [cell]
-        return cls.from_cells(path, setup=setup)
+        order = topological_sort(graph, graph.cells.keys() - {setup_id})
+        return cls.from_cells(
+            [graph.cells[cid] for cid in order],
+            setup=graph.cells.get(setup_id),
+        )
 
     @classmethod
     def from_cells(
         cls, cells: list[CellImpl], setup: CellImpl | None = None
     ) -> TopLevelExtraction:
-        codes = [cell.code for cell in cells]
-        names = ["_" for _ in cells]
-        cell_configs = [cell.config for cell in cells]
-
-        if setup:
-            return cls(codes, names, cell_configs, setup.defs)
-        return cls(codes, names, cell_configs, set())
+        allowed = setup.defs if setup else set()
+        return cls(
+            [TopLevelStatus.from_cell(cell, allowed) for cell in cells],
+            allowed,
+        )
 
     @classmethod
     def from_app(cls, app: InternalApp) -> TopLevelExtraction:
@@ -443,9 +427,9 @@ class TopLevelExtraction:
         from marimo._ast.codegen import pop_setup_cell
 
         setup = pop_setup_cell(codes, names, cell_configs)
-        if setup:
-            return cls(codes, names, cell_configs, setup.defs)
-        return cls(codes, names, cell_configs, set())
+        return cls.from_codes(
+            codes, names, cell_configs, setup.defs if setup else set()
+        )
 
     def __iter__(self) -> Iterator[TopLevelStatus]:
         """Iterate over cell statuses"""

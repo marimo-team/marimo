@@ -5,6 +5,8 @@ from marimo import _loggers
 from marimo._messaging.notification import (
     CompletionResultNotification,
     FocusCellNotification,
+    PdbInputNotification,
+    PdbOutputNotification,
 )
 
 LOGGER = _loggers.marimo_logger()
@@ -17,6 +19,8 @@ KIOSK_ONLY_OPERATIONS = {
 # Operations that are excluded from kiosk mode
 KIOSK_EXCLUDED_OPERATIONS = {
     CompletionResultNotification.name,
+    PdbInputNotification.name,
+    PdbOutputNotification.name,
 }
 
 

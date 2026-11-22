@@ -10,6 +10,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.command_output import console_notification
 from marimo._messaging.input import InputReply, require_active_execution
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.notification import CellNotification
@@ -89,7 +90,7 @@ class PyodideStdout(Stdout):
             )
             data = data[: int(max_bytes)] + " ... "
         broadcast_notification(
-            CellNotification(
+            console_notification(
                 cell_id=self.stream.cell_id,
                 console=CellOutput.stdout(data, mimetype),
             ),
@@ -141,7 +142,7 @@ class PyodideStderr(Stderr):
             )
 
         broadcast_notification(
-            CellNotification(
+            console_notification(
                 cell_id=self.stream.cell_id,
                 console=CellOutput.stderr(
                     data,
@@ -180,6 +181,7 @@ class PyodideStdin(Stdin):
         )
 
     async def _read_input(self, prompt: str, password: bool) -> str:
+        require_active_execution()
         async with self.stream.input_lock:
             require_active_execution()
             assert self.stream.cell_id is not None

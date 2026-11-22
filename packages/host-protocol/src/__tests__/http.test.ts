@@ -24,10 +24,9 @@ const edit = Schema.decodeUnknownSync(S.EditResponse)(
 const runtime = Schema.decodeUnknownSync(S.Runtime)({
   id: "r",
   notebook_id: "n",
-  status: "running",
-  message: null,
   marimo_version: "0.1.0",
-  started_at: "2026-01-01T00:00:00Z",
+  created_at: "2026-01-01T00:00:00Z",
+  state: { status: "ready" },
 });
 const unavailable = () =>
   Effect.fail(new Problems.UnsupportedOperationProblem());
@@ -41,7 +40,9 @@ const save = vi.fn(
 const events = vi.fn(
   HttpApiBuilder.handler(Host.Api, "Notebook", "events", () =>
     Effect.succeed(
-      Stream.make(Notebook.Event.make({ event: "ready", id: "98", data: {} })),
+      Stream.make(
+        Notebook.StreamEvent.make({ event: "ready", id: "98", data: {} }),
+      ),
     ),
   ),
 );
@@ -184,7 +185,7 @@ describe("native HTTP implementation", () => {
 
   it("decodes event selection and encodes the protocol SSE envelope", async () => {
     const response = await request(
-      "/notebooks/n/events?types=ready&run_id=run",
+      "/notebooks/n/events?kinds=ready&run_id=run",
       {
         headers: { "Last-Event-ID": "97", "Marimo-Attachment-Name": "Test" },
       },
@@ -193,7 +194,7 @@ describe("native HTTP implementation", () => {
     expect(await response.text()).toBe("id: 98\nevent: ready\ndata: {}\n\n");
     expect(events.mock.lastCall?.[0]).toMatchObject({
       params: { notebookId: "n" },
-      query: { types: "ready", runId: "run" },
+      query: { kinds: "ready", runId: "run" },
       headers: { cursor: "97", attachmentName: "Test" },
     });
   });

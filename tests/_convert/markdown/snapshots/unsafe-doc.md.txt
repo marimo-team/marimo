@@ -3,7 +3,7 @@ title: Casually malicious md
 marimo-version: 0.0.0
 ---
 
-What happens if I just leave a \"\"\"
+What happens if I just leave a """
 " ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \ /
 
 # Notebook
@@ -60,7 +60,7 @@ mo.md(r"""
 print("Hello, World!")
 ````
 
-\"\"\"
+"""
 ```
 
 <!-- Improperly nested code block -->

@@ -1,0 +1,11 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+from marimo._cli.containers._docker_compatible import _DockerCompatibleEngine
+
+
+class DockerEngine(_DockerCompatibleEngine):
+    def __init__(
+        self, executable: str = "docker", *, name: str = "Docker"
+    ) -> None:
+        super().__init__(name, executable)

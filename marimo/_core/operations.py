@@ -225,14 +225,14 @@ class Mutations:
                     if event.event.data.request_id == key:
                         mutation.run = run
                         if (
-                            run.status == "completed"
+                            isinstance(run.state, protocol.RunCompleted)
                             and unsubscribe is not None
                         ):
                             self.settle(mutation)
                             unsubscribe()
 
             unsubscribe = self.host.subscribe(
-                updated, notebook_id=notebook_id, types={"run"}
+                updated, notebook_id=notebook_id, kinds={"run"}
             )
         elif operation in {"runtime.start", "runtime.stop", "runtime.restart"}:
             assert notebook_id is not None
@@ -252,7 +252,8 @@ class Mutations:
             elif lifecycle_accepted is not None:
                 lifecycle_accepted(task.result())
             elif mutation.expires_at is None and (
-                mutation.run is None or mutation.run.status == "completed"
+                mutation.run is None
+                or isinstance(mutation.run.state, protocol.RunCompleted)
             ):
                 self.settle(mutation)
 
@@ -289,29 +290,31 @@ def _watch_lifecycle(
             settle()
         elif isinstance(event.event, protocol.RuntimeEvent):
             runtime = event.event.data.runtime
+            ended = isinstance(runtime.state, protocol.RuntimeEnded)
             if (
                 operation == "runtime.restart"
                 and event.event.data.request_id == request_id
-                and runtime.status == "terminating"
+                and isinstance(runtime.state, protocol.RuntimeStopping)
                 and runtime.id != runtime_id
             ):
                 previous_id = runtime.id
-            if (
-                operation != "runtime.stop"
-                and runtime.id == runtime_id
-                and runtime.status in ("running", "failed")
+            if runtime.id == runtime_id and (
+                ended or isinstance(runtime.state, protocol.RuntimeReady)
             ):
                 settle()
-        elif isinstance(event.event, protocol.RuntimeRemovedEvent):
-            if event.event.data.id == runtime_id or (
-                event.event.data.id == previous_id
+            elif (
+                runtime.id == previous_id
+                and ended
                 and event.event.data.request_id != request_id
             ):
                 # A later stop can cancel a restart before its replacement starts.
                 settle()
+        elif isinstance(event.event, protocol.RuntimeRemovedEvent):
+            if event.event.data.id == runtime_id:
+                settle()
 
     unsubscribe = context.host.subscribe(
-        updated, notebook_id=notebook_id, types={"runtime", "notebook"}
+        updated, notebook_id=notebook_id, kinds={"runtime", "notebook"}
     )
 
     def accepted(reply: Reply) -> None:

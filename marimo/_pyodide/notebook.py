@@ -44,7 +44,8 @@ from marimo._runtime.layout.layout import (
     layout_config_to_data_uri,
 )
 from marimo._server.host import document as documents
-from marimo._server.host.events import notification_event, serialize_event
+from marimo._server.host.analysis import HostAnalyzer
+from marimo._server.host.events import EditorNotifications, serialize_event
 from marimo._server.host.handover import Handover, Turn
 from marimo._server.host.translate import (
     RunTranslator,
@@ -73,7 +74,7 @@ _OPERATIONS = (
     "notebook.edit",
     "notebook.save",
     "runtime.run",
-    "runtime.input",
+    "input.reply",
     "runtime.execute",
     "runtime.interrupt",
     "runtime.cancel",
@@ -201,9 +202,7 @@ class WorkerBackend:
                 allow_stdin=allow_input,
             )
 
-        self._prepare(
-            RunTranslator(run_id, code), [code], build, scratchpad=True
-        )
+        self._prepare(RunTranslator(run_id), [code], build, scratchpad=True)
 
     def run_cells(
         self,
@@ -235,7 +234,7 @@ class WorkerBackend:
         # Dependents run too, so every cell's imports are loaded, each
         # on its own: a cell that does not parse hides no other's imports.
         self._prepare(
-            RunTranslator(run_id, None),
+            RunTranslator(run_id),
             [cell.code for cell in document],
             build,
         )
@@ -377,7 +376,10 @@ class WorkerBackend:
         notification = deserialize_kernel_message(message)
         for reported in variable_messages(notification):
             self._observe(reported)
-        translator, reports = self._translators.feed(notification)
+        translator, reports = self._translators.feed(
+            notification,
+            view=self._session.session_view,
+        )
         for reported in reports:
             self._observe(reported)
         if translator is None:
@@ -421,7 +423,7 @@ class PyodideNotebook:
                 project_id=project_id,
                 name=Path(filename).name if filename else "Untitled",
                 path=None,
-                updated_at=None,
+                modified_at=None,
                 operations=_OPERATIONS
                 if session.mode is SessionMode.EDIT
                 else (),
@@ -447,6 +449,7 @@ class PyodideNotebook:
             backend,
             sink,
             saved_etag=document.etag,
+            analyzer=HostAnalyzer(),
         )
         # The page starts the kernel; the notebook adopts it as its runtime.
         notebook.adopt(backend.attach)
@@ -496,6 +499,7 @@ class PyodideNotebook:
         subscription_id: str,
         cursor: str | None,
         emit: Callable[[str], None],
+        kinds: str | None = None,
     ) -> None:
         if self._closed:
             raise RuntimeError("The notebook is closed")
@@ -504,18 +508,26 @@ class PyodideNotebook:
             raise RuntimeError("The notebook is closed")
         self.refresh()
         self.unsubscribe(subscription_id)
+        wanted = set(kinds.split(",")) if kinds else None
+
+        notifications = EditorNotifications()
 
         def notify(notification: NotificationMessage) -> None:
-            emit(serialize_event(notification_event(self.id, notification)))
+            for event in notifications.events(
+                self.id, notification, self._session.session_view
+            ):
+                if event.wanted(wanted):
+                    emit(serialize_event(event))
 
         def consume(message: KernelMessage) -> None:
             notify(deserialize_kernel_message(message))
 
         # Snapshot and subscriptions are established in the same event-loop turn.
-        initial = self.host.events(cursor, notebook_id=self.id)
+        initial = self.host.events(cursor, notebook_id=self.id, kinds=wanted)
         unsubscribe = self.host.subscribe(
             lambda event: emit(serialize_event(event)),
             notebook_id=self.id,
+            kinds=wanted,
         )
         session = self._session
         session.consumers.append(consume)
@@ -536,7 +548,7 @@ class PyodideNotebook:
                     session.app_manager, view if session.instantiated else None
                 )
             )
-            for notification in view.snapshot_notifications():
+            for notification in view.snapshot_notifications(scope="editor"):
                 notify(notification)
         except BaseException:
             self.unsubscribe(subscription_id)

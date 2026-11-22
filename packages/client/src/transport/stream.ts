@@ -16,16 +16,16 @@ type ExtensionEvent<Name extends string> = Name extends unknown
  * for every stream. A kind the protocol does not define arrives with its data
  * unvalidated.
  */
-export type StreamEvent<K extends string = Protocol.ObjectTypeOutput> =
+export type StreamEvent<K extends string = Protocol.ObjectKindOutput> =
   | Extract<
       Protocol.EventOutput,
       { event: K | `${K}.removed` | "ready" | "reset" }
     >
-  | ExtensionEvent<Exclude<K, Protocol.ObjectTypeOutput>>;
+  | ExtensionEvent<Exclude<K, Protocol.ObjectKindOutput>>;
 
 /** What an `EventStream` delivers and where it starts. */
 export interface EventStreamOptions<
-  K extends string = Protocol.ObjectTypeOutput,
+  K extends string = Protocol.ObjectKindOutput,
 > {
   /**
    * The kinds to deliver.
@@ -33,7 +33,7 @@ export interface EventStreamOptions<
    * Omit it to deliver every kind this stream carries. Name a kind the
    * protocol does not define, such as `marimo`, to deliver it as well.
    */
-  readonly types?: readonly K[];
+  readonly kinds?: readonly K[];
   /**
    * Resume after this event id instead of starting with a snapshot.
    *
@@ -77,7 +77,7 @@ export function report(error: unknown): void {
  * - Kinds that were not requested keep their place in the stream without
  *   being delivered.
  */
-export class EventStream<const K extends string = Protocol.ObjectTypeOutput> {
+export class EventStream<const K extends string = Protocol.ObjectKindOutput> {
   #cursor: string | null;
   /** Whether events since the last reset have no cursor to resume from. */
   #rebuilding = false;
@@ -89,7 +89,7 @@ export class EventStream<const K extends string = Protocol.ObjectTypeOutput> {
     this.#wanted = new Set([
       "ready",
       "reset",
-      ...(init.types ?? kinds).flatMap((kind) => {
+      ...(init.kinds ?? kinds).flatMap((kind) => {
         const removed = `${kind}.removed`;
         return PROTOCOL_EVENTS.has(removed) ? [kind, removed] : [kind];
       }),

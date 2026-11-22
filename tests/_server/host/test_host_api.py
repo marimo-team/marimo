@@ -376,19 +376,19 @@ async def test_a_401_names_the_bearer_scheme(harness: Harness) -> None:
 
 
 @pytest.mark.parametrize("path", ["/events", "/notebooks/{id}/events"])
-@pytest.mark.parametrize("types", ["bogus", "notebook,bogus", "Notebook"])
-async def test_an_unknown_type_filter_is_a_400_problem(
-    harness: Harness, path: str, types: str
+@pytest.mark.parametrize("kinds", ["bogus", "notebook,bogus", "Notebook"])
+async def test_an_unknown_kind_filter_is_a_400_problem(
+    harness: Harness, path: str, kinds: str
 ) -> None:
     response = await finished(
         harness.app,
         "GET",
         path.replace("{id}", harness.notebook_id),
         headers=AUTH,
-        query=f"types={types}",
+        query=f"kinds={kinds}",
     )
     assert response.status == 400
-    assert "bogus" in response.json()["detail"] or types == "Notebook"
+    assert "bogus" in response.json()["detail"] or kinds == "Notebook"
 
 
 async def test_an_unknown_request_member_is_a_400_problem(
@@ -458,7 +458,7 @@ async def test_sse_heartbeats_do_not_end_the_subscription(
         "GET",
         f"/notebooks/{notebook.id}/events",
         headers=AUTH,
-        query="types=custom",
+        query="kinds=custom",
     )
     try:
         await wait_for(
@@ -496,7 +496,7 @@ async def test_the_catalog_stream_sends_a_snapshot_then_changes(
     await wait_for(response, lambda r: r.names()[-1] == "runtime")
     live = response.records[-1]
     assert position(harness.host, live["id"]) > position(harness.host, cursor)
-    assert live["data"]["runtime"]["status"] == "starting"
+    assert live["data"]["runtime"]["state"]["status"] == "starting"
     assert "time" in live["data"]
     disconnect()
 
@@ -546,7 +546,7 @@ async def test_catalog_refresh_delivers_updates_on_the_event_loop(
 
 async def test_types_and_cursors_apply_to_the_stream(harness: Harness) -> None:
     first, _, disconnect = request(
-        harness.app, "GET", "/events", headers=AUTH, query="types=notebook"
+        harness.app, "GET", "/events", headers=AUTH, query="kinds=notebook"
     )
     await wait_for(first, until_ready)
     assert first.names() == ["notebook", "ready"]
@@ -622,7 +622,7 @@ async def attachment_of(
         "GET",
         f"/notebooks/{harness.notebook_id}/events",
         headers=headers,
-        query="types=attachment",
+        query="kinds=attachment",
     )
     await wait_for(response, until_ready)
     assert response.names() == ["attachment", "ready"]
@@ -653,7 +653,7 @@ async def test_a_reconnect_with_one_identity_attaches_fresh(
 ) -> None:
     path = f"/notebooks/{harness.notebook_id}/events"
     first, first_task, disconnect_first = request(
-        harness.app, "GET", path, headers=IDENTIFIED, query="types=attachment"
+        harness.app, "GET", path, headers=IDENTIFIED, query="kinds=attachment"
     )
     await wait_for(first, until_ready)
     cursor = first.records[-1]["id"]
@@ -669,7 +669,7 @@ async def test_a_reconnect_with_one_identity_attaches_fresh(
         "GET",
         path,
         headers={**IDENTIFIED, "Last-Event-ID": cursor},
-        query="types=attachment",
+        query="kinds=attachment",
     )
     await wait_for(second, until_ready)
     assert second.names() == ["attachment.removed", "attachment", "ready"]
@@ -688,10 +688,10 @@ async def test_custom_events_use_their_own_sse_kind(
     notebook = await harness.host.notebook(harness.notebook_id)
     path = f"/notebooks/{notebook.id}/events"
     custom, custom_task, disconnect_custom = request(
-        harness.app, "GET", path, headers=AUTH, query="types=custom"
+        harness.app, "GET", path, headers=AUTH, query="kinds=custom"
     )
     attachments, attach_task, disconnect_attach = request(
-        harness.app, "GET", path, headers=AUTH, query="types=attachment"
+        harness.app, "GET", path, headers=AUTH, query="kinds=attachment"
     )
     await wait_for(custom, until_ready)
     await wait_for(attachments, until_ready)
@@ -739,7 +739,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
 
     started = await finished(app, "PUT", path, headers=key("k1"), body=b"{}")
     assert started.status == 202
-    assert started.json()["status"] == "starting"
+    assert started.json()["state"]["status"] == "starting"
     assert harness.backend().calls == [("start", started.json()["id"])]
 
     again = await finished(app, "PUT", path, headers=key("k2"), body=b"{}")
@@ -755,7 +755,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     )
     restart = await finished(app, "POST", path + "/restart", headers=key("k4"))
     assert restart.status == 202
-    assert restart.json()["status"] == "starting"
+    assert restart.json()["state"]["status"] == "starting"
     assert restart.json()["id"] != started.json()["id"]
 
     (await harness.host.notebook(nid)).observe(
@@ -766,7 +766,7 @@ async def test_runtime_lifecycle_over_http(harness: Harness) -> None:
     )
     stopped = await finished(app, "DELETE", path, headers=key("k5"))
     assert stopped.status == 202
-    assert stopped.json()["status"] == "terminating"
+    assert stopped.json()["state"]["status"] == "stopping"
     assert stopped.json()["id"] != started.json()["id"]
     assert stopped.json()["id"] == restart.json()["id"]
 
@@ -931,7 +931,7 @@ async def test_stop_settles_superseded_lifecycle_receipts(
 
 
 @pytest.mark.parametrize(
-    "operation", ["start", "stop", "restart", "failed-stop"]
+    "operation", ["start", "stop", "restart", "start-after-ended"]
 )
 async def test_synchronous_lifecycle_completion(
     harness: Harness, monkeypatch: pytest.MonkeyPatch, operation: str
@@ -940,7 +940,7 @@ async def test_synchronous_lifecycle_completion(
     if operation != "start":
         await harness.running()
     notebook = await harness.host.notebook(nid)
-    if operation == "failed-stop":
+    if operation == "start-after-ended":
         notebook.observe(be.Exited(runtime_id_of(notebook), "failed"))
     backend = harness.backend()
     start, stop = backend.start, backend.stop
@@ -956,7 +956,7 @@ async def test_synchronous_lifecycle_completion(
     monkeypatch.setattr(backend, "start", start_immediately)
     monkeypatch.setattr(backend, "stop", stop_immediately)
     listeners = list(harness.host._stream._listeners)
-    method = "PUT" if operation == "start" else "DELETE"
+    method = "PUT" if operation.startswith("start") else "DELETE"
     path = f"/notebooks/{nid}/runtime"
     if operation == "restart":
         method, path = "POST", path + "/restart"
@@ -1011,11 +1011,11 @@ async def test_run_filter_over_http(harness: Harness) -> None:
     notebook.observe(
         be.Planned(
             first.id,
-            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
+            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h"),),
         )
     )
     notebook.observe(
-        be.Completed(protocol.ExecutionId("e1"), protocol.ValueOutcome(None))
+        be.Completed(protocol.ExecutionId("e1"), protocol.SucceededOutcome())
     )
     notebook.observe(be.Done(first.id, "succeeded"))
     notebook.run("2", request_id="second", request=None)
@@ -1024,7 +1024,7 @@ async def test_run_filter_over_http(harness: Harness) -> None:
         "GET",
         f"/notebooks/{nid}/events",
         headers=AUTH,
-        query=f"run_id={first.id}&types=run",
+        query=f"run_id={first.id}&kinds=run",
     )
     try:
         await wait_for(response, until_ready)
@@ -1150,7 +1150,7 @@ async def test_runtime_interrupt_over_http(harness: Harness) -> None:
     accepted = await finished(app, "POST", interrupt, headers=key("i1"))
     assert accepted.status == 202
     assert accepted.json()["id"] == runtime_id_of(notebook)
-    assert accepted.json()["status"] == "running"
+    assert accepted.json()["state"]["status"] == "ready"
     assert harness.backend().calls[-1] == ("interrupt",)
 
     # A retry answers with the first acknowledgement and interrupts nothing.
@@ -1177,7 +1177,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     )
     assert accepted.status == 202
     run_id = accepted.json()["id"]
-    assert accepted.json()["status"] == "queued"
+    assert accepted.json()["state"] == {"status": "queued"}
     assert harness.backend().calls[-1] == ("run", run_id, "3 * 3")
 
     repeated = await finished(
@@ -1188,13 +1188,13 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     assert harness.backend().calls.count(("run", run_id, "3 * 3")) == 1
     notebook = await harness.host.notebook(nid)
     notebook.observe(
-        be.Planned(run_id, (be.PlannedExecution("e1", None, "hash", "3 * 3"),))
+        be.Planned(run_id, (be.PlannedExecution("e1", None, "hash"),))
     )
     notebook.observe(be.Started("e1"))
     running = await finished(
         app, "POST", execute, headers=key("r1"), body=body
     )
-    assert running.json()["status"] == "running"
+    assert running.json()["state"]["status"] == "running"
     reused = await finished(
         app,
         "POST",
@@ -1206,7 +1206,7 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
 
     queued = await finished(app, "POST", execute, headers=key("r2"), body=body)
     assert queued.status == 202
-    assert queued.json()["status"] == "queued"
+    assert queued.json()["state"] == {"status": "queued"}
     assert queued.json()["id"] != run_id
     assert harness.backend().calls[-1] == ("run", queued.json()["id"], "3 * 3")
 
@@ -1216,14 +1216,17 @@ async def test_scratch_runs_over_http(harness: Harness) -> None:
     assert interrupted.status == 202
     assert harness.backend().calls[-1] == ("cancel", run_id)
 
-    notebook.observe(be.Completed("e1", protocol.InterruptedOutcome()))
-    notebook.observe(be.Done(run_id, "interrupted"))
+    notebook.observe(be.Completed("e1", protocol.CancelledOutcome()))
+    notebook.observe(be.Done(run_id, "cancelled"))
     completed = await finished(
         app, "POST", execute, headers=key("r1"), body=body
     )
-    assert completed.json()["status"] == "completed"
-    assert completed.json()["outcome"] == "interrupted"
-    assert completed.json()["completed_at"] is not None
+    state = completed.json()["state"]
+    assert (state["status"], state["outcome"]["kind"]) == (
+        "completed",
+        "cancelled",
+    )
+    assert state["completed_at"] is not None
     late = await finished(app, "DELETE", f"{runs}/{run_id}", headers=key("i2"))
     assert late.status == 409
     missing = await finished(app, "DELETE", runs + "/zz", headers=key("i3"))
@@ -1314,7 +1317,7 @@ async def test_request_receipts_expire_independently_of_results(
     run_id = protocol.RunId(accepted.json()["id"])
     eid = protocol.ExecutionId("execution")
     notebook.observe(
-        be.Planned(run_id, (be.PlannedExecution(eid, cell_id, "hash", "42"),))
+        be.Planned(run_id, (be.PlannedExecution(eid, cell_id, "hash"),))
     )
     notebook.observe(be.Started(eid))
     harness.now = 100
@@ -1322,8 +1325,8 @@ async def test_request_receipts_expire_independently_of_results(
         harness.app, "POST", execute, headers=key("run"), body=body
     )
     assert active.json()["id"] == run_id
-    assert active.json()["status"] == "running"
-    notebook.observe(be.Completed(eid, protocol.ValueOutcome(None)))
+    assert active.json()["state"]["status"] == "running"
+    notebook.observe(be.Completed(eid, protocol.SucceededOutcome()))
     notebook.observe(be.Done(run_id, "succeeded"))
     harness.now = 129
     harness.host.expire()
@@ -1331,8 +1334,8 @@ async def test_request_receipts_expire_independently_of_results(
         harness.app, "POST", execute, headers=key("run"), body=body
     )
     assert replayed.json()["id"] == run_id
-    assert replayed.json()["status"] == "completed"
-    assert replayed.json()["outcome"] == "succeeded"
+    assert replayed.json()["state"]["status"] == "completed"
+    assert replayed.json()["state"]["outcome"]["kind"] == "succeeded"
     assert any(
         isinstance(
             event.event,
@@ -1737,8 +1740,18 @@ async def test_the_notebook_stream_carries_cells_then_the_document(
     assert analysis["notebook_id"] == harness.notebook_id
     assert analysis["document_etag"] == document["etag"]
     assert analysis["cells"] == {
-        first["id"]: {"defs": ["x"], "refs": [], "errors": []},
-        second["id"]: {"defs": ["y"], "refs": ["x"], "errors": []},
+        first["id"]: {
+            "defs": ["x"],
+            "refs": [],
+            "diagnostics": [],
+            "parents": [],
+        },
+        second["id"]: {
+            "defs": ["y"],
+            "refs": ["x"],
+            "diagnostics": [],
+            "parents": [first["id"]],
+        },
     }
 
     # A filtered stream is a snapshot of the document alone, and a second
@@ -1748,7 +1761,7 @@ async def test_the_notebook_stream_carries_cells_then_the_document(
         "GET",
         f"/notebooks/{harness.notebook_id}/events",
         headers=AUTH,
-        query="types=cell,document",
+        query="kinds=cell,document",
     )
     await wait_for(response, until_ready)
     disconnect()
@@ -1826,7 +1839,6 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
 ) -> None:
     stream, disconnect = await opened(harness)
     document = first_record(stream, "document")["document"]
-    first_id = document["order"][0]
     # The first revision's analysis arrives off the event loop.
     await wait_for(stream, lambda r: "analysis" in r.names())
     seen = len(stream.records)
@@ -1838,9 +1850,7 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
         headers=key("edit-1"),
         body=edit_body(
             {
-                "kind": "put_cell",
-                "base_etag": None,
-                "after": first_id,
+                "kind": "create_cell",
                 "cell": {"id": "fresh", "code": "z = 3"},
             }
         ),
@@ -1848,7 +1858,7 @@ async def test_an_edit_reaches_the_stream_as_one_unit(
     assert edited.status == 200, edited.body
     response = edited.json()
     assert set(response["cells"]) == {"fresh"}
-    assert response["document"]["order"][1] == "fresh"
+    assert response["document"]["order"] == [*document["order"], "fresh"]
     assert response["document"]["saved_etag"] == document["etag"]
     assert response["document"]["etag"] != document["etag"]
 
@@ -1882,12 +1892,11 @@ async def test_a_stale_etag_fails_the_precondition_and_changes_nothing(
         headers=key("edit-stale"),
         body=edit_body(
             {
-                "kind": "put_cell",
-                "base_etag": None,
+                "kind": "create_cell",
                 "cell": {"id": "new", "code": "1"},
             },
             {
-                "kind": "put_cell",
+                "kind": "replace_cell",
                 "base_etag": "0000000000000000",
                 "cell": {"id": cell["id"], "code": "x = 99"},
             },
@@ -1923,8 +1932,6 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
     harness: Harness,
 ) -> None:
     stream, disconnect = await opened(harness)
-    document = first_record(stream, "document")["document"]
-    first_id = document["order"][0]
     edited = await finished(
         harness.app,
         "POST",
@@ -1932,9 +1939,7 @@ async def test_save_writes_the_file_and_reports_the_saved_revision(
         headers=key("edit-1"),
         body=edit_body(
             {
-                "kind": "put_cell",
-                "base_etag": None,
-                "after": first_id,
+                "kind": "create_cell",
                 "cell": {"id": "fresh", "code": "z = 3"},
             }
         ),
@@ -2025,8 +2030,7 @@ async def test_edits_during_a_save_remain_unsaved(
             headers=key("edit-during-save"),
             body=edit_body(
                 {
-                    "kind": "put_cell",
-                    "base_etag": None,
+                    "kind": "create_cell",
                     "cell": {"id": "new", "code": "new_value = 42"},
                 }
             ),
@@ -2058,7 +2062,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
         headers=key("edit-1"),
         body=edit_body(
             {
-                "kind": "put_cell",
+                "kind": "replace_cell",
                 "base_etag": cell["etag"],
                 "cell": {"id": cell["id"], "code": "x = 99"},
             }
@@ -2108,7 +2112,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
         headers=key("edit-2"),
         body=edit_body(
             {
-                "kind": "put_cell",
+                "kind": "replace_cell",
                 "base_etag": "*",
                 "cell": {"id": cell["id"], "code": "x = 100"},
             }
@@ -2123,7 +2127,10 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
 
     # The host's own writes are not changes, even when the file does not
     # read back as written: a new cell's id is not stored in the file.
-    for n, base, code in ((6, None, "y = 1\n\n"), (7, "*", "y = 2")):
+    for n, change, code in (
+        (6, {"kind": "create_cell"}, "y = 1\n\n"),
+        (7, {"kind": "replace_cell", "base_etag": "*"}, "y = 2"),
+    ):
         edited = await finished(
             harness.app,
             "POST",
@@ -2131,8 +2138,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
             headers=key(f"edit-{n}"),
             body=edit_body(
                 {
-                    "kind": "put_cell",
-                    "base_etag": base,
+                    **change,
                     "cell": {"id": "fresh", "code": code},
                 }
             ),
@@ -2141,7 +2147,7 @@ async def test_a_file_changed_outside_marimo_needs_a_decision(
         assert (await save(f"save-{n}", b"{}")).status == 200
 
 
-@pytest.mark.parametrize("query", ["", "types=marimo"])
+@pytest.mark.parametrize("query", ["", "kinds=marimo"])
 async def test_marimo_notifications_use_their_own_sse_kind(
     harness: Harness, query: str
 ) -> None:
@@ -2180,7 +2186,7 @@ async def test_marimo_notifications_use_their_own_sse_kind(
 
 
 @pytest.mark.parametrize(
-    "query", ["", "?types=marimo", "?types=marimo&run_id=r1"]
+    "query", ["", "?kinds=marimo", "?kinds=marimo&run_id=r1"]
 )
 def test_websocket_delivers_live_events(harness: Harness, query: str) -> None:
     with TestClient(
@@ -2377,7 +2383,7 @@ def test_editor_authentication_is_limited_to_notebook_events_and_operations(
         path = f"{base_url}{HOST_API_PATH}/notebooks/{notebook.id}"
         separator = "&" if query else "?"
         with client.websocket_connect(
-            f"ws://{authority}{path}/events/ws{query}{separator}types=marimo"
+            f"ws://{authority}{path}/events/ws{query}{separator}kinds=marimo"
         ) as websocket:
             socket_snapshot(websocket)
             payload = MarimoMessage(CompletedRunNotification(run_id="r1"))
@@ -2406,8 +2412,7 @@ def test_editor_authentication_is_limited_to_notebook_events_and_operations(
             },
             content=edit_body(
                 {
-                    "kind": "put_cell",
-                    "base_etag": None,
+                    "kind": "create_cell",
                     "cell": {"id": "fresh", "code": "z = 3"},
                 }
             ),
@@ -2551,7 +2556,7 @@ def test_event_socket_respects_disabled_editor_authentication(
 @pytest.mark.parametrize(
     ("query", "headers", "reason"),
     [
-        ("?types=bogus", AUTH, "Invalid event types"),
+        ("?kinds=bogus", AUTH, "Invalid event kinds"),
         ("?run_id=", AUTH, "run_id must not be empty"),
         ("?cursor=", AUTH, "Invalid event cursor"),
         ("?cursor=1", {**AUTH, "Last-Event-ID": "2"}, "Invalid event cursor"),

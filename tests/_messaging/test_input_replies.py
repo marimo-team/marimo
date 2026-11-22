@@ -54,6 +54,16 @@ def test_late_reply_cannot_answer_a_new_prompt() -> None:
         stream.buffered_console_thread.join(timeout=1)
 
 
+def test_input_outside_execution_raises_eof_without_publishing_a_prompt() -> (
+    None
+):
+    pipe = Mock()
+    stream = ThreadSafeStream(pipe, Queue(), False, CellId_t("cell"))
+    with pytest.raises(EOFError, match="running execution"):
+        ThreadSafeStdin(stream)._readline_with_prompt("Callback")
+    pipe.send.assert_not_called()
+
+
 def test_completed_execution_cannot_request_input() -> None:
     pipe = Mock()
     stream = ThreadSafeStream(pipe, Queue(), False, CellId_t("cell"))

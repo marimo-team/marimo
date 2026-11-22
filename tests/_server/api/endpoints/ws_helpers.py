@@ -104,15 +104,15 @@ QUERY_PARAMS_CASES = [
     (
         urlencode(
             {
-                "query_params": "types=scatter&cursor=page-2&run_id=experiment"
+                "query_params": "kinds=scatter&cursor=page-2&run_id=experiment"
                 "&query_params=nested%3Dvalue%26other%3D1&tag=one&tag=two"
                 "&empty=&text=a%2Bb+%26+caf%C3%A9"
                 "&access_token=secret&refresh_token=secret&session_id=page-session"
             }
         )
-        + "&types=marimo&foo=ignored",
+        + "&kinds=marimo&foo=ignored",
         {
-            "types": "scatter",
+            "kinds": "scatter",
             "cursor": "page-2",
             "run_id": "experiment",
             "query_params": "nested=value&other=1",
@@ -121,5 +121,5 @@ QUERY_PARAMS_CASES = [
             "text": "a+b & café",
         },
     ),
-    ("types=marimo&cursor=expired&foo=1", {}),
+    ("kinds=marimo&cursor=expired&foo=1", {}),
 ]

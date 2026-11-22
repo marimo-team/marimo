@@ -70,7 +70,7 @@ async def _session_events(
     connection: WebSocket | Request, params: ConnectionParams
 ) -> SessionEventStream:
     cursor = stream_options.cursor(connection)
-    types = stream_options.types(connection)
+    kinds = stream_options.kinds(connection)
     if "run_id" in connection.query_params:
         raise ValueError("Session streams do not support run_id filtering")
     context = await ensure_host(connection.app)
@@ -80,7 +80,7 @@ async def _session_events(
         bridge=context.bridge,
         manager=AppState(connection).session_manager,
         params=params,
-        types=types,
+        kinds=kinds,
         cursor=cursor,
     )
 

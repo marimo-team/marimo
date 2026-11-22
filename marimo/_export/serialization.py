@@ -22,6 +22,7 @@ def serialize_notebook_snapshot(
         session=serialize_session_view(
             session_view,
             cell_ids=app.cell_manager.cell_ids(),
+            for_display=True,
             drop_virtual_file_outputs=drop_virtual_file_outputs,
         ),
         model_notifications=(

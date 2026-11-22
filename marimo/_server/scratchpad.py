@@ -336,8 +336,7 @@ def build_done_event(
     response — `done` carries only the success bit plus the scratch
     cell's rendered output on success (empty on failure).
     """
-    cell_notif = session.session_view.cell_notifications.get(SCRATCH_CELL_ID)
-    output = cell_notif.output if cell_notif is not None else None
+    output = session.session_view.current_execution_output(SCRATCH_CELL_ID)
 
     scratch_errored = (
         output is not None and output.channel == CellChannel.MARIMO_ERROR
@@ -365,9 +364,10 @@ def extract_result(
     if cell_notif is None:
         return CodeExecutionResult(success=True)
 
+    output = session.session_view.current_execution_output(SCRATCH_CELL_ID)
     output_data = None
-    if cell_notif.output is not None:
-        data = cell_notif.output.data
+    if output is not None:
+        data = output.data
         if isinstance(data, str):
             output_data = data
         elif isinstance(data, dict):
@@ -388,10 +388,8 @@ def extract_result(
             stderr.append(str(out.data))
 
     errors: list[str] = []
-    if cell_notif.output is not None and isinstance(
-        cell_notif.output.data, list
-    ):
-        for err in cell_notif.output.data:
+    if output is not None and isinstance(output.data, list):
+        for err in output.data:
             errors.append(str(getattr(err, "msg", None) or err))
 
     # Include child cell error summaries.
@@ -402,11 +400,7 @@ def extract_result(
     return CodeExecutionResult(
         success=len(errors) == 0,
         output=output_data,
-        output_mimetype=(
-            cell_notif.output.mimetype
-            if cell_notif.output is not None
-            else None
-        ),
+        output_mimetype=output.mimetype if output is not None else None,
         stdout=stdout,
         stderr=stderr,
         errors=errors,

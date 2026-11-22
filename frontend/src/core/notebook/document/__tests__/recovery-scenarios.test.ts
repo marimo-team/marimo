@@ -3,6 +3,35 @@
 import { vi } from "vitest";
 import { test } from "./scenario-fixture";
 
+test("keeps a split of the last cell together across a concurrent append", async ({
+  expect,
+  session: { user, host },
+}) => {
+  user.changeCode("k7f2", "y = x");
+  user.createCell({ id: "split", code: "y *= 2" }, { after: "k7f2" });
+  const synced = user.sync();
+  const request = await host.nextRequest();
+
+  host.createCell({ id: "remote", code: "z = 0" });
+  const remote = host.document();
+  request.process();
+  expect(host.document()).toEqual(remote);
+  host.deliverDocument();
+  request.deliverResponse();
+  await expect(synced).rejects.toThrow("conflict");
+
+  const retried = user.retry();
+  const retry = await host.nextRequest();
+  retry.process();
+  retry.deliverResponse();
+  host.deliverDocument();
+  const { cells, revision } = host.document();
+  await expect(retried).resolves.toEqual(revision);
+  expect(revision.order).toEqual(["c1", "c3", "k7f2", "split", "remote"]);
+  expect(cells.get("k7f2")?.code).toBe("y = x");
+  expect(cells.get("split")?.code).toBe("y *= 2");
+});
+
 test.for(["response", "document"] as const)(
   "keeps a conflicting batch intact and retries explicitly with %s first",
   async (first, { expect, session: { user, host, notebook } }) => {

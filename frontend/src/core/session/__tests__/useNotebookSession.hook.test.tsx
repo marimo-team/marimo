@@ -40,13 +40,26 @@ import { Deferred } from "@/utils/Deferred";
 import { cellId } from "@/__tests__/branded";
 import { alertAtom, getPackageAlert } from "@/core/alerts/state";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { cellRuntimeAtom } from "@/core/cells/cells";
+import { clearCellConsoleOutputAtom } from "@/core/cells/actions";
 import { notebookAtom } from "@/core/cells/cells";
-import { breakpointsAtom } from "@/core/codemirror/cells/debugger-state";
+import { SCRATCH_CELL_ID } from "@/core/cells/ids";
+import {
+  breakpointsAtom,
+  pendingPdbInputAtom,
+} from "@/core/codemirror/cells/debugger-state";
 import { AppConfigSchema } from "@/core/config/config-schema";
+import { hasBlockingStdinAtom } from "@/components/editor/stdin-blocking-alert";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { cellExecutionInputsAtom, cellExecutionView } from "@/core/executions";
+import {
+  cell,
+  CONFIG,
+  document as documentOf,
+} from "@/core/notebook/document/__tests__/fixtures";
 import { initialRunCompletedAtom } from "../../kernel/state";
 import { connectionAtom, startupProgressAtom } from "../../network/connection";
 import { generateSessionId } from "../../kernel/session";
@@ -59,6 +72,8 @@ import {
   fixtureEvents,
   fixtureMessages,
 } from "../../notebook/replica/__tests__/fixtures";
+import { MockExecutions } from "@/__mocks__/executions";
+import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { useNotebookSession } from "../useNotebookSession";
 import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 
@@ -344,6 +359,84 @@ describe("useNotebookSession messages", () => {
     act(() => connection(fake).receive(payload));
   }
 
+  it("keeps the last blocked indicator across edits until the host replaces the graph", () => {
+    const revision = documentOf().revision;
+    const graph = { a: [], b: ["a"], c: ["b"], d: [] };
+    function publish(version: number) {
+      const codes = {
+        a: "x = 1",
+        b: version < 3 ? "y = x" : "y = 0",
+        c: "print(y)",
+        d: version === 1 ? "0" : "1",
+      };
+      for (const [id, code] of Object.entries(codes)) {
+        const record = cell(id, code, {
+          version,
+          etag: id + version,
+          config: { ...CONFIG, disabled: id === "a" },
+        });
+        receive({ event: "cell", data: { cell: record } });
+      }
+      const document = {
+        ...revision,
+        version,
+        etag: String(version),
+        order: Object.keys(graph),
+      };
+      receive({ event: "document", data: { document } });
+    }
+    function analyze(
+      version: number,
+      parents: Record<string, string[]> | null,
+    ) {
+      const analysis = {
+        notebook_id: revision.notebook_id,
+        document_etag: String(version),
+        cells: Object.fromEntries(
+          Object.keys(graph).map((id) => [
+            id,
+            {
+              defs: [],
+              refs: [],
+              diagnostics: [],
+              ...(parents && { parents: parents[id] }),
+            },
+          ]),
+        ),
+      };
+      receive({ event: "analysis", data: { analysis } });
+    }
+
+    receive({
+      event: "notebook",
+      data: { notebook: MockExecutions.notebook() },
+    });
+    publish(1);
+    receive({ event: "ready", id: "1", data: {} });
+    const blocked = () => store.get(cellExecutionInputsAtom).blocked;
+    expect(blocked().size).toBe(0);
+    analyze(1, null);
+    expect(blocked().size).toBe(0);
+    analyze(1, graph);
+    expect(blocked()).toEqual(new Set(["b", "c"]));
+
+    const badge = () =>
+      cellExecutionView(store.get(cellExecutionInputsAtom), "b").shownBlock;
+    expect(badge()).toBe("current");
+    publish(2);
+    expect(blocked().size).toBe(0);
+    expect(badge()).toBe("stale");
+    analyze(2, graph);
+    expect(badge()).toBe("current");
+
+    publish(3);
+    analyze(2, graph);
+    expect(badge()).toBe("stale");
+    analyze(3, { ...graph, b: [] });
+    expect(badge()).toBeNull();
+    expect(blocked().size).toBe(0);
+  });
+
   it("records completion of the initial run", () => {
     const notification = {
       op: "completed-run",
@@ -455,6 +548,653 @@ it("does not mark the session connected on kernel-ready alone", async () => {
     }),
   );
   expect(store.get(connectionAtom).state).toBe(ConnectionState.CONNECTING);
+});
+
+it.each(["", "latest"])(
+  "restores only the latest scratch console (%j) on resume and reset",
+  async (text) => {
+    const store = createStore();
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    renderConnectionHook(store);
+    await started();
+    const conn = connection(fake);
+    const rows = () =>
+      store
+        .get(cellRuntimeAtom(SCRATCH_CELL_ID))
+        .consoleOutputs.map((entry) => entry.data);
+    await act(async () => conn.open());
+    act(() => {
+      for (const frame of fixtureMessages("notebook-events.sse")) {
+        conn.receive(frame);
+      }
+    });
+    expect(rows()).toEqual(["2\n"]);
+    const scratch = {
+      ...MockExecutions.execution(null, {
+        status: "completed",
+        depends_on: {},
+        outcome: { kind: "succeeded" },
+        started_at: "2026-10-01T09:21:01Z",
+        completed_at: "2026-10-01T09:21:02Z",
+      }),
+      id: "second-scratch",
+    };
+    act(() => {
+      conn.receive({
+        event: "execution",
+        data: {
+          execution: {
+            ...scratch,
+            state: {
+              status: "running",
+              started_at: "2026-10-01T09:21:01Z",
+            },
+          },
+        },
+      });
+      if (text) {
+        conn.receive({
+          event: "console",
+          data: {
+            console: {
+              id: "second-line",
+              execution_id: scratch.id,
+              seq: 0,
+              content: { kind: "text", stream: "stdout", text },
+            },
+          },
+        });
+      }
+      conn.receive({ event: "execution", data: { execution: scratch } });
+    });
+    expect(rows()).toEqual(text ? [text] : []);
+    const kernelReady = () =>
+      conn.send({
+        op: "kernel-ready",
+        resumed: true,
+        ui_values: {},
+        layout: null,
+        app_config: { width: "normal" },
+        kiosk: false,
+        capabilities: {},
+        consumer_capabilities: { edit: true, interact: true },
+      });
+    act(kernelReady);
+    expect(rows()).toEqual(text ? [text] : []);
+    act(() => {
+      conn.receive({ event: "reset", data: {} });
+      for (const frame of fixtureMessages("notebook-events.sse")) {
+        if (!["run", "execution", "console"].includes(frame.event)) {
+          conn.receive(frame);
+        }
+        if (frame.event === "ready") {
+          break;
+        }
+      }
+      kernelReady();
+    });
+    expect(rows()).toEqual(text ? [text] : []);
+  },
+);
+
+it("keeps a browser-cleared console hidden when the running execution is replayed", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  const rows = () =>
+    store
+      .get(cellRuntimeAtom(SCRATCH_CELL_ID))
+      .consoleOutputs.map((row) => row.data);
+  await act(async () => conn.open());
+  act(() => conn.ready());
+  expect(rows()).toEqual(["2\n"]);
+  act(() => {
+    store.set(clearCellConsoleOutputAtom, { cellId: SCRATCH_CELL_ID });
+    conn.receive({ event: "reset", data: {} });
+    conn.ready();
+    conn.send({
+      op: "kernel-ready",
+      resumed: true,
+      ui_values: {},
+      layout: null,
+      app_config: { width: "normal" },
+      kiosk: false,
+      capabilities: {},
+      consumer_capabilities: { edit: true, interact: true },
+    });
+  });
+  expect(rows()).toEqual([]);
+  act(() =>
+    conn.receive({
+      event: "console",
+      data: {
+        console: {
+          id: "new-line",
+          execution_id: "e7",
+          seq: 1,
+          content: { kind: "text", stream: "stdout", text: "after the clear" },
+        },
+      },
+    }),
+  );
+  expect(rows()).toEqual(["after the clear"]);
+});
+
+it.each(["browser", "kernel"])(
+  "keeps rows cleared by the %s hidden when a prompt is answered",
+  async (source) => {
+    const store = createStore();
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    renderConnectionHook(store);
+    await started();
+    const conn = connection(fake);
+    const cell = cellId("c1");
+    const execution = MockExecutions.running(cell);
+    const first = {
+      id: "first",
+      seq: 0,
+      execution_id: execution.id,
+      prompt: "first?",
+      password: false,
+      status: "answered",
+    };
+    const second = {
+      ...first,
+      id: "second",
+      seq: 1,
+      prompt: "second?",
+      status: "pending",
+    };
+    const cleared = {
+      op: "console-inputs-cleared",
+      cell_id: cell,
+      execution_id: execution.id,
+      input_ids: [first.id],
+    };
+    const rows = () => store.get(cellRuntimeAtom(cell)).consoleOutputs;
+    await act(async () => conn.open());
+    act(() => {
+      conn.ready();
+      conn.receive({ event: "execution", data: { execution } });
+      conn.receive({ event: "input", data: { input: first } });
+      conn.receive({ event: "input", data: { input: second } });
+      if (source === "browser") {
+        store.set(clearCellConsoleOutputAtom, { cellId: cell });
+      } else {
+        conn.send(cleared);
+      }
+    });
+    expect(store.get(hasBlockingStdinAtom)).toBe(true);
+    expect(rows()).toMatchObject([{ input_id: "second", response: undefined }]);
+    act(() =>
+      conn.receive({
+        event: "input",
+        data: { input: { ...second, status: "answered" } },
+      }),
+    );
+    expect(store.get(hasBlockingStdinAtom)).toBe(false);
+    expect(rows()).toMatchObject([{ input_id: "second", response: null }]);
+    if (source === "browser") {
+      return;
+    }
+    act(() => {
+      conn.send({
+        op: "kernel-ready",
+        resumed: true,
+        ui_values: {},
+        layout: null,
+        app_config: { width: "normal" },
+        kiosk: false,
+        capabilities: {},
+        consumer_capabilities: { edit: true, interact: true },
+      });
+      conn.send(cleared);
+    });
+    expect(rows()).toMatchObject([{ input_id: "second", response: null }]);
+  },
+);
+
+it.each(["callback-output", "pdb-output"] as const)(
+  "keeps cleared %s writes hidden on replay and shows later identical writes",
+  async (op) => {
+    const store = createStore();
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    renderConnectionHook(store);
+    await started();
+    const conn = connection(fake);
+    const cell = cellId("c1");
+    const rows = () =>
+      store.get(cellRuntimeAtom(cell)).consoleOutputs.map((row) => row.data);
+    const send = (replace: boolean, ...ids: string[]) =>
+      conn.send({
+        op,
+        cell_id: cell,
+        replace,
+        after_seq: ids.map(() => 0),
+        entries: ids.map((command_id) => ({
+          command_id,
+          channel: "stdout",
+          mimetype: "text/plain",
+          data: "same",
+          timestamp: 1,
+        })),
+      });
+    await act(async () => conn.open());
+    act(() => {
+      conn.ready();
+      send(false, "one");
+      store.set(clearCellConsoleOutputAtom, { cellId: cell });
+    });
+    expect(rows()).toEqual([]);
+    act(() => {
+      conn.receive({ event: "reset", data: {} });
+      conn.ready();
+      conn.send({
+        op: "kernel-ready",
+        resumed: true,
+        ui_values: {},
+        layout: null,
+        app_config: { width: "normal" },
+        kiosk: false,
+        capabilities: {},
+        consumer_capabilities: { edit: true, interact: true },
+      });
+      send(true, "one", "two");
+    });
+    expect(rows()).toEqual(["same"]);
+    act(() => {
+      store.set(clearCellConsoleOutputAtom, { cellId: cell });
+      // The host cleared its transcript while this editor was disconnected.
+      send(true, "three");
+    });
+    expect(rows()).toEqual(["same"]);
+  },
+);
+
+it.each(["live", "replay"])(
+  "interleaves %s command output with untimed execution items",
+  async (mode) => {
+    const store = createStore();
+    const fake = withTransport();
+    vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+    renderConnectionHook(store);
+    await started();
+    const conn = connection(fake);
+    const id = cellId("c1");
+    const execution = { ...MockExecutions.completed(id), id: "mixed-writes" };
+    const line = (seq: number, text: string) => ({
+      event: "console",
+      data: {
+        console: {
+          id: `line-${seq}`,
+          execution_id: execution.id,
+          seq,
+          content: { kind: "text", stream: "stdout", text },
+        },
+      },
+    });
+    const rows = () =>
+      store.get(cellRuntimeAtom(id)).consoleOutputs.map((row) => row.data);
+    await act(async () => conn.open());
+    act(() => {
+      for (const event of fixtureMessages("notebook-events.sse")) {
+        if (event.event === "ready") {
+          conn.receive({ event: "execution", data: { execution } });
+          conn.receive(line(0, "A"));
+          if (mode === "replay") {
+            conn.receive(line(1, "C"));
+          }
+          conn.receive(event);
+          break;
+        }
+        conn.receive(event);
+      }
+      conn.send({
+        op: "callback-output",
+        cell_id: id,
+        replace: mode === "replay",
+        entries: [
+          {
+            channel: "stdout",
+            mimetype: "text/plain",
+            data: "B",
+            timestamp: 2_000_000_000,
+          },
+        ],
+        after_seq: [0],
+      });
+      if (mode === "live") {
+        conn.receive(line(1, "C"));
+      }
+    });
+    expect(rows()).toEqual(["ABC"]);
+    act(() => {
+      conn.receive({ event: "console.removed", data: { id: "line-0" } });
+      conn.receive({ event: "console.removed", data: { id: "line-1" } });
+      conn.receive(line(2, "D"));
+    });
+    expect(rows()).toEqual(["BD"]);
+  },
+);
+
+it("replays execution, debugger, and callback output independently", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  const id = cellId("c1");
+  const execution = { ...MockExecutions.failed(id), id: "failed-cell" };
+  const line = {
+    id: "line",
+    execution_id: execution.id,
+    seq: 0,
+    content: { kind: "text", stream: "stdout", text: "before pdb" },
+  };
+  const input = {
+    id: "request",
+    execution_id: execution.id,
+    seq: 1,
+    prompt: "secret?",
+    password: true,
+    status: "answered",
+  };
+  const afterExecution = Date.parse(MockExecutions.T1) / 1000;
+  const session = {
+    op: "pdb-output",
+    cell_id: id,
+    entries: [
+      {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "pdb reply",
+        timestamp: afterExecution + 1,
+      },
+    ],
+    replace: true,
+  };
+  const runtime = () => store.get(cellRuntimeAtom(id));
+  await act(async () => conn.open());
+  act(() => {
+    for (const frame of fixtureMessages("notebook-events.sse")) {
+      if (frame.event === "ready") {
+        conn.receive({ event: "execution", data: { execution } });
+        conn.receive({ event: "console", data: { console: line } });
+        conn.receive({ event: "input", data: { input } });
+        conn.receive(frame);
+        break;
+      }
+      conn.receive(frame);
+    }
+    conn.send({
+      op: "kernel-ready",
+      resumed: true,
+      ui_values: {},
+      layout: null,
+      app_config: { width: "normal" },
+      kiosk: false,
+      capabilities: {},
+      consumer_capabilities: { edit: true, interact: true },
+    });
+    conn.send({
+      ...session,
+      entries: [
+        session.entries[0],
+        {
+          ...session.entries[0],
+          data: "next pdb reply",
+          timestamp: afterExecution + 3,
+        },
+      ],
+    });
+    conn.send({
+      ...session,
+      op: "callback-output",
+      entries: [
+        {
+          ...session.entries[0],
+          data: "callback reply",
+          timestamp: afterExecution + 2,
+        },
+      ],
+    });
+    conn.send({
+      ...session,
+      entries: [
+        session.entries[0],
+        {
+          ...session.entries[0],
+          data: "next pdb reply",
+          timestamp: afterExecution + 3,
+        },
+      ],
+    });
+  });
+  expect(runtime().consoleOutputs.map((v) => v.data)).toEqual([
+    "before pdb",
+    "secret?",
+    "pdb replycallback replynext pdb reply",
+  ]);
+  expect(runtime().consoleOutputs[1].response).toBeNull();
+  act(() =>
+    conn.receive({
+      event: "console",
+      data: {
+        console: { ...line, content: { ...line.content, text: "replaced" } },
+      },
+    }),
+  );
+  expect(runtime().consoleOutputs.map((v) => v.data)).toEqual([
+    "replaced",
+    "secret?",
+    "pdb replycallback replynext pdb reply",
+  ]);
+  act(() => conn.receive({ event: "console.removed", data: { id: line.id } }));
+  await vi.waitFor(() =>
+    expect(runtime().consoleOutputs.map((v) => v.data)).toEqual([
+      "secret?",
+      "pdb replycallback replynext pdb reply",
+    ]),
+  );
+});
+
+it.each([
+  "live removal",
+  "snapshot without an execution",
+  "snapshot with an empty execution",
+])("discards the previous execution console on %s", async (transition) => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  const cell = cellId("c1");
+  const execution = { ...MockExecutions.completed(cell), id: "previous-run" };
+  const runtime = () => store.get(cellRuntimeAtom(cell));
+  await act(async () => conn.open());
+  act(() => {
+    conn.ready();
+    conn.receive({ event: "execution", data: { execution } });
+    conn.receive({
+      event: "console",
+      data: {
+        console: {
+          id: "old-line",
+          execution_id: execution.id,
+          seq: 0,
+          content: { kind: "text", stream: "stdout", text: "previous run" },
+        },
+      },
+    });
+    conn.send({
+      op: "callback-output",
+      cell_id: cell,
+      entries: [
+        {
+          channel: "stdout",
+          mimetype: "text/plain",
+          data: "callback",
+          timestamp: 1,
+        },
+      ],
+    });
+  });
+  expect(runtime().consoleOutputs.map((output) => output.data)).toEqual([
+    "callbackprevious run",
+  ]);
+  act(() => {
+    if (transition === "live removal") {
+      conn.receive({ event: "execution.removed", data: { id: execution.id } });
+      return;
+    }
+    conn.receive({ event: "reset", data: {} });
+    for (const event of fixtureMessages("notebook-events.sse")) {
+      if (
+        event.event === "ready" &&
+        transition === "snapshot with an empty execution"
+      ) {
+        conn.receive({
+          event: "execution",
+          data: { execution: { ...execution, id: "replacement" } },
+        });
+      }
+      conn.receive(event);
+      if (event.event === "ready") {
+        break;
+      }
+    }
+  });
+  expect(runtime().consoleOutputs.map((output) => output.data)).toEqual([
+    "callback",
+  ]);
+});
+
+it("clears the private debugger prompt and transcript when editing moves to another tab", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  const id = cellId("c1");
+  const entry = {
+    channel: "stdout",
+    mimetype: "text/plain",
+    data: "public callback",
+    timestamp: 1,
+  };
+  await act(async () => conn.open());
+  act(() => {
+    conn.ready();
+    conn.send({ op: "callback-output", cell_id: id, entries: [entry] });
+    conn.send({
+      op: "pdb-output",
+      cell_id: id,
+      entries: [{ ...entry, data: "private debugger", timestamp: 2 }],
+    });
+    conn.send({ op: "pdb-input", cell_id: id, input_id: "pending" });
+  });
+  const rows = () =>
+    store.get(cellRuntimeAtom(id)).consoleOutputs.map((row) => row.data);
+  expect(rows()?.join("")).toContain("private debugger");
+  expect(store.get(pendingPdbInputAtom)?.inputId).toBe("pending");
+  act(() =>
+    conn.send({
+      op: "consumer-capabilities",
+      consumer_capabilities: { edit: false, interact: true },
+    }),
+  );
+  expect(rows()).toEqual(["public callback"]);
+  act(() => {
+    conn.send({ op: "pdb-output", cell_id: id, entries: [entry] });
+    conn.send({ op: "callback-output", cell_id: id, entries: [] });
+  });
+  expect(rows()).toEqual([]);
+  expect(
+    store.get(notebookAtom).cellLogs.map((log) => log.message),
+  ).not.toContain("private debugger");
+  expect(store.get(pendingPdbInputAtom)).toBeNull();
+});
+
+it("collects exported files from execution outputs and public callback media", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  await act(async () => conn.open());
+  act(() => conn.ready());
+  const id = cellId("c1");
+  const file = "/@file/stream-image.png";
+  const callbackFile = "/@file/callback-image.png";
+  const previousFile = "/@file/previous-callback.png";
+  const debuggerFile = "/@file/debugger-image.png";
+  const [execution, output] = MockExecutions.shown(id, {
+    mimetype: "text/html",
+    data: `<img src="${file}">`,
+  });
+  act(() => {
+    conn.receive({ event: "execution", id: "planned", data: { execution } });
+    conn.receive({ event: "output", id: "updated", data: { output } });
+    const media = (path: string) => ({
+      channel: "media",
+      mimetype: "text/html",
+      data: `<img src="${path}">`,
+      timestamp: 1,
+    });
+    conn.send({
+      op: "callback-output",
+      cell_id: id,
+      entries: [media(previousFile)],
+    });
+    conn.send({
+      op: "callback-output",
+      cell_id: id,
+      entries: [media(callbackFile)],
+      replace: true,
+    });
+    conn.send({
+      op: "pdb-output",
+      cell_id: id,
+      entries: [media(debuggerFile)],
+    });
+  });
+  expect(VirtualFileTracker.INSTANCE.filenames()).toEqual(
+    expect.arrayContaining([file, callbackFile]),
+  );
+  expect(VirtualFileTracker.INSTANCE.filenames()).not.toContain(debuggerFile);
+  expect(VirtualFileTracker.INSTANCE.filenames()).not.toContain(previousFile);
+  act(() => conn.send({ op: "remove-ui-elements", cell_id: id }));
+  expect(VirtualFileTracker.INSTANCE.filenames()).not.toContain(file);
+  expect(VirtualFileTracker.INSTANCE.filenames()).not.toContain(callbackFile);
+});
+
+it("opens and closes the debugger prompt on the failed cell", async () => {
+  const store = createStore();
+  const fake = withTransport();
+  vi.mocked(useRuntimeManager).mockReturnValue(makeRuntimeManager());
+  renderConnectionHook(store);
+  await started();
+  const conn = connection(fake);
+  await act(async () => conn.open());
+  const id = cellId("failed");
+  act(() => conn.send({ op: "pdb-input", cell_id: id, input_id: "p1" }));
+  expect(store.get(pendingPdbInputAtom)).toEqual({ cellId: id, inputId: "p1" });
+  act(() => conn.receive({ event: "reset", data: {} }));
+  expect(store.get(pendingPdbInputAtom)).toBeNull();
+  act(() => conn.send({ op: "pdb-input", cell_id: id, input_id: "p2" }));
+  expect(store.get(pendingPdbInputAtom)?.inputId).toBe("p2");
+  act(() => conn.send({ op: "pdb-input", cell_id: id, input_id: null }));
+  expect(store.get(pendingPdbInputAtom)).toBeNull();
 });
 
 it("replaces gutter breakpoints with the session's replayed state", async () => {

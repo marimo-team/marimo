@@ -2,10 +2,11 @@
 
 import type * as Protocol from "@marimo-team/client/protocol";
 import { describe, expect, it } from "vitest";
-import { CONFIG } from "@/core/notebook/document/__tests__/fixtures";
+import { cell, CONFIG } from "@/core/notebook/document/__tests__/fixtures";
 import type { Execution, Executions, Results } from "@/core/notebook/replica";
 import {
   anyRunning,
+  blockedDescendants,
   type CellExecutionInputs,
   cellExecutionView,
   onlyScratchRunning,
@@ -13,9 +14,35 @@ import {
   runningCellIds,
 } from "../select";
 
+it("counts only distinct disabled ancestors in a cycle", () => {
+  const analysis: Protocol.Analysis = {
+    notebook_id: "n1",
+    document_etag: "v1",
+    cells: {
+      a: { defs: [], refs: [], parents: ["b"], diagnostics: [] },
+      b: { defs: [], refs: [], parents: ["a"], diagnostics: [] },
+    },
+  };
+  const disabled = (id: string) =>
+    cell(id, "", { config: { ...CONFIG, disabled: true } });
+  const a = disabled("a");
+  expect(blockedDescendants(analysis, [a, cell("b", "")])).toEqual(
+    new Set(["b"]),
+  );
+  expect(blockedDescendants(analysis, [a, disabled("b")])).toEqual(
+    new Set(["a", "b"]),
+  );
+});
+
 const T0 = "2026-10-01T09:20:11Z";
 const T1 = "2026-10-01T09:20:12.500Z";
 const T2 = "2026-10-01T09:20:20Z";
+
+const QUEUED: Protocol.ExecutionState = { status: "queued" };
+const RUNNING: Protocol.ExecutionState = {
+  status: "running",
+  started_at: T0,
+};
 
 function record(
   overrides: Partial<Protocol.Execution> & { id: string },
@@ -23,15 +50,17 @@ function record(
   return {
     run_id: "run-1",
     runtime_id: "r1",
-    caused_by: null,
+    caused_by_id: null,
     cell_id: "c1",
-    code: null,
     code_fingerprint: "0f71456db2ea83f4",
-    depends_on: {},
-    status: "completed",
-    outcome: { kind: "value", display: null },
-    started_at: T0,
-    completed_at: T1,
+    created_at: null,
+    state: {
+      status: "completed",
+      started_at: T0,
+      completed_at: T1,
+      outcome: { kind: "succeeded" },
+      depends_on: {},
+    },
     ...overrides,
   };
 }
@@ -39,6 +68,7 @@ function record(
 function execution(overrides: Partial<Protocol.Execution> & { id: string }) {
   return {
     record: record(overrides),
+    output: null,
     outputVersion: 0,
     items: new Map(),
     variables: new Map(),
@@ -47,18 +77,26 @@ function execution(overrides: Partial<Protocol.Execution> & { id: string }) {
 
 function run(
   cells: string[],
-  status: Protocol.Run["status"],
+  status: Protocol.RunState["status"],
   id = "run-1",
 ): Protocol.Run {
   return {
     id,
     notebook_id: "n1",
     runtime_id: "r1",
-    cells,
-    status,
-    outcome: status === "completed" ? "succeeded" : null,
-    started_at: null,
-    completed_at: null,
+    origin: { kind: "cells", cell_ids: cells },
+    created_at: "2026-10-01T09:20:00Z",
+    state:
+      status === "completed"
+        ? {
+            status,
+            started_at: null,
+            completed_at: "2026-10-01T09:20:02Z",
+            outcome: { kind: "succeeded" },
+          }
+        : status === "running"
+          ? { status, started_at: "2026-10-01T09:20:01Z" }
+          : { status },
   };
 }
 
@@ -99,7 +137,15 @@ function inputs({
       { config: { ...CONFIG, disabled: disabled.includes(id) } },
     ]),
   );
-  return { executions: stream, results, cells, requested, blocked, runtimeId };
+  return {
+    executions: stream,
+    results,
+    cells,
+    requested,
+    blocked,
+    shownBlocked: blocked,
+    runtimeId,
+  };
 }
 
 describe("cellExecutionView", () => {
@@ -107,10 +153,10 @@ describe("cellExecutionView", () => {
     expect(cellExecutionView(inputs({}), "c1")).toEqual({
       status: "idle",
       blocked: false,
+      shownBlock: null,
       outcome: null,
       startedAt: null,
       duration: null,
-      rendered: false,
       live: true,
     });
   });
@@ -120,10 +166,7 @@ describe("cellExecutionView", () => {
       executions: [
         execution({
           id: "e1",
-          status: "queued",
-          outcome: null,
-          started_at: null,
-          completed_at: null,
+          state: QUEUED,
         }),
       ],
     });
@@ -132,10 +175,7 @@ describe("cellExecutionView", () => {
       executions: [
         execution({
           id: "e1",
-          status: "running",
-          outcome: null,
-          started_at: T2,
-          completed_at: null,
+          state: { status: "running", started_at: T2 },
         }),
       ],
       results: new Map([["c1", execution({ id: "e0" })]]),
@@ -143,26 +183,12 @@ describe("cellExecutionView", () => {
     expect(cellExecutionView(running, "c1")).toEqual({
       status: "running",
       blocked: false,
+      shownBlock: null,
       outcome: null,
       startedAt: Date.parse(T2),
       duration: null,
-      rendered: false,
       live: true,
     });
-  });
-
-  it("notes when a running execution has shown a value so far", () => {
-    const showing = inputs({
-      executions: [
-        execution({
-          id: "e1",
-          status: "running",
-          outcome: { kind: "value", display: null },
-          completed_at: null,
-        }),
-      ],
-    });
-    expect(cellExecutionView(showing, "c1").rendered).toBe(true);
   });
 
   it("says whether the notebook's runtime produced the cell's result", () => {
@@ -190,26 +216,35 @@ describe("cellExecutionView", () => {
   });
 
   it("reports how the last completed execution ended, with its timing", () => {
-    const ended = (outcome: Protocol.Outcome) =>
+    const completedWith = (outcome: Protocol.ExecutionOutcome) => ({
+      status: "completed" as const,
+      started_at: T0,
+      completed_at: T1,
+      outcome,
+      depends_on: {},
+    });
+    const ended = (outcome: Protocol.ExecutionOutcome) =>
       cellExecutionView(
         inputs({
-          executions: [execution({ id: "e1", outcome })],
-          results: new Map([["c1", execution({ id: "e1", outcome })]]),
+          executions: [execution({ id: "e1", state: completedWith(outcome) })],
+          results: new Map([
+            ["c1", execution({ id: "e1", state: completedWith(outcome) })],
+          ]),
         }),
         "c1",
       );
-    const value = ended({ kind: "value", display: null });
+    const value = ended({ kind: "succeeded" });
     expect(value).toEqual({
       status: "idle",
       blocked: false,
-      outcome: "value",
+      shownBlock: null,
+      outcome: "succeeded",
       startedAt: Date.parse(T0),
       duration: 1500,
-      rendered: false,
       live: true,
     });
-    const error = (kind: string): Protocol.Outcome => ({
-      kind: "error",
+    const error = (kind: string): Protocol.ExecutionOutcome => ({
+      kind: "failed",
       error: {
         kind,
         message: "",
@@ -221,15 +256,15 @@ describe("cellExecutionView", () => {
         related: [],
       },
     });
-    expect(ended(error("exception")).outcome).toBe("error");
-    const skipped: Protocol.Outcome = {
+    expect(ended(error("exception")).outcome).toBe("failed");
+    const skipped: Protocol.ExecutionOutcome = {
       kind: "skipped",
       reason: "ancestor-stopped",
       message: "",
       related: [],
     };
     expect(ended(skipped).outcome).toBe("skipped");
-    expect(ended({ kind: "interrupted" }).outcome).toBe("interrupted");
+    expect(ended({ kind: "cancelled" }).outcome).toBe("cancelled");
   });
 
   it("reads as queued from a request the stream has not shown a run for", () => {
@@ -262,8 +297,7 @@ describe("cellExecutionView", () => {
         execution({
           id: "e2",
           run_id: "run-2",
-          status: "running",
-          completed_at: null,
+          state: RUNNING,
         }),
       ],
       results: result,
@@ -276,7 +310,7 @@ describe("cellExecutionView", () => {
       results: new Map([["c1", execution({ id: "e2", run_id: "run-2" })]]),
     });
     expect(cellExecutionView(done, "c1").status).toBe("idle");
-    expect(cellExecutionView(done, "c1").outcome).toBe("value");
+    expect(cellExecutionView(done, "c1").outcome).toBe("succeeded");
     expect(cellExecutionView(done, "c2").status).toBe("queued");
 
     // The stream let the execution go while its run goes on with other cells.
@@ -325,27 +359,24 @@ describe("cellExecutionView", () => {
     );
     expect(view.status).toBe("idle");
     expect(view.blocked).toBe(true);
-    expect(view.outcome).toBe("value");
+    expect(view.outcome).toBe("succeeded");
   });
 });
 
 describe("notebook-level views", () => {
   const stream = inputs({
     executions: [
-      execution({ id: "e1", status: "running", completed_at: null }),
+      execution({ id: "e1", state: RUNNING }),
       execution({
         id: "e2",
         cell_id: "c2",
-        status: "queued",
-        started_at: null,
-        completed_at: null,
+        state: QUEUED,
       }),
       execution({ id: "e3", cell_id: "c3" }),
       execution({
         id: "s1",
         cell_id: null,
-        status: "running",
-        completed_at: null,
+        state: RUNNING,
       }),
     ],
     runs: [run(["c1", "c2", "c5"], "running"), run(["c5"], "queued", "run-2")],
@@ -366,8 +397,7 @@ describe("notebook-level views", () => {
         execution({
           id: "s1",
           cell_id: null,
-          status: "running",
-          completed_at: null,
+          state: RUNNING,
         }),
         execution({ id: "e3", cell_id: "c3" }),
       ],

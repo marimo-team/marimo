@@ -11,7 +11,7 @@ Usage:
 Options:
   --url URL       Local edit server URL. Required.
   --notebook ID   Select one notebook instead of the host catalog.
-  --types KINDS   Comma-separated event kinds. The server validates them.
+  --kinds KINDS   Comma-separated event kinds. The server validates them.
   --pretty        Indent JSON and color it in supported terminals.
 
 Authentication uses the private local host record, as `marimo pair` does.
@@ -45,21 +45,21 @@ from marimo._server.host import (
     ATTACHMENT_KIND,
     ATTACHMENT_NAME,
 )
-from marimo._server.host.stream_options import OBJECT_TYPES
+from marimo._server.host.stream_options import OBJECT_KINDS
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-RECORD_KINDS = OBJECT_TYPES - {"custom"}
+RECORD_KINDS = OBJECT_KINDS - {"custom"}
 
 
-def stream_url(base: str, *, notebook: str | None, types: str | None) -> str:
+def stream_url(base: str, *, notebook: str | None, kinds: str | None) -> str:
     path = "/events"
     if notebook is not None:
         path = f"/notebooks/{quote(notebook, safe='')}{path}"
     url = base.rstrip("/") + path
-    if types is not None:
-        url += "?" + urlencode({"types": types}, safe=",")
+    if kinds is not None:
+        url += "?" + urlencode({"kinds": kinds}, safe=",")
     return url
 
 
@@ -109,13 +109,13 @@ def json_formatter(pretty: bool) -> Callable[[object], str]:
     return format_payload
 
 
-def parse_types(value: str | None) -> str | None:
+def parse_kinds(value: str | None) -> str | None:
     if value is None:
         return None
-    kinds = [kind.strip() for kind in value.split(",")]
-    if not all(kinds):
-        raise SystemExit("--types must not contain empty entries.")
-    return ",".join(dict.fromkeys(kinds))
+    names = [kind.strip() for kind in value.split(",")]
+    if not all(names):
+        raise SystemExit("--kinds must not contain empty entries.")
+    return ",".join(dict.fromkeys(names))
 
 
 def print_events(
@@ -156,17 +156,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("command", choices=("events", "snapshot"))
     parser.add_argument("--url", required=True)
     parser.add_argument("--notebook")
-    parser.add_argument("--types")
+    parser.add_argument("--kinds")
     parser.add_argument("--pretty", action="store_true")
     args = parser.parse_args(argv)
 
-    types = parse_types(args.types)
+    kinds = parse_kinds(args.kinds)
     format_payload = json_formatter(args.pretty)
     try:
         host = resolve_host(args.url)
         response = open_response(
             method="GET",
-            url=stream_url(host.url, notebook=args.notebook, types=types),
+            url=stream_url(host.url, notebook=args.notebook, kinds=kinds),
             headers=stream_headers(
                 host.token,
                 notebook=args.notebook,

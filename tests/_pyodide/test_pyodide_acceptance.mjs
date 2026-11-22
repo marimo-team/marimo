@@ -131,7 +131,7 @@ async function testHostInputs(notebook, notebookId, frames) {
     );
     assert.equal(input.password, password);
     const reply = () => call(
-      "runtime.input", `answer-${input.id}`, { value }, { input_id: input.id },
+      "input.reply", `answer-${input.id}`, { value }, { input_id: input.id },
     );
     const answered = await reply();
     assert.deepEqual(answered, {
@@ -144,9 +144,9 @@ async function testHostInputs(notebook, notebookId, frames) {
   const assertSucceeded = async (runId) => {
     const completed = await waitForFrame(frames, (frame) =>
       frame.event === "run" && frame.data.run.id === runId &&
-      frame.data.run.status === "completed",
+      frame.data.run.state.status === "completed",
     );
-    assert.equal(completed.data.run.outcome, "succeeded");
+    assert.equal(completed.data.run.state.outcome.kind, "succeeded");
   };
 
   const run = await call("runtime.execute", "wasm-input-run", { code: [
@@ -181,7 +181,8 @@ async function testHostInputs(notebook, notebookId, frames) {
   const values = { first: "one", second: "two" };
   for (const prompt of Object.keys(values)) {
     await waitForFrame(frames, (frame) =>
-      frame.event === "console" && frame.data.console.text.includes(`${prompt} reader started`),
+      frame.event === "console" && frame.data.console.content.kind === "text" &&
+      frame.data.console.content.text.includes(`${prompt} reader started`),
     );
   }
   const isConcurrentInput = (frame) => frame.event === "input" &&
@@ -217,9 +218,9 @@ async function testIdleInterrupt(pyodide, notebook, notebookId, frames) {
     assert.equal(run.status, 202);
     const completed = await waitForFrame(frames, (frame) =>
       frame.event === "run" && frame.data.run.id === run.body.id &&
-      frame.data.run.status === "completed",
+      frame.data.run.state.status === "completed",
     );
-    assert.equal(completed.data.run.outcome, "succeeded");
+    assert.equal(completed.data.run.state.outcome.kind, "succeeded");
   } finally {
     pyodide.setInterruptBuffer(undefined);
   }
@@ -423,35 +424,47 @@ json.dumps(result)
     // Exercise the same Python proxy and callback lifetime as the worker RPC.
     const notebook = pyodide.runPython("bridge.notebook");
     const frames = [];
+    const analyses = [];
     try {
       // Host events only. Notifications follow them on the same stream.
       await notebook.subscribe("acceptance", null, (raw) => {
         const frame = JSON.parse(raw);
-        if (frame.event !== "marimo") {
+        if (frame.event === "analysis") {
+          analyses.push(frame);
+        } else if (frame.event !== "marimo") {
           frames.push(frame);
         }
       });
       assert.equal(frames.at(-1).event, "ready");
       const cell = frames.find((frame) => frame.event === "cell").data.cell;
       await testIdleInterrupt(pyodide, notebook, cell.notebook_id, frames);
+      const code = "def seven():\n    return 7";
       const call = JSON.stringify({
         operation: "notebook.edit",
         params: { notebook_id: cell.notebook_id },
         headers: { "idempotency-key": "wasm-acceptance-edit" },
         body: { changes: [{
-          kind: "put_cell", base_etag: cell.etag,
-          cell: { id: cell.id, code: "x = 7", name: cell.name, config: cell.config },
+          kind: "replace_cell", base_etag: cell.etag,
+          cell: { id: cell.id, code, name: cell.name, config: cell.config },
         }] },
       });
       const reply = JSON.parse(await notebook.call(call));
       assert.equal(reply.status, 200);
       assert.deepEqual(frames.at(-1).data.document, reply.body.document);
-      assert.equal(frames.at(-2).data.cell.code, "x = 7");
+      assert.equal(frames.at(-2).data.cell.code, code);
       assert.equal(frames.at(-1).data.request_id, "wasm-acceptance-edit");
       const count = frames.length;
       assert.deepEqual(JSON.parse(await notebook.call(call)), reply);
       assert.equal(frames.length, count);
-      assert.equal(pyodide.runPython("list(session.app_manager.app.cell_manager.codes())[0]"), "x = 7");
+      assert.equal(pyodide.runPython("list(session.app_manager.app.cell_manager.codes())[0]"), code);
+      const { data: { analysis } } = await waitForFrame(analyses, (frame) =>
+        frame.data.analysis.document_etag === reply.body.document.etag,
+      );
+      assert.deepEqual(analysis.cells[cell.id].parents, []);
+      assert.deepEqual(analysis.cells[cell.id].defs, ["seven"]);
+      const [hint] = analysis.cells[cell.id].diagnostics;
+      assert.equal(hint.kind, "reusable-definition");
+      assert.equal(hint.severity, "information");
       notebook.set_persistence(async (contents, filename) => {
         await Promise.resolve();
         pyodide.FS.writeFile(filename, contents);
@@ -467,7 +480,7 @@ json.dumps(result)
       assert.equal(saved.body.document.etag, saved.body.document.saved_etag);
       assert.match(
         pyodide.FS.readFile("/home/pyodide/test_notebook.py", { encoding: "utf8" }),
-        /x = 7/,
+        /@app\.function\s+def seven\(/,
       );
 
       await testHostInputs(notebook, cell.notebook_id, frames);

@@ -107,7 +107,7 @@ async def test_sse_preserves_multiline_data_comments_and_explicit_ids():
 @pytest.mark.parametrize(
     ("event", "known"),
     [
-        ("display.removed", True),
+        ("output.removed", True),
         ("execution.removed", True),
         ("input.removed", False),
         ("document.removed", False),
@@ -132,7 +132,7 @@ async def test_only_declared_removal_events_require_a_removed_message(
 def test_required_nullable_fields_and_future_fields():
     value = json.loads((FIXTURES / "execution-restored.json").read_text())
     validate("Execution", {**value, "future_field": True})
-    for field in ("run_id", "runtime_id", "caused_by"):
+    for field in ("run_id", "runtime_id", "caused_by_id"):
         missing = {key: item for key, item in value.items() if key != field}
         with pytest.raises(ValidationError):
             validate("Execution", missing)

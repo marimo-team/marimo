@@ -43,6 +43,7 @@ from marimo._plugins.ui._impl.tables.narwhals_table import (
     NEGATIVE_INF,
     POSITIVE_INF,
 )
+from marimo._plugins.ui._impl.tables.table_manager import regex_literal
 from marimo._utils.narwhals_utils import collect_and_preserve_type
 
 if TYPE_CHECKING:
@@ -112,16 +113,22 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         if narwhals_dtype is None:
             raise ValueError(f"Unsupported dtype: {transform.data_type}")
 
-        # Polars 2 requires explicit parsers for string-to-temporal conversions.
+        # Narwhals' temporal parsers do not expose Polars' strict option.
+        native_df = df.to_native()
         if (
-            df.implementation.is_polars()
+            nw.dependencies.is_polars_lazyframe(native_df)
             and data_type_str in {"date", "datetime64"}
             and df.collect_schema()[transform.column_id] == nw.String
         ):
-            column = col(transform.column_id)
+            import polars as pl
+
+            column = pl.col(f"^{regex_literal(transform.column_id)}$")
+            strict = transform.errors == "raise"
             if data_type_str == "date":
-                return df.with_columns(column.str.to_date())
-            return df.with_columns(column.str.to_datetime())
+                parsed = column.str.to_date(strict=strict)
+            else:
+                parsed = column.str.to_datetime(strict=strict)
+            return nw.from_native(native_df.with_columns(parsed))
 
         if transform.errors == "ignore":
             # For ignore mode, wrap cast in a try-except at the expression level

@@ -17,10 +17,18 @@ from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notebook.document import NotebookCell, NotebookDocument
 from marimo._messaging.notification import (
+    CallbackOutputNotification,
     CellNotification,
+    ExecutionNotification,
+    PdbOutputNotification,
     StartupProgressNotification,
 )
-from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand
+from marimo._runtime import execution as kernel_execution
+from marimo._runtime.commands import (
+    ExecuteCellCommand,
+    ExecuteCellsCommand,
+    SyncGraphCommand,
+)
 from marimo._schemas.session import NotebookSessionV1
 from marimo._session.state.serialize import (
     SessionCacheKey,
@@ -276,6 +284,280 @@ def test_serialize_session_with_console(session_view: SessionView):
         view, cell_ids=[CELL1], drop_virtual_file_outputs=False
     )
     snapshot("console_session.json", json.dumps(result, indent=2))
+
+
+def test_export_orders_execution_and_callback_writes_before_merging(
+    session_view: SessionView,
+) -> None:
+    def write(data: str, timestamp: float) -> CellOutput:
+        return CellOutput(CellChannel.STDOUT, "text/plain", data, timestamp)
+
+    session_view.add_notification(
+        CellNotification(CELL1, console=[write("A", 1), write("C", 3)])
+    )
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [write("B", 2)])
+    )
+    for include_callbacks, expected in [(True, "ABC"), (False, "AC")]:
+        saved = serialize_session_view(
+            session_view,
+            [CELL1],
+            for_display=include_callbacks,
+            drop_virtual_file_outputs=False,
+        )
+        assert [row["text"] for row in saved["cells"][0]["console"]] == [
+            expected
+        ]
+
+
+def test_export_keeps_callback_between_writes_with_the_same_timestamp(
+    session_view: SessionView,
+) -> None:
+    def write(data: str) -> CellOutput:
+        return CellOutput(CellChannel.STDOUT, "text/plain", data, 1)
+
+    session_view.add_notification(CellNotification(CELL1, console=write("A")))
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [write("B")])
+    )
+    session_view.add_notification(CellNotification(CELL1, console=write("C")))
+
+    assert [
+        entry.data
+        for entry in session_view.cell_console(CELL1, include_callbacks=True)
+    ] == ["ABC"]
+
+
+@pytest.mark.parametrize(
+    ("producing_source", "next_source", "errored", "export_previous"),
+    [
+        ("1+1", "1+1", False, True),
+        ("1+1", "3+3", False, False),
+        (None, "3+3", False, False),
+        ("raise ValueError", "3+3", True, False),
+    ],
+)
+def test_pending_export_reopens_only_results_of_its_source(
+    session_view: SessionView,
+    tmp_path: Path,
+    producing_source: str | None,
+    next_source: str,
+    errored: bool,
+    export_previous: bool,
+) -> None:
+    output = (
+        CellOutput.errors([UnknownError("old error")], code="raise ValueError")
+        if errored
+        else CellOutput(CellChannel.OUTPUT, "text/plain", "2")
+    )
+    if producing_source is not None:
+        session_view.add_control_request(
+            ExecuteCellsCommand([ExecuteCellCommand(CELL1, producing_source)])
+        )
+    session_view.add_notification(
+        ExecutionNotification(
+            "first", CELL1, "run", "planned", code=producing_source
+        )
+    )
+    session_view.add_notification(
+        CellNotification(
+            CELL1,
+            execution_id="first",
+            output=output,
+            console=CellOutput.stdout("first run"),
+        )
+    )
+    session_view.add_control_request(
+        ExecuteCellsCommand([ExecuteCellCommand(CELL1, next_source)])
+    )
+    before_planning = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=True
+    )["cells"][0]
+    assert (before_planning["outputs"], before_planning["console"]) == ([], [])
+    session_view.add_notification(
+        ExecutionNotification(
+            "second", CELL1, "run", "planned", code=next_source
+        )
+    )
+    session_view.add_notification(
+        CellNotification(
+            CELL1, execution_id="second", console=CellOutput.stdout("running")
+        )
+    )
+    assert session_view.get_cell_outputs([CELL1]) == {CELL1: output}
+    for for_display in (True, False):
+        saved = serialize_session_view(
+            session_view,
+            [CELL1],
+            for_display=for_display,
+            drop_virtual_file_outputs=False,
+        )
+        [cell] = saved["cells"]
+        assert cell["code_hash"] == _hash_code(next_source)
+        assert [entry["text"] for entry in cell["console"]] == ["running"]
+        path = tmp_path / "notebook.py"
+        cache = get_session_cache_file(path)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(saved))
+        restored = SessionCacheManager(
+            SessionView(), _make_document(CELL1), path, 1
+        ).read_session_view(
+            SessionCacheKey(
+                codes=(next_source,),
+                marimo_version=__version__,
+                cell_ids=(CELL1,),
+            )
+        )
+        assert [
+            entry.data
+            for entry in restored.cell_console(CELL1, include_callbacks=False)
+        ] == ["running"]
+        result = restored.current_execution_output(CELL1)
+        if for_display and export_previous:
+            assert result is not None
+            assert result.data == "2"
+        else:
+            assert result is None
+
+    # Submitting another version before its first plan must not relabel restored stdout.
+    restored.add_control_request(
+        ExecuteCellsCommand([ExecuteCellCommand(CELL1, "edited")])
+    )
+    resaved = serialize_session_view(
+        restored, [CELL1], drop_virtual_file_outputs=True
+    )
+    assert resaved["cells"] == [
+        {
+            "id": CELL1,
+            "code_hash": _hash_code("edited"),
+            "outputs": [],
+            "console": [],
+        }
+    ]
+
+
+@pytest.mark.parametrize("with_source", [True, False])
+@pytest.mark.parametrize("submit_before_first_plan", [True, False])
+def test_late_result_after_file_save_cannot_be_exported_as_the_saved_code(
+    session_view: SessionView,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    with_source: bool,
+    submit_before_first_plan: bool,
+) -> None:
+    # Same AST, different line numbers and exact source hashes.
+    before = "import sys\nprint(sys._getframe().f_lineno)"
+    after = "import sys\n\nprint(sys._getframe().f_lineno)"
+    monkeypatch.setattr(
+        kernel_execution, "get_mode", lambda: "edit" if with_source else "run"
+    )
+    monkeypatch.setattr(
+        kernel_execution,
+        "broadcast_notification",
+        session_view.add_notification,
+    )
+
+    def plan(code: str) -> str:
+        return kernel_execution.ExecutionAttempt.plan(CELL1, code).id
+
+    def publish(execution: str, value: str) -> None:
+        session_view.add_notification(
+            CellNotification(
+                CELL1,
+                execution_id=execution,
+                output=CellOutput(CellChannel.OUTPUT, "text/plain", value),
+                console=CellOutput.stdout(value),
+            )
+        )
+
+    def reopened(for_display: bool) -> tuple[object, list[str]]:
+        stored = serialize_session_view(
+            session_view,
+            [CELL1],
+            for_display=for_display,
+            drop_virtual_file_outputs=False,
+        )
+        document_hash = _hash_code(after)
+        assert document_hash is not None
+        restored = deserialize_session(stored, {document_hash: CELL1})
+        cell = restored.cell_notifications[CELL1]
+        return (
+            cell.output.data if cell.output else None,
+            [
+                str(entry.data)
+                for entry in restored.cell_console(
+                    CELL1, include_callbacks=for_display
+                )
+            ],
+        )
+
+    session_view.add_control_request(
+        ExecuteCellsCommand([ExecuteCellCommand(CELL1, before)])
+    )
+    if not submit_before_first_plan:
+        first = plan(before)
+    session_view.add_control_request(
+        SyncGraphCommand(cells={CELL1: after}, run_ids=[CELL1], delete_ids=[])
+    )
+    if submit_before_first_plan:
+        first = plan(before)
+    publish(first, "2")
+    for mode in (True, False):
+        assert reopened(mode) == (None, [])
+
+    publish(plan(after), "3")
+    for mode in (True, False):
+        assert reopened(mode) == ("3", ["3"])
+
+    # A dependent can rerun without a fresh user submission for this cell.
+    publish(plan(after), "3 again")
+    for mode in (True, False):
+        assert reopened(mode) == ("3 again", ["3 again"])
+
+
+def test_export_retains_callbacks_and_excludes_debugger_output(
+    session_view: SessionView,
+) -> None:
+    callback = CellOutput.stdout("callback")
+    session_view.add_notification(
+        PdbOutputNotification(CELL1, [CellOutput.stdout("debugger")])
+    )
+    assert session_view.is_empty()
+    session_view.add_notification(
+        CallbackOutputNotification(CELL1, [callback])
+    )
+    assert not session_view.is_empty()
+    assert session_view.get_cell_console_outputs([CELL1]) == {
+        CELL1: [callback]
+    }
+
+    export = serialize_session_view(
+        session_view,
+        [CELL1],
+        for_display=True,
+        drop_virtual_file_outputs=False,
+    )
+    assert export["cells"] == [
+        {
+            "id": CELL1,
+            "code_hash": None,
+            "outputs": [],
+            "console": [
+                {
+                    "type": "stream",
+                    "name": "stdout",
+                    "text": "callback",
+                    "mimetype": "text/plain",
+                }
+            ],
+        }
+    ]
+    cache = serialize_session_view(
+        session_view, [CELL1], drop_virtual_file_outputs=True
+    )
+    assert cache["cells"] == [
+        {"id": CELL1, "code_hash": None, "outputs": [], "console": []}
+    ]
 
 
 def test_serialize_session_with_mime_bundle(session_view: SessionView):
@@ -1480,3 +1762,75 @@ class TestSessionCacheManager:
             assert loaded_view.startup_progress == progress
             # cache hit: codes and version match
             assert len(loaded_view.cell_notifications) == 2
+            assert (
+                serialize_session_view(
+                    loaded_view,
+                    [CELL1, CELL2],
+                    drop_virtual_file_outputs=False,
+                )["cells"]
+                == data["cells"]
+            )
+
+
+@pytest.mark.parametrize("restored_id", [CELL1, CELL2])
+def test_cached_outputs_survive_repeated_serialization(restored_id: CellId_t):
+    view = SessionView()
+    view.last_executed_code[CELL1] = "print(42)"
+    view.cell_notifications[CELL1] = _make_cell_notification(
+        CELL1,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT, mimetype="text/plain", data="42"
+        ),
+        console=[
+            CellOutput(
+                channel=CellChannel.STDOUT, mimetype="text/plain", data="42\n"
+            )
+        ],
+    )
+    serialized = serialize_session_view(
+        view, [CELL1], drop_virtual_file_outputs=True
+    )
+    code_hash = serialized["cells"][0]["code_hash"]
+    assert code_hash is not None
+    expected = [{**serialized["cells"][0], "id": restored_id}]
+    for _ in range(3):
+        view = deserialize_session(serialized, {code_hash: restored_id})
+        assert view.last_executed_code == {}
+        serialized = serialize_session_view(
+            view, [restored_id], drop_virtual_file_outputs=True
+        )
+        assert serialized["cells"] == expected
+    # Changed source must not inherit the old output, even at the same cell ID.
+    changed_hash = _hash_code("print(43)")
+    assert changed_hash is not None
+    assert not deserialize_session(
+        serialized, {changed_hash: restored_id}
+    ).cell_notifications
+    assert not deserialize_session(serialized, {}).cell_notifications
+
+
+@pytest.mark.parametrize("code", ["print(43)", ""])
+def test_execution_replaces_cached_output_hash(code: str):
+    view = SessionView()
+    view.last_executed_code[CELL1] = "print(42)"
+    view.cell_notifications[CELL1] = _make_cell_notification(CELL1)
+    view.last_executed_code[CELL2] = "other"
+    view.cell_notifications[CELL2] = _make_cell_notification(CELL2)
+    serialized = serialize_session_view(
+        view, [CELL1, CELL2], drop_virtual_file_outputs=True
+    )
+    restored = deserialize_session(
+        serialized, _build_code_hash_to_cell_id_mapping(serialized)
+    )
+    restored.add_control_request(
+        ExecuteCellsCommand(
+            execution_requests=[ExecuteCellCommand(cell_id=CELL1, code=code)]
+        )
+    )
+    result = serialize_session_view(
+        restored, [CELL1, CELL2], drop_virtual_file_outputs=True
+    )
+    assert result["cells"] == [
+        {**serialized["cells"][0], "code_hash": _hash_code(code)},
+        serialized["cells"][1],
+    ]

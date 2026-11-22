@@ -5,7 +5,7 @@ import { createCatalogReducer } from "../index.ts";
 import { notebooks, projects } from "./catalog-resources.ts";
 import {
   CatalogEvents,
-  type CatalogEvent,
+  type CatalogStreamEvent,
   type CatalogEventsOptions,
   type Transport,
 } from "../index.ts";
@@ -141,8 +141,8 @@ describe("CatalogEvents", () => {
       ...snapshot,
       { event: "future", id: "46", data: "unknown" },
     ]);
-    const events = new CatalogEvents(transport, { types: ["notebook"] });
-    const received: CatalogEvent<"notebook">[] = [];
+    const events = new CatalogEvents(transport, { kinds: ["notebook"] });
+    const received: CatalogStreamEvent<"notebook">[] = [];
     events.subscribe((event) => received.push(event));
     await vi.waitFor(() => expect(events.cursor).toBe("46"));
     expect(received.map((event) => event.event)).toEqual([
@@ -150,11 +150,11 @@ describe("CatalogEvents", () => {
       "ready",
       "notebook",
     ]);
-    expectTypeOf<CatalogEvent<"notebook">["event"]>().toEqualTypeOf<
+    expectTypeOf<CatalogStreamEvent<"notebook">["event"]>().toEqualTypeOf<
       "notebook" | "notebook.removed" | "ready" | "reset"
     >();
     expectTypeOf<CatalogEventsOptions>().not.toHaveProperty("runId");
-    expectTypeOf<CatalogEventsOptions["types"]>().toEqualTypeOf<
+    expectTypeOf<CatalogEventsOptions["kinds"]>().toEqualTypeOf<
       | readonly ("host" | "project" | "notebook" | "runtime" | "attachment")[]
       | undefined
     >();
@@ -171,7 +171,7 @@ describe("CatalogEvents", () => {
       { event: "host.removed", id: "47", data: {} },
     ]);
     const events = new CatalogEvents(transport);
-    const received: CatalogEvent[] = [];
+    const received: CatalogStreamEvent[] = [];
     events.subscribe((event) => received.push(event));
     await vi.waitFor(() => expect(events.cursor).toBe("47"));
     expect(received).toEqual(snapshot);

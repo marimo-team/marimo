@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
-import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
+import { useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
 import { pairConfigAtom } from "@/core/config/pair";
 import { stableSessionIdAtom } from "@/core/kernel/session";
@@ -32,8 +32,9 @@ import {
 
 function useAuthToken(): string | null {
   const [token, setToken] = useState<string | null>(null);
+  const runtimeManager = useRuntimeManager();
   useEffect(() => {
-    fetch(asRemoteURL("/auth/token").href, {
+    fetch(runtimeManager.formatHttpURL({ path: "auth/token" }).href, {
       headers: API.headers(),
     })
       .then((res) =>
@@ -41,7 +42,7 @@ function useAuthToken(): string | null {
       )
       .then((data) => setToken(data?.token ?? null))
       .catch(() => setToken(null));
-  }, []);
+  }, [runtimeManager]);
   return token;
 }
 

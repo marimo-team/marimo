@@ -151,8 +151,8 @@ class NotebookOperations {
     inputId: Protocol.ItemId,
     reply: Protocol.InputReplyRequest,
     options?: MutationOptions,
-  ): Promise<ResultOf<"runtime.input">> {
-    return this.#send("runtime.input", {
+  ): Promise<ResultOf<"input.reply">> {
+    return this.#send("input.reply", {
       params: { input_id: inputId },
       body: reply,
       options,

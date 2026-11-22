@@ -57,6 +57,7 @@ const REQUIRED_DEFAULT_WASM_CONCURRENCY_MATRIX_ROWS = new Map([
   ["threading.local_subclass_init_per_thread", "api-compatible"],
   ["threading.local_subclass_defaults", "api-compatible"],
   ["threading.local_subclass_descriptors", "api-compatible"],
+  ["threading.local_subclass_dataclass", "api-compatible"],
   ["threading.contextvars_not_inherited", "api-compatible"],
   ["threading.excepthook", "api-compatible"],
   ["marimo_thread.bootstrap_current_thread", "api-compatible"],

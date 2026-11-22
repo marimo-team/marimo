@@ -134,7 +134,7 @@ def record(
         path=path,
         name=path.removesuffix(".py"),
         operations=("runtime.start", "runtime.run"),
-        updated_at=None,
+        modified_at=None,
     )
 
 
@@ -293,11 +293,7 @@ def plan(
     notebook.observe(
         be.Planned(
             run.id,
-            (
-                be.PlannedExecution(
-                    execution, cell, "hash", "code" if cell is None else None
-                ),
-            ),
+            (be.PlannedExecution(execution, cell, "hash"),),
         )
     )
     notebook.observe(be.Started(execution))
@@ -305,14 +301,7 @@ def plan(
 
 
 def finish(notebook: Notebook, execution: protocol.ExecutionId) -> None:
-    notebook.observe(
-        be.Completed(
-            execution,
-            protocol.ValueOutcome(
-                protocol.DisplayData(mimetype="text/plain", data="value")
-            ),
-        )
-    )
+    notebook.observe(be.Completed(execution, protocol.SucceededOutcome()))
 
 
 def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
@@ -326,8 +315,8 @@ def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
             (
                 protocol.RunEvent,
                 protocol.ExecutionEvent,
+                protocol.OutputEvent,
                 protocol.ConsoleEvent,
-                protocol.DisplayEvent,
             ),
         ):
             body = protocol_events.body(event)
@@ -337,8 +326,8 @@ def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
             (
                 protocol.RunRemovedEvent,
                 protocol.ExecutionRemovedEvent,
+                protocol.OutputRemovedEvent,
                 protocol.ConsoleRemovedEvent,
-                protocol.DisplayRemovedEvent,
             ),
         ):
             state.pop(
@@ -358,25 +347,23 @@ def retained_execution(
             id=execution_id,
             run_id=None if run_id is None else protocol.RunId(run_id),
             runtime_id=None,
-            caused_by=None,
+            caused_by_id=None,
             cell_id=None if cell_id is None else protocol.CellId(cell_id),
-            code="42" if cell_id is None else None,
             code_fingerprint=code_fingerprint("42"),
-            depends_on={},
-            status="completed",
-            outcome=protocol.ValueOutcome(
-                protocol.DisplayData(mimetype="text/plain", data="42")
+            created_at=None,
+            state=protocol.ExecutionCompleted(
+                started_at=None,
+                completed_at=None,
+                outcome=protocol.SucceededOutcome(),
+                depends_on={},
             ),
-            started_at=None,
-            completed_at=None,
         ),
         (
             protocol.Console(
-                execution_id,
-                protocol.ItemId("restored-output"),
-                "stdout",
-                0,
-                "hello",
+                id=protocol.ItemId("restored-output"),
+                execution_id=execution_id,
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="hello"),
             ),
         ),
     )

@@ -40,11 +40,9 @@ function accepted(cells: Protocol.CellId[]): Protocol.Run {
     id: "run-1",
     notebook_id: "n1",
     runtime_id: "r1",
-    cells,
-    status: "queued",
-    outcome: null,
-    started_at: null,
-    completed_at: null,
+    origin: { kind: "cells", cell_ids: cells },
+    created_at: "2026-10-01T09:20:00Z",
+    state: { status: "queued" },
   };
 }
 
@@ -69,7 +67,7 @@ describe("useRunStaleCells", () => {
     const replica = MockExecutions.seed(
       store,
       records,
-      MockExecutions.runtime("running"),
+      MockExecutions.runtime(),
       document,
     );
     store.set(replica.backendAtom, fakeBackend({ run }));
@@ -85,8 +83,8 @@ describe("useRunStaleCells", () => {
 
   it("syncs pending edits before choosing the stale cells", async () => {
     const { replica, document } = seed([
-      MockExecutions.completed(C1, { code_fingerprint: "c1-hash" }),
-      MockExecutions.completed(C2, { code_fingerprint: "c2-hash" }),
+      { ...MockExecutions.completed(C1), code_fingerprint: "c1-hash" },
+      { ...MockExecutions.completed(C2), code_fingerprint: "c2-hash" },
     ]);
     store.set(
       notebookAtom,
@@ -113,7 +111,7 @@ describe("useRunStaleCells", () => {
   });
 
   it("does nothing when the notebook changed while the flush was pending", async () => {
-    seed([MockExecutions.completed(C1, { code_fingerprint: "stale" })]);
+    seed([{ ...MockExecutions.completed(C1), code_fingerprint: "stale" }]);
     store.set(
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [C1]: { code: "x = 1" } } }),
@@ -131,7 +129,7 @@ describe("useRunStaleCells", () => {
   });
 
   it("runs nothing while edits cannot reach the host", async () => {
-    seed([MockExecutions.completed(C1, { code_fingerprint: "stale" })]);
+    seed([{ ...MockExecutions.completed(C1), code_fingerprint: "stale" }]);
     store.set(
       notebookAtom,
       MockNotebook.notebookState({ cellData: { [C1]: { code: "x = 1" } } }),

@@ -10,7 +10,7 @@ from marimo._core import protocol
 if TYPE_CHECKING:
     from starlette.requests import HTTPConnection
 
-OBJECT_TYPES = frozenset(get_args(get_args(protocol.ObjectType)[0])) | {
+OBJECT_KINDS = frozenset(get_args(get_args(protocol.ObjectKind)[0])) | {
     "marimo"
 }
 
@@ -27,14 +27,14 @@ def cursor(connection: HTTPConnection) -> str | None:
     return raw
 
 
-def types(connection: HTTPConnection) -> set[str] | None:
-    asked = connection.query_params.get("types")
+def kinds(connection: HTTPConnection) -> set[str] | None:
+    asked = connection.query_params.get("kinds")
     if not asked:
         return None
-    kinds = {kind for kind in asked.split(",") if kind}
-    unknown = kinds - OBJECT_TYPES
+    wanted = {kind for kind in asked.split(",") if kind}
+    unknown = wanted - OBJECT_KINDS
     if unknown:
         raise ValueError(
-            f"types has no kind named {', '.join(sorted(unknown))}"
+            f"kinds has no kind named {', '.join(sorted(unknown))}"
         )
-    return kinds
+    return wanted

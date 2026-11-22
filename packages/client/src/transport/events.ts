@@ -32,7 +32,7 @@ function delay(attempt: number): number {
 type Status = "connecting" | "connected" | "closed";
 
 /** How an event stream reaches its host and what it follows. */
-export interface EventsOptions<K extends string = Protocol.ObjectTypeOutput>
+export interface EventsOptions<K extends string = Protocol.ObjectKindOutput>
   extends ClientOptions, EventStreamOptions<K> {
   /** Aborting closes the stream. */
   readonly signal?: AbortSignal;
@@ -59,7 +59,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 /**
  * A host stream, followed across reconnects.
  *
- * Given a URL, it follows the stream there with `sse` and sends `types` as a
+ * Given a URL, it follows the stream there with `sse` and sends `kinds` as a
  * query parameter. Given a `Transport`, it follows whatever connection the
  * transport opens.
  *
@@ -71,7 +71,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
  *   The caller discards what it built on `reset`.
  */
 export class Events<
-  const K extends string = Protocol.ObjectTypeOutput,
+  const K extends string = Protocol.ObjectKindOutput,
 > implements AsyncIterable<StreamEvent<K>> {
   /**
    * Settles when the stream closes.
@@ -98,14 +98,14 @@ export class Events<
       transport = source;
     } else {
       const url = new URL(source);
-      if (init.types !== undefined) {
-        url.searchParams.set("types", init.types.join(","));
+      if (init.kinds !== undefined) {
+        url.searchParams.set("kinds", init.kinds.join(","));
       }
       transport = sse(url, init);
     }
     this.#stream = new EventStream<K>(
       {
-        types: init.types,
+        kinds: init.kinds,
         cursor: init.cursor,
       },
       kinds,

@@ -44,26 +44,19 @@ function seedResult(
   output: CellOutput | null,
   freshness: CellOverrides["freshness"],
 ) {
-  const ran = MockExecutions.completed(cid, {
+  const ran = {
+    ...MockExecutions.execution(cid, {
+      status: "completed",
+      started_at: MockExecutions.T0,
+      completed_at: MockExecutions.T1,
+      outcome: { kind: "succeeded" },
+      depends_on:
+        freshness === undefined || freshness === "edited"
+          ? {}
+          : { x: { execution_id: "gone", update: 0 } },
+    }),
     code_fingerprint: "ran",
-    depends_on:
-      freshness === undefined || freshness === "edited"
-        ? {}
-        : { x: { execution: "gone", update: 0 } },
-    outcome: {
-      kind: "value",
-      display:
-        output === null
-          ? null
-          : {
-              mimetype: output.mimetype,
-              data:
-                typeof output.data === "string"
-                  ? output.data
-                  : JSON.stringify(output.data),
-            },
-    },
-  });
+  };
   const document =
     freshness === undefined
       ? null
@@ -78,7 +71,19 @@ function seedResult(
           },
           [cid],
         );
-  MockExecutions.seed(store, [ran], null, document);
+  const shown =
+    output === null
+      ? []
+      : [
+          MockExecutions.output(ran, {
+            mimetype: output.mimetype,
+            data:
+              typeof output.data === "string"
+                ? output.data
+                : JSON.stringify(output.data),
+          }),
+        ];
+  MockExecutions.seed(store, [ran, ...shown], null, document);
 }
 
 const Cell: React.FC<{

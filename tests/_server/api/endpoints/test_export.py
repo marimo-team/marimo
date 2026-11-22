@@ -23,8 +23,12 @@ from marimo._export.requests import PDFExportRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notebook import Transaction
 from marimo._messaging.notebook.changes import SetCode
-from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification import (
+    CellNotification,
+    ExecutionNotification,
+)
 from marimo._output.utils import uri_encode_component
+from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._schemas.export import (
     ExportAvailabilityResponse,
@@ -953,6 +957,65 @@ def test_export_ipynb_selects_current_session_outputs(
         assert output_cell["outputs"] == expected_outputs
 
 
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(), reason="nbformat not installed"
+)
+@with_session(SESSION_ID)
+def test_ipynb_rerun_exports_only_the_display_for_its_source(
+    client: TestClient,
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    app = InternalApp(App())
+    cell = CellId_t("test")
+    app.cell_manager.register_cell(cell, "1+1", None)
+    session.app_file_manager.app = app
+    view = session.session_view
+    view.add_notification(
+        ExecutionNotification("first", cell, "run", "planned", code="1+1")
+    )
+    view.add_notification(
+        CellNotification(
+            cell,
+            execution_id="first",
+            output=CellOutput(CellChannel.OUTPUT, "text/plain", "2"),
+        )
+    )
+    for code in ("1+1", "3+3"):
+        app.cell_manager.document.apply(
+            Transaction(changes=(SetCode(cell, code),), source="test")
+        )
+        view.add_control_request(
+            ExecuteCellsCommand([ExecuteCellCommand(cell, code)])
+        )
+        view.add_notification(
+            ExecutionNotification(code, cell, "run", "planned", code=code)
+        )
+        view.add_notification(
+            CellNotification(
+                cell, execution_id=code, console=CellOutput.stdout("waiting")
+            )
+        )
+        response = client.post(
+            "/api/export/ipynb",
+            headers=HEADERS,
+            json={"download": False, "includeOutputs": True},
+        )
+        assert response.status_code == 200
+        [exported] = json.loads(response.text)["cells"]
+        assert "".join(exported["source"]) == code
+        assert [
+            row["data"]["text/plain"]
+            for row in exported["outputs"]
+            if row["output_type"] == "display_data"
+        ] == ([["2"]] if code == "1+1" else [])
+        assert [
+            row["text"]
+            for row in exported["outputs"]
+            if row["output_type"] == "stream"
+        ] == [["waiting"]]
+
+
 @with_read_session(SESSION_ID)
 def test_other_exports_dont_work_in_read(client: TestClient) -> None:
     response = client.post(
@@ -1333,8 +1396,12 @@ def test_auto_export_ipynb_with_new_cell(
 
     # Wait for the ipynb file to be created
     time.sleep(0.2)
-    notebook = ipynb_path.read_text()
-    assert "<pre class='text-xs'>3.14</pre>" in notebook
+    cells = json.loads(ipynb_path.read_text())["cells"]
+    cell = next(cell for cell in cells if cell["id"] == "new_cell")
+    assert "".join(cell["source"]) == "3.14"
+    assert "<pre class='text-xs'>3.14</pre>" in "".join(
+        cell["outputs"][0]["data"]["text/html"]
+    )
 
 
 @with_session(SESSION_ID)

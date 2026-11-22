@@ -25,12 +25,8 @@ import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import { createNotebookReplica } from "../notebook/replica";
-import { observeCellMessage } from "../executions";
-import {
-  handleCellNotificationeration,
-  handleKernelReady,
-  handleRemoveUIElements,
-} from "../kernel/handlers";
+import { consoleObservers } from "../cells/execution-console";
+import { handleKernelReady, handleRemoveUIElements } from "../kernel/handlers";
 import type { NotificationMessage } from "../kernel/messages";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
@@ -40,6 +36,7 @@ import {
   activeDocumentModelAtom,
   activeNotebookReplicaAtom,
 } from "../session/active-notebook";
+import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { store as defaultStore } from "../state/jotai";
 import type { IslandsPyodideBridge } from "./bridge";
 import { MarimoIslandElement } from "./components/web-components";
@@ -135,7 +132,10 @@ export async function initializeIslands(
 
   // The notebook's cells follow the managed session's host document.
   const replica = createNotebookReplica(store);
-  replica.connect(bridge.notebookBackend, { onNotification: Functions.NOOP });
+  replica.connect(bridge.notebookBackend, {
+    onNotification: Functions.NOOP,
+    ...consoleObservers(actions),
+  });
   store.set(activeNotebookReplicaAtom, replica);
   const documentModel = createDocumentModel({
     store,
@@ -186,6 +186,8 @@ function handleNotification(
       case "completion-result":
       case "reload":
       case "focus-cell":
+      case "pdb-input":
+      case "pdb-output":
       case "breakpoints":
       case "active-line":
       case "variables":
@@ -250,11 +252,17 @@ function handleNotification(
         FUNCTIONS_REGISTRY.resolve(msg.function_call_id, msg);
         return;
 
-      case "cell-op":
-        observeCellMessage(store, msg);
-        handleCellNotificationeration(msg, actions.handleCellMessage);
+      case "console-inputs-cleared":
+        actions.hideConsoleInputs({
+          cellId: msg.cell_id,
+          executionId: msg.execution_id,
+          inputIds: msg.input_ids,
+        });
         return;
-
+      case "callback-output":
+        VirtualFileTracker.INSTANCE.trackCallbackOutput(msg);
+        actions.showCommandOutput(msg);
+        return;
       case "alert":
         toast({
           title: msg.title,
@@ -281,7 +289,6 @@ function handleNotification(
         return;
 
       case "consumer-capabilities":
-      case "execution":
         return;
       default:
         logNever(msg);

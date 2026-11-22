@@ -29,19 +29,19 @@ export function checkEventClients(
   const catalog = experimental.Host.events({ query: {}, headers: {} });
   expectTypeOf<
     Stream.Success<Effect.Success<typeof events>>
-  >().toEqualTypeOf<Notebook.Event>();
+  >().toEqualTypeOf<Notebook.StreamEvent>();
   expectTypeOf<
     Stream.Success<Effect.Success<typeof extended>>
-  >().toEqualTypeOf<Analysis.NotebookEvent>();
+  >().toEqualTypeOf<Analysis.NotebookStreamEvent>();
   expectTypeOf<
     Stream.Success<Effect.Success<typeof catalog>>
-  >().toEqualTypeOf<Host.Event>();
+  >().toEqualTypeOf<Host.StreamEvent>();
 }
 
 export function checkEventNarrowing(
-  event: Notebook.Event,
-  catalog: Host.Event,
-  extended: Analysis.NotebookEvent,
+  event: Notebook.StreamEvent,
+  catalog: Host.StreamEvent,
+  extended: Analysis.NotebookStreamEvent,
 ) {
   if (event.event === "cell") {
     expectTypeOf(event.data.cell.id).toEqualTypeOf<typeof S.CellId.Type>();

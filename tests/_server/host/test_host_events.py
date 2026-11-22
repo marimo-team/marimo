@@ -10,14 +10,61 @@ import pytest
 
 from marimo._core import protocol
 from marimo._core.stream import RoutedEvent, Stream, snapshot_event
-from marimo._messaging.notification import CompletedRunNotification
+from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.notification import (
+    CallbackOutputNotification,
+    CellNotification,
+    CompletedRunNotification,
+    ExecutionNotification,
+    PdbOutputNotification,
+)
 from marimo._server.host.api import _frame
 from marimo._server.host.events import (
+    EditorNotifications,
     MarimoEvent,
     MarimoMessage,
     notification_event,
     serialize_event,
 )
+from marimo._session.state.session_view import SessionView
+from marimo._types.ids import CellId_t
+
+
+def test_execution_clear_removes_only_command_transcripts_the_editor_received() -> (
+    None
+):
+    cell = CellId_t("cell")
+    view = SessionView()
+    editor, viewer = EditorNotifications(), EditorNotifications()
+    view.add_notification(
+        ExecutionNotification("execution", cell, "run", "planned")
+    )
+    callback = CallbackOutputNotification(
+        cell, [CellOutput.stdout("callback")]
+    )
+    debugger = PdbOutputNotification(cell, [CellOutput.stdout("debugger")])
+    for notification in (callback, debugger):
+        view.add_notification(notification)
+        list(editor.events(None, notification, view))
+    list(viewer.events(None, callback, view))
+
+    clear = CellNotification(cell, execution_id="execution", console=[])
+    view.add_notification(clear)
+    assert {
+        event.event.data.marimo.name
+        for event in editor.events(None, clear, view)
+        if isinstance(event.event, MarimoEvent)
+    } == {"callback-output", "pdb-output"}
+    assert [
+        event.event.data.marimo
+        for event in viewer.events(None, clear, view)
+        if isinstance(event.event, MarimoEvent)
+    ] == [CallbackOutputNotification(cell, [], replace=True)]
+    assert not list(editor.events(None, clear, view))
+    assert view.get_cell_console_outputs([cell]) == {}
+    assert view.debugger_notifications() == [
+        PdbOutputNotification(cell, [], replace=True)
+    ]
 
 
 @pytest.mark.parametrize(
@@ -72,6 +119,7 @@ def test_extension_routing_and_control_filters() -> None:
     event = notification_event(
         notebook_id, CompletedRunNotification(run_id="r1")
     )
+    assert event is not None
     assert [event.visible_in(scope) for scope in (None, "n1", "n2")] == [
         False,
         True,
@@ -96,3 +144,16 @@ def test_extension_routing_and_control_filters() -> None:
         control = RoutedEvent(wire, notebook_id=notebook_id)
         assert control.wanted({"cell"}, "other-run")
         assert not control.visible_in(notebook_id)
+
+
+def test_editor_does_not_forward_cell_status_changes() -> None:
+    editor = EditorNotifications()
+    cell = CellId_t("cell")
+    assert (
+        list(
+            editor.events(
+                None, CellNotification(cell, status="disabled-transitively")
+            )
+        )
+        == []
+    )

@@ -3,7 +3,7 @@
 import { vi } from "vitest";
 import { test } from "./scenario-fixture";
 
-test("closing a session before the debounce prevents submission", async ({
+test("closing a session before the scheduled send prevents submission", async ({
   expect,
   session: { user, notebook, controller },
 }) => {

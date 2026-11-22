@@ -43,9 +43,7 @@ def deliver_reply(replies: ReplyQueue, reply: InputReply) -> None:
 
 def require_active_execution() -> None:
     execution = EXECUTION_CTX.get()
-    if (
-        execution is not None
-        and execution.attempt is not None
-        and execution.attempt.completed
-    ):
+    if execution is None:
+        raise EOFError("Input requires a running execution")
+    if execution.attempt is not None and execution.attempt.completed:
         raise EOFError("The execution requesting input has ended")

@@ -29,7 +29,7 @@ attachments. It also reports the host's capabilities. This example prints
 the notebooks the host currently knows about.
 
 ```ts
-for await (const event of client.events({ types: ["notebook"] })) {
+for await (const event of client.events({ kinds: ["notebook"] })) {
   if (event.event === "notebook") {
     console.log(event.data.notebook.id, event.data.notebook.name);
   }
@@ -53,7 +53,7 @@ import { discoverHosts } from "@marimo-team/client/node";
 
 for await (const host of discoverHosts()) {
   const client = new Client(host.url, { token: host.token });
-  for await (const event of client.events({ types: ["notebook"] })) {
+  for await (const event of client.events({ kinds: ["notebook"] })) {
     if (event.event === "ready") break;
     if (event.event === "notebook") {
       console.log(event.data.notebook.id, event.data.notebook.name);
@@ -74,7 +74,7 @@ import type { DocumentOutput } from "@marimo-team/client/protocol";
 const notebook = client.notebook("n1");
 let document: DocumentOutput | undefined;
 
-for await (const event of notebook.events({ types: ["document"] })) {
+for await (const event of notebook.events({ kinds: ["document"] })) {
   if (event.event === "document") document = event.data.document;
   if (event.event === "reset") document = undefined;
   if (event.event === "ready") break;
@@ -145,10 +145,10 @@ stream before submitting work to receive its progress and results.
 ## Interrupt or cancel work
 
 `notebook.interrupt()` stops active runtime work, including work without a run
-record, and ends queued runs as interrupted. It takes no runtime or run id.
-An idle `running` runtime accepts the request without affecting future work.
-An absent runtime returns `no-runtime`; a runtime that is not `running` returns
-`conflict`.
+record, and ends queued runs as cancelled. It takes no runtime or run id.
+An idle runtime accepts the request without affecting future work. An absent
+or ended runtime returns `no-runtime`; a runtime that is `starting` or
+`stopping` returns `conflict`.
 
 `notebook.cancel({ runId })` cancels one queued or running run and leaves other
 runs untouched. Cancelling a completed run returns a conflict problem.

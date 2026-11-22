@@ -43,6 +43,26 @@ function escapeRegex(str: string): string {
 }
 
 /**
+ * Escape each triple quote as `\"""`, which `unescapeQuotes` reverses.
+ * Runs are escaped from their end, so at most two unescaped quotes touch.
+ * Returns undefined when a run of 3k quotes follows an odd number of
+ * backslashes: the added backslash would pair with the last of them.
+ */
+function escapeTripleQuotes(
+  code: string,
+  quote: '"' | "'",
+): string | undefined {
+  const runs = String.raw`(?:${quote}{3})+(?!${quote})`;
+  if (new RegExp(String.raw`(?<!\\)(?:\\\\)*\\${runs}`).test(code)) {
+    return undefined;
+  }
+  const triple = quote.repeat(3);
+  return code.replace(new RegExp(runs, "g"), (run) =>
+    run.replaceAll(triple, `\\${triple}`),
+  );
+}
+
+/**
  * Parser for marimo Markdown cells (mo.md()).
  *
  * Converts between Python code like `mo.md(r"""# Hello""")` and
@@ -97,7 +117,10 @@ export class MarkdownParser implements LanguageParser<MarkdownMetadata> {
   }
 
   transformOut(code: string, metadata: MarkdownMetadata): FormatResult {
-    // NB. Must be kept consistent with marimo/_convert/utils.py::markdown_to_marimo
+    // NB. Must be kept consistent with
+    // marimo/_convert/common/format.py::markdown_to_marimo for raw prefixes.
+    // Non-raw prefixes are not handled here because transformIn does not
+    // evaluate escape sequences, so the editor could not read them back.
 
     // Empty string
     if (code === "") {
@@ -107,15 +130,24 @@ export class MarkdownParser implements LanguageParser<MarkdownMetadata> {
 
     const { quotePrefix } = metadata;
 
-    // We always transform back with triple quotes, as to avoid needing to
-    // escape single quotes.
-    // We escape only 2 because 4 quotes in a row would end the string.
-    // We escape the second quote to avoid leading backslashes escaping the
-    // first quote.
-    const escapedCode = code.replaceAll('""', String.raw`"\"`);
+    // Prefer a delimiter the body does not contain: escapes survive in raw
+    // strings and render as backslashes in code blocks.
+    const quotes: Array<'"' | "'"> =
+      code.includes('"""') && !code.includes("'''") ? ["'"] : ['"', "'"];
+    for (const quote of quotes) {
+      const escapedCode = escapeTripleQuotes(code, quote);
+      if (escapedCode !== undefined) {
+        const start = `mo.md(${quotePrefix}${quote.repeat(3)}\n`;
+        const end = `\n${quote.repeat(3)})`;
+        return { code: start + escapedCode + end, offset: start.length + 1 };
+      }
+    }
 
+    // Neither delimiter can hold this body losslessly. Escape every second
+    // quote, which is always valid Python but loads back with backslashes.
     const start = `mo.md(${quotePrefix}"""\n`;
     const end = `\n""")`;
+    const escapedCode = code.replaceAll('""', String.raw`"\"`);
     return { code: start + escapedCode + end, offset: start.length + 1 };
   }
 

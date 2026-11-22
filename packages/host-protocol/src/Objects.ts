@@ -6,13 +6,13 @@ import type { Schema } from "effect";
 import { Host, Notebook, Project } from "./model/Catalog.ts";
 import { Cell, Document } from "./model/Document.ts";
 import { Execution, Run } from "./model/Execution.ts";
-import { Console, Display, Input, Variable } from "./model/Items.ts";
+import { Console, Input, Output, Variable } from "./model/Items.ts";
 import { Attachment, Runtime } from "./model/Runtime.ts";
 
 /** The catalog stream is `/events`. A notebook stream is `/notebooks/{notebook_id}/events`. */
 export type StreamName = "catalog" | "notebook";
 
-export interface ObjectKind {
+export interface ObjectDefinition {
   /** Names the object's event and its field in that event's data. */
   readonly kind: string;
   readonly schema: Schema.Constraint;
@@ -35,8 +35,8 @@ export const objects = [
   { kind: "attachment", schema: Attachment, streams: both, removable: true },
   { kind: "run", schema: Run, streams: notebook, removable: true },
   { kind: "execution", schema: Execution, streams: notebook, removable: true },
+  { kind: "output", schema: Output, streams: notebook, removable: true },
   { kind: "console", schema: Console, streams: notebook, removable: true },
-  { kind: "display", schema: Display, streams: notebook, removable: true },
   { kind: "input", schema: Input, streams: notebook, removable: false },
   { kind: "variable", schema: Variable, streams: notebook, removable: true },
-] as const satisfies ReadonlyArray<ObjectKind>;
+] as const satisfies ReadonlyArray<ObjectDefinition>;

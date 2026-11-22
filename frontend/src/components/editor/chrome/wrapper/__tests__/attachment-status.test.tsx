@@ -39,7 +39,7 @@ const AGENT: Attachment = {
   id: "a1",
   kind: "agent",
   name: "Pi",
-  since: new Date().toISOString(),
+  created_at: new Date().toISOString(),
   notebook_id: "nb-one",
   identity: null,
 };

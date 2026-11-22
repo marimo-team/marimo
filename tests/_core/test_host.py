@@ -79,7 +79,12 @@ def test_replacing_a_cell_result_updates_history_before_delivery(
     notebook.observe(
         be.Produced(
             protocol.Console(
-                execution, protocol.ItemId("out"), "stdout", 0, "old output"
+                id=protocol.ItemId("out"),
+                execution_id=execution,
+                seq=0,
+                content=protocol.ConsoleText(
+                    stream="stdout", text="old output"
+                ),
             )
         )
     )
@@ -111,7 +116,7 @@ async def test_catalog_snapshot_and_replay_exclude_runs(host: Host) -> None:
     notebook.observe(
         be.Planned(
             run.id,
-            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
+            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h"),),
         )
     )
     notebook.attach()
@@ -143,7 +148,7 @@ async def test_a_notebook_stream_sees_only_its_notebook(host: Host) -> None:
     first.observe(
         be.Planned(
             run.id,
-            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h", "1"),),
+            (be.PlannedExecution(protocol.ExecutionId("e1"), None, "h"),),
         )
     )
     second.start()
@@ -201,9 +206,9 @@ async def test_resume_replays_or_resets() -> None:
 async def test_types_filter_keeps_ready_and_reset(host: Host) -> None:
     host.update_project(project())
     await add_notebook(host, record(), ScriptedBackend())
-    assert names(host.events(types={"notebook"})) == ["notebook", "ready"]
+    assert names(host.events(kinds={"notebook"})) == ["notebook", "ready"]
     future = host._stream.cursor_at(10**6)
-    assert names(host.events(future, types={"notebook"})) == [
+    assert names(host.events(future, kinds={"notebook"})) == [
         "reset",
         "notebook",
         "ready",
@@ -218,7 +223,7 @@ async def test_subscribe_filters_the_live_stream(host: Host) -> None:
     runtimes: list[RoutedEvent] = []
     host.subscribe(catalog.append)
     host.subscribe(mine.append, notebook_id="n1")
-    unsubscribe = host.subscribe(runtimes.append, types={"runtime"})
+    unsubscribe = host.subscribe(runtimes.append, kinds={"runtime"})
 
     notebook.start()
     notebook.observe(be.Running(runtime_id_of(notebook)))
@@ -280,13 +285,13 @@ async def test_updating_a_notebook_publishes_only_changes(host: Host) -> None:
     assert (await host.notebook("n1")) is notebook
     assert notebook.runtime is runtime
     assert backend.calls == []
-    assert host.events(notebook_id="n1", types={"run"})[
+    assert host.events(notebook_id="n1", kinds={"run"})[
         0
     ].event.data == protocol.RunMessage(run=run, request_id="run")
     assert host.events(notebook_id="n1")[
         0
     ].event.data == protocol.NotebookMessage(notebook=moved)
-    assert host.events(types={"notebook"})[
+    assert host.events(kinds={"notebook"})[
         0
     ].event.data == protocol.NotebookMessage(notebook=moved)
     assert names(log) == ["notebook"]
@@ -359,7 +364,7 @@ async def test_catalog_updates_do_not_share_mutable_records(
     source = replace(source, name="changed", operations=())
     host.update_project(source)
 
-    replay = host.events(host._stream.cursor_at(0), types={"project"})
+    replay = host.events(host._stream.cursor_at(0), kinds={"project"})
     projects = [
         e.event.data.project
         for e in replay
@@ -506,34 +511,36 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
     run = notebook.run("code", request_id="request", request=None)
     execution = plan(notebook, run, "e")
     item = protocol.Console(
-        protocol.ExecutionId("e"),
-        protocol.ItemId("console"),
-        "stdout",
-        0,
-        "output",
+        id=protocol.ItemId("console"),
+        execution_id=protocol.ExecutionId("e"),
+        seq=0,
+        content=protocol.ConsoleText(stream="stdout", text="output"),
     )
     notebook.observe(be.Produced(item))
     notebook.observe(
         be.Produced(
-            protocol.Display(
+            protocol.Console(
                 execution_id=execution,
                 id=protocol.ItemId("display"),
                 seq=1,
-                content=protocol.DisplayData(
-                    mimetype="text/html", data="value"
+                content=protocol.ConsoleMedia(
+                    protocol.Media(mimetype="text/html", data="value")
                 ),
             )
         )
     )
+    media = protocol.Media(mimetype="text/plain", data="9")
+    notebook.observe(be.Displayed(execution, media))
     finish(notebook, execution)
     notebook.observe(be.Done(run.id, "succeeded"))
     snapshot = host.events(notebook_id=notebook.id, run_id=run.id)
     initial = fold(snapshot)
+    assert initial["output", "e:output"].media == media
     assert {kind for kind, _ in initial} == {
         "run",
         "execution",
+        "output",
         "console",
-        "display",
     }
     live: list[RoutedEvent] = []
     host.subscribe(live.append, notebook_id=notebook.id, run_id=run.id)
@@ -544,7 +551,8 @@ async def test_expiration_converges_for_live_replay_and_snapshot(
     host.expire()
     assert names(live) == [
         "console.removed",
-        "display.removed",
+        "console.removed",
+        "output.removed",
         "execution.removed",
         "run.removed",
     ]
@@ -649,7 +657,7 @@ async def test_stopping_starts_expiry_for_active_work_without_extending_old_resu
     host.expire()
     state = fold(host.events(notebook_id=notebook.id))
     assert set(state) == {("run", active.id), ("execution", "active")}
-    assert state["run", active.id].outcome == "interrupted"
+    assert state["run", active.id].state.outcome == protocol.CancelledOutcome()
     clock.now = 15
     host.expire()
     assert fold(host.events(notebook_id=notebook.id)) == {}
@@ -682,7 +690,10 @@ async def test_removal_listeners_can_read_snapshots() -> None:
     notebook.observe(
         be.Produced(
             protocol.Console(
-                execution, protocol.ItemId("console"), "stdout", 0, "x"
+                id=protocol.ItemId("console"),
+                execution_id=execution,
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="x"),
             )
         )
     )
@@ -709,7 +720,10 @@ async def test_expiration_does_not_scan_unrelated_outputs(
         notebook.observe(
             be.Produced(
                 protocol.Console(
-                    execution, protocol.ItemId(str(index)), "stdout", 0, "x"
+                    id=protocol.ItemId(str(index)),
+                    execution_id=execution,
+                    seq=0,
+                    content=protocol.ConsoleText(stream="stdout", text="x"),
                 )
             )
         )
@@ -739,7 +753,10 @@ async def test_completed_scratch_runs_belong_to_the_host() -> None:
     notebook.observe(
         be.Produced(
             protocol.Console(
-                execution, protocol.ItemId("out"), "stdout", 0, "x"
+                id=protocol.ItemId("out"),
+                execution_id=execution,
+                seq=0,
+                content=protocol.ConsoleText(stream="stdout", text="x"),
             )
         )
     )

@@ -4,23 +4,36 @@ import { vi } from "vitest";
 import { document } from "./fixtures";
 import { test } from "./scenario-fixture";
 
-test("waits for a pause in typing before sending the latest edit", async ({
+test("batches from the first edit and sends further typing on host confirmation", async ({
   expect,
   session: { user, host, notebook },
 }) => {
-  user.changeCode("c3", "first");
-  await vi.advanceTimersByTimeAsync(300);
-  user.changeCode("c3", "latest");
-  await vi.advanceTimersByTimeAsync(399);
+  user.changeCode("c3", "x");
+  await vi.advanceTimersByTimeAsync(99);
+  user.changeCode("c3", "x =");
   expect(notebook.edit).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
   expect(notebook.edit).toHaveBeenCalledOnce();
   const request = await host.nextRequest();
   request.process();
+  expect(host.document().cells.get("c3")?.code).toBe("x =");
   request.deliverResponse();
+
+  user.changeCode("c3", "x = 1");
+  await vi.advanceTimersByTimeAsync(150);
+  user.changeCode("c3", "x = 12");
+  expect(notebook.edit).toHaveBeenCalledOnce();
   host.deliverDocument();
-  await expect(user.sync()).resolves.toEqual(host.document().revision);
-  expect(host.document().cells.get("c3")?.code).toBe("latest");
+  await vi.advanceTimersByTimeAsync(0);
+  expect(notebook.edit).toHaveBeenCalledTimes(2);
+  const next = await host.nextRequest();
+  next.process();
+  next.deliverResponse();
+  host.deliverDocument();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(host.document().cells.get("c3")?.code).toBe("x = 12");
+  expect(user.status()).toEqual({ status: "idle" });
+  expect(vi.getTimerCount()).toBe(0);
 });
 
 test.for(["response", "document"] as const)(

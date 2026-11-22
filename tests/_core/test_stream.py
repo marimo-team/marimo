@@ -156,13 +156,13 @@ def test_subscribers_act_after_the_command_reaches_the_backend(
         if isinstance(event.event, protocol.RuntimeEvent):
             notebook.stop()
 
-    host.subscribe(stop_on_starting, types={"runtime"})
+    host.subscribe(stop_on_starting, kinds={"runtime"})
 
     runtime, _ = notebook.start()
 
     assert backend.calls == [("start", runtime.id), ("stop", runtime.id)]
     assert notebook.runtime is not None
-    assert notebook.runtime.status == "terminating"
+    assert notebook.runtime.state == protocol.RuntimeStopping()
 
 
 def test_subscribers_cannot_interrupt_a_restart(
@@ -178,7 +178,7 @@ def test_subscribers_cannot_interrupt_a_restart(
         if isinstance(event.event, protocol.RuntimeRemovedEvent):
             started.append(notebook.start())
 
-    host.subscribe(start_on_removal, types={"runtime"})
+    host.subscribe(start_on_removal, kinds={"runtime"})
 
     notebook.observe(be.Exited(runtime.id))
 
@@ -199,7 +199,7 @@ def test_subscribers_cannot_start_a_runtime_during_adoption(
         if isinstance(event.event, protocol.RuntimeRemovedEvent):
             started.append(notebook.start())
 
-    host.subscribe(start_on_removal, types={"runtime"})
+    host.subscribe(start_on_removal, kinds={"runtime"})
 
     replacement = notebook.adopt(attached.append)
 
@@ -225,10 +225,10 @@ def test_custom_events_are_on_the_notebook_stream_only(
     ]
     assert "custom" not in names(host.events())
     assert names(
-        host.events(cursor, notebook_id=notebook.id, types={"custom"})
+        host.events(cursor, notebook_id=notebook.id, kinds={"custom"})
     ) == ["custom", "ready"]
     assert names(
-        host.events(cursor, notebook_id=notebook.id, types={"attachment"})
+        host.events(cursor, notebook_id=notebook.id, kinds={"attachment"})
     ) == ["ready"]
     replayed = host._stream.since(ready.position or 0)
     assert replayed is not None
@@ -282,8 +282,8 @@ def test_extension_type_filters_preserve_the_full_wire_name() -> None:
 
     event = RoutedEvent(Extension(protocol.RemovedMessage(id="item")))
     assert [
-        event.wanted(types)
-        for types in (None, {"extension.removed"}, {"extension"})
+        event.wanted(kinds)
+        for kinds in (None, {"extension.removed"}, {"extension"})
     ] == [True, True, False]
 
 

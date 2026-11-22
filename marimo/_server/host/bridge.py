@@ -132,7 +132,7 @@ class SessionBridge(SessionEventListener):
             else None
         )
         self._unsubscribe = self.host.subscribe(
-            self._on_host_event, types={"notebook"}
+            self._on_host_event, kinds={"notebook"}
         )
 
     @property
@@ -458,8 +458,12 @@ class SessionBridge(SessionEventListener):
         if session is None:
             return []
         return [
-            notification_event(notebook_id, notification)
-            for notification in session.session_view.snapshot_notifications()
+            event
+            for notification in session.session_view.snapshot_notifications(
+                scope="host"
+            )
+            if (event := notification_event(notebook_id, notification))
+            is not None
         ]
 
     def session_for_notebook(
@@ -673,7 +677,7 @@ class SessionBridge(SessionEventListener):
         async with self._files_lock:
             notebook = self.host.peek_notebook(notebook_id)
             if notebook_id in self._adopting or (
-                notebook is not None and notebook.runtime is not None
+                notebook is not None and notebook.live_runtime is not None
             ):
                 raise Conflict("The notebook has a runtime")
             file = self.index.file_of(notebook_id)

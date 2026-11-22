@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { notebookAtom } from "@/core/cells/cells";
+import { cellRuntimeAtom, notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
 import {
@@ -82,7 +82,7 @@ function resolveTracebackHtml(
 }
 
 export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
-  const { cellIds, cellRuntime, cellData } = store.get(notebookAtom);
+  const { cellIds, cellData } = store.get(notebookAtom);
   const entries: CellErrorEntry[] = [];
 
   for (const [cellIndex, cellId] of cellIds.entries()) {
@@ -107,7 +107,7 @@ export function getCellErrorEntries(store: JotaiStore): CellErrorEntry[] {
       errorData: parsed.errorData,
       tracebackHtml: resolveTracebackHtml(
         parsed,
-        cellRuntime[cellId].consoleOutputs,
+        store.get(cellRuntimeAtom(cellId)).consoleOutputs,
       ),
     });
   }

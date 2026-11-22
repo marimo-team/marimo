@@ -19,7 +19,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("@/core/cells/cells", () => ({
-  useNotebook: () => ({ cellRuntime: {}, cellData: {} }),
+  useCellRuntime: () => ({ consoleOutputs: [] }),
 }));
 vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({ createCell: vi.fn() }),

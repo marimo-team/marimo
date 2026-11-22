@@ -33,6 +33,7 @@ extra_javascript:
   - _static/js/math.js
   - _static/js/init_kapa_widget.js
   - _static/js/page_actions.js
+  - _static/js/config_reference.js
 markdown_extensions:
   - blocks:MarimoBlocksExtension
   - admonition
@@ -218,6 +219,7 @@ nav:
       - Recipes: recipes.md
   - API Reference:
       - API Reference: api/index.md
+      - Configuration: api/configuration.md
       - Markdown: api/markdown.md
       - Inputs:
           - Inputs: api/inputs/index.md

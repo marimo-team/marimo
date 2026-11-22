@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { createCell, createCellRuntimeState } from "@/core/cells/types";
+import { createCell } from "@/core/cells/types";
 import { SlideCellReadOnlyView } from "../slide-cell-view";
 
 beforeAll(() => {
@@ -17,7 +17,7 @@ describe("SlideCellReadOnlyView", () => {
     const id = cellId("test");
     const cell = {
       ...createCell({ id, name: "title", code: "x = 1" }),
-      ...createCellRuntimeState(),
+      consoleOutputs: [],
       output: null,
     };
 

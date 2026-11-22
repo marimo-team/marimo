@@ -35,7 +35,7 @@ export const HostMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     host: Host,
   })
@@ -119,7 +119,7 @@ export const ProjectMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     project: Project,
   })
@@ -172,14 +172,14 @@ export const Notebook = zod
       .describe(
         "Operations this client may call on the notebook, such as `notebook.edit` or `runtime.start`. A subset of `host.operations` selected by the client's permissions, independently of the notebook's current state. The `runtime` object shows whether a runtime is attached, and preconditions still apply when an operation is called. The host sends the notebook again when it changes.",
       ),
-    updated_at: zod
+    modified_at: zod
       .union([Timestamp, zod.null()])
       .describe(
-        "When the file was last modified, as of the host's last look at it. Null when the host does not know.",
+        "A hint of when the file was last modified, for display and ordering. It can lag, since a host need not send the notebook again when only this value changes. Null when the host does not know.",
       ),
   })
   .describe(
-    "A notebook is a document and its results as the host knows them,\nusually backed by a file. Its kernel, when it has one, is a\nseparate object, the runtime. A host sends at most one `notebook`\nevent per second for the same notebook, since `updated_at`\nchanges on every save.\n",
+    "A notebook is a document and its results as the host knows them,\nusually backed by a file. Its kernel, when it has one, is a\nseparate object, the runtime.\n",
   );
 
 export type Notebook = zod.input<typeof Notebook>;
@@ -194,7 +194,7 @@ export const NotebookMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     notebook: Notebook,
   })
@@ -288,7 +288,7 @@ export const DocumentMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     document: Document,
   })
@@ -392,7 +392,7 @@ export const CellMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     cell: Cell,
   })
@@ -426,34 +426,98 @@ export const RuntimeId = zod
 export type RuntimeId = zod.input<typeof RuntimeId>;
 export type RuntimeIdOutput = zod.output<typeof RuntimeId>;
 
-export const RuntimeStatus = zod
-  .enum(["starting", "running", "terminating", "failed"])
+export const RuntimeStarting = zod.object({
+  status: zod.enum(["starting"]),
+  message: zod
+    .union([zod.string(), zod.null()])
+    .describe(
+      "A note about progress, such as the packages being installed. Null when the host has nothing to report.",
+    ),
+});
+
+export type RuntimeStarting = zod.input<typeof RuntimeStarting>;
+export type RuntimeStartingOutput = zod.output<typeof RuntimeStarting>;
+
+export const RuntimeReady = zod.object({
+  status: zod.enum(["ready"]),
+});
+
+export type RuntimeReady = zod.input<typeof RuntimeReady>;
+export type RuntimeReadyOutput = zod.output<typeof RuntimeReady>;
+
+export const RuntimeStopping = zod.object({
+  status: zod.enum(["stopping"]),
+});
+
+export type RuntimeStopping = zod.input<typeof RuntimeStopping>;
+export type RuntimeStoppingOutput = zod.output<typeof RuntimeStopping>;
+
+export const RuntimeStoppedOutcome = zod.object({
+  kind: zod.enum(["stopped"]),
+});
+
+export type RuntimeStoppedOutcome = zod.input<typeof RuntimeStoppedOutcome>;
+export type RuntimeStoppedOutcomeOutput = zod.output<
+  typeof RuntimeStoppedOutcome
+>;
+
+export const RuntimeFailedOutcome = zod.object({
+  kind: zod.enum(["failed"]),
+  message: zod
+    .union([zod.string(), zod.null()])
+    .describe(
+      "Why the kernel could not start or why it exited, to show people. Null when the host does not know.",
+    ),
+});
+
+export type RuntimeFailedOutcome = zod.input<typeof RuntimeFailedOutcome>;
+export type RuntimeFailedOutcomeOutput = zod.output<
+  typeof RuntimeFailedOutcome
+>;
+
+export const RuntimeOutcome = zod
+  .union([RuntimeStoppedOutcome, RuntimeFailedOutcome])
   .describe(
-    "Where a runtime is in its life. A `starting` runtime is bringing\nits kernel up. A `running` runtime accepts work. A `terminating`\nruntime is shutting its kernel down. A `failed` runtime could not\nstart, or its kernel exited unexpectedly. A runtime that has\nended is removed rather than given a status.\n",
+    "How a runtime ended, tagged on `kind`. A `stopped` runtime was\nended by a client or the host. A `failed` runtime could not start,\nor its kernel exited unexpectedly.\n",
   );
 
-export type RuntimeStatus = zod.input<typeof RuntimeStatus>;
-export type RuntimeStatusOutput = zod.output<typeof RuntimeStatus>;
+export type RuntimeOutcome = zod.input<typeof RuntimeOutcome>;
+export type RuntimeOutcomeOutput = zod.output<typeof RuntimeOutcome>;
+
+export const RuntimeEnded = zod.object({
+  status: zod.enum(["ended"]),
+  ended_at: Timestamp.describe("When the runtime ended."),
+  outcome: RuntimeOutcome,
+});
+
+export type RuntimeEnded = zod.input<typeof RuntimeEnded>;
+export type RuntimeEndedOutput = zod.output<typeof RuntimeEnded>;
+
+export const RuntimeState = zod
+  .union([RuntimeStarting, RuntimeReady, RuntimeStopping, RuntimeEnded])
+  .describe(
+    "Where a runtime is in its life, tagged on `status`. A `starting`\nruntime is bringing its kernel up. A `ready` runtime accepts work.\nA `stopping` runtime is shutting its kernel down. An `ended`\nruntime has no kernel and does not change again.\n",
+  );
+
+export type RuntimeState = zod.input<typeof RuntimeState>;
+export type RuntimeStateOutput = zod.output<typeof RuntimeState>;
 
 export const Runtime = zod
   .object({
     id: RuntimeId,
     notebook_id: NotebookId,
-    status: RuntimeStatus,
-    message: zod
-      .union([zod.string(), zod.null()])
-      .describe(
-        "A note about the current status, such as progress while `starting` or the reason when `failed`. Null otherwise.",
-      ),
     marimo_version: zod
       .union([zod.string(), zod.null()])
       .describe(
         "The version of marimo running the kernel. Null until the host knows it.",
       ),
-    started_at: Timestamp.describe("When this runtime started."),
+    created_at: Timestamp.describe(
+      "When the host created this runtime and began starting it.",
+    ),
+    state: RuntimeState,
   })
   .describe(
-    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits, and the host then sends `runtime.removed`. Every start and restart creates\na new runtime with a new id. Results carry their producer's runtime\nid so clients can tell which are live.\n",
+    "A runtime is a kernel attached to one notebook, and a notebook has\nat most one. It ends when a client or the host stops it or its\nprocess exits. The notebook keeps the ended runtime, so clients can\nsee how it ended, until another one starts or the notebook closes.\nThe host then sends `runtime.removed`. Every start and restart\ncreates a new runtime with a new id. Executions carry their producer's\nruntime id, and their results are live while that runtime has not ended.\n",
   );
 
 export type Runtime = zod.input<typeof Runtime>;
@@ -468,7 +532,7 @@ export const RuntimeMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     runtime: Runtime,
   })
@@ -535,7 +599,7 @@ export const Attachment = zod
       .describe(
         "A label to show people, supplied by `Marimo-Attachment-Name`, such as the browser or editor's name. Null when the header is omitted or empty.",
       ),
-    since: Timestamp.describe("When it attached."),
+    created_at: Timestamp.describe("When it attached."),
   })
   .describe(
     "An attachment is a consumer connected to a notebook, such as a\nbrowser tab, an editor, or an agent. Opening the notebook's stream\ncreates one. It is removed when that connection closes, and not\nwhen the notebook's runtime stops or restarts. Each stream has its\nown attachment, even when several share a client identity.\n",
@@ -553,7 +617,7 @@ export const AttachmentMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     attachment: Attachment,
   })
@@ -589,51 +653,133 @@ export const RunId = zod
 export type RunId = zod.input<typeof RunId>;
 export type RunIdOutput = zod.output<typeof RunId>;
 
-export const Lifecycle = zod
-  .enum(["queued", "running", "completed"])
+export const RunCellsOrigin = zod.object({
+  kind: zod.enum(["cells"]),
+  cell_ids: zod
+    .array(CellId)
+    .min(1)
+    .describe(
+      "The cells the run was requested for. Fixed when the run is accepted, so a client can tell which cells a queued run will reach before the runtime has planned their executions. Each one's execution in this run reports the fingerprint of the source accepted for it.",
+    ),
+});
+
+export type RunCellsOrigin = zod.input<typeof RunCellsOrigin>;
+export type RunCellsOriginOutput = zod.output<typeof RunCellsOrigin>;
+
+export const RunCodeOrigin = zod.object({
+  kind: zod.enum(["code"]),
+  code: zod
+    .string()
+    .describe(
+      "The submitted code, which the run's scratch execution evaluates.",
+    ),
+});
+
+export type RunCodeOrigin = zod.input<typeof RunCodeOrigin>;
+export type RunCodeOriginOutput = zod.output<typeof RunCodeOrigin>;
+
+export const RunRuntimeOrigin = zod.object({
+  kind: zod.enum(["runtime"]),
+});
+
+export type RunRuntimeOrigin = zod.input<typeof RunRuntimeOrigin>;
+export type RunRuntimeOriginOutput = zod.output<typeof RunRuntimeOrigin>;
+
+export const RunOrigin = zod
+  .union([RunCellsOrigin, RunCodeOrigin, RunRuntimeOrigin])
   .describe(
-    "Where a run or execution is in its lifecycle. An execution is\n`queued` until it starts, `running` while code executes, and\n`completed` once it has ended. A run is `queued` until its first\nexecution starts, `running` until its cycle has settled or been cut\nshort, and `completed` once no more work can join it. How either\nended is its `outcome`.\n",
+    "What a run was given when it was created, tagged on `kind`. A\n`cells` run was given the cells in `cell_ids`. A `code` run was\ngiven the code in `code`, which its scratch execution evaluates. A\n`runtime` run was given neither. The runtime scheduled it in\nresponse to a change, such as the cells that read a UI element\nafter its value changes. Other kinds are defined by later versions\nof this protocol.\n",
   );
 
-export type Lifecycle = zod.input<typeof Lifecycle>;
-export type LifecycleOutput = zod.output<typeof Lifecycle>;
+export type RunOrigin = zod.input<typeof RunOrigin>;
+export type RunOriginOutput = zod.output<typeof RunOrigin>;
+
+export const RunQueued = zod.object({
+  status: zod.enum(["queued"]),
+});
+
+export type RunQueued = zod.input<typeof RunQueued>;
+export type RunQueuedOutput = zod.output<typeof RunQueued>;
+
+export const RunRunning = zod.object({
+  status: zod.enum(["running"]),
+  started_at: Timestamp.describe("When the first execution started."),
+});
+
+export type RunRunning = zod.input<typeof RunRunning>;
+export type RunRunningOutput = zod.output<typeof RunRunning>;
+
+export const SucceededOutcome = zod.object({
+  kind: zod.enum(["succeeded"]),
+});
+
+export type SucceededOutcome = zod.input<typeof SucceededOutcome>;
+export type SucceededOutcomeOutput = zod.output<typeof SucceededOutcome>;
+
+export const RunFailedOutcome = zod.object({
+  kind: zod.enum(["failed"]),
+  message: zod
+    .union([zod.string(), zod.null()])
+    .describe(
+      "Why the host could not finish the cycle, to show people. Null when the run failed because an execution's code raised.",
+    ),
+});
+
+export type RunFailedOutcome = zod.input<typeof RunFailedOutcome>;
+export type RunFailedOutcomeOutput = zod.output<typeof RunFailedOutcome>;
+
+export const CancelledOutcome = zod.object({
+  kind: zod.enum(["cancelled"]),
+});
+
+export type CancelledOutcome = zod.input<typeof CancelledOutcome>;
+export type CancelledOutcomeOutput = zod.output<typeof CancelledOutcome>;
 
 export const RunOutcome = zod
-  .enum(["succeeded", "failed", "interrupted"])
+  .union([SucceededOutcome, RunFailedOutcome, CancelledOutcome])
   .describe(
-    "How a run ended. `succeeded` means its work settled without an\nexecution error or interruption. `failed` means an execution's\ncode raised or the host could not finish the cycle. An execution\nskipped because of another cell does not fail its run. `interrupted`\nmeans the cycle was cut short by interruption, even if an earlier\nexecution failed. Execution outcomes retain their individual results.\n",
+    "How a run ended, tagged on `kind`. `succeeded` means its work\nsettled without an execution failing or being cancelled. `failed`\nmeans an execution's code raised or the host could not finish the\ncycle. An execution skipped because of another cell does not fail\nits run. `cancelled` means the cycle was cut short by a cancel,\nan interrupt, or its runtime stopping, even if an earlier execution\nfailed. Execution outcomes retain their individual results.\n",
   );
 
 export type RunOutcome = zod.input<typeof RunOutcome>;
 export type RunOutcomeOutput = zod.output<typeof RunOutcome>;
+
+export const RunCompleted = zod.object({
+  status: zod.enum(["completed"]),
+  started_at: zod
+    .union([Timestamp, zod.null()])
+    .describe("When the first execution started. Null if none started."),
+  completed_at: Timestamp.describe("When the run ended."),
+  outcome: RunOutcome.describe(
+    "An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
+  ),
+});
+
+export type RunCompleted = zod.input<typeof RunCompleted>;
+export type RunCompletedOutput = zod.output<typeof RunCompleted>;
+
+export const RunState = zod
+  .union([RunQueued, RunRunning, RunCompleted])
+  .describe(
+    "Where a run is in its lifecycle, tagged on `status`. A run is\n`queued` until its first execution starts and `running` until the\ncycle has settled or been terminated. It is `completed` once all\nmember executions are terminal and no more can be scheduled in this\nrun, and that state is final. A run can complete with no executions.\n",
+  );
+
+export type RunState = zod.input<typeof RunState>;
+export type RunStateOutput = zod.output<typeof RunState>;
 
 export const Run = zod
   .object({
     id: RunId,
     notebook_id: NotebookId,
     runtime_id: RuntimeId.describe("The runtime that produced this run."),
-    cells: zod
-      .array(CellId)
-      .describe(
-        "The cells the run was requested for. Fixed when the run is accepted, so a client can tell which cells a queued run will reach before the runtime has planned their executions. Each one's execution in this run reports the fingerprint of the source accepted for it. Empty for scratch code and for a run the runtime scheduled itself.",
-      ),
-    status: Lifecycle.describe(
-      "Queued until the first execution starts, running until the cycle has settled or been terminated, and completed once all member executions are terminal and no more can be scheduled in this run. A run can complete with no executions.",
+    origin: RunOrigin,
+    created_at: Timestamp.describe(
+      "When the host accepted the run, or when the runtime scheduled it.",
     ),
-    outcome: zod
-      .union([RunOutcome, zod.null()])
-      .describe(
-        "Null until completed, then final. Published with the terminal status and completed_at. An execution failure does not complete a run while other work remains. Interruption must have taken effect, not merely been requested.",
-      ),
-    started_at: zod
-      .union([Timestamp, zod.null()])
-      .describe("When the first execution started. Null if none has started."),
-    completed_at: zod
-      .union([Timestamp, zod.null()])
-      .describe("When the run ended. Null until the run is `completed`."),
+    state: RunState,
   })
   .describe(
-    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items each have removal\nevents; a cell result may outlive its run.\n",
+    "One bounded cycle of notebook work initiated by an action. It\nincludes synchronous callbacks and reactive work owned and awaited\nby the runtime's scheduler. Context inherited by an independent task\nrecords provenance, not ownership of the cycle. The host completes it\nonly after all member executions have ended and scheduling for the\ncycle has finished. Completion fixes its status and execution membership.\nIndependently triggered later work starts another run, even when\nits cause belongs to an earlier run. Every consumer attached to\nthe notebook sees it.\n\nRetention is up to the host and independent of replay history.\nHosts SHOULD retain ephemeral results briefly after completion to\nallow reconnection. Runs, executions, and items other than inputs each have removal\nevents; a cell result may outlive its run.\n",
   );
 
 export type Run = zod.input<typeof Run>;
@@ -648,7 +794,7 @@ export const RunMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     run: Run,
   })
@@ -680,54 +826,20 @@ export const ExecutionId = zod
 export type ExecutionId = zod.input<typeof ExecutionId>;
 export type ExecutionIdOutput = zod.output<typeof ExecutionId>;
 
-export const revisionUpdateMin = 0;
-
-export const Revision = zod
-  .object({
-    execution: ExecutionId.describe(
-      "The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.",
-    ),
-    update: zod
-      .int()
-      .min(revisionUpdateMin)
-      .describe(
-        "How many times the value has been updated since it was produced. Zero at binding.",
-      ),
-  })
-  .describe(
-    "A variable's value at a point in time. Two revisions are equal\nwhen `execution` and `update` are equal. Clients compare\nrevisions for equality.\n",
-  );
-
-export type Revision = zod.input<typeof Revision>;
-export type RevisionOutput = zod.output<typeof Revision>;
-
-export const DisplayData = zod
-  .object({
-    mimetype: zod
-      .string()
-      .describe("The format of `data`, such as `text/html` or `image/png`."),
-    data: zod
-      .string()
-      .describe(
-        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
-      ),
-  })
-  .describe("A rendered value.");
-
-export type DisplayData = zod.input<typeof DisplayData>;
-export type DisplayDataOutput = zod.output<typeof DisplayData>;
-
-export const ValueOutcome = zod.object({
-  kind: zod.enum(["value"]),
-  display: zod
-    .union([DisplayData, zod.null()])
-    .describe(
-      "The value as last rendered. Replaced as it grows. Null when the code produced no value.",
-    ),
+export const ExecutionQueued = zod.object({
+  status: zod.enum(["queued"]),
 });
 
-export type ValueOutcome = zod.input<typeof ValueOutcome>;
-export type ValueOutcomeOutput = zod.output<typeof ValueOutcome>;
+export type ExecutionQueued = zod.input<typeof ExecutionQueued>;
+export type ExecutionQueuedOutput = zod.output<typeof ExecutionQueued>;
+
+export const ExecutionRunning = zod.object({
+  status: zod.enum(["running"]),
+  started_at: Timestamp.describe("When the code started executing."),
+});
+
+export type ExecutionRunning = zod.input<typeof ExecutionRunning>;
+export type ExecutionRunningOutput = zod.output<typeof ExecutionRunning>;
 
 export const positionLineMin = 0;
 
@@ -761,6 +873,22 @@ export const Range = zod
 export type Range = zod.input<typeof Range>;
 export type RangeOutput = zod.output<typeof Range>;
 
+export const Media = zod
+  .object({
+    mimetype: zod
+      .string()
+      .describe("The format of `data`, such as `text/html` or `image/png`."),
+    data: zod
+      .string()
+      .describe(
+        "The rendered value, embedded so clients can display it independently of the runtime. JSON mimetypes are encoded as text and binary mimetypes as base64.",
+      ),
+  })
+  .describe("A rendered value.");
+
+export type Media = zod.input<typeof Media>;
+export type MediaOutput = zod.output<typeof Media>;
+
 export const Related = zod
   .object({
     cell_id: CellId,
@@ -781,7 +909,7 @@ export const Error = zod
     kind: zod
       .string()
       .describe(
-        "The producer's identifier, scoped by source. Open; this protocol defines `exception`, `interrupted`, and `internal` for executions. Clients show unrecognized kinds as plain errors.",
+        "The producer's identifier, scoped by source. Open; this protocol defines `exception` and `internal` for executions. Clients show unrecognized kinds as plain errors.",
       ),
     message: zod
       .string()
@@ -805,7 +933,7 @@ export const Error = zod
         "The exception class, such as `ZeroDivisionError`. Set when kind is exception, null otherwise.",
       ),
     traceback: zod
-      .union([DisplayData, zod.null()])
+      .union([Media, zod.null()])
       .describe(
         "The traceback as rendered by the runtime, plain text or HTML by its mimetype. Null when unavailable or not shown.",
       ),
@@ -822,22 +950,17 @@ export const Error = zod
 export type Error = zod.input<typeof Error>;
 export type ErrorOutput = zod.output<typeof Error>;
 
-export const ErrorOutcome = zod.object({
-  kind: zod.enum(["error"]),
+export const ExecutionFailedOutcome = zod.object({
+  kind: zod.enum(["failed"]),
   error: Error,
 });
 
-export type ErrorOutcome = zod.input<typeof ErrorOutcome>;
-export type ErrorOutcomeOutput = zod.output<typeof ErrorOutcome>;
+export type ExecutionFailedOutcome = zod.input<typeof ExecutionFailedOutcome>;
+export type ExecutionFailedOutcomeOutput = zod.output<
+  typeof ExecutionFailedOutcome
+>;
 
-export const InterruptedOutcome = zod.object({
-  kind: zod.enum(["interrupted"]),
-});
-
-export type InterruptedOutcome = zod.input<typeof InterruptedOutcome>;
-export type InterruptedOutcomeOutput = zod.output<typeof InterruptedOutcome>;
-
-export const SkippedOutcome = zod.object({
+export const ExecutionSkippedOutcome = zod.object({
   kind: zod.enum(["skipped"]),
   reason: zod
     .string()
@@ -852,17 +975,77 @@ export const SkippedOutcome = zod.object({
     .describe("The cells involved, the cause first and this cell last."),
 });
 
-export type SkippedOutcome = zod.input<typeof SkippedOutcome>;
-export type SkippedOutcomeOutput = zod.output<typeof SkippedOutcome>;
+export type ExecutionSkippedOutcome = zod.input<typeof ExecutionSkippedOutcome>;
+export type ExecutionSkippedOutcomeOutput = zod.output<
+  typeof ExecutionSkippedOutcome
+>;
 
-export const Outcome = zod
-  .union([ValueOutcome, ErrorOutcome, InterruptedOutcome, SkippedOutcome])
+export const ExecutionOutcome = zod
+  .union([
+    SucceededOutcome,
+    ExecutionFailedOutcome,
+    CancelledOutcome,
+    ExecutionSkippedOutcome,
+  ])
   .describe(
-    "How an execution ended, tagged on `kind`. A `value` carries the\nexecution's value as last rendered; while the execution is\nrunning it is the value so far, and it is final once the\nexecution is `completed`. An `error` carries the error that ended it.\nAn `interrupted` execution was cancelled before or during execution.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
+    "How an execution ended, tagged on `kind`. A `succeeded` execution\nevaluated its code without raising, and what it showed is its\n`output` item. A `failed` execution carries the error that ended it.\nA `cancelled` execution was stopped before or while it ran.\nA `skipped` execution did not evaluate because of another cell; it\nhas no value and binds no variables. Other kinds are defined by\nlater versions of this protocol.\n",
   );
 
-export type Outcome = zod.input<typeof Outcome>;
-export type OutcomeOutput = zod.output<typeof Outcome>;
+export type ExecutionOutcome = zod.input<typeof ExecutionOutcome>;
+export type ExecutionOutcomeOutput = zod.output<typeof ExecutionOutcome>;
+
+export const revisionUpdateMin = 0;
+
+export const Revision = zod
+  .object({
+    execution_id: ExecutionId.describe(
+      "The execution whose evaluation produced the value. Usually the variable's `execution_id`, and earlier when the runtime carried the value forward.",
+    ),
+    update: zod
+      .int()
+      .min(revisionUpdateMin)
+      .describe(
+        "How many times the value has been updated since it was produced. Zero at binding.",
+      ),
+  })
+  .describe(
+    "A variable's value at a point in time. Two revisions are equal\nwhen `execution_id` and `update` are equal. Clients compare\nrevisions for equality.\n",
+  );
+
+export type Revision = zod.input<typeof Revision>;
+export type RevisionOutput = zod.output<typeof Revision>;
+
+export const ExecutionCompleted = zod.object({
+  status: zod.enum(["completed"]),
+  started_at: zod
+    .union([Timestamp, zod.null()])
+    .describe(
+      "When the code started executing. Null if the execution never started or the start time of a restored result is unknown.",
+    ),
+  completed_at: zod
+    .union([Timestamp, zod.null()])
+    .describe(
+      "When the execution ended. Null for a restored result whose store does not record it.",
+    ),
+  outcome: ExecutionOutcome,
+  depends_on: zod
+    .record(zod.string(), zod.union([Revision, zod.null()]))
+    .describe(
+      "The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Stamped as the execution ends.",
+    ),
+});
+
+export type ExecutionCompleted = zod.input<typeof ExecutionCompleted>;
+export type ExecutionCompletedOutput = zod.output<typeof ExecutionCompleted>;
+
+export const ExecutionState = zod
+  .union([ExecutionQueued, ExecutionRunning, ExecutionCompleted])
+  .describe(
+    "Where an execution is in its lifecycle, tagged on `status`. An\nexecution is `queued` until it starts, `running` while code\nexecutes, and `completed` once it has ended with its `outcome`.\n",
+  );
+
+export type ExecutionState = zod.input<typeof ExecutionState>;
+export type ExecutionStateOutput = zod.output<typeof ExecutionState>;
 
 export const Execution = zod
   .object({
@@ -875,9 +1058,9 @@ export const Execution = zod
     runtime_id: zod
       .union([RuntimeId, zod.null()])
       .describe(
-        "The runtime that produced this execution. Live when it equals the current runtime's id. Null when the producer is unknown.",
+        "The runtime that produced this execution. Live while that runtime is the notebook's and has not ended. Null when the producer is unknown.",
       ),
-    caused_by: zod
+    caused_by_id: zod
       .union([ExecutionId, zod.null()])
       .describe(
         "The execution in the same run whose code was running when this one was scheduled, such as scratch code that ran a cell, set a UI element's value, or wrote state, and the cells that reacted to it. Null for an execution a client requested and for the cells that reacted to one.",
@@ -885,38 +1068,20 @@ export const Execution = zod
     cell_id: zod
       .union([CellId, zod.null()])
       .describe(
-        "The cell this execution belongs to. Null for scratch code, a cell outside the document.",
-      ),
-    code: zod
-      .union([zod.string(), zod.null()])
-      .describe(
-        "The submitted code for an execution with no cell. Null for a cell's execution; its source is available through the cell when the host exposes it.",
+        "The cell this execution belongs to. Null for a scratch execution, which evaluates the code in its run's `origin`.",
       ),
     code_fingerprint: CodeFingerprint.describe(
       "Fingerprint of the code the execution evaluates. Fixed when the execution is published, while it is still queued.",
     ),
-    depends_on: zod
-      .record(zod.string(), zod.union([Revision, zod.null()]))
-      .describe(
-        "The variable revisions this result is valid against, keyed by name. Null for a name no retained cell execution had bound. Empty while queued, stamped as the execution ends, and final from then on.",
-      ),
-    status: Lifecycle,
-    outcome: zod
-      .union([Outcome, zod.null()])
-      .describe(
-        "How the execution ended. Null while queued; while running, a value carries the display so far; final once completed.",
-      ),
-    started_at: zod
+    created_at: zod
       .union([Timestamp, zod.null()])
       .describe(
-        "When the code started executing. Null while queued or if the execution completed before starting.",
+        "When the runtime scheduled this execution. Null for a restored result, whose timing is unknown.",
       ),
-    completed_at: zod
-      .union([Timestamp, zod.null()])
-      .describe("When the execution ended. Null until it is completed."),
+    state: ExecutionState,
   })
   .describe(
-    "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them, and items can arrive after completion while the\nexecution remains retained. Each new input belongs to a running\nexecution. Input calls from completed or removed executions raise\n`EOFError` in the calling code. Exactly one of `cell_id` and `code`\nis null: a cell's execution carries the cell and no code, and a\nscratch execution carries its code and no cell.\n",
+    "One cell evaluated within a run, or scratch code evaluated once.\nIt moves through `queued`, `running`, and `completed`, and ends with\none outcome. Side effects belong to the execution whose context\nproduced them, and items can arrive after completion while the\nexecution remains retained. Each new input belongs to a running\nexecution. Input calls from completed or removed executions raise\n`EOFError` in the calling code. A scratch execution has no cell and\nevaluates the code in its run's `origin`.\n",
   );
 
 export type Execution = zod.input<typeof Execution>;
@@ -931,7 +1096,7 @@ export const ExecutionMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     execution: Execution,
   })
@@ -959,11 +1124,87 @@ export const ItemId = zod
   .string()
   .min(1)
   .describe(
-    "Identifies a console, display, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
+    "Identifies an output, console, input, or variable item uniquely within the host. Sending an item again with the same id replaces it.",
   );
 
 export type ItemId = zod.input<typeof ItemId>;
 export type ItemIdOutput = zod.output<typeof ItemId>;
+
+export const Output = zod
+  .object({
+    id: ItemId,
+    execution_id: ExecutionId,
+    media: zod
+      .union([Media, zod.null()])
+      .describe(
+        "The output as last rendered. Null when the code set it to nothing or cleared it.",
+      ),
+  })
+  .describe(
+    "What an execution's code shows as its result, such as the value of\na cell's last expression. An execution has at most one, published\nonce the code first sets it. A producer replaces it by sending it\nagain with the same id, including after the execution completes,\nand it is removed with its execution.\n",
+  );
+
+export type Output = zod.input<typeof Output>;
+export type OutputOutput = zod.output<typeof Output>;
+
+export const OutputMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    output: Output,
+  })
+  .describe("The data of the `output` event. The output as it now is.");
+
+export type OutputMessage = zod.input<typeof OutputMessage>;
+export type OutputMessageOutput = zod.output<typeof OutputMessage>;
+
+export const OutputEvent = zod
+  .object({
+    event: zod.enum(["output"]),
+    id: zod
+      .string()
+      .min(1)
+      .optional()
+      .describe("The resume cursor. Omitted on snapshot and reset events."),
+    data: OutputMessage,
+  })
+  .describe("The `output` event, carried by the notebook stream.");
+
+export type OutputEvent = zod.input<typeof OutputEvent>;
+export type OutputEventOutput = zod.output<typeof OutputEvent>;
+
+export const ConsoleText = zod.object({
+  kind: zod.enum(["text"]),
+  stream: zod
+    .enum(["stdout", "stderr"])
+    .describe("Which stream the text went to."),
+  text: zod.string().describe("The text, exactly as written."),
+});
+
+export type ConsoleText = zod.input<typeof ConsoleText>;
+export type ConsoleTextOutput = zod.output<typeof ConsoleText>;
+
+export const ConsoleMedia = zod.object({
+  kind: zod.enum(["media"]),
+  media: Media.describe(
+    "Something rendered into the console, such as a figure from `plt.show()` or a formatted traceback.",
+  ),
+});
+
+export type ConsoleMedia = zod.input<typeof ConsoleMedia>;
+export type ConsoleMediaOutput = zod.output<typeof ConsoleMedia>;
+
+export const ConsoleContent = zod.union([ConsoleText, ConsoleMedia]);
+
+export type ConsoleContent = zod.input<typeof ConsoleContent>;
+export type ConsoleContentOutput = zod.output<typeof ConsoleContent>;
 
 export const consoleSeqMin = 0;
 
@@ -975,15 +1216,12 @@ export const Console = zod
       .int()
       .min(consoleSeqMin)
       .describe(
-        "Position among the execution's items, increasing in the order they were produced.",
+        "Position among the execution's console and input items, increasing in the order they were produced.",
       ),
-    name: zod
-      .enum(["stdout", "stderr"])
-      .describe("Which stream the text went to."),
-    text: zod.string().describe("The text, exactly as written."),
+    content: ConsoleContent.describe("What was written, tagged on `kind`."),
   })
   .describe(
-    "Text an execution wrote to stdout or stderr. Items are ordinary\nobjects: a producer replaces one by sending it again with the\nsame id, and items are removed with their execution.\n",
+    "One entry in an execution's console, which is text written to\nstdout or stderr, or media rendered among it. A producer replaces\nan entry by sending it again with the same id, and entries are\nremoved with their execution.\n",
   );
 
 export type Console = zod.input<typeof Console>;
@@ -998,7 +1236,7 @@ export const ConsoleMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     console: Console,
   })
@@ -1022,60 +1260,6 @@ export const ConsoleEvent = zod
 export type ConsoleEvent = zod.input<typeof ConsoleEvent>;
 export type ConsoleEventOutput = zod.output<typeof ConsoleEvent>;
 
-export const displaySeqMin = 0;
-
-export const Display = zod
-  .object({
-    id: ItemId,
-    execution_id: ExecutionId,
-    seq: zod
-      .int()
-      .min(displaySeqMin)
-      .describe(
-        "Position among the execution's items, increasing in the order they were produced.",
-      ),
-    content: DisplayData.describe("The rendered value."),
-  })
-  .describe(
-    "A value an execution showed as a side effect, such as a figure\nfrom `plt.show()`. A producer replaces one by sending it again\nwith the same id, which is how a progress bar updates in place.\n",
-  );
-
-export type Display = zod.input<typeof Display>;
-export type DisplayOutput = zod.output<typeof Display>;
-
-export const DisplayMessage = zod
-  .object({
-    request_id: zod
-      .string()
-      .optional()
-      .describe(
-        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
-      ),
-    time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
-    ),
-    display: Display,
-  })
-  .describe("The data of the `display` event. The display as it now is.");
-
-export type DisplayMessage = zod.input<typeof DisplayMessage>;
-export type DisplayMessageOutput = zod.output<typeof DisplayMessage>;
-
-export const DisplayEvent = zod
-  .object({
-    event: zod.enum(["display"]),
-    id: zod
-      .string()
-      .min(1)
-      .optional()
-      .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: DisplayMessage,
-  })
-  .describe("The `display` event, carried by the notebook stream.");
-
-export type DisplayEvent = zod.input<typeof DisplayEvent>;
-export type DisplayEventOutput = zod.output<typeof DisplayEvent>;
-
 export const InputStatus = zod
   .enum(["pending", "answered", "cancelled"])
   .describe(
@@ -1097,7 +1281,7 @@ export const Input = zod
       .int()
       .min(inputSeqMin)
       .describe(
-        "Position among the execution's console, display, and input items, increasing in production order.",
+        "Position among the execution's console and input items, increasing in production order.",
       ),
     prompt: zod.string().describe("The prompt to display, which may be empty."),
     password: zod
@@ -1121,7 +1305,7 @@ export const InputMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     input: Input,
   })
@@ -1161,7 +1345,7 @@ export const Variable = zod
       .describe("A short rendering of the value. A host may leave it null."),
   })
   .describe(
-    "A name a cell's execution bound in the notebook's namespace, with\nthe revision of its value. The execution binds it as it ends, and\nthe item is removed with the execution. An update, as when a\nstate setter runs or a client sets a value, advances the revision\nwithout binding again, and the producer sends the item again with\nthe same id. Hosts publish a cell execution's variables before its\n`completed` status, and remove a cell's previous execution and\nits items before publishing the next one. A scratch execution's\nnames live only while it runs, so it publishes no variables.\n",
+    "A name a cell's execution bound in the notebook's namespace, with\nthe revision of its value. The execution binds it as it ends, and\nthe item is removed with the execution. An update, as when a\nstate setter runs or a UI element's value changes, advances the revision\nwithout binding again, and the producer sends the item again with\nthe same id. Hosts publish a cell execution's variables before its\n`completed` status, and remove a cell's previous execution and\nits items before publishing the next one. A scratch execution's\nnames live only while it runs, so it publishes no variables.\n",
   );
 
 export type Variable = zod.input<typeof Variable>;
@@ -1176,7 +1360,7 @@ export const VariableMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     variable: Variable,
   })
@@ -1200,20 +1384,42 @@ export const VariableEvent = zod
 export type VariableEvent = zod.input<typeof VariableEvent>;
 export type VariableEventOutput = zod.output<typeof VariableEvent>;
 
+export const CellDiagnostic = zod.object({
+  source: zod.string().describe("Analyzer that defines the kind."),
+  kind: zod.string().describe("Identifier scoped to the source."),
+  severity: zod.enum(["error", "warning", "information", "hint"]),
+  message: zod.string(),
+  range: zod
+    .union([Range, zod.null()])
+    .describe(
+      "Span in this cell, or null for a whole-cell finding or unknown location.",
+    ),
+  related: zod.array(Related),
+});
+
+export type CellDiagnostic = zod.input<typeof CellDiagnostic>;
+export type CellDiagnosticOutput = zod.output<typeof CellDiagnostic>;
+
 export const CellAnalysis = zod
   .object({
     defs: zod.array(zod.string()).describe("Names this cell defines."),
     refs: zod
       .array(zod.string())
       .describe("Names this cell reads from other cells."),
-    errors: zod
-      .array(Error)
+    parents: zod
+      .array(CellId)
+      .optional()
+      .describe(
+        "Cell IDs of the direct dependencies in this revision. An empty list means no parents. Omitted when the host does not provide the graph.",
+      ),
+    diagnostics: zod
+      .array(CellDiagnostic)
       .describe(
         "Diagnostics about the code. Only an `error` affects scheduling. `multiple-definitions` lists the definers in `related`, each `range` at its definition; `cycle-dependencies` lists the cycle. Both are reported on every cell involved, differing only in `range`. Every other kind belongs to the analyzer named in `source`.",
       ),
   })
   .describe(
-    "What a cell's text implies: the names it defines and reads, which\nare the edges of the dependency graph, and the errors found in the\ntext alone or across the set of cells. A pure function of the\ncode, so two producers compute the same values.\n",
+    "The definitions, references, direct dependencies, and diagnostics for one cell at this document revision.",
   );
 
 export type CellAnalysis = zod.input<typeof CellAnalysis>;
@@ -1245,7 +1451,7 @@ export const AnalysisMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     analysis: Analysis,
   })
@@ -1300,7 +1506,7 @@ export const CustomMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.describe(
-      "When the host emitted this event. Preserved on replay.",
+      "When the host published this event. Preserved on replay.",
     ),
   })
   .describe(
@@ -1334,7 +1540,7 @@ export const RemovedMessage = zod
         "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
       ),
     time: Timestamp.optional().describe(
-      "When the host made this change. Present on live and replayed events; omitted on snapshots.",
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
     id: zod.string().describe("The id of the object that was removed."),
   })
@@ -1462,6 +1668,21 @@ export type ExecutionRemovedEventOutput = zod.output<
   typeof ExecutionRemovedEvent
 >;
 
+export const OutputRemovedEvent = zod
+  .object({
+    event: zod.enum(["output.removed"]),
+    id: zod
+      .string()
+      .min(1)
+      .optional()
+      .describe("The resume cursor. Omitted on snapshot and reset events."),
+    data: RemovedMessage,
+  })
+  .describe("The `output.removed` event, carried by the notebook stream.");
+
+export type OutputRemovedEvent = zod.input<typeof OutputRemovedEvent>;
+export type OutputRemovedEventOutput = zod.output<typeof OutputRemovedEvent>;
+
 export const ConsoleRemovedEvent = zod
   .object({
     event: zod.enum(["console.removed"]),
@@ -1476,21 +1697,6 @@ export const ConsoleRemovedEvent = zod
 
 export type ConsoleRemovedEvent = zod.input<typeof ConsoleRemovedEvent>;
 export type ConsoleRemovedEventOutput = zod.output<typeof ConsoleRemovedEvent>;
-
-export const DisplayRemovedEvent = zod
-  .object({
-    event: zod.enum(["display.removed"]),
-    id: zod
-      .string()
-      .min(1)
-      .optional()
-      .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
-  })
-  .describe("The `display.removed` event, carried by the notebook stream.");
-
-export type DisplayRemovedEvent = zod.input<typeof DisplayRemovedEvent>;
-export type DisplayRemovedEventOutput = zod.output<typeof DisplayRemovedEvent>;
 
 export const VariableRemovedEvent = zod
   .object({
@@ -1549,8 +1755,8 @@ export const Event = zod
     AttachmentEvent,
     RunEvent,
     ExecutionEvent,
+    OutputEvent,
     ConsoleEvent,
-    DisplayEvent,
     InputEvent,
     VariableEvent,
     AnalysisEvent,
@@ -1562,8 +1768,8 @@ export const Event = zod
     AttachmentRemovedEvent,
     RunRemovedEvent,
     ExecutionRemovedEvent,
+    OutputRemovedEvent,
     ConsoleRemovedEvent,
-    DisplayRemovedEvent,
     VariableRemovedEvent,
     ResetEvent,
     ReadyEvent,
@@ -1575,7 +1781,58 @@ export const Event = zod
 export type Event = zod.input<typeof Event>;
 export type EventOutput = zod.output<typeof Event>;
 
-export const ObjectType = zod
+export const CatalogStreamEvent = zod
+  .union([
+    HostEvent,
+    ProjectEvent,
+    NotebookEvent,
+    RuntimeEvent,
+    AttachmentEvent,
+    ProjectRemovedEvent,
+    NotebookRemovedEvent,
+    RuntimeRemovedEvent,
+    AttachmentRemovedEvent,
+    ResetEvent,
+    ReadyEvent,
+  ])
+  .describe("Any event the catalog stream carries.");
+
+export type CatalogStreamEvent = zod.input<typeof CatalogStreamEvent>;
+export type CatalogStreamEventOutput = zod.output<typeof CatalogStreamEvent>;
+
+export const NotebookStreamEvent = zod
+  .union([
+    NotebookEvent,
+    DocumentEvent,
+    CellEvent,
+    RuntimeEvent,
+    AttachmentEvent,
+    RunEvent,
+    ExecutionEvent,
+    OutputEvent,
+    ConsoleEvent,
+    InputEvent,
+    VariableEvent,
+    AnalysisEvent,
+    CustomEvent,
+    NotebookRemovedEvent,
+    CellRemovedEvent,
+    RuntimeRemovedEvent,
+    AttachmentRemovedEvent,
+    RunRemovedEvent,
+    ExecutionRemovedEvent,
+    OutputRemovedEvent,
+    ConsoleRemovedEvent,
+    VariableRemovedEvent,
+    ResetEvent,
+    ReadyEvent,
+  ])
+  .describe("Any event a notebook stream carries.");
+
+export type NotebookStreamEvent = zod.input<typeof NotebookStreamEvent>;
+export type NotebookStreamEventOutput = zod.output<typeof NotebookStreamEvent>;
+
+export const ObjectKind = zod
   .enum([
     "host",
     "project",
@@ -1586,19 +1843,19 @@ export const ObjectType = zod
     "attachment",
     "run",
     "execution",
+    "output",
     "console",
-    "display",
     "input",
     "variable",
     "analysis",
     "custom",
   ])
   .describe(
-    "The kinds a stream carries, and the values `types` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, console, display, input, variable, analysis, and custom. Custom events describe occurrences rather than object state.",
+    "The kinds a stream carries, and the values `kinds` accepts. The catalog stream carries host, project, notebook, runtime, and attachment. A notebook's stream carries notebook, document, cell, runtime, attachment, run, execution, output, console, input, variable, analysis, and custom. Custom events describe occurrences rather than object state.",
   );
 
-export type ObjectType = zod.input<typeof ObjectType>;
-export type ObjectTypeOutput = zod.output<typeof ObjectType>;
+export type ObjectKind = zod.input<typeof ObjectKind>;
+export type ObjectKindOutput = zod.output<typeof ObjectKind>;
 
 export const Process = zod
   .object({
@@ -2078,26 +2335,28 @@ export const CellInput = zod
 export type CellInput = zod.input<typeof CellInput>;
 export type CellInputOutput = zod.output<typeof CellInput>;
 
-export const PutCell = zod
+export const CreateCell = zod
   .strictObject({
-    kind: zod.enum(["put_cell"]),
-    base_etag: zod
-      .union([zod.string(), zod.null()])
-      .describe(
-        "The cell's etag as last read, `*` to skip the check, or null to create the cell. Null when the cell exists, or an etag when it does not, is `precondition-failed`.",
-      ),
+    kind: zod.enum(["create_cell"]),
     cell: CellInput,
-    after: CellId.optional().describe(
-      "The cell a created cell goes after. Ignored for an existing cell.",
-    ),
-    before: CellId.optional().describe(
-      "The cell a created cell goes before. Ignored for an existing cell. With neither `after` nor `before`, a created cell goes at the end.",
-    ),
   })
-  .describe("Replaces a whole cell, or creates one.");
+  .describe("Appends a new cell. An existing id is a failed precondition.");
 
-export type PutCell = zod.input<typeof PutCell>;
-export type PutCellOutput = zod.output<typeof PutCell>;
+export type CreateCell = zod.input<typeof CreateCell>;
+export type CreateCellOutput = zod.output<typeof CreateCell>;
+
+export const ReplaceCell = zod
+  .strictObject({
+    kind: zod.enum(["replace_cell"]),
+    base_etag: zod.string().describe("The cell's etag as last read, or `*`."),
+    cell: CellInput,
+  })
+  .describe(
+    "Replaces an existing cell in place. A missing cell is a failed precondition.",
+  );
+
+export type ReplaceCell = zod.input<typeof ReplaceCell>;
+export type ReplaceCellOutput = zod.output<typeof ReplaceCell>;
 
 export const DeleteCell = zod
   .strictObject({
@@ -2128,7 +2387,7 @@ export type SetOrder = zod.input<typeof SetOrder>;
 export type SetOrderOutput = zod.output<typeof SetOrder>;
 
 export const Change = zod
-  .union([PutCell, DeleteCell, SetOrder])
+  .union([CreateCell, ReplaceCell, DeleteCell, SetOrder])
   .describe("One change to the document, tagged on `kind`.");
 
 export type Change = zod.input<typeof Change>;

@@ -15,14 +15,7 @@ import { Objects } from "@/utils/objects";
 import { isErrorMime } from "../mime";
 import type { NotebookState } from "./cells";
 import type { CellId } from "./ids";
-
-export function notebookNeedsRun(
-  state: NotebookState,
-  executions: CellExecutionInputs,
-  freshness: CellFreshnessLookup,
-) {
-  return staleCellIds(state, executions, freshness).length > 0;
-}
+import type { CellData } from "./types";
 
 export function notebookCells(state: NotebookState) {
   return state.cellIds.map((cellId) => state.cellData[cellId]);
@@ -91,7 +84,7 @@ export function getDescendantsStatus(
   const stale = descendants.some(
     (id) => freshness(id).sourceChanged || freshness(id).inputsChanged,
   );
-  const errored = views.some((view) => view.outcome === "error");
+  const errored = views.some((view) => view.outcome === "failed");
   const runningOrQueued = views.some(
     (view) => view.status === "running" || view.status === "queued",
   );
@@ -103,35 +96,72 @@ export function getDescendantsStatus(
   };
 }
 
-/**
- * Cells that are stale and can be run.
- */
+type RunReason = "not-run" | "source" | "inputs" | "interrupted";
+
+export function cellRunReason(
+  execution: Pick<CellExecutionView, "status" | "live" | "outcome" | "blocked">,
+  freshness: CellFreshness,
+  cell: Pick<CellData, "code" | "config">,
+): RunReason | null {
+  if (execution.status !== "idle") {
+    return null;
+  }
+  if (isUninstantiated(execution) && cell.code.trim()) {
+    return "not-run";
+  }
+  if (freshness.sourceChanged) {
+    return "source";
+  }
+  if (execution.outcome === "cancelled") {
+    return "interrupted";
+  }
+  return freshness.inputsChanged && !cell.config.disabled && !execution.blocked
+    ? "inputs"
+    : null;
+}
+
+function* cellsNeedingRun(
+  state: NotebookState,
+  executions: CellExecutionInputs,
+  freshness: CellFreshnessLookup,
+): Generator<[CellId, RunReason]> {
+  for (const id of state.cellIds) {
+    const view = cellExecutionView(executions, id);
+    const changes = freshness(id);
+    const reason = cellRunReason(view, changes, state.cellData[id]);
+    if (reason !== null) {
+      yield [id, reason];
+    } else if (changes.sourceChanged && inFlight(executions.executions, id)) {
+      // The run action can submit an edit made after the host planned this cell.
+      yield [id, "source"];
+    }
+  }
+}
+
 export function staleCellIds(
   state: NotebookState,
   executions: CellExecutionInputs,
   freshness: CellFreshnessLookup,
 ) {
-  const { cellIds, cellData } = state;
-  return cellIds.filter((cellId) => {
-    const execution = cellExecutionView(executions, cellId);
-    if (execution.status !== "idle") {
-      // A run in progress covers the source it was asked for. Only an edit
-      // since then, visible once the host has planned the run, needs another.
-      return (
-        inFlight(executions.executions, cellId) &&
-        freshness(cellId).sourceChanged
-      );
+  return Array.from(
+    cellsNeedingRun(state, executions, freshness),
+    ([id]) => id,
+  );
+}
+
+export function notebookRunReason(
+  state: NotebookState,
+  executions: CellExecutionInputs,
+  freshness: CellFreshnessLookup,
+): RunReason | null {
+  let reason: RunReason | null = null;
+  for (const [, pending] of cellsNeedingRun(state, executions, freshness)) {
+    if (pending !== "inputs") {
+      return pending;
     }
-    return (
-      isUninstantiated(execution) ||
-      cellNeedsRun({
-        freshness: freshness(cellId),
-        interrupted: execution.outcome === "interrupted",
-        disabled: cellData[cellId].config.disabled,
-        blocked: execution.blocked,
-      })
-    );
-  });
+    reason = pending;
+  }
+  return reason;
 }
 
 /** Whether the host holds a planned or started execution of the cell that has not completed. */
@@ -141,7 +171,7 @@ function inFlight(executions: Executions, cellId: CellId): boolean {
     latest === undefined
       ? undefined
       : executions.executions.get(latest)?.record;
-  return record !== undefined && record.status !== "completed";
+  return record !== undefined && record.state.status !== "completed";
 }
 
 /**
@@ -155,30 +185,6 @@ export function isUninstantiated({
 }: Pick<CellExecutionView, "status" | "outcome" | "live">) {
   return (
     (outcome === null || !live) && status !== "queued" && status !== "running"
-  );
-}
-
-/**
- * Whether a cell needs to be run: its source changed, its last run was
- * interrupted, or an input changed and the cell can run. A disabled cell,
- * or one blocked by a disabled ancestor, is not flagged for changed inputs
- * until it can run again.
- */
-export function cellNeedsRun({
-  freshness,
-  interrupted,
-  disabled,
-  blocked,
-}: {
-  freshness: CellFreshness;
-  interrupted: boolean;
-  disabled: boolean | undefined;
-  blocked: boolean;
-}): boolean {
-  return (
-    freshness.sourceChanged ||
-    interrupted ||
-    (freshness.inputsChanged && !(disabled || blocked))
   );
 }
 

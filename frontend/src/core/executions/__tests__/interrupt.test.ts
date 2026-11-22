@@ -21,32 +21,36 @@ vi.mock("@/components/ui/use-toast", () => ({
 
 function run(
   id: string,
-  status: Protocol.Lifecycle = "running",
+  status: Protocol.RunState["status"] = "running",
   runtimeId = "r1",
 ): Protocol.Run {
   return {
     id,
     notebook_id: "n1",
     runtime_id: runtimeId,
-    cells: [],
-    status,
-    outcome: status === "completed" ? "succeeded" : null,
-    started_at: status === "queued" ? null : MockExecutions.T0,
-    completed_at: status === "completed" ? MockExecutions.T1 : null,
+    origin: { kind: "code", code: "pass" },
+    created_at: "2026-10-01T09:20:00Z",
+    state:
+      status === "completed"
+        ? {
+            status,
+            started_at: MockExecutions.T0,
+            completed_at: MockExecutions.T1,
+            outcome: { kind: "succeeded" },
+          }
+        : status === "running"
+          ? { status, started_at: MockExecutions.T0 }
+          : { status },
   };
 }
 
 function setup(runs: Protocol.Run[]) {
   const store = createStore();
-  const replica = MockExecutions.seed(
-    store,
-    [],
-    MockExecutions.runtime("running"),
-  );
+  const replica = MockExecutions.seed(store, [], MockExecutions.runtime());
   const interrupt = vi.fn<FakeInterrupt>(async () => ({
     ok: true,
     status: 202,
-    data: MockExecutions.runtime("running"),
+    data: MockExecutions.runtime(),
   }));
   store.set(replica.backendAtom, fakeBackend({ interrupt }));
   store.set(replica.executionsAtom, {

@@ -23,8 +23,10 @@ from marimo._core.code import code_fingerprint
 from marimo._core.errors import Conflict, DecisionRequired, PreconditionFailed
 from marimo._core.stream import RoutedEvent
 from marimo._messaging.notification import (
+    CellNotification,
     CompletedRunNotification,
     ExecutionNotification,
+    PdbInputNotification,
     StartupProgressNotification,
     VariablesNotification,
 )
@@ -127,7 +129,7 @@ async def test_sessions_present_and_created_are_adopted(
     assert a is not None
     runtime = (await bridge.host.notebook(a.id)).runtime
     assert runtime is not None
-    assert runtime.status == "running"
+    assert runtime.state == protocol.RuntimeReady()
     assert existing.consumers[0][1] is False
 
     created = FakeSession(str(tmp_path / "b.py"))
@@ -161,11 +163,11 @@ async def running(bridge: SessionBridge, runtime: protocol.Runtime) -> None:
         if (
             isinstance(event.event, protocol.RuntimeEvent)
             and event.event.data.runtime.id == runtime.id
-            and event.event.data.runtime.status == "running"
+            and event.event.data.runtime.state == protocol.RuntimeReady()
         ):
             reached.set()
 
-    unsubscribe = bridge.host.subscribe(watch, types={"runtime"})
+    unsubscribe = bridge.host.subscribe(watch, kinds={"runtime"})
     try:
         await asyncio.wait_for(reached.wait(), 5)
     finally:
@@ -200,8 +202,11 @@ async def test_an_editor_rejoins_its_untitled_notebook_by_session_key(
     await bridge.open()
     notebook_id, session = await untitled(manager, bridge)
     notebook = await bridge.host.notebook(notebook_id)
-    notebook.stop()
-    assert (session.closed, notebook.runtime) == (True, None)
+    manager.close_session("browser")
+    assert session.closed
+    assert notebook.runtime is not None
+    assert isinstance(notebook.runtime.state, protocol.RuntimeEnded)
+    assert notebook.runtime.state.outcome == protocol.RuntimeStoppedOutcome()
 
     rejoined = FakeSession(path=None)
     await manager.event_bus.emit_session_created(rejoined)  # type: ignore[arg-type]
@@ -263,7 +268,7 @@ async def test_delete_during_adoption_preserves_the_file_and_session(
 
         notebook = await bridge.host.notebook(record.id)
         assert notebook.runtime is not None
-        assert notebook.runtime.status == "running"
+        assert notebook.runtime.state == protocol.RuntimeReady()
         assert path.read_text() == NOTEBOOK
         assert bridge._backends[record.id].session is session
         assert not session.closed
@@ -286,17 +291,18 @@ async def test_a_subscriber_can_stop_an_adopted_session(
     manager.sessions["browser"] = session
 
     def stop_on_starting(event: RoutedEvent) -> None:
-        if (
-            isinstance(event.event, protocol.RuntimeEvent)
-            and event.event.data.runtime.status == "starting"
+        if isinstance(
+            event.event, protocol.RuntimeEvent
+        ) and event.event.data.runtime.state == protocol.RuntimeStarting(
+            message=None
         ):
             notebook.stop()
 
-    bridge.host.subscribe(stop_on_starting, types={"runtime"})
+    bridge.host.subscribe(stop_on_starting, kinds={"runtime"})
 
     await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
 
-    assert (session.closed, notebook.runtime, manager.sessions) == (
+    assert (session.closed, notebook.live_runtime, manager.sessions) == (
         True,
         None,
         {},
@@ -332,13 +338,18 @@ async def test_failed_adoption_detaches_without_closing_the_session(
     failed = notebook.runtime
     assert failed is not None
     backend = bridge._backends[record.id]
+    assert isinstance(failed.state, protocol.RuntimeEnded)
     assert (
-        failed.status,
-        failed.message,
+        failed.state.outcome,
         backend.session,
         session.consumers,
         session.closed,
-    ) == ("failed", "cannot attach", None, [], False)
+    ) == (
+        protocol.RuntimeFailedOutcome(message="cannot attach"),
+        None,
+        [],
+        False,
+    )
 
     replacement = FakeSession(str(tmp_path / "a.py"))
     await manager.event_bus.emit_session_created(replacement)  # type: ignore[arg-type]
@@ -347,7 +358,10 @@ async def test_failed_adoption_detaches_without_closing_the_session(
     runtime = notebook.runtime
     assert runtime is not None
     assert runtime.id != failed.id
-    assert (runtime.status, backend.session) == ("running", replacement)
+    assert (runtime.state, backend.session) == (
+        protocol.RuntimeReady(),
+        replacement,
+    )
     bridge.close()
 
 
@@ -551,8 +565,7 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     response = await bridge.edit(
         record.id,
         [
-            protocol.PutCell(
-                base_etag=None,
+            protocol.CreateCell(
                 cell=protocol.CellInput(
                     id=protocol.CellId("new"), code="y = x"
                 ),
@@ -605,8 +618,7 @@ async def test_edit_response_includes_app_config_mirrored_from_the_session(
         response = await bridge.edit(
             record.id,
             [
-                protocol.PutCell(
-                    base_etag=None,
+                protocol.CreateCell(
                     cell=protocol.CellInput(
                         id=protocol.CellId("new"), code="y = 2"
                     ),
@@ -675,8 +687,7 @@ async def test_a_new_session_adopts_unsaved_host_edits(
     await bridge.edit(
         record.id,
         [
-            protocol.PutCell(
-                base_etag=None,
+            protocol.CreateCell(
                 cell=protocol.CellInput(
                     id=protocol.CellId("new"), code="unsaved = 42"
                 ),
@@ -736,16 +747,21 @@ async def test_stored_results_are_on_the_stream_without_a_runtime(
     (cell,) = notebook.document
     result = notebook.executions.current(cell.id)
     assert result is not None
-    assert result.execution.outcome == protocol.ValueOutcome(
-        protocol.DisplayData(mimetype="text/plain", data="1")
+    assert result.output is not None
+    assert result.output.media == protocol.Media(
+        mimetype="text/plain", data="1"
     )
-    assert names(bridge.host.events(notebook_id=record.id)) == [
-        "notebook",
-        "cell",
-        "document",
-        "execution",
-        "ready",
-    ]
+    events = bridge.host.events(notebook_id=record.id)
+    assert [
+        event.event.data.execution
+        for event in events
+        if isinstance(event.event, protocol.ExecutionEvent)
+    ] == [result.execution]
+    assert [
+        event.event.data.output
+        for event in events
+        if isinstance(event.event, protocol.OutputEvent)
+    ] == [result.output]
     bridge.close()
 
 
@@ -842,7 +858,7 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     await bridge.edit(
         record.id,
         [
-            protocol.PutCell(
+            protocol.ReplaceCell(
                 base_etag=first.etag,
                 cell=protocol.CellInput(
                     id=first.id,
@@ -851,8 +867,7 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
                 ),
             ),
             protocol.DeleteCell(id=second.id, base_etag=second.etag),
-            protocol.PutCell(
-                base_etag=None,
+            protocol.CreateCell(
                 cell=protocol.CellInput(
                     id=protocol.CellId("new"),
                     code="z = 1",
@@ -884,7 +899,7 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     await bridge.edit(
         record.id,
         [
-            protocol.PutCell(
+            protocol.ReplaceCell(
                 base_etag="*",
                 cell=protocol.CellInput(
                     id=protocol.CellId("new"),
@@ -901,8 +916,8 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     bridge.close()
 
 
-def replace_code(cell: protocol.Cell, code: str) -> protocol.PutCell:
-    return protocol.PutCell(
+def replace_code(cell: protocol.Cell, code: str) -> protocol.ReplaceCell:
+    return protocol.ReplaceCell(
         base_etag=cell.etag, cell=protocol.CellInput(id=cell.id, code=code)
     )
 
@@ -1287,7 +1302,7 @@ async def test_session_notifications_join_the_notebook_stream_once(
     bridge.host.subscribe(second.append, notebook_id=a.id)
     bridge.host.subscribe(catalog.append)
     bridge.host.subscribe(other.append, notebook_id=b.id)
-    bridge.host.subscribe(filtered.append, notebook_id=a.id, types={"marimo"})
+    bridge.host.subscribe(filtered.append, notebook_id=a.id, kinds={"marimo"})
 
     variables = VariablesNotification(variables=[])
     planned = ExecutionNotification(
@@ -1298,15 +1313,30 @@ async def test_session_notifications_join_the_notebook_stream_once(
         code="x = 1",
         code_fingerprint=code_fingerprint("x = 1"),
     )
+    cell = CellNotification(cell_id="cell-1", status="queued")
+    prompt = PdbInputNotification(cell_id="cell-1", input_id="p1")
     session.broadcast(variables)
     session.broadcast(planned)
+    session.broadcast(cell)
+    session.broadcast(prompt)
+    session.session_view.snapshot_notifications.return_value = [
+        cell,
+        prompt,
+        variables,
+    ]
+    assert [e.event.data for e in bridge.session_snapshot(a.id)] == [
+        MarimoMessage(variables)
+    ]
+
+    session.session_view.snapshot_notifications.assert_called_once_with(
+        scope="host"
+    )
 
     assert first == second
     assert catalog == other == []
     assert filtered == [e for e in first if isinstance(e.event, MarimoEvent)]
     assert [(e.run_id, e.event.data) for e in filtered] == [
         (None, MarimoMessage(variables)),
-        (protocol.RunId("run-1"), MarimoMessage(planned)),
     ]
     bridge.close()
 

@@ -1,12 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { CatalogEvent } from "../index.ts";
+import type { CatalogStreamEvent } from "../index.ts";
 import { describe, expect, it } from "vitest";
 import { createCatalogReducer, type CatalogResource } from "../index.ts";
 import { fixtureEvents } from "./fixtures.ts";
 import { notebooks, projects } from "./catalog-resources.ts";
 
-const snapshot = fixtureEvents("events.sse") as CatalogEvent[];
+const snapshot = fixtureEvents("events.sse") as CatalogStreamEvent[];
 const record = snapshot.find((event) => event.event === "notebook")!.data
   .notebook;
 const ready = snapshot.findIndex((event) => event.event === "ready");
@@ -28,9 +28,11 @@ describe("catalog reducer", () => {
     });
     const live = snapshot.slice(ready).reduce(reducer.reduce, partial);
     expect(live.phase).toBe("live");
-    expect(live.resources.notebooks[0].updated_at).toBe("2026-10-01T09:21:02Z");
+    expect(live.resources.notebooks[0].modified_at).toBe(
+      "2026-10-01T09:21:02Z",
+    );
     expect(live.resources.projects).toBe(partial.resources.projects);
-    const reset = fixtureEvents("events-reset.sse") as CatalogEvent[];
+    const reset = fixtureEvents("events-reset.sse") as CatalogStreamEvent[];
     expect(reducer.reduce(live, reset[0])).toBe(reducer.initial);
     expect(reset.reduce(reducer.reduce, live)).toEqual(live);
     expect(reducer.initial).toEqual({
@@ -82,7 +84,11 @@ describe("catalog reducer", () => {
       on: { ready: (state, _event, context) => [...state, context.phase] },
     };
     const reducer = createCatalogReducer({ phases });
-    const readyEvent: CatalogEvent = { event: "ready", id: "1", data: {} };
+    const readyEvent: CatalogStreamEvent = {
+      event: "ready",
+      id: "1",
+      data: {},
+    };
     const live = reducer.reduce(reducer.initial, readyEvent);
     const resumed = reducer.reduce(live, readyEvent);
     expect(resumed.resources.phases).toEqual(["snapshot", "live"]);

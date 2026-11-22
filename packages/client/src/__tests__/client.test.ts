@@ -116,12 +116,12 @@ describe("Client", () => {
           headers: { "Content-Type": "text/event-stream" },
         }),
     );
-    const first = client.events({ types: ["notebook"], cursor: "40" });
+    const first = client.events({ kinds: ["notebook"], cursor: "40" });
     const second = client.events();
     await vi.waitFor(() => expect(second.cursor).toBe("41"));
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(sent().url).toBe(
-      "http://localhost/prefix/api/marimo/v1/events?session_id=s1&types=notebook",
+      "http://localhost/prefix/api/marimo/v1/events?session_id=s1&kinds=notebook",
     );
     expect(sent().headers.get("Authorization")).toBe("Bearer secret");
     expect(sent().headers.get("Last-Event-ID")).toBe("40");

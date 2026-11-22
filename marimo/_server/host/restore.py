@@ -16,7 +16,6 @@ from marimo._messaging.tracebacks import is_code_highlighting
 from marimo._server.host import diagnostics
 from marimo._server.host.translate import (
     displayed,
-    plain,
     rendered_traceback,
 )
 from marimo._session.state.serialize import (
@@ -111,26 +110,38 @@ def executions_from_session(
 
 def _result(cell: DocumentCell, stored: Cell) -> CellExecution | None:
     execution_id = mint(protocol.ExecutionId, "ex")
-    outcome = _outcome(cell, stored["outputs"])
+    outcome, shown = _outcome(cell, stored["outputs"])
     console = _console(execution_id, stored["console"])
-    if outcome == protocol.ValueOutcome(None) and not console:
+    if (
+        outcome == protocol.SucceededOutcome()
+        and shown is None
+        and not console
+    ):
         return None
     return CellExecution(
         protocol.Execution(
             id=execution_id,
             run_id=None,
             runtime_id=None,
-            caused_by=None,
+            caused_by_id=None,
             cell_id=cell.id,
-            code=None,
             code_fingerprint=protocol.CodeFingerprint(cell.code_fingerprint),
-            depends_on={},
-            status="completed",
-            outcome=outcome,
-            started_at=None,
-            completed_at=None,
+            created_at=None,
+            state=protocol.ExecutionCompleted(
+                started_at=None,
+                completed_at=None,
+                outcome=outcome,
+                depends_on={},
+            ),
         ),
         console,
+        output=None
+        if shown is None
+        else protocol.Output(
+            id=protocol.ItemId(f"{execution_id}:output"),
+            execution_id=execution_id,
+            media=shown,
+        ),
     )
 
 
@@ -155,7 +166,9 @@ _KINDS = {
 }
 
 
-def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
+def _failure(
+    cell: DocumentCell, stored: ErrorOutput
+) -> protocol.ExecutionOutcome:
     """A stored error as the outcome a live run reports for it.
 
     The file keeps an error's type and message and not the cells it
@@ -163,9 +176,9 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
     """
     name, message = stored["ename"], stored["evalue"]
     if name == "interruption":
-        return protocol.InterruptedOutcome()
+        return protocol.CancelledOutcome()
     if name in _SKIPPED:
-        return protocol.SkippedOutcome(
+        return protocol.ExecutionSkippedOutcome(
             reason=_SKIPPED[name],
             message=message.rstrip(": "),
             related=(
@@ -175,7 +188,7 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
             ),
         )
     traceback = restore_traceback(stored.get("traceback"))
-    return protocol.ErrorOutcome(
+    return protocol.ExecutionFailedOutcome(
         diagnostics.error(
             _KINDS.get(name, "exception"),
             message,
@@ -194,11 +207,11 @@ def _failure(cell: DocumentCell, stored: ErrorOutput) -> protocol.Outcome:
 
 def _outcome(
     cell: DocumentCell, outputs: Sequence[OutputType]
-) -> protocol.Outcome:
-    """The first stored output that shows something, as an outcome."""
+) -> tuple[protocol.ExecutionOutcome, protocol.Media | None]:
+    """How the stored result ended, and the first output that shows something."""
     for output in outputs:
         if output["type"] == "error":
-            return _failure(cell, output)
+            return _failure(cell, output), None
         if output["type"] == "data" and output["data"]:
             data = output["data"]
             mimetype, value = (
@@ -206,50 +219,39 @@ def _outcome(
                 if len(data) == 1
                 else ("application/vnd.marimo+mimebundle", data)
             )
-            text = value if isinstance(value, str) else json.dumps(value)
-            if (mimetype, text) != ("text/plain", ""):
-                return protocol.ValueOutcome(
-                    protocol.DisplayData(mimetype=mimetype, data=text)
-                )
-    return protocol.ValueOutcome(None)
+            if (mimetype, value) != ("text/plain", ""):
+                return protocol.SucceededOutcome(), displayed(mimetype, value)
+    return protocol.SucceededOutcome(), None
 
 
 def _console(
     execution_id: protocol.ExecutionId, entries: Sequence[ConsoleType]
-) -> tuple[protocol.Console | protocol.Display, ...]:
+) -> tuple[protocol.Console, ...]:
     """The stored console text and media, in the order they were written."""
-    items: list[protocol.Console | protocol.Display] = []
+    items: list[protocol.Console] = []
     for entry in entries:
-        item_id = protocol.ItemId(f"{execution_id}-{len(items)}")
+        content: protocol.ConsoleContent
         if entry["type"] == "streamMedia":
-            items.append(
-                protocol.Display(
-                    id=item_id,
-                    execution_id=execution_id,
-                    seq=len(items),
-                    content=displayed(entry["mimetype"], entry["data"]),
-                )
+            content = protocol.ConsoleMedia(
+                displayed(entry["mimetype"], entry["data"])
             )
         elif rendered_traceback(entry.get("mimetype"), entry["text"]):
-            items.append(
-                protocol.Display(
-                    id=item_id,
-                    execution_id=execution_id,
-                    seq=len(items),
-                    content=displayed(
-                        "application/vnd.marimo+traceback", entry["text"]
-                    ),
-                )
+            content = protocol.ConsoleMedia(
+                displayed("application/vnd.marimo+traceback", entry["text"])
             )
         # Older files stored a password prompt and its answer as text.
         elif entry.get("mimetype") != "text/password":
-            items.append(
-                protocol.Console(
-                    id=item_id,
-                    execution_id=execution_id,
-                    seq=len(items),
-                    name=entry["name"],
-                    text=plain(entry["text"]),
-                )
+            content = protocol.ConsoleText(
+                stream=entry["name"], text=entry["text"]
             )
+        else:
+            continue
+        items.append(
+            protocol.Console(
+                id=protocol.ItemId(f"{execution_id}-{len(items)}"),
+                execution_id=execution_id,
+                seq=len(items),
+                content=content,
+            )
+        )
     return tuple(items)

@@ -31,8 +31,8 @@ KINDS = (
     "attachment",
     "run",
     "execution",
+    "output",
     "console",
-    "display",
     "input",
     "variable",
 )
@@ -189,6 +189,14 @@ def problem(response: httpx.Response, status: int, kind: str) -> Any:
 
 def objects(snapshot: list[Frame], kind: str) -> list[dict[str, Any]]:
     return [frame.message()[kind] for frame in snapshot if frame.event == kind]
+
+
+def ended(frame: Frame) -> bool:
+    """Whether the frame reports a runtime that has ended."""
+    return (
+        frame.event == "runtime"
+        and frame.message()["runtime"]["state"]["status"] == "ended"
+    )
 
 
 def document_state(

@@ -96,7 +96,17 @@ export function createGanttBaseSpec(
       },
       color: {
         field: statusField,
-        scale: { domain: ["success", "error"], range: ["#37BE5F", "red"] },
+        scale: {
+          domain: [
+            "success",
+            "error",
+            "queued",
+            "running",
+            "skipped",
+            "interrupted",
+          ],
+          range: ["#37BE5F", "red", "grey", "steelblue", "grey", "darkorange"],
+        },
         legend: null,
       },
     },

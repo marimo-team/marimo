@@ -230,12 +230,14 @@ class CancelCall(_Call, frozen=True, tag="runtime.cancel"):
             )
         except NotFound:
             run = bridge.host.run(notebook_id, run_id)
-            if run is not None and run.status == "completed":
+            if run is not None and isinstance(
+                run.state, protocol.RunCompleted
+            ):
                 raise Conflict(f"run {run_id} has already ended.") from None
             raise
 
 
-class InputCall(_Call, frozen=True, tag="runtime.input"):
+class InputCall(_Call, frozen=True, tag="input.reply"):
     """Answer a pending input."""
 
     METHOD = "POST"

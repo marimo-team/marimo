@@ -8,16 +8,22 @@ import {
   retainResult,
   retainScratchResult,
 } from "./results";
+import { shown, startedAt } from "../execution-state";
 
-/** A console line, display, or input an execution produced, tagged by kind. */
-export type Item =
+/** A console entry or input an execution produced, tagged by kind. */
+type ProducedItem =
   | (Protocol.Console & { readonly kind: "console" })
-  | (Protocol.Display & { readonly kind: "display" })
   | (Protocol.Input & { readonly kind: "input" });
+
+/** Time the host published the item, when included in a live event. */
+export type Item = ProducedItem & { readonly time?: string };
 
 /** An execution on the stream, with the items and variables it has produced. */
 export interface Execution extends Result {
   /** Items by id. `itemsInOrder` sorts them by `seq`. */
+  readonly lastSeq?: number;
+  /** Fast path for a reader displaying exactly the version before an append. */
+  readonly append?: { before: WeakRef<Execution["items"]>; item: Item };
   readonly items: ReadonlyMap<Protocol.ItemId, Item>;
   /** The variables the execution bound, by item id. */
   readonly variables: ReadonlyMap<Protocol.ItemId, Protocol.Variable>;
@@ -37,14 +43,38 @@ export interface Executions {
   readonly latest: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>;
   readonly results: Results;
   readonly scratch: Result | null;
+  /** The latest scratch execution to start, including one that printed nothing. */
+  readonly scratchConsole?: Execution;
+  /** The latest scratch run, if the host could not finish it and says why. */
+  readonly scratchFailure?: RunFailure;
+}
+
+/** A run the host could not finish, with its reason. */
+export interface RunFailure {
+  readonly runId: Protocol.RunId;
+  readonly message: string;
+  readonly completedAt: string;
+}
+
+function hostFailure(run: Protocol.Run): RunFailure | undefined {
+  const { state } = run;
+  return state.status === "completed" &&
+    state.outcome.kind === "failed" &&
+    state.outcome.message !== null
+    ? {
+        runId: run.id,
+        message: state.outcome.message,
+        completedAt: state.completed_at,
+      }
+    : undefined;
 }
 
 type Kind =
   | "cell"
   | "run"
   | "execution"
+  | "output"
   | "console"
-  | "display"
   | "input"
   | "variable";
 
@@ -62,12 +92,36 @@ function without<K, V>(map: ReadonlyMap<K, V>, key: K): ReadonlyMap<K, V> {
   return next;
 }
 
+function retainScratchConsole(
+  state: Executions,
+  execution: Execution,
+): Execution | undefined {
+  const current = state.scratchConsole;
+  const { id, cell_id } = execution.record;
+  const started_at = startedAt(execution.record);
+  if (cell_id !== null || started_at === null) {
+    return current;
+  }
+  if (!current || current.record.id === id) {
+    return execution;
+  }
+  // A late write from an older execution cannot select its console again.
+  const previous = state.executions.get(id);
+  if (previous && startedAt(previous.record) !== null) {
+    return current;
+  }
+  return Date.parse(started_at) >= Date.parse(startedAt(current.record) ?? "")
+    ? execution
+    : current;
+}
+
 /** Replace an execution on the stream, indexed under its cell. */
 function set(state: Executions, execution: Execution): Executions {
   const { id, cell_id: cellId } = execution.record;
   return {
     ...state,
     executions: new Map(state.executions).set(id, execution),
+    scratchConsole: retainScratchConsole(state, execution),
     latest:
       cellId === null || state.latest.get(cellId) === id
         ? state.latest
@@ -84,6 +138,8 @@ function remove(state: Executions, id: Protocol.ExecutionId): Executions {
   return {
     ...state,
     executions: without(state.executions, id),
+    scratchConsole:
+      state.scratchConsole?.record.id === id ? undefined : state.scratchConsole,
     latest:
       cellId !== null && state.latest.get(cellId) === id
         ? without(state.latest, cellId)
@@ -96,8 +152,18 @@ function attach(state: Executions, item: Item): Executions {
   if (execution === undefined) {
     return state;
   }
+  // Updating an input's status keeps the prompt at its original position.
+  const original = execution.items.get(item.id);
+  if (original) {
+    item = { ...item, time: original.time };
+  }
   return set(state, {
     ...execution,
+    append:
+      !original && item.seq > (execution.lastSeq ?? -1)
+        ? { before: new WeakRef(execution.items), item }
+        : undefined,
+    lastSeq: Math.max(execution.lastSeq ?? -1, item.seq),
     items: new Map(execution.items).set(item.id, item),
   });
 }
@@ -107,6 +173,7 @@ function detach(state: Executions, itemId: Protocol.ItemId): Executions {
     if (execution.items.has(itemId)) {
       return set(state, {
         ...execution,
+        append: undefined,
         items: without(execution.items, itemId),
       });
     }
@@ -137,17 +204,27 @@ function unbind(state: Executions, itemId: Protocol.ItemId): Executions {
   return state;
 }
 
-function sameOutcome(a: Protocol.Execution, b: Protocol.Execution): boolean {
-  return (
-    a.outcome === b.outcome ||
-    JSON.stringify(a.outcome) === JSON.stringify(b.outcome)
-  );
+function sameShown(
+  a: Pick<Result, "record" | "output">,
+  b: Pick<Result, "record" | "output">,
+): boolean {
+  return JSON.stringify(shown(a)) === JSON.stringify(shown(b));
+}
+
+/** Replace an execution and keep its retained copies in step. */
+function update(state: Executions, execution: Execution): Executions {
+  return {
+    ...set(state, execution),
+    results: retainResult(state.results, execution),
+    scratch: retainScratchResult(state.scratch, execution),
+  };
 }
 
 /** Carry displayed results and their revisions through a replacement snapshot. */
 export function resumeResults(
   next: Executions,
   previous: Executions,
+  runtimeId: Protocol.RuntimeId | undefined,
 ): Executions {
   const resumed = new Map(next.executions);
   for (const [id, execution] of resumed) {
@@ -162,8 +239,7 @@ export function resumeResults(
       resumed.set(id, {
         ...execution,
         outputVersion:
-          before.outputVersion +
-          (sameOutcome(before.record, execution.record) ? 0 : 1),
+          before.outputVersion + (sameShown(before, execution) ? 0 : 1),
       });
     }
   }
@@ -175,7 +251,11 @@ export function resumeResults(
       cellId,
       execution === undefined
         ? (previous.results.get(cellId) ?? null)
-        : { record: execution.record, outputVersion: execution.outputVersion },
+        : {
+            record: execution.record,
+            output: execution.output,
+            outputVersion: execution.outputVersion,
+          },
     );
   }
   const scratch =
@@ -184,6 +264,12 @@ export function resumeResults(
     ...next,
     executions: resumed,
     results,
+    scratchConsole:
+      next.scratchConsole ??
+      (previous.scratchConsole?.record.state.status === "completed" &&
+      previous.scratchConsole.record.runtime_id === runtimeId
+        ? previous.scratchConsole
+        : undefined),
     scratch:
       scratch == null
         ? previous.scratch
@@ -211,6 +297,11 @@ export const executions: NotebookResource<Executions, Kind> = {
     run: (state, { data }) => ({
       ...state,
       runs: new Map(state.runs).set(data.run.id, data.run),
+      // A newer scratch run replaces what the last one reported.
+      scratchFailure:
+        data.run.origin.kind === "code"
+          ? hostFailure(data.run)
+          : state.scratchFailure,
     }),
     "run.removed": (state, { data }) =>
       state.runs.has(data.id)
@@ -218,30 +309,39 @@ export const executions: NotebookResource<Executions, Kind> = {
         : state,
     execution: (state, { data: { execution: record } }) => {
       const previous = state.executions.get(record.id);
-      const execution: Execution = {
-        record,
+      const next = { record, output: previous?.output ?? null };
+      return update(state, {
+        ...next,
         outputVersion:
           previous === undefined
             ? 0
-            : previous.outputVersion +
-              (sameOutcome(previous.record, record) ? 0 : 1),
+            : previous.outputVersion + (sameShown(previous, next) ? 0 : 1),
+        append: previous?.append,
+        lastSeq: previous?.lastSeq,
         items: previous?.items ?? new Map(),
         variables: previous?.variables ?? new Map(),
-      };
-      return {
-        ...set(state, execution),
-        results: retainResult(state.results, execution),
-        scratch: retainScratchResult(state.scratch, execution),
-      };
+      });
     },
     "execution.removed": (state, { data }) => remove(state, data.id),
+    output: (state, { data: { output } }) => {
+      const execution = state.executions.get(output.execution_id);
+      if (execution === undefined) {
+        return state;
+      }
+      const next = { ...execution, output };
+      return update(state, {
+        ...next,
+        outputVersion:
+          execution.outputVersion + (sameShown(execution, next) ? 0 : 1),
+      });
+    },
+    // The output leaves with its execution, and a retained result keeps its copy.
+    "output.removed": (state) => state,
     console: (state, { data }) =>
-      attach(state, { ...data.console, kind: "console" }),
+      attach(state, { ...data.console, kind: "console", time: data.time }),
     "console.removed": (state, { data }) => detach(state, data.id),
-    display: (state, { data }) =>
-      attach(state, { ...data.display, kind: "display" }),
-    "display.removed": (state, { data }) => detach(state, data.id),
-    input: (state, { data }) => attach(state, { ...data.input, kind: "input" }),
+    input: (state, { data }) =>
+      attach(state, { ...data.input, kind: "input", time: data.time }),
     variable: (state, { data }) => bind(state, data.variable),
     "variable.removed": (state, { data }) => unbind(state, data.id),
   },

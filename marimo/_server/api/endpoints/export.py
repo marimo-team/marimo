@@ -683,9 +683,6 @@ async def auto_export_as_ipynb(
     revision = auto_exporter.reserve_revision(filename, "ipynb")
 
     async def _background_export() -> None:
-        # Reload the file manager to get the latest state
-        session.app_file_manager.reload()
-
         ipynb = Exporter().export_as_ipynb(
             IPYNBExportRequest(
                 app=session.app_file_manager.app,

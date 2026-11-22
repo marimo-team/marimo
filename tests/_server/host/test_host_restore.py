@@ -10,20 +10,11 @@ import pytest
 
 from marimo._core import protocol
 from marimo._core.document import DocumentCell
-from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.errors import MarimoExceptionRaisedError
-from marimo._messaging.notification import CellNotification
-from marimo._runtime.commands import ExecuteCellCommand, ExecuteCellsCommand
 from marimo._server.host.restore import (
     executions_from_session,
     restored_executions,
 )
-from marimo._session.state.serialize import (
-    get_session_cache_file,
-    serialize_session_view,
-)
-from marimo._session.state.session_view import SessionView
-from marimo._types.ids import CellId_t
+from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils.code import hash_code
 from marimo._version import __version__
 
@@ -113,35 +104,47 @@ def test_a_stored_output_is_a_completed_execution_of_no_run() -> None:
         id=execution.id,
         run_id=None,
         runtime_id=None,
-        caused_by=None,
+        caused_by_id=None,
         cell_id=protocol.CellId("a"),
-        code=None,
         code_fingerprint=protocol.CodeFingerprint(
             document[0].code_fingerprint
         ),
-        depends_on={},
-        status="completed",
-        outcome=protocol.ValueOutcome(
-            protocol.DisplayData(mimetype="text/plain", data="42")
+        created_at=None,
+        state=protocol.ExecutionCompleted(
+            started_at=None,
+            completed_at=None,
+            outcome=protocol.SucceededOutcome(),
+            depends_on={},
         ),
-        started_at=None,
-        completed_at=None,
+    )
+    assert restored.output == protocol.Output(
+        id=protocol.ItemId(f"{execution.id}:output"),
+        execution_id=execution.id,
+        media=protocol.Media(mimetype="text/plain", data="42"),
     )
     # Text and media keep the order they were written in.
     assert restored.outputs == (
         protocol.Console(
-            execution.id, restored.outputs[0].id, "stdout", 0, "hello\n"
-        ),
-        protocol.Display(
-            protocol.DisplayData(
-                mimetype="image/png", data="data:image/png;base64,"
-            ),
-            execution.id,
-            restored.outputs[1].id,
-            1,
+            id=restored.outputs[0].id,
+            execution_id=execution.id,
+            seq=0,
+            content=protocol.ConsoleText(stream="stdout", text="hello\n"),
         ),
         protocol.Console(
-            execution.id, restored.outputs[2].id, "stderr", 2, "careful\n"
+            id=restored.outputs[1].id,
+            execution_id=execution.id,
+            seq=1,
+            content=protocol.ConsoleMedia(
+                protocol.Media(
+                    mimetype="image/png", data="data:image/png;base64,"
+                )
+            ),
+        ),
+        protocol.Console(
+            id=restored.outputs[2].id,
+            execution_id=execution.id,
+            seq=2,
+            content=protocol.ConsoleText(stream="stderr", text="careful\n"),
         ),
     )
     assert len({item.id for item in restored.outputs}) == 3
@@ -168,12 +171,12 @@ def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
 
     restored = executions.current(protocol.CellId("a"))
     assert restored is not None
-    assert restored.execution.outcome == protocol.ErrorOutcome(
+    assert restored.execution.state.outcome == protocol.ExecutionFailedOutcome(
         protocol.Error(
             kind="exception",
             name="ZeroDivisionError",
             message="division by zero",
-            traceback=protocol.DisplayData(
+            traceback=protocol.Media(
                 mimetype="text/plain", data="Traceback\nZeroDivisionError"
             ),
             source="marimo",
@@ -189,51 +192,37 @@ def test_a_stored_error_keeps_its_type_message_and_traceback() -> None:
 def test_restoring_a_cache_checks_the_source_of_retained_errors(
     tmp_path: Path, edited: bool, evidence_in: str
 ) -> None:
-    cell_id = CellId_t("a")
     code = "raise ValueError('failed code')"
+    current_code = "x = 1" if edited else code
     traceback = "ValueError: failed code"
-    view = SessionView()
-    view.add_notification(
-        CellNotification(
-            cell_id=cell_id,
-            status="idle",
-            output=CellOutput.errors(
-                [
-                    MarimoExceptionRaisedError(
-                        msg="failed code",
-                        exception_type="ValueError",
-                        raising_cell=None,
-                        traceback=traceback,
-                    )
-                ],
-                code=code,
-            )
+    # Older caches could combine the latest submission's hash with retained errors.
+    saved = session(
+        stored(
+            current_code,
+            outputs=[
+                {
+                    "type": "error",
+                    "ename": "ValueError",
+                    "evalue": "failed code",
+                    "traceback": [traceback],
+                    "code": code,
+                }
+            ]
             if evidence_in == "output"
-            else None,
+            else [],
             console=[
-                CellOutput(
-                    channel=CellChannel.STDERR,
-                    mimetype="application/vnd.marimo+traceback",
-                    data=traceback,
-                    code=code,
-                )
+                {
+                    "type": "stream",
+                    "name": "stderr",
+                    "text": traceback,
+                    "mimetype": "application/vnd.marimo+traceback",
+                    "code": code,
+                }
             ]
             if evidence_in == "console"
             else [],
         )
     )
-    current_code = "x = 1" if edited else code
-    view.add_control_request(
-        ExecuteCellsCommand(
-            execution_requests=[
-                ExecuteCellCommand(cell_id=cell_id, code=current_code)
-            ]
-        )
-    )
-    saved = serialize_session_view(
-        view, [cell_id], drop_virtual_file_outputs=True
-    )
-    assert saved["cells"][0]["code_hash"] == hash_code(current_code)
     file = tmp_path / "notebook.py"
     write(file, json.dumps(saved))
 
@@ -248,13 +237,13 @@ def failed(ename: str, evalue: str) -> list[OutputType]:
     ]
 
 
-def outcome_of(outputs: list[OutputType]) -> protocol.Outcome | None:
+def outcome_of(outputs: list[OutputType]) -> protocol.ExecutionOutcome | None:
     executions = executions_from_session(
         session(stored("x", outputs)), [cell("a", "x")]
     )
     restored = executions.current(protocol.CellId("a"))
     assert restored is not None
-    return restored.execution.outcome
+    return restored.execution.state.outcome
 
 
 def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
@@ -263,11 +252,11 @@ def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
     # that raised.
     assert (
         outcome_of(failed("interruption", "This cell was interrupted"))
-        == protocol.InterruptedOutcome()
+        == protocol.CancelledOutcome()
     )
     assert outcome_of(
         failed("ancestor-stopped", "An ancestor stopped: ")
-    ) == protocol.SkippedOutcome(
+    ) == protocol.ExecutionSkippedOutcome(
         reason="upstream-stopped",
         message="An ancestor stopped",
         related=(
@@ -277,7 +266,7 @@ def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
         ),
     )
     conflict = outcome_of(failed("multiple-defs", "x was defined twice"))
-    assert isinstance(conflict, protocol.ErrorOutcome)
+    assert isinstance(conflict, protocol.ExecutionFailedOutcome)
     assert (conflict.error.kind, conflict.error.name) == (
         "multiple-definitions",
         None,
@@ -285,7 +274,7 @@ def test_a_stored_kernel_error_is_the_outcome_a_live_run_reports() -> None:
 
 
 def test_stored_values_and_text_keep_their_formats() -> None:
-    bundle = {"text/html": "<b>1</b>", "text/plain": "1"}
+    bundle = {"text/plain": "NaN", "application/json": [float("nan")]}
     highlighted = '<span class="codehilite">Traceback</span>'
     executions = executions_from_session(
         session(
@@ -313,6 +302,12 @@ def test_stored_values_and_text_keep_their_formats() -> None:
                         "text": highlighted,
                         "mimetype": "application/vnd.marimo+traceback",
                     },
+                    {
+                        "type": "stream",
+                        "name": "stdout",
+                        "text": highlighted,
+                        "mimetype": "text/plain",
+                    },
                 ],
             ),
         ),
@@ -321,28 +316,38 @@ def test_stored_values_and_text_keep_their_formats() -> None:
 
     value = executions.current(protocol.CellId("a"))
     assert value is not None
-    assert value.execution.outcome == protocol.ValueOutcome(
-        protocol.DisplayData(
-            mimetype="application/vnd.marimo+mimebundle",
-            data=json.dumps(bundle),
-        )
+    assert value.output is not None
+    assert value.output.media == protocol.Media(
+        mimetype="application/vnd.marimo+mimebundle",
+        data='{"text/plain":"NaN","application/json":[null]}',
     )
     raised = executions.current(protocol.CellId("b"))
     assert raised is not None
-    assert isinstance(raised.execution.outcome, protocol.ErrorOutcome)
-    assert raised.execution.outcome.error.traceback == protocol.DisplayData(
+    assert isinstance(
+        raised.execution.state.outcome, protocol.ExecutionFailedOutcome
+    )
+    assert raised.execution.state.outcome.error.traceback == protocol.Media(
         mimetype="text/html", data=highlighted
     )
-    # An old password entry is dropped, and the rendered traceback is a
-    # display, not console text.
+    # An old password entry is dropped, and the rendered traceback is
+    # media, not console text.
     assert raised.outputs == (
-        protocol.Display(
-            protocol.DisplayData(
-                mimetype="application/vnd.marimo+traceback", data=highlighted
+        protocol.Console(
+            id=raised.outputs[0].id,
+            execution_id=raised.execution.id,
+            seq=0,
+            content=protocol.ConsoleMedia(
+                protocol.Media(
+                    mimetype="application/vnd.marimo+traceback",
+                    data=highlighted,
+                )
             ),
-            raised.execution.id,
-            raised.outputs[0].id,
-            0,
+        ),
+        protocol.Console(
+            id=raised.outputs[1].id,
+            execution_id=raised.execution.id,
+            seq=1,
+            content=protocol.ConsoleText(stream="stdout", text=highlighted),
         ),
     )
 
@@ -372,10 +377,9 @@ def test_stored_cells_follow_the_documents_order() -> None:
         result = executions.current(protocol.CellId(cell_id))
         if result is None:
             return None
-        outcome = result.execution.outcome
-        assert isinstance(outcome, protocol.ValueOutcome)
-        assert outcome.display is not None
-        return outcome.display.data
+        assert result.output is not None
+        assert result.output.media is not None
+        return result.output.media.data
 
     assert [display(cell_id) for cell_id in "abcde"] == [
         "first",

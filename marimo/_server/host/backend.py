@@ -197,9 +197,7 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = self._accept(
-            session, RunTranslator(run_id, code, self._cell_order)
-        )
+        run = self._accept(session, RunTranslator(run_id, self._cell_order))
         # Server adapters pass HTTPRequest through the core's RequestInfo protocol.
         self._watch_run(
             run,
@@ -220,9 +218,7 @@ class SessionBackend(SessionConsumer):
         session = self.session
         if session is None:
             return
-        run = self._accept(
-            session, RunTranslator(run_id, None, self._cell_order)
-        )
+        run = self._accept(session, RunTranslator(run_id, self._cell_order))
         try:
             cells = {
                 cell.id: ExecuteCellCommand(
@@ -233,6 +229,9 @@ class SessionBackend(SessionConsumer):
                 for cell in document
             }
             execution_requests = tuple(cells.values())
+            for cell_id in cell_ids:
+                if cell_id not in cells:
+                    raise LookupError(f"cell {cell_id} is not in the document")
             command = ExecuteCellsCommand(
                 execution_requests=[cells[cell_id] for cell_id in cell_ids],
                 request=cast(HTTPRequest | None, request),
@@ -503,20 +502,26 @@ class SessionBackend(SessionConsumer):
         session = kernel.session
         if self._session_detached is not None:
             self._session_detached(session)
-        reason = None
+        report: be.Stopped | be.Exited
         if session.kernel_state() is KernelState.STOPPED:
             info = session.kernel_exit_info()
             reason = info.message if info is not None else "The kernel died"
+            report = be.Exited(kernel.runtime_id, reason)
+        else:
+            # Session.close detaches consumers before terminating the kernel.
+            report = be.Stopped(kernel.runtime_id)
         for run in list(self._runs.values()):
             if run.task is not None:
                 run.task.cancel()
         self._translators.clear()
-        self._observe(be.Exited(kernel.runtime_id, reason))
+        self._observe(report)
 
     def notify(self, notification: KernelMessage) -> None:
         message = deserialize_kernel_message(notification)
         with self._sink.deferred():
-            self._sink.append(notification_event(self._notebook_id, message))
+            event = notification_event(self._notebook_id, message)
+            if event is not None:
+                self._sink.append(event)
             self._handle_notification(message)
 
     def _handle_notification(self, message: NotificationMessage) -> None:
@@ -535,7 +540,10 @@ class SessionBackend(SessionConsumer):
             return
         if self.session is None:
             return
-        translator, reports = self._translators.feed(message)
+        translator, reports = self._translators.feed(
+            message,
+            view=self.session.session_view,
+        )
         for reported in reports:
             self._observe(reported)
         if translator is None:

@@ -152,7 +152,7 @@ async def test_deleted_file_keeps_its_runtime_until_stopped(
     index.refresh()
 
     assert host.notebooks[record.id] == replace(
-        record, path=None, updated_at=None
+        record, path=None, modified_at=None
     )
     assert notebook.runtime == runtime
     assert backend.calls == []
@@ -268,7 +268,7 @@ def test_untitled_notebooks_offer_editing_and_the_runtime(
         "runtime.restart",
         "runtime.run",
         "runtime.execute",
-        "runtime.input",
+        "input.reply",
         "runtime.interrupt",
         "runtime.cancel",
     }

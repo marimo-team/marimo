@@ -167,7 +167,7 @@ async def test_reconnect_snapshot_precedes_a_queued_live_update(
         connection=MagicMock(),
         notebook=None,
         bridge=MagicMock(),
-        types=None,
+        kinds=None,
         cursor=None,
         manager=MagicMock(mode=SessionMode.EDIT),
         params=ConnectionParams(

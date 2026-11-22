@@ -37,11 +37,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Switch } from "@/components/ui/switch";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
-import {
-  useCellExecution,
-  useCellFreshness,
-  useCellOutput,
-} from "@/core/executions";
+import { useCellPresentation, useCellOutput } from "@/core/executions";
 import type { AppMode } from "@/core/mode";
 import { useIsDragging } from "@/hooks/useIsDragging";
 import { cn } from "@/utils/cn";
@@ -395,14 +391,13 @@ const GridCell = memo(
     className,
   }: GridCellProps) => {
     const output = useCellOutput(cellId);
-    const execution = useCellExecution(cellId);
-    const freshness = useCellFreshness(cellId);
+    const { execution, freshness } = useCellPresentation(cellId);
     const loading = outputIsLoading(execution.status);
     const stale = outputIsStale(execution, freshness, false);
     const hidden =
       hideWithoutValue &&
       execution.outcome !== null &&
-      execution.outcome !== "value";
+      execution.outcome !== "succeeded";
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output

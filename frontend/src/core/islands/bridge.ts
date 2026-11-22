@@ -1,14 +1,24 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
-import { NotebookClient, type NotebookTransport } from "@marimo-team/client";
+import {
+  NotebookClient,
+  type NotebookStreamEvent,
+  type NotebookTransport,
+} from "@marimo-team/client";
 import { getWorkerRPC } from "@/core/wasm/rpc";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { generateUUID } from "@/utils/uuid";
-import { initialNotebookState, notebookAtom } from "../cells/cells";
+import {
+  initialNotebookState,
+  notebookAtom,
+  notebookReducer,
+} from "../cells/cells";
+import type { CellId } from "../cells/ids";
+import { getCellLogsForMessage } from "../cells/logs";
 import type { NotebookBackend } from "../notebook/replica";
 import type { ClientCommand, NotificationMessage } from "../kernel/messages";
 import type { EditRequests, RunRequests } from "../network/types";
@@ -69,7 +79,8 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private session: AppSession | undefined;
   private sessionReady = new Deferred<AppSession>();
   private nextSessionGeneration = 0;
-  private readonly activeSessionGenerations = new Set<number>();
+  /** The host retains one execution per cell and removes it before its replacement. */
+  private readonly activeSessions = new Map<number, Map<string, CellId>>();
   private appTransition = Promise.resolve();
   private workerReady = new Deferred<void>();
   /** Where the managed session's host events go while a replica follows them. */
@@ -159,13 +170,13 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       ({ event, sessionGeneration }) => {
         // A stopped session can still have events in transit after the next
         // app takes ownership of the shared frontend state.
-        if (!this.activeSessionGenerations.has(sessionGeneration)) {
+        const cells = this.activeSessions.get(sessionGeneration);
+        if (!cells) {
           return;
         }
-        const frame = jsonParseWithSpecialChar(event) as {
-          event: string;
-          data: { marimo?: NotificationMessage };
-        };
+        const frame = jsonParseWithSpecialChar(event) as
+          | NotebookStreamEvent
+          | { event: "marimo"; data: { marimo?: NotificationMessage } };
         if (frame.event === "marimo") {
           if (frame.data.marimo) {
             this.notificationConsumer?.(frame.data.marimo, sessionGeneration);
@@ -175,9 +186,58 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         // The replica follows the managed session's host document.
         if (sessionGeneration === this.session?.sessionGeneration) {
           this.stream?.message(frame);
+        } else {
+          this.logIslandConsole(cells, frame);
         }
       },
     );
+  }
+
+  private logIslandConsole(
+    cells: Map<string, CellId>,
+    frame: NotebookStreamEvent,
+  ) {
+    switch (frame.event) {
+      case "reset":
+        cells.clear();
+        break;
+      case "execution": {
+        const { id, cell_id } = frame.data.execution;
+        if (cell_id !== null) {
+          cells.set(id, cell_id as CellId);
+        }
+        break;
+      }
+      case "execution.removed":
+        cells.delete(frame.data.id);
+        break;
+      case "console": {
+        const entry = frame.data.console;
+        const cellId = cells.get(entry.execution_id);
+        // Snapshot rows have no cursor. Only live writes belong in the logs.
+        if (
+          frame.id !== undefined &&
+          cellId !== undefined &&
+          entry.content.kind === "text"
+        ) {
+          const logs = getCellLogsForMessage({
+            cell_id: cellId,
+            console: {
+              channel: entry.content.stream,
+              mimetype: "text/plain",
+              data: entry.content.text,
+              timestamp: frame.data.time
+                ? Date.parse(frame.data.time) / 1000
+                : Date.now() / 1000,
+            },
+          });
+          this.store.set(notebookAtom, (state) =>
+            notebookReducer(state, { type: "addLogs", payload: { logs } }),
+          );
+        }
+        break;
+      }
+    }
   }
 
   /** The managed session is gone, so its stream starts over. */
@@ -220,7 +280,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       return;
     }
     if (apps.length > 0) {
-      this.activeSessionGenerations.clear();
+      this.activeSessions.clear();
       this.store.set(
         islandsPendingInitialRunsAtom,
         new Set(apps.map((_, index) => this.nextSessionGeneration + index + 1)),
@@ -237,7 +297,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       };
       const previousSession = this.session;
       const replacesSession = managesSingleApp && previousSession !== undefined;
-      this.activeSessionGenerations.add(request.sessionGeneration);
+      this.activeSessions.set(request.sessionGeneration, new Map());
       if (replacesSession) {
         this.resetNotebookStream();
         this.store.set(notebookAtom, initialNotebookState());
@@ -260,12 +320,13 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
           this.sessionReady.resolve(this.session);
         }
       } catch (error) {
-        this.activeSessionGenerations.delete(request.sessionGeneration);
+        this.activeSessions.delete(request.sessionGeneration);
         if (this.session?.sessionGeneration === request.sessionGeneration) {
           this.session = previousSession;
           if (previousSession) {
-            this.activeSessionGenerations.add(
+            this.activeSessions.set(
               previousSession.sessionGeneration,
+              new Map(),
             );
           }
         }
@@ -283,7 +344,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       if (session?.code === undefined || (appId && session.appId !== appId)) {
         return;
       }
-      this.activeSessionGenerations.delete(session.sessionGeneration);
+      this.activeSessions.delete(session.sessionGeneration);
       await this.rpc.proxy.request.stopSession({
         appId: session.appId,
         sessionGeneration: session.sessionGeneration,
@@ -390,6 +451,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public getFileRoots = throwNotImplemented;
   public sendListFiles = throwNotImplemented;
   public sendSearchFiles = throwNotImplemented;
+  public sendPdbReply = throwNotImplemented;
   public sendPdb = throwNotImplemented;
   public sendSetBreakpoints = throwNotImplemented;
   public sendCreateFileOrFolder = throwNotImplemented;

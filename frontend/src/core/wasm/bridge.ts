@@ -312,16 +312,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
     const frame = event as {
       event?: string;
-      data?: { run?: { id: string; status: string } };
+      data?: { run?: { id: string; state: { status: string } } };
     };
     const run = frame.event === "run" ? frame.data?.run : undefined;
     if (run === undefined || !this.pendingInterrupts.has(run.id)) {
       return;
     }
-    if (run.status === "running") {
+    if (run.state.status === "running") {
       this.pendingInterrupts.delete(run.id);
       this.raiseInterrupt();
-    } else if (run.status === "completed") {
+    } else if (run.state.status === "completed") {
       this.pendingInterrupts.delete(run.id);
     }
   }
@@ -337,7 +337,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return;
     }
     for (const run of store.get(replica.executionsAtom).runs.values()) {
-      if (run.status === "queued") {
+      if (run.state.status === "queued") {
         this.pendingInterrupts.add(run.id);
       }
     }
@@ -350,7 +350,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return false;
     }
     return (
-      store.get(replica.executionsAtom).runs.get(runId)?.status === "running"
+      store.get(replica.executionsAtom).runs.get(runId)?.state.status ===
+      "running"
     );
   }
 
@@ -377,6 +378,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public sendCopy: EditRequests["sendCopy"] = async () => {
     throwNotImplemented();
   };
+
+  public sendPdbReply = throwNotImplemented;
 
   public sendPdb: EditRequests["sendPdb"] = async () => {
     throwNotImplemented();

@@ -5,13 +5,18 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from msgspec.structs import replace
 
 from marimo._core import protocol
 from marimo._core.code import code_fingerprint
+from marimo._runtime.commands import (
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    UpdateUIElementCommand,
+)
 from marimo._session.notebook import AppFileManager
 from marimo._session.requests import InstantiateNotebookRequest
 from tests._server.host.drive import finished, wait_for
@@ -36,6 +41,17 @@ def notebook_source(request: pytest.FixtureRequest) -> str:
             "@app.cell\ndef _():\n    example = 7\n    return (example,)\n"
         ),
     )
+
+
+def shown(events: Response, execution_id: str | None = None) -> Any:
+    """The content of the last output item on the stream, or None."""
+    contents = [
+        r["data"]["output"]["media"]
+        for r in events.records
+        if r.get("event") == "output"
+        and execution_id in (None, r["data"]["output"]["execution_id"])
+    ]
+    return contents[-1] if contents else None
 
 
 @pytest.fixture
@@ -85,21 +101,24 @@ async def test_move_preserves_the_running_notebook(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
     )
     [outcome] = [
-        r["data"]["execution"]["outcome"]
+        r["data"]["execution"]["state"]["outcome"]
         for r in events.records
-        if r.get("data", {}).get("execution", {}).get("status") == "completed"
+        if r.get("data", {})
+        .get("execution", {})
+        .get("state", {})
+        .get("status")
+        == "completed"
     ]
-    assert outcome == {
-        "kind": "value",
-        "display": {
-            "mimetype": "text/html",
-            "data": "<pre class='text-xs'>42</pre>",
-        },
+    assert outcome == {"kind": "succeeded"}
+    assert shown(events) == {
+        "mimetype": "text/html",
+        "data": "<pre class='text-xs'>42</pre>",
     }
 
 
@@ -113,9 +132,9 @@ async def test_move_preserves_the_running_notebook(
             "<b>9</b>",
         ),
         ("", "value", None, None),
-        ("if !!!", "error", None, None),
-        ("1 / 0", "error", "ZeroDivisionError", None),
-        ("input('hello')", "error", "EOFError", None),
+        ("if !!!", "failed", None, None),
+        ("1 / 0", "failed", "ZeroDivisionError", None),
+        ("input('hello')", "failed", "EOFError", None),
     ],
 )
 async def test_scratch_outcomes_from_the_kernel(
@@ -137,30 +156,33 @@ async def test_scratch_outcomes_from_the_kernel(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
     )
     [execution] = [
         r["data"]["execution"]
         for r in events.records
-        if r.get("data", {}).get("execution", {}).get("status") == "completed"
+        if r.get("data", {})
+        .get("execution", {})
+        .get("state", {})
+        .get("status")
+        == "completed"
     ]
-    outcome = execution["outcome"]
-    assert execution["code"] == code
+    outcome = execution["state"]["outcome"]
+    assert accepted.json()["origin"] == {"kind": "code", "code": code}
     assert execution["code_fingerprint"]
     assert execution["runtime_id"] is not None
-    assert execution["caused_by"] is None
+    assert execution["caused_by_id"] is None
     if kind == "value":
-        assert outcome == {
-            "kind": "value",
-            "display": None
-            if value is None
-            else {"mimetype": "text/html", "data": value},
-        }
+        assert outcome == {"kind": "succeeded"}
+        assert shown(events) == (
+            None if value is None else {"mimetype": "text/html", "data": value}
+        )
         if value is not None:
             assert "hello\n" == "".join(
-                r["data"]["console"]["text"]
+                r["data"]["console"]["content"]["text"]
                 for r in events.records
                 if r.get("event") == "console"
             )
@@ -170,7 +192,7 @@ async def test_scratch_outcomes_from_the_kernel(
             outcome["error"]["kind"],
             outcome["error"]["name"],
         ) == (
-            "error",
+            "failed",
             "invalid-syntax" if name is None else "exception",
             name,
         )
@@ -195,7 +217,7 @@ async def test_cell_runs_preserve_order_with_later_deletions(
             lambda stream: any(
                 r.get("data", {}).get("run", {}).get("id")
                 == response.json()["id"]
-                and r["data"]["run"]["status"] == "completed"
+                and r["data"]["run"]["state"]["status"] == "completed"
                 for r in stream.records
             ),
         )
@@ -236,7 +258,7 @@ async def test_cell_runs_preserve_order_with_later_deletions(
     await completed(checked)
     assert (
         next(
-            r["data"]["run"]["outcome"]
+            r["data"]["run"]["state"]["outcome"]["kind"]
             for r in reversed(events.records)
             if r.get("data", {}).get("run", {}).get("id")
             == checked.json()["id"]
@@ -244,6 +266,180 @@ async def test_cell_runs_preserve_order_with_later_deletions(
         == "succeeded"
     )
     assert notebook.document.cell(cell.id) is None
+
+
+async def test_first_startup_preserves_host_order(tmp_path: Path) -> None:
+    source = (
+        "import marimo\napp = marimo.App()\n"
+        "@app.cell\ndef _():\n    x = 1\n    return (x,)\n"
+        "@app.cell\ndef _():\n    y = 2\n    return (y,)\n"
+    )
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        notebook = await app.state.host_context.bridge.host.notebook(
+            notebook_id
+        )
+        session = next(iter(app.state.session_manager.sessions.values()))
+        startup = CreateNotebookCommand(
+            execution_requests=tuple(
+                ExecuteCellCommand(cell_id=cell.id, code=cell.code)
+                for cell in notebook.document
+            ),
+            cell_ids=tuple(cell.id for cell in notebook.document),
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+            auto_run=False,
+        )
+        order = list(reversed(startup.cell_ids))
+        edited = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/edits",
+            headers=key("reorder-before-startup"),
+            body=json.dumps(
+                {
+                    "changes": [
+                        {"kind": "set_order", "base_etag": "*", "order": order}
+                    ]
+                }
+            ).encode(),
+        )
+        assert edited.status == 200, edited.body
+        revision = notebook.document.etag
+
+        session.put_control_request(startup, from_consumer_id=None)
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/execute",
+            headers=key("after-startup"),
+            body=b'{"code":"6 * 7"}',
+        )
+        assert accepted.status == 202, accepted.body
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("run", {}).get("id")
+                == accepted.json()["id"]
+                and r["data"]["run"]["state"]["status"] == "completed"
+                for r in response.records
+            ),
+        )
+        assert (notebook.document.etag, [c.id for c in notebook.document]) == (
+            revision,
+            order,
+        )
+
+
+@pytest.mark.parametrize("scratch", [False, True])
+async def test_repeated_startup_preserves_host_edits(
+    tmp_path: Path, scratch: bool
+) -> None:
+    source = (
+        "import marimo\napp = marimo.App()\n"
+        "@app.cell\ndef _():\n    import marimo as mo\n    return (mo,)\n"
+        '@app.cell\ndef _(mo):\n    mo.md("Ready")\n    return\n'
+    )
+    async with open_host(tmp_path, source) as (app, notebook_id, events):
+        notebook = await app.state.host_context.bridge.host.notebook(
+            notebook_id
+        )
+        session = next(iter(app.state.session_manager.sessions.values()))
+        imports, markdown = notebook.document
+        startup = CreateNotebookCommand(
+            execution_requests=tuple(
+                ExecuteCellCommand(cell_id=cell.id, code=cell.code)
+                for cell in notebook.document
+            ),
+            cell_ids=tuple(cell.id for cell in notebook.document),
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+            auto_run=False,
+        )
+        session.put_control_request(startup, from_consumer_id=None)
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("execution", {}).get("cell_id")
+                == markdown.id
+                and r["data"]["execution"]["state"]["status"] == "completed"
+                for r in response.records
+            ),
+        )
+        original_result = notebook.executions.current(markdown.id)
+        assert original_result is not None
+        order = ["answer", "definition", markdown.id, imports.id]
+        edited = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/edits",
+            headers=key("edit-before-startup-retry"),
+            body=json.dumps(
+                {
+                    "changes": [
+                        {
+                            "kind": "create_cell",
+                            "cell": {"id": "definition", "code": "x = 40"},
+                        },
+                        {
+                            "kind": "create_cell",
+                            "cell": {"id": "answer", "code": "x + 2"},
+                        },
+                        {
+                            "kind": "replace_cell",
+                            "base_etag": markdown.etag,
+                            "cell": {
+                                "id": markdown.id,
+                                "code": 'mo.md("Edited")',
+                            },
+                        },
+                        {
+                            "kind": "set_order",
+                            "base_etag": "*",
+                            "order": order,
+                        },
+                    ]
+                }
+            ).encode(),
+        )
+        assert edited.status == 200, edited.body
+        revision = notebook.document.etag
+
+        # A startup request captured before the edit reaches the kernel late.
+        session.put_control_request(startup, from_consumer_id=None)
+        accepted = await finished(
+            app,
+            "POST",
+            f"/notebooks/{notebook_id}/runtime/"
+            + ("execute" if scratch else "runs"),
+            headers=key("run-after-edit"),
+            body=json.dumps(
+                {"code": "6 * 7"} if scratch else {"cells": [{"id": "answer"}]}
+            ).encode(),
+        )
+        assert accepted.status == 202, accepted.body
+        run_id = accepted.json()["id"]
+        await wait_for(
+            events,
+            lambda response: any(
+                r.get("data", {}).get("run", {}).get("id") == run_id
+                and r["data"]["run"]["state"]["status"] == "completed"
+                for r in response.records
+            ),
+        )
+        [completed] = [
+            r["data"]["run"]
+            for r in events.records
+            if r.get("data", {}).get("run", {}).get("id") == run_id
+            and r["data"]["run"]["state"]["status"] == "completed"
+        ]
+        assert completed["state"]["outcome"]["kind"] == "succeeded"
+        assert (notebook.document.etag, [c.id for c in notebook.document]) == (
+            revision,
+            order,
+        )
+        assert notebook.executions.current(markdown.id) == original_result
 
 
 @pytest.mark.parametrize(
@@ -294,7 +490,10 @@ async def test_startup_markdown_has_a_retained_result_and_its_own_completed_run(
                 {
                     r["data"]["run"]["id"]
                     for r in response.records
-                    if r.get("data", {}).get("run", {}).get("status")
+                    if r.get("data", {})
+                    .get("run", {})
+                    .get("state", {})
+                    .get("status")
                     == "completed"
                 }
             )
@@ -302,22 +501,24 @@ async def test_startup_markdown_has_a_retained_result_and_its_own_completed_run(
         ),
     )
     completed = {
-        r["data"]["run"]["id"]: r["data"]["run"]["outcome"]
+        r["data"]["run"]["id"]: r["data"]["run"]["state"]["outcome"]["kind"]
         for r in events.records
-        if r.get("data", {}).get("run", {}).get("status") == "completed"
+        if r.get("data", {}).get("run", {}).get("state", {}).get("status")
+        == "completed"
     }
     result = notebook.executions.current(markdown.id)
     assert result is not None
     execution = result.execution
     assert execution.run_id is not None
-    assert (execution.status, execution.code_fingerprint) == (
-        "completed",
+    assert (type(execution.state), execution.code_fingerprint) == (
+        protocol.ExecutionCompleted,
         markdown.code_fingerprint,
     )
-    assert isinstance(execution.outcome, protocol.ValueOutcome)
-    assert execution.outcome.display is not None
-    assert execution.outcome.display.mimetype == "text/markdown"
-    assert "Startup markdown" in execution.outcome.display.data
+    assert execution.state.outcome == protocol.SucceededOutcome()
+    assert result.output is not None
+    assert result.output.media is not None
+    assert result.output.media.mimetype == "text/markdown"
+    assert "Startup markdown" in result.output.media.data
     expected = {execution.run_id: "succeeded"}
     regular_result = notebook.executions.current(regular.id)
     if requested_run is not None:
@@ -326,8 +527,8 @@ async def test_startup_markdown_has_a_retained_result_and_its_own_completed_run(
         assert regular_result is not None
         assert (
             regular_result.execution.run_id,
-            regular_result.execution.status,
-        ) == (requested_run, "completed")
+            type(regular_result.execution.state),
+        ) == (requested_run, protocol.ExecutionCompleted)
     else:
         assert regular_result is None
     assert completed == expected
@@ -375,35 +576,28 @@ def _():
         await wait_for(
             events,
             lambda s: any(
-                r.get("event") == "execution"
-                and r["data"]["execution"]["outcome"]
-                == {
-                    "kind": "value",
-                    "display": {
-                        "mimetype": "text/html",
-                        "data": "<b>late</b>",
-                    },
-                }
+                r.get("event") == "output"
+                and r["data"]["output"]["media"]
+                == {"mimetype": "text/html", "data": "<b>late</b>"}
                 for r in s.records
             ),
         )
+        assert before.output is not None
         expected = replace(
-            before.execution,
-            outcome=protocol.ValueOutcome(
-                protocol.DisplayData(mimetype="text/html", data="<b>late</b>")
-            ),
+            before.output,
+            media=protocol.Media(mimetype="text/html", data="<b>late</b>"),
         )
         assert notebook.executions.current(cell.id) == dataclasses.replace(
-            before, execution=expected
+            before, output=expected
         )
         assert notebook.executions.run(protocol.RunId(run_id)) == run
         snapshot = app.state.host_context.bridge.host.events(
             notebook_id=notebook_id
         )
         assert [
-            event.event.data.execution
+            event.event.data.output
             for event in snapshot
-            if isinstance(event.event, protocol.ExecutionEvent)
+            if isinstance(event.event, protocol.OutputEvent)
         ] == [expected]
 
 
@@ -430,7 +624,7 @@ async def gated_host(
 
 def run_transitions(stream: Response, *run_ids: str) -> list[tuple[str, str]]:
     return [
-        (r["data"]["run"]["id"], r["data"]["run"]["status"])
+        (r["data"]["run"]["id"], r["data"]["run"]["state"]["status"])
         for r in stream.records
         if r.get("data", {}).get("run", {}).get("id") in run_ids
     ]
@@ -439,10 +633,10 @@ def run_transitions(stream: Response, *run_ids: str) -> list[tuple[str, str]]:
 def run_outcome(stream: Response, run_id: str) -> str | None:
     return next(
         (
-            r["data"]["run"]["outcome"]
+            r["data"]["run"]["state"]["outcome"]["kind"]
             for r in reversed(stream.records)
             if r.get("data", {}).get("run", {}).get("id") == run_id
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
         ),
         None,
     )
@@ -476,8 +670,7 @@ async def test_runs_accepted_while_busy_start_in_order(
     )
     assert second.status == 202, second.body
     second_id = second.json()["id"]
-    assert second.json()["status"] == "queued"
-    assert second.json()["started_at"] is None
+    assert second.json()["state"] == {"status": "queued"}
     await wait_for(
         events,
         lambda s: (second_id, "queued") in run_transitions(s, second_id),
@@ -531,7 +724,7 @@ async def test_interrupting_a_queued_run_cancels_it_before_it_starts(
     gate.touch()
     await wait_for(events, lambda s: run_outcome(s, queued_id) is not None)
     assert run_outcome(events, first_id) == "succeeded"
-    assert run_outcome(events, queued_id) == "interrupted"
+    assert run_outcome(events, queued_id) == "cancelled"
     assert not any(
         r.get("data", {}).get("execution", {}).get("run_id") == queued_id
         for r in events.records
@@ -579,16 +772,20 @@ async def test_host_cell_input_fails_without_waiting_for_stdin(
         events,
         lambda stream: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in stream.records
         ),
     )
     [execution] = [
         r["data"]["execution"]
         for r in events.records
-        if r.get("data", {}).get("execution", {}).get("status") == "completed"
+        if r.get("data", {})
+        .get("execution", {})
+        .get("state", {})
+        .get("status")
+        == "completed"
     ]
-    assert execution["outcome"]["error"]["name"] == "EOFError"
+    assert execution["state"]["outcome"]["error"]["name"] == "EOFError"
     assert notebook.executions.active() is None
 
 
@@ -625,7 +822,7 @@ mo.Thread(target=worker).start()
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == first.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -645,13 +842,13 @@ mo.Thread(target=worker).start()
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == second.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
     assert (
         next(
-            r["data"]["run"]["outcome"]
+            r["data"]["run"]["state"]["outcome"]["kind"]
             for r in reversed(events.records)
             if r.get("data", {}).get("run", {}).get("id")
             == second.json()["id"]
@@ -663,7 +860,9 @@ mo.Thread(target=worker).start()
         for r in events.records
         if r.get("event") == "console"
     ]
-    assert not any("late output" in item["text"] for item in console)
+    assert not any(
+        "late output" in item["content"]["text"] for item in console
+    )
 
 
 async def test_queued_cancellation_never_executes_the_code(
@@ -697,16 +896,17 @@ async def test_queued_cancellation_never_executes_the_code(
         await wait_for(
             events,
             lambda response: any(
-                r.get("data", {}).get("run", {}).get("status") == "completed"
+                r.get("data", {}).get("run", {}).get("state", {}).get("status")
+                == "completed"
                 for r in response.records
             ),
         )
-    [outcome] = [
-        r["data"]["execution"]["outcome"]
+    assert run_outcome(events, accepted.json()["id"]) == "cancelled"
+    assert not any(
+        r.get("data", {}).get("execution", {}).get("run_id")
+        == accepted.json()["id"]
         for r in events.records
-        if r.get("data", {}).get("execution", {}).get("status") == "completed"
-    ]
-    assert outcome == {"kind": "interrupted"}
+    )
     following = await finished(
         app, "POST", execute, headers=key("next"), body=b'{"code":"42"}'
     )
@@ -716,7 +916,7 @@ async def test_queued_cancellation_never_executes_the_code(
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id")
             == following.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -745,14 +945,16 @@ async def test_run_retries_return_the_result_even_after_restart(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
     )
     [completed] = [
         r["data"]["run"]
         for r in events.records
-        if r.get("data", {}).get("run", {}).get("status") == "completed"
+        if r.get("data", {}).get("run", {}).get("state", {}).get("status")
+        == "completed"
     ]
     replayed = await finished(
         app, "POST", runs, headers=key("once"), body=body
@@ -765,13 +967,13 @@ async def test_run_retries_return_the_result_even_after_restart(
     )
     assert restarted.status == 202
     new_runtime_id = restarted.json()["id"]
-    assert restarted.json()["status"] == "starting"
+    assert restarted.json()["state"]["status"] == "starting"
     await wait_for(
         events,
         lambda response: any(
             r.get("event") == "runtime"
             and r["data"]["runtime"]["id"] == new_runtime_id
-            and r["data"]["runtime"]["status"] == "running"
+            and r["data"]["runtime"]["state"]["status"] == "ready"
             for r in response.records
         ),
         timeout=15,
@@ -833,7 +1035,8 @@ async def initialize_cascade(app: Starlette, events: Response) -> None:
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
         # Initial widget imports and construction can be slow on CI.
@@ -842,11 +1045,11 @@ async def initialize_cascade(app: Starlette, events: Response) -> None:
     runs = [
         r["data"]["run"] for r in events.records if r.get("event") == "run"
     ]
-    assert runs[-1]["outcome"] == "succeeded", [
-        r["data"]["execution"]["outcome"]
+    assert runs[-1]["state"]["outcome"]["kind"] == "succeeded", [
+        r["data"]["execution"]["state"]["outcome"]
         for r in events.records
         if r.get("event") == "execution"
-        and r["data"]["execution"]["status"] == "completed"
+        and r["data"]["execution"]["state"]["status"] == "completed"
     ]
 
 
@@ -877,7 +1080,7 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -887,31 +1090,31 @@ async def test_scratch_run_includes_the_full_reactive_cycle(
         if r.get("data", {}).get("request_id") == "cascade"
     ]
     assert records[-1]["event"] == "run"
-    assert records[-1]["data"]["run"]["outcome"] == outcome
+    assert records[-1]["data"]["run"]["state"]["outcome"]["kind"] == outcome
     executions = [
         r["data"]["execution"]
         for r in records
         if r["event"] == "execution"
-        and r["data"]["execution"]["status"] == "completed"
+        and r["data"]["execution"]["state"]["status"] == "completed"
     ]
     assert len(executions) == children + 1
     root, *downstream = executions
     assert root["cell_id"] is None
-    assert root["outcome"]["kind"] == "value"
+    assert root["state"]["outcome"]["kind"] == "succeeded"
     assert all(
         e["run_id"] == accepted.json()["id"]
         and e["cell_id"] is not None
-        and e["caused_by"] == root["id"]
+        and e["caused_by_id"] == root["id"]
         for e in downstream
     )
-    assert downstream[-1]["outcome"]["kind"] == (
-        "error" if outcome == "failed" else "value"
+    assert downstream[-1]["state"]["outcome"]["kind"] == (
+        "failed" if outcome == "failed" else "succeeded"
     )
     if outcome == "succeeded":
         consoles = [
             r["data"]["console"] for r in records if r["event"] == "console"
         ]
-        assert "".join(c["text"] for c in consoles) == "30\n"
+        assert "".join(c["content"]["text"] for c in consoles) == "30\n"
         assert {c["execution_id"] for c in consoles} == {downstream[-1]["id"]}
 
 
@@ -957,21 +1160,29 @@ async def test_detached_reactivity_starts_a_new_run(
             events,
             lambda response, run_id=run_id: any(
                 r.get("data", {}).get("run", {}).get("id") == run_id
-                and r["data"]["run"]["status"] == "completed"
+                and r["data"]["run"]["state"]["status"] == "completed"
                 for r in response.records
             ),
         )
     await wait_for(
         events,
         lambda response: any(
-            "30\n" in r.get("data", {}).get("console", {}).get("text", "")
+            "30\n"
+            in r.get("data", {})
+            .get("console", {})
+            .get("content", {})
+            .get("text", "")
             for r in response.records
         ),
     )
     printed = next(
         r["data"]["console"]
         for r in events.records
-        if "30\n" in r.get("data", {}).get("console", {}).get("text", "")
+        if "30\n"
+        in r.get("data", {})
+        .get("console", {})
+        .get("content", {})
+        .get("text", "")
     )
     execution = next(
         r["data"]["execution"]
@@ -984,7 +1195,7 @@ async def test_detached_reactivity_starts_a_new_run(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == execution["run_id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -993,8 +1204,12 @@ async def test_detached_reactivity_starts_a_new_run(
         for r in events.records
         if r.get("data", {}).get("run", {}).get("id") == submitted["origin"]
     ]
-    assert [r["status"] for r in origin] == ["queued", "running", "completed"]
-    assert origin[-1]["outcome"] == "succeeded"
+    assert [r["state"]["status"] for r in origin] == [
+        "queued",
+        "running",
+        "completed",
+    ]
+    assert origin[-1]["state"]["outcome"]["kind"] == "succeeded"
 
 
 async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
@@ -1022,7 +1237,7 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -1031,21 +1246,23 @@ async def test_nested_evaluations_keep_the_scratch_result_and_skipped_child(
         for r in events.records
         if r.get("data", {}).get("request_id") == "nested"
     ]
-    assert records[-1]["data"]["run"]["outcome"] == "failed"
+    assert records[-1]["data"]["run"]["state"]["outcome"]["kind"] == "failed"
     executions = [
         r["data"]["execution"]
         for r in records
         if r["event"] == "execution"
-        and r["data"]["execution"]["status"] == "completed"
+        and r["data"]["execution"]["state"]["status"] == "completed"
     ]
     assert len(executions) == 3
     [root] = [e for e in executions if e["cell_id"] is None]
-    assert root["outcome"]["kind"] == "value"
-    assert "42" in root["outcome"]["display"]["data"]
+    assert root["state"]["outcome"]["kind"] == "succeeded"
+    assert "42" in shown(events, root["id"])["data"]
     children = [e for e in executions if e["cell_id"] is not None]
-    assert all(e["caused_by"] == root["id"] for e in children)
-    assert {e["code_fingerprint"]: e["outcome"]["kind"] for e in children} == {
-        code_fingerprint("x = 1/0"): "error",
+    assert all(e["caused_by_id"] == root["id"] for e in children)
+    assert {
+        e["code_fingerprint"]: e["state"]["outcome"]["kind"] for e in children
+    } == {
+        code_fingerprint("x = 1/0"): "failed",
         code_fingerprint("y = x + 1"): "skipped",
     }
 
@@ -1073,7 +1290,7 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -1081,13 +1298,14 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         r["data"]["execution"]
         for r in events.records
         if r.get("data", {}).get("execution", {}).get("cell_id") == "child"
-        and r["data"]["execution"]["status"] == "completed"
+        and r["data"]["execution"]["state"]["status"] == "completed"
     ]
     assert [
-        (e["code_fingerprint"], e["outcome"]["kind"]) for e in executions
+        (e["code_fingerprint"], e["state"]["outcome"]["kind"])
+        for e in executions
     ] == [
-        (code_fingerprint("if !!!"), "error"),
-        (code_fingerprint("x = 42"), "value"),
+        (code_fingerprint("if !!!"), "failed"),
+        (code_fingerprint("x = 42"), "succeeded"),
     ]
     assert len({e["id"] for e in executions}) == 2
     runs = [
@@ -1095,7 +1313,7 @@ async def test_a_fixed_cell_replaces_its_failed_compilation(
         for r in events.records
         if r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
     ]
-    assert runs[-1]["outcome"] == "failed"
+    assert runs[-1]["state"]["outcome"]["kind"] == "failed"
 
 
 async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
@@ -1127,7 +1345,7 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
@@ -1135,16 +1353,19 @@ async def test_nested_commands_can_run_a_cell_queued_by_the_outer_command(
         r["data"]["execution"]
         for r in events.records
         if r.get("data", {}).get("execution", {}).get("cell_id") == "b"
-        and r["data"]["execution"]["status"] == "completed"
+        and r["data"]["execution"]["state"]["status"] == "completed"
     ]
-    assert [e["outcome"]["kind"] for e in executions] == ["value", "value"]
+    assert [e["state"]["outcome"]["kind"] for e in executions] == [
+        "succeeded",
+        "succeeded",
+    ]
     assert len({e["id"] for e in executions}) == 2
     runs = [
         r["data"]["run"]
         for r in events.records
         if r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
     ]
-    assert runs[-1]["outcome"] == "succeeded"
+    assert runs[-1]["state"]["outcome"]["kind"] == "succeeded"
 
 
 @pytest.mark.parametrize("nested_scratch", [False, True])
@@ -1183,28 +1404,28 @@ async def test_awaited_commands_join_the_enclosing_run(
         events,
         lambda response: any(
             r.get("data", {}).get("run", {}).get("id") == accepted.json()["id"]
-            and r["data"]["run"]["status"] == "completed"
+            and r["data"]["run"]["state"]["status"] == "completed"
             for r in response.records
         ),
     )
     records = events.records[before:]
     runs = [r["data"]["run"] for r in records if r.get("event") == "run"]
     assert {r["id"] for r in runs} == {accepted.json()["id"]}
-    assert runs[-1]["outcome"] == "failed"
+    assert runs[-1]["state"]["outcome"]["kind"] == "failed"
     executions = [
         r["data"]["execution"]
         for r in records
         if r.get("event") == "execution"
-        and r["data"]["execution"]["status"] == "completed"
+        and r["data"]["execution"]["state"]["status"] == "completed"
     ]
     assert len(executions) == (3 if nested_scratch else 2)
-    [root] = [e for e in executions if e["caused_by"] is None]
-    children = [e for e in executions if e["caused_by"] == root["id"]]
+    [root] = [e for e in executions if e["caused_by_id"] is None]
+    children = [e for e in executions if e["caused_by_id"] == root["id"]]
     assert len(children) == len(executions) - 1
     child = children[0]
-    assert root["outcome"]["kind"] == "value"
-    assert "42" in root["outcome"]["display"]["data"]
-    assert child["outcome"]["kind"] == "error"
+    assert root["state"]["outcome"]["kind"] == "succeeded"
+    assert "42" in shown(events, root["id"])["data"]
+    assert child["state"]["outcome"]["kind"] == "failed"
     assert child["code_fingerprint"] == code_fingerprint(child_code)
     assert all(e["run_id"] == accepted.json()["id"] for e in executions)
 
@@ -1228,7 +1449,8 @@ async def test_rename_reactivity_completes_its_run(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records
         ),
     )
@@ -1244,7 +1466,8 @@ async def test_rename_reactivity_completes_its_run(
     await wait_for(
         events,
         lambda response: any(
-            r.get("data", {}).get("run", {}).get("status") == "completed"
+            r.get("data", {}).get("run", {}).get("state", {}).get("status")
+            == "completed"
             for r in response.records[before:]
         ),
     )
@@ -1253,7 +1476,7 @@ async def test_rename_reactivity_completes_its_run(
         for r in events.records[before:]
         if r.get("event") == "run"
     ]
-    assert runs[-1]["outcome"] == "succeeded"
+    assert runs[-1]["state"]["outcome"]["kind"] == "succeeded"
     accepted = await finished(
         app,
         "POST",

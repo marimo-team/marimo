@@ -27,15 +27,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
-import type { CellRuntimeState, RuntimeCell } from "@/core/cells/types";
+import type { CellRuntimeView, RuntimeCell } from "@/core/cells/types";
 import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses } from "@/core/constants";
 import {
   runtimeStatusAtom,
-  useCellExecution,
-  useCellFreshness,
+  useCellPresentation,
   useCellOutput,
 } from "@/core/executions";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
@@ -134,7 +133,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     if (cells.length === 0 && !invisible) {
       // Until the host reports the runtime running, show loading state.
       // A static notebook has no runtime to wait for.
-      if (runtimeStatus !== "running" && !isStaticNotebook()) {
+      if (runtimeStatus !== "ready" && !isStaticNotebook()) {
         return (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
             <Loader2Icon className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -301,7 +300,7 @@ const ActionButtons: React.FC<{
   );
 };
 
-interface VerticalCellProps extends Pick<CellRuntimeState, "consoleOutputs"> {
+interface VerticalCellProps extends Pick<CellRuntimeView, "consoleOutputs"> {
   cellOutputArea: "above" | "below";
   cellId: CellId;
   config: CellConfig;
@@ -328,10 +327,8 @@ const VerticalCell = memo(
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
     const output = useCellOutput(cellId);
-    const execution = useCellExecution(cellId);
-    const freshness = useCellFreshness(cellId);
-    const errored = execution.outcome === "error";
-    const interrupted = execution.outcome === "interrupted";
+    const { execution, freshness } = useCellPresentation(cellId);
+    const errored = execution.outcome === "failed";
     const stopped = execution.outcome === "skipped";
 
     const outputStale = outputIsStale(execution, freshness, false);
@@ -393,11 +390,9 @@ const VerticalCell = memo(
           <ConsoleOutput
             consoleOutputs={consoleOutputs}
             stale={outputStale}
-            interrupted={interrupted}
             cellName={name}
             onSubmitDebugger={() => null}
             cellId={cellId}
-            debuggerActive={false}
           />
         </div>
       );
@@ -407,7 +402,7 @@ const VerticalCell = memo(
     // instead of hiding them
     const hidden = shouldHidePublishedCell({
       errored,
-      interrupted,
+      interrupted: execution.outcome === "cancelled",
       stopped,
       output,
       showErrorTracebacks,

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import msgspec
 import pytest
 from dirty_equals import IsStr
@@ -21,20 +23,22 @@ from marimo._core.backend import (
 from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
 from marimo._core.protocol import (
+    CancelledOutcome,
     CellId,
     Console,
-    DisplayData,
+    ConsoleMedia,
+    ConsoleText,
     Error,
-    ErrorOutcome,
+    ExecutionFailedOutcome,
     ExecutionId,
-    InterruptedOutcome,
+    ExecutionSkippedOutcome,
+    Media,
     Position,
     Range,
     Related,
     Revision,
     RunId,
-    SkippedOutcome,
-    ValueOutcome,
+    SucceededOutcome,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
@@ -83,7 +87,7 @@ def attempt(phase: str, **fields: object) -> ExecutionNotification:
 
 
 def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
-    t = RunTranslator(RunId("r1"), None)
+    t = RunTranslator(RunId("r1"))
     planned = ExecutionNotification(
         cell_id=CellId_t("b"),
         run_id="r1",
@@ -105,7 +109,7 @@ def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
     messages.extend(t.finish())
 
     completed = next(m for m in messages if isinstance(m, be.Completed))
-    assert completed.outcome == protocol.SkippedOutcome(
+    assert completed.outcome == protocol.ExecutionSkippedOutcome(
         reason="superseded",
         message="Replaced by a newer execution of this cell before it started",
         related=(
@@ -120,7 +124,7 @@ def test_a_superseded_attempt_is_skipped_and_its_run_succeeds() -> None:
 
 
 def test_a_run_that_prints_and_shows_a_value() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
 
     messages = t.feed(attempt("planned"))
     messages.extend(t.feed(attempt("running")))
@@ -153,8 +157,7 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                         id=ExecutionId("scratch"),
                         cell_id=None,
                         code_fingerprint=code_fingerprint("3 * 3"),
-                        code="3 * 3",
-                        caused_by=None,
+                        caused_by_id=None,
                     ),
                 ),
             ),
@@ -163,20 +166,17 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
                 item=Console(
                     execution_id=ExecutionId("scratch"),
                     id=IsStr(),
-                    name="stdout",
                     seq=0,
-                    text="2\n",
+                    content=ConsoleText(stream="stdout", text="2\n"),
                 )
             ),
             Displayed(
                 execution_id=ExecutionId("scratch"),
-                display=DisplayData(data="<pre>9</pre>", mimetype="text/html"),
+                display=Media(data="<pre>9</pre>", mimetype="text/html"),
             ),
             Completed(
                 execution_id=ExecutionId("scratch"),
-                outcome=ValueOutcome(
-                    DisplayData(data="<pre>9</pre>", mimetype="text/html")
-                ),
+                outcome=SucceededOutcome(),
                 depends_on=inputs,
             ),
             Done(run_id=RunId("r1"), outcome="succeeded"),
@@ -184,8 +184,62 @@ def test_a_run_that_prints_and_shows_a_value() -> None:
     )
 
 
-def test_unrelated_output_does_not_belong_to_the_scratch_execution() -> None:
+@pytest.mark.parametrize("console", [False, True])
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        pytest.param(
+            {"values": [float("nan"), float("inf"), float("-inf")]},
+            '{"values":[null,null,null]}',
+            id="non-finite",
+        ),
+        pytest.param(
+            {"date": datetime(2026, 1, 1)},
+            '{"date":"2026-01-01T00:00:00"}',
+            id="datetime",
+        ),
+        pytest.param(
+            {"values": range(3)},
+            '{"values":[0,1,2]}',
+            id="custom-encoder",
+        ),
+        pytest.param('{"value": 1}', '{"value": 1}', id="encoded-json"),
+    ],
+)
+def test_structured_displays_preserve_message_encoding(
+    data: str | dict[str, object], expected: str, console: bool
+) -> None:
     t = RunTranslator(RunId("r1"), "3 * 3")
+    t.feed(attempt("planned"))
+    t.feed(attempt("running"))
+    output = CellOutput(
+        channel=CellChannel.MEDIA if console else CellChannel.OUTPUT,
+        mimetype="application/json",
+        data=data,
+    )
+    display = Media(mimetype="application/json", data=expected)
+    if console:
+        assert t.feed(scratch(console=output)) == [
+            Produced(
+                Console(
+                    id=protocol.ItemId("scratch-0"),
+                    execution_id=ExecutionId("scratch"),
+                    seq=0,
+                    content=ConsoleMedia(display),
+                )
+            )
+        ]
+    else:
+        assert t.feed(scratch(output=output)) == [
+            Displayed(ExecutionId("scratch"), display)
+        ]
+        assert t.feed(attempt("completed")) == [
+            Completed(ExecutionId("scratch"), SucceededOutcome())
+        ]
+
+
+def test_unrelated_output_does_not_belong_to_the_scratch_execution() -> None:
+    t = RunTranslator(RunId("r1"))
     other = CellNotification(
         cell_id=CellId_t("c1"), console=CellOutput.stdout("x")
     )
@@ -206,7 +260,7 @@ def test_unrelated_output_does_not_belong_to_the_scratch_execution() -> None:
 
 
 def test_an_exception_ends_the_run_in_error() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     error = MarimoExceptionRaisedError(
@@ -221,7 +275,7 @@ def test_an_exception_ends_the_run_in_error() -> None:
         [
             Completed(
                 execution_id=ExecutionId("scratch"),
-                outcome=ErrorOutcome(
+                outcome=ExecutionFailedOutcome(
                     error=Error(
                         source="marimo",
                         severity="error",
@@ -230,7 +284,7 @@ def test_an_exception_ends_the_run_in_error() -> None:
                         kind="exception",
                         message="division by zero",
                         name="ZeroDivisionError",
-                        traceback=DisplayData(
+                        traceback=Media(
                             data="""\
 Traceback...
 ZeroDivisionError: division by zero
@@ -249,7 +303,7 @@ ZeroDivisionError: division by zero
 def test_an_interruption_ends_the_run_interrupted(
     interrupted_by: str,
 ) -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     if interrupted_by == "kernel":
@@ -261,15 +315,15 @@ def test_an_interruption_ends_the_run_interrupted(
         [
             Completed(
                 execution_id=ExecutionId("scratch"),
-                outcome=InterruptedOutcome(),
+                outcome=CancelledOutcome(),
             ),
-            Done(run_id=RunId("r1"), outcome="interrupted"),
+            Done(run_id=RunId("r1"), outcome="cancelled"),
         ]
     )
 
 
-def test_console_items_number_in_order_and_lose_highlighting() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+def test_console_items_keep_literal_text_in_order() -> None:
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     out = t.feed(
@@ -288,28 +342,29 @@ def test_console_items_number_in_order_and_lose_highlighting() -> None:
                 item=Console(
                     execution_id=ExecutionId("scratch"),
                     id=IsStr(),
-                    name="stdout",
                     seq=0,
-                    text="a",
+                    content=ConsoleText(stream="stdout", text="a"),
                 )
             ),
             Produced(
                 item=Console(
                     execution_id=ExecutionId("scratch"),
                     id=IsStr(),
-                    name="stderr",
                     seq=1,
-                    text="<b>",
+                    content=ConsoleText(
+                        stream="stderr",
+                        text='<span class="codehilite">&lt;b&gt;</span>',
+                    ),
                 )
             ),
         ]
     )
 
 
-def test_media_written_to_the_console_is_a_display_among_the_text() -> None:
+def test_media_written_to_the_console_is_an_entry_among_the_text() -> None:
     # A figure shown with `plt.show()` arrives on the console, between
     # whatever the cell printed before and after it.
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     out = t.feed(
@@ -327,22 +382,20 @@ def test_media_written_to_the_console_is_a_display_among_the_text() -> None:
     )
 
     items = [m.item for m in out if isinstance(m, Produced)]
-    assert [(type(item), item.seq) for item in items] == [
-        (Console, 0),
-        (protocol.Display, 1),
-        (Console, 2),
+    assert [(type(item.content), item.seq) for item in items] == [
+        (ConsoleText, 0),
+        (ConsoleMedia, 1),
+        (ConsoleText, 2),
     ]
     assert len({item.id for item in items}) == 3
-    figure = items[1]
-    assert isinstance(figure, protocol.Display)
-    assert figure.content == protocol.DisplayData(
-        mimetype="image/png", data="data:image/png;base64,AAAA"
+    assert items[1].content == ConsoleMedia(
+        protocol.Media(mimetype="image/png", data="data:image/png;base64,AAAA")
     )
 
 
-def test_a_rendered_traceback_is_a_display_and_a_plain_one_is_text() -> None:
+def test_a_rendered_traceback_is_media_and_a_plain_one_is_text() -> None:
     highlighted = '<span class="codehilite">Traceback</span>'
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     out = t.feed(
@@ -364,20 +417,19 @@ def test_a_rendered_traceback_is_a_display_and_a_plain_one_is_text() -> None:
     )
 
     rendered, text = (m.item for m in out if isinstance(m, Produced))
-    assert isinstance(rendered, protocol.Display)
-    assert rendered.content == protocol.DisplayData(
-        mimetype="application/vnd.marimo+traceback", data=highlighted
+    assert rendered.content == ConsoleMedia(
+        protocol.Media(
+            mimetype="application/vnd.marimo+traceback", data=highlighted
+        )
     )
-    assert isinstance(text, Console)
-    assert (text.name, text.text) == (
-        "stderr",
-        "Traceback (most recent call last)",
+    assert text.content == ConsoleText(
+        stream="stderr", text="Traceback (most recent call last)"
     )
     assert (rendered.seq, text.seq) == (0, 1)
 
 
 def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
-    translator = RunTranslator(RunId("r1"), None)
+    translator = RunTranslator(RunId("r1"))
     ids = []
     for identity in ("first", "second"):
         planned = translator.feed(
@@ -414,31 +466,38 @@ def test_late_output_keeps_its_evaluation_when_a_cell_runs_again() -> None:
     assert output.item.execution_id == ids[0]
 
 
-def test_unsubmitted_runs_have_distinct_executions() -> None:
-    executions = []
-    for run_id in ("r1", "r2"):
-        translator = RunTranslator(RunId(run_id), "print('never ran')")
-        translator.interrupted = True
-        planned, completed, done = translator.finish()
-        assert isinstance(planned, Planned)
-        [execution] = planned.executions
-        executions.append(execution.id)
-        assert (completed, done) == (
-            Completed(execution.id, InterruptedOutcome()),
-            Done(RunId(run_id), "interrupted"),
-        )
-    assert len(set(executions)) == 2
+def test_a_scratch_run_that_never_reached_the_kernel_has_no_execution() -> (
+    None
+):
+    cancelled = RunTranslator(RunId("r1"))
+    cancelled.interrupted = True
+    assert cancelled.finish() == [Done(RunId("r1"), "cancelled")]
+
+    failed = RunTranslator(RunId("r2"))
+    error = protocol.Error(
+        kind="internal",
+        name=None,
+        message="Kernel channel closed",
+        traceback=None,
+        source="marimo",
+        severity="error",
+        range=None,
+        related=(),
+    )
+    assert failed.finish(error=error) == [
+        Done(RunId("r2"), "failed", "Kernel channel closed")
+    ]
 
 
 @pytest.mark.parametrize(
     ("error", "outcome_type", "run_outcome"),
     [
-        (MarimoInterruptionError(), InterruptedOutcome, "interrupted"),
+        (MarimoInterruptionError(), CancelledOutcome, "cancelled"),
         (
             MarimoExceptionRaisedError(
                 "ancestor failed", "RuntimeError", None
             ),
-            ErrorOutcome,
+            ExecutionFailedOutcome,
             "failed",
         ),
         (
@@ -447,7 +506,7 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
                 "Ancestor raised",
                 CellId_t("a"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
         (
@@ -456,7 +515,7 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
                 "NameError",
                 CellId_t("a"),
             ),
-            ErrorOutcome,
+            ExecutionFailedOutcome,
             "failed",
         ),
         (
@@ -464,7 +523,7 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
                 "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
                 CellId_t("a"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
         (
@@ -473,7 +532,7 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
                 CellId_t("a"),
                 CellId_t("b"),
             ),
-            SkippedOutcome,
+            ExecutionSkippedOutcome,
             "succeeded",
         ),
     ],
@@ -481,7 +540,7 @@ def test_unsubmitted_runs_have_distinct_executions() -> None:
 def test_skipped_cells_report_their_error_after_becoming_idle(
     error: object, outcome_type: type, run_outcome: str
 ) -> None:
-    translator = RunTranslator(RunId("r1"), None)
+    translator = RunTranslator(RunId("r1"))
 
     def cell(**fields: object) -> CellNotification:
         return CellNotification(
@@ -521,7 +580,7 @@ def test_skipped_cells_report_their_error_after_becoming_idle(
 def test_planned_fingerprint_is_preserved_without_rehashing(
     code: str | None,
 ) -> None:
-    translator = RunTranslator(RunId("r1"), None)
+    translator = RunTranslator(RunId("r1"))
     assert translator.feed(
         ExecutionNotification(
             cell_id=CellId_t("a"),
@@ -534,11 +593,7 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
     ) == [
         Planned(
             RunId("r1"),
-            (
-                PlannedExecution(
-                    ExecutionId("execution"), "a", "custom:v1:a", None
-                ),
-            ),
+            (PlannedExecution(ExecutionId("execution"), "a", "custom:v1:a"),),
         )
     ]
 
@@ -581,7 +636,7 @@ def test_planned_fingerprint_is_preserved_without_rehashing(
 def test_a_skipped_cell_names_its_reason_and_the_cells_involved(
     error: object, reason: str, related: list[tuple[str, str]]
 ) -> None:
-    translator = RunTranslator(RunId("r1"), None)
+    translator = RunTranslator(RunId("r1"))
     translator.feed(
         ExecutionNotification(
             cell_id=CellId_t("c"),
@@ -610,7 +665,7 @@ def test_a_skipped_cell_names_its_reason_and_the_cells_involved(
     )
     assert isinstance(completed, Completed)
     outcome = completed.outcome
-    assert isinstance(outcome, SkippedOutcome)
+    assert isinstance(outcome, ExecutionSkippedOutcome)
     assert outcome.reason == reason
     assert outcome.message.startswith(("This cell wasn't run", "An ancestor"))
     assert not outcome.message.endswith((":", " "))
@@ -743,14 +798,14 @@ def test_each_kernel_error_keeps_its_kind_and_names_the_cells_involved(
     related: tuple[Related, ...],
     range_: Range | None,
 ) -> None:
-    t = RunTranslator(RunId("r1"), None)
+    t = RunTranslator(RunId("r1"))
     t.feed(planned("c", "x = 1\nmo.sql('select * from t')"))
     t.feed(running("c"))
     t.feed(cell_output("c", CellOutput.errors([error])))  # type: ignore[list-item]
 
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     described = completed.outcome.error
     assert described.source == "marimo"
     assert described.kind == kind
@@ -760,7 +815,7 @@ def test_each_kernel_error_keeps_its_kind_and_names_the_cells_involved(
 
 def test_every_cell_in_a_cycle_describes_it_in_the_same_order() -> None:
     edges = (("a", ("x",), "b"), ("b", ("y",), "c"), ("c", ("z",), "a"))
-    t = RunTranslator(RunId("r1"), None)
+    t = RunTranslator(RunId("r1"))
     related = []
     for cell, start in (("a", 2), ("b", 0), ("c", 1)):
         rotated = CycleError(edges_with_vars=edges[start:] + edges[:start])
@@ -769,14 +824,14 @@ def test_every_cell_in_a_cycle_describes_it_in_the_same_order() -> None:
         t.feed(cell_output(cell, CellOutput.errors([rotated])))  # type: ignore[list-item]
     for completed in t.finish()[:3]:
         assert isinstance(completed, Completed)
-        assert isinstance(completed.outcome, ErrorOutcome)
+        assert isinstance(completed.outcome, ExecutionFailedOutcome)
         related.append(completed.outcome.error.related)
     assert related[0] == related[1] == related[2]
     assert [r.cell_id for r in related[0]] == ["a", "b", "c"]
 
 
 def test_a_sql_error_keeps_its_hint_and_counts_its_column_in_utf16() -> None:
-    t = RunTranslator(RunId("r1"), None)
+    t = RunTranslator(RunId("r1"))
     t.feed(planned("c", 'x = "𝄞"; mo.sql("select * from t")'))
     t.feed(running("c"))
     error = MarimoSQLError(
@@ -790,7 +845,7 @@ def test_a_sql_error_keeps_its_hint_and_counts_its_column_in_utf16() -> None:
 
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     assert (
         completed.outcome.error.message == "no such table: t\nDid you mean u?"
     )
@@ -800,7 +855,7 @@ def test_a_sql_error_keeps_its_hint_and_counts_its_column_in_utf16() -> None:
 
 
 def test_definers_follow_the_document_when_the_translator_knows_it() -> None:
-    t = RunTranslator(RunId("r1"), None, lambda: ["c", "a", "b"])
+    t = RunTranslator(RunId("r1"), lambda: ["c", "a", "b"])
     t.feed(planned("a", "x = 1"))
     t.feed(running("a"))
     error = MultipleDefinitionError(name="x", cells=("b", "c"))
@@ -808,7 +863,7 @@ def test_definers_follow_the_document_when_the_translator_knows_it() -> None:
 
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     assert [r.cell_id for r in completed.outcome.error.related] == [
         "c",
         "a",
@@ -821,35 +876,35 @@ def test_a_conflict_reads_the_same_from_analysis_and_from_execution() -> None:
     document = Document(
         [DocumentCell(CellId(cid), code) for cid, code in codes.items()], {}
     )
-    (analyzed,) = CellAnalyzer()(document)[CellId("a")].errors
+    (analyzed,) = CellAnalyzer()(document)[CellId("a")].diagnostics
 
-    t = RunTranslator(RunId("r1"), None, lambda: list(codes))
+    t = RunTranslator(RunId("r1"), lambda: list(codes))
     t.feed(planned("a", "x = 1"))
     t.feed(running("a"))
     error = MultipleDefinitionError(name="x", cells=("b",))
     t.feed(cell_output("a", CellOutput.errors([error])))
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     executed = completed.outcome.error
 
-    def without_ranges(described: Error) -> Error:
-        return msgspec.structs.replace(
-            described,
-            range=None,
-            related=tuple(
-                msgspec.structs.replace(r, range=None)
-                for r in described.related
-            ),
-        )
-
-    assert executed.range is None
-    assert without_ranges(executed) == without_ranges(analyzed)
+    assert executed == Error(
+        kind=analyzed.kind,
+        source=analyzed.source,
+        message=analyzed.message,
+        severity=analyzed.severity,
+        related=tuple(
+            msgspec.structs.replace(r, range=None) for r in analyzed.related
+        ),
+        range=None,
+        name=None,
+        traceback=None,
+    )
     assert [r.cell_id for r in executed.related] == ["b", "a"]
 
 
 def test_an_internal_error_is_named_by_its_id() -> None:
-    t = RunTranslator(RunId("r1"), "3 * 3")
+    t = RunTranslator(RunId("r1"))
     t.feed(attempt("planned"))
     t.feed(attempt("running"))
     t.feed(
@@ -860,7 +915,7 @@ def test_an_internal_error_is_named_by_its_id() -> None:
 
     completed = t.finish()[0]
     assert isinstance(completed, Completed)
-    assert isinstance(completed.outcome, ErrorOutcome)
+    assert isinstance(completed.outcome, ExecutionFailedOutcome)
     assert completed.outcome.error.kind == "internal"
     assert completed.outcome.error.name == "abc123"
     assert "abc123" in completed.outcome.error.message

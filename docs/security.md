@@ -45,6 +45,12 @@ marimo behaves differently depending on how you run it:
 
 This distinction reflects the different threat models: editing is exploratory and may involve untrusted notebooks; deployed apps are intentional publications.
 
+Use `--untrusted` with either command to open one local or remote notebook in a container. Docker is the default. Use `--container-engine` to select `podman`, `nerdctl`, `finch`, Apple `container`, or another Docker-compatible executable.
+
+For a local notebook, marimo mounts a temporary copy. To keep edits, save and download the notebook source before closing the session.
+
+The engine uses its own certificates to pull images. Notebook and package downloads use the certificates inside the container.
+
 ### Project files
 
 marimo reads configuration settings from three sources: your user config, the nearest `pyproject.toml`, and the notebook's inline script metadata (PEP 723).
