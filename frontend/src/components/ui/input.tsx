@@ -14,7 +14,8 @@ import { Events } from "@/utils/events";
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   rootClassName?: string;
   icon?: React.ReactNode;
-  endAdornment?: React.ReactNode;
+  /** A function is called with the current value, so it updates while typing. */
+  endAdornment?: React.ReactNode | ((value: string) => React.ReactNode);
 };
 
 const DEFAULT_SEARCH_ICON = (
@@ -22,8 +23,12 @@ const DEFAULT_SEARCH_ICON = (
 );
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, endAdornment, ...props }, ref) => {
+  ({ className, type, endAdornment: adornment, ...props }, ref) => {
     const icon = props.icon;
+    const endAdornment =
+      typeof adornment === "function"
+        ? adornment(String(props.value ?? ""))
+        : adornment;
 
     if (type === "hidden") {
       return <input type="hidden" ref={ref} {...props} />;

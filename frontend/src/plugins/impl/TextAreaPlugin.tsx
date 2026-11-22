@@ -57,11 +57,13 @@ interface TextAreaComponentProps extends Data {
 
 const TextAreaComponent = (props: TextAreaComponentProps) => {
   const textareaId = useId();
-  const bottomAdornment = props.maxLength ? (
-    <span className="text-muted-foreground text-xs font-medium">
-      {props.value.length}/{props.maxLength}
-    </span>
-  ) : null;
+  const bottomAdornment = props.maxLength
+    ? (typed: string) => (
+        <span className="text-muted-foreground text-xs font-medium">
+          {typed.length}/{props.maxLength}
+        </span>
+      )
+    : null;
 
   if (props.debounce === true) {
     return (

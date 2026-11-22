@@ -7,11 +7,16 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  bottomAdornment?: React.ReactNode;
+  /** A function is called with the current value, so it updates while typing. */
+  bottomAdornment?: React.ReactNode | ((value: string) => React.ReactNode);
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, bottomAdornment, ...props }, ref) => {
+  ({ className, bottomAdornment: adornment, ...props }, ref) => {
+    const bottomAdornment =
+      typeof adornment === "function"
+        ? adornment(String(props.value ?? ""))
+        : adornment;
     return (
       <div className="relative">
         <textarea

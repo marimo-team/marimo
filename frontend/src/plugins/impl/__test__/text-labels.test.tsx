@@ -77,6 +77,32 @@ function testLabelBehavior<D extends { label: string | null }>(
       }
     });
   }
+  for (const debounce of [true, 200]) {
+    test(`${plugin.tagName} counts typed characters before committing with debounce=${debounce}`, () => {
+      const setValue = vi.fn();
+      render(
+        plugin.render({
+          host: document.createElement("div"),
+          value: "",
+          setValue,
+          functions: {},
+          data: plugin.validator.parse({
+            initialValue: "",
+            placeholder: "",
+            label: "Notes",
+            maxLength: 10,
+            debounce,
+          }),
+        }),
+      );
+      expect(screen.getByText("0/10")).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText("Notes"), {
+        target: { value: "hello" },
+      });
+      expect(setValue).not.toHaveBeenCalled();
+      expect(screen.getByText("5/10")).toBeInTheDocument();
+    });
+  }
 }
 
 for (const kind of ["text", "password", "email", "url"] as const) {

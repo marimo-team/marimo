@@ -110,11 +110,13 @@ const TextComponent = (props: TextComponentProps) => {
     url: <GlobeIcon size={16} />,
   };
 
-  const endAdornment = props.maxLength ? (
-    <span className="text-muted-foreground text-xs font-medium">
-      {value.length}/{props.maxLength}
-    </span>
-  ) : null;
+  const endAdornment = props.maxLength
+    ? (typed: string) => (
+        <span className="text-muted-foreground text-xs font-medium">
+          {typed.length}/{props.maxLength}
+        </span>
+      )
+    : null;
 
   const inputClassName = cn({
     "border-destructive": !isValid,
