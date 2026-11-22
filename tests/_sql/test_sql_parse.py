@@ -962,12 +962,25 @@ class TestFormatQueryWithGlobals:
 
 
 @pytest.mark.requires("duckdb")
-@pytest.mark.parametrize("query", ["SELECT 1", "SELECT FROM"])
-def test_parse_releases_connection_result(query: str) -> None:
+@pytest.mark.parametrize(
+    ("query", "expected_success"),
+    [
+        ("SELECT 1", True),
+        ("SELECT FROM", False),
+        # json_serialize_sql only handles SELECT; other statements take the
+        # "not implemented" branch.
+        ("CREATE TABLE parse_probe (a INT)", True),
+    ],
+)
+def test_parse_releases_connection_result(
+    query: str, expected_success: bool
+) -> None:
     import duckdb
 
     result, error = parse_sql(query, "duckdb")
     assert error is None
     assert result is not None
-    assert result.success == (query == "SELECT 1")
+    assert result.success is expected_success
+    # DuckDB 2 rejects new work on the shared default connection while a
+    # result is unfinished, and the editor parses on every keystroke.
     assert duckdb.sql("SELECT 42").fetchall() == [(42,)]

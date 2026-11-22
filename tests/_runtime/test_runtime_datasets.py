@@ -649,6 +649,58 @@ class TestSQLValidate:
 
         stream.operations.clear()
 
+    @pytest.mark.parametrize(
+        ("query", "only_parse"),
+        [
+            ("SELECT * FROM df", True),
+            ("SELECT * FROM", True),
+            ("SELECT * FROM df", False),
+            ("SELECT * FROM missing_table", False),
+        ],
+    )
+    async def test_validation_does_not_block_default_engine_cells(
+        self, mocked_kernel: MockedKernel, query: str, only_parse: bool
+    ) -> None:
+        """The editor validates SQL while typing, and the next run must work.
+
+        Validation queries the default DuckDB connection, which cells on the
+        default engine share. DuckDB 2 rejects queries on a connection while
+        an earlier result from it is unfinished.
+        """
+        k = mocked_kernel.k
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"),
+                    code="import marimo as mo\nimport polars as pl",
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("1"),
+                    code="df = pl.DataFrame({'a': [1, 2, 3]})",
+                ),
+            ]
+        )
+
+        await k.handle_message(
+            ValidateSQLCommand(
+                request_id=RequestId("validate"),
+                query=query,
+                only_parse=only_parse,
+                engine=None if only_parse else INTERNAL_DUCKDB_ENGINE,
+                dialect="duckdb" if only_parse else None,
+            )
+        )
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("2"),
+                    code="result = mo.sql('SELECT * FROM df')",
+                )
+            ]
+        )
+
+        assert k.globals["result"].shape == (3, 1)
+
     async def test_other_engine_and_valid_query(
         self,
         mocked_kernel: MockedKernel,
