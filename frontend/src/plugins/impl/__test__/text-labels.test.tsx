@@ -108,6 +108,37 @@ for (const kind of ["text", "password", "email", "url"] as const) {
   });
 }
 
+for (const debounce of [false, true, 200]) {
+  test(`marks an invalid email after blur with debounce=${debounce}`, () => {
+    const plugin = new TextInputPlugin();
+    const props = {
+      host: document.createElement("div"),
+      value: "",
+      setValue: vi.fn(),
+      functions: {},
+      data: plugin.validator.parse({
+        initialValue: "",
+        placeholder: "",
+        label: "Email",
+        kind: "email",
+        debounce,
+      }),
+    };
+    const { rerender } = render(plugin.render(props));
+    const control = screen.getByLabelText("Email");
+    const committed = plugin.render({ ...props, value: "not-an-email" });
+    if (debounce === false) {
+      fireEvent.input(control, { target: { value: "not-an-email" } });
+      rerender(committed);
+    } else {
+      fireEvent.change(control, { target: { value: "not-an-email" } });
+    }
+    fireEvent.blur(control);
+    rerender(committed);
+    expect(control).toHaveClass("border-destructive");
+  });
+}
+
 function testMultipleInstances<D>(plugin: IPlugin<string, D>) {
   test(`${plugin.tagName} keeps repeated labels independently associated`, () => {
     const props = {
