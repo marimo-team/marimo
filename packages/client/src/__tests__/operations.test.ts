@@ -26,6 +26,7 @@ describe("operations", () => {
       | "notebook.delete"
       | "notebook.events"
       | "notebook.edit"
+      | "notebook.emit"
       | "notebook.save"
       | "notebook.open"
       | "runtime.start"

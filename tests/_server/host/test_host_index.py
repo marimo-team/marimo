@@ -205,6 +205,7 @@ def test_open_notebooks_survive_rescans_and_move_into_workspace(
     )
     assert (record.name, record.path) == ("intro", None)
     assert "notebook.edit" in record.operations
+    assert "notebook.emit" in record.operations
     assert "notebook.save" in record.operations
     assert "notebook.delete" not in record.operations
 
@@ -263,6 +264,7 @@ def test_untitled_notebooks_offer_editing_and_the_runtime(
     index.refresh()
     assert set(index.untitled("__new__editor").operations) == {
         "notebook.edit",
+        "notebook.emit",
         "runtime.start",
         "runtime.stop",
         "runtime.restart",

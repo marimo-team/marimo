@@ -23,6 +23,27 @@ from tests.utils import host_openapi
 NOTEBOOK = protocol.NotebookId("n1")
 
 
+@pytest.mark.parametrize("data", [None, 42, {"to": ["agent-1"]}])
+def test_emit_calls_decode_from_request_parts(data: object) -> None:
+    call = msgspec.json.decode(
+        msgspec.json.encode(
+            {
+                "operation": "notebook.emit",
+                "params": {"notebook_id": "n1"},
+                "headers": {"idempotency-key": "emit-1"},
+                "body": {"type": "example.message", "data": data},
+            }
+        ),
+        type=OperationCall,
+    )
+
+    assert call == calls.EmitCall(
+        NotebookParams(NOTEBOOK),
+        MutationHeaders("emit-1"),
+        protocol.EmitRequest(type="example.message", data=data),
+    )
+
+
 def test_calls_decode_from_request_parts() -> None:
     def decode(**parts: object) -> OperationCall:
         return msgspec.json.decode(
@@ -102,7 +123,8 @@ def test_calls_match_the_spec() -> None:
         operation_id
         for operation_id in specified
         if operation_id.startswith("runtime.")
-        or operation_id in {"input.reply", "notebook.edit", "notebook.save"}
+        or operation_id
+        in {"input.reply", "notebook.edit", "notebook.emit", "notebook.save"}
     }
 
     for kind in CALLS:
@@ -154,4 +176,7 @@ def test_calls_match_the_spec() -> None:
         }
         assert set(get_args(statuses)) == set(success)
         for value in success.values():
-            assert schema_name(value["content"]) == response.__name__
+            if response in (None, type(None)):
+                assert "content" not in value
+            else:
+                assert schema_name(value["content"]) == response.__name__

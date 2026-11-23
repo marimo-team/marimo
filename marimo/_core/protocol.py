@@ -200,6 +200,22 @@ class DeleteCell(
     id: Annotated[CellId, Meta(description="The cell to remove.")]
 
 
+class EmitRequest(Struct, frozen=True, forbid_unknown_fields=True):
+    data: Annotated[
+        Any,
+        Meta(
+            description="Any JSON value, including null. The producer defines its schema and consumers of the type validate it."
+        ),
+    ]
+    type: Annotated[
+        str,
+        Meta(
+            description="A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
+            min_length=1,
+        ),
+    ]
+
+
 if TYPE_CHECKING:
     Etag = NewType("Etag", str)
 else:

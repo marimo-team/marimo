@@ -242,6 +242,7 @@ async def bridge() -> RecordingBridge:
     host = Host(
         operations=(
             "notebook.edit",
+            "notebook.emit",
             "notebook.save",
             "runtime.start",
             "runtime.run",

@@ -682,6 +682,144 @@ async def test_a_reconnect_with_one_identity_attaches_fresh(
     await asyncio.wait_for(second_task, 5)
 
 
+async def test_emit_broadcasts_once_with_the_request_key(
+    harness: Harness,
+) -> None:
+    notebook = await harness.host.notebook(harness.notebook_id)
+    path = f"/notebooks/{notebook.id}"
+    streams = [
+        request(
+            harness.app,
+            "GET",
+            f"{path}/events",
+            headers=AUTH,
+            query="kinds=custom",
+        )
+        for _ in range(2)
+    ]
+    try:
+        for response, _, _ in streams:
+            await wait_for(response, until_ready)
+        cursor = streams[0][0].records[-1]["id"]
+        body = {
+            "type": "example.message",
+            "data": {"text": "hello", "to": ["agent-1"]},
+        }
+        for _ in range(2):
+            emitted = await finished(
+                harness.app,
+                "POST",
+                f"{path}/emit",
+                headers=key("emit-1"),
+                body=msgspec.json.encode(body),
+            )
+            assert (emitted.status, emitted.body) == (204, b"")
+
+        for response, _, _ in streams:
+            await wait_for(response, lambda r: "custom" in r.names())
+        frames = [
+            [
+                record
+                for record in response.records
+                if record.get("event") == "custom"
+            ]
+            for response, _, _ in streams
+        ]
+        assert len(frames[0]) == 1
+        assert frames[1] == frames[0]
+        frame = frames[0][0]
+        assert frame["data"]["custom"] == body
+        assert frame["data"]["request_id"] == "emit-1"
+        replay = harness.host.events(
+            cursor, notebook_id=notebook.id, kinds={"custom"}
+        )
+        assert [event_name(e.event) for e in replay] == ["custom", "ready"]
+        assert msgspec.to_builtins(replay[0].event.data) == frame["data"]
+        assert all(
+            not isinstance(e.event, protocol.CustomEvent)
+            for e in harness.host.events(notebook_id=notebook.id)
+        )
+        assert "notebook.emit" in harness.host.operations
+        assert (
+            "notebook.emit" in harness.host.notebooks[notebook.id].operations
+        )
+    finally:
+        for _, _, disconnect in streams:
+            disconnect()
+        await asyncio.gather(*(task for _, task, _ in streams))
+
+
+@pytest.mark.parametrize(
+    ("headers", "body", "status", "problem"),
+    [
+        (
+            AUTH,
+            b'{"type":"example.message","data":null}',
+            400,
+            "invalid-request",
+        ),
+        (key("empty"), b'{"type":"","data":null}', 400, "invalid-request"),
+        (key("no-type"), b'{"data":null}', 400, "invalid-request"),
+        (
+            key("no-data"),
+            b'{"type":"example.message"}',
+            400,
+            "invalid-request",
+        ),
+        (
+            key("wrong-type"),
+            b'{"type":42,"data":null}',
+            400,
+            "invalid-request",
+        ),
+        (
+            key("extra"),
+            b'{"type":"example.message","data":null,"to":[]}',
+            400,
+            "invalid-request",
+        ),
+    ],
+)
+async def test_emit_rejects_invalid_requests(
+    harness: Harness,
+    headers: dict[str, str],
+    body: bytes,
+    status: int,
+    problem: str,
+) -> None:
+    cursor = harness.host.events(notebook_id=harness.notebook_id)[-1].event.id
+    assert isinstance(cursor, str)
+    response = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/emit",
+        headers=headers,
+        body=body,
+    )
+
+    assert response.status == status
+    assert response.json()["type"] == f"urn:marimo:problem:{problem}"
+    assert all(
+        not isinstance(e.event, protocol.CustomEvent)
+        for e in harness.host.events(cursor, notebook_id=harness.notebook_id)
+    )
+
+
+async def test_emit_to_an_unknown_notebook_is_not_found(
+    harness: Harness,
+) -> None:
+    response = await finished(
+        harness.app,
+        "POST",
+        "/notebooks/missing/emit",
+        headers=key("missing"),
+        body=b'{"type":"example.message","data":null}',
+    )
+
+    assert response.status == 404
+    assert response.json()["type"] == "urn:marimo:problem:not-found"
+
+
 async def test_custom_events_use_their_own_sse_kind(
     harness: Harness,
 ) -> None:

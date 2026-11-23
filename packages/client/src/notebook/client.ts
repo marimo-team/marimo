@@ -85,6 +85,14 @@ class NotebookOperations {
     });
   }
 
+  /** Publish a custom event on the notebook stream. */
+  public emit(
+    event: Protocol.EmitRequest,
+    options?: MutationOptions,
+  ): Promise<ResultOf<"notebook.emit">> {
+    return this.#send("notebook.emit", { body: event, options });
+  }
+
   /** Write the document to the notebook's store. */
   public save(options?: SaveOptions): Promise<ResultOf<"notebook.save">> {
     return this.#send("notebook.save", {
