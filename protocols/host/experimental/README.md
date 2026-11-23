@@ -1,43 +1,34 @@
 # Experimental host protocol features
 
-Experiments add opt-in contracts to the stable protocol. They may change or
-be removed between releases.
+Use the experimental entrypoint to build a host or client with features such as
+[document analysis](analysis/spec.md). These features may change between releases.
 
 ```ts
-import { Schema } from "effect";
-import { Host, Notebook, Schemas } from "@marimo-team/host-protocol/experimental";
-
-const decodeDiagnostic = Schema.decodeUnknownSync(Schemas.CellDiagnostic);
-type Diagnostic = typeof Schemas.CellDiagnostic.Type;
+import { Host, Schemas } from "@marimo-team/host-protocol/experimental";
 ```
 
-`Host.Api` includes every feature in the experimental entrypoint.
-`Notebook.StreamEvent` describes the events on its notebook stream, including
-`analysis`. `Schemas` includes the stable schemas and the experimental
-`Analysis`, `CellAnalysis`, and `CellDiagnostic` schemas. `Schemas.ObjectKind`
-includes the object kinds in this contract. Other consumers can use the same contract by passing `--experimental` when they
-[print the OpenAPI document](../README.md#get-the-openapi-document).
+Pass `--experimental` to [print the same contract as OpenAPI](../README.md#get-the-openapi-document).
 
 ## Add a feature
 
-1. Create a module in `packages/host-protocol/src/experimental/features/`. Import
-   `defineFeature` from `../defineFeature.ts` and use
-   `export default defineFeature({ ... })`. Supply `objects`
-   for new object definitions. Under `catalog` or `notebook`, supply `endpoints`
-   for HTTP operations and `events` for additional stream event schemas. Each
-   object already contributes its event to the streams it declares.
-   [analysis.ts](../../../packages/host-protocol/src/experimental/features/analysis.ts)
-   shows how an object contributes an event to the notebook stream.
-2. Import the feature in the [experimental entrypoint](../../../packages/host-protocol/src/experimental/index.ts)
-   and add it to the list passed to `makeHostContract`. For example, a second feature
-   named `widgets` would give `makeHostContract([analysis, widgets])`. OpenAPI uses
-   the same composed contract.
-3. For each schema consumers should be able to name or decode, export the
-   schema from the feature module and re-export it
-   from [Schemas.ts](../../../packages/host-protocol/src/experimental/Schemas.ts).
-4. Put the specification, fixtures, and conformance tests in
-   `protocols/host/experimental/<feature>/`. See [Analysis](analysis/spec.md)
-   for an example.
+Create a module in `packages/host-protocol/src/experimental/features/`. If the
+module defines a notebook endpoint called `Preview`, its default export can
+contribute just that route.
 
-When promoting a feature, move its definitions, documentation, and tests into
-the stable protocol and remove it from the experimental feature list.
+```ts
+import { defineFeature } from "../defineFeature.ts";
+
+export default defineFeature({ notebook: { endpoints: [Preview] } });
+```
+
+Import the module in the [experimental entrypoint](../../../packages/host-protocol/src/experimental/index.ts)
+and pass it alongside the other features in `makeHostContract([analysis, preview])`.
+A host that offers the route supplies its handler. Use the catalog group for
+host-wide routes.
+
+For a feature that publishes objects, follow [analysis.ts](../../../packages/host-protocol/src/experimental/features/analysis.ts).
+The object definition also supplies its stream event. Expose schemas that
+consumers need to construct or decode through [Schemas.ts](../../../packages/host-protocol/src/experimental/Schemas.ts).
+
+Keep the spec, fixtures, and conformance tests under
+`protocols/host/experimental/<feature>/`, then [regenerate and check the bindings](../README.md#change-a-contract).
