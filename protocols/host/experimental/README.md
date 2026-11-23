@@ -8,7 +8,7 @@ import { Schema } from "effect";
 import { Host, Notebook, Schemas } from "@marimo-team/host-protocol/experimental";
 
 const decodeDiagnostic = Schema.decodeUnknownSync(Schemas.CellDiagnostic);
-type Diagnostic = Schemas.CellDiagnostic;
+type Diagnostic = typeof Schemas.CellDiagnostic.Type;
 ```
 
 `Host.Api` includes every feature in the experimental entrypoint.
@@ -33,7 +33,7 @@ includes the object kinds in this contract. Other consumers can use the same con
    named `widgets` would give `makeHostContract([analysis, widgets])`. OpenAPI uses
    the same composed contract.
 3. For each schema consumers should be able to name or decode, export the
-   schema and its inferred type from the feature module and re-export that name
+   schema from the feature module and re-export it
    from [Schemas.ts](../../../packages/host-protocol/src/experimental/Schemas.ts).
 4. Put the specification, fixtures, and conformance tests in
    `protocols/host/experimental/<feature>/`. See [Analysis](analysis/spec.md)

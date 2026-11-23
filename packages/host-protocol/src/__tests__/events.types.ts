@@ -65,14 +65,16 @@ export function checkEventNarrowing(
     return;
   }
   if (extended.event === "analysis") {
-    expectTypeOf(
-      extended.data.analysis,
-    ).toEqualTypeOf<ExperimentalSchemas.Analysis>();
-    type Cell = ExperimentalSchemas.Analysis["cells"][string];
-    expectTypeOf<Cell>().toEqualTypeOf<ExperimentalSchemas.CellAnalysis>();
-    expectTypeOf<
-      Cell["diagnostics"][number]
-    >().toEqualTypeOf<ExperimentalSchemas.CellDiagnostic>();
+    expectTypeOf(extended.data.analysis).toEqualTypeOf<
+      typeof ExperimentalSchemas.Analysis.Type
+    >();
+    type Cell = (typeof extended.data.analysis.cells)[string];
+    expectTypeOf<Cell>().toEqualTypeOf<
+      typeof ExperimentalSchemas.CellAnalysis.Type
+    >();
+    expectTypeOf<Cell["diagnostics"][number]>().toEqualTypeOf<
+      typeof ExperimentalSchemas.CellDiagnostic.Type
+    >();
   }
 }
 

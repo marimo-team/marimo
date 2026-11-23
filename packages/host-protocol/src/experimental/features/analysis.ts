@@ -20,7 +20,6 @@ export const CellDiagnostic = Schema.Struct({
   }),
   related: Schema.Array(S.Related),
 }).annotate({ identifier: "CellDiagnostic" });
-export type CellDiagnostic = typeof CellDiagnostic.Type;
 
 export const CellAnalysis = Schema.Struct({
   defs: Schema.Array(Schema.String).annotateKey({
@@ -44,7 +43,6 @@ export const CellAnalysis = Schema.Struct({
     "The definitions, references, direct dependencies, and diagnostics for one cell at this document revision.",
   identifier: "CellAnalysis",
 });
-export type CellAnalysis = typeof CellAnalysis.Type;
 
 export const Analysis = Schema.Struct({
   notebook_id: S.NotebookId.annotateKey({
@@ -62,7 +60,6 @@ export const Analysis = Schema.Struct({
     "What a document's cells imply, computed together over one\nrevision of the document so that cross-cell errors agree. One\nper notebook, and removed with it. It follows the document it\ndescribes, and `document_etag` says which revision that is.\n",
   identifier: "Analysis",
 });
-export type Analysis = typeof Analysis.Type;
 
 export default defineFeature({
   objects: [
