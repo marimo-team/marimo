@@ -187,6 +187,43 @@ jobs:
           python-version: ${{ matrix.python-version }}
           dependencies: ${{ matrix.dependencies }}
 
+  # TODO: Remove this job once ibis-framework supports DuckDB 2 and the `test`
+  # group can drop its `duckdb<2` pin (#11549); the regular jobs then cover it.
+  #
+  # DuckDB 2 rejects new work on a connection that has an unfinished result,
+  # which DuckDB 1.x tolerates. The regular jobs can't see this regression
+  # because they pin `duckdb<2`, so run only the SQL tests here, without ibis.
+  test_python_duckdb2:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
+    name: ubuntu-latest / Py 3.12 / DuckDB 2 (SQL tests)
+    runs-on: "${{ vars.CI_RUNNER_LARGE || 'ubuntu-latest' }}"
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Create assets directory, copy over index.html
+        run: |
+          mkdir -p marimo/_static/assets
+          cp frontend/index.html marimo/_static/index.html
+          cp frontend/public/favicon.ico marimo/_static/favicon.ico
+
+      - name: Test SQL with DuckDB 2
+        run: |
+          uv run --python 3.12 --group test-optional --with "duckdb>=2,<3" pytest \
+            tests/_sql tests/_runtime/test_runtime_datasets.py \
+            -v \
+            -n auto \
+            -k "not ibis" \
+            --durations=10 \
+            --inline-snapshot=disable
+
   # Only run coverage on `main` so it is not blocking
   test_coverage:
     needs: changes
