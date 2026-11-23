@@ -79,6 +79,7 @@ class BaseLspServer(LspServer):
         self._startup_failed = False
         self._started_at: float | None = None  # Unix timestamp
         self._start_lock = asyncio.Lock()
+        self._last_validation_error: str | None = None
         self.log_file = _loggers.get_log_directory() / f"{self.id}.log"
 
     @server_tracer.start_as_current_span("lsp_server.start")
@@ -96,10 +97,15 @@ class BaseLspServer(LspServer):
         # Validation could be expensive, so we run it in a thread
         validation_msg = await asyncio.to_thread(self.validate_requirements)
         if validation_msg is not True:
+            # Keep retrying, but only notify once for the same missing dependency.
+            if validation_msg == self._last_validation_error:
+                return None
+            self._last_validation_error = validation_msg
             LOGGER.error(
                 f"Cannot start {self.id} LSP server: {validation_msg}"
             )
             return self.missing_binary_alert()
+        self._last_validation_error = None
 
         cmd = None
         try:
@@ -280,6 +286,7 @@ class BaseLspServer(LspServer):
 
     async def restart_server(self) -> AlertNotification | None:
         """Stop and restart this LSP server."""
+        self._last_validation_error = None
         self._startup_failed = False
         self._started_at = None
         self.stop()

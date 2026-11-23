@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import signal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -708,6 +709,46 @@ async def test_ty_server_availability(
 
         await server.start()
         assert start.await_count == int(installed or on_path)
+
+
+async def test_ty_server_missing_node_alerts_once(
+    mock_popen: mock.MagicMock,
+) -> None:
+    server = TyServer(port=8000)
+    with (
+        mock.patch(
+            "marimo._server.lsp.DependencyManager.ty.has", return_value=True
+        ),
+        mock.patch("shutil.which", return_value=None) as which,
+        mock.patch.object(server, "get_command", return_value=["node", "lsp"]),
+        mock.patch.object(server, "_wait_until_ready", return_value=True),
+        mock.patch.object(server, "_signal_process_tree"),
+    ):
+        try:
+            alerts = await asyncio.gather(
+                server.start(), server.start(), server.start()
+            )
+            assert alerts == [server.missing_binary_alert(), None, None]
+            assert await server.start() is None
+            mock_popen.assert_not_called()
+
+            # An explicit restart must still report the unresolved error.
+            assert (
+                await server.restart_server() == server.missing_binary_alert()
+            )
+            assert await server.start() is None
+
+            # Installing Node allows a subsequent automatic retry to succeed.
+            which.return_value = "/bin/node"
+            assert await server.start() is None
+            mock_popen.assert_called_once()
+            assert server.is_running()
+
+            server.stop()
+            which.return_value = None
+            assert await server.start() == server.missing_binary_alert()
+        finally:
+            server.stop()
 
 
 def test_ty_server_missing_binary() -> None:
