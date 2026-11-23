@@ -83,18 +83,20 @@ export const group = <E extends Schema.Constraint>(events: E) =>
   HttpApiGroup.make("Host").add(Create, makeEvents(events));
 
 /**
- * The API for a table of objects.
- *
- * An extension passes the table with its own rows appended.
+ * Build the host API from its object table and any additional notebook endpoints.
  */
-export const make = <const Objects extends ReadonlyArray<ObjectDefinition>>(
+export const make = <
+  const Objects extends ReadonlyArray<ObjectDefinition>,
+  const Endpoints extends readonly HttpApiEndpoint.Constraint[] = readonly [],
+>(
   objects: Objects,
+  ...notebookEndpoints: Endpoints
 ) => {
   const derived = derive(objects);
   return HttpApi.make("Host")
     .add(
       group(derived.CatalogStreamEvent),
-      Notebook.group(derived.NotebookStreamEvent),
+      Notebook.group(derived.NotebookStreamEvent, ...notebookEndpoints),
     )
     .middleware(HostToken)
     .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error" })

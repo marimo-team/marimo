@@ -1,13 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Schema } from "effect";
-import { derive } from "../Events.ts";
-import * as Host from "../Host.ts";
 import { DiagnosticSeverity } from "../internal/schema.ts";
-import * as Objects from "../Objects.ts";
+import { defineFeature } from "./defineFeature.ts";
 import * as S from "../Schemas.ts";
 
-export const CellDiagnostic = Schema.Struct({
+const CellDiagnostic = Schema.Struct({
   source: Schema.String.annotateKey({
     description: "Analyzer that defines the kind.",
   }),
@@ -23,7 +21,7 @@ export const CellDiagnostic = Schema.Struct({
   related: Schema.Array(S.Related),
 }).annotate({ identifier: "CellDiagnostic" });
 
-export const CellAnalysis = Schema.Struct({
+const CellAnalysis = Schema.Struct({
   defs: Schema.Array(Schema.String).annotateKey({
     description: "Names this cell defines.",
   }),
@@ -46,7 +44,7 @@ export const CellAnalysis = Schema.Struct({
   identifier: "CellAnalysis",
 });
 
-export const Analysis = Schema.Struct({
+const Analysis = Schema.Struct({
   notebook_id: S.NotebookId.annotateKey({
     description: "The notebook this analysis belongs to.",
   }),
@@ -63,18 +61,13 @@ export const Analysis = Schema.Struct({
   identifier: "Analysis",
 });
 
-/** The object table with the analysis object on the notebook stream. */
-export const objects = [
-  ...Objects.objects,
-  {
-    kind: "analysis",
-    schema: Analysis,
-    streams: ["notebook"],
-    removable: false,
-  },
-] as const satisfies ReadonlyArray<Objects.ObjectDefinition>;
-
-export const Api = Host.make(objects);
-
-export const { NotebookStreamEvent } = derive(objects);
-export type NotebookStreamEvent = typeof NotebookStreamEvent.Type;
+export default defineFeature({
+  objects: [
+    {
+      kind: "analysis",
+      schema: Analysis,
+      streams: ["notebook"],
+      removable: false,
+    },
+  ],
+});

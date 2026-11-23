@@ -1,25 +1,34 @@
 # Experimental host protocol features
 
-Experiments add opt-in contracts without changing the stable protocol.
-They may change or be removed between releases, and stable clients keep
-working without them.
+Experiments add opt-in contracts to the stable protocol. They may change or
+be removed between releases.
 
-[Analysis](analysis/spec.md) is the current example. Its
-[Effect module](../../../packages/host-protocol/src/experimental/Analysis.ts) appends
-an `analysis` row to the object table and builds its own API from that table.
-Effect consumers import `@marimo-team/host-protocol/experimental/Analysis`. Other
-consumers pass `--experimental` when they
+```ts
+import { Host, Notebook } from "@marimo-team/host-protocol/experimental";
+```
+
+`Host.Api` includes every registered feature. `Notebook.StreamEvent` describes
+the events on its notebook stream, including `analysis`. Other consumers can
+use the same contract by passing `--experimental` when they
 [print the OpenAPI document](../README.md#get-the-openapi-document).
 
 ## Add a feature
 
-Keep its Effect definitions under `packages/host-protocol/src/experimental/` and its
-specification, fixtures, and conformance tests under
-`protocols/host/experimental/<feature>/`. Register the public module in
-[`package.json`](../../../packages/host-protocol/package.json) and include its rows
-in the document that
-[`scripts/openapi.ts`](../../../packages/host-protocol/scripts/openapi.ts) prints
-with `--experimental`.
+1. Create a module in `packages/host-protocol/src/experimental/`. Import
+   `defineFeature` from `./defineFeature.ts` and use
+   `export default defineFeature({ ... })`. Supply `objects`
+   for new object definitions, `notebookEndpoints` for new Effect HTTP endpoints
+   on the Notebook group, or both. Omitted lists default to empty.
+   [Analysis.ts](../../../packages/host-protocol/src/experimental/Analysis.ts)
+   shows how an object contributes an event to the notebook stream.
+2. Register the feature descriptor in
+   [features.ts](../../../packages/host-protocol/src/experimental/features.ts).
+   For a Widgets feature, the registry entry would be
+   `export { default as widgets } from "./Widgets.ts";`. Both the experimental
+   entrypoint and OpenAPI use this registry.
+3. Put the specification, fixtures, and conformance tests in
+   `protocols/host/experimental/<feature>/`. See [Analysis](analysis/spec.md)
+   for an example.
 
-An experiment only adds to the stable protocol. When promoting a feature, move its definitions, documentation, and tests into
-the stable protocol.
+When promoting a feature, move its definitions, documentation, and tests into
+the stable protocol and remove its experimental registration.

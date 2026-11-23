@@ -1,13 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { OpenApi } from "effect/http-api";
-import { expect, it } from "vitest";
-import * as Analysis from "../experimental/Analysis.ts";
+import { type HttpApiClient, HttpApiEndpoint, OpenApi } from "effect/http-api";
+import { expect, expectTypeOf, it } from "vitest";
+import { Host as ExperimentalHost } from "../experimental/index.ts";
+import analysis from "../experimental/Analysis.ts";
 import * as Host from "../Host.ts";
+import * as P from "../api/Parameters.ts";
+import * as S from "../Schemas.ts";
+import { compose } from "../experimental/contract.ts";
+import { defineFeature } from "../experimental/defineFeature.ts";
 
 const { referencePolicy } = Host;
 const stable = OpenApi.fromApi(Host.Api, { referencePolicy });
-const experimental = OpenApi.fromApi(Analysis.Api, { referencePolicy });
+const experimental = OpenApi.fromApi(ExperimentalHost.Api, { referencePolicy });
 const schemas = stable.components.schemas;
 
 it("closes request bodies and keeps other objects open", () => {
@@ -72,7 +77,7 @@ it("lists the problems each route can answer with", () => {
 });
 
 it("adds experimental features without changing the stable protocol", () => {
-  expect(experimental.paths).toEqual(stable.paths);
+  expect(experimental.paths).toMatchObject(stable.paths);
   const extended = experimental.components.schemas;
   for (const [name, schema] of Object.entries(schemas)) {
     if (
@@ -98,4 +103,32 @@ it("adds experimental features without changing the stable protocol", () => {
     "CellAnalysis",
     "CellDiagnostic",
   ]);
+});
+
+it("composes an endpoint-only feature alongside analysis", () => {
+  const emit = HttpApiEndpoint.post("emit", "/notebooks/:notebook_id/emit", {
+    params: P.notebook,
+    payload: S.Custom,
+  });
+  const { Api, NotebookStreamEvent } = compose([
+    analysis,
+    defineFeature({ notebookEndpoints: [emit] }),
+  ]);
+
+  type Client = HttpApiClient.ForApi<typeof Api>;
+  type Request = Parameters<Client["Notebook"]["emit"]>[0];
+  expectTypeOf<Request["payload"]>().toEqualTypeOf<typeof S.Custom.Type>();
+  type AnalysisEvent = Extract<
+    typeof NotebookStreamEvent.Type,
+    { event: "analysis" }
+  >;
+  expectTypeOf<
+    AnalysisEvent["data"]["analysis"]["notebook_id"]
+  >().toEqualTypeOf<typeof S.NotebookId.Type>();
+
+  const path = "/notebooks/{notebook_id}/emit";
+  expect(
+    OpenApi.fromApi(Api, { referencePolicy }).paths[path].post?.security,
+  ).toEqual([{ hostToken: [] }]);
+  expect(stable.paths).not.toHaveProperty(path);
 });

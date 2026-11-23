@@ -366,7 +366,13 @@ export const Update = HttpApiEndpoint.patch(
     "Changes `path`, `name`, or both. A new `path` moves the file\nunder the same project root, and an attached runtime follows it.\nA new `name` changes the label shown to people. What the file\ncontains is content, which this protocol does not write. If a\nfile already exists at `path`, the host answers `conflict`.\n",
   );
 
-export const group = <E extends Schema.Constraint>(events: E) =>
+export const group = <
+  E extends Schema.Constraint,
+  const Endpoints extends readonly HttpApiEndpoint.Constraint[] = readonly [],
+>(
+  events: E,
+  ...endpoints: Endpoints
+) =>
   HttpApiGroup.make("Notebook").add(
     Delete,
     Edit,
@@ -382,6 +388,7 @@ export const group = <E extends Schema.Constraint>(events: E) =>
     Stop,
     Save,
     Update,
+    ...endpoints,
   );
 
 export const Events = makeEvents(StreamEvent);

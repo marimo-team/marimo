@@ -6,14 +6,17 @@ import { expectTypeOf } from "vitest";
 import type * as Host from "../Host.ts";
 import type * as Notebook from "../Notebook.ts";
 import * as S from "../Schemas.ts";
-import * as Analysis from "../experimental/Analysis.ts";
+import type {
+  Host as ExperimentalHost,
+  Notebook as ExperimentalNotebook,
+} from "../experimental/index.ts";
 
 type StableClient = HttpApiClient.ForApi<typeof Host.Api>;
-type AnalysisClient = HttpApiClient.ForApi<typeof Analysis.Api>;
+type ExperimentalClient = HttpApiClient.ForApi<typeof ExperimentalHost.Api>;
 
 export function checkEventClients(
   stable: StableClient,
-  experimental: AnalysisClient,
+  experimental: ExperimentalClient,
 ) {
   const notebookId = S.NotebookId.make("n");
   const events = stable.Notebook.events({
@@ -32,7 +35,7 @@ export function checkEventClients(
   >().toEqualTypeOf<Notebook.StreamEvent>();
   expectTypeOf<
     Stream.Success<Effect.Success<typeof extended>>
-  >().toEqualTypeOf<Analysis.NotebookStreamEvent>();
+  >().toEqualTypeOf<ExperimentalNotebook.StreamEvent>();
   expectTypeOf<
     Stream.Success<Effect.Success<typeof catalog>>
   >().toEqualTypeOf<Host.StreamEvent>();
@@ -41,7 +44,7 @@ export function checkEventClients(
 export function checkEventNarrowing(
   event: Notebook.StreamEvent,
   catalog: Host.StreamEvent,
-  extended: Analysis.NotebookStreamEvent,
+  extended: ExperimentalNotebook.StreamEvent,
 ) {
   if (event.event === "cell") {
     expectTypeOf(event.data.cell.id).toEqualTypeOf<typeof S.CellId.Type>();
@@ -61,8 +64,8 @@ export function checkEventNarrowing(
     return;
   }
   if (extended.event === "analysis") {
-    expectTypeOf(extended.data.analysis).toEqualTypeOf<
-      typeof Analysis.Analysis.Type
+    expectTypeOf(extended.data.analysis.notebook_id).toEqualTypeOf<
+      typeof S.NotebookId.Type
     >();
   }
 }
@@ -71,5 +74,3 @@ export function checkEventNarrowing(
 void S.ReadyEvent;
 // @ts-expect-error Event envelopes are private.
 void S.HostMessage;
-// @ts-expect-error Analysis exposes its composed union, not an individual variant.
-void Analysis.AnalysisEvent;
