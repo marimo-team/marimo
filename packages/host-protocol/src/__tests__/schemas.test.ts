@@ -6,7 +6,7 @@ import { expect, it } from "vitest";
 import * as S from "../Schemas.ts";
 import * as Host from "../Host.ts";
 import * as Notebook from "../Notebook.ts";
-import { Notebook as ExperimentalNotebook } from "../experimental/index.ts";
+import { Notebook as ExperimentalNotebook } from "../experimental.ts";
 
 const root = new URL("../../../../protocols/host/", import.meta.url);
 const fixtures = new URL("fixtures/", root);

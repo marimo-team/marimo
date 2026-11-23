@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Schema } from "effect";
-import { DiagnosticSeverity } from "../internal/schema.ts";
-import { defineFeature } from "./defineFeature.ts";
-import * as S from "../Schemas.ts";
+import { DiagnosticSeverity } from "../../internal/schema.ts";
+import { defineFeature } from "../defineFeature.ts";
+import * as S from "../../Schemas.ts";
 
 const CellDiagnostic = Schema.Struct({
   source: Schema.String.annotateKey({

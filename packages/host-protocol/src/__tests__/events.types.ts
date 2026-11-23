@@ -9,7 +9,7 @@ import * as S from "../Schemas.ts";
 import type {
   Host as ExperimentalHost,
   Notebook as ExperimentalNotebook,
-} from "../experimental/index.ts";
+} from "../experimental.ts";
 
 type StableClient = HttpApiClient.ForApi<typeof Host.Api>;
 type ExperimentalClient = HttpApiClient.ForApi<typeof ExperimentalHost.Api>;

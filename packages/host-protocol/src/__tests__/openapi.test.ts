@@ -2,12 +2,12 @@
 
 import { type HttpApiClient, HttpApiEndpoint, OpenApi } from "effect/http-api";
 import { expect, expectTypeOf, it } from "vitest";
-import { Host as ExperimentalHost } from "../experimental/index.ts";
-import analysis from "../experimental/Analysis.ts";
+import { Host as ExperimentalHost } from "../experimental.ts";
+import analysis from "../experimental/features/analysis.ts";
 import * as Host from "../Host.ts";
 import * as P from "../api/Parameters.ts";
 import * as S from "../Schemas.ts";
-import { compose } from "../experimental/contract.ts";
+import { makeHostContract } from "../contract.ts";
 import { defineFeature } from "../experimental/defineFeature.ts";
 
 const { referencePolicy } = Host;
@@ -79,30 +79,26 @@ it("lists the problems each route can answer with", () => {
 it("adds experimental features without changing the stable protocol", () => {
   expect(experimental.paths).toMatchObject(stable.paths);
   const extended = experimental.components.schemas;
+  const unions = ["Event", "CatalogStreamEvent", "NotebookStreamEvent"];
+  for (const name of unions) {
+    expect(extended[name].anyOf).toEqual(
+      expect.arrayContaining(schemas[name].anyOf as unknown[]),
+    );
+  }
+  expect(extended.ObjectKind.enum).toEqual(
+    expect.arrayContaining(schemas.ObjectKind.enum as string[]),
+  );
   for (const [name, schema] of Object.entries(schemas)) {
-    if (
-      name === "Event" ||
-      name === "NotebookStreamEvent" ||
-      name === "ObjectKind"
-    ) {
+    if (unions.includes(name) || name === "ObjectKind") {
       continue;
     }
     expect(extended[name]).toEqual(schema);
   }
-  expect(new Set(extended.ObjectKind.enum as string[])).toEqual(
-    new Set([...(schemas.ObjectKind.enum as string[]), "analysis"]),
-  );
-  expect(
-    Object.keys(extended)
-      .filter((name) => !(name in schemas))
-      .toSorted(),
-  ).toEqual([
-    "Analysis",
-    "AnalysisEvent",
-    "AnalysisMessage",
-    "CellAnalysis",
-    "CellDiagnostic",
-  ]);
+  expect(schemas).not.toHaveProperty("Analysis");
+  expect(extended.ObjectKind.enum).toContain("analysis");
+  expect(extended.NotebookStreamEvent.anyOf).toContainEqual({
+    $ref: "#/components/schemas/AnalysisEvent",
+  });
 });
 
 it("composes an endpoint-only feature alongside analysis", () => {
@@ -110,9 +106,16 @@ it("composes an endpoint-only feature alongside analysis", () => {
     params: P.notebook,
     payload: S.Custom,
   });
-  const { Api, NotebookStreamEvent } = compose([
+  const status = HttpApiEndpoint.get("status", "/status");
+  const {
+    Api,
+    events: { NotebookStreamEvent },
+  } = makeHostContract([
     analysis,
-    defineFeature({ notebookEndpoints: [emit] }),
+    defineFeature({
+      catalog: { endpoints: [status] },
+      notebook: { endpoints: [emit] },
+    }),
   ]);
 
   type Client = HttpApiClient.ForApi<typeof Api>;
@@ -127,6 +130,8 @@ it("composes an endpoint-only feature alongside analysis", () => {
   >().toEqualTypeOf<typeof S.NotebookId.Type>();
 
   const path = "/notebooks/{notebook_id}/emit";
+  expect(Api.groups.Host.endpoints).toHaveProperty("status");
+  expect(Api.groups.Notebook.endpoints).not.toHaveProperty("status");
   expect(
     OpenApi.fromApi(Api, { referencePolicy }).paths[path].post?.security,
   ).toEqual([{ hostToken: [] }]);

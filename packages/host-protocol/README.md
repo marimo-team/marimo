@@ -14,7 +14,7 @@ import { Host } from "@marimo-team/host-protocol/experimental";
 ```
 
 See [experimental features](../../protocols/host/experimental/README.md) for
-the registration pattern.
+how to add a feature.
 
 ## Implement a host
 
