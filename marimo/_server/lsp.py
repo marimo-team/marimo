@@ -77,6 +77,7 @@ class BaseLspServer(LspServer):
         self.process: subprocess.Popen[str] | None = None
         self._health_check_task: asyncio.Task[None] | None = None
         self._startup_failed = False
+        self._reported_validation_error: str | Literal[False] | None = None
         self._started_at: float | None = None  # Unix timestamp
         self._start_lock = asyncio.Lock()
         self.log_file = _loggers.get_log_directory() / f"{self.id}.log"
@@ -96,10 +97,19 @@ class BaseLspServer(LspServer):
         # Validation could be expensive, so we run it in a thread
         validation_msg = await asyncio.to_thread(self.validate_requirements)
         if validation_msg is not True:
+            # start() is retried on every failed LSP websocket connection,
+            # so only alert once per distinct validation failure.
+            if validation_msg == self._reported_validation_error:
+                LOGGER.debug(
+                    f"Cannot start {self.id} LSP server: {validation_msg}"
+                )
+                return None
             LOGGER.error(
                 f"Cannot start {self.id} LSP server: {validation_msg}"
             )
+            self._reported_validation_error = validation_msg
             return self.missing_binary_alert()
+        self._reported_validation_error = None
 
         cmd = None
         try:
@@ -281,6 +291,7 @@ class BaseLspServer(LspServer):
     async def restart_server(self) -> AlertNotification | None:
         """Stop and restart this LSP server."""
         self._startup_failed = False
+        self._reported_validation_error = None
         self._started_at = None
         self.stop()
         await asyncio.sleep(0.5)  # Brief delay for cleanup

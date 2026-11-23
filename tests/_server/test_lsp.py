@@ -269,6 +269,45 @@ async def test_base_lsp_server_missing_binary(mock_which: mock.MagicMock):
     assert alert.title == "Mock Alert"
 
 
+async def test_base_lsp_server_missing_binary_alerts_once(
+    mock_popen: mock.MagicMock,
+):
+    server = MockLspServer(port=8000)
+    server.validate_requirements = mock.MagicMock(
+        return_value="binary is missing"
+    )
+
+    assert await server.start() is not None
+    assert await server.start() is None
+    assert await server.start() is None
+    mock_popen.assert_not_called()
+
+    server.validate_requirements.return_value = "another binary is missing"
+    assert await server.start() is not None
+    assert await server.start() is None
+
+    assert await server.restart_server() is not None
+
+
+async def test_base_lsp_server_alerts_again_after_requirements_recover(
+    mock_popen: mock.MagicMock,
+):
+    server = MockLspServer(port=8000)
+    server.validate_requirements = mock.MagicMock(
+        return_value="binary is missing"
+    )
+    assert await server.start() is not None
+
+    server.validate_requirements.return_value = True
+    with mock.patch.object(server, "_wait_until_ready", return_value=True):
+        assert await server.start() is None
+    mock_popen.assert_called_once()
+
+    server.stop()
+    server.validate_requirements.return_value = "binary is missing"
+    assert await server.start() is not None
+
+
 async def test_pylsp_server():
     import sys
 
