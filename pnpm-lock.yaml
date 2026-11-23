@@ -302,7 +302,7 @@ importers:
         version: 2.0.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
       '@marimo-team/codemirror-mcp':
         specifier: ^0.1.7
-        version: 0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))
+        version: 0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.0.0)(zod@4.6.7))
       '@marimo-team/codemirror-sql':
         specifier: ^0.3.1
         version: 0.3.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
@@ -1711,6 +1711,12 @@ packages:
       react-dom: ^19.3.1
       react-responsive-carousel: ^3.2.7
 
+  '@hono/node-server@2.1.6':
+    resolution: {integrity: sha512-p/KH9MnfNcsm3sR6x4lNgm5j+QN4Et8srKredl9DZfXiyZ1UQ3aQ2YVpFLbqktYN5JI+DB+VZFKM2PqE5hLKjQ==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      hono: ^4 || ^5.0.0-0
+
   '@hookform/resolvers@5.9.2':
     resolution: {integrity: sha512-RtjTnZqsC38s4NKp2XO3fD8IA5uyN4tB7McQ5C6uiMPcV+WWO8F+wVa3e+BXUpH2ScgxghAlwFRMVqjT9WChAQ==}
     peerDependencies:
@@ -2037,9 +2043,15 @@ packages:
   '@mermaid-js/parser@1.2.1':
     resolution: {integrity: sha512-n12NohV3mrUyUL2o93IgG/ifeW9FTyeJn3zDxkhwa8MJ9Fxg3HQMlA3RiGmD/3UnJvheztkjjQAjA2T4LmUcpw==}
 
-  '@modelcontextprotocol/sdk@1.17.2':
-    resolution: {integrity: sha512-EFLRNXR/ixpXQWu6/3Cu30ndDFIFNaqUXcTqsGebujeMan9FzhAaFFswLRiFj61rgygDRr8WO1N+UijjgRxX9g==}
+  '@modelcontextprotocol/sdk@1.32.2':
+    resolution: {integrity: sha512-SWsVtH/0vULSQStoZ6xxH2K09Li8fXYTMC64ZeogCdpZ3XSi1eCPOByV1OpuJxuI3OcmHhosDWYyii07tpPsLw==}
     engines: {node: '>=18'}
+    peerDependencies:
+      '@cfworker/json-schema': ^4.1.1
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@cfworker/json-schema':
+        optional: true
 
   '@mswjs/interceptors@0.41.9':
     resolution: {integrity: sha512-VVPPgHyQ6ShqnrmDWuxjmUIsO9gWyOZFmuOfLd9LfBGQJwZfy0gvv9pbHSJuoFNIYC7ZDX9aoFwowjcdSC4E8w==}
@@ -6107,8 +6119,8 @@ packages:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
 
-  express-rate-limit@7.5.1:
-    resolution: {integrity: sha512-7iN8iPMDzOMHPUYllBEsQdWVB6fPDMPqwjBaFrgr4Jgr/+okjvzAy+UHlYYL/Vs0OsOrMkwS6PJDkFlJwoxUnw==}
+  express-rate-limit@8.7.3:
+    resolution: {integrity: sha512-zPLqDI2f0gV2WmGnacLf9XSSqn4VldRyP5LCzOwx0BKH40mO6+2PCFkoSsRO2jePx87/Kf6NUF6P2QOTKXHbQA==}
     engines: {node: '>= 16'}
     peerDependencies:
       express: '>= 4.11'
@@ -6518,6 +6530,10 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
+  hono@4.13.17:
+    resolution: {integrity: sha512-vZIcbkvjOR5hHRWERbGkr8fGfF0GGM1ooYkuH448iO3b2AdVEr3AXZSw4Z3Kn+1L5z0CVoVeyV29VGYmFh05kQ==}
+    engines: {node: '>=16.9.0'}
+
   hookified@1.13.0:
     resolution: {integrity: sha512-6sPYUY8olshgM/1LDNW4QZQN0IqgKhtl/1C8koNZBJrKLBk3AZl6chQtNwpNztvfiApHMEwMHek5rv993PRbWw==}
 
@@ -6674,6 +6690,10 @@ packages:
     resolution: {integrity: sha512-xgs2NH9AE66ucSq4cNG1nhSFghr5l6tdL15Pk+jl46bmmBapgoaY/AacXyaDznAqmGL99TiLSQgO/XazFSKYeQ==}
     engines: {node: '>=0.10.0'}
 
+  ip-address@10.7.6:
+    resolution: {integrity: sha512-00LYkM6byILa9eQIx6qoaXCM40xTLd56AZ4vyaPW3YTyb49VZYPo5xsiAq4tuQ54GH4R7gVdYScJ1B7B77PuTg==}
+    engines: {node: '>= 12'}
+
   ipaddr.js@1.9.1:
     resolution: {integrity: sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==}
     engines: {node: '>= 0.10'}
@@ -6824,6 +6844,9 @@ packages:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
 
+  jose@6.2.16:
+    resolution: {integrity: sha512-4LSJpbuBuPdGrONCdZUy0xnxtLf8eEz+EY0SMXdHQEBU7bgUHDVblU/JAjryv3wID9/LK7/YuwFwq+AQNfMscQ==}
+
   jotai-scope@0.12.2:
     resolution: {integrity: sha512-E8iVkHS6Ox3kF+eBqq6zM32mj3Fxm6Ks2OlrTG/F2G6vOn4qpW/jJHq81/O72r7NwQ14K80wJTa16icuR7ppFg==}
     engines: {node: '>=14.0.0'}
@@ -6903,6 +6926,9 @@ packages:
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
+
+  json-schema-typed@8.0.2:
+    resolution: {integrity: sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA==}
 
   json-schema@0.4.0:
     resolution: {integrity: sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==}
@@ -10983,6 +11009,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@hono/node-server@2.1.6(hono@4.13.17)':
+    dependencies:
+      hono: 4.13.17
+
   '@hookform/resolvers@5.9.2(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.54.2(react@19.3.1))(zod@4.6.7)':
     dependencies:
       '@standard-schema/utils': 0.3.0
@@ -11291,12 +11321,12 @@ snapshots:
       marked: 15.0.12
       vscode-languageserver-protocol: 3.18.4
 
-  '@marimo-team/codemirror-mcp@0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0))':
+  '@marimo-team/codemirror-mcp@0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.0.0)(zod@4.6.7))':
     dependencies:
       '@codemirror/autocomplete': 6.20.3
       '@codemirror/state': 6.7.6
       '@codemirror/view': 6.43.13
-      '@modelcontextprotocol/sdk': 1.17.2(supports-color@10.0.0)
+      '@modelcontextprotocol/sdk': 1.32.2(supports-color@10.0.0)(zod@4.6.7)
 
   '@marimo-team/codemirror-sql@0.3.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)':
     dependencies:
@@ -11321,20 +11351,25 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
-  '@modelcontextprotocol/sdk@1.17.2(supports-color@10.0.0)':
+  '@modelcontextprotocol/sdk@1.32.2(supports-color@10.0.0)(zod@4.6.7)':
     dependencies:
-      ajv: 6.15.0
+      '@hono/node-server': 2.1.6(hono@4.13.17)
+      ajv: 8.20.0
+      ajv-formats: 3.0.1
       content-type: 1.0.5
       cors: 2.8.6
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.0
       express: 5.2.1(supports-color@10.0.0)
-      express-rate-limit: 7.5.1(express@5.2.1(supports-color@10.0.0))
+      express-rate-limit: 8.7.3(express@5.2.1(supports-color@10.0.0))(supports-color@10.0.0)
+      hono: 4.13.17
+      jose: 6.2.16
+      json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.2(zod@3.25.76)
+      zod: 4.6.7
+      zod-to-json-schema: 3.25.2(zod@4.6.7)
     transitivePeerDependencies:
       - supports-color
 
@@ -15292,9 +15327,13 @@ snapshots:
 
   expect-type@1.4.0: {}
 
-  express-rate-limit@7.5.1(express@5.2.1(supports-color@10.0.0)):
+  express-rate-limit@8.7.3(express@5.2.1(supports-color@10.0.0))(supports-color@10.0.0):
     dependencies:
+      debug: 4.4.3(supports-color@10.0.0)
       express: 5.2.1(supports-color@10.0.0)
+      ip-address: 10.7.6
+    transitivePeerDependencies:
+      - supports-color
 
   express@5.2.1(supports-color@10.0.0):
     dependencies:
@@ -15876,6 +15915,8 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
+  hono@4.13.17: {}
+
   hookified@1.13.0: {}
 
   hosted-git-info@2.8.9: {}
@@ -16018,6 +16059,8 @@ snapshots:
 
   invert-kv@1.0.0: {}
 
+  ip-address@10.7.6: {}
+
   ipaddr.js@1.9.1: {}
 
   is-alphabetical@2.0.1: {}
@@ -16119,6 +16162,8 @@ snapshots:
 
   jiti@2.7.0: {}
 
+  jose@6.2.16: {}
+
   jotai-scope@0.12.2(jotai@2.20.3(@babel/core@7.29.0(supports-color@10.0.0))(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.1))(react@19.3.1):
     dependencies:
       jotai: 2.20.3(@babel/core@7.29.0(supports-color@10.0.0))(@babel/template@7.28.6)(@types/react@19.3.0)(react@19.3.1)
@@ -16189,6 +16234,8 @@ snapshots:
   json-schema-traverse@0.4.1: {}
 
   json-schema-traverse@1.0.0: {}
+
+  json-schema-typed@8.0.2: {}
 
   json-schema@0.4.0: {}
 
@@ -20174,9 +20221,9 @@ snapshots:
 
   yoctocolors@2.2.0: {}
 
-  zod-to-json-schema@3.25.2(zod@3.25.76):
+  zod-to-json-schema@3.25.2(zod@4.6.7):
     dependencies:
-      zod: 3.25.76
+      zod: 4.6.7
 
   zod@3.25.76: {}
 

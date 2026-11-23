@@ -5,6 +5,7 @@ on:
     paths:
       - 'Makefile'
       - 'pyproject.toml'
+      - '.github/workflows/dev_build.yaml'
 
 permissions:
   contents: read
@@ -14,7 +15,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-26]
     runs-on: "${{ matrix.os == 'ubuntu-latest' && (vars.CI_RUNNER_LARGE || 'ubuntu-latest') || matrix.os }}"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

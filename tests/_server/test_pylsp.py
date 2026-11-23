@@ -237,6 +237,15 @@ async def test_authenticated_pylsp(tmp_path: Path):
                                 "processId": None,
                                 "rootUri": tmp_path.as_uri(),
                                 "capabilities": {},
+                                # Keep optional package preloads out of
+                                # the initialize round trip.
+                                "initializationOptions": {
+                                    "pylsp": {
+                                        "plugins": {
+                                            "preload": {"enabled": False}
+                                        }
+                                    }
+                                },
                             },
                         }
                     )
