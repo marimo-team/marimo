@@ -423,6 +423,12 @@ def notebook_location() -> pathlib.PurePath | None:
     In non-WASM, this is the directory of the notebook, which is the same as
     `mo.notebook_dir()`.
 
+    In WASM, the returned value is a URL, so it must be read over the network:
+    convert it with `str()` and pass it to a library that reads URLs (such as
+    polars or pandas), or fetch it with `urllib.request.urlopen`. Python's
+    built-in `open()` and `Path` methods such as `.exists()` do not work with
+    it, and raise `FileNotFoundError`.
+
     Examples:
         In order to access data both locally and when a notebook runs via
         WebAssembly (e.g. hosted on GitHub Pages), you can use this
@@ -434,6 +440,21 @@ def notebook_location() -> pathlib.PurePath | None:
         data_path = mo.notebook_location() / "public" / "data.csv"
         df = pl.read_csv(str(data_path))
         df.head()
+        ```
+
+        To read a file with the standard library, fetch it with `urllib`
+        when running in WASM:
+
+        ```python
+        import sys
+        import urllib.request
+
+        path = mo.notebook_location() / "public" / "data.txt"
+        if sys.platform == "emscripten":
+            with urllib.request.urlopen(str(path)) as response:
+                text = response.read().decode()
+        else:
+            text = path.read_text()
         ```
 
     Returns:

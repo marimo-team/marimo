@@ -169,6 +169,57 @@ df = pl.read_csv(str(path_to_csv))
 df.head()
 ```
 
+!!! warning "In WebAssembly, `mo.notebook_location()` is a URL, not a folder"
+
+    A notebook running in the browser has no access to the folder that your
+    `public/` files live in: they are served over HTTP by whatever hosts the
+    notebook. So in WebAssembly, `mo.notebook_location()` returns the URL of
+    the page (for example `https://my-org.github.io/my-repo`), and
+    `mo.notebook_location() / "public" / "data.csv"` is a URL too.
+
+    - Convert the location to a string with `str(...)` and pass it to a
+      library that can read from URLs, such as polars, pandas, or DuckDB.
+    - Python's built-in `open()`, and `Path` methods such as `.exists()` or
+      `.read_text()`, do **not** work with this location. Neither do relative
+      paths such as `open("public/data.csv")`. These look for the file in
+      Pyodide's in-memory file system, where it does not exist, and raise
+      `FileNotFoundError`. No network request is made.
+
+To read a file with the standard library, such as a text, JSON, or binary
+file, fetch it with `urllib.request` when running in WebAssembly. (marimo
+patches `urllib.request` so that it works in the browser.) The following
+helper works both locally and in WebAssembly:
+
+```python
+import json
+import sys
+import urllib.request
+
+import marimo as mo
+
+
+def read_public_file(name: str) -> bytes:
+    location = mo.notebook_location() / "public" / name
+    if sys.platform == "emscripten":
+        # Running in WebAssembly: `location` is a URL.
+        with urllib.request.urlopen(str(location)) as response:
+            return response.read()
+    # Running locally: `location` is a path on disk.
+    return location.read_bytes()
+
+
+config = json.loads(read_public_file("config.json"))
+```
+
+If a library only accepts a local file path, write the downloaded bytes to
+Pyodide's in-memory file system first, then pass that path to the library:
+
+```python
+from pathlib import Path
+
+Path("model.bin").write_bytes(read_public_file("model.bin"))
+```
+
 **Fetching data files from the web.**
 Instead of bundling data files with your notebook, you can host data files on
 the web and fetch them in your notebook. Depending on where your files are
