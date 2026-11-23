@@ -4,13 +4,18 @@ Experiments add opt-in contracts to the stable protocol. They may change or
 be removed between releases.
 
 ```ts
-import { Host, Notebook } from "@marimo-team/host-protocol/experimental";
+import { Schema } from "effect";
+import { Host, Notebook, Schemas } from "@marimo-team/host-protocol/experimental";
+
+const decodeDiagnostic = Schema.decodeUnknownSync(Schemas.CellDiagnostic);
+type Diagnostic = Schemas.CellDiagnostic;
 ```
 
 `Host.Api` includes every feature in the experimental entrypoint.
 `Notebook.StreamEvent` describes the events on its notebook stream, including
-`analysis`. Other consumers can
-use the same contract by passing `--experimental` when they
+`analysis`. `Schemas` includes the stable schemas and the experimental
+`Analysis`, `CellAnalysis`, and `CellDiagnostic` schemas. `Schemas.ObjectKind`
+includes the object kinds in this contract. Other consumers can use the same contract by passing `--experimental` when they
 [print the OpenAPI document](../README.md#get-the-openapi-document).
 
 ## Add a feature
@@ -27,7 +32,10 @@ use the same contract by passing `--experimental` when they
    and add it to the list passed to `makeHostContract`. For example, a second feature
    named `widgets` would give `makeHostContract([analysis, widgets])`. OpenAPI uses
    the same composed contract.
-3. Put the specification, fixtures, and conformance tests in
+3. For each schema consumers should be able to name or decode, export the
+   schema and its inferred type from the feature module and re-export that name
+   from [Schemas.ts](../../../packages/host-protocol/src/experimental/Schemas.ts).
+4. Put the specification, fixtures, and conformance tests in
    `protocols/host/experimental/<feature>/`. See [Analysis](analysis/spec.md)
    for an example.
 

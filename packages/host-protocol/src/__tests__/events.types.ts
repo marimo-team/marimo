@@ -9,6 +9,7 @@ import * as S from "../Schemas.ts";
 import type {
   Host as ExperimentalHost,
   Notebook as ExperimentalNotebook,
+  Schemas as ExperimentalSchemas,
 } from "../experimental.ts";
 
 type StableClient = HttpApiClient.ForApi<typeof Host.Api>;
@@ -64,9 +65,14 @@ export function checkEventNarrowing(
     return;
   }
   if (extended.event === "analysis") {
-    expectTypeOf(extended.data.analysis.notebook_id).toEqualTypeOf<
-      typeof S.NotebookId.Type
-    >();
+    expectTypeOf(
+      extended.data.analysis,
+    ).toEqualTypeOf<ExperimentalSchemas.Analysis>();
+    type Cell = ExperimentalSchemas.Analysis["cells"][string];
+    expectTypeOf<Cell>().toEqualTypeOf<ExperimentalSchemas.CellAnalysis>();
+    expectTypeOf<
+      Cell["diagnostics"][number]
+    >().toEqualTypeOf<ExperimentalSchemas.CellDiagnostic>();
   }
 }
 

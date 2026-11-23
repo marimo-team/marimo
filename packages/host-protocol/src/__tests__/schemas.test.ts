@@ -6,7 +6,10 @@ import { expect, it } from "vitest";
 import * as S from "../Schemas.ts";
 import * as Host from "../Host.ts";
 import * as Notebook from "../Notebook.ts";
-import { Notebook as ExperimentalNotebook } from "../experimental.ts";
+import {
+  Notebook as ExperimentalNotebook,
+  Schemas as ExperimentalSchemas,
+} from "../experimental.ts";
 
 const root = new URL("../../../../protocols/host/", import.meta.url);
 const fixtures = new URL("fixtures/", root);
@@ -15,6 +18,10 @@ function read(name: string): unknown {
 }
 
 const records = {
+  "../experimental/analysis/fixtures/analysis.json":
+    ExperimentalSchemas.Analysis,
+  "../experimental/analysis/fixtures/diagnostic.json":
+    ExperimentalSchemas.CellDiagnostic,
   "record.json": S.HostRecord,
   "cell.json": S.Cell,
   "cell-withheld.json": S.Cell,
@@ -38,22 +45,10 @@ it.each(Object.entries(records))(
   },
 );
 
-it("round-trips the diagnostic fixture in a notebook analysis event", () => {
-  const diagnostic = read("../experimental/analysis/fixtures/diagnostic.json");
-  const event = {
-    event: "analysis",
-    data: {
-      analysis: {
-        notebook_id: "n1",
-        document_etag: "v1",
-        cells: { c1: { defs: [], refs: [], diagnostics: [diagnostic] } },
-      },
-    },
-  };
-  const schema = ExperimentalNotebook.StreamEvent;
-  expect(
-    Schema.encodeSync(schema)(Schema.decodeUnknownSync(schema)(event)),
-  ).toEqual(event);
+it("exposes the object kinds of each contract", () => {
+  expect(Schema.is(S.ObjectKind)("analysis")).toBe(false);
+  expect(Schema.is(ExperimentalSchemas.ObjectKind)("analysis")).toBe(true);
+  expect(ExperimentalSchemas.NotebookId).toBe(S.NotebookId);
 });
 
 it.each(readdirSync(new URL("problems/", fixtures)))(
