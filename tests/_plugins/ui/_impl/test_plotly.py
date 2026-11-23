@@ -4343,3 +4343,404 @@ def test_violin_click_with_empty_point_numbers_produces_no_rows() -> None:
 
     result = plot._convert_value(selection)
     assert result == []
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "date_objects",
+        "datetime_objects",
+        "datetime64_D",
+        "datetime64_us",
+        "datetime64_ns",
+        "pd_timestamp_list",
+        "pd_datetime_index",
+        "pd_series",
+        "iso_strings",
+    ],
+)
+@pytest.mark.parametrize(
+    ("x0", "x1"),
+    [
+        ("2026-01-05", "2026-01-06 12:00"),
+        ("2026-01-05 00:00:00.0000", "2026-01-06 12:00:00.0000"),
+    ],
+)
+def test_bar_chart_date_x_axis_selection(
+    variant: str, x0: str, x1: str
+) -> None:
+    """Range selection on bar charts with date or datetime64 x-axis (#11653)."""
+    import datetime as dt
+
+    import numpy as np
+    import pandas as pd
+
+    days = [
+        dt.date(2026, 1, 5),
+        dt.date(2026, 1, 6),
+        dt.date(2026, 1, 7),
+    ]
+    variants: dict[str, Any] = {
+        "date_objects": days,
+        "datetime_objects": [dt.datetime.combine(d, dt.time()) for d in days],
+        "datetime64_D": np.array(days, dtype="datetime64[D]"),
+        "datetime64_us": np.array(days, dtype="datetime64[us]"),
+        "datetime64_ns": np.array(days, dtype="datetime64[ns]"),
+        "pd_timestamp_list": [pd.Timestamp(d) for d in days],
+        "pd_datetime_index": pd.DatetimeIndex(days),
+        "pd_series": pd.Series(pd.to_datetime(days)),
+        "iso_strings": [d.isoformat() for d in days],
+    }
+    x = variants[variant]
+
+    selection: dict[str, Any] = {
+        "range": {
+            "x": [x0, x1],
+            "y": [0, 3],
+        },
+        "points": [],
+        "indices": [],
+    }
+    fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
+    plot = plotly(fig)
+    result = plot._convert_value(selection)
+    assert [p["pointIndex"] for p in result] == [0, 1]
+
+    fallback_bars = _extract_bars_fallback(fig, x0, x1, 0, 3)
+    assert [p["pointIndex"] for p in fallback_bars] == [0, 1]
+
+
+def test_bar_chart_datetime64_nanosecond_precision() -> None:
+    """Sub-microsecond datetime64[ns] and pd.Timestamp bar positions keep ns."""
+    import numpy as np
+    import pandas as pd
+
+    t = np.datetime64("2026-01-05", "us")
+    x = t + np.array([0, 1000, 1500], dtype="timedelta64[ns]")
+    fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
+    x0 = t
+    x1 = t + np.timedelta64(1, "us")
+    fig.add_selection(x0=x0, x1=x1, y0=0, y1=3)
+
+    plot = plotly(fig)
+    assert [p["pointIndex"] for p in plot.value] == [0, 1]
+
+    fallback_bars = _extract_bars_fallback(fig, x0, x1, 0, 3)
+    assert [p["pointIndex"] for p in fallback_bars] == [0, 1]
+
+    ts = pd.Timestamp("2026-01-05")
+    x_ts = [ts, ts + pd.Timedelta(1000, "ns"), ts + pd.Timedelta(1500, "ns")]
+    fig_ts = go.Figure(go.Bar(x=x_ts, y=[1, 2, 3]))
+    fig_ts.add_selection(
+        x0="2026-01-05 00:00:00",
+        x1="2026-01-05 00:00:00.000001",
+        y0=0,
+        y1=3,
+    )
+    plot_ts = plotly(fig_ts)
+    assert [p["pointIndex"] for p in plot_ts.value] == [0, 1]
+
+    fallback_ts = _extract_bars_fallback(
+        fig_ts, "2026-01-05 00:00:00", "2026-01-05 00:00:00.000001", 0, 3
+    )
+    assert [p["pointIndex"] for p in fallback_ts] == [0, 1]
+
+
+def test_bar_chart_tz_aware_datetime_wall_time_selection() -> None:
+    """Timezone-aware datetimes compare by wall time matching plotly.js."""
+    import datetime as dt
+
+    est = dt.timezone(dt.timedelta(hours=-5))
+    x = [dt.datetime(2026, 1, 6, h, 0, tzinfo=est) for h in (8, 14, 20)]
+    fig = go.Figure(go.Bar(x=x, y=[1, 2, 3]))
+    fig.add_selection(x0="2026-01-06 12:00", x1="2026-01-06 23:00", y0=0, y1=3)
+
+    plot = plotly(fig)
+    assert [p["pointIndex"] for p in plot.value] == [1, 2]
+
+    fallback_bars = _extract_bars_fallback(
+        fig, "2026-01-06 12:00", "2026-01-06 23:00", 0, 3
+    )
+    assert [p["pointIndex"] for p in fallback_bars] == [1, 2]
+
+
+def test_bar_chart_mixed_invalid_and_leading_null_dates() -> None:
+    """Leading null/invalid entries and trailing invalid entries are skipped."""
+    import datetime as dt
+
+    fig_mixed = go.Figure(
+        go.Bar(x=["2026-01-05", "2026-01-06", "N/A"], y=[1, 2, 3])
+    )
+    fig_mixed.add_selection(x0="2026-01-05", x1="2026-01-06 12:00", y0=0, y1=3)
+    plot_mixed = plotly(fig_mixed)
+    assert [p["pointIndex"] for p in plot_mixed.value] == [0, 1]
+    assert [
+        p["pointIndex"]
+        for p in _extract_bars_fallback(
+            fig_mixed, "2026-01-05", "2026-01-06 12:00", 0, 3
+        )
+    ] == [0, 1]
+
+    fig_leading_null = go.Figure(
+        go.Bar(
+            x=[None, dt.date(2026, 1, 5), dt.date(2026, 1, 6)],
+            y=[1, 2, 3],
+        )
+    )
+    fig_leading_null.add_selection(
+        x0="2026-01-05", x1="2026-01-06 12:00", y0=0, y1=3
+    )
+    plot_leading_null = plotly(fig_leading_null)
+    assert [p["pointIndex"] for p in plot_leading_null.value] == [1, 2]
+    assert [
+        p["pointIndex"]
+        for p in _extract_bars_fallback(
+            fig_leading_null, "2026-01-05", "2026-01-06 12:00", 0, 3
+        )
+    ] == [1, 2]
+
+    fig_leading_invalid = go.Figure(
+        go.Bar(x=["N/A", "2026-01-05", "2026-01-06"], y=[1, 2, 3])
+    )
+    fig_leading_invalid.add_selection(
+        x0="2026-01-05", x1="2026-01-06 12:00", y0=0, y1=3
+    )
+    plot_leading_invalid = plotly(fig_leading_invalid)
+    assert [p["pointIndex"] for p in plot_leading_invalid.value] == [1, 2]
+    assert [
+        p["pointIndex"]
+        for p in _extract_bars_fallback(
+            fig_leading_invalid, "2026-01-05", "2026-01-06 12:00", 0, 3
+        )
+    ] == [1, 2]
+
+
+def test_bar_chart_horizontal_date_y_axis_and_reversed_bounds() -> None:
+    """Horizontal bar charts with date y-axis and reversed selection bounds."""
+    import datetime as dt
+
+    days = [
+        dt.date(2026, 1, 5),
+        dt.date(2026, 1, 6),
+        dt.date(2026, 1, 7),
+    ]
+    fig_h = go.Figure(go.Bar(x=[1, 2, 3], y=days, orientation="h"))
+    plot_h = plotly(fig_h)
+    reversed_selection: dict[str, Any] = {
+        "range": {
+            "x": [3, 0],
+            "y": ["2026-01-06 12:00:00.0000", "2026-01-05 00:00:00.0000"],
+        },
+        "points": [],
+        "indices": [],
+    }
+    result_h = plot_h._convert_value(reversed_selection)
+    assert [p["pointIndex"] for p in result_h] == [0, 1]
+
+    fallback_h = _extract_bars_fallback(
+        fig_h, 0, 3, "2026-01-05 00:00:00.0000", "2026-01-06 12:00:00.0000"
+    )
+    assert [p["pointIndex"] for p in fallback_h] == [0, 1]
+
+
+def test_scatter_and_heatmap_date_axis_selection() -> None:
+    """Scatter and heatmap traces with datetime64 and date x/y axes."""
+    import datetime as dt
+
+    import numpy as np
+
+    x = np.array(
+        ["2026-01-05", "2026-01-06", "2026-01-07"],
+        dtype="datetime64[ns]",
+    )
+    fig = go.Figure(go.Scatter(x=x, y=[1, 2, 3], mode="lines"))
+    x0 = x[0].astype("datetime64[D]")
+    x1 = x[1].astype("datetime64[D]")
+    fig.add_selection(x0=x0, x1=x1, y0=0, y1=3)
+
+    plot = plotly(fig)
+    assert len(plot.value) == 2
+    assert [p["pointIndex"] for p in plot.value] == [0, 1]
+
+    fallback_pts = _extract_scatter_points_fallback(
+        fig, x0, x1, y_min=0, y_max=3
+    )
+    assert len(fallback_pts) == 2
+    assert [p["pointIndex"] for p in fallback_pts] == [0, 1]
+
+    days = [dt.date(2026, 1, 5), dt.date(2026, 1, 6), dt.date(2026, 1, 7)]
+    fig_y = go.Figure(go.Scatter(x=[1, 2, 3], y=days, mode="lines"))
+    fig_y.add_selection(
+        x0=0,
+        x1=3,
+        y0="2026-01-05 00:00:00.0000",
+        y1="2026-01-06 12:00:00.0000",
+    )
+    plot_y = plotly(fig_y)
+    assert [p["pointIndex"] for p in plot_y.value] == [0, 1]
+    assert [
+        p["pointIndex"]
+        for p in _extract_scatter_points_fallback(
+            fig_y,
+            0,
+            3,
+            y_min="2026-01-05 00:00:00.0000",
+            y_max="2026-01-06 12:00:00.0000",
+        )
+    ] == [0, 1]
+
+    fig_hm = go.Figure(
+        go.Heatmap(
+            x=days,
+            y=days,
+            z=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+        )
+    )
+    plot_hm = plotly(fig_hm)
+    hm_selection = plot_hm._convert_value(
+        {
+            "range": {
+                "x": ["2026-01-05 00:00:00.0000", "2026-01-06 12:00:00.0000"],
+                "y": ["2026-01-05 00:00:00.0000", "2026-01-05 12:00:00.0000"],
+            },
+            "points": [],
+            "indices": [],
+        }
+    )
+    assert [c["z"] for c in hm_selection] == [1, 2]
+    assert [
+        c["z"]
+        for c in _extract_heatmap_cells_numpy(
+            fig_hm,
+            "2026-01-05 00:00:00.0000",
+            "2026-01-06 12:00:00.0000",
+            "2026-01-05 00:00:00.0000",
+            "2026-01-05 12:00:00.0000",
+        )
+    ] == [1, 2]
+    assert [
+        c["z"]
+        for c in _extract_heatmap_cells_fallback(
+            fig_hm,
+            "2026-01-05 00:00:00.0000",
+            "2026-01-06 12:00:00.0000",
+            "2026-01-05 00:00:00.0000",
+            "2026-01-05 12:00:00.0000",
+        )
+    ] == [1, 2]
+
+    # Leading None / invalid entries in scatter & heatmap fallbacks
+    fig_sc_null = go.Figure(
+        go.Scatter(
+            x=[None, dt.date(2026, 1, 5), dt.date(2026, 1, 6)],
+            y=["N/A", dt.date(2026, 1, 5), dt.date(2026, 1, 6)],
+            mode="lines",
+        )
+    )
+    assert [
+        p["pointIndex"]
+        for p in _extract_scatter_points_fallback(
+            fig_sc_null,
+            "2026-01-05",
+            "2026-01-06 12:00",
+            y_min="2026-01-05",
+            y_max="2026-01-06 12:00",
+        )
+    ] == [1, 2]
+
+    fig_hm_null = go.Figure(
+        go.Heatmap(
+            x=[None, dt.date(2026, 1, 5), dt.date(2026, 1, 6)],
+            y=["N/A", dt.date(2026, 1, 5), dt.date(2026, 1, 6)],
+            z=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+        )
+    )
+    assert [
+        c["z"]
+        for c in _extract_heatmap_cells_fallback(
+            fig_hm_null,
+            "2026-01-05",
+            "2026-01-06 12:00",
+            "2026-01-05",
+            "2026-01-05 12:00",
+        )
+    ] == [5, 6]
+
+    # All-None axes with date bounds return empty selections without crashing
+    fig_bar_all_none = go.Figure(go.Bar(x=[None, None], y=[1, 2]))
+    assert (
+        _extract_bars_numpy(
+            fig_bar_all_none, "2026-01-05", "2026-01-06", 0, 10
+        )
+        == []
+    )
+    fig_sc_all_none = go.Figure(
+        go.Scatter(x=[None, None], y=[None, None], mode="lines")
+    )
+    assert (
+        _extract_scatter_points_numpy(
+            fig_sc_all_none,
+            "2026-01-05",
+            "2026-01-06",
+            y_min="2026-01-05",
+            y_max="2026-01-06",
+        )
+        == []
+    )
+    fig_hm_all_none = go.Figure(
+        go.Heatmap(x=[None, None], y=[None, None], z=[[1, 2], [3, 4]])
+    )
+    assert (
+        _extract_heatmap_cells_numpy(
+            fig_hm_all_none,
+            "2026-01-05",
+            "2026-01-06",
+            "2026-01-05",
+            "2026-01-06",
+        )
+        == []
+    )
+
+    # Pure-Python fallback execution when numpy is unavailable in sys.modules
+    import sys
+    from unittest.mock import patch
+
+    with patch.dict(sys.modules, {"numpy": None}):
+        fig_bar_no_np = go.Figure(
+            go.Bar(
+                x=[None, dt.date(2026, 1, 5), dt.date(2026, 1, 6)],
+                y=[1, 2, 3],
+            )
+        )
+        assert [
+            p["pointIndex"]
+            for p in _extract_bars_fallback(
+                fig_bar_no_np, "2026-01-05", "2026-01-06 12:00", 0, 10
+            )
+        ] == [1, 2]
+        assert [
+            p["pointIndex"]
+            for p in _extract_bars_fallback(
+                fig_bar_all_none, "2026-01-05", "2026-01-06", 0, 10
+            )
+        ] == []
+        assert [
+            p["pointIndex"]
+            for p in _extract_scatter_points_fallback(
+                fig_y,
+                0,
+                3,
+                y_min="2026-01-05 00:00:00.0000",
+                y_max="2026-01-06 12:00:00.0000",
+            )
+        ] == [0, 1]
+        assert [
+            c["z"]
+            for c in _extract_heatmap_cells_fallback(
+                fig_hm,
+                "2026-01-05 00:00:00.0000",
+                "2026-01-06 12:00:00.0000",
+                "2026-01-05 00:00:00.0000",
+                "2026-01-05 12:00:00.0000",
+            )
+        ] == [1, 2]
