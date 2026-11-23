@@ -54,13 +54,7 @@ class SQLVisitor(ast.NodeVisitor):
                     sql = first_arg.value
                 elif isinstance(first_arg, ast.JoinedStr):
                     if self._raw:
-                        f_sql = ast.unparse(first_arg)
-                        sql = dedent(
-                            f_sql[1:]
-                            .strip(f_sql[1])
-                            .encode()
-                            .decode("unicode_escape")
-                        )
+                        sql = dedent(raw_sql_f_string(first_arg))
                     else:
                         sql = normalize_sql_f_string(first_arg)
 
@@ -99,6 +93,41 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
             # Use "1" as placeholder - it's valid in more SQL contexts than "null"
             # (e.g., interval expressions like `interval '1 days'`)
             return "1"
+
+    result = "".join(print_part(part) for part in node.values)
+    return result
+
+
+def raw_sql_f_string(node: ast.JoinedStr) -> str:
+    """
+    Reconstruct the raw text of an f-string, keeping {...} interpolations
+    verbatim (e.g. ``{name}``, ``{x!r}``, ``{y:.2f}``).
+
+    This is used for the raw SQL (e.g. Markdown export), where the SQL is
+    rendered back into source, so interpolations must survive as written
+    instead of being replaced with placeholders (see
+    ``normalize_sql_f_string``).
+
+    Literal parts come from the already-decoded ``ast.Constant`` values, so
+    non-ASCII text is preserved as-is and backslashes are never
+    re-interpreted as escapes. The previous implementation unparsed the
+    f-string and ran ``.encode().decode("unicode_escape")`` on it, which
+    corrupted non-ASCII text into mojibake (``'café'`` became ``'cafÃ©'``),
+    mangled quotes, and could raise ``UnicodeDecodeError`` on sequences
+    such as Windows paths (issue #12042).
+    """
+
+    def print_part(part: ast.expr) -> str:
+        if isinstance(part, ast.FormattedValue):
+            # ast.unparse keeps the interpolation verbatim, including any
+            # conversion (!r, !s, !a) and format spec.
+            return ast.unparse(part)
+        elif isinstance(part, ast.JoinedStr):
+            return raw_sql_f_string(part)
+        elif isinstance(part, ast.Constant):
+            return str(part.value)
+        else:
+            return ast.unparse(part)
 
     result = "".join(print_part(part) for part in node.values)
     return result

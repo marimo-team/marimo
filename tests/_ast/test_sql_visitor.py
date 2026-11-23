@@ -44,6 +44,81 @@ def test_execute_with_f_string() -> None:
     assert visitor.get_sqls() == ["SELECT * FROM users WHERE name = 1"]
 
 
+def test_raw_sql_with_f_string_keeps_interpolation() -> None:
+    source_code = 'db.execute(f"SELECT * FROM users WHERE name = {name}")'
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == ["SELECT * FROM users WHERE name = {name}"]
+
+
+def test_raw_sql_with_f_string_preserves_unicode() -> None:
+    # Regression test for issue #12042: the raw path used to run
+    # .encode().decode("unicode_escape") on the unparsed f-string, which
+    # corrupted non-ASCII text into mojibake ('café' became 'cafÃ©').
+    source_code = (
+        "_df = mo.sql(f\"\"\"SELECT 'café' as name, '🎉' as celebration "
+        'FROM users""")'
+    )
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == [
+        "SELECT 'café' as name, '🎉' as celebration FROM users"
+    ]
+
+
+def test_raw_sql_with_f_string_preserves_windows_path() -> None:
+    # Regression test for issue #12042: backslashes in the SQL must be
+    # kept as-is, not re-interpreted as escapes.
+    source_code = (
+        "_df = mo.sql(f\"SELECT * FROM read_csv('C:\\\\Users\\\\data.csv')\")"
+    )
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == [
+        "SELECT * FROM read_csv('C:\\Users\\data.csv')"
+    ]
+
+
+def test_raw_sql_with_f_string_preserves_quotes() -> None:
+    # Regression test for issue #12042: quotes at the start/end of the
+    # SQL must survive the raw round-trip.
+    source_code = "_df = mo.sql(f\"'value' AND {col}\")"
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == ["'value' AND {col}"]
+
+
+def test_raw_sql_with_f_string_preserves_conversions() -> None:
+    source_code = '_df = mo.sql(f"SELECT {x!r} {y:.2f}")'
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == ["SELECT {x!r} {y:.2f}"]
+
+
+def test_raw_sql_with_f_string_multiline() -> None:
+    source_code = dedent(
+        '''
+        _df = mo.sql(
+            f"""
+            SELECT * FROM users
+            WHERE name = {name}
+            """
+        )
+        '''
+    )
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == [
+        "\nSELECT * FROM users\nWHERE name = {name}\n"
+    ]
+
+
 def test_no_sql_calls() -> None:
     source_code = "print('Hello, world!')"
     tree = ast.parse(source_code)
