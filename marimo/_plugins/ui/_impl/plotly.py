@@ -49,26 +49,14 @@ def _is_orderable_value(value: object) -> bool:
 
     Used by fallback functions to determine if direct comparison is possible.
     """
-    import datetime
-
-    if isinstance(value, (int, float, datetime.datetime, datetime.date)):
+    if isinstance(value, (int, float)):
         return True
 
     dtype = getattr(value, "dtype", None)
-    if dtype is not None and str(dtype).startswith(
-        ("int", "uint", "float", "datetime64")
-    ):
+    if dtype is not None and str(dtype).startswith(("int", "uint", "float")):
         return True
 
-    # Check for ISO format datetime strings (sent from frontend via JSON)
-    if isinstance(value, str):
-        try:
-            datetime.datetime.fromisoformat(value)
-            return True
-        except (ValueError, AttributeError):
-            pass
-
-    return False
+    return _is_datetime_like(value)
 
 
 def _parse_datetime_bound(value: Any) -> Any:
@@ -130,8 +118,9 @@ def _is_orderable_axis(arr: Any, bound_value: object) -> bool:
     if (np.issubdtype(arr.dtype, np.str_) or arr.dtype == np.object_) and len(
         arr
     ) > 0:
-        first_elem = arr[0]
-        if _is_datetime_like(first_elem) and _is_datetime_like(bound_value):
+        if _is_datetime_like(bound_value) and any(
+            elem is not None and _is_datetime_like(elem) for elem in arr
+        ):
             return True
 
     return False
@@ -175,61 +164,64 @@ def _to_datetime64_or_nat(value: Any) -> Any:
     """Convert a value to np.datetime64, returning NaT for non-datetime values."""
     import numpy as np
 
+    if value is None:
+        return np.datetime64("NaT", "us")
     try:
         return _to_datetime64(value)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
+        LOGGER.debug("Skipping non-datetime axis value %r: %s", value, e)
         return np.datetime64("NaT", "us")
 
 
 def _is_value_in_orderable_range(
-    val: Any, min_bound: Any, max_bound: Any
+    val: Any, min_parsed: Any, max_parsed: Any
 ) -> bool:
-    """Compare a scalar orderable value against min and max bounds."""
+    """Compare a scalar orderable value against pre-parsed min and max bounds."""
     import datetime
 
     val_p = _parse_datetime_bound(val)
-    min_p = _parse_datetime_bound(min_bound)
-    max_p = _parse_datetime_bound(max_bound)
-
     try:
         if any(
             str(getattr(v, "dtype", "")).startswith("datetime64")
-            for v in (val_p, min_p, max_p)
+            for v in (val_p, min_parsed, max_parsed)
         ):
             return bool(
-                _to_datetime64(min_p)
+                _to_datetime64(min_parsed)
                 <= _to_datetime64(val_p)
-                <= _to_datetime64(max_p)
+                <= _to_datetime64(max_parsed)
             )
 
         if all(
             isinstance(v, (datetime.datetime, datetime.date))
-            for v in (val_p, min_p, max_p)
+            for v in (val_p, min_parsed, max_parsed)
         ):
             return bool(
-                _normalize_naive_datetime(min_p)
+                _normalize_naive_datetime(min_parsed)
                 <= _normalize_naive_datetime(val_p)
-                <= _normalize_naive_datetime(max_p)
+                <= _normalize_naive_datetime(max_parsed)
             )
 
-        return bool(min_p <= val_p <= max_p)
-    except (ValueError, TypeError):
+        return bool(min_parsed <= val_p <= max_parsed)
+    except (ValueError, TypeError) as e:
+        LOGGER.debug(
+            "Orderable range comparison failed for %r in (%r, %r): %s",
+            val,
+            min_parsed,
+            max_parsed,
+            e,
+        )
         return False
 
 
 def _compute_orderable_mask(arr: Any, min_parsed: Any, max_parsed: Any) -> Any:
     """Compute boolean mask for orderable axis bounds, handling datetime/date/numeric."""
-    import datetime
-
     import numpy as np
 
-    is_dt_bound = isinstance(
-        min_parsed, (datetime.datetime, datetime.date, np.datetime64)
-    ) or isinstance(
-        max_parsed, (datetime.datetime, datetime.date, np.datetime64)
+    is_dt_bound = _is_datetime_like(min_parsed) or _is_datetime_like(
+        max_parsed
     )
-    if is_dt_bound or np.issubdtype(arr.dtype, np.datetime64):
-        try:
+    try:
+        if is_dt_bound or np.issubdtype(arr.dtype, np.datetime64):
             dt_min = _to_datetime64(min_parsed)
             dt_max = _to_datetime64(max_parsed)
             if np.issubdtype(arr.dtype, np.datetime64):
@@ -237,9 +229,15 @@ def _compute_orderable_mask(arr: Any, min_parsed: Any, max_parsed: Any) -> Any:
             else:
                 arr_dt = np.asarray([_to_datetime64_or_nat(v) for v in arr])
             return (arr_dt >= dt_min) & (arr_dt <= dt_max)
-        except (ValueError, TypeError):
-            return np.zeros(len(arr), dtype=bool)
-    return (arr >= min_parsed) & (arr <= max_parsed)
+        return (arr >= min_parsed) & (arr <= max_parsed)
+    except (ValueError, TypeError) as e:
+        LOGGER.debug(
+            "Orderable range comparison failed for bounds (%r, %r): %s",
+            min_parsed,
+            max_parsed,
+            e,
+        )
+        return np.zeros(len(arr), dtype=bool)
 
 
 def _to_numeric_coord(value: object) -> float | None:
@@ -435,6 +433,11 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             figure.for_each_yaxis(y_axes.append)
             [y_axis] = y_axes if len(y_axes) == 1 else [None]
 
+            x0_p = _parse_datetime_bound(selection.x0)
+            x1_p = _parse_datetime_bound(selection.x1)
+            y0_p = _parse_datetime_bound(selection.y0)
+            y1_p = _parse_datetime_bound(selection.y1)
+
             for trace in figure.data:
                 # Skip trace types handled separately in _convert_value
                 if getattr(trace, "type", None) in (
@@ -456,9 +459,17 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                     zip(x_data, y_data, strict=False)
                 ):
                     # Early exit if x is not in range
-                    if not (selection.x0 <= x <= selection.x1):
+                    if not (
+                        _is_orderable_value(x)
+                        and _is_orderable_value(x0_p)
+                        and _is_value_in_orderable_range(x, x0_p, x1_p)
+                    ):
                         continue
-                    if selection.y0 <= y <= selection.y1:
+                    if (
+                        _is_orderable_value(y)
+                        and _is_orderable_value(y0_p)
+                        and _is_value_in_orderable_range(y, y0_p, y1_p)
+                    ):
                         selected_points.append(
                             {
                                 axis.title.text: val
@@ -797,19 +808,27 @@ def _extract_heatmap_cells_numpy(
         # Compute masks for valid indices
         if x_is_orderable:
             x_mask = _compute_orderable_mask(x_arr, x_min_parsed, x_max_parsed)
-        else:
+        elif isinstance(x_min, (int, float)) and isinstance(
+            x_max, (int, float)
+        ):
             # Categorical: cell spans (index - 0.5) to (index + 0.5)
             # Strict overlap: x_max > cell_x_min and x_min < cell_x_max
             x_indices = np.arange(len(x_arr))
             x_mask = (x_max > x_indices - 0.5) & (x_min < x_indices + 0.5)
+        else:
+            x_mask = np.zeros(len(x_arr), dtype=bool)
 
         if y_is_orderable:
             y_mask = _compute_orderable_mask(y_arr, y_min_parsed, y_max_parsed)
-        else:
+        elif isinstance(y_min, (int, float)) and isinstance(
+            y_max, (int, float)
+        ):
             # Categorical: cell spans (index - 0.5) to (index + 0.5)
             # Strict overlap: y_max > cell_y_min and y_min < cell_y_max
             y_indices = np.arange(len(y_arr))
             y_mask = (y_max > y_indices - 0.5) & (y_min < y_indices + 0.5)
+        else:
+            y_mask = np.zeros(len(y_arr), dtype=bool)
 
         # Get indices where masks are True
         y_idx = np.where(y_mask)[0]
@@ -1066,7 +1085,9 @@ def _extract_scatter_points_numpy(
         # Filter by x-range
         if x_is_orderable:
             x_mask = _compute_orderable_mask(x_arr, x_min_parsed, x_max_parsed)
-        else:
+        elif isinstance(x_min, (int, float)) and isinstance(
+            x_max, (int, float)
+        ):
             # Categorical: compare against axis category positions, not point
             # indices, so repeated categories map to the same coordinate.
             x_category_positions = _category_position_map(x_data)
@@ -1078,6 +1099,8 @@ def _extract_scatter_points_numpy(
                 dtype=float,
             )
             x_mask = (x_max > x_positions - 0.5) & (x_min < x_positions + 0.5)
+        else:
+            x_mask = np.zeros(len(x_arr), dtype=bool)
 
         # Filter by y-range when present
         if has_y_range:
@@ -1085,7 +1108,9 @@ def _extract_scatter_points_numpy(
                 y_mask = _compute_orderable_mask(
                     y_arr, y_min_parsed, y_max_parsed
                 )
-            else:
+            elif isinstance(y_min, (int, float)) and isinstance(
+                y_max, (int, float)
+            ):
                 y_category_positions = _category_position_map(y_data)
                 y_positions = np.asarray(
                     [
@@ -1097,6 +1122,8 @@ def _extract_scatter_points_numpy(
                 y_mask = (y_max > y_positions - 0.5) & (
                     y_min < y_positions + 0.5
                 )
+            else:
+                y_mask = np.zeros(len(y_arr), dtype=bool)
             in_box_mask = x_mask & y_mask
         else:
             in_box_mask = x_mask
@@ -1171,6 +1198,10 @@ def _extract_scatter_points_fallback(
 
         has_y_range = y_min is not None and y_max is not None
         selected_indices: set[int] = set()
+        x_min_p = _parse_datetime_bound(x_min)
+        x_max_p = _parse_datetime_bound(x_max)
+        y_min_p = _parse_datetime_bound(y_min) if has_y_range else None
+        y_max_p = _parse_datetime_bound(y_max) if has_y_range else None
 
         x_category_positions = _category_position_map(x_data)
         y_category_positions = _category_position_map(y_data)
@@ -1181,9 +1212,13 @@ def _extract_scatter_points_fallback(
         ):
             x_in_range = False
 
-            if _is_orderable_value(x_val) and _is_orderable_value(x_min):
-                x_in_range = _is_value_in_orderable_range(x_val, x_min, x_max)
-            else:
+            if _is_orderable_value(x_val) and _is_orderable_value(x_min_p):
+                x_in_range = _is_value_in_orderable_range(
+                    x_val, x_min_p, x_max_p
+                )
+            elif isinstance(x_min, (int, float)) and isinstance(
+                x_max, (int, float)
+            ):
                 # TypeError can occur when x_val is unhashable (e.g. a list or
                 # dict), which dict.get() cannot accept as a key.
                 try:
@@ -1198,11 +1233,14 @@ def _extract_scatter_points_fallback(
 
             y_in_range = True
             if has_y_range:
-                if _is_orderable_value(y_val) and _is_orderable_value(y_min):
+                y_in_range = False
+                if _is_orderable_value(y_val) and _is_orderable_value(y_min_p):
                     y_in_range = _is_value_in_orderable_range(
-                        y_val, y_min, y_max
+                        y_val, y_min_p, y_max_p
                     )
-                else:
+                elif isinstance(y_min, (int, float)) and isinstance(
+                    y_max, (int, float)
+                ):
                     # TypeError can occur when y_val is unhashable (e.g. a list or
                     # dict), which dict.get() cannot accept as a key.
                     try:
@@ -1418,6 +1456,11 @@ def _extract_heatmap_cells_fallback(
         if x_data is None or y_data is None or z_data is None:
             continue
 
+        x_min_p = _parse_datetime_bound(x_min)
+        x_max_p = _parse_datetime_bound(x_max)
+        y_min_p = _parse_datetime_bound(y_min)
+        y_max_p = _parse_datetime_bound(y_max)
+
         # Iterate through the heatmap cells
         for i, y_val in enumerate(y_data):
             for j, x_val in enumerate(x_data):
@@ -1426,11 +1469,13 @@ def _extract_heatmap_cells_fallback(
                 x_in_range = False
                 y_in_range = False
 
-                if _is_orderable_value(x_val) and _is_orderable_value(x_min):
+                if _is_orderable_value(x_val) and _is_orderable_value(x_min_p):
                     x_in_range = _is_value_in_orderable_range(
-                        x_val, x_min, x_max
+                        x_val, x_min_p, x_max_p
                     )
-                else:
+                elif isinstance(x_min, (int, float)) and isinstance(
+                    x_max, (int, float)
+                ):
                     # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
                     # Include cell if selection range strictly overlaps with cell bounds
                     cell_x_min = j - 0.5
@@ -1439,11 +1484,13 @@ def _extract_heatmap_cells_fallback(
                         x_max <= cell_x_min or x_min >= cell_x_max
                     )
 
-                if _is_orderable_value(y_val) and _is_orderable_value(y_min):
+                if _is_orderable_value(y_val) and _is_orderable_value(y_min_p):
                     y_in_range = _is_value_in_orderable_range(
-                        y_val, y_min, y_max
+                        y_val, y_min_p, y_max_p
                     )
-                else:
+                elif isinstance(y_min, (int, float)) and isinstance(
+                    y_max, (int, float)
+                ):
                     # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
                     # Include cell if selection range strictly overlaps with cell bounds
                     cell_y_min = i - 0.5
@@ -1910,13 +1957,17 @@ def _extract_bars_numpy(
             pos_mask = _compute_orderable_mask(
                 position_data, pos_min_parsed, pos_max_parsed
             )
-        else:
+        elif isinstance(pos_min, (int, float)) and isinstance(
+            pos_max, (int, float)
+        ):
             # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
             # Selection overlaps if: pos_max > bar_min AND pos_min < bar_max
             pos_indices = np.arange(len(position_data))
             pos_mask = (pos_max > pos_indices - 0.5) & (
                 pos_min < pos_indices + 0.5
             )
+        else:
+            pos_mask = np.zeros(len(position_data), dtype=bool)
 
         # Get indices where mask is True
         selected_indices = np.where(pos_mask)[0]
@@ -1993,17 +2044,20 @@ def _extract_bars_fallback(
             pos_min, pos_max = y_min, y_max
             value_min, value_max = x_min, x_max
 
+        pos_min_p = _parse_datetime_bound(pos_min)
+        pos_max_p = _parse_datetime_bound(pos_max)
+
         # Iterate through bars
         for i, pos_val in enumerate(position_data):
             # Check if bar position is within selection range
             pos_in_range = False
 
-            if _is_orderable_value(pos_val) and _is_orderable_value(pos_min):
+            if _is_orderable_value(pos_val) and _is_orderable_value(pos_min_p):
                 # Orderable axis (numeric or datetime): direct comparison
                 # TODO: Consider bar width in future implementations
                 # Currently treating bars as points at their position value
                 pos_in_range = _is_value_in_orderable_range(
-                    pos_val, pos_min, pos_max
+                    pos_val, pos_min_p, pos_max_p
                 )
             elif isinstance(pos_min, (int, float)) and isinstance(
                 pos_max, (int, float)
