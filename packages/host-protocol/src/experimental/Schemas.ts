@@ -4,4 +4,5 @@ import { events } from "./index.ts";
 
 export * from "../Schemas.ts";
 export { Analysis, CellAnalysis, CellDiagnostic } from "./features/analysis.ts";
+export { EmitRequest } from "./features/emit.ts";
 export const { ObjectKind } = events;

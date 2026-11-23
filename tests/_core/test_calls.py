@@ -95,7 +95,7 @@ def test_execution_calls_reject_the_other_operations_payload(operation, body):
 
 
 def test_calls_match_the_spec() -> None:
-    document = host_openapi()
+    document = host_openapi(experimental=True)
 
     def resolve(value: dict[str, Any]) -> dict[str, Any]:
         if "$ref" not in value:

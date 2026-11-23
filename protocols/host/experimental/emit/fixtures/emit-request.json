@@ -1,0 +1,8 @@
+{
+  "type": "marimo.pair.agent-message",
+  "data": {
+    "text": "Looking into it",
+    "tags": ["progress"],
+    "details": null
+  }
+}

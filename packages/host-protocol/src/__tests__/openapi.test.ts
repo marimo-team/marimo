@@ -26,7 +26,6 @@ it("closes request bodies and keeps other objects open", () => {
     "CreateNotebookRequest",
     "DeleteCell",
     "EditRequest",
-    "EmitRequest",
     "ExecuteRequest",
     "InputReplyRequest",
     "ReplaceCell",
@@ -43,7 +42,10 @@ it("closes request bodies and keeps other objects open", () => {
 });
 
 it("defines broadcast emission without closing custom events to future fields", () => {
-  const emit = stable.paths["/notebooks/{notebook_id}/emit"]?.post;
+  const path = "/notebooks/{notebook_id}/emit";
+  expect(stable.paths).not.toHaveProperty(path);
+  expect(schemas).not.toHaveProperty("EmitRequest");
+  const emit = experimental.paths[path]?.post;
   expect(emit).toMatchObject({
     operationId: "notebook.emit",
     security: [{ hostToken: [] }],
@@ -58,7 +60,9 @@ it("defines broadcast emission without closing custom events to future fields", 
   });
   expect(emit?.responses[204]).toBeDefined();
   expect(emit?.responses[204]?.content).toBeUndefined();
-  expect(schemas.EmitRequest.additionalProperties).toBe(false);
+  expect(experimental.components.schemas.EmitRequest.additionalProperties).toBe(
+    false,
+  );
   expect(schemas.Custom.additionalProperties).toBeUndefined();
 });
 

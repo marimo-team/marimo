@@ -23,7 +23,9 @@ it.each(
   })),
 )("accepts $data as the data of an emit request", ({ data }) => {
   const input = { type: "example.message", data };
-  expect(Schema.decodeUnknownSync(S.EmitRequest)(input)).toEqual(input);
+  expect(
+    Schema.decodeUnknownSync(ExperimentalSchemas.EmitRequest)(input),
+  ).toEqual(input);
 });
 
 it.each([
@@ -33,9 +35,9 @@ it.each([
   { type: "example.message", data: null, to: ["agent-1"] },
 ])("rejects an invalid emit request: %j", (input) => {
   expect(() =>
-    Schema.decodeUnknownSync(S.EmitRequest, { onExcessProperty: "error" })(
-      input,
-    ),
+    Schema.decodeUnknownSync(ExperimentalSchemas.EmitRequest, {
+      onExcessProperty: "error",
+    })(input),
   ).toThrow(Schema.SchemaError);
 });
 
@@ -50,6 +52,8 @@ const records = {
   "edit.json": S.EditRequest,
   "stale-edit-request.json": S.EditRequest,
   "edit-response.json": S.EditResponse,
+  "../experimental/emit/fixtures/emit-request.json":
+    ExperimentalSchemas.EmitRequest,
   "execution-restored.json": S.Execution,
   "run-cells-request.json": S.RunRequest,
   "execute-request.json": S.ExecuteRequest,

@@ -5,7 +5,7 @@ import { Effect, Layer, Schema, Stream } from "effect";
 import { HttpApiBuilder, HttpApiClient } from "effect/http-api";
 import { FetchHttpClient, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import * as Host from "../Host.ts";
+import { Host } from "../experimental.ts";
 import * as Notebook from "../Notebook.ts";
 import * as S from "../Schemas.ts";
 import * as Problems from "../Problems.ts";

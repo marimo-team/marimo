@@ -54,28 +54,6 @@ export const Edit = HttpApiEndpoint.post(
     "Applies an ordered list of changes to the document as one unit.\nPreconditions are checked against the document as it was when the\nrequest arrived. `create_cell` requires a new id and appends the\ncell. To place it elsewhere, include a later `set_order` with the\norder etag the client read. `replace_cell` replaces an existing\ncell in place. Cells and the order have separate etags. Use `*` to skip\nthe etag check.\n\nIf any precondition is stale, nothing is applied and the host\nanswers `precondition-failed`. Its `index` names the first stale\nchange, and it carries the cell and the document as they now\nare. A change that could not apply to any state, such as an\norder that leaves out a cell or names one twice, is\n`invalid-request`.\n\nOn success the document has changed, and every attachment sees\nthe effects on the notebook's stream with this request's key: the\ncells that changed, `cell.removed` for each deleted cell, and then\nthe document, with nothing in between. The response carries the new\netags, as of this edit or a later revision, so a client keeps editing without reading again. A\nchange that changes nothing keeps its etags and sends no events.\nWhether the result has reached the store shows in the document's\n`saved_etag`.\n",
   );
 
-export const Emit = HttpApiEndpoint.post(
-  "emit",
-  "/notebooks/:notebook_id/emit",
-  {
-    params: P.notebook,
-    headers: P.idempotent,
-    payload: Requests.EmitRequest,
-    success: [
-      Schema.Void.pipe(HttpApiSchema.status(204)).annotateKey({
-        description: "The host published the custom event.",
-      }),
-    ],
-    error: [...Problems.Mutation.members],
-  },
-)
-  .annotate(OpenApi.Identifier, "notebook.emit")
-  .annotate(OpenApi.Summary, "Send a custom event")
-  .annotate(
-    OpenApi.Description,
-    "Publishes one custom event with the request's `type` and `data`\non the notebook stream. The event carries the `Idempotency-Key`\nas `request_id` and reaches every reader whose stream filters\ninclude it. The host does not interpret the payload.\n\nThe response acknowledges publication, not receipt or processing\nby a client. Retrying an accepted request with the same key\nfollows the protocol's idempotency rules.\n\nThe event participates in replay while history remains and never\nappears in a snapshot.\n",
-  );
-
 const makeEvents = <E extends Schema.Constraint>(events: E) =>
   HttpApiEndpoint.get("events", "/notebooks/:notebook_id/events", {
     params: P.notebook,
@@ -396,7 +374,6 @@ export const group = <
     "Notebook",
     Delete,
     Edit,
-    Emit,
     makeEvents(events),
     Open,
     Reply,

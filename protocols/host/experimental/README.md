@@ -1,7 +1,8 @@
 # Experimental host protocol features
 
 Use the experimental entrypoint to build a host or client with features such as
-[document analysis](analysis/spec.md). These features may change between releases.
+[document analysis](analysis/spec.md) and [custom event publication](emit/spec.md).
+These features may change between releases.
 
 ```ts
 import { Host, Schemas } from "@marimo-team/host-protocol/experimental";

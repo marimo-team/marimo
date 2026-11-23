@@ -10,8 +10,8 @@ from typing import Any
 
 import httpx
 import pytest
-from conftest import scratch
 from contract import Frame, Host
+from host_fixtures import scratch
 
 
 @asynccontextmanager

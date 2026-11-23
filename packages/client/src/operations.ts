@@ -102,24 +102,6 @@ export const operations = {
       501: [Protocol.UnsupportedOperationProblem],
     },
   },
-  /** Send a custom event. */
-  "notebook.emit": {
-    method: "POST",
-    path: "/notebooks/{notebook_id}/emit",
-    query: {},
-    headers: { "idempotency-key": true },
-    body: Protocol.EmitRequest,
-    responses: { 204: null },
-    problems: {
-      400: [Protocol.InvalidRequestProblem],
-      401: [Protocol.UnauthorizedProblem],
-      403: [Protocol.ForbiddenProblem],
-      404: [Protocol.NotFoundProblem],
-      409: [Protocol.ConflictProblem],
-      500: [Protocol.InternalProblem],
-      501: [Protocol.UnsupportedOperationProblem],
-    },
-  },
   /** Follow one notebook as a stream. */
   "notebook.events": {
     method: "GET",
@@ -319,6 +301,24 @@ export const operations = {
       404: [Protocol.NotFoundProblem],
       409: [Protocol.ConflictProblem, Protocol.DecisionRequiredProblem],
       412: [Protocol.PreconditionFailedProblem],
+      500: [Protocol.InternalProblem],
+      501: [Protocol.UnsupportedOperationProblem],
+    },
+  },
+  /** Publish a custom event. */
+  "notebook.emit": {
+    method: "POST",
+    path: "/notebooks/{notebook_id}/emit",
+    query: {},
+    headers: { "idempotency-key": true },
+    body: Protocol.EmitRequest,
+    responses: { 204: null },
+    problems: {
+      400: [Protocol.InvalidRequestProblem],
+      401: [Protocol.UnauthorizedProblem],
+      403: [Protocol.ForbiddenProblem],
+      404: [Protocol.NotFoundProblem],
+      409: [Protocol.ConflictProblem],
       500: [Protocol.InternalProblem],
       501: [Protocol.UnsupportedOperationProblem],
     },

@@ -438,8 +438,6 @@ represent that state separately rather than relying on custom events alone.
 Custom events do not belong to a run and are excluded when `run_id` is set.
 They do not appear on the catalog stream.
 
-Clients can publish custom events with [`notebook.emit`](#sending-custom-events).
-
 ## Editing and running notebooks
 
 ### Capabilities
@@ -455,9 +453,9 @@ A host answers `501 unsupported-operation` to an operation it does not offer,
 and `403 forbidden` to one the project or notebook does not permit for this
 client.
 
-Hosts MUST authorize `runtime.run`, `runtime.execute`, `notebook.edit`, and
-`notebook.emit` independently. A notebook may permit rerunning its cells without
-permitting edits or scratch execution.
+Hosts MUST authorize `runtime.run`, `runtime.execute`, and `notebook.edit`
+independently. A notebook may permit rerunning its cells without permitting
+edits or scratch execution.
 
 Source visibility and editing permission are independent. A client MAY display
 available source without `notebook.edit`. An editor for existing source needs
@@ -646,39 +644,6 @@ The answered event carries the reply's key, and cancellation carries the
 cancelling request's key when there is one. Subsequent run and execution events
 keep their original request key, so clients can continue following the run
 independently of its answers.
-
-### Sending custom events
-
-A client publishes a custom event with `notebook.emit`.
-
-```http
-POST /notebooks/{notebook_id}/emit
-Idempotency-Key: emit-1
-Content-Type: application/json
-
-{ "type": "example.message", "data": { "text": "hello" } }
-```
-
-The request MUST contain a nonempty `type` and a `data` field with any JSON
-value, including null. The producer defines the type and payload under the
-[custom event rules](#custom-events). The host MUST NOT interpret the payload.
-
-For each accepted `notebook.emit` request, the host MUST publish exactly one
-custom event with the submitted `type` and `data`.
-Its `request_id` MUST be the request's `Idempotency-Key`. Each reader of the
-notebook receives the event when its stream filters include custom events.
-If a feature needs recipient information, its producer defines that information
-in the payload.
-Consumers decide which events to act on.
-
-The host answers `204 No Content` after publication. This response does not
-prove that any client received or processed the event. The operation follows
-the [idempotency rules](#requests-and-decisions), so an accepted retry within
-the retry window MUST NOT publish a second event.
-
-The event participates in cursor-based replay while its history remains.
-It MUST NOT appear in a snapshot. Once its history expires, a reset cannot
-recover it. The operation creates no retained object or delivery report.
 
 ## Local discovery
 

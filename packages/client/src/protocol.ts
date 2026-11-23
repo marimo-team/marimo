@@ -2158,6 +2158,25 @@ export const UnknownProblem = zod
 export type UnknownProblem = zod.input<typeof UnknownProblem>;
 export type UnknownProblemOutput = zod.output<typeof UnknownProblem>;
 
+export const EmitRequest = zod
+  .strictObject({
+    type: zod
+      .string()
+      .min(1)
+      .describe(
+        "A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
+      ),
+    data: zod
+      .unknown()
+      .describe(
+        "Any JSON value, including null. The producer defines its schema and consumers of the type validate it.",
+      ),
+  })
+  .describe("A custom event to publish on the notebook stream.");
+
+export type EmitRequest = zod.input<typeof EmitRequest>;
+export type EmitRequestOutput = zod.output<typeof EmitRequest>;
+
 export const UpdateNotebookRequest = zod
   .strictObject({
     path: zod
@@ -2292,25 +2311,6 @@ export type OpenNotebookResponse = zod.input<typeof OpenNotebookResponse>;
 export type OpenNotebookResponseOutput = zod.output<
   typeof OpenNotebookResponse
 >;
-
-export const EmitRequest = zod
-  .strictObject({
-    type: zod
-      .string()
-      .min(1)
-      .describe(
-        "A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
-      ),
-    data: zod
-      .unknown()
-      .describe(
-        "Any JSON value, including null. The producer defines its schema and consumers of the type validate it.",
-      ),
-  })
-  .describe("A custom event to broadcast on the notebook stream.");
-
-export type EmitRequest = zod.input<typeof EmitRequest>;
-export type EmitRequestOutput = zod.output<typeof EmitRequest>;
 
 export const cellConfigInputColumnDefault = null;
 export const cellConfigInputDisabledDefault = false;
