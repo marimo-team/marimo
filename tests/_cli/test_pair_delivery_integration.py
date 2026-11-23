@@ -263,7 +263,8 @@ def test_failed_start_removes_record(tmp_path: Path) -> None:
 
     identity = connection_identity("s_one", "codex", "thread")
     config = ForwarderConfig(
-        "http://127.0.0.1:1",
+        # The child rejects port zero before opening a socket.
+        "http://127.0.0.1:0",
         "s_one",
         identity,
         "private-token",
