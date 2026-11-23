@@ -17,6 +17,28 @@ function read(name: string): unknown {
   return JSON.parse(readFileSync(new URL(name, fixtures), "utf8"));
 }
 
+it.each(
+  [null, false, 42, "text", [1, null], { to: ["agent-1"] }].map((data) => ({
+    data,
+  })),
+)("accepts $data as the data of an emit request", ({ data }) => {
+  const input = { type: "example.message", data };
+  expect(Schema.decodeUnknownSync(S.EmitRequest)(input)).toEqual(input);
+});
+
+it.each([
+  { data: null },
+  { type: "", data: null },
+  { type: "example.message" },
+  { type: "example.message", data: null, to: ["agent-1"] },
+])("rejects an invalid emit request: %j", (input) => {
+  expect(() =>
+    Schema.decodeUnknownSync(S.EmitRequest, { onExcessProperty: "error" })(
+      input,
+    ),
+  ).toThrow(Schema.SchemaError);
+});
+
 const records = {
   "../experimental/analysis/fixtures/analysis.json":
     ExperimentalSchemas.Analysis,

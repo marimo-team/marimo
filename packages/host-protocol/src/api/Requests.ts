@@ -4,6 +4,12 @@ import { Schema } from "effect";
 import { Integer } from "../internal/schema.ts";
 import { ProjectId, CellId, Etag, CodeFingerprint } from "../model/Ids.ts";
 import { Document } from "../model/Document.ts";
+import { Custom } from "../Events.ts";
+
+export const EmitRequest = Custom.annotate({
+  description: "A custom event to broadcast on the notebook stream.",
+  identifier: "EmitRequest",
+});
 
 export const CreateNotebookRequest = Schema.Struct({
   project_id: ProjectId,

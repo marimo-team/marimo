@@ -37,6 +37,9 @@ const save = vi.fn(
       : Effect.succeed(edit),
   ),
 );
+const emit = vi.fn(
+  HttpApiBuilder.handler(Host.Api, "Notebook", "emit", () => Effect.void),
+);
 const events = vi.fn(
   HttpApiBuilder.handler(Host.Api, "Notebook", "events", () =>
     Effect.succeed(
@@ -55,6 +58,7 @@ const notebook = HttpApiBuilder.group(Host.Api, "Notebook", (handlers) =>
   handlers.handleAll({
     delete: () => Effect.void,
     edit: unavailable,
+    emit,
     events,
     open: unavailable,
     reply: unavailable,
@@ -94,6 +98,51 @@ function request(path: string, init?: RequestInit) {
 }
 
 describe("native HTTP implementation", () => {
+  it("decodes an emit request and acknowledges publication without a body", async () => {
+    const payload = {
+      type: "example.message",
+      data: { to: ["agent-1"], text: "hello", details: null },
+    };
+    const response = await request("/notebooks/n/emit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": "emit-1",
+      },
+      body: JSON.stringify(payload),
+    });
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe("");
+    expect(emit.mock.lastCall?.[0]).toMatchObject({
+      params: { notebookId: "n" },
+      headers: { idempotencyKey: "emit-1" },
+      payload,
+    });
+  });
+
+  it.each([
+    { body: { type: "example.message", data: null }, key: undefined },
+    { body: { type: "", data: null }, key: "emit-empty" },
+    { body: { data: null }, key: "emit-no-type" },
+    { body: { type: "example.message" }, key: "emit-no-data" },
+    {
+      body: { type: "example.message", data: null, to: ["agent-1"] },
+      key: "emit-extra",
+    },
+  ])("rejects an invalid emit request: $key", async ({ body, key }) => {
+    const calls = emit.mock.calls.length;
+    const response = await request("/notebooks/n/emit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key === undefined ? {} : { "Idempotency-Key": key }),
+      },
+      body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(400);
+    expect(emit).toHaveBeenCalledTimes(calls);
+  });
+
   it("decodes path, headers and body into the typed save handler", async () => {
     const response = await request("/notebooks/n/save", {
       method: "POST",

@@ -26,6 +26,7 @@ it("closes request bodies and keeps other objects open", () => {
     "CreateNotebookRequest",
     "DeleteCell",
     "EditRequest",
+    "EmitRequest",
     "ExecuteRequest",
     "InputReplyRequest",
     "ReplaceCell",
@@ -39,6 +40,26 @@ it("closes request bodies and keeps other objects open", () => {
   expect(schemas.ReadyEvent.properties).toMatchObject({
     data: { type: "object", additionalProperties: false },
   });
+});
+
+it("defines broadcast emission without closing custom events to future fields", () => {
+  const emit = stable.paths["/notebooks/{notebook_id}/emit"]?.post;
+  expect(emit).toMatchObject({
+    operationId: "notebook.emit",
+    security: [{ hostToken: [] }],
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: { $ref: "#/components/schemas/EmitRequest" },
+        },
+      },
+    },
+  });
+  expect(emit?.responses[204]).toBeDefined();
+  expect(emit?.responses[204]?.content).toBeUndefined();
+  expect(schemas.EmitRequest.additionalProperties).toBe(false);
+  expect(schemas.Custom.additionalProperties).toBeUndefined();
 });
 
 it("puts descriptions beside their schemas and names each problem", () => {
