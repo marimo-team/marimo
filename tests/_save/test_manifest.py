@@ -8,6 +8,7 @@ import copy
 import json
 import os
 import shutil
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Barrier
@@ -40,6 +41,8 @@ from tests._runtime._helpers.session import mocked_kernel_session
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    from _typeshed import TraceFunction
 
     from marimo._runtime.runtime import Kernel
     from marimo._save.stores import Store
@@ -902,11 +905,30 @@ class TestRecording:
             assert len(_entry_keys(manifest)) == 1
 
     @staticmethod
+    @pytest.mark.parametrize("finalize_during_enter", [False, True])
     async def test_a_newer_manifest_is_left_alone(
-        tmp_path: Path, exec_req: ExecReqProvider
+        tmp_path: Path,
+        exec_req: ExecReqProvider,
+        monkeypatch: pytest.MonkeyPatch,
+        finalize_during_enter: bool,
     ) -> None:
         """A manifest from a newer marimo holds records under rules this one
         does not know. A rewrite drops them silently."""
+        if finalize_during_enter:
+            original_settrace = sys.settrace
+
+            class Finalizer:
+                def __del__(self) -> None:
+                    pass
+
+            def settrace(trace: TraceFunction | None) -> None:
+                finalizer = Finalizer()
+                original_settrace(trace)
+                # Model GC invoking Python before the with body is entered.
+                del finalizer
+
+            monkeypatch.setattr(sys, "settrace", settrace)
+
         payload = json.dumps(
             {
                 "version": MANIFEST_VERSION + 1,
@@ -924,7 +946,7 @@ class TestRecording:
                     ),
                 ]
             )
-            assert not k.stderr.messages
+            assert not k.stderr.messages, str(k.stderr)
             assert k.globals["x"] == 42
 
         assert (cache_dir / manifest_name(notebook)).read_bytes() == payload

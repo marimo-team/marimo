@@ -198,7 +198,8 @@ def test_uvicorn_shutdown(mode: str) -> None:
         [sys.executable, "-c", script, mode],
         capture_output=True,
         text=True,
-        timeout=10,
+        # Include cold interpreter imports on loaded CI runners.
+        timeout=60,
     )
     assert result.returncode == (
         -signal.SIGTERM if mode == "sigterm" else 0
