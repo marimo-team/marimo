@@ -161,7 +161,7 @@ anthropic:
 openai:
   - name: GPT-6.2 Astra
     model: gpt-6.2-astra
-    description: ""
+    description: "Advanced reasoning model for complex coding, research, and professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -175,7 +175,7 @@ openai:
 
   - name: GPT-6.2 Sol
     model: gpt-6.2-sol
-    description: ""
+    description: "Efficient reasoning model for everyday coding, knowledge work, and agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -358,7 +358,7 @@ openai:
 google:
   - name: Gemini 4 Neon
     model: gemini-4-neon
-    description: ""
+    description: "Multimodal reasoning model balancing depth and efficiency for complex coding, analytical work, and enterprise workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -625,7 +625,7 @@ google:
 bedrock:
   - name: GPT-6.2 Astra (Global)
     model: global.openai.gpt-6.2-astra
-    description: ""
+    description: "Advanced reasoning model for complex coding, research, and professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -639,55 +639,13 @@ bedrock:
 
   - name: GPT-6.2 Sol (Global)
     model: global.openai.gpt-6.2-sol
-    description: ""
+    description: "Efficient reasoning model for everyday coding, knowledge work, and agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
     output_types: [text]
     release_date: 2026-11-17
     cost: {input: 2, output: 10}
-    reasoning_options:
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1050000, output: 128000}
-
-  - name: GPT-6.2 Astra
-    model: openai.gpt-6.2-astra
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-11-17
-    cost: {input: 8.8, output: 44}
-    reasoning_options:
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1050000, output: 128000}
-
-  - name: GPT-6.2 Sol
-    model: openai.gpt-6.2-sol
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-11-17
-    cost: {input: 2.2, output: 11}
-    reasoning_options:
-      - type: effort
-        values: [low, medium, high, xhigh, max]
-    limits: {context: 1050000, output: 128000}
-
-  - name: GPT-6.2 Astra (US)
-    model: us.openai.gpt-6.2-astra
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-11-17
-    cost: {input: 8.8, output: 44}
     reasoning_options:
       - type: effort
         values: [low, medium, high, xhigh, max]
@@ -1008,7 +966,7 @@ bedrock:
 azure:
   - name: GPT-6.2 Astra
     model: gpt-6.2-astra
-    description: ""
+    description: "Advanced reasoning model for complex coding, research, and professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -1022,7 +980,7 @@ azure:
 
   - name: GPT-6.2 Sol
     model: gpt-6.2-sol
-    description: ""
+    description: "Efficient reasoning model for everyday coding, knowledge work, and agent workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -1386,7 +1344,7 @@ azure:
 ollama:
   - name: hy4
     model: hy4
-    description: ""
+    description: "Mixture-of-Experts model from Tencent designed for coding agents, complex tool use, and productivity tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1952,23 +1910,9 @@ wandb:
     limits: {context: 131072, output: 131072}
 
 opencode-go:
-  - name: Hy4 flash Free
-    model: hy4-flash-free
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-11-16
-    cost: {input: 0, output: 0}
-    reasoning_options:
-      - type: effort
-        values: [none, high]
-    limits: {context: 1048576, output: 65536}
-
   - name: LongCat-2.5
     model: longcat-2.5
-    description: ""
+    description: "Multimodal reasoning model from Meituan for text and image tasks with tool calling"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1978,18 +1922,6 @@ opencode-go:
     reasoning_options:
       - type: toggle
     limits: {context: 1000000, output: 262144}
-
-  - name: Iceman Contributor Free
-    model: iceman-contributor-free
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2026-10-24
-    cost: {input: 0, output: 0}
-    reasoning_options: []
-    limits: {context: 262144, output: 131072}
 
   - name: Qwen4 Max
     model: qwen4-max
