@@ -5,9 +5,12 @@ import { Provider } from "jotai";
 import type React from "react";
 import { describe, expect, it } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { variableName } from "@/__tests__/branded";
+import { Command, CommandList } from "@/components/ui/command";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { PreviewSQLTableList } from "@/core/datasets/request-registry";
-import type { SQLTableListPreview } from "@/core/kernel/messages";
+import type { DataTable, SQLTableListPreview } from "@/core/kernel/messages";
 import type { RequestId } from "@/core/network/DeferredRequestRegistry";
 import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
@@ -114,5 +117,52 @@ describe("TableList deferred discovery", () => {
       expect(screen.queryByText("Loading tables...")).toBeNull();
     });
     expect(PreviewSQLTableList.requests.size).toBe(0);
+  });
+});
+
+describe("TableList search", () => {
+  const table = (name: string): DataTable => ({
+    name,
+    source: "memory",
+    source_type: "local",
+    num_rows: 1,
+    num_columns: 1,
+    columns: [],
+    variable_name: variableName(name),
+  });
+  const tables = [table("orders"), table("customers"), table("order_items")];
+
+  const shownTables = async (searchValue: string) => {
+    const { unmount } = render(
+      <TooltipProvider>
+        <Command shouldFilter={false}>
+          <CommandList>
+            <TableList tables={tables} searchValue={searchValue} />
+          </CommandList>
+        </Command>
+      </TooltipProvider>,
+      { wrapper },
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("Loading tables...")).toBeNull();
+    });
+    const shown = tables
+      .map((t) => t.name)
+      .filter((name) => screen.queryByText(name));
+    unmount();
+    return shown;
+  };
+
+  it("ignores surrounding whitespace in the search", async () => {
+    expect(await shownTables("orders ")).toEqual(["orders"]);
+    expect(await shownTables("  ORDER")).toEqual(["orders", "order_items"]);
+  });
+
+  it("shows every table for a whitespace-only search", async () => {
+    expect(await shownTables(" ")).toEqual([
+      "orders",
+      "customers",
+      "order_items",
+    ]);
   });
 });

@@ -183,6 +183,45 @@ it("activates a schema and a table with the same path independently using the ke
   expect(screen.getByText("No tables found")).toBeInTheDocument();
 });
 
+it("keeps an open schema expanded when the search is only whitespace", async () => {
+  const store = createStore();
+  store.set(requestClientAtom, MockRequestClient.create());
+  store.set(dataSourceConnectionsAtom, {
+    latestEngineSelected: DUCKDB_ENGINE,
+    connectionsMap: new Map([
+      [
+        DUCKDB_ENGINE,
+        {
+          name: DUCKDB_ENGINE,
+          dialect: "duckdb",
+          source: "duckdb",
+          display_name: "DuckDB (In-Memory)",
+          databases: [
+            {
+              name: "memory",
+              dialect: "duckdb",
+              schemas: [{ name: "finance", tables: [table] }],
+            },
+          ],
+        },
+      ],
+    ]),
+  });
+  render(
+    <Provider store={store}>
+      <TooltipProvider>
+        <DataSources />
+      </TooltipProvider>
+    </Provider>,
+  );
+  fireEvent.click(await screen.findByText("memory"));
+  fireEvent.click(await screen.findByText("finance"));
+  expect(await screen.findByText("reports")).toBeInTheDocument();
+
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: " " } });
+  expect(screen.getByText("reports")).toBeInTheDocument();
+});
+
 const stops: Array<() => void> = [];
 afterEach(() => {
   for (const stop of stops.splice(0)) {
