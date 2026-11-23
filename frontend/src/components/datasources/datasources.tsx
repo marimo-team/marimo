@@ -264,7 +264,9 @@ export const DataSources: React.FC = () => {
     );
   }
 
-  const hasSearch = !!searchValue.trim();
+  // Whitespace-only input searches nothing, so it must not reset the tree.
+  const query = searchValue.trim();
+  const hasSearch = !!query;
 
   return (
     <Command
@@ -326,7 +328,7 @@ export const DataSources: React.FC = () => {
                 key={database.name}
                 connection={connection}
                 database={database}
-                searchValue={searchValue}
+                searchValue={query}
               />
             ))}
           </Engine>
@@ -338,9 +340,7 @@ export const DataSources: React.FC = () => {
             <span className="text-xs">Python</span>
           </DatasourceLabel>
         )}
-        {tables.length > 0 && (
-          <TableList tables={tables} searchValue={searchValue} />
-        )}
+        {tables.length > 0 && <TableList tables={tables} searchValue={query} />}
       </CommandList>
     </Command>
   );
