@@ -683,11 +683,14 @@ async def test_clean_notebook_deletes_what_a_session_recorded(
 
 
 def test_clean_notebook_follows_a_tree_that_moved(tmp_path: Path) -> None:
+    """The manifest keeps the name from the old location, and clean still
+    deletes its entries and drops their records."""
     before = tmp_path / "before"
     before.mkdir()
-    tracked_notebook(before)
+    _notebook, _cache_dir, manifest = tracked_notebook(before)
     after = tmp_path / "after"
     before.rename(after)
+    cache_dir = after / "__marimo__" / "cache"
 
     result = CliRunner().invoke(
         main, ["cache", "clean", str(after / "nb.py"), "-y"]
@@ -695,14 +698,15 @@ def test_clean_notebook_follows_a_tree_that_moved(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert "Deleted 1 entry" in result.output
-    assert list((after / "__marimo__" / "cache" / "train").iterdir()) == []
+    assert list((cache_dir / "train").iterdir()) == []
+    assert read_manifest(cache_dir / manifest.name) == {}
 
 
 def test_clean_notebook_keeps_entries_another_notebook_uses(
     tmp_path: Path,
 ) -> None:
-    """Identical code in two notebooks shares one entry, so cleaning one
-    notebook leaves the entry the other still lists."""
+    """Identical code in two notebooks produces the same entry, so a clean of
+    one notebook keeps the entry that the other notebook still lists."""
     notebook, cache_dir, manifest = tracked_notebook(tmp_path)
     write_lazy_entry(cache_dir, "train", H2)
     write_manifest(
@@ -725,8 +729,9 @@ def test_clean_notebook_keeps_entries_another_notebook_uses(
 async def test_a_running_session_does_not_restore_what_clean_removed(
     tmp_path: Path, exec_req: ExecReqProvider
 ) -> None:
-    """A session writes only the records it made since its last write, so a
-    record that clean removed stays removed when the session caches again."""
+    """A session writes only the records that it made since its last manifest
+    write. A record stays removed after clean removes it, even when the
+    session caches to the same block again."""
     from marimo._save.manifest import manifest_name
     from marimo._save.stores.file import FileStore
     from tests._runtime._helpers.factories import default_app_metadata
@@ -754,13 +759,15 @@ async def test_a_running_session_does_not_restore_what_clean_removed(
             [exec_req.get("with mo.persistent_cache('train'):\n    z = 43")]
         )
 
-    records = [
+    records = {
         key
         for blocks in read_manifest(manifest).values()
         for keys in blocks.values()
         for key in keys
-    ]
-    assert len(records) == 1
+    }
+    on_disk = {path.stem for path in (cache_dir / "train").glob("*.jsonl")}
+    assert len(on_disk) == 1
+    assert records == on_disk
 
 
 def test_clean_notebook_keeps_the_record_of_a_marker_that_cannot_be_removed(
@@ -1394,8 +1401,9 @@ def test_prune_keeps_the_entries_of_a_notebook_it_cannot_read_whole(
 
 
 def test_prune_follows_a_tree_that_moved(tmp_path: Path) -> None:
-    """A manifest is named after where its notebook was. Its relative record
-    still names the notebook after the tree moves."""
+    """A manifest is named after the absolute path of its notebook. After the
+    tree moves, the relative record in the manifest still points at the
+    notebook."""
     before = tmp_path / "before"
     before.mkdir()
     cache_dir = make_cache_dir(before)
@@ -1426,9 +1434,10 @@ def test_prune_follows_a_tree_that_moved(tmp_path: Path) -> None:
 def test_prune_keeps_the_entries_of_a_manifest_whose_notebook_is_elsewhere(
     tmp_path: Path,
 ) -> None:
-    """A manifest whose name and record disagree, and whose record names no
-    file, may belong to a cache directory that moved without its notebook.
-    Reading that as a deleted notebook would delete every entry."""
+    """A manifest can have a name that does not match its record and a record
+    that points at no file. That manifest can be in a cache directory that
+    moved without its notebook. If it were read as a deleted notebook, every
+    entry would be deleted."""
     notebook, cache_dir, manifest = tracked_notebook(tmp_path)
     moved = manifest.with_name(manifest.name.replace("nb-", "moved-"))
     manifest.rename(moved)

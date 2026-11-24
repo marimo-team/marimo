@@ -226,7 +226,7 @@ def plan_prune(cache_dir: Path, *, force: bool = False) -> PrunePlan:
         ),
         freed=freed,
         dead_nodes=dead_nodes,
-        # Entries an unreadable manifest lists would read as untracked.
+        # An unreadable manifest can list any entry, so none count as untracked.
         untracked=len(cache_entry_keys(cache_dir) - recorded)
         if readable
         else 0,

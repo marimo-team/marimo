@@ -68,11 +68,11 @@ class CleanPlan:
     """The planned clean of one notebook's entries in one cache directory."""
 
     cache_dir: Path
-    # The manifests written for the notebook. A notebook moved with its cache
-    # directory keeps the manifest named after where it was.
+    # Every manifest written for the notebook. After the notebook and its
+    # cache directory move, the manifest keeps the name from the old location.
     keys: tuple[str, ...] = ()
     entries: frozenset[tuple[str, str]] = frozenset()
-    # Per manifest, the records of the entries the plan deletes.
+    # Per manifest, the records of the entries that are planned for deletion.
     records: tuple[tuple[str, frozenset[tuple[str, str]]], ...] = ()
     freed: CacheDirStats = field(default_factory=CacheDirStats)
     notes: tuple[str, ...] = ()
@@ -97,9 +97,9 @@ def plan_clean(
     """Plan the clean of `notebook`'s entries in `cache_dir`, deleting nothing.
 
     `names` are the names given to `mo.persistent_cache`. An empty `names`
-    plans every entry the notebook's manifests list. An entry that another
-    notebook's manifest also lists is kept, because identical code in two
-    notebooks shares one entry.
+    plans every entry that the notebook's manifests list. An entry that
+    another notebook's manifest also lists is kept, because identical code in
+    two notebooks produces the same entry.
 
     Raises:
         ManifestError: If the notebook's manifest cannot be read as one.
@@ -121,7 +121,8 @@ def plan_clean(
             if key == own_key:
                 raise
             notes.append(
-                f"{key} cannot be read, so entries it shares are not kept: {e}"
+                f"{key} cannot be read, so the entries that it lists can "
+                f"still be deleted: {e}"
             )
             continue
         if manifest is None:

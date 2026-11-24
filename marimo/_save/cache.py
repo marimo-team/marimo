@@ -90,13 +90,14 @@ class CacheState:
     signing_policy: SigningPolicy | None = None
     # Cache keys recorded since the last manifest write, grouped by the store
     # they were written through, then by path hash and block. A manifest
-    # lists only the entries stored beside it. Only these are merged, so a
-    # record that `marimo cache prune` or `clean` removed is not written back.
+    # lists only the entries stored beside it. A manifest write merges only
+    # these records, so a record that `marimo cache prune` or `clean` removed
+    # stays removed.
     manifest_records: dict[Store, dict[str, dict[str, set[str]]]] = field(
         default_factory=dict
     )
-    # Every `(path hash, block, key)` this session recorded, per store, so a
-    # cache hit does not rewrite the manifest on every run.
+    # Every `(path hash, block, key)` that this session recorded, per store.
+    # A cache hit on one of these does not rewrite the manifest.
     manifest_seen: dict[Store, set[tuple[str, str, str]]] = field(
         default_factory=dict
     )

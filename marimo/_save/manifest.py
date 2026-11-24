@@ -112,24 +112,21 @@ def manifest_keys(cache_dir: Path) -> list[str]:
 def manifest_notebook(
     cache_dir: Path, key: str, manifest: CacheManifest
 ) -> Path | None:
-    """The notebook `manifest` was written for, or `None` if that is unknown.
-
-    A manifest records where its notebook was, relative to the cache
-    directory, and its name carries a digest of where that notebook was in
-    full. After the tree holding both moves, the name no longer matches, but
-    a relative record that still names a notebook is that notebook. An
-    absolute record, or one that names nothing, does not say which source to
-    read: treating it as a deleted notebook would delete every entry it
-    lists.
-    """
+    """The notebook that `manifest` was written for, or `None` if unknown."""
     if not manifest.notebook:
         return None
     record = Path(manifest.notebook)
     notebook = normalize_path(cache_dir / record)
     if manifest_name(notebook) == key:
         return notebook
+    # The name holds a digest of the notebook's absolute path, so it stops
+    # matching after the notebook and its cache directory move together. The
+    # relative record still points at the notebook.
     if not record.is_absolute() and notebook.is_file():
         return notebook
+    # An absolute record, or one that points at no file, does not say which
+    # notebook to read. If it were read as a deleted notebook, every entry
+    # that it lists would be deleted.
     return None
 
 

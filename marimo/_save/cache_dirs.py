@@ -1115,7 +1115,8 @@ def _cache_dirs_under(root: Path) -> Iterator[Path]:
 
 def _log_walk_error(error: OSError) -> None:
     # os.walk swallows these by default, and an unreadable subtree then
-    # reads as holding no caches. A subtree removed mid-walk holds none.
+    # reads as holding no caches. A subtree that was removed during the walk
+    # holds no caches.
     if isinstance(error, FileNotFoundError):
         return
     LOGGER.warning("Skipping %s: %s", error.filename, error)
