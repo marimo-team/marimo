@@ -1,6 +1,6 @@
 {
   "prompt": "Pair with me on this running marimo notebook.\n\nURL: {url}\n{notebook}{session}\nRun `{command} pair --help` first.\nUse `{command}` for all marimo commands.{authentication}",
-  "notebook": "Notebook: {notebook} (use --session for execution)\n",
+  "notebook": "Notebook: {notebook} (use --notebook for execution)\n",
   "token_file": "\n\nFor explicit server authentication, pass `--token-file {token_file}`.",
   "token": "\n\nFor explicit server authentication, set `export MARIMO_TOKEN={token}` in the shell that runs marimo.",
   "session": "Session: {session}\n"

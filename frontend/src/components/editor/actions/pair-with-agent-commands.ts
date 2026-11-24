@@ -93,7 +93,7 @@ export function getRawPrompt(
       notebook: notebook
         ? formatPrompt(
             templates?.notebook ??
-              "Notebook: {notebook} (use --session for execution)\n",
+              "Notebook: {notebook} (use --notebook for execution)\n",
             {
               notebook,
             },
