@@ -229,6 +229,26 @@ def test_discovery_reads_the_live_record_without_exposing_it(
         writer.remove()
 
 
+def test_stale_cleanup_does_not_open_the_record_it_just_published(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    pending: list[Thread] = []
+    monkeypatch.setattr(Thread, "start", lambda worker: pending.append(worker))
+    open_record = Mock(wraps=record_module._open_record)
+    monkeypatch.setattr(record_module, "_open_record", open_record)
+    writer = record_module.HostRecordFile(
+        url="http://127.0.0.1:2718/api/marimo/v1", token="private-token"
+    )
+    writer.write()
+    try:
+        [cleanup] = pending
+        cleanup.run()
+        open_record.assert_not_called()
+    finally:
+        writer.remove()
+
+
 @pytest.mark.parametrize(
     "invalid",
     [
