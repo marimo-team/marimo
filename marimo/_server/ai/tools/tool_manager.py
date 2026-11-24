@@ -8,8 +8,6 @@ from starlette.applications import (
 )
 
 from marimo import _loggers
-from marimo._ai._tools.base import ToolBase, ToolContext
-from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
 from marimo._config.types import CopilotMode
 from marimo._server.ai.mcp.client import get_mcp_client
 from marimo._server.ai.tools.types import (
@@ -29,6 +27,8 @@ if TYPE_CHECKING:
         Tool as MCPRawTool,
     )
 
+    from marimo._ai._tools.base import ToolBase
+
 LOGGER = _loggers.marimo_logger()
 
 
@@ -45,6 +45,11 @@ class ToolManager:
     @once
     def _init_backend_tools(self) -> None:
         """Initialize backend tools. We lazily register tools here instead of in the constructor for performance"""
+        from marimo._ai._tools.base import ToolContext
+        from marimo._ai._tools.tools_registry import (
+            SUPPORTED_BACKEND_AND_MCP_TOOLS,
+        )
+
         context = ToolContext(app=self.app)
 
         for tool in SUPPORTED_BACKEND_AND_MCP_TOOLS:

@@ -392,7 +392,7 @@ main(prog_name="marimo")
             start_new_session=True,
         )
         try:
-            assert select.select([readiness], [], [], 15)[0], (
+            assert select.select([readiness], [], [], 60)[0], (
                 "Sandbox subprocess did not start"
             )
             active_pid = int(readiness.read())

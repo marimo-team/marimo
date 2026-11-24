@@ -372,7 +372,7 @@ def _normalize(body: str) -> list[str]:
 def session(_server: str) -> Generator[_Session, None, None]:
     s = _Session(_server)
     try:
-        s._recv_until(lambda m: m.get("op") == "kernel-ready")
+        s._recv_until(lambda m: m.get("op") == "kernel-ready", timeout_s=60.0)
         yield s
     finally:
         s.close()

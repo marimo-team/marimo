@@ -10,6 +10,7 @@ import pytest
 
 from marimo._environments import script_metadata
 from marimo._environments.uv import UvNotFoundError, is_uv_available
+from tests._environments._carrier_worker import enter_carrier
 
 HAS_UV = is_uv_available()
 
@@ -416,16 +417,6 @@ pyproject: |
     assert list(tmp_path.iterdir()) == [notebook]
 
 
-def _enter_carrier(notebook, attempting, entered, temporary_directory):
-    if temporary_directory is not None:
-        import tempfile
-
-        tempfile.tempdir = temporary_directory
-    attempting.set()
-    with script_metadata.materialized_for_environment(notebook):
-        entered.set()
-
-
 @pytest.mark.parametrize("separate_process", [False, True])
 def test_stable_carrier_lifetime_is_serialized(
     tmp_path: Path, separate_process: bool
@@ -444,7 +435,7 @@ def test_stable_carrier_lifetime_is_serialized(
     temporary_directory = tmp_path / "worker-tmp"
     temporary_directory.mkdir()
     worker = worker_type(
-        target=_enter_carrier,
+        target=enter_carrier,
         args=(
             str(notebook),
             attempting,
@@ -452,14 +443,21 @@ def test_stable_carrier_lifetime_is_serialized(
             str(temporary_directory) if separate_process else None,
         ),
     )
-    with script_metadata.materialized_for_environment(
-        str(notebook)
-    ) as materialized:
-        worker.start()
-        assert attempting.wait(timeout=10)
-        assert not entered.wait(timeout=0.2)
-        assert Path(materialized.path).exists()
-    worker.join(timeout=10)
+    try:
+        with script_metadata.materialized_for_environment(
+            str(notebook)
+        ) as materialized:
+            worker.start()
+            # Allow cold interpreter startup before checking lock contention.
+            assert attempting.wait(timeout=60)
+            assert not entered.wait(timeout=0.2)
+            assert Path(materialized.path).exists()
+    finally:
+        worker.join(timeout=10)
+        if separate_process and worker.is_alive():
+            worker.terminate()
+            worker.join(timeout=10)
+            pytest.fail("Carrier worker did not exit after releasing the lock")
     assert not worker.is_alive()
     assert entered.is_set()
     assert not Path(materialized.path).exists()
