@@ -779,9 +779,10 @@ def _contextual_defaults(reader: ConfigReader) -> PartialMarimoConfig:
     if project.pyproject_path is None and _is_home_directory(root):
         # Avoid exposing ~/.env merely because a workspace opened at home.
         return {}
+    dotenv = (root / ".env").absolute()
     return cast(
         PartialMarimoConfig,
-        {"runtime": {"dotenv": [str((root / ".env").absolute())]}},
+        {"runtime": {"dotenv": [str(dotenv)] if dotenv.is_file() else []}},
     )
 
 
