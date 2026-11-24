@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import asyncio
 import os
+import signal
 import stat
+import subprocess
 import sys
+from contextlib import ExitStack
 from threading import Thread
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import msgspec
 import pytest
@@ -229,6 +231,116 @@ def test_discovery_reads_the_live_record_without_exposing_it(
         writer.remove()
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX lifetime locks")
+def test_next_publisher_prunes_only_the_crashed_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    if not record_module.record_lock._has_local_locks(tmp_path.stat().st_dev):
+        pytest.skip("test directory does not support local record locks")
+    directory = record_module.marimo_state_dir() / "hosts-v1"
+    url = "http://127.0.0.1:2718/api/marimo/v1"
+    pending: list[Thread] = []
+    monkeypatch.setattr(Thread, "start", lambda worker: pending.append(worker))
+    with ExitStack() as cleanup:
+        live = record_module.HostRecordFile(url=url, token="live")
+        live.write()
+        cleanup.callback(live.remove)
+        pending.pop().run()
+        [live_path] = directory.iterdir()
+
+        child = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import os, signal, sys\n"
+                    "from marimo._server.host.record import HostRecordFile\n"
+                    "HostRecordFile(url=sys.argv[1], token='crashed').write()\n"
+                    "os.kill(os.getpid(), signal.SIGKILL)"
+                ),
+                url,
+            ],
+            timeout=15,
+        )
+        assert child.returncode == -signal.SIGKILL
+        [crashed] = set(directory.iterdir()) - {live_path}
+        legacy = directory / "legacy.json"
+        legacy.write_bytes(crashed.read_bytes())
+        legacy.chmod(0o600)
+        invalid = directory / f"{record_module._LOCKED_PREFIX}{'0' * 32}.json"
+        invalid.write_bytes(b"{}")
+        invalid.chmod(0o600)
+        public = directory / f"{record_module._LOCKED_PREFIX}{'1' * 32}.json"
+        public.write_bytes(crashed.read_bytes())
+        public.chmod(0o644)
+
+        new = record_module.HostRecordFile(url=url, token="new")
+        new.write()
+        cleanup.callback(new.remove)
+        [worker] = pending
+        assert worker.daemon
+        assert crashed.exists()
+        worker.run()
+        assert set(directory.iterdir()) == {
+            live_path,
+            new._path,
+            legacy,
+            invalid,
+            public,
+        }
+        assert {r.token for r in record_module.discover_hosts()} == {
+            "live",
+            "new",
+        }
+
+
+@pytest.mark.parametrize("known_filesystem", [False, True])
+def test_publication_without_local_locks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, known_filesystem: bool
+) -> None:
+    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    if os.name == "posix":
+        monkeypatch.setattr(
+            record_module.record_lock,
+            "_has_local_locks",
+            lambda _: known_filesystem,
+        )
+        monkeypatch.setattr(
+            record_module.record_lock, "try_lock", lambda _: False
+        )
+    pending: list[Thread] = []
+    monkeypatch.setattr(Thread, "start", lambda worker: pending.append(worker))
+    host = record_module.HostRecordFile(
+        url="http://127.0.0.1:2718", token="live"
+    )
+    host.write()
+    try:
+        [path] = (tmp_path / "hosts-v1").iterdir()
+        assert not path.name.startswith(record_module._LOCKED_PREFIX)
+        assert list(record_module.discover_hosts()) == [host._record]
+        assert pending == []
+    finally:
+        host.remove()
+    assert not path.exists()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux mount table")
+def test_lock_scope_follows_the_device_of_the_record(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import mock_open
+
+    mounts = (
+        "10 1 8:1 / / rw - ext4 /dev/sda1 rw\n"
+        "11 10 0:42 / /home rw - nfs4 server:/home rw,local_lock=all\n"
+    )
+    monkeypatch.setattr("builtins.open", mock_open(read_data=mounts))
+    assert record_module.record_lock._has_local_locks(os.makedev(8, 1))
+    assert not record_module.record_lock._has_local_locks(os.makedev(0, 42))
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX discovery validation")
 @pytest.mark.parametrize(
     "invalid",
     [
@@ -238,29 +350,22 @@ def test_discovery_reads_the_live_record_without_exposing_it(
         "remote",
         "credentials",
         "stale",
-        "exited",
-        "access-denied",
-        "missing-offset",
-        "fallback",
         "large",
         "version",
     ],
 )
-def test_discovery_and_cleanup_of_untrusted_records(
+def test_discovery_skips_untrusted_records(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, invalid: str
 ) -> None:
     import json
 
-    if os.name != "posix" and invalid in ("directory", "file", "symlink"):
-        pytest.skip("POSIX discovery permissions")
     monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
     writer = record_module.HostRecordFile(
         url="http://127.0.0.1:2718/api/marimo/v1", token="private-token"
     )
-    pending: list[Thread] = []
-    monkeypatch.setattr(Thread, "start", lambda worker: pending.append(worker))
     writer.write()
-    path = writer._path.rename(writer._path.with_name("other.json"))
+    path = writer._path
+    assert path is not None
     data = json.loads(path.read_bytes())
     if invalid == "directory":
         path.parent.chmod(0o755)
@@ -279,30 +384,11 @@ def test_discovery_and_cleanup_of_untrusted_records(
             data["url"] = "http://user@127.0.0.1:2718/api/marimo/v1"
         elif invalid == "stale":
             data["process"]["started_at"] = "2000-01-01T00:00:00Z"
-        elif invalid in ("exited", "access-denied"):
-            import psutil
-
-            error = (
-                psutil.NoSuchProcess
-                if invalid == "exited"
-                else psutil.AccessDenied
-            )
-            monkeypatch.setattr(
-                psutil.Process, "status", Mock(side_effect=error(os.getpid()))
-            )
-        elif invalid == "fallback":
-            data["process"]["started_at"] = "2100-01-01T00:00:00Z"
-        elif invalid == "missing-offset":
-            data["process"]["started_at"] = "2000-01-01T00:00:00"
         else:
             data["version"] = 2
         path.write_text(json.dumps(data))
     try:
         assert list(record_module.discover_hosts()) == []
         assert path.exists()
-        [cleanup] = pending
-        assert cleanup.daemon
-        cleanup.run()
-        assert path.exists() == (invalid not in ("stale", "exited"))
     finally:
         writer.remove()
