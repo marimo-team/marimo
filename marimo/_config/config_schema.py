@@ -248,7 +248,7 @@ class DisplayConfig(Config, kw_only=True):
         Theme, Meta(description='`"light"`, `"dark"`, or `"system"`')
     ] = "light"
     code_editor_font_size: Annotated[
-        int, Meta(description="font size for the code editor")
+        int | float, Meta(description="font size for the code editor")
     ] = 14
     cell_output: Annotated[
         Literal["above", "below"], Meta(description='`"above"` or `"below"`')

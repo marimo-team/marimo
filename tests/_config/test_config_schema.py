@@ -525,3 +525,11 @@ def test_removed_codeium_provider_preserves_other_settings() -> None:
         completion=config_schema.CompletionConfig(auto_close_pairs=False),
         display=config_schema.DisplayConfig(theme="dark"),
     )
+
+
+@pytest.mark.parametrize("font_size", [14, 14.5, 19.5])
+def test_load_fractional_font_size(font_size: float) -> None:
+    from marimo._config.config import parse_config
+
+    config = parse_config({"display": {"code_editor_font_size": font_size}})
+    assert config.display.code_editor_font_size == font_size
