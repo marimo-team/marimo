@@ -345,6 +345,7 @@ def test_manager_tracks_file_environment_default_and_security_sources(
     )
     monkeypatch.setenv("MARIMO_SERVER_TRANSPORT", "sse")
     monkeypatch.setattr(GLOBAL_SETTINGS, "RESTRICT_SHARING", True)
+    (tmp_path / ".env").touch()
     manager = MarimoConfigManager(
         user,
         PyprojectConfigReader(str(tmp_path)),
