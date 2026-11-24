@@ -41,6 +41,19 @@ it("closes request bodies and keeps other objects open", () => {
   });
 });
 
+it("defines broadcast emission without closing custom events to future fields", () => {
+  const path = "/notebooks/{notebook_id}/emit";
+  expect(stable.paths).not.toHaveProperty(path);
+  expect(schemas).not.toHaveProperty("EmitRequest");
+  expect(experimental.paths[path]?.post?.operationId).toBe("notebook.emit");
+  expect(experimental.components.schemas.EmitRequest.additionalProperties).toBe(
+    false,
+  );
+  expect(
+    experimental.components.schemas.Custom.additionalProperties,
+  ).toBeUndefined();
+});
+
 it("puts descriptions beside their schemas and names each problem", () => {
   expect(JSON.stringify(stable)).not.toContain('"allOf"');
   expect(

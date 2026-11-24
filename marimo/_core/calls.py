@@ -68,6 +68,28 @@ class EditCall(_Call, frozen=True, tag="notebook.edit"):
         )
 
 
+class EmitCall(_Call, frozen=True, tag="notebook.emit"):
+    """Publish a custom event on the notebook stream."""
+
+    METHOD = "POST"
+    PATH = "/notebooks/{notebook_id}/emit"
+
+    params: NotebookParams
+    headers: MutationHeaders
+    body: protocol.EmitRequest
+
+    async def handle(
+        self, bridge: NotebookBridge
+    ) -> tuple[Literal[204], None]:
+        notebook = await bridge.host.notebook(self.params.notebook_id)
+        notebook.emit(
+            self.body.type,
+            self.body.data,
+            request_id=self.headers.idempotency_key,
+        )
+        return 204, None
+
+
 class SaveCall(_Call, frozen=True, tag="notebook.save"):
     """Write the document to the host's store."""
 
@@ -268,6 +290,7 @@ class InputCall(_Call, frozen=True, tag="input.reply"):
 
 OperationCall = (
     EditCall
+    | EmitCall
     | SaveCall
     | StartCall
     | StopCall
@@ -284,6 +307,7 @@ OperationCall = (
 # `typing.get_args` would return them untyped.
 CALLS: tuple[type[OperationCall], ...] = (
     EditCall,
+    EmitCall,
     SaveCall,
     StartCall,
     StopCall,

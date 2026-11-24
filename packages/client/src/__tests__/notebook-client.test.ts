@@ -52,6 +52,40 @@ afterEach(() => {
 });
 
 describe("NotebookClient", () => {
+  it("rejects non-JSON event data before sending it", async () => {
+    const { notebook, fetch } = connect(
+      () => new Response(null, { status: 204 }),
+    );
+    const json = z.json();
+    expectTypeOf<Parameters<typeof notebook.emit>[0]["data"]>().toEqualTypeOf<
+      z.input<typeof json>
+    >();
+    await expect(
+      notebook.emit({ type: "example.message", data: [NaN] }),
+    ).rejects.toBeInstanceOf(z.ZodError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("emits a custom event over HTTP without a response body", async () => {
+    const { notebook, sent } = connect(
+      () => new Response(null, { status: 204 }),
+    );
+    const event = { type: "example.message", data: { text: "hello" } };
+
+    expect(await notebook.emit(event, { idempotencyKey: "emit-1" })).toEqual({
+      ok: true,
+      status: 204,
+      data: undefined,
+    });
+    const request = sent();
+    expect(request.method).toBe("POST");
+    expect(request.url).toBe(
+      "http://127.0.0.1:2718/api/marimo/v1/notebooks/n1/emit",
+    );
+    expect(request.headers.get("Idempotency-Key")).toBe("emit-1");
+    expect(await request.json()).toEqual(event);
+  });
+
   it("narrows a failed edit by its problem type", async () => {
     const problem = readFixture("problems/precondition-failed.json");
     const { notebook } = connect(() =>
@@ -389,6 +423,7 @@ describe("NotebookClient", () => {
       "notebook.delete": "delete",
       "notebook.open": "open",
       "notebook.edit": "edit",
+      "notebook.emit": "emit",
       "notebook.save": "save",
       "runtime.start": "start",
       "runtime.stop": "stop",
@@ -410,6 +445,17 @@ function over(reply: (call: unstable_NotebookCall) => unknown) {
 }
 
 describe("NotebookClient.unstable_over", () => {
+  it("decodes a bodyless emit reply on the call transport", async () => {
+    const { notebook } = over(() => ({ status: 204, body: null }));
+    const event = { type: "example.message", data: null };
+
+    expect(await notebook.emit(event, { idempotencyKey: "emit-1" })).toEqual({
+      ok: true,
+      status: 204,
+      data: undefined,
+    });
+  });
+
   it("sends each method as its call", async () => {
     const response = readFixture("edit-response.json");
     const { notebook, send } = over(() => ({ status: 200, body: response }));

@@ -465,8 +465,8 @@ remove the notebook's execution records, outputs, or runtime state.
 ### Requests and decisions
 
 Requests can produce changes after their HTTP response has arrived. The host
-includes a client-supplied request key in related events, allowing clients to
-follow the effects of their actions on the shared notebook stream.
+includes the request's `Idempotency-Key` as `request_id` in related events
+so clients can follow their actions on the shared notebook stream.
 
 The same key makes a request safe to retry within the host's documented retry
 window. Once a request is accepted, hosts MUST recognize its retries within that

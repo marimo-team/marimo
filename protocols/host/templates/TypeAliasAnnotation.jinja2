@@ -8,7 +8,13 @@ Annotated[{{ _field.type_hint }}, {{ _field.field }}]
 {%- endif -%}
 {%- endmacro -%}
 
-{%- if newtype %}
+{%- if class_name == "JsonValue" %}
+if TYPE_CHECKING:
+    JsonValue: TypeAlias = str | int | float | bool | None | list["JsonValue"] | dict[str, "JsonValue"]
+else:
+    # msgspec cannot decode recursive aliases. Its JSON decoder returns JSON values.
+    JsonValue = object
+{%- elif newtype %}
 if TYPE_CHECKING:
     {{ class_name }} = NewType("{{ class_name }}", {{ fields[0].type_hint }})
 else:

@@ -74,7 +74,7 @@ def test_execution_calls_reject_the_other_operations_payload(operation, body):
 
 
 def test_calls_match_the_spec() -> None:
-    document = host_openapi()
+    document = host_openapi(experimental=True)
 
     def resolve(value: dict[str, Any]) -> dict[str, Any]:
         if "$ref" not in value:
@@ -102,7 +102,8 @@ def test_calls_match_the_spec() -> None:
         operation_id
         for operation_id in specified
         if operation_id.startswith("runtime.")
-        or operation_id in {"input.reply", "notebook.edit", "notebook.save"}
+        or operation_id
+        in {"input.reply", "notebook.edit", "notebook.emit", "notebook.save"}
     }
 
     for kind in CALLS:
@@ -154,4 +155,7 @@ def test_calls_match_the_spec() -> None:
         }
         assert set(get_args(statuses)) == set(success)
         for value in success.values():
-            assert schema_name(value["content"]) == response.__name__
+            if response in (None, type(None)):
+                assert "content" not in value
+            else:
+                assert schema_name(value["content"]) == response.__name__

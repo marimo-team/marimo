@@ -61,7 +61,7 @@ export const Custom = Schema.Struct({
     description:
       "A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
   }),
-  data: Schema.Json.annotateKey({
+  data: Schema.Json.annotate({ identifier: "JsonValue" }).annotateKey({
     description:
       "Any JSON value, including null. The producer defines its schema and consumers of the type validate it.",
   }),

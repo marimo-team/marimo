@@ -28,6 +28,8 @@ const records = {
   "edit.json": S.EditRequest,
   "stale-edit-request.json": S.EditRequest,
   "edit-response.json": S.EditResponse,
+  "../experimental/emit/fixtures/emit-request.json":
+    ExperimentalSchemas.EmitRequest,
   "execution-restored.json": S.Execution,
   "run-cells-request.json": S.RunRequest,
   "execute-request.json": S.ExecuteRequest,

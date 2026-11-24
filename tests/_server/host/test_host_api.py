@@ -682,6 +682,73 @@ async def test_a_reconnect_with_one_identity_attaches_fresh(
     await asyncio.wait_for(second_task, 5)
 
 
+async def test_retrying_emit_publishes_once(harness: Harness) -> None:
+    nid = harness.notebook_id
+    cursor = harness.host.events(notebook_id=nid)[-1].event.id
+    assert isinstance(cursor, str)
+    body = {"type": "example.message", "data": {"text": "hello"}}
+    for _ in range(2):
+        response = await finished(
+            harness.app,
+            "POST",
+            f"/notebooks/{nid}/emit",
+            headers=key("emit-1"),
+            body=msgspec.json.encode(body),
+        )
+        assert (response.status, response.body) == (204, b"")
+
+    (message,) = [
+        record.event.data
+        for record in harness.host.events(cursor, notebook_id=nid)
+        if isinstance(record.event, protocol.CustomEvent)
+    ]
+    assert msgspec.to_builtins(message.custom) == body
+    assert message.request_id == "emit-1"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"type":"","data":null}',
+        b'{"type":"example.message","data":null,"to":[]}',
+    ],
+)
+async def test_invalid_emit_publishes_nothing(
+    harness: Harness, body: bytes
+) -> None:
+    cursor = harness.host.events(notebook_id=harness.notebook_id)[-1].event.id
+    assert isinstance(cursor, str)
+    response = await finished(
+        harness.app,
+        "POST",
+        f"/notebooks/{harness.notebook_id}/emit",
+        headers=key("invalid"),
+        body=body,
+    )
+
+    assert response.status == 400
+    assert response.json()["type"] == "urn:marimo:problem:invalid-request"
+    assert all(
+        not isinstance(e.event, protocol.CustomEvent)
+        for e in harness.host.events(cursor, notebook_id=harness.notebook_id)
+    )
+
+
+async def test_emit_to_an_unknown_notebook_is_not_found(
+    harness: Harness,
+) -> None:
+    response = await finished(
+        harness.app,
+        "POST",
+        "/notebooks/missing/emit",
+        headers=key("missing"),
+        body=b'{"type":"example.message","data":null}',
+    )
+
+    assert response.status == 404
+    assert response.json()["type"] == "urn:marimo:problem:not-found"
+
+
 async def test_custom_events_use_their_own_sse_kind(
     harness: Harness,
 ) -> None:

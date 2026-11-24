@@ -1475,6 +1475,11 @@ export const AnalysisEvent = zod
 export type AnalysisEvent = zod.input<typeof AnalysisEvent>;
 export type AnalysisEventOutput = zod.output<typeof AnalysisEvent>;
 
+export const JsonValue = zod.json();
+
+export type JsonValue = zod.input<typeof JsonValue>;
+export type JsonValueOutput = zod.output<typeof JsonValue>;
+
 export const Custom = zod
   .object({
     type: zod
@@ -1483,11 +1488,9 @@ export const Custom = zod
       .describe(
         "A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
       ),
-    data: zod
-      .unknown()
-      .describe(
-        "Any JSON value, including null. The producer defines its schema and consumers of the type validate it.",
-      ),
+    data: JsonValue.describe(
+      "Any JSON value, including null. The producer defines its schema and consumers of the type validate it.",
+    ),
   })
   .describe(
     "A notebook occurrence with a producer-defined payload. It is replayed\nwhile event history is retained. Delivery is limited to live events\nand replay on the notebook stream, with `run_id` omitted from the\nstream's filters. The notebook is identified by the stream.\n",
@@ -2157,6 +2160,23 @@ export const UnknownProblem = zod
 
 export type UnknownProblem = zod.input<typeof UnknownProblem>;
 export type UnknownProblemOutput = zod.output<typeof UnknownProblem>;
+
+export const EmitRequest = zod
+  .strictObject({
+    type: zod
+      .string()
+      .min(1)
+      .describe(
+        "A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
+      ),
+    data: JsonValue.describe(
+      "Any JSON value, including null. The producer defines its schema and consumers of the type validate it.",
+    ),
+  })
+  .describe("A custom event to publish on the notebook stream.");
+
+export type EmitRequest = zod.input<typeof EmitRequest>;
+export type EmitRequestOutput = zod.output<typeof EmitRequest>;
 
 export const UpdateNotebookRequest = zod
   .strictObject({

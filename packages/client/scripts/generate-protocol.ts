@@ -182,6 +182,11 @@ try {
     },
   });
   let generated = NodeFs.readFileSync(output, "utf8");
+  // OpenAPI represents any JSON value with {}, which Orval emits as unknown.
+  generated = generated.replace(
+    /^export const JsonValue = zod\.unknown\(\)/m,
+    "export const JsonValue = zod.json()",
+  );
   for (const [name, schema] of Object.entries(schemas)) {
     if (
       typeof schema === "object" &&

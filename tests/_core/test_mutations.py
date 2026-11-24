@@ -9,6 +9,7 @@ import pytest
 from marimo._core import protocol
 from marimo._core.calls import (
     EditCall,
+    EmitCall,
     MutationHeaders,
     NotebookParams,
     OperationCall,
@@ -124,3 +125,25 @@ async def test_calls_check_capabilities_and_keys(bridge, serve):
     )
     assert kind(await serve(edit("edit"))) == "forbidden"
     assert bridge.edits == 0
+
+
+async def test_emit_permission_is_independent_of_editing(bridge, serve):
+    call = EmitCall(
+        PARAMS,
+        MutationHeaders("emit"),
+        protocol.EmitRequest(type="example.message", data=None),
+    )
+    for operations, expected in [
+        (("notebook.edit",), "forbidden"),
+        (("notebook.emit",), None),
+    ]:
+        bridge.host.update_notebook(
+            msgspec.structs.replace(
+                bridge.host.notebooks[NOTEBOOK], operations=operations
+            )
+        )
+        reply = await serve(call)
+        if expected is None:
+            assert reply == (204, None)
+        else:
+            assert kind(reply) == expected

@@ -5,7 +5,7 @@ import { Effect, Layer, Schema, Stream } from "effect";
 import { HttpApiBuilder, HttpApiClient } from "effect/http-api";
 import { FetchHttpClient, HttpRouter, HttpServer } from "effect/http";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import * as Host from "../Host.ts";
+import { Host } from "../experimental.ts";
 import * as Notebook from "../Notebook.ts";
 import * as S from "../Schemas.ts";
 import * as Problems from "../Problems.ts";
@@ -37,6 +37,9 @@ const save = vi.fn(
       : Effect.succeed(edit),
   ),
 );
+const emit = vi.fn(
+  HttpApiBuilder.handler(Host.Api, "Notebook", "emit", () => Effect.void),
+);
 const events = vi.fn(
   HttpApiBuilder.handler(Host.Api, "Notebook", "events", () =>
     Effect.succeed(
@@ -55,6 +58,7 @@ const notebook = HttpApiBuilder.group(Host.Api, "Notebook", (handlers) =>
   handlers.handleAll({
     delete: () => Effect.void,
     edit: unavailable,
+    emit,
     events,
     open: unavailable,
     reply: unavailable,
@@ -81,7 +85,9 @@ const admit = Layer.succeed(
 const app = HttpRouter.toWebHandler(
   HttpApiBuilder.layer(Host.Api).pipe(
     Layer.provide(
-      Layer.mergeAll(host, notebook).pipe(Layer.provideMerge(admit)),
+      Layer.mergeAll(host, notebook).pipe(
+        Layer.provideMerge(Layer.merge(admit, Host.RequestValidation.layer)),
+      ),
     ),
     Layer.provide(HttpServer.layerServices),
   ),
@@ -94,6 +100,52 @@ function request(path: string, init?: RequestInit) {
 }
 
 describe("native HTTP implementation", () => {
+  it("decodes an emit request and acknowledges publication without a body", async () => {
+    const payload = {
+      type: "example.message",
+      data: { to: ["agent-1"], text: "hello", details: null },
+    };
+    const response = await request("/notebooks/n/emit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": "emit-1",
+      },
+      body: JSON.stringify(payload),
+    });
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe("");
+    expect(emit.mock.lastCall?.[0]).toMatchObject({
+      params: { notebookId: "n" },
+      headers: { idempotencyKey: "emit-1" },
+      payload,
+    });
+  });
+
+  it.each([
+    { body: { type: "example.message", data: null }, key: "" },
+    { body: { type: "example.message" }, key: "emit-no-data" },
+  ])(
+    "returns an invalid-request problem before publishing: %j",
+    async ({ body, key }) => {
+      const calls = emit.mock.calls.length;
+      const response = await request("/notebooks/n/emit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": key },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+      expect(response.headers.get("content-type")).toContain(
+        "application/problem+json",
+      );
+      expect(await response.json()).toMatchObject({
+        status: 400,
+        type: "urn:marimo:problem:invalid-request",
+      });
+      expect(emit).toHaveBeenCalledTimes(calls);
+    },
+  );
+
   it("decodes path, headers and body into the typed save handler", async () => {
     const response = await request("/notebooks/n/save", {
       method: "POST",

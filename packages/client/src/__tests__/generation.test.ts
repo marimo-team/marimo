@@ -37,11 +37,11 @@ it.each(["stable", "catalog feature"] as const)(
         import { OpenApi } from "effect/http-api";
         import { makeHostContract } from "./src/contract.ts";
         import { defineFeature } from "./src/experimental/defineFeature.ts";
-        import analysis from "./src/experimental/features/analysis.ts";
+        import { features } from "./src/experimental/index.ts";
         import { referencePolicy } from "./src/Host.ts";
         const badge = Schema.Struct({ label: Schema.String }).annotate({ identifier: "Badge" });
         const feature = defineFeature({ objects: [{ kind: "badge", schema: badge, streams: ["catalog"], removable: false }] });
-        console.log(JSON.stringify(OpenApi.fromApi(makeHostContract([analysis, feature]).Api, { referencePolicy })));
+        console.log(JSON.stringify(OpenApi.fromApi(makeHostContract([...features, feature]).Api, { referencePolicy })));
       `,
               ],
               { cwd: host },

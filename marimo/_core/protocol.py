@@ -160,22 +160,6 @@ class CreateCell(
     cell: CellInput
 
 
-class Custom(Struct, frozen=True):
-    data: Annotated[
-        Any,
-        Meta(
-            description="Any JSON value, including null. The producer defines its schema and consumers of the type validate it."
-        ),
-    ]
-    type: Annotated[
-        str,
-        Meta(
-            description="A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
-            min_length=1,
-        ),
-    ]
-
-
 class DecisionOption(Struct, frozen=True):
     id: Annotated[str, Meta(description="Identifies this answer.")]
     label: Annotated[
@@ -312,6 +296,21 @@ else:
             ),
         ],
     )
+
+
+if TYPE_CHECKING:
+    JsonValue: TypeAlias = (
+        str
+        | int
+        | float
+        | bool
+        | None
+        | list["JsonValue"]
+        | dict[str, "JsonValue"]
+    )
+else:
+    # msgspec cannot decode recursive aliases. Its JSON decoder returns JSON values.
+    JsonValue = object
 
 
 class Media(Struct, frozen=True):
@@ -1018,6 +1017,22 @@ class CreateNotebookRequest(Struct, frozen=True, forbid_unknown_fields=True):
     ) = UNSET
 
 
+class Custom(Struct, frozen=True):
+    data: Annotated[
+        JsonValue,
+        Meta(
+            description="Any JSON value, including null. The producer defines its schema and consumers of the type validate it."
+        ),
+    ]
+    type: Annotated[
+        str,
+        Meta(
+            description="A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
+            min_length=1,
+        ),
+    ]
+
+
 class CustomMessage(Struct, frozen=True):
     custom: Custom
     time: Annotated[
@@ -1160,6 +1175,22 @@ class EditResponse(Struct, frozen=True):
         ),
     ]
     document: Document
+
+
+class EmitRequest(Struct, frozen=True, forbid_unknown_fields=True):
+    data: Annotated[
+        JsonValue,
+        Meta(
+            description="Any JSON value, including null. The producer defines its schema and consumers of the type validate it."
+        ),
+    ]
+    type: Annotated[
+        str,
+        Meta(
+            description="A namespaced event type under a namespace the producer controls, such as `marimo.pair.agent-message`. Clients ignore types they do not recognize while retaining the stream cursor.",
+            min_length=1,
+        ),
+    ]
 
 
 class Error(Struct, frozen=True):

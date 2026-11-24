@@ -3,7 +3,7 @@
 import type { SchemaRepresentation } from "effect";
 import { Api, events } from "./stable.ts";
 
-export { Create, group, HostToken } from "./api/Host.ts";
+export { Create, group, HostToken, RequestValidation } from "./api/Host.ts";
 export { Api };
 export const Group = Api.groups.Host;
 export const Events = Group.endpoints.events;

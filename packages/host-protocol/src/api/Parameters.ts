@@ -23,7 +23,7 @@ export const AttachmentName = Runtime.AttachmentName.annotateKey({
     "A human-readable label copied to the attachment's `name`, such as\n`Notebook CLI`. Omitted or empty means the attachment's name is\nnull. The value must be at most 256 characters; longer values\nreceive a 400 `invalid-request` response.\n",
 });
 
-export const IdempotencyKey = Schema.String.annotateKey({
+export const IdempotencyKey = Schema.NonEmptyString.annotateKey({
   description:
     "A key the client makes up for this request, such as a UUID. It\ndoes two jobs. If the client sends the same request again, for\nexample after a timeout, the host returns the original response\ninstead of doing the work twice. And the host puts the key on\nevery event about the object the request changed, as\n`request_id`, until that object reaches a final status, so the\nclient can tell which changes it caused. Sending the same key with\na different request is a `conflict`. Keys are scoped to the host,\nacross all mutation routes, for a host-documented retry window\nindependent of result and replay retention. Repeating a run request\nreturns its latest run record, even if its outputs have expired.\nOutside that window or after loss of host state, the key may execute\nagain. Error responses do not reserve a key. Clients use fresh keys\nfor new work and decision retries.\n",
 });

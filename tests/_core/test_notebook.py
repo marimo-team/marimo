@@ -1185,7 +1185,7 @@ class TestEmit:
         self, notebook: Notebook, log: list[RoutedEvent]
     ) -> None:
         with pytest.raises(TypeError):
-            notebook.emit("marimo.test", object())
+            notebook.emit("marimo.test", object())  # type: ignore[arg-type]
         assert "custom" not in names(log)
 
     def test_emit_rejects_an_empty_type(
