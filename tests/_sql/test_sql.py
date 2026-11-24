@@ -476,18 +476,13 @@ def test_query_includes_limit() -> None:
 def test_applies_limit(
     mock_replace: MagicMock, variable: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import duckdb
-
     monkeypatch.delenv("MARIMO_RUNTIME_SQL_DEFAULT_LIMIT", raising=False)
     monkeypatch.delenv("MARIMO_SQL_DEFAULT_LIMIT", raising=False)
     with patch.dict(os.environ, {variable: "300"}):
-        duckdb.sql("CREATE OR REPLACE TABLE t AS SELECT * FROM range(1000)")
-        mock_replace.assert_not_called()
-
         table: ui.table
 
         # No limit, fallback to 300
-        assert len(sql("SELECT * FROM t")) == 300
+        assert len(sql("SELECT * FROM range(1000)")) == 300
         mock_replace.assert_called_once()
         table = mock_replace.call_args[0][0]
         assert table._component_args["total-rows"] == "too_many"
@@ -497,7 +492,7 @@ def test_applies_limit(
 
         # Limit 10
         mock_replace.reset_mock()
-        assert len(sql("SELECT * FROM t LIMIT 10")) == 10
+        assert len(sql("SELECT * FROM range(1000) LIMIT 10")) == 10
         mock_replace.assert_called_once()
         table = mock_replace.call_args[0][0]
         assert table._component_args["total-rows"] == 10
@@ -507,7 +502,7 @@ def test_applies_limit(
 
         # Limit 400
         mock_replace.reset_mock()
-        assert len(sql("SELECT * FROM t LIMIT 400")) == 400
+        assert len(sql("SELECT * FROM range(1000) LIMIT 400")) == 400
         mock_replace.assert_called_once()
         table = mock_replace.call_args[0][0]
         assert table._component_args["total-rows"] == 400
@@ -515,12 +510,9 @@ def test_applies_limit(
         assert len(table._data) == 400
         assert table._searched_manager.get_num_rows() == 400
 
-    # Limit above 20_0000 (which is the mo.ui.table cutoff)
+    # Limit above 20_000 (which is the mo.ui.table cutoff)
     mock_replace.reset_mock()
-    duckdb.sql(
-        "CREATE OR REPLACE TABLE big_table AS SELECT * FROM range(30_000)"
-    )
-    assert len(sql("SELECT * FROM big_table LIMIT 25_000")) == 25_000
+    assert len(sql("SELECT * FROM range(30_000) LIMIT 25_000")) == 25_000
     mock_replace.assert_called_once()
     table = mock_replace.call_args[0][0]
     assert table._component_args["total-rows"] == 25_000
