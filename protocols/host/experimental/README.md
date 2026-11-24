@@ -23,7 +23,7 @@ export default defineFeature({ notebook: { endpoints: [Preview] } });
 ```
 
 Import the module in the [experimental entrypoint](../../../packages/host-protocol/src/experimental/index.ts)
-and pass it alongside the other features in `makeHostContract([analysis, preview])`.
+and add it to the `features` list.
 A host that offers the route supplies its handler. Use the catalog group for
 host-wide routes.
 
