@@ -32,26 +32,25 @@ def construct_interrupt_handler() -> SigintHandler:
         del signum
         del frame
 
-        # Resolve the *currently installed* context, not one captured at
-        # install time — embedded apps swap in their own child context.
+        # Read the context that is installed now, not one captured when the
+        # handler was installed, because an embedded app swaps in its own
+        # child context.
         ctx = safe_get_context()
         if not isinstance(ctx, KernelRuntimeContext):
             return
 
-        # `execution_context` is a plain attribute set only for the
-        # duration of a single cell's body via `with_cell_id` (see
-        # `kernel_context.py`); between cells, and around the scheduler's
-        # own bookkeeping, it is `None`. The scheduler publication is the
-        # authoritative "is a run in flight" signal that spans the whole
-        # run; `execution_context` is opportunistic (only used for the
-        # duckdb hook below).
+        # `execution_context` is set only while one cell's body executes, so
+        # it is `None` between cells and during the scheduler's own
+        # bookkeeping. The active scheduler is set for the whole run, and it
+        # indicates that a run is executing. `execution_context` is used
+        # only for the duckdb interrupt below.
         sched = ctx.active_scheduler
         exec_ctx = ctx.execution_context
         if sched is None and exec_ctx is None:
             return
 
-        # DuckDB connections are sometimes left in an inconsistent state
-        # when interrupted by a SIGINT; route through duckdb's own API.
+        # A SIGINT can leave a DuckDB connection in an inconsistent state,
+        # so interrupt it through duckdb's own API.
         if exec_ctx is not None and exec_ctx.duckdb_connection is not None:
             try:
                 exec_ctx.duckdb_connection.interrupt()
@@ -63,9 +62,14 @@ def construct_interrupt_handler() -> SigintHandler:
                 )
 
         if sched is not None and sched.has_active_tasks():
-            # Async cell in flight: cancel via the loop. Raising from a
-            # signal handler escapes into asyncio internals and surfaces
-            # as an internal-error empty RunResult.
+            interrupt = sched.interrupt_current_task()
+            if interrupt is not None:
+                raise interrupt
+            # The signal arrived somewhere else in the async run, such as a
+            # lifecycle hook, the loop itself, or a task left over from a
+            # cell that already ended. A raise there escapes into asyncio
+            # internals or skips lifecycle teardown, so cancel through the
+            # loop instead.
             sched.cancel_all()
             return
 

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.app import AppKernelRunnerRegistry
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 
     from marimo._ast.app import InternalApp
     from marimo._messaging.types import KernelStreams
-    from marimo._runtime.runner.scheduler import Scheduler
+    from marimo._runtime.runner.scheduler import CellBody, Scheduler
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.state import State
     from marimo._runtime.virtual_file import VirtualFileStorageType
@@ -43,10 +44,20 @@ class KernelRuntimeContext(RuntimeContext):
     _app: InternalApp | None = None
     _id_provider: IDProvider | None = None
     _execution_context: ExecutionContext | None = None
-    # Set while a Scheduler's `async with` is open. Lookup goes through
-    # the currently-installed context — not one captured at install
-    # time — so embedded-app child contexts route SIGINT correctly.
+    # The scheduler whose run is executing right now. Set while that
+    # scheduler's `async with` is open. Nested runs save and restore it, so
+    # it always names the innermost run. The SIGINT handler reads it from
+    # the context that is installed at that moment, so an embedded app's
+    # child context routes SIGINT to its own run.
     _active_scheduler: Scheduler | None = None
+    # The scheduler and the cell task whose body the current task is
+    # executing. `None` in a lifecycle hook, between cells, and in a task
+    # that a hook started. A task started inside a body inherits the value,
+    # so the SIGINT handler can interrupt a child task that blocks and can
+    # still find the cell task that the child belongs to.
+    _running_cell_body: ContextVar[CellBody | None] = field(
+        default_factory=lambda: ContextVar("running_cell_body", default=None)
+    )
 
     @property
     def active_scheduler(self) -> Scheduler | None:
