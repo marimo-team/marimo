@@ -7,8 +7,10 @@ import atexit
 import os
 import stat
 import tempfile
+from contextlib import suppress
 from datetime import UTC, datetime
 from ipaddress import IPv6Address, ip_address
+from threading import Thread
 from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -54,16 +56,16 @@ def _process_state(
         process = psutil.Process(identity.pid)
         if process.status() in (psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD):
             return "stale"
-        delta = process.create_time() - identity.started_at.timestamp()
-        if abs(delta) < 1 and process.is_running():
+        start_delta = process.create_time() - identity.started_at.timestamp()
+        if abs(start_delta) < 1 and process.is_running():
             return "live"
-        # The fallback timestamp can be later than the actual process start.
-        if delta >= 1:
+        # An older process may have recorded the fallback timestamp at startup.
+        if start_delta >= 1:
             return "stale"
     except psutil.NoSuchProcess:
         return "stale"
     except (OSError, ValueError, OverflowError, psutil.Error):
-        pass
+        return "unknown"
     return "unknown"
 
 
@@ -180,7 +182,7 @@ class HostRecordFile:
         self._written = False
 
     def write(self) -> None:
-        """Write atomically, with owner-only access on POSIX."""
+        """Publish the record, then clean up abandoned records in the background."""
         directory = self._path.parent
         directory.mkdir(parents=True, exist_ok=True)
         if os.name == "posix":
@@ -206,18 +208,14 @@ class HostRecordFile:
         self._written = True
         atexit.register(self.remove)
         LOGGER.debug("Wrote host record %s", self._path)
+        with suppress(RuntimeError):
+            Thread(target=self._prune_stale, daemon=True).start()
 
-    def prune_stale_siblings(self) -> None:
-        """Remove private records whose host process has ended."""
+    def _prune_stale(self) -> None:
         for path, _ in _host_records(self._path.parent, state="stale"):
-            if path == self._path:
-                continue
-            try:
-                path.unlink(missing_ok=True)
-            except OSError as e:
-                LOGGER.debug(
-                    "Could not remove stale host record %s: %s", path, e
-                )
+            if path != self._path:
+                with suppress(OSError):
+                    path.unlink()
 
     def remove(self) -> None:
         """Remove the record. Safe to call more than once."""

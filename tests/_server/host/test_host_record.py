@@ -7,8 +7,7 @@ import asyncio
 import os
 import stat
 import sys
-import threading
-from datetime import timedelta
+from threading import Thread
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -230,64 +229,6 @@ def test_discovery_reads_the_live_record_without_exposing_it(
         writer.remove()
 
 
-async def test_edit_host_prunes_stale_records_in_the_background(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
-    writer = record_module.HostRecordFile(
-        url="http://127.0.0.1:2718/api/marimo/v1", token="private-token"
-    )
-    directory = tmp_path / "hosts-v1"
-    directory.mkdir(mode=0o700)
-    identity = writer._record.process
-    child = await asyncio.create_subprocess_exec(sys.executable, "-c", "pass")
-    await child.wait()
-    records = {
-        "live": identity,
-        "exited": msgspec.structs.replace(identity, pid=child.pid),
-        "reused": msgspec.structs.replace(
-            identity, started_at=identity.started_at - timedelta(seconds=10)
-        ),
-        "fallback": msgspec.structs.replace(
-            identity, started_at=identity.started_at + timedelta(seconds=10)
-        ),
-    }
-    for name, process in records.items():
-        path = directory / f"{name}.json"
-        path.write_bytes(
-            msgspec.json.encode(
-                msgspec.structs.replace(writer._record, process=process)
-            )
-        )
-        path.chmod(0o600)
-
-    resume, done = threading.Event(), threading.Event()
-    prune = record_module.HostRecordFile.prune_stale_siblings
-
-    def delayed_prune(host: record_module.HostRecordFile) -> None:
-        if resume.wait(timeout=5):
-            prune(host)
-            done.set()
-
-    monkeypatch.setattr(
-        record_module.HostRecordFile, "prune_stale_siblings", delayed_prune
-    )
-    app = create_starlette_app(base_url="", enable_auth=True)
-    get_starlette_server_state_init().apply(app.state)
-    app.state.server = uvicorn.Server(
-        uvicorn.Config(app, host="127.0.0.1", port=1234)
-    )
-    async with host_lifespan(app):
-        assert len(list(record_module.discover_hosts())) == 2
-    resume.set()
-    assert await asyncio.to_thread(done.wait, 5)
-    assert {path.name for path in directory.iterdir()} == {
-        "live.json",
-        "fallback.json",
-    }
-
-
-@pytest.mark.skipif(os.name != "posix", reason="POSIX discovery validation")
 @pytest.mark.parametrize(
     "invalid",
     [
@@ -297,8 +238,10 @@ async def test_edit_host_prunes_stale_records_in_the_background(
         "remote",
         "credentials",
         "stale",
+        "exited",
         "access-denied",
         "missing-offset",
+        "fallback",
         "large",
         "version",
     ],
@@ -308,10 +251,14 @@ def test_discovery_and_cleanup_of_untrusted_records(
 ) -> None:
     import json
 
+    if os.name != "posix" and invalid in ("directory", "file", "symlink"):
+        pytest.skip("POSIX discovery permissions")
     monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
     writer = record_module.HostRecordFile(
         url="http://127.0.0.1:2718/api/marimo/v1", token="private-token"
     )
+    pending: list[Thread] = []
+    monkeypatch.setattr(Thread, "start", lambda worker: pending.append(worker))
     writer.write()
     path = writer._path.rename(writer._path.with_name("other.json"))
     data = json.loads(path.read_bytes())
@@ -332,14 +279,19 @@ def test_discovery_and_cleanup_of_untrusted_records(
             data["url"] = "http://user@127.0.0.1:2718/api/marimo/v1"
         elif invalid == "stale":
             data["process"]["started_at"] = "2000-01-01T00:00:00Z"
-        elif invalid == "access-denied":
+        elif invalid in ("exited", "access-denied"):
             import psutil
 
-            monkeypatch.setattr(
-                psutil.Process,
-                "status",
-                Mock(side_effect=psutil.AccessDenied()),
+            error = (
+                psutil.NoSuchProcess
+                if invalid == "exited"
+                else psutil.AccessDenied
             )
+            monkeypatch.setattr(
+                psutil.Process, "status", Mock(side_effect=error(os.getpid()))
+            )
+        elif invalid == "fallback":
+            data["process"]["started_at"] = "2100-01-01T00:00:00Z"
         elif invalid == "missing-offset":
             data["process"]["started_at"] = "2000-01-01T00:00:00"
         else:
@@ -348,7 +300,9 @@ def test_discovery_and_cleanup_of_untrusted_records(
     try:
         assert list(record_module.discover_hosts()) == []
         assert path.exists()
-        writer.prune_stale_siblings()
-        assert path.exists() == (invalid != "stale")
+        [cleanup] = pending
+        assert cleanup.daemon
+        cleanup.run()
+        assert path.exists() == (invalid not in ("stale", "exited"))
     finally:
         writer.remove()
