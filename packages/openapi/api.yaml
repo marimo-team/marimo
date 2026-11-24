@@ -1730,9 +1730,11 @@ components:
           - above
           - below
         code_editor_font_size:
+          anyOf:
+          - type: integer
+          - type: number
           default: 14
           description: font size for the code editor
-          type: integer
         code_lens:
           default: true
           description: if `True`, show inline icons in cell editors linking datasources,
