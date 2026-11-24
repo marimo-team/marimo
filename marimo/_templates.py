@@ -109,6 +109,7 @@ def _render_page_config(
     html: str,
     *,
     filename: str | None,
+    default_title: str = "marimo",
     cwd: str | None = None,
     lsp_workspace: LspWorkspace | None = None,
     mode: Literal["edit", "home", "read", "gallery"],
@@ -185,13 +186,23 @@ def _render_page_config(
         pair_config=pair_config,
     ).strip()
 
-    # Legacy placeholders are still used by the VS Code plugin.
-    html = html.replace("{{ version }}", options["version"])
-    html = html.replace(
-        "{{ user_config }}", _html_escape(json.dumps(frontend_config))
+    title = (
+        app_config.app_title
+        if app_config is not None and app_config.app_title is not None
+        else default_title
     )
-    html = html.replace("{{ server_token }}", str(server_token))
-    return html.replace(MOUNT_CONFIG_TEMPLATE, mount_config)
+    replacements = {
+        "{{ title }}": _html_escape(title),
+        "{{ filename }}": _html_escape(filename or ""),
+        # Legacy placeholders are still used by the VS Code plugin.
+        "{{ version }}": options["version"],
+        "{{ user_config }}": _html_escape(json.dumps(frontend_config)),
+        "{{ server_token }}": str(server_token),
+        MOUNT_CONFIG_TEMPLATE: mount_config,
+    }
+    # Match the template once so placeholders in notebook content stay literal.
+    pattern = "|".join(map(re.escape, replacements))
+    return re.sub(pattern, lambda m: replacements[m[0]], html)
 
 
 def home_page_template(
@@ -204,8 +215,6 @@ def home_page_template(
     asset_url: str | None = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
-    html = html.replace("{{ title }}", "marimo")
-    html = html.replace("{{ filename }}", "")
 
     html = _replace_asset_urls(html, asset_url)
 
@@ -334,23 +343,13 @@ def notebook_page_template(
                     path_obj.read_text(encoding="utf-8")
                 ).to_notebook_v1()
 
-    html = html.replace(
-        "{{ title }}",
-        _html_escape(
-            parse_title(filename)
-            if app_config.app_title is None
-            else app_config.app_title
-        ),
-    )
-
-    html = html.replace("{{ filename }}", _html_escape(filename or ""))
-
     html = _replace_asset_urls(html, asset_url)
 
     cwd = os.path.dirname(filepath) if filepath else None
     html = _render_page_config(
         html,
         filename=filename,
+        default_title=parse_title(filename),
         cwd=cwd,
         lsp_workspace=lsp_workspace,
         mode="read" if mode == SessionMode.RUN else "edit",
@@ -438,16 +437,6 @@ def static_notebook_template(
 
     html = html.replace("{{ base_url }}", "")
     filename = os.path.basename(filepath or "")
-    html = html.replace(
-        "{{ title }}",
-        _html_escape(
-            parse_title(filepath)
-            if app_config.app_title is None
-            else app_config.app_title
-        ),
-    )
-
-    html = html.replace("{{ filename }}", _html_escape(filename))
 
     # We don't need all this user config when we export the notebook,
     # but we do need some:
@@ -456,6 +445,7 @@ def static_notebook_template(
     html = _render_page_config(
         html,
         filename=filename,
+        default_title=parse_title(filepath),
         cwd=None,  # We don't need the cwd for static notebooks
         mode="read",
         server_token=server_token,
@@ -553,20 +543,11 @@ def wasm_notebook_template(
     body = _replace_asset_urls(html, asset_url)
 
     body = body.replace("{{ base_url }}", "")
-    body = body.replace(
-        "{{ title }}",
-        _html_escape(
-            parse_title(filename)
-            if app_config.app_title is None
-            else app_config.app_title
-        ),
-    )
-
-    body = body.replace("{{ filename }}", _html_escape("notebook.py"))
     body = _render_page_config(
         body,
         # WASM runtime currently expect this to be notebook.py instead of the actual filename
         filename="notebook.py",
+        default_title=parse_title(filename),
         mode="edit" if mode == "edit" else "read",
         server_token=SkewProtectionToken("unused"),
         user_config=user_config,
