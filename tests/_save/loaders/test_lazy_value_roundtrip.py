@@ -137,6 +137,70 @@ if __name__ == "__main__":
 """
 
 
+SUBCLASS_NOTEBOOK_SOURCE = """import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import time
+    import marimo as mo
+    import numpy as np
+    import pandas as pd
+    return mo, np, pd, time
+
+
+@app.cell
+def _(mo, np, pd, time):
+    class Arr(np.ndarray):
+        pass
+
+    class Frame(pd.DataFrame):
+        pass
+
+    class Tag(str):
+        pass
+
+    with mo.persistent_cache("subclasses"):
+        stamp = time.time_ns()
+        arr = np.arange(3).view(Arr)
+        frame = Frame({"a": [1]})
+        tag = Tag("q")
+        text = np.str_("z")
+    print(stamp, *(type(v).__name__ for v in (arr, frame, tag, text)))
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+
+
+@pytest.mark.skipif(not HAS_PANDAS_ARROW, reason="pandas and pyarrow required")
+def test_cell_defined_subclasses_restore_from_cache(tmp_path: Path) -> None:
+    """Instances of classes defined in the cell restore on a cache hit."""
+    nb_path = tmp_path / "notebook.py"
+    nb_path.write_text(SUBCLASS_NOTEBOOK_SOURCE, encoding="utf-8")
+
+    outputs = []
+    for _ in range(2):
+        run = subprocess.run(
+            [sys.executable, str(nb_path)],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+            timeout=120,
+        )
+        assert run.returncode == 0, run.stderr
+        assert "Traceback" not in run.stderr
+        outputs.append(run.stdout.split())
+
+    # The same stamp means the second run restored the block.
+    assert outputs[0] == outputs[1]
+    assert outputs[1][1:] == ["Arr", "Frame", "Tag", "str_"]
+
+
 def test_unpicklable_value_runs_live_on_every_run(tmp_path: Path) -> None:
     """A value that cannot be pickled is recomputed rather than restored."""
     nb_path = tmp_path / "notebook.py"
