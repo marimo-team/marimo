@@ -5586,7 +5586,7 @@ class TestLaunchKernelEventLoop:
                 completion_queue=MagicMock(),
                 input_queue=MagicMock(),
                 stream_queue=MagicMock(),
-                socket_addr=None,
+                stream_target=None,
                 is_edit_mode=is_edit_mode,
                 configs={},
                 app_metadata=default_app_metadata(),
