@@ -489,3 +489,16 @@ def test_removed_codeium_credentials_are_not_exposed() -> None:
             "auto_close_pairs": False,
         }
     }
+
+
+def test_unknown_provider_credentials_remain_redacted() -> None:
+    config = {
+        "ai": {"future_provider": {"api_key": "private-key", "model": "test"}}
+    }
+    assert redact_secrets_partial(config) == {
+        "ai": {"future_provider": {"api_key": "********", "model": "test"}}
+    }
+    assert redact_secrets(MarimoConfig.from_dict(config)).to_dict()["ai"][
+        "future_provider"
+    ] == {"api_key": "********", "model": "test"}
+    assert config["ai"]["future_provider"]["api_key"] == "private-key"
