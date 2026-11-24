@@ -781,7 +781,23 @@ def _known_provider_base_urls() -> dict[str, str]:
     known service (e.g. `https://api.deepseek.com`) points to the correct provider.
     """
     responses, chat = _openai_compatible_provider_names()
-    mapping: dict[str, str] = {"api.moonshot.ai": "moonshotai"}
+    # These defaults have no class-level equivalent in some SDK versions.
+    default_base_urls = {
+        "cerebras": "https://api.cerebras.ai/v1",
+        "crusoe": "https://api.inference.crusoecloud.com/v1",
+        "deepseek": "https://api.deepseek.com",
+        "fireworks": "https://api.fireworks.ai/inference/v1",
+        "github": "https://models.github.ai/inference",
+        "meta": "https://api.meta.ai/v1",
+        "moonshotai": "https://api.moonshot.ai/v1",
+        "nebius": "https://api.studio.nebius.com/v1",
+        "openai-codex": "https://chatgpt.com/backend-api/codex",
+        "openrouter": "https://openrouter.ai/api/v1",
+        "ovhcloud": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+        "together": "https://api.together.xyz/v1",
+        "vercel": "https://ai-gateway.vercel.sh/v1",
+    }
+    mapping: dict[str, str] = {}
     # Sorted so that, if two providers normalize alike, the first wins.
     for name in sorted(responses | chat):
         provider_class = _try_infer_provider_class(name)
@@ -790,10 +806,13 @@ def _known_provider_base_urls() -> dict[str, str]:
         try:
             base_url = object.__new__(provider_class).base_url
         except Exception as e:
-            LOGGER.debug(
-                f"Skipping provider '{name}' during base URL discovery: {e}"
-            )
-            continue
+            default_base_url = default_base_urls.get(name)
+            if default_base_url is None:
+                LOGGER.debug(
+                    f"Skipping provider '{name}' during base URL discovery: {e}"
+                )
+                continue
+            base_url = default_base_url
         normalized = _normalize_base_url(base_url)
         # OpenAI API keys and ChatGPT OAuth share a URL, so it cannot
         # identify which provider to use. Preserve the generic OpenAI fallback.
