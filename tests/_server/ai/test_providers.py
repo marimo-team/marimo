@@ -1165,6 +1165,12 @@ def test_normalize_base_url(
         pytest.param(
             "https://openrouter.ai/api/v1/", "openrouter", id="openrouter"
         ),
+        pytest.param(
+            "https://api.fireworks.ai/inference/v1/",
+            "fireworks",
+            id="fireworks",
+        ),
+        pytest.param("https://api.together.xyz/v1", "together", id="together"),
         # Unknown and shared OpenAI endpoints retain the generic fallback.
         pytest.param("https://my.internal.llm/v1", None, id="unknown_host"),
         pytest.param("https://api.openai.com/v1", None, id="openai_host"),
