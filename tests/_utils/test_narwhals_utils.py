@@ -278,3 +278,21 @@ def test_collect_and_preserve_type_dataframes(
     result_collected = result.collect()
     assert result_collected.shape == (3, 2)
     assert set(result_collected.columns) == {"a", "b"}
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("separator", [",", ";", "\t"])
+def test_dataframe_to_csv_decimal_comma(lazy: bool, separator: str) -> None:
+    import csv
+    import io
+
+    import polars as pl
+
+    frame = pl.DataFrame({"amount": [3.14], "count": [2], "text": ["3.14"]})
+    data = frame.lazy() if lazy else frame
+    text = dataframe_to_csv(data, separator=separator, decimal_comma=True)
+    assert list(csv.reader(io.StringIO(text), delimiter=separator)) == [
+        ["amount", "count", "text"],
+        ["3,14", "2", "3.14"],
+    ]

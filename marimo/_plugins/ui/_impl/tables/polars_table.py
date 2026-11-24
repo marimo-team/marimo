@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import io
 import json
 import math
@@ -27,6 +28,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManagerFactory,
     regex_literal,
 )
+from marimo._utils.narwhals_utils import dataframe_to_csv
 
 LOGGER = _loggers.marimo_logger()
 
@@ -51,6 +53,10 @@ class PolarsTableManagerFactory(TableManagerFactory):
     def create() -> type[TableManager[Any]]:
         import polars as pl
 
+        supports_decimal_comma = (
+            "decimal_comma"
+            in inspect.signature(pl.DataFrame.write_csv).parameters
+        )
         map_dtype = getattr(pl, "Map", None)
 
         def contains_map(
@@ -164,13 +170,29 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 self,
                 format_mapping: FormatMapping | None = None,
                 separator: str | None = None,
+                decimal_comma: bool = False,
             ) -> str:
                 resolved_separator = (
                     separator if separator is not None else ","
                 )
                 _data = self.apply_formatting(format_mapping).collect()
+
+                def write_csv(frame: pl.DataFrame) -> str:
+                    if supports_decimal_comma:
+                        return frame.write_csv(
+                            separator=resolved_separator,
+                            decimal_comma=decimal_comma,
+                        )
+                    if decimal_comma:
+                        return dataframe_to_csv(
+                            frame,
+                            separator=resolved_separator,
+                            decimal_comma=True,
+                        )
+                    return frame.write_csv(separator=resolved_separator)
+
                 try:
-                    return _data.write_csv(separator=resolved_separator)
+                    return write_csv(_data)
                 except pl.exceptions.ComputeError:
                     # Likely CSV format does not support nested data or objects
                     # Try to convert columns to json or strings
@@ -203,7 +225,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = self._convert_time_to_string(
                                 result, column
                             )
-                    return result.write_csv(separator=resolved_separator)
+                    return write_csv(result)
 
             def _nested_to_json(self, column: pl.Series) -> pl.Series:
                 # Entry arrays preserve non-string and repeated keys.

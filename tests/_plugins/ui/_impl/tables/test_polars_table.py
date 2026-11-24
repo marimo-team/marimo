@@ -1608,3 +1608,40 @@ def test_take_filtered_sorted_page(
     if lazy:
         assert collected_shapes == [(len(expected), 3)]
     assert source.equals(original)
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("nested", [False, True])
+def test_csv_decimal_comma_nested(nested: bool) -> None:
+    import polars as pl
+
+    data = {"amount": [3.1416]}
+    frame = pl.DataFrame(data)
+    if nested:
+        frame = frame.with_columns(pl.Series("nested", [[1, 2]]))
+    manager = PolarsTableManagerFactory.create()(frame)
+    rows = list(
+        csv.reader(io.StringIO(manager.to_csv_str(decimal_comma=True)))
+    )
+    assert rows[1][0] == "3,1416"
+
+
+@pytest.mark.requires("polars")
+def test_csv_decimal_comma_old_polars(monkeypatch: pytest.MonkeyPatch) -> None:
+    import polars as pl
+
+    original = pl.DataFrame.write_csv
+
+    def write_csv(self: Any, *, separator: str = ",") -> str:
+        return original(self, separator=separator)
+
+    monkeypatch.setattr(pl.DataFrame, "write_csv", write_csv)
+    PolarsTableManagerFactory.create.cache_clear()
+    try:
+        manager = PolarsTableManagerFactory.create()(
+            pl.DataFrame({"a": [3.14]})
+        )
+        assert manager.to_csv(decimal_comma=True) == b'a\n"3,14"\n'
+        assert manager.to_csv() == b"a\n3.14\n"
+    finally:
+        PolarsTableManagerFactory.create.cache_clear()

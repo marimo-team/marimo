@@ -87,15 +87,18 @@ TableData = Union[
 class DelimitedOptions:
     """Output options shared by delimited-text formats (CSV, TSV).
 
-    Attributes:
-        encoding: Text encoding for the output bytes. Falls back to the
-            runtime config value (or "utf-8") when None.
-        separator: Field separator. Ignored by formats that pin their own
-            separator (e.g. TSV always uses a tab).
+    Args:
+        encoding (str, optional): Text encoding for the output bytes. Falls
+            back to the runtime config value (or "utf-8") when None.
+        separator (str, optional): Field separator. Formats such as TSV
+            use a fixed separator.
+        decimal_comma (bool, optional): Use a comma as the decimal separator
+            for floats. Decimal support depends on the dataframe library.
     """
 
     encoding: str | None = None
     separator: str | None = None
+    decimal_comma: bool = False
 
 
 @dataclass(frozen=True)
@@ -135,7 +138,11 @@ def _serialize_delimited(
             if separator_override is not None
             else options.delimited.separator
         )
-        return manager.to_csv(encoding=encoding, separator=separator)
+        return manager.to_csv(
+            encoding=encoding,
+            separator=separator,
+            decimal_comma=options.delimited.decimal_comma,
+        )
 
     return serialize
 

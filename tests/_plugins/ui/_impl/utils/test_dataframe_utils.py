@@ -164,3 +164,31 @@ def test_union_tolerates_string_type_aliases() -> None:
     # X | Y fails with string operands — this is the bug we're guarding against
     with pytest.raises(TypeError, match="unsupported operand type"):
         dict[Any, Any] | fake_into_df  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("export_format", ["csv", "tsv"])
+def test_download_decimal_comma(export_format: str) -> None:
+    from marimo._plugins.ui._impl.tables.default_table import (
+        DefaultTableManager,
+    )
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DelimitedOptions,
+        DownloadOptions,
+        download_as,
+    )
+    from marimo._utils.data_uri import from_data_uri
+
+    manager = DefaultTableManager({"amount": [3.14], "count": [2]})
+    url, _ = download_as(
+        manager,
+        export_format,
+        options=DownloadOptions(
+            delimited=DelimitedOptions(separator=";", decimal_comma=True)
+        ),
+    )
+    expected = (
+        "amount;count\n3,14;2\n"
+        if export_format == "csv"
+        else "amount\tcount\n3,14\t2\n"
+    )
+    assert from_data_uri(url)[1].decode() == expected

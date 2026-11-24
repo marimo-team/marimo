@@ -90,7 +90,15 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     return True
 
 
-def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
+def format_csv_float(value: object, decimal_comma: bool) -> object:
+    if decimal_comma and isinstance(value, float):
+        return str(value).replace(".", ",")
+    return value
+
+
+def dataframe_to_csv(
+    df: IntoFrame, separator: str | None = None, decimal_comma: bool = False
+) -> str:
     """
     Convert a dataframe to a CSV string.
     """
@@ -100,18 +108,21 @@ def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
     resolved_separator = separator if separator is not None else ","
 
     frame = df.collect() if is_narwhals_lazyframe(df) else df
-    if resolved_separator == ",":
+    if resolved_separator == "," and not decimal_comma:
         return frame.write_csv()
 
     # Narwhals inputs can map to different backends, and
     # write_csv(separator=...) is not consistently reliable across them.
-    # For non-comma separators, use Python's csv writer for stable behavior.
+    # Use Python's csv writer for custom separators and decimal formatting.
     buffer = io.StringIO()
     writer = csv.writer(
         buffer, delimiter=resolved_separator, lineterminator="\n"
     )
     writer.writerow(frame.columns)
-    writer.writerows(frame.iter_rows())
+    writer.writerows(
+        [format_csv_float(value, decimal_comma) for value in row]
+        for row in frame.iter_rows()
+    )
     return buffer.getvalue()
 
 
