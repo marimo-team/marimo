@@ -596,7 +596,7 @@ def test_get_config_normalizes_legacy_copilot(
         )
         for _ in range(3):
             assert manager.get_config().completion.copilot == expected
-        assert log_error.call_count == (3 if invalid else 0)
+        assert log_error.call_count == (1 if invalid else 0)
     assert values == {"completion": {"copilot": copilot}}
 
 
@@ -1852,3 +1852,32 @@ def test_trusted_user_config_location_anchors_trust(
     assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
     assert config["cache"]["verification"] == "strict"
     assert config["cache"]["loader"] == "pickle"
+
+
+def test_invalid_config_warning_is_deduplicated_by_source_and_error(
+    tmp_path: Path,
+) -> None:
+    import logging
+
+    from marimo import _loggers
+    from marimo._config.manager import _warn_invalid_config
+
+    _warn_invalid_config.cache_clear()
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[display]\ntheme="invalid"\n')
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        with _loggers.capture_output(log_level=logging.ERROR) as (
+            _,
+            _,
+            records,
+        ):
+            for _ in range(3):
+                MarimoConfigManager(store).get_config()
+            config_path.write_text(
+                '[display]\ncode_editor_font_size="invalid"\n'
+            )
+            MarimoConfigManager(store).get_config()
+        assert len(records) == 2
+        assert "theme" in records[0].getMessage()
+        assert "code_editor_font_size" in records[1].getMessage()

@@ -96,12 +96,17 @@ def _validate_config(resolved: ResolvedConfig) -> None:
                 for field, key in zip(path, origin, strict=False)
             )
         )
-        LOGGER.error(
-            "Invalid configuration from %s: %s",
-            ", ".join(sources),
-            error,
-            extra={"omit_log_prefix": True},
-        )
+        _warn_invalid_config(tuple(sources), str(error))
+
+
+@lru_cache(maxsize=128)
+def _warn_invalid_config(sources: tuple[str, ...], error: str) -> None:
+    LOGGER.error(
+        "Invalid configuration from %s: %s",
+        ", ".join(sources),
+        error,
+        extra={"omit_log_prefix": True},
+    )
 
 
 def get_default_config_manager(
