@@ -198,7 +198,8 @@ def test_page_config_by_mode(
 
 @pytest.mark.parametrize("page", ["edit", "run", "static"])
 @pytest.mark.parametrize(
-    "title", ["Notebook title", "\\", '<Title & "quotes">']
+    "title",
+    ["Notebook title", "\\", '<Title & "quotes">', "Report {{ user_config }}"],
 )
 def test_page_config_preserves_title_placeholders(
     page: str, title: str
