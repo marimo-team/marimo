@@ -20,7 +20,11 @@ import {
   ISLAND_SOURCE_CHANGED_EVENT,
   ISLAND_TAG_NAMES,
 } from "../constants";
-import { extractIslandCodeFromEmbed, retainIslandSource } from "../parse";
+import {
+  extractIslandCodeFromEmbed,
+  findIslandCodeEditor,
+  retainIslandSource,
+} from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
 
 /**
@@ -50,7 +54,6 @@ export class MarimoIslandElement extends HTMLElement {
   public static readonly tagName = ISLAND_TAG_NAMES.ISLAND;
   public static readonly outputTagName = ISLAND_TAG_NAMES.CELL_OUTPUT;
   public static readonly codeTagName = ISLAND_TAG_NAMES.CELL_CODE;
-  public static readonly editorTagName = ISLAND_TAG_NAMES.CODE_EDITOR;
   public static readonly styleNamespace = ISLAND_CSS_CLASSES.NAMESPACE;
 
   public constructor() {
@@ -194,7 +197,7 @@ export class MarimoIslandElement extends HTMLElement {
     // Read objectId directly from the DOM before createRoot clears children.
     // optionalEditor is a <RenderHTML> wrapper, so its .props don't carry the
     // underlying element's attributes — we must grab objectId here instead.
-    const editorElement = this.querySelector(MarimoIslandElement.editorTagName);
+    const editorElement = findIslandCodeEditor(this);
     const editorObjectId = (
       editorElement?.parentElement as Element | null
     )?.getAttribute(OBJECT_ID_ATTR) as UIElementId | null;
@@ -235,7 +238,11 @@ export class MarimoIslandElement extends HTMLElement {
       this.root?.render(
         <ErrorBoundary>
           <Provider store={store}>
-            <LocaleProvider>{initialHtml}</LocaleProvider>
+            <LocaleProvider>
+              {/* Nest output like the reactive wrapper so findIslandCodeEditor
+                  never matches an editor in the output. */}
+              <div className="contents">{initialHtml}</div>
+            </LocaleProvider>
           </Provider>
         </ErrorBoundary>,
       );
@@ -266,22 +273,18 @@ export class MarimoIslandElement extends HTMLElement {
    * Attempts to find and render an optional code editor.
    *
    * The DOM structure is:
-   *   <marimo-cell-output>
-   *     <div data-marimo-element> ← parent wrapper from Python render
-   *       <marimo-code-editor .../>
-   *     </div>
-   *   </marimo-cell-output>
+   *   <marimo-cell-output>...</marimo-cell-output>
+   *   <marimo-ui-element object-id="..."> ← parent wrapper from Python render
+   *     <marimo-code-editor .../>
+   *   </marimo-ui-element>
    *
-   * We take the parent's outerHTML (the wrapper div) so that the rendered
+   * We take the parent's outerHTML (the wrapper element) so that the rendered
    * React element includes the UI element registration attributes.
    *
    * @returns A React element for the editor, or null if not found
    */
   private getOptionalEditor(): JSX.Element | null {
-    const optionalElement = this.querySelector(
-      MarimoIslandElement.editorTagName,
-    );
-    const html = (optionalElement?.parentNode as Element)?.outerHTML;
+    const html = findIslandCodeEditor(this)?.parentElement?.outerHTML;
     if (html) {
       // Convert HTML to virtual DOM
       const virtualDom = renderHTML({ html });

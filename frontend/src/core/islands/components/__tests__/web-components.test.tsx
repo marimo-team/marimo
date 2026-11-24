@@ -129,6 +129,120 @@ describe("MarimoIslandElement lifecycle", () => {
     expect(island?.textContent).not.toContain("static output");
   });
 
+  it("renders a code editor output once", async () => {
+    setNotebook("runtime-cell");
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <marimo-island
+        data-app-id="app-1"
+        data-cell-id="runtime-cell"
+        data-cell-idx="0"
+        data-reactive="true"
+      >
+        <marimo-cell-output>
+          <marimo-ui-element object-id="output-editor"><marimo-code-editor data-initial-value='"console.log(1)"'></marimo-code-editor></marimo-ui-element>
+        </marimo-cell-output>
+        <marimo-cell-code hidden>${encodeURIComponent("editor")}</marimo-cell-code>
+      </marimo-island>
+    `;
+
+    await actAndFlush(() => document.body.append(container));
+
+    const island = container.querySelector<HTMLElement>(
+      ISLAND_TAG_NAMES.ISLAND,
+    );
+    expect(island?.querySelectorAll(ISLAND_TAG_NAMES.CODE_EDITOR)).toHaveLength(
+      1,
+    );
+  });
+
+  it("renders the cell's own code editor next to an editor output", async () => {
+    setNotebook("runtime-cell");
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <marimo-island
+        data-app-id="app-1"
+        data-cell-id="runtime-cell"
+        data-cell-idx="0"
+        data-reactive="true"
+      >
+        <marimo-cell-output>
+          <marimo-ui-element object-id="output-editor"><marimo-code-editor data-initial-value='"console.log(1)"'></marimo-code-editor></marimo-ui-element>
+        </marimo-cell-output>
+        <marimo-ui-element object-id="code-editor"><marimo-code-editor data-initial-value='"editor"'></marimo-code-editor></marimo-ui-element>
+      </marimo-island>
+    `;
+
+    await actAndFlush(() => document.body.append(container));
+
+    const island = container.querySelector<HTMLElement>(
+      ISLAND_TAG_NAMES.ISLAND,
+    );
+    const editors = [
+      ...(island?.querySelectorAll(ISLAND_TAG_NAMES.CODE_EDITOR) ?? []),
+    ].map((editor) => editor.getAttribute("data-initial-value"));
+    expect(editors).toEqual(['"console.log(1)"', '"editor"']);
+  });
+
+  it.each([
+    { reactive: true, displayCode: false },
+    { reactive: true, displayCode: true },
+    { reactive: false, displayCode: false },
+  ])(
+    "keeps an editor output out of the island's code editor when re-initialized (reactive=$reactive, display_code=$displayCode)",
+    async ({ reactive, displayCode }) => {
+      setNotebook("runtime-cell");
+      const outputHtml =
+        '<marimo-ui-element object-id="output-editor"><marimo-code-editor data-initial-value=\'"console.log(1)"\'></marimo-code-editor></marimo-ui-element>';
+      const codeBlock = displayCode
+        ? '<marimo-ui-element object-id="code-editor"><marimo-code-editor data-initial-value=\'"editor"\'></marimo-code-editor></marimo-ui-element>'
+        : `<marimo-cell-code hidden>${encodeURIComponent("editor")}</marimo-cell-code>`;
+      const code = reactive || displayCode ? "editor" : "";
+      const container = document.createElement("div");
+      container.innerHTML = `
+        <marimo-island data-app-id="app-1" data-cell-id="cell-1" data-reactive="${reactive}">
+          <marimo-cell-output>${outputHtml}</marimo-cell-output>
+          ${codeBlock}
+        </marimo-island>
+      `;
+      const script = document.createElement("script");
+      script.type = ISLANDS_JSON_SCRIPT_TYPE;
+      script.textContent = payloadSource({
+        code,
+        outputHtml,
+        reactive,
+        displayCode,
+      });
+      container.append(script);
+
+      const island = container.querySelector<MarimoIslandElement>(
+        ISLAND_TAG_NAMES.ISLAND,
+      );
+      const editorValues = () =>
+        [...(island?.querySelectorAll(ISLAND_TAG_NAMES.CODE_EDITOR) ?? [])].map(
+          (editor) => editor.getAttribute("data-initial-value"),
+        );
+      const expected = displayCode
+        ? ['"console.log(1)"', '"editor"']
+        : ['"console.log(1)"'];
+
+      // The first initialize() materializes the payload before the island
+      // element renders.
+      parseMarimoIslandApps(container);
+      await actAndFlush(() => document.body.append(container));
+      expect(editorValues()).toEqual(expected);
+
+      // A second initialize() runs against the rendered island, where the
+      // output editor is no longer inside <marimo-cell-output>.
+      await actAndFlush(() => {
+        parseMarimoIslandApps(container);
+      });
+      expect(editorValues()).toEqual(expected);
+      // Without a code editor, the code is not read from the editor output.
+      expect(island?.code).toBe(reactive && displayCode ? "editor" : "");
+    },
+  );
+
   it("binds a reactive island after its runtime cell index is materialized", async () => {
     setNotebook("outgoing-cell", "outgoing runtime output");
     const container = document.createElement("div");
@@ -270,11 +384,15 @@ function payloadSource({
   cellId = "cell-1",
   code,
   outputHtml,
+  reactive = true,
+  displayCode = false,
 }: {
   appId?: string;
   cellId?: string;
   code: string;
   outputHtml: string;
+  reactive?: boolean;
+  displayCode?: boolean;
 }): string {
   return JSON.stringify({
     schemaVersion: 1,
@@ -285,8 +403,8 @@ function payloadSource({
         code,
         outputHtml,
         outputMimetype: "text/html",
-        reactive: true,
-        displayCode: false,
+        reactive,
+        displayCode,
         displayOutput: true,
       },
     ],
