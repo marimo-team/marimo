@@ -4,7 +4,7 @@
 
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
-import { useNotebookDocumentSync } from "@/core/notebook/document";
+import { useNotebookDocumentFlush } from "@/core/notebook/document";
 import { activeNotebookBackendAtom } from "../session/active-notebook";
 
 /**
@@ -18,7 +18,7 @@ import { activeNotebookBackendAtom } from "../session/active-notebook";
  * ```
  */
 export function useNotebookDocumentSave() {
-  const { flush } = useNotebookDocumentSync();
+  const flush = useNotebookDocumentFlush();
   const backend = useAtomValue(activeNotebookBackendAtom);
   return useCallback(async () => {
     if (backend === null) {

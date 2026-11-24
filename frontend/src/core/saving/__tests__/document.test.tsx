@@ -7,10 +7,7 @@ import type { PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DocumentWrapper } from "@/__mocks__/document";
 import { partial } from "@/__mocks__/partial";
-import type {
-  DocumentModel,
-  DocumentSyncStatus,
-} from "@/core/notebook/document";
+import type { DocumentModel } from "@/core/notebook/document";
 import type { NotebookReplica } from "@/core/notebook/replica";
 import {
   type FakeSave,
@@ -47,14 +44,7 @@ function setup({
   connected?: boolean;
 } = {}) {
   const store = createStore();
-  const model = partial<DocumentModel>(
-    {
-      flush,
-      retry: vi.fn(),
-      syncStatusAtom: atom<DocumentSyncStatus>({ status: "idle" }),
-    },
-    "model",
-  );
+  const model = partial<DocumentModel>({ flush }, "model");
   if (connected) {
     store.set(
       activeNotebookReplicaAtom,

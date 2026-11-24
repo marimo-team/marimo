@@ -7,7 +7,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useAtomValue } from "jotai";
 import { DatabaseIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
 import { Cell } from "@/components/editor/notebook-cell";
 import { PackageAlert } from "@/components/editor/package-alert";
@@ -45,7 +45,11 @@ interface CellArrayProps {
 }
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
-  const columnIds = useLayout().columns.map((column) => column.id);
+  const { columns } = useLayout();
+  const columnIds = useMemo(
+    () => columns.map((column) => column.id),
+    [columns],
+  );
 
   // Setup context for sorting
   return (
@@ -173,6 +177,8 @@ const CellColumn: React.FC<{
   const cellIds = useCellIds();
   const column = findColumn(useLayout(), columnId);
   invariant(column, `Expected column for: ${columnId}`);
+  // dnd-kit takes a mutable array.
+  const sortableItems = useMemo(() => [...column.visible], [column.visible]);
 
   const hasOnlyOneCell = cellIds.length === 1;
   const hasSetupCell = cellIds.includes(SETUP_CELL_ID);
@@ -201,7 +207,7 @@ const CellColumn: React.FC<{
     >
       <SortableContext
         id={`column-${index + 1}`}
-        items={[...column.visible]}
+        items={sortableItems}
         strategy={verticalListSortingStrategy}
       >
         {/* Render the setup cell first, always */}
