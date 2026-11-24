@@ -682,6 +682,94 @@ async def test_clean_notebook_deletes_what_a_session_recorded(
     assert read_manifest(manifest) == {}
 
 
+def test_clean_notebook_follows_a_tree_that_moved(tmp_path: Path) -> None:
+    """The manifest keeps the name from the old location, and clean still
+    deletes its entries and drops their records."""
+    before = tmp_path / "before"
+    before.mkdir()
+    _notebook, _cache_dir, manifest = tracked_notebook(before)
+    after = tmp_path / "after"
+    before.rename(after)
+    cache_dir = after / "__marimo__" / "cache"
+
+    result = CliRunner().invoke(
+        main, ["cache", "clean", str(after / "nb.py"), "-y"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Deleted 1 entry" in result.output
+    assert list((cache_dir / "train").iterdir()) == []
+    assert read_manifest(cache_dir / manifest.name) == {}
+
+
+def test_clean_notebook_keeps_entries_another_notebook_uses(
+    tmp_path: Path,
+) -> None:
+    """Identical code in two notebooks produces the same entry, so a clean of
+    one notebook keeps the entry that the other notebook still lists."""
+    notebook, cache_dir, manifest = tracked_notebook(tmp_path)
+    write_lazy_entry(cache_dir, "train", H2)
+    write_manifest(
+        cache_dir, notebook, {"3f9c": {"train": {f"C_{H}", f"C_{H2}"}}}
+    )
+    other = tmp_path / "other.py"
+    other.write_text(NOTEBOOK)
+    write_manifest(cache_dir, other, {"7a1b": {"train": {f"C_{H}"}}})
+
+    result = CliRunner().invoke(main, ["cache", "clean", str(notebook), "-y"])
+
+    assert result.exit_code == 0, result.output
+    assert "Kept 1 entry that another notebook also uses." in result.output
+    assert "Deleted 1 entry" in result.output
+    assert (cache_dir / "train" / f"C_{H}.jsonl").exists()
+    assert not (cache_dir / "train" / f"C_{H2}.jsonl").exists()
+    assert read_manifest(manifest) == {"3f9c": {"train": {f"C_{H}"}}}
+
+
+async def test_a_running_session_does_not_restore_what_clean_removed(
+    tmp_path: Path, exec_req: ExecReqProvider
+) -> None:
+    """A session writes only the records that it made since its last manifest
+    write. A record stays removed after clean removes it, even when the
+    session caches to the same block again."""
+    from marimo._save.manifest import manifest_name
+    from marimo._save.stores.file import FileStore
+    from tests._runtime._helpers.factories import default_app_metadata
+    from tests._runtime._helpers.session import mocked_kernel_session
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    cache_dir = tmp_path / "__marimo__" / "cache"
+    manifest = cache_dir / manifest_name(notebook)
+    with mocked_kernel_session(
+        app_metadata=default_app_metadata(filename=str(notebook))
+    ) as tk:
+        tk.ctx.cache.store = FileStore(save_path=str(cache_dir))
+        await tk.kernel.run(
+            [
+                exec_req.get("import marimo as mo"),
+                exec_req.get("with mo.persistent_cache('train'):\n    x = 42"),
+            ]
+        )
+        result = CliRunner().invoke(
+            main, ["cache", "clean", str(notebook), "train", "-y"]
+        )
+        assert result.exit_code == 0, result.output
+        await tk.kernel.run(
+            [exec_req.get("with mo.persistent_cache('train'):\n    z = 43")]
+        )
+
+    records = {
+        key
+        for blocks in read_manifest(manifest).values()
+        for keys in blocks.values()
+        for key in keys
+    }
+    on_disk = {path.stem for path in (cache_dir / "train").glob("*.jsonl")}
+    assert len(on_disk) == 1
+    assert records == on_disk
+
+
 def test_clean_notebook_keeps_the_record_of_a_marker_that_cannot_be_removed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1312,14 +1400,48 @@ def test_prune_keeps_the_entries_of_a_notebook_it_cannot_read_whole(
     assert read_manifest(manifest) == RECORD
 
 
-def test_prune_keeps_the_entries_of_a_manifest_that_moved(
+def test_prune_follows_a_tree_that_moved(tmp_path: Path) -> None:
+    """A manifest is named after the absolute path of its notebook. After the
+    tree moves, the relative record in the manifest still points at the
+    notebook."""
+    before = tmp_path / "before"
+    before.mkdir()
+    cache_dir = make_cache_dir(before)
+    write_lazy_entry(cache_dir, "train", H)
+    write_lazy_entry(cache_dir, "train", H2)
+    notebook = before / "nb.py"
+    notebook.write_text(NOTEBOOK)
+    write_manifest(
+        cache_dir,
+        notebook,
+        {
+            path_hash_of(notebook, "x"): {"train": {f"C_{H}"}},
+            "3f9c": {"train": {f"C_{H2}"}},
+        },
+    )
+    after = tmp_path / "after"
+    before.rename(after)
+    cache_dir = after / "__marimo__" / "cache"
+
+    result = CliRunner().invoke(main, ["cache", "prune", str(after), "-y"])
+
+    assert result.exit_code == 0, result.output
+    assert "Deleted 1 entry" in result.output
+    assert (cache_dir / "train" / f"C_{H}.jsonl").exists()
+    assert not (cache_dir / "train" / f"C_{H2}.jsonl").exists()
+
+
+def test_prune_keeps_the_entries_of_a_manifest_whose_notebook_is_elsewhere(
     tmp_path: Path,
 ) -> None:
-    """A manifest is named after the path of its notebook. One whose record
-    no longer matches its own name does not say which source to compile."""
-    _notebook, cache_dir, manifest = tracked_notebook(tmp_path)
+    """A manifest can have a name that does not match its record and a record
+    that points at no file. That manifest can be in a cache directory that
+    moved without its notebook. If it were read as a deleted notebook, every
+    entry would be deleted."""
+    notebook, cache_dir, manifest = tracked_notebook(tmp_path)
     moved = manifest.with_name(manifest.name.replace("nb-", "moved-"))
     manifest.rename(moved)
+    notebook.unlink()
 
     result = CliRunner().invoke(main, ["cache", "prune", str(tmp_path), "-y"])
 

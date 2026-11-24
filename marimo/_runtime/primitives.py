@@ -91,7 +91,12 @@ def is_data_primitive(value: Any) -> bool:
 
     is_polars = type(value).__module__.startswith("polars.")
     # If a numpy like array, ensure that it's not an object array.
-    if hasattr(value, "dtype") and not is_polars:
+    # pandas extension dtypes (string, categorical, tz-aware) are not numpy
+    # dtypes and convert to object arrays, so they go through narwhals too.
+    is_pandas_extension = type(value).__module__.startswith(
+        "pandas"
+    ) and not hasattr(getattr(value, "dtype", None), "hasobject")
+    if hasattr(value, "dtype") and not is_polars and not is_pandas_extension:
         return not (
             value.dtype is None
             or (hasattr(value.dtype, "hasobject") and value.dtype.hasobject)

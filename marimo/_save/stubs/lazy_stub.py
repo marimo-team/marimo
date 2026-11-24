@@ -180,6 +180,9 @@ def _npy_load(data: bytes, type_hint: str | None = None) -> Any:
     return np.load(io.BytesIO(data), allow_pickle=True)
 
 
+_UNNAMED_SERIES = b"marimo:unnamed_series"
+
+
 def _arrow_load(data: bytes, type_hint: str | None = None) -> Any:
     # type_hint is the fq class name written by to_item() at save time.
     # Using it (rather than schema metadata inspection) is explicit and
@@ -195,7 +198,10 @@ def _arrow_load(data: bytes, type_hint: str | None = None) -> Any:
         df = table.to_pandas()
         if type_hint in ("pandas.Series", "pandas.core.series.Series"):
             # Stored as a single-column DataFrame; recover as a Series.
-            return df.iloc[:, 0]
+            series = df.iloc[:, 0]
+            if (table.schema.metadata or {}).get(_UNNAMED_SERIES):
+                series.name = None
+            return series
         return df
     import polars as pl
 
@@ -249,13 +255,17 @@ def _npy_dump(obj: Any) -> bytes:
     return buf.getvalue()
 
 
-def _pandas_to_arrow_ipc(df: Any) -> bytes:
+def _pandas_to_arrow_ipc(df: Any, *, unnamed_series: bool = False) -> bytes:
     # Serialize via Arrow IPC. Prefer LZ4 when available so on-disk cache
     # blobs stay compact.
     import pyarrow as pa
 
     buf = io.BytesIO()
     table = pa.Table.from_pandas(df)
+    if unnamed_series:
+        table = table.replace_schema_metadata(
+            {**(table.schema.metadata or {}), _UNNAMED_SERIES: b"1"}
+        )
     options = pa.ipc.IpcWriteOptions(
         compression="lz4" if pa.Codec.is_available("lz4") else None
     )
@@ -267,10 +277,13 @@ def _pandas_to_arrow_ipc(df: Any) -> bytes:
 def _arrow_dump(obj: Any) -> bytes:
     # Inspect class methods because pandas columns also appear as attributes.
     if not callable(getattr(type(obj), "write_ipc", None)):
+        unnamed_series = False
         if callable(getattr(type(obj), "to_frame", None)):
+            # `to_frame` names an unnamed pandas Series' column 0.
+            unnamed_series = getattr(obj, "name", "") is None
             obj = obj.to_frame()
         if not callable(getattr(type(obj), "write_ipc", None)):
-            return _pandas_to_arrow_ipc(obj)
+            return _pandas_to_arrow_ipc(obj, unnamed_series=unnamed_series)
     buf = io.BytesIO()
     obj.write_ipc(buf)
     return buf.getvalue()

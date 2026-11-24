@@ -15,11 +15,14 @@ from marimo._save.cache_dirs import (
     select_blocks,
 )
 from marimo._save.manifest import (
-    CacheManifest,
+    ManifestError,
     load_manifest,
+    manifest_keys,
     manifest_lock,
     manifest_name,
+    manifest_notebook,
 )
+from marimo._utils.paths import normalize_path
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -65,15 +68,19 @@ class CleanPlan:
     """The planned clean of one notebook's entries in one cache directory."""
 
     cache_dir: Path
-    key: str
-    manifest: CacheManifest | None = None
+    # Every manifest written for the notebook. After the notebook and its
+    # cache directory move, the manifest keeps the name from the old location.
+    keys: tuple[str, ...] = ()
     entries: frozenset[tuple[str, str]] = frozenset()
+    # Per manifest, the records of the entries that are planned for deletion.
+    records: tuple[tuple[str, frozenset[tuple[str, str]]], ...] = ()
     freed: CacheDirStats = field(default_factory=CacheDirStats)
+    notes: tuple[str, ...] = ()
 
     @property
     def tracked(self) -> bool:
         """Whether the cache directory holds a manifest for the notebook."""
-        return self.manifest is not None
+        return bool(self.keys)
 
     def deletes_nothing(self) -> bool:
         """Whether no file on disk answers to any planned entry.
@@ -90,32 +97,67 @@ def plan_clean(
     """Plan the clean of `notebook`'s entries in `cache_dir`, deleting nothing.
 
     `names` are the names given to `mo.persistent_cache`. An empty `names`
-    plans every entry the manifest lists.
+    plans every entry that the notebook's manifests list. An entry that
+    another notebook's manifest also lists is kept, because identical code in
+    two notebooks produces the same entry.
 
     Raises:
-        ManifestError: If the manifest cannot be read as one.
+        ManifestError: If the notebook's manifest cannot be read as one.
         CacheDirError: If a block is a symbolic link.
-        OSError: If the manifest or a block cannot be read.
+        OSError: If a manifest or a block cannot be read.
     """
     from marimo._save.stores.file import FileStore
 
-    key = manifest_name(notebook)
-    manifest = None
-    if cache_dir.is_dir():
-        manifest = load_manifest(FileStore(save_path=str(cache_dir)), key)
-    if manifest is None:
-        return CleanPlan(cache_dir, key)
+    store = FileStore(save_path=str(cache_dir))
+    own_key = manifest_name(notebook)
+    notebook = normalize_path(notebook)
+    own: dict[str, set[tuple[str, str]]] = {}
+    others: set[tuple[str, str]] = set()
+    notes: list[str] = []
+    for key in manifest_keys(cache_dir):
+        try:
+            manifest = load_manifest(store, key)
+        except ManifestError as e:
+            if key == own_key:
+                raise
+            notes.append(
+                f"{key} cannot be read, so the entries that it lists can "
+                f"still be deleted: {e}"
+            )
+            continue
+        if manifest is None:
+            continue
+        if (
+            key == own_key
+            or manifest_notebook(cache_dir, key, manifest) == notebook
+        ):
+            own[key] = manifest.entries()
+        else:
+            others |= manifest.entries()
+    if not own:
+        return CleanPlan(cache_dir)
 
-    entries = manifest.entries()
-    if names:
-        wanted = {block_dir_name(name) for name in names}
-        entries = {entry for entry in entries if entry[0] in wanted}
+    wanted = {block_dir_name(name) for name in names}
+    selected = {
+        entry
+        for entries in own.values()
+        for entry in entries
+        if not wanted or entry[0] in wanted
+    }
+    entries = frozenset(selected - others)
+    shared = len(selected & others)
+    if shared:
+        noun = "entry" if shared == 1 else "entries"
+        notes.append(f"Kept {shared} {noun} that another notebook also uses.")
     return CleanPlan(
         cache_dir,
-        key,
-        manifest,
-        frozenset(entries),
+        tuple(own),
+        entries,
+        tuple(
+            (key, frozenset(listed & entries)) for key, listed in own.items()
+        ),
         delete_cache_entries(cache_dir, entries, dry_run=True),
+        tuple(notes),
     )
 
 
@@ -123,29 +165,28 @@ def apply_clean(plan: CleanPlan) -> CacheDirStats:
     """Carry out `plan`, reporting what it freed.
 
     A record whose entry cannot be removed is kept, because the entry can
-    still be read and deleted later. The manifest is rewritten after the
+    still be read and deleted later. The manifests are rewritten after the
     entries are gone, so an interrupted run leaves records of missing
     entries rather than entries without a record.
 
     Raises:
-        ManifestError: If the manifest cannot be re-read as one.
+        ManifestError: If a manifest cannot be re-read as one.
         CacheDirError: If a block is a symbolic link.
-        OSError: If a block cannot be listed or the manifest cannot be
+        OSError: If a block cannot be listed or a manifest cannot be
             rewritten.
     """
     from marimo._save.stores.file import FileStore
 
-    if plan.manifest is None:
-        return CacheDirStats()
     freed = delete_cache_entries(plan.cache_dir, plan.entries)
     store = FileStore(save_path=str(plan.cache_dir))
     # A kernel can write and record entries while this runs, so the records
     # are re-read under the lock and only the planned entries that are gone
     # from disk at that moment are dropped.
-    with manifest_lock(store, plan.key):
-        manifest = load_manifest(store, plan.key)
-        if manifest is None:
-            return freed
-        manifest.discard(missing_entries(plan.cache_dir, plan.entries))
-        store.put(plan.key, manifest.to_bytes())
+    for key, records in plan.records:
+        with manifest_lock(store, key):
+            manifest = load_manifest(store, key)
+            if manifest is None:
+                continue
+            manifest.discard(missing_entries(plan.cache_dir, records))
+            store.put(key, manifest.to_bytes())
     return freed

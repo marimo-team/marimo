@@ -116,7 +116,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
                 "code_lens": True,
             },
             "runtime": {
-                "dotenv": ["<root>/home/project/.env"],
+                "dotenv": [],
                 "watcher_on_save": "lazy",
                 "auto_reload": "off",
                 "default_csv_encoding": "utf-8",
@@ -218,7 +218,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
     ) == snapshot({})
     assert normalized(
         manager.get_config_defaults(hide_secrets=False), config_tree
-    ) == snapshot({"runtime": {"dotenv": ["<root>/home/project/.env"]}})
+    ) == snapshot({"runtime": {"dotenv": []}})
 
 
 def test_layered_configuration_snapshot(
@@ -720,21 +720,15 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
     assert normalized(cases, config_tree) == snapshot(
         {
             "directory": {
-                "defaults": {
-                    "runtime": {"dotenv": ["<root>/home/project/.env"]}
-                },
-                "dotenv": ["<root>/home/project/.env"],
-                "masked_dotenv": None,
+                "defaults": {"runtime": {"dotenv": []}},
+                "dotenv": [],
+                "masked_dotenv": [],
                 "overrides": {},
             },
             "standalone_notebook": {
-                "defaults": {
-                    "runtime": {
-                        "dotenv": ["<root>/home/project/notebooks/.env"]
-                    }
-                },
-                "dotenv": ["<root>/home/project/notebooks/.env"],
-                "masked_dotenv": None,
+                "defaults": {"runtime": {"dotenv": []}},
+                "dotenv": [],
+                "masked_dotenv": [],
                 "overrides": {"formatting": {"line_length": 100}},
             },
             "home": {
@@ -743,11 +737,7 @@ def test_dotenv_fallbacks_snapshot(config_tree: Path) -> None:
                 "masked_dotenv": None,
                 "overrides": {},
             },
-            "project_notebook": {
-                "defaults": {
-                    "runtime": {"dotenv": ["<root>/home/project/.env"]}
-                }
-            },
+            "project_notebook": {"defaults": {"runtime": {"dotenv": []}}},
             "explicit_user": {"dotenv": ["chosen.env"]},
             "masked_empty_user": {"dotenv": []},
         }
@@ -1371,21 +1361,21 @@ def test_dotenv_workspace_session_snapshot(config_tree: Path) -> None:
     assert normalized(cases, config_tree) == snapshot(
         {
             "standalone_session": {
-                "workspace": ["<root>/home/project/.env"],
-                "masked_session": None,
-                "session": ["<root>/home/project/notebooks/.env"],
+                "workspace": [],
+                "masked_session": [],
+                "session": [],
                 "overrides": {},
             },
             "unsaved_session": {
-                "workspace": ["<root>/home/project/.env"],
-                "masked_session": None,
-                "session": ["<root>/home/project/.env"],
+                "workspace": [],
+                "masked_session": [],
+                "session": [],
                 "overrides": {},
             },
             "project_session": {
-                "workspace": ["<root>/home/project/.env"],
-                "masked_session": None,
-                "session": ["<root>/home/project/.env"],
+                "workspace": [],
+                "masked_session": [],
+                "session": [],
                 "overrides": {},
             },
         }
@@ -1436,20 +1426,16 @@ def test_dotenv_home_and_nested_project_snapshot(
                 "defaults": {},
             },
             "home_with_pyproject": {
-                "dotenv": ["<root>/home/.env"],
-                "defaults": {"runtime": {"dotenv": ["<root>/home/.env"]}},
+                "dotenv": [],
+                "defaults": {"runtime": {"dotenv": []}},
             },
             "parent_project": {
-                "dotenv": ["<root>/home/project/.env"],
-                "defaults": {
-                    "runtime": {"dotenv": ["<root>/home/project/.env"]}
-                },
+                "dotenv": [],
+                "defaults": {"runtime": {"dotenv": []}},
             },
             "nearest_project_with_different_cwd": {
-                "dotenv": ["<root>/home/project/nested/.env"],
-                "defaults": {
-                    "runtime": {"dotenv": ["<root>/home/project/nested/.env"]}
-                },
+                "dotenv": [],
+                "defaults": {"runtime": {"dotenv": []}},
             },
         }
     )

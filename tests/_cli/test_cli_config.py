@@ -42,12 +42,44 @@ def test_config_show() -> None:
     assert "[formatting]" in output
 
 
+def test_config_describe_includes_optional_sections() -> None:
+    from marimo._config.config_schema import MarimoConfig
+
+    output = format_config_docs(MarimoConfig)
+    for field in (
+        "sharing.html",
+        "sharing.wasm",
+        "sharing.molab",
+        "file_browser.folders",
+    ):
+        assert field in output
+    assert "ai.max_tokens" in output
+    assert "int | None" in output
+
+
 def test_config_describe() -> None:
     p = subprocess.run(
         ["marimo", "config", "describe"],
         capture_output=True,
     )
     assert p.returncode == 0, p.stderr.decode()
+
+
+@pytest.mark.parametrize("show_sources", [False, True])
+def test_config_show_masks_unknown_provider_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, show_sources: bool
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[ai.future_provider]\napi_key = "private-key"\n')
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(config_path)
+    )
+    result = CliRunner().invoke(
+        config, ["show", *(["--show-sources"] if show_sources else [])]
+    )
+    assert result.exit_code == 0, result.output
+    assert 'api_key = "********"' in result.output
+    assert "private-key" not in result.output
 
 
 def test_config_show_environment_source_names() -> None:
@@ -68,6 +100,27 @@ output_max_bytes = 1000 # env var: MARIMO_RUNTIME_OUTPUT_MAX_BYTES
 
 [server]
 transport = "sse" # env var: MARIMO_SERVER_TRANSPORT""")
+
+
+@pytest.mark.parametrize("provider", ["open_ai", "custom_providers.smoke"])
+def test_config_show_sources_handles_redacted_provider_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, provider: str
+) -> None:
+    import tomlkit
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(
+        f'[ai.{provider}.extra_headers]\nAuthorization = "private-header"\n'
+    )
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(config_path)
+    )
+    result = CliRunner().invoke(config, ["show", "--show-sources"])
+    assert result.exit_code == 0, result.output
+    assert f"[ai.{provider}] # {config_path}" in result.output
+    assert "private-header" not in result.output
+    assert "Authorization" not in result.output
+    tomlkit.parse(result.output)
 
 
 def test_config_show_source_comments_are_valid_toml(tmp_path: Path) -> None:

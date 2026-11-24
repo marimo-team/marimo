@@ -268,3 +268,28 @@ def test_sql_limit_reads_dotenv_below_explicit_runtime_overrides(
         UpdateUserConfigCommand(config=updated.to_dict())
     )
     assert get_default_result_limit() == 70
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+def test_missing_dotenv_warns_only_when_explicitly_configured(
+    mocked_kernel: MockedKernel,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    explicit: bool,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    user = tmp_path / "marimo.toml"
+    user.write_text('[runtime]\ndotenv=[".env"]\n' if explicit else "")
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(user)
+    )
+    (tmp_path / "pyproject.toml").write_text("")
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("")
+    manager = get_default_config_manager(current_path=str(notebook))
+    mocked_kernel.k.user_config = manager.get_config(hide_secrets=False)
+    with _loggers.capture_output() as (_, _, records):
+        mocked_kernel.k.load_dotenv()
+    assert [record.getMessage() for record in records] == (
+        [f"Dotenv file not found: {tmp_path / '.env'}"] if explicit else []
+    )

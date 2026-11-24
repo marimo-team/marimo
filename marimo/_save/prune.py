@@ -22,14 +22,12 @@ from marimo._save.cache_dirs import (
     remove_empty_blocks,
 )
 from marimo._save.manifest import (
-    CacheManifest,
     ManifestError,
-    is_manifest_name,
     load_manifest,
+    manifest_keys,
     manifest_lock,
-    manifest_name,
+    manifest_notebook,
 )
-from marimo._utils.paths import normalize_path
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -94,7 +92,7 @@ def plan_prune(cache_dir: Path, *, force: bool = False) -> PrunePlan:
     from marimo._save.stores.file import FileStore
 
     try:
-        keys = _manifest_keys(cache_dir)
+        keys = manifest_keys(cache_dir)
     except OSError as e:
         # Planned as a root that cannot be listed, so the failure is counted
         # again when the plan is applied.
@@ -161,7 +159,7 @@ def plan_prune(cache_dir: Path, *, force: bool = False) -> PrunePlan:
             for block, entry in entries
             if entry_hash(entry) in (orphans.get(block) or ())
         }
-        notebook = _manifest_notebook(cache_dir, key, manifest)
+        notebook = manifest_notebook(cache_dir, key, manifest)
         if notebook is None:
             notes.append(
                 f"{key} does not say which notebook wrote it, so its entries "
@@ -228,7 +226,10 @@ def plan_prune(cache_dir: Path, *, force: bool = False) -> PrunePlan:
         ),
         freed=freed,
         dead_nodes=dead_nodes,
-        untracked=len(cache_entry_keys(cache_dir) - recorded),
+        # An unreadable manifest can list any entry, so none count as untracked.
+        untracked=len(cache_entry_keys(cache_dir) - recorded)
+        if readable
+        else 0,
         claimed=claimed,
         force=force,
         notes=tuple(notes),
@@ -281,41 +282,6 @@ def apply_prune(plan: PrunePlan) -> CacheDirStats:
             manifest.discard(missing_entries(plan.cache_dir, records))
             store.put(key, manifest.to_bytes())
     return freed
-
-
-def _manifest_keys(cache_dir: Path) -> list[str]:
-    """The manifests held at the root of `cache_dir`.
-
-    Raises:
-        OSError: If `cache_dir` cannot be listed.
-    """
-    # A cache that was never written is the ordinary case, not a failure to
-    # read one.
-    if not cache_dir.is_dir():
-        return []
-    return sorted(
-        child.name
-        for child in cache_dir.iterdir()
-        if child.is_file() and is_manifest_name(child.name)
-    )
-
-
-def _manifest_notebook(
-    cache_dir: Path, key: str, manifest: CacheManifest
-) -> Path | None:
-    """The notebook `manifest` was written for, or `None` if it is foreign.
-
-    A manifest records where its notebook was, relative to the cache
-    directory. Its name is taken from where that notebook was in full. A
-    record that no longer names the manifest holding it describes a tree
-    that later moved, so it does not say which source to read for liveness.
-    """
-    if not manifest.notebook:
-        return None
-    notebook = normalize_path(cache_dir / manifest.notebook)
-    if manifest_name(notebook) != key:
-        return None
-    return notebook
 
 
 def _live_nodes(notebook: Path) -> set[str] | None:

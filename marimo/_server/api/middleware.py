@@ -215,6 +215,16 @@ class WebSocketOriginMiddleware:
         ):
             return await self.app(scope, receive, send)
 
+        if origin is None:
+            LOGGER.warning(
+                "Rejected WebSocket connection with an invalid Origin header."
+            )
+        else:
+            LOGGER.warning(
+                "Rejected WebSocket connection from origin %r. "
+                "If this is your app's public origin, pass it to --allow-origins.",
+                origins[0],
+            )
         await websocket.close(
             code=WebSocketCodes.FORBIDDEN, reason="Origin not allowed"
         )
