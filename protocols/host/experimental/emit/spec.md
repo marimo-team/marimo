@@ -1,7 +1,8 @@
-# Publish custom events (experimental)
+# Publish custom events
 
-The experimental `notebook.emit` operation publishes a custom event on a
-notebook stream.
+A client calls `notebook.emit` to publish a custom event to readers of a
+notebook's stream. The host MUST authorize publication independently of
+editing and execution.
 
 ```http
 POST /notebooks/{notebook_id}/emit
@@ -11,23 +12,20 @@ Content-Type: application/json
 { "type": "example.message", "data": { "text": "hello" } }
 ```
 
-The request MUST contain a nonempty `type` and a `data` field with any JSON
-value, including null. The host MUST NOT interpret the payload.
+The client MUST supply a nonempty `Idempotency-Key` and both body fields.
+`type` is a nonempty string in a namespace the producer controls. `data` can
+be any JSON value, including `null`. The host MUST treat `data` as opaque.
 
-For each accepted `notebook.emit` request, the host MUST publish exactly one
-custom event with the submitted `type` and `data`.
-Its `request_id` MUST be the request's `Idempotency-Key`. When a reader's
-stream filters include the event, that reader receives it.
+On success, the host MUST publish one `custom` event on that notebook's
+stream. The event's `custom` field carries the submitted `type` and `data`,
+and its `request_id` is the request's `Idempotency-Key`. Every reader whose
+stream filters include the event can receive it. The
+[custom event rules](../../spec.md#custom-events) govern filtering and replay.
 
-The host answers `204 No Content` after publication. This response does not
-prove that any client received or processed the event. Under the
-[idempotency rules](../../spec.md#requests-and-decisions), an accepted retry
-within the retry window MUST NOT publish a second event.
+The host returns `204 No Content` after publication. It does not wait for a
+reader to receive or process the event. If the client repeats the request
+with the same key, the [idempotency rules](../../spec.md#requests-and-decisions)
+apply. For a recognized retry, the host MUST return `204` without publishing
+another event.
 
-The [custom event rules](../../spec.md#custom-events) define type namespaces,
-payload validation, stream filters, replay, and exclusion from snapshots.
-
-Hosts MUST authorize `notebook.emit` independently of editing and execution.
-The [Effect feature module](../../../../packages/host-protocol/src/experimental/features/emit.ts)
-defines the operation. The [request example](fixtures/emit-request.json) and
-[custom event stream example](../../fixtures/custom-events.sse) show its wire format.
+[Request example](fixtures/emit-request.json) · [Stream example](../../fixtures/custom-events.sse)
