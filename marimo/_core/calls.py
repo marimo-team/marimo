@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import msgspec
 
 from marimo._core import protocol
-from marimo._core.errors import Conflict, HostError, Invalid, NotFound
+from marimo._core.errors import Conflict, HostError, NotFound
 from marimo._core.operations import Reply, problem_for
 
 if TYPE_CHECKING:
@@ -82,14 +82,11 @@ class EmitCall(_Call, frozen=True, tag="notebook.emit"):
         self, bridge: NotebookBridge
     ) -> tuple[Literal[204], None]:
         notebook = await bridge.host.notebook(self.params.notebook_id)
-        try:
-            notebook.emit(
-                self.body.type,
-                self.body.data,
-                request_id=self.headers.idempotency_key,
-            )
-        except ValueError as e:
-            raise Invalid(str(e)) from e
+        notebook.emit(
+            self.body.type,
+            self.body.data,
+            request_id=self.headers.idempotency_key,
+        )
         return 204, None
 
 

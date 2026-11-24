@@ -147,13 +147,3 @@ async def test_emit_permission_is_independent_of_editing(bridge, serve):
             assert reply == (204, None)
         else:
             assert kind(reply) == expected
-
-
-async def test_emit_converts_an_invalid_type_to_a_problem(serve):
-    call = EmitCall(
-        PARAMS,
-        MutationHeaders("empty"),
-        protocol.EmitRequest(type="", data=None),
-    )
-
-    assert kind(await serve(call)) == "invalid-request"

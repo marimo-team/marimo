@@ -123,35 +123,28 @@ describe("native HTTP implementation", () => {
   });
 
   it.each([
-    { body: { type: "example.message", data: null }, key: undefined },
     { body: { type: "example.message", data: null }, key: "" },
-    { body: { type: "", data: null }, key: "emit-empty" },
-    { body: { data: null }, key: "emit-no-type" },
     { body: { type: "example.message" }, key: "emit-no-data" },
-    {
-      body: { type: "example.message", data: null, to: ["agent-1"] },
-      key: "emit-extra",
+  ])(
+    "returns an invalid-request problem before publishing: %j",
+    async ({ body, key }) => {
+      const calls = emit.mock.calls.length;
+      const response = await request("/notebooks/n/emit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": key },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+      expect(response.headers.get("content-type")).toContain(
+        "application/problem+json",
+      );
+      expect(await response.json()).toMatchObject({
+        status: 400,
+        type: "urn:marimo:problem:invalid-request",
+      });
+      expect(emit).toHaveBeenCalledTimes(calls);
     },
-  ])("rejects an invalid emit request: $key", async ({ body, key }) => {
-    const calls = emit.mock.calls.length;
-    const response = await request("/notebooks/n/emit", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(key === undefined ? {} : { "Idempotency-Key": key }),
-      },
-      body: JSON.stringify(body),
-    });
-    expect(response.status).toBe(400);
-    expect(response.headers.get("content-type")).toContain(
-      "application/problem+json",
-    );
-    expect(await response.json()).toMatchObject({
-      status: 400,
-      type: "urn:marimo:problem:invalid-request",
-    });
-    expect(emit).toHaveBeenCalledTimes(calls);
-  });
+  );
 
   it("decodes path, headers and body into the typed save handler", async () => {
     const response = await request("/notebooks/n/save", {

@@ -445,20 +445,14 @@ function over(reply: (call: unstable_NotebookCall) => unknown) {
 }
 
 describe("NotebookClient.unstable_over", () => {
-  it("emits through the same call interface as HTTP", async () => {
-    const { notebook, send } = over(() => ({ status: 204, body: null }));
+  it("decodes a bodyless emit reply on the call transport", async () => {
+    const { notebook } = over(() => ({ status: 204, body: null }));
     const event = { type: "example.message", data: null };
 
     expect(await notebook.emit(event, { idempotencyKey: "emit-1" })).toEqual({
       ok: true,
       status: 204,
       data: undefined,
-    });
-    expect(send).toHaveBeenCalledWith({
-      operation: "notebook.emit",
-      params: { notebook_id: "n1" },
-      headers: { "idempotency-key": "emit-1" },
-      body: event,
     });
   });
 

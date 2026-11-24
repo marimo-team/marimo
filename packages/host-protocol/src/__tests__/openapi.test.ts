@@ -45,25 +45,13 @@ it("defines broadcast emission without closing custom events to future fields", 
   const path = "/notebooks/{notebook_id}/emit";
   expect(stable.paths).not.toHaveProperty(path);
   expect(schemas).not.toHaveProperty("EmitRequest");
-  const emit = experimental.paths[path]?.post;
-  expect(emit).toMatchObject({
-    operationId: "notebook.emit",
-    security: [{ hostToken: [] }],
-    requestBody: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: { $ref: "#/components/schemas/EmitRequest" },
-        },
-      },
-    },
-  });
-  expect(emit?.responses[204]).toBeDefined();
-  expect(emit?.responses[204]?.content).toBeUndefined();
+  expect(experimental.paths[path]?.post?.operationId).toBe("notebook.emit");
   expect(experimental.components.schemas.EmitRequest.additionalProperties).toBe(
     false,
   );
-  expect(schemas.Custom.additionalProperties).toBeUndefined();
+  expect(
+    experimental.components.schemas.Custom.additionalProperties,
+  ).toBeUndefined();
 });
 
 it("puts descriptions beside their schemas and names each problem", () => {

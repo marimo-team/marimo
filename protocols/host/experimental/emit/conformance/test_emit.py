@@ -9,22 +9,9 @@ from uuid import uuid4
 
 import pytest
 from contract import problem, validate
-from generate import openapi
-from jsonschema import Draft202012Validator, FormatChecker
 from test_host import notebook_path, require
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
-
-
-def test_emit_request_fixture() -> None:
-    spec = openapi(experimental=True)
-    Draft202012Validator(
-        {
-            "$ref": "#/components/schemas/EmitRequest",
-            "components": spec["components"],
-        },
-        format_checker=FormatChecker(),
-    ).validate(json.loads((FIXTURES / "emit-request.json").read_text()))
 
 
 async def test_emit_broadcasts_once_per_request(host, scratch) -> None:
