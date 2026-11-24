@@ -5,9 +5,17 @@ import path from "node:path";
 
 const directory = process.argv[2];
 const outlines = process.argv.includes("--outlines");
-if (!directory) {
+const counts = (
+  process.argv.find((arg) => arg.startsWith("--cells="))?.slice(8) ?? "25,100"
+)
+  .split(",")
+  .map(Number);
+if (
+  !directory ||
+  counts.some((count) => !Number.isInteger(count) || count < 1)
+) {
   throw new Error(
-    "Usage: node benchmarks/create-editing-fixtures.ts NEW_DIRECTORY [--outlines]",
+    "Usage: node benchmarks/create-editing-fixtures.ts NEW_DIRECTORY [--outlines] [--cells=25,100]",
   );
 }
 // A new directory prevents overwriting notebooks or personal configuration.
@@ -26,7 +34,7 @@ enabled = false
 // Stop project configuration discovery before reaching the repository config.
 await writeFile(path.join(directory, "pyproject.toml"), "[tool.marimo]\n");
 
-for (const count of [25, 100]) {
+for (const count of counts) {
   let source = "import marimo\napp = marimo.App()\n";
   for (let i = 0; i < count; i++) {
     const imports = outlines && i === 0;

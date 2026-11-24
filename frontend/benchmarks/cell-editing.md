@@ -74,6 +74,36 @@ EDITING_BENCH_HEADINGS=198 node benchmarks/cell-editing.browser.ts \
 Input duration spans `beforeinput` capture through `input` bubbling. Frame duration spans keydown capture through the next animation frame.
 Neither includes initial input queuing or measures keyboard-to-paint latency. JSON also includes long tasks and thresholded Event Timing entries.
 
+### Large notebooks
+
+Add `--cells` to create fixtures of other sizes, for example `browser-250.py` and `browser-500.py`:
+
+```sh
+node benchmarks/create-editing-fixtures.ts ../.context/browser-fixtures --cells=25,100,250,500
+```
+
+`scripts/benchmarks/generate_large_notebook.py` writes notebooks shaped like a real 500-cell notebook: half hidden-code markdown, half code cells of about 30 lines.
+Editors mount one per task after the cells appear, so a large notebook settles long after it renders. The typing harness starts once every cell has an editor.
+
+### Notebook load
+
+`notebook-load.browser.ts` times a load from navigation until every cell has an editor, no cell is queued or running, and the main thread has had no long task for 1.5 s:
+
+```sh
+node benchmarks/notebook-load.browser.ts \
+  'http://127.0.0.1:29871/?file=browser-500.py' ../.context/load-results
+```
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `LOAD_BENCH_RUNS` | `3` | Repetitions |
+| `LOAD_BENCH_RATES` | `1,4` | CPU slowdown rates |
+| `LOAD_BENCH_TIMEOUT` | `600000` | Milliseconds to wait for the load to finish |
+
+Each run uses a new browser context. The first load of a notebook on a server starts its kernel and runs every cell; later loads resume that session.
+Restart the server between runs to time cold loads. JSON includes the time of the first and last cell and editor, long tasks,
+Chrome's task, script, style, and layout durations, DOM nodes, event listeners, and the heap after garbage collection.
+
 ### Profiling
 
 For React records, check the recorder and build with profiling enabled:
