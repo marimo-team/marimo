@@ -218,6 +218,94 @@ def test_override_redaction(config_directory: Path) -> None:
     assert (config_directory / ".marimo.toml").read_bytes() == before
 
 
+@pytest.mark.parametrize("source", ["env", "user"])
+@pytest.mark.parametrize("explicit", ["token_password", "token_password_file"])
+@pytest.mark.parametrize("use_config", [False, True])
+def test_cli_password_source_replaces_lower_priority_alternative(
+    launch: Mock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+    explicit: str,
+    use_config: bool,
+) -> None:
+    from marimo._cli.utils import resolve_token_password
+    from marimo._config.manager import UserConfigStore
+
+    password_file = tmp_path / "password.txt"
+    password_file.write_text("file-password")
+    values = {
+        "token_password": "direct-password",
+        "token_password_file": str(password_file),
+    }
+    lower = (
+        "token_password_file"
+        if explicit == "token_password"
+        else "token_password"
+    )
+    if source == "env":
+        monkeypatch.setenv("MARIMO_SERVER_" + lower.upper(), values[lower])
+    else:
+        config_path = tmp_path / "user.toml"
+        import tomlkit
+
+        config_path.write_text(
+            tomlkit.dumps({"server": {lower: values[lower]}})
+        )
+        monkeypatch.setattr(
+            UserConfigStore, "get_config_path", lambda _self: str(config_path)
+        )
+    option = (
+        ["--config", f"server.{explicit}={values[explicit]}"]
+        if use_config
+        else ["--" + explicit.replace("_", "-"), values[explicit]]
+    )
+    result = CliRunner().invoke(
+        main, ["edit", "notebook.py", "--no-sandbox", *option]
+    )
+    assert result.exit_code == 0, result.output
+    server = (
+        launch.call_args.kwargs["config_manager"]
+        .get_config(hide_secrets=False)
+        .server
+    )
+    assert getattr(server, lower) is None
+    assert resolve_token_password(
+        server.token_password, server.token_password_file
+    ) == (
+        "direct-password" if explicit == "token_password" else "file-password"
+    )
+
+
+def test_explicit_conflicting_cli_password_sources_remain_invalid(
+    launch: Mock,
+) -> None:
+    from marimo._cli.utils import resolve_token_password
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "edit",
+            "notebook.py",
+            "--no-sandbox",
+            "--token-password",
+            "password",
+            "--token-password-file",
+            "password.txt",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    server = (
+        launch.call_args.kwargs["config_manager"]
+        .get_config(hide_secrets=False)
+        .server
+    )
+    with pytest.raises(click.UsageError, match="Only one"):
+        resolve_token_password(
+            server.token_password, server.token_password_file
+        )
+
+
 @pytest.fixture
 def launch(config_directory: Path, monkeypatch: pytest.MonkeyPatch) -> Mock:
     (config_directory / "notebook.py").write_text(

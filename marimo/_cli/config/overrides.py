@@ -151,6 +151,17 @@ def resolve_cli_config(
                 if param.multiple and isinstance(value, tuple):
                     value = list(value)
                 _set_value(overrides, path, value)
+    server_overrides = overrides.get("server", {})
+    password_fields = ("token_password", "token_password_file")
+    supplied = [
+        name
+        for name in password_fields
+        if server_overrides.get(name) is not None
+    ]
+    if len(supplied) == 1:
+        # The explicit CLI source replaces the lower-priority alternative.
+        other = next(name for name in password_fields if name != supplied[0])
+        server_overrides[other] = None
     manager = get_default_config_manager(
         current_path=None
         if current_path and is_url(current_path)
