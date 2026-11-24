@@ -85,7 +85,9 @@ const admit = Layer.succeed(
 const app = HttpRouter.toWebHandler(
   HttpApiBuilder.layer(Host.Api).pipe(
     Layer.provide(
-      Layer.mergeAll(host, notebook).pipe(Layer.provideMerge(admit)),
+      Layer.mergeAll(host, notebook).pipe(
+        Layer.provideMerge(Layer.merge(admit, Host.RequestValidation.layer)),
+      ),
     ),
     Layer.provide(HttpServer.layerServices),
   ),
@@ -122,6 +124,7 @@ describe("native HTTP implementation", () => {
 
   it.each([
     { body: { type: "example.message", data: null }, key: undefined },
+    { body: { type: "example.message", data: null }, key: "" },
     { body: { type: "", data: null }, key: "emit-empty" },
     { body: { data: null }, key: "emit-no-type" },
     { body: { type: "example.message" }, key: "emit-no-data" },
@@ -140,6 +143,13 @@ describe("native HTTP implementation", () => {
       body: JSON.stringify(body),
     });
     expect(response.status).toBe(400);
+    expect(response.headers.get("content-type")).toContain(
+      "application/problem+json",
+    );
+    expect(await response.json()).toMatchObject({
+      status: 400,
+      type: "urn:marimo:problem:invalid-request",
+    });
     expect(emit).toHaveBeenCalledTimes(calls);
   });
 

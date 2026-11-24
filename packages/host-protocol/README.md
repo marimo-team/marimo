@@ -27,8 +27,9 @@ const NotebookRoutes = HttpApiBuilder.group(Host.Api, "Notebook", (handlers) =>
 );
 ```
 
-A host also provides a layer for `Host.HostToken`, which admits requests that
-carry the host record's token.
+Provide `Host.RequestValidation.layer` to the route groups to return an
+`invalid-request` problem when a request fails decoding. Also provide a layer
+for `Host.HostToken` that checks the host record's token.
 
 ## Connect with Effect
 

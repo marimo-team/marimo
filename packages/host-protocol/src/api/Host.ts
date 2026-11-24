@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import {
   HttpApi,
   HttpApiEndpoint,
@@ -17,6 +17,20 @@ import * as Problems from "../Problems.ts";
 import * as P from "./Parameters.ts";
 import { makeGroup, sseEvents } from "../internal/http.ts";
 import { forGenerators } from "../internal/openapi.ts";
+
+/** Maps request decoding failures to the host protocol's invalid-request problem. */
+export class RequestValidation extends HttpApiMiddleware.Service<RequestValidation>()(
+  "@marimo-team/host-protocol/Host/RequestValidation",
+  { error: Problems.InvalidRequestProblem },
+) {
+  static readonly layer = HttpApiMiddleware.layerSchemaErrorTransform(
+    RequestValidation,
+    (error) =>
+      error.kind === "Body" || error.kind === "ResponseHeaders"
+        ? Effect.fail(error)
+        : Effect.fail(new Problems.InvalidRequestProblem()),
+  );
+}
 
 /** Admits requests that carry the host record's token from this machine. */
 export class HostToken extends HttpApiMiddleware.Service<HostToken>()(
@@ -100,6 +114,7 @@ export const makeApi = <
 ) =>
   HttpApi.make("Host")
     .add(group(events.CatalogStreamEvent, ...catalogEndpoints), notebook)
+    .middleware(RequestValidation)
     .middleware(HostToken)
     .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error" })
     .annotate(HttpApi.AdditionalSchemas, [
