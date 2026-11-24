@@ -9,7 +9,7 @@ import stat
 import tempfile
 from datetime import UTC, datetime
 from ipaddress import IPv6Address, ip_address
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -35,9 +35,41 @@ def discover_hosts(
     Invalid and stale records are skipped without deleting them. Discovery
     does not contact servers; a process can stop after its record is read.
     """
-    import psutil
-
     directory = root if root is not None else marimo_state_dir() / "hosts-v1"
+    for _, record in _host_records(directory, state="live"):
+        yield record
+
+
+def _process_state(
+    identity: protocol.Process,
+) -> Literal["live", "stale", "unknown"]:
+    if identity.started_at.tzinfo is None:
+        return "unknown"
+    try:
+        import psutil
+    except ImportError:
+        return "unknown"
+
+    try:
+        process = psutil.Process(identity.pid)
+        if process.status() in (psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD):
+            return "stale"
+        delta = process.create_time() - identity.started_at.timestamp()
+        if abs(delta) < 1 and process.is_running():
+            return "live"
+        # The fallback timestamp can be later than the actual process start.
+        if delta >= 1:
+            return "stale"
+    except psutil.NoSuchProcess:
+        return "stale"
+    except (OSError, ValueError, OverflowError, psutil.Error):
+        pass
+    return "unknown"
+
+
+def _host_records(
+    directory: Path, *, state: Literal["live", "stale"]
+) -> Iterator[tuple[Path, protocol.HostRecord]]:
     try:
         original = directory.lstat()
         if not stat.S_ISDIR(original.st_mode) or not _private(original):
@@ -61,12 +93,6 @@ def discover_hosts(
                 if len(raw) > 65536:
                     continue
                 record = msgspec.json.decode(raw, type=protocol.HostRecord)
-            current = directory.lstat()
-            if (current.st_dev, current.st_ino) != (
-                original.st_dev,
-                original.st_ino,
-            ) or not _private(current):
-                return
             url = urlsplit(record.url)
             if (
                 url.scheme != "http"
@@ -80,18 +106,15 @@ def discover_hosts(
                 or url.port == 0
             ):
                 continue
-            process = psutil.Process(record.process.pid)
-            if (
-                process.is_running()
-                and process.status() != psutil.STATUS_ZOMBIE
-                and abs(
-                    process.create_time()
-                    - record.process.started_at.timestamp()
-                )
-                < 1
-            ):
-                yield record
-        except (OSError, ValueError, msgspec.DecodeError, psutil.Error):
+            if _process_state(record.process) != state:
+                continue
+            current = directory.lstat()
+            if not (_private(current) and os.path.samestat(original, current)):
+                return
+            entry = path.lstat()
+            if os.path.samestat(info, entry) and _private(entry):
+                yield path, record
+        except (OSError, ValueError, RecursionError, msgspec.DecodeError):
             continue
 
 
@@ -183,6 +206,18 @@ class HostRecordFile:
         self._written = True
         atexit.register(self.remove)
         LOGGER.debug("Wrote host record %s", self._path)
+
+    def prune_stale_siblings(self) -> None:
+        """Remove private records whose host process has ended."""
+        for path, _ in _host_records(self._path.parent, state="stale"):
+            if path == self._path:
+                continue
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as e:
+                LOGGER.debug(
+                    "Could not remove stale host record %s: %s", path, e
+                )
 
     def remove(self) -> None:
         """Remove the record. Safe to call more than once."""

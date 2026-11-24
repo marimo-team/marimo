@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import secrets
+import threading
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -101,6 +102,11 @@ async def host(app: Starlette) -> AsyncIterator[None]:
             record.write()
         except Exception as e:
             LOGGER.warning("Could not write the host record: %s", e)
+        else:
+            with contextlib.suppress(RuntimeError):
+                threading.Thread(
+                    target=record.prune_stale_siblings, daemon=True
+                ).start()
     try:
         yield
     finally:
