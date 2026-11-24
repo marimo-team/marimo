@@ -334,6 +334,15 @@ def notebook_page_template(
                     path_obj.read_text(encoding="utf-8")
                 ).to_notebook_v1()
 
+    html = html.replace(
+        "{{ title }}",
+        _html_escape(
+            parse_title(filename)
+            if app_config.app_title is None
+            else app_config.app_title
+        ),
+    )
+
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
 
     html = _replace_asset_urls(html, asset_url)
@@ -352,15 +361,6 @@ def notebook_page_template(
         runtime_config=runtime_config,
         notebook_snapshot=notebook_snapshot,
         session_snapshot=session_snapshot,
-    )
-
-    html = html.replace(
-        "{{ title }}",
-        _html_escape(
-            parse_title(filename)
-            if app_config.app_title is None
-            else app_config.app_title
-        ),
     )
 
     opengraph_tags = opengraph_metadata_template(
@@ -438,6 +438,15 @@ def static_notebook_template(
 
     html = html.replace("{{ base_url }}", "")
     filename = os.path.basename(filepath or "")
+    html = html.replace(
+        "{{ title }}",
+        _html_escape(
+            parse_title(filepath)
+            if app_config.app_title is None
+            else app_config.app_title
+        ),
+    )
+
     html = html.replace("{{ filename }}", _html_escape(filename))
 
     # We don't need all this user config when we export the notebook,
@@ -457,15 +466,6 @@ def static_notebook_template(
         notebook_snapshot=notebook_snapshot,
         runtime_config=None,
         layout=layout,
-    )
-
-    html = html.replace(
-        "{{ title }}",
-        _html_escape(
-            parse_title(filepath)
-            if app_config.app_title is None
-            else app_config.app_title
-        ),
     )
 
     static_block = _static_state_block(
