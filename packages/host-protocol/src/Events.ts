@@ -2,6 +2,6 @@
 
 import { events } from "./stable.ts";
 
-export { Custom, derive } from "./model/Events.ts";
+export { Custom } from "./model/Events.ts";
 export const { CatalogStreamEvent, NotebookStreamEvent, Event, ObjectKind } =
   events;

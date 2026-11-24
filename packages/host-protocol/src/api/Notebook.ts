@@ -1,12 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Schema } from "effect";
-import {
-  HttpApiEndpoint,
-  HttpApiGroup,
-  HttpApiSchema,
-  OpenApi,
-} from "effect/http-api";
+import { HttpApiEndpoint, HttpApiSchema, OpenApi } from "effect/http-api";
 import * as Requests from "./Requests.ts";
 import { Notebook } from "../model/Catalog.ts";
 import { Run as RunRecord } from "../model/Execution.ts";
@@ -14,7 +9,7 @@ import { Input } from "../model/Items.ts";
 import { Runtime } from "../model/Runtime.ts";
 import * as Problems from "../Problems.ts";
 import * as P from "./Parameters.ts";
-import { sseEvents, response } from "../internal/http.ts";
+import { makeGroup, sseEvents, response } from "../internal/http.ts";
 
 export const Delete = HttpApiEndpoint.delete(
   "delete",
@@ -375,7 +370,8 @@ export const group = <
   events: E,
   ...endpoints: Endpoints
 ) =>
-  HttpApiGroup.make("Notebook").add(
+  makeGroup(
+    "Notebook",
     Delete,
     Edit,
     makeEvents(events),

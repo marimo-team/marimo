@@ -166,41 +166,24 @@ function events<
   return Schema.Union(members);
 }
 
-/** Derive the stream schemas from published objects and standalone events. */
-export function derive<
-  const Objects extends ReadonlyArray<ObjectDefinition>,
-  CatalogEvent extends ReturnType<typeof event> = never,
-  NotebookEvent extends ReturnType<typeof event> = never,
->(
+/** Derive the stream schemas from the published objects. */
+export function derive<const Objects extends ReadonlyArray<ObjectDefinition>>(
   objects: Objects,
-  catalogEvents: readonly CatalogEvent[] = [],
-  notebookEvents: readonly NotebookEvent[] = [],
 ) {
-  const catalogObjects = carriedBy(objects, "catalog");
-  const notebookObjects = carriedBy(objects, "notebook");
-  const catalogKinds = [
-    ...catalogObjects.map((object) => object.kind),
-    ...catalogEvents.map((e) => e.fields.event.literal),
-  ];
-  const notebookKinds = [
-    ...notebookObjects.map((object) => object.kind),
-    "custom",
-    ...notebookEvents.map((e) => e.fields.event.literal),
-  ];
-  const extraEvents = [...new Set([...catalogEvents, ...notebookEvents])];
+  const kinds = (stream: StreamName) =>
+    carriedBy(objects, stream).map((object) => object.kind);
   return {
-    CatalogStreamEvent: events(catalogObjects, catalogEvents).annotate({
+    CatalogStreamEvent: events(carriedBy(objects, "catalog")).annotate({
       description: "Any event the catalog stream carries.",
       identifier: "CatalogStreamEvent",
     }),
-    NotebookStreamEvent: events(notebookObjects, [
+    NotebookStreamEvent: events(carriedBy(objects, "notebook"), [
       CustomEvent,
-      ...notebookEvents,
     ]).annotate({
       description: "Any event a notebook stream carries.",
       identifier: "NotebookStreamEvent",
     }),
-    Event: events(objects, [CustomEvent, ...extraEvents]).annotate({
+    Event: events(objects, [CustomEvent]).annotate({
       description:
         "A record, removal, or control message from a host stream. The data is decoded JSON. Snapshot records and reset events omit the cursor, and ready and live events carry it. Unknown event names belong to later versions or host extensions.",
       identifier: "Event",
@@ -208,9 +191,8 @@ export function derive<
     ObjectKind: Schema.Literals([
       ...objects.map((object) => object.kind),
       "custom",
-      ...extraEvents.map((e) => e.fields.event.literal),
     ]).annotate({
-      description: `The kinds a stream carries, and the values \`kinds\` accepts. The catalog stream carries ${list.format(catalogKinds)}. A notebook's stream carries ${list.format(notebookKinds)}. Custom events describe occurrences rather than object state.`,
+      description: `The kinds a stream carries, and the values \`kinds\` accepts. The catalog stream carries ${list.format(kinds("catalog"))}. A notebook's stream carries ${list.format([...kinds("notebook"), "custom"])}. Custom events describe occurrences rather than object state.`,
       identifier: "ObjectKind",
     }),
   };

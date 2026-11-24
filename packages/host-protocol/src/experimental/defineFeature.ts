@@ -1,40 +1,26 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { HttpApiEndpoint } from "effect/http-api";
-import type { event } from "../internal/events.ts";
 import type { ObjectDefinition } from "../Objects.ts";
-
-type Endpoint = HttpApiEndpoint.Constraint;
-type StreamEvent = ReturnType<typeof event>;
-
-interface Contributions<Route extends Endpoint, Event extends StreamEvent> {
-  endpoints?: readonly Route[];
-  events?: readonly Event[];
-}
-
-function scope<Route extends Endpoint, Event extends StreamEvent>({
-  endpoints = [],
-  events = [],
-}: Contributions<Route, Event> = {}) {
-  return { endpoints, events };
-}
 
 export function defineFeature<
   const Object extends ObjectDefinition = never,
-  const CatalogRoute extends Endpoint = never,
-  const CatalogEvent extends StreamEvent = never,
-  const NotebookRoute extends Endpoint = never,
-  const NotebookEvent extends StreamEvent = never,
+  const CatalogRoute extends HttpApiEndpoint.Constraint = never,
+  const NotebookRoute extends HttpApiEndpoint.Constraint = never,
 >({
   objects = [],
   catalog,
   notebook,
 }: {
   objects?: readonly Object[];
-  catalog?: Contributions<CatalogRoute, CatalogEvent>;
-  notebook?: Contributions<NotebookRoute, NotebookEvent>;
+  catalog?: { endpoints: readonly CatalogRoute[] };
+  notebook?: { endpoints: readonly NotebookRoute[] };
 }) {
-  return { objects, catalog: scope(catalog), notebook: scope(notebook) };
+  return {
+    objects,
+    catalogEndpoints: catalog?.endpoints ?? [],
+    notebookEndpoints: notebook?.endpoints ?? [],
+  };
 }
 
 export type Feature = ReturnType<typeof defineFeature>;

@@ -101,6 +101,33 @@ it("adds experimental features without changing the stable protocol", () => {
   });
 });
 
+it("rejects overlapping object events and ambiguous record adapters", () => {
+  const [object] = analysis.objects;
+  const withKind = (kind: string) =>
+    defineFeature({ objects: [{ ...object, kind }] });
+  expect(() => makeHostContract([analysis, analysis])).toThrow(
+    "Duplicate event name: analysis",
+  );
+  expect(() => makeHostContract([withKind("project.removed")])).toThrow(
+    "Duplicate event name: project.removed",
+  );
+  expect(() => makeHostContract([analysis, withKind("mirror")])).toThrow(
+    "analysis and mirror share a payload schema",
+  );
+});
+
+it("rejects endpoint names already used in the same group", () => {
+  const preview = HttpApiEndpoint.get("preview", "/preview");
+  const feature = defineFeature({ notebook: { endpoints: [preview] } });
+  expect(() => makeHostContract([feature, feature])).toThrow(
+    "Duplicate endpoint: Notebook.preview",
+  );
+  const events = HttpApiEndpoint.get("events", "/other");
+  expect(() =>
+    makeHostContract([defineFeature({ catalog: { endpoints: [events] } })]),
+  ).toThrow("Duplicate endpoint: Host.events");
+});
+
 it("composes an endpoint-only feature alongside analysis", () => {
   const emit = HttpApiEndpoint.post("emit", "/notebooks/:notebook_id/emit", {
     params: P.notebook,

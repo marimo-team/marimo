@@ -2,9 +2,32 @@
 
 import { makeApi } from "./api/Host.ts";
 import * as Notebook from "./api/Notebook.ts";
-import { derive } from "./model/Events.ts";
-import { objects as stableObjects } from "./Objects.ts";
+import { Custom, derive } from "./model/Events.ts";
+import { type ObjectDefinition, objects as stableObjects } from "./Objects.ts";
 import type { Feature } from "./experimental/defineFeature.ts";
+
+function validateObjects(objects: readonly ObjectDefinition[]) {
+  const eventNames = new Set(["custom", "ready", "reset"]);
+  // The Python record adapter dispatches on the payload class alone.
+  const payloads = new Map<ObjectDefinition["schema"]["ast"], string>([
+    [Custom.ast, "custom"],
+  ]);
+  for (const { kind, schema, removable } of objects) {
+    for (const name of removable ? [kind, `${kind}.removed`] : [kind]) {
+      if (eventNames.has(name)) {
+        throw new Error(`Duplicate event name: ${name}`);
+      }
+      eventNames.add(name);
+    }
+    const owner = payloads.get(schema.ast);
+    if (owner !== undefined) {
+      throw new Error(
+        `Object kinds ${owner} and ${kind} share a payload schema`,
+      );
+    }
+    payloads.set(schema.ast, kind);
+  }
+}
 
 export function makeHostContract<const F extends Feature>(
   features: readonly F[],
@@ -13,23 +36,17 @@ export function makeHostContract<const F extends Feature>(
     ...stableObjects,
     ...features.flatMap<F["objects"][number]>((feature) => feature.objects),
   ];
-  const contributions = <Scope extends "catalog" | "notebook">(
-    scope: Scope,
-  ) => ({
-    endpoints: features.flatMap<F[Scope]["endpoints"][number]>(
-      (feature) => feature[scope].endpoints,
-    ),
-    events: features.flatMap<F[Scope]["events"][number]>(
-      (feature) => feature[scope].events,
-    ),
-  });
-  const catalog = contributions("catalog");
-  const notebook = contributions("notebook");
-  const events = derive(objects, catalog.events, notebook.events);
+  validateObjects(objects);
+  const events = derive(objects);
   const notebookGroup = Notebook.group(
     events.NotebookStreamEvent,
-    ...notebook.endpoints,
+    ...features.flatMap<F["notebookEndpoints"][number]>(
+      (feature) => feature.notebookEndpoints,
+    ),
   );
-  const Api = makeApi(events, catalog.endpoints, notebookGroup);
+  const catalogEndpoints = features.flatMap<F["catalogEndpoints"][number]>(
+    (feature) => feature.catalogEndpoints,
+  );
+  const Api = makeApi(events, catalogEndpoints, notebookGroup);
   return { Api, events, notebookGroup };
 }

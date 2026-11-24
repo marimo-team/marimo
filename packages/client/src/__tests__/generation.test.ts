@@ -6,54 +6,92 @@ import NodePath from "node:path";
 import NodeUrl from "node:url";
 import { expect, it } from "vitest";
 
-it("generates a stable protocol that tolerates experimental stream events", () => {
-  const root = NodeUrl.fileURLToPath(new URL("../../", import.meta.url));
-  // Keep the temporary bindings in the package so Node can resolve zod.
-  const output = NodeFs.mkdtempSync(NodePath.join(root, ".protocol-test-"));
-  try {
-    const command = [
-      "--experimental-strip-types",
-      NodePath.join(root, "scripts/generate-protocol.ts"),
-      "--output-dir",
-      output,
-    ];
-    // The stable protocol, as the host protocol package prints it.
-    const input = NodeChildProcess.execFileSync("node", [
-      NodePath.join(root, "../host-protocol/scripts/openapi.ts"),
-    ]);
-    NodeChildProcess.execFileSync("node", command, { input, stdio: "pipe" });
-    NodeChildProcess.execFileSync("node", [...command, "--check"], {
-      input,
-      stdio: "pipe",
-    });
-    NodeFs.mkdirSync(NodePath.join(output, "transport"));
-    for (const name of ["frame.ts", "stream.ts"]) {
-      NodeFs.copyFileSync(
-        NodePath.join(root, "src/transport", name),
-        NodePath.join(output, "transport", name),
-      );
-    }
-    const protocol = NodeUrl.pathToFileURL(
-      NodePath.join(output, "protocol.ts"),
-    ).href;
-    const stream = NodeUrl.pathToFileURL(
-      NodePath.join(output, "transport/stream.ts"),
-    ).href;
-    const result = NodeChildProcess.execFileSync(
-      "node",
-      [
+it.each(["stable", "catalog feature"] as const)(
+  "delivers the generated %s stream kinds",
+  (selection) => {
+    const root = NodeUrl.fileURLToPath(new URL("../../", import.meta.url));
+    // Keep the temporary bindings in the package so Node can resolve zod.
+    const output = NodeFs.mkdtempSync(NodePath.join(root, ".protocol-test-"));
+    try {
+      const command = [
         "--experimental-strip-types",
-        "--input-type=module",
-        "-e",
-        `
+        NodePath.join(root, "scripts/generate-protocol.ts"),
+        "--output-dir",
+        output,
+      ];
+      const host = NodePath.join(root, "../host-protocol");
+      const input =
+        selection === "stable"
+          ? NodeChildProcess.execFileSync("node", ["scripts/openapi.ts"], {
+              cwd: host,
+            })
+          : NodeChildProcess.execFileSync(
+              "node",
+              [
+                "--input-type=module",
+                "-e",
+                `
+        import { Schema } from "effect";
+        import { OpenApi } from "effect/http-api";
+        import { makeHostContract } from "./src/contract.ts";
+        import { defineFeature } from "./src/experimental/defineFeature.ts";
+        import { referencePolicy } from "./src/Host.ts";
+        const badge = Schema.Struct({ label: Schema.String }).annotate({ identifier: "Badge" });
+        const feature = defineFeature({ objects: [{ kind: "badge", schema: badge, streams: ["catalog"], removable: false }] });
+        console.log(JSON.stringify(OpenApi.fromApi(makeHostContract([feature]).Api, { referencePolicy })));
+      `,
+              ],
+              { cwd: host },
+            );
+      NodeChildProcess.execFileSync("node", command, { input, stdio: "pipe" });
+      NodeChildProcess.execFileSync("node", [...command, "--check"], {
+        input,
+        stdio: "pipe",
+      });
+      NodeFs.mkdirSync(NodePath.join(output, "transport"));
+      for (const name of ["frame.ts", "stream.ts"]) {
+        NodeFs.copyFileSync(
+          NodePath.join(root, "src/transport", name),
+          NodePath.join(output, "transport", name),
+        );
+      }
+      NodeFs.copyFileSync(
+        NodePath.join(root, "src/kinds.ts"),
+        NodePath.join(output, "kinds.ts"),
+      );
+      const kinds = NodeUrl.pathToFileURL(
+        NodePath.join(output, "kinds.ts"),
+      ).href;
+      const protocol = NodeUrl.pathToFileURL(
+        NodePath.join(output, "protocol.ts"),
+      ).href;
+      const stream = NodeUrl.pathToFileURL(
+        NodePath.join(output, "transport/stream.ts"),
+      ).href;
+      const result = NodeChildProcess.execFileSync(
+        "node",
+        [
+          "--experimental-strip-types",
+          "--input-type=module",
+          "-e",
+          `
       import assert from "node:assert/strict";
       import * as Protocol from ${JSON.stringify(protocol)};
       import { EventStream } from ${JSON.stringify(stream)};
       assert.equal("Analysis" in Protocol, false);
       assert.equal(Protocol.ObjectKind.options.includes("analysis"), false);
-      const stream = new EventStream({}, Protocol.ObjectKind.options);
+      const { catalogKinds, notebookKinds } = await import(${JSON.stringify(kinds)});
+      const catalog = new EventStream({}, catalogKinds);
+      const catalogEvents = [];
+      catalog.subscribe(event => catalogEvents.push(event.event));
+      const stream = new EventStream({}, notebookKinds);
       const received = [];
       stream.subscribe(event => received.push(event));
+      const badge = { event: "badge", data: { badge: { label: "new" } } };
+      catalog.receive(badge);
+      stream.receive(badge);
+      assert.deepEqual(catalogEvents, ${selection === "stable" ? "[]" : '["badge"]'});
+      assert.deepEqual(received, []);
       stream.receive({ event: "analysis", data: {} });
       stream.receive({ event: "ready", id: "1", data: {} });
       stream.receive({ event: "analysis", id: "2", data: {} });
@@ -68,13 +106,15 @@ it("generates a stable protocol that tolerates experimental stream events", () =
         { event: "ready", id: "3", data: {} },
         { event: "reset", data: {} },
       ]);
-      console.log("stable stream verified");
+      console.log("stream kinds verified");
     `,
-      ],
-      { encoding: "utf8" },
-    );
-    expect(result.trim()).toBe("stable stream verified");
-  } finally {
-    NodeFs.rmSync(output, { recursive: true, force: true });
-  }
-}, 30_000);
+        ],
+        { encoding: "utf8" },
+      );
+      expect(result.trim()).toBe("stream kinds verified");
+    } finally {
+      NodeFs.rmSync(output, { recursive: true, force: true });
+    }
+  },
+  30_000,
+);

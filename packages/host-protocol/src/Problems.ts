@@ -176,11 +176,6 @@ export const Mutation = Schema.Union([
   UnsupportedOperationProblem,
 ]);
 
-export const Http = Schema.Union([
-  UnauthorizedProblem,
-  MethodNotAllowedProblem,
-]);
-
 /** Every problem this version defines. `type` tells them apart. */
 export const Problem = Schema.Union([
   InvalidRequestProblem,

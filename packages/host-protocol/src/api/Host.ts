@@ -4,7 +4,7 @@ import { Schema } from "effect";
 import {
   HttpApi,
   HttpApiEndpoint,
-  HttpApiGroup,
+  type HttpApiGroup,
   HttpApiMiddleware,
   HttpApiSchema,
   HttpApiSecurity,
@@ -15,7 +15,7 @@ import { Notebook as NotebookRecord } from "../model/Catalog.ts";
 import { HostRecord } from "../model/Discovery.ts";
 import * as Problems from "../Problems.ts";
 import * as P from "./Parameters.ts";
-import { sseEvents } from "../internal/http.ts";
+import { makeGroup, sseEvents } from "../internal/http.ts";
 import { forGenerators } from "../internal/openapi.ts";
 
 /** Admits requests that carry the host record's token from this machine. */
@@ -81,7 +81,7 @@ export const group = <
 >(
   events: E,
   ...endpoints: Endpoints
-) => HttpApiGroup.make("Host").add(Create, makeEvents(events), ...endpoints);
+) => makeGroup("Host", Create, makeEvents(events), ...endpoints);
 
 export const makeApi = <
   CatalogEvent extends Schema.Constraint,
