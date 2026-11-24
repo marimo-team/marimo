@@ -603,6 +603,7 @@ class SessionBridge(SessionEventListener):
         if notebook is not None:
             notebook.mark_saved(etag)
 
+    # TODO(MO-7927): Remove this mirror. https://linear.app/marimo/issue/MO-7927
     def _mirror(self, notebook_id: protocol.NotebookId) -> None:
         """Bring the document up to date with the session's after it changed."""
         session = self.session_for_notebook(notebook_id)
