@@ -281,9 +281,11 @@ class _Session:
         self.edit(changes)
         self.run_cells(cell_ids)
 
-    def execute(self, code: str) -> list[str]:
+    def execute(
+        self, code: str, headers: dict[str, str] | None = None
+    ) -> list[str]:
         """Run `code` via /api/kernel/execute; return normalized SSE lines."""
-        body = self._post("/api/kernel/execute", {"code": code})
+        body = self._post("/api/kernel/execute", {"code": code}, headers)
         return _normalize(body)
 
 
@@ -381,9 +383,27 @@ def session(_server: str) -> Generator[_Session, None, None]:
 # -- Tests --------------------------------------------------------------
 
 
-def test_scratchpad_success(session: _Session) -> None:
-    """Plain successful scratchpad — regression guard for the happy path."""
-    lines = session.execute("1 + 1")
+@pytest.mark.parametrize(
+    ("headers", "expect_warning"),
+    [
+        ({}, False),
+        ({"User-Agent": "curl/8.0"}, True),
+        (
+            {"User-Agent": "curl/8.0", "Marimo-Client": "marimo-pair-execute"},
+            False,
+        ),
+    ],
+)
+def test_scratchpad_success(
+    session: _Session, headers: dict[str, str], expect_warning: bool
+) -> None:
+    lines = session.execute("1 + 1", headers)
+    if expect_warning:
+        event, data, separator, *lines = lines
+        assert (event, separator) == ("event: stderr", "")
+        warning = json.loads(data.removeprefix("data: "))["data"]
+        assert "execute-code.sh IS DEPRECATED" in warning
+        assert "marimo pair execute --help" in warning
 
     assert lines == snapshot(
         [
