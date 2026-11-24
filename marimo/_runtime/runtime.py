@@ -18,6 +18,7 @@ from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
     Any,
+    NamedTuple,
     assert_never,
     cast,
 )
@@ -3051,8 +3052,15 @@ def _maybe_profile(profile_path: str | None) -> Iterator[None]:
         profiler.dump_stats(profile_path)
 
 
+class StreamSocket(NamedTuple):
+    """Loopback listener the kernel connects to for its output stream."""
+
+    address: str | tuple[str, int]
+    authkey: bytes
+
+
 def _create_streams(
-    socket_addr: tuple[str, int] | None,
+    stream_target: connection.Connection | StreamSocket | None,
     stream_queue: QueueType[KernelMessage] | None,
     input_queue: QueueType[InputReply],
     is_edit_mode: bool,
@@ -3061,13 +3069,15 @@ def _create_streams(
 ) -> _LaunchStreams | None:
     # Returns None when the socket fails to connect; callers should bail out.
     pipe: TypedConnection[KernelMessage] | None = None
-    if socket_addr is not None:
+    if isinstance(stream_target, StreamSocket):
         n_tries = 0
         last_error: BaseException | None = None
         while n_tries < 100:
             try:
                 pipe = TypedConnection[KernelMessage].of(
-                    connection.Client(socket_addr)
+                    connection.Client(
+                        stream_target.address, authkey=stream_target.authkey
+                    )
                 )
                 break
             except Exception as e:
@@ -3083,12 +3093,17 @@ def _create_streams(
             LOGGER.error(
                 "marimo kernel subprocess failed to connect to %s "
                 "after %d attempts",
-                socket_addr,
+                stream_target.address,
                 n_tries,
                 exc_info=last_error,
             )
             return None
+    elif stream_target is not None:
+        # Tells the server that bootstrap is done, as connecting does above.
+        stream_target.send_bytes(b"")
+        pipe = TypedConnection[KernelMessage].of(stream_target)
 
+    if pipe is not None:
         stream = ThreadSafeStream(
             pipe=pipe,
             input_queue=input_queue,
@@ -3102,7 +3117,7 @@ def _create_streams(
         )
     else:
         raise RuntimeError(
-            "One of queue_pipe and socket_addr must be non None"
+            "One of stream_queue and stream_target must be non None"
         )
 
     stdout = (
@@ -3164,7 +3179,7 @@ def launch_kernel(
     completion_queue: QueueType[OutOfBandCommand],
     input_queue: QueueType[InputReply],
     stream_queue: QueueType[KernelMessage] | None,
-    socket_addr: tuple[str, int] | None,
+    stream_target: connection.Connection | StreamSocket | None,
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
@@ -3196,7 +3211,7 @@ def launch_kernel(
         # thread-local proxy instead to avoid process-global fd mutations.
         use_fd_redirect = is_subprocess
         streams = _create_streams(
-            socket_addr,
+            stream_target,
             stream_queue,
             input_queue,
             is_edit_mode,

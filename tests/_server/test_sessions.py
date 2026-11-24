@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 from functools import partial
-from multiprocessing import get_context
+from multiprocessing import connection, get_context
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from textwrap import dedent
@@ -177,6 +177,73 @@ async def test_kernel_manager_edit_mode() -> None:
     # these are known to be mp.Queue
     queue_manager.input_queue.join_thread()  # type: ignore
     queue_manager.control_queue.join_thread()  # type: ignore
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows streams over a loopback socket"
+)
+async def test_edit_kernel_streams_without_a_listening_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_listening(*_args: Any, **_kwargs: Any) -> NoReturn:
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(connection, "Listener", no_listening)
+    queue_manager = QueueManagerImpl(use_multiprocessing=True)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_file_storage="shared_memory",
+        redirect_console_to_browser=False,
+    )
+    await kernel_manager.start_kernel()
+    # Startup must not return before the kernel can survive an interrupt.
+    kernel_manager.interrupt_kernel()
+
+    async def receive_message() -> NotificationMessage:
+        while not kernel_manager.kernel_connection.poll():  # noqa: ASYNC110
+            await asyncio.sleep(0.01)
+        return deserialize_kernel_message(
+            kernel_manager.kernel_connection.recv()
+        )
+
+    async def completed_run() -> None:
+        while not isinstance(
+            await receive_message(), CompletedRunNotification
+        ):
+            pass
+
+    try:
+        queue_manager.put_control_request(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(cell_id="1", code="x = 1"),
+                ),
+                cell_ids=("1",),
+                set_ui_element_value_request=UpdateUIElementCommand(
+                    object_ids=[], values=[]
+                ),
+                auto_run=True,
+            )
+        )
+        await asyncio.wait_for(completed_run(), timeout=30)
+
+        queue_manager.put_control_request(
+            ExecuteCellsCommand(
+                execution_requests=[
+                    ExecuteCellCommand(
+                        cell_id="1", code="import os; os._exit(0)"
+                    )
+                ]
+            )
+        )
+        with pytest.raises(EOFError):
+            await asyncio.wait_for(completed_run(), timeout=30)
+    finally:
+        kernel_manager.close_kernel()
 
 
 _INTERRUPT_DEADLINE_SECONDS = 30

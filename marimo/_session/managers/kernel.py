@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import os
+import secrets
+import sys
 import threading
 import time
-from multiprocessing import connection, get_context
+from functools import partial
+from multiprocessing import AuthenticationError, connection, get_context
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -27,6 +30,8 @@ from marimo._utils.subprocess import (
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigManager
     from marimo._runtime.commands import AppMetadata
@@ -34,6 +39,44 @@ if TYPE_CHECKING:
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
+
+_HANDSHAKE_TIMEOUT_SECONDS = 5
+
+
+def _handshake(
+    conn: connection.Connection, authkey: bytes, verified: threading.Event
+) -> None:
+    try:
+        connection.deliver_challenge(conn, authkey)
+        connection.answer_challenge(conn, authkey)
+    except (AuthenticationError, EOFError, OSError):
+        return
+    verified.set()
+
+
+def _accept_kernel(
+    listener: connection.Listener, authkey: bytes
+) -> connection.Connection:
+    # Listener's own handshake has no timeout, so a peer that connects to
+    # the port but never answers would block startup indefinitely.
+    while True:
+        conn = listener.accept()
+        verified = threading.Event()
+        thread = threading.Thread(
+            target=_handshake, args=(conn, authkey, verified), daemon=True
+        )
+        thread.start()
+        thread.join(timeout=_HANDSHAKE_TIMEOUT_SECONDS)
+        if verified.is_set():
+            return conn
+        conn.close()
+
+
+def _await_kernel_ready(
+    read_conn: connection.Connection,
+) -> connection.Connection:
+    read_conn.recv_bytes()
+    return read_conn
 
 
 class KernelManagerImpl(KernelManager):
@@ -75,11 +118,26 @@ class KernelManagerImpl(KernelManager):
             hide_secrets=False
         )
         user_config = parse_config(resolved.config)
-        listener = None
+        listener: connection.Listener | None = None
+        write_conn: connection.Connection | None = None
+        connect: Callable[[], connection.Connection] | None = None
         if is_edit_mode:
-            # Need to use a socket for windows compatibility
-            listener = connection.Listener(family="AF_INET")
-            self.kernel_task = get_context("spawn").Process(
+            context = get_context("spawn")
+            stream_target: connection.Connection | runtime.StreamSocket
+            if sys.platform == "win32":
+                # The server reads the stream with a selector event loop,
+                # which on Windows can only watch sockets.
+                authkey = secrets.token_bytes(32)
+                listener = connection.Listener(family="AF_INET")
+                stream_target = runtime.StreamSocket(listener.address, authkey)
+                connect = partial(_accept_kernel, listener, authkey)
+            else:
+                # A pipe needs no extra port, so restricted sandboxes that
+                # only allow the server's own port can still start kernels.
+                read_conn, write_conn = context.Pipe(duplex=False)
+                stream_target = write_conn
+                connect = partial(_await_kernel_ready, read_conn)
+            self.kernel_task = context.Process(
                 target=runtime.launch_kernel,
                 args=(
                     self.queue_manager.control_queue,
@@ -88,7 +146,7 @@ class KernelManagerImpl(KernelManager):
                     self.queue_manager.input_queue,
                     # stream queue unused
                     None,
-                    listener.address,
+                    stream_target,
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
@@ -167,39 +225,44 @@ class KernelManagerImpl(KernelManager):
             )
 
         self.kernel_task.start()  # type: ignore
-        if listener is not None:
-            # Listener.accept() has no timeout. Run it on a helper thread so
-            # the main path can watchdog kernel_task liveness; otherwise a
-            # child that dies before connecting leaves us blocked forever.
+        if write_conn is not None:
+            # The kernel holds its own copy; closing ours lets the reader see
+            # EOF once the kernel exits.
+            write_conn.close()
+        if connect is not None:
+            # Neither accepting the kernel's socket nor waiting on its pipe has
+            # a timeout. Run it on a helper thread so the main path can
+            # watchdog kernel_task liveness; otherwise a child that dies
+            # before connecting leaves us blocked forever.
             result: dict[str, Any] = {}
+            connect_kernel = connect
 
-            def _accept() -> None:
+            def _connect() -> None:
                 try:
-                    result["conn"] = listener.accept()
+                    result["conn"] = connect_kernel()
                 except Exception as e:
                     result["error"] = e
 
-            accept_thread = threading.Thread(
-                target=_accept, name="kernel-accept", daemon=True
+            connect_thread = threading.Thread(
+                target=_connect, name="kernel-connect", daemon=True
             )
-            accept_thread.start()
-            while True:
-                accept_thread.join(timeout=0.5)
-                if not accept_thread.is_alive():
-                    break
-                if not self.kernel_task.is_alive():  # type: ignore[attr-defined]
-                    # Closing the listener unblocks accept() in the helper
-                    # thread so it can exit cleanly instead of leaking.
-                    listener.close()
-                    accept_thread.join(timeout=1.0)
-                    raise RuntimeError(
-                        "marimo kernel subprocess exited before "
-                        "connecting (exitcode="
-                        f"{getattr(self.kernel_task, 'exitcode', None)})"
-                        "; check subprocess stderr for the cause"
-                    )
-            if "error" in result:
-                raise result["error"]
+            connect_thread.start()
+            while connect_thread.is_alive() and self.kernel_task.is_alive():  # type: ignore[attr-defined]
+                connect_thread.join(timeout=0.5)
+            if listener is not None:
+                # Closing the listener unblocks accept() in the helper thread
+                # so it can exit cleanly instead of leaking.
+                listener.close()
+            if "conn" not in result:
+                connect_thread.join(timeout=1.0)
+                if self.kernel_task.is_alive():  # type: ignore[attr-defined]
+                    raise result["error"]
+                raise RuntimeError(
+                    "marimo kernel subprocess exited before "
+                    "connecting (exitcode="
+                    f"{getattr(self.kernel_task, 'exitcode', None)})"
+                    "; check subprocess stderr for the cause"
+                ) from result.get("error")
             self._read_conn = TypedConnection[KernelMessage].of(result["conn"])
 
     @property

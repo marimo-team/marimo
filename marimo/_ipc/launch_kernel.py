@@ -61,7 +61,7 @@ def main() -> None:
         # NB: IPC kernels are always subprocesses (is_ipc=True) but may be
         # edit or run mode based on is_edit_mode.
         stream_queue=queue_manager.stream_queue,
-        socket_addr=None,
+        stream_target=None,
         is_edit_mode=not args.is_run_mode,
         is_ipc=True,
         redirect_console_to_browser=args.redirect_console_to_browser,

@@ -185,7 +185,7 @@ def _handle_create_kernel(
                     completion_queue=command_queues.completion,
                     input_queue=command_queues.input,
                     stream_queue=stream_queue,
-                    socket_addr=None,
+                    stream_target=None,
                     is_edit_mode=False,
                     configs=cmd.configs,
                     app_metadata=cmd.app_metadata,
