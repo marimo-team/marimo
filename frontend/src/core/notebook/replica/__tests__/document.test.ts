@@ -11,7 +11,7 @@ const snapshot = fixtureEvents("notebook-events.sse");
 const edits = fixtureEvents("edits.sse");
 
 function replay(
-  events: readonly Protocol.EventOutput[],
+  events: readonly Protocol.NotebookStreamEventOutput[],
   from = reducer.initial,
 ) {
   return events.reduce((state, event) => reducer.reduce(state, event), from);

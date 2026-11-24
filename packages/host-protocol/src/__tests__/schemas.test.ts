@@ -6,7 +6,10 @@ import { expect, it } from "vitest";
 import * as S from "../Schemas.ts";
 import * as Host from "../Host.ts";
 import * as Notebook from "../Notebook.ts";
-import * as Analysis from "../experimental/Analysis.ts";
+import {
+  Notebook as ExperimentalNotebook,
+  Schemas as ExperimentalSchemas,
+} from "../experimental.ts";
 
 const root = new URL("../../../../protocols/host/", import.meta.url);
 const fixtures = new URL("fixtures/", root);
@@ -15,6 +18,10 @@ function read(name: string): unknown {
 }
 
 const records = {
+  "../experimental/analysis/fixtures/analysis.json":
+    ExperimentalSchemas.Analysis,
+  "../experimental/analysis/fixtures/diagnostic.json":
+    ExperimentalSchemas.CellDiagnostic,
   "record.json": S.HostRecord,
   "cell.json": S.Cell,
   "cell-withheld.json": S.Cell,
@@ -27,8 +34,6 @@ const records = {
   "input-reply-request.json": S.InputReplyRequest,
   "input-reply-response.json": S.Input,
   "interrupt-runtime-response.json": S.Runtime,
-  "../experimental/analysis/fixtures/analysis.json": Analysis.Analysis,
-  "../experimental/analysis/fixtures/diagnostic.json": Analysis.CellDiagnostic,
 };
 
 it.each(Object.entries(records))(
@@ -39,6 +44,12 @@ it.each(Object.entries(records))(
     expect(Schema.encodeSync(schema)(decoded)).toEqual(input);
   },
 );
+
+it("exposes the object kinds of each contract", () => {
+  expect(Schema.is(S.ObjectKind)("analysis")).toBe(false);
+  expect(Schema.is(ExperimentalSchemas.ObjectKind)("analysis")).toBe(true);
+  expect(ExperimentalSchemas.NotebookId).toBe(S.NotebookId);
+});
 
 it.each(readdirSync(new URL("problems/", fixtures)))(
   "accepts existing problem %s",
@@ -55,7 +66,7 @@ it.each([
 ])("decodes events from %s", (name) => {
   const text = readFileSync(new URL(name, fixtures), "utf8");
   const schema = name.startsWith("../experimental/")
-    ? Analysis.NotebookStreamEvent
+    ? ExperimentalNotebook.StreamEvent
     : ["events.sse", "events-reset.sse"].includes(name)
       ? Host.StreamEvent
       : Notebook.StreamEvent;

@@ -1,11 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Schema } from "effect";
-import { derive } from "../Events.ts";
-import * as Host from "../Host.ts";
-import { DiagnosticSeverity } from "../internal/schema.ts";
-import * as Objects from "../Objects.ts";
-import * as S from "../Schemas.ts";
+import { DiagnosticSeverity } from "../../internal/schema.ts";
+import { Range, Related } from "../../model/Execution.ts";
+import { CellId, Etag, NotebookId } from "../../model/Ids.ts";
+import { defineFeature } from "../defineFeature.ts";
 
 export const CellDiagnostic = Schema.Struct({
   source: Schema.String.annotateKey({
@@ -16,11 +15,11 @@ export const CellDiagnostic = Schema.Struct({
   }),
   severity: DiagnosticSeverity,
   message: Schema.String,
-  range: Schema.NullOr(S.Range).annotateKey({
+  range: Schema.NullOr(Range).annotateKey({
     description:
       "Span in this cell, or null for a whole-cell finding or unknown location.",
   }),
-  related: Schema.Array(S.Related),
+  related: Schema.Array(Related),
 }).annotate({ identifier: "CellDiagnostic" });
 
 export const CellAnalysis = Schema.Struct({
@@ -31,7 +30,7 @@ export const CellAnalysis = Schema.Struct({
     description: "Names this cell reads from other cells.",
   }),
   parents: Schema.optionalKey(
-    Schema.Array(S.CellId).annotateKey({
+    Schema.Array(CellId).annotateKey({
       description:
         "Cell IDs of the direct dependencies in this revision. An empty list means no parents. Omitted when the host does not provide the graph.",
     }),
@@ -47,10 +46,10 @@ export const CellAnalysis = Schema.Struct({
 });
 
 export const Analysis = Schema.Struct({
-  notebook_id: S.NotebookId.annotateKey({
+  notebook_id: NotebookId.annotateKey({
     description: "The notebook this analysis belongs to.",
   }),
-  document_etag: S.Etag.annotateKey({
+  document_etag: Etag.annotateKey({
     description:
       "The document revision this analysis describes. Equal to the document's `etag` while the analysis is current.",
   }),
@@ -63,18 +62,13 @@ export const Analysis = Schema.Struct({
   identifier: "Analysis",
 });
 
-/** The object table with the analysis object on the notebook stream. */
-export const objects = [
-  ...Objects.objects,
-  {
-    kind: "analysis",
-    schema: Analysis,
-    streams: ["notebook"],
-    removable: false,
-  },
-] as const satisfies ReadonlyArray<Objects.ObjectDefinition>;
-
-export const Api = Host.make(objects);
-
-export const { NotebookStreamEvent } = derive(objects);
-export type NotebookStreamEvent = typeof NotebookStreamEvent.Type;
+export default defineFeature({
+  objects: [
+    {
+      kind: "analysis",
+      schema: Analysis,
+      streams: ["notebook"],
+      removable: false,
+    },
+  ],
+});

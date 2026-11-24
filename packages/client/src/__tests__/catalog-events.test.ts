@@ -9,9 +9,10 @@ import {
   type CatalogEventsOptions,
   type Transport,
 } from "../index.ts";
+import * as Protocol from "../protocol.ts";
 import { fixtureEvents } from "./fixtures.ts";
 
-const snapshot = fixtureEvents("events.sse");
+const snapshot = fixtureEvents("events.sse", Protocol.CatalogStreamEvent);
 const ready = snapshot.findIndex((event) => event.event === "ready");
 const record = snapshot.find((event) => event.event === "notebook")!.data
   .notebook;
@@ -113,7 +114,10 @@ describe("CatalogEvents", () => {
   });
 
   it("clears the cursor and caller state when a saved cursor cannot be resumed", async () => {
-    const replacement = fixtureEvents("events-reset.sse");
+    const replacement = fixtureEvents(
+      "events-reset.sse",
+      Protocol.CatalogStreamEvent,
+    );
     const { transport, attempts } = scripted(replacement);
     const events = new CatalogEvents(transport, { cursor: "old" });
     const reducer = createCatalogReducer({ notebooks });
@@ -155,16 +159,20 @@ describe("CatalogEvents", () => {
     >();
     expectTypeOf<CatalogEventsOptions>().not.toHaveProperty("runId");
     expectTypeOf<CatalogEventsOptions["kinds"]>().toEqualTypeOf<
-      | readonly ("host" | "project" | "notebook" | "runtime" | "attachment")[]
+      | readonly Extract<
+          Protocol.CatalogStreamEventOutput["event"],
+          Protocol.ObjectKind
+        >[]
       | undefined
     >();
     events.close();
   });
 
   it("delivers only catalog events by default", async () => {
-    const cell = fixtureEvents("notebook-events.sse").find(
-      (event) => event.event === "cell",
-    )!;
+    const cell = fixtureEvents(
+      "notebook-events.sse",
+      Protocol.NotebookStreamEvent,
+    ).find((event) => event.event === "cell")!;
     const { transport } = scripted([
       ...snapshot,
       { ...cell, id: "46" },

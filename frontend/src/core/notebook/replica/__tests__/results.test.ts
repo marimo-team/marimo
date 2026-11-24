@@ -12,7 +12,7 @@ const runCells = fixtureEvents("run-cells.sse");
 const time = "2026-10-01T09:30:00Z";
 
 function replay(
-  events: readonly Protocol.EventOutput[],
+  events: readonly Protocol.NotebookStreamEventOutput[],
   from = reducer.initial,
 ) {
   return events.reduce(reducer.reduce, from);
@@ -22,7 +22,7 @@ const resource = (state: ReturnType<typeof replay>) =>
   state.resources.executions.results;
 
 /** Build one event as the stream would deliver it. */
-const event = (message: unknown) => Protocol.Event.parse(message);
+const event = (message: unknown) => Protocol.NotebookStreamEvent.parse(message);
 
 const removed = (kind: string, id: string, cursor: string) =>
   event({ event: `${kind}.removed`, id: cursor, data: { id, time } });

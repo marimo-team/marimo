@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { createNotebookReducer, NotebookEvents } from "@marimo-team/client";
-import * as Protocol from "@marimo-team/client/protocol";
+import type * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import type { NotebookBackend } from "../../notebook/replica";
 import { document as documentResource } from "../../notebook/replica/resources/document";
@@ -40,11 +40,13 @@ afterEach(async () => {
 });
 
 /** Collect a stream's events up to and including its next `ready`. */
-function untilReady(stream: NotebookEvents): Promise<Protocol.EventOutput[]> {
-  const events: Protocol.EventOutput[] = [];
+function untilReady(
+  stream: NotebookEvents,
+): Promise<Protocol.NotebookStreamEventOutput[]> {
+  const events: Protocol.NotebookStreamEventOutput[] = [];
   return new Promise((resolve, reject) => {
     stream.subscribe((event) => {
-      events.push(Protocol.Event.parse(event));
+      events.push(event);
       if (event.event === "ready") {
         resolve(events);
       }

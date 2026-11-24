@@ -1,19 +1,24 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { ObjectKind } from "./protocol.ts";
+import {
+  CatalogStreamEvent,
+  NotebookStreamEvent,
+  ObjectKind,
+} from "./protocol.ts";
 
-export const catalogKinds = [
-  "host",
-  "project",
-  "notebook",
-  "runtime",
-  "attachment",
-] as const satisfies readonly ObjectKind[];
+function objectKinds<Tag extends string>(tags: readonly Tag[]) {
+  const names = new Set<string>(tags);
+  return ObjectKind.options.filter((kind): kind is Extract<ObjectKind, Tag> =>
+    names.has(kind),
+  );
+}
 
+export const catalogKinds = objectKinds(
+  CatalogStreamEvent.options.map((schema) => schema.shape.event.options[0]),
+);
 export type CatalogKind = (typeof catalogKinds)[number];
 
-export const notebookKinds = ObjectKind.options.filter(
-  (kind) => kind !== "host" && kind !== "project",
+export const notebookKinds = objectKinds(
+  NotebookStreamEvent.options.map((schema) => schema.shape.event.options[0]),
 );
-
 export type NotebookKind = (typeof notebookKinds)[number];

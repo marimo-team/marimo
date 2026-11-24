@@ -1,13 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { OpenApi } from "effect/http-api";
-import { expect, it } from "vitest";
-import * as Analysis from "../experimental/Analysis.ts";
+import { type HttpApiClient, HttpApiEndpoint, OpenApi } from "effect/http-api";
+import { expect, expectTypeOf, it } from "vitest";
+import { Host as ExperimentalHost } from "../experimental.ts";
+import analysis from "../experimental/features/analysis.ts";
 import * as Host from "../Host.ts";
+import * as P from "../api/Parameters.ts";
+import * as S from "../Schemas.ts";
+import { makeHostContract } from "../contract.ts";
+import { defineFeature } from "../experimental/defineFeature.ts";
 
 const { referencePolicy } = Host;
 const stable = OpenApi.fromApi(Host.Api, { referencePolicy });
-const experimental = OpenApi.fromApi(Analysis.Api, { referencePolicy });
+const experimental = OpenApi.fromApi(ExperimentalHost.Api, { referencePolicy });
 const schemas = stable.components.schemas;
 
 it("closes request bodies and keeps other objects open", () => {
@@ -72,30 +77,90 @@ it("lists the problems each route can answer with", () => {
 });
 
 it("adds experimental features without changing the stable protocol", () => {
-  expect(experimental.paths).toEqual(stable.paths);
+  expect(experimental.paths).toMatchObject(stable.paths);
   const extended = experimental.components.schemas;
+  const unions = ["Event", "CatalogStreamEvent", "NotebookStreamEvent"];
+  for (const name of unions) {
+    expect(extended[name].anyOf).toEqual(
+      expect.arrayContaining(schemas[name].anyOf as unknown[]),
+    );
+  }
+  expect(extended.ObjectKind.enum).toEqual(
+    expect.arrayContaining(schemas.ObjectKind.enum as string[]),
+  );
   for (const [name, schema] of Object.entries(schemas)) {
-    if (
-      name === "Event" ||
-      name === "NotebookStreamEvent" ||
-      name === "ObjectKind"
-    ) {
+    if (unions.includes(name) || name === "ObjectKind") {
       continue;
     }
     expect(extended[name]).toEqual(schema);
   }
-  expect(new Set(extended.ObjectKind.enum as string[])).toEqual(
-    new Set([...(schemas.ObjectKind.enum as string[]), "analysis"]),
+  expect(schemas).not.toHaveProperty("Analysis");
+  expect(extended.ObjectKind.enum).toContain("analysis");
+  expect(extended.NotebookStreamEvent.anyOf).toContainEqual({
+    $ref: "#/components/schemas/AnalysisEvent",
+  });
+});
+
+it("rejects overlapping object events and ambiguous record adapters", () => {
+  const [object] = analysis.objects;
+  const withKind = (kind: string) =>
+    defineFeature({ objects: [{ ...object, kind }] });
+  expect(() => makeHostContract([analysis, analysis])).toThrow(
+    "Duplicate event name: analysis",
   );
-  expect(
-    Object.keys(extended)
-      .filter((name) => !(name in schemas))
-      .toSorted(),
-  ).toEqual([
-    "Analysis",
-    "AnalysisEvent",
-    "AnalysisMessage",
-    "CellAnalysis",
-    "CellDiagnostic",
+  expect(() => makeHostContract([withKind("project.removed")])).toThrow(
+    "Duplicate event name: project.removed",
+  );
+  expect(() => makeHostContract([analysis, withKind("mirror")])).toThrow(
+    "analysis and mirror share a payload schema",
+  );
+});
+
+it("rejects endpoint names already used in the same group", () => {
+  const preview = HttpApiEndpoint.get("preview", "/preview");
+  const feature = defineFeature({ notebook: { endpoints: [preview] } });
+  expect(() => makeHostContract([feature, feature])).toThrow(
+    "Duplicate endpoint: Notebook.preview",
+  );
+  const events = HttpApiEndpoint.get("events", "/other");
+  expect(() =>
+    makeHostContract([defineFeature({ catalog: { endpoints: [events] } })]),
+  ).toThrow("Duplicate endpoint: Host.events");
+});
+
+it("composes an endpoint-only feature alongside analysis", () => {
+  const emit = HttpApiEndpoint.post("emit", "/notebooks/:notebook_id/emit", {
+    params: P.notebook,
+    payload: S.Custom,
+  });
+  const status = HttpApiEndpoint.get("status", "/status");
+  const {
+    Api,
+    events: { NotebookStreamEvent },
+  } = makeHostContract([
+    analysis,
+    defineFeature({
+      catalog: { endpoints: [status] },
+      notebook: { endpoints: [emit] },
+    }),
   ]);
+
+  type Client = HttpApiClient.ForApi<typeof Api>;
+  type Request = Parameters<Client["Notebook"]["emit"]>[0];
+  expectTypeOf<Request["payload"]>().toEqualTypeOf<typeof S.Custom.Type>();
+  type AnalysisEvent = Extract<
+    typeof NotebookStreamEvent.Type,
+    { event: "analysis" }
+  >;
+  expectTypeOf<
+    AnalysisEvent["data"]["analysis"]["notebook_id"]
+  >().toEqualTypeOf<typeof S.NotebookId.Type>();
+
+  const path = "/notebooks/{notebook_id}/emit";
+  expect(Api.groups.Host.endpoints).toHaveProperty("status");
+  expect(Api.groups.Notebook.endpoints).not.toHaveProperty("status");
+  expect(
+    OpenApi.fromApi(Api, { referencePolicy }).paths[path].post?.security,
+  ).toEqual([{ hostToken: [] }]);
+  expect(stable.paths).not.toHaveProperty(path);
 });

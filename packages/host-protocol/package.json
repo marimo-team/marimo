@@ -14,7 +14,7 @@
     "./Events": "./dist/Events.js",
     "./Schemas": "./dist/Schemas.js",
     "./Problems": "./dist/Problems.js",
-    "./experimental/Analysis": "./dist/experimental/Analysis.js"
+    "./experimental": "./dist/experimental.js"
   },
   "files": [
     "dist"

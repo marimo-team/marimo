@@ -4,15 +4,15 @@
 
 import * as NodeUtil from "node:util";
 import { OpenApi } from "effect/http-api";
-import * as Analysis from "../src/experimental/Analysis.ts";
-import * as Host from "../src/Host.ts";
+import { Api as ExperimentalApi } from "../src/experimental/Host.ts";
+import { Api as StableApi, referencePolicy } from "../src/Host.ts";
 
 const args = NodeUtil.parseArgs({
   options: { experimental: { type: "boolean", default: false } },
 });
 
 const doc = args.values.experimental
-  ? OpenApi.fromApi(Analysis.Api, { referencePolicy: Host.referencePolicy })
-  : OpenApi.fromApi(Host.Api, { referencePolicy: Host.referencePolicy });
+  ? OpenApi.fromApi(ExperimentalApi, { referencePolicy })
+  : OpenApi.fromApi(StableApi, { referencePolicy });
 
 process.stdout.write(`${JSON.stringify(doc, null, 2)}\n`);

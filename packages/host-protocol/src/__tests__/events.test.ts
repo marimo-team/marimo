@@ -5,7 +5,7 @@ import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import * as Host from "../Host.ts";
 import * as Notebook from "../Notebook.ts";
-import * as Analysis from "../experimental/Analysis.ts";
+import { Notebook as ExperimentalNotebook } from "../experimental.ts";
 
 const fixtures = new URL("../../../../protocols/host/", import.meta.url);
 const cell: unknown = JSON.parse(
@@ -55,14 +55,17 @@ describe("scoped events", () => {
   it("opts into analysis without widening stable streams", () => {
     expect(Schema.is(Notebook.StreamEvent)(analysisEvent)).toBe(false);
     expect(Schema.is(Host.StreamEvent)(analysisEvent)).toBe(false);
-    const decoded = Schema.decodeUnknownSync(Analysis.NotebookStreamEvent)(
-      analysisEvent,
-    );
-    expect(Schema.encodeSync(Analysis.NotebookStreamEvent)(decoded)).toEqual(
+    const decoded = Schema.decodeUnknownSync(ExperimentalNotebook.StreamEvent)(
       analysisEvent,
     );
     expect(
-      Schema.is(Analysis.NotebookStreamEvent)({ event: "analysis", data: {} }),
+      Schema.encodeSync(ExperimentalNotebook.StreamEvent)(decoded),
+    ).toEqual(analysisEvent);
+    expect(
+      Schema.is(ExperimentalNotebook.StreamEvent)({
+        event: "analysis",
+        data: {},
+      }),
     ).toBe(false);
   });
 });

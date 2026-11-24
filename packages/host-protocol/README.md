@@ -5,10 +5,16 @@ with Effect's `HttpApi`. The same definition gives server handler types, an
 Effect HTTP client, and the [OpenAPI document](../../protocols/host/README.md#get-the-openapi-document)
 that the Python and TypeScript generators read.
 
-Start with [`Objects.ts`](src/Objects.ts), the table of objects a host
-publishes. The events come from that table, and an
-[experimental feature](../../protocols/host/experimental/README.md) appends
-rows to it.
+[Objects.ts](src/Objects.ts) lists the objects a host publishes and the streams
+that carry them. To include all experimental objects and notebook endpoints,
+use the experimental entrypoint in the examples below:
+
+```ts
+import { Host } from "@marimo-team/host-protocol/experimental";
+```
+
+See [experimental features](../../protocols/host/experimental/README.md) for
+how to add a feature.
 
 ## Implement a host
 
