@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { SchemaRepresentation } from "effect";
-import type { HttpApiEndpoint } from "effect/http-api";
 import * as Notebook from "./api/Notebook.ts";
 import { makeApi } from "./api/Host.ts";
 import { derive } from "./model/Events.ts";
@@ -15,19 +14,11 @@ export const Events = Group.endpoints.events;
 export const StreamEvent = events.CatalogStreamEvent;
 export type StreamEvent = typeof StreamEvent.Type;
 
-export const make = <
-  const Objects extends ReadonlyArray<ObjectDefinition>,
-  const Endpoints extends readonly HttpApiEndpoint.Constraint[] = readonly [],
->(
+export const make = <const Objects extends ReadonlyArray<ObjectDefinition>>(
   objects: Objects,
-  ...notebookEndpoints: Endpoints
 ) => {
   const events = derive(objects);
-  return makeApi(
-    events,
-    [],
-    Notebook.group(events.NotebookStreamEvent, ...notebookEndpoints),
-  );
+  return makeApi(events, [], Notebook.group(events.NotebookStreamEvent));
 };
 
 /**
