@@ -325,7 +325,7 @@ def _clean_tracked_entries(
         click.echo(f"Nothing is tracked for {notebook}.")
         return
 
-    report([(cache_dir, plan.freed)])
+    report([(cache_dir, plan.freed)], notes={cache_dir: plan.notes})
     if not plan.entries:
         click.echo("Nothing to delete.")
         return
