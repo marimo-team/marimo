@@ -186,6 +186,13 @@ class Cache:
     # be explored and visualized.
     meta: dict[MetaKey, Any]
 
+    def restores_unhashable(self) -> bool:
+        """Whether a def or the return value restores as an `UnhashableStub`."""
+        return any(
+            isinstance(value, UnhashableStub)
+            for value in (*self.defs.values(), self.meta.get("return"))
+        )
+
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles

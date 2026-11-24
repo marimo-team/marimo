@@ -212,11 +212,22 @@ def _module_available(type_hint: str | None) -> bool:
         return False
 
 
+_EXACT_TYPE_LOADERS = frozenset({"inline", "npy", "arrow"})
+
+
 def maybe_update_lazy_stub(value: Any) -> str:
     value_type = type(value)
     # MRO not that expensive, type hashable for functools lookup.
     result = mro_lookup(value_type, LAZY_STUB_LOOKUP)
     loader = result[1] if result else "pickle"
+    if (
+        loader in _EXACT_TYPE_LOADERS
+        and result is not None
+        and result[0] != f"{value_type.__module__}.{value_type.__name__}"
+    ):
+        # A subclass carries what these formats drop: a MaskedArray's mask,
+        # an enum member, or a cell-defined class to unpickle into.
+        return "pickle"
     if (
         loader == "arrow"
         and result is not None
