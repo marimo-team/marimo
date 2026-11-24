@@ -1,0 +1,11 @@
+--- a/marimo/_core/code.py
++++ b/marimo/_core/code.py
+@@ -46,6 +46,8 @@
+ 
+ def ends_with_semicolon(code: str) -> bool:
+     """Whether the last non-comment token is a semicolon."""
++    if ";" not in code:
++        return False
+     try:
+         tokens = list(
+             tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)

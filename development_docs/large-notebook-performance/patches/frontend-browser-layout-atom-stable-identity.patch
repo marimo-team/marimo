@@ -1,0 +1,64 @@
+# layoutAtom depends on the whole document, so every keystroke produces a new Layout object.
+# CellArray, CellArrayInternal and CellColumn re-render, SortableContext gets a new `items`
+# array, and every SortableCell re-renders through the dnd-kit context.
+# VALIDATED (experiment "layout", together with "sync"): typing at 250 cells 88 -> 53 ms per keystroke.
+# A narrower alternative: derive the layout from a structure-only atom (cell order + column breaks).
+
+--- a/frontend/src/core/cells/layout.ts
++++ b/frontend/src/core/cells/layout.ts
+@@ -3,6 +3,7 @@
+ /** The cells as they appear on the page: by column, with folded sections hidden. */
+ 
+ import { atom, useAtomValue } from "jotai";
++import { selectAtom } from "jotai/utils";
+ import type { EditableDocument } from "@/core/notebook/document";
+ import { findCollapseRange } from "../dom/outline";
+ import { activeDocumentModelAtom } from "../session/active-notebook";
+@@ -141,7 +142,7 @@
+  * this browser's column ids and folds, and the headings in each cell's
+  * output.
+  */
+-export const layoutAtom = atom((get): Layout => {
++const derivedLayoutAtom = atom((get): Layout => {
+   const model = get(activeDocumentModelAtom);
+   const document = model === null ? null : get(model.documentAtom);
+   const outlines = get(cellOutlinesAtom);
+@@ -152,6 +153,38 @@
+   );
+ });
+ 
++function sameIds(a: readonly CellId[], b: readonly CellId[]): boolean {
++  return (
++    a === b || (a.length === b.length && a.every((id, i) => id === b[i]))
++  );
++}
++
++function sameLayout(a: Layout, b: Layout): boolean {
++  return (
++    a.columns.length === b.columns.length &&
++    a.columns.every((column, i) => {
++      const other = b.columns[i];
++      return (
++        column.id === other.id &&
++        sameIds(column.ids, other.ids) &&
++        sameIds(column.visible, other.visible) &&
++        column.folds.size === other.folds.size &&
++        [...column.folds].every(([id, hidden]) => {
++          const otherHidden = other.folds.get(id);
++          return otherHidden !== undefined && sameIds(hidden, otherHidden);
++        })
++      );
++    })
++  );
++}
++
++/** Keeps its identity while cells only change their code, so an edit does not re-render the cell list. */
++export const layoutAtom = selectAtom(
++  derivedLayoutAtom,
++  (layout) => layout,
++  sameLayout,
++);
++
+ export const useLayout = () => useAtomValue(layoutAtom);
+ 
+ export const numColumnsAtom = atom((get) => get(layoutAtom).columns.length);

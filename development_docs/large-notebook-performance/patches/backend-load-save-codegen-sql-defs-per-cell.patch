@@ -1,0 +1,14 @@
+--- a/marimo/_ast/codegen.py
++++ b/marimo/_ast/codegen.py
+@@ -387,8 +387,9 @@
+         sql_defs = (
+             {
+                 name
+-                for name, value in variable_data.items()
+-                if value.language == "sql"
++                for name in cell.defs
++                if (value := variable_data.get(name)) is not None
++                and value.language == "sql"
+             }
+             if variable_data
+             else set()

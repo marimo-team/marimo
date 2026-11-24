@@ -1,0 +1,21 @@
+# style-mod (a CodeMirror dependency) rewrites the whole <style> text on every StyleModule.mount()
+# call, which CodeMirror makes for every new EditorView, even when no module was added. With the
+# per-cell themes shared (frontend-codemirror-shared-themes.patch) the text is identical on every
+# mount, so skipping the write removes the per-editor style sheet change entirely.
+# VALIDATED as a build-time transform (experiment "stylemod"): style recalc during a 250-cell load
+# 70.4 s -> 4.3 s with shared themes; all fixes together 95.6 s -> 12.5 s of main-thread time.
+# Apply with `pnpm patch style-mod@4.1.3` and send upstream (https://github.com/marijnh/style-mod).
+--- a/node_modules/style-mod/src/style-mod.js
++++ b/node_modules/style-mod/src/style-mod.js
+@@ -132,7 +132,10 @@
+       let text = ""
+       for (let i = 0; i < this.modules.length; i++)
+         text += this.modules[i].getRules() + "\n"
+-      this.styleTag.textContent = text
++      if (text !== this.text) {
++        this.text = text
++        this.styleTag.textContent = text
++      }
+       let target = root.head || root
+       if (this.styleTag.parentNode != target)
+         target.insertBefore(this.styleTag, target.firstChild)

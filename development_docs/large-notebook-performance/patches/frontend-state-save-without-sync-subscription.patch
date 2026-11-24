@@ -1,0 +1,59 @@
+--- a/frontend/src/core/saving/document.ts
++++ b/frontend/src/core/saving/document.ts
+@@ -4,7 +4,7 @@
+ 
+ import { useAtomValue } from "jotai";
+ import { useCallback } from "react";
+-import { useNotebookDocumentSync } from "@/core/notebook/document";
++import { useNotebookDocumentFlush } from "@/core/notebook/document";
+ import { activeNotebookBackendAtom } from "../session/active-notebook";
+ 
+ /**
+@@ -18,7 +18,9 @@
+  * ```
+  */
+ export function useNotebookDocumentSave() {
+-  const { flush } = useNotebookDocumentSync();
++  // Not `useNotebookDocumentSync`: every cell calls this hook, and the sync
++  // status changes several times for each batch of keystrokes.
++  const flush = useNotebookDocumentFlush();
+   const backend = useAtomValue(activeNotebookBackendAtom);
+   return useCallback(async () => {
+     if (backend === null) {
+--- a/frontend/src/core/notebook/document/hooks.tsx
++++ b/frontend/src/core/notebook/document/hooks.tsx
+@@ -106,6 +106,14 @@
+ }
+ 
+ /**
++ * Wait for edits to reach the confirmed source, without following the sync
++ * status. Stable for the model's lifetime.
++ */
++export function useNotebookDocumentFlush() {
++  return useDocumentModel().flush;
++}
++
++/**
+  * Sync status and explicit recovery. flush waits for edits, including newer
+  * typing, to reach the confirmed source and returns the revision for Run/Save.
+  * Rejections retain local edits; retry explicitly resubmits them. Requests
+--- a/frontend/src/core/notebook/document/index.ts
++++ b/frontend/src/core/notebook/document/index.ts
+@@ -10,6 +10,7 @@
+   useNotebookCellName,
+   useNotebookCellOrder,
+   useNotebookDocumentEdit,
++  useNotebookDocumentFlush,
+   useNotebookDocumentSync,
+ } from "./hooks";
+ export {
+--- a/frontend/src/core/notebook/index.ts
++++ b/frontend/src/core/notebook/index.ts
+@@ -14,6 +14,7 @@
+   useNotebookCellName,
+   useNotebookCellOrder,
+   useNotebookDocumentEdit,
++  useNotebookDocumentFlush,
+   useNotebookDocumentSync,
+ } from "./document";
+ export { canEditAtom, notebookOperationsAtom } from "./operations";

@@ -1,0 +1,19 @@
+# Every <Button> adds a document keydown listener, with or without a keyboardShortcut:
+# 8 per cell, 4,044 at 500 cells. Each keydown calls all of them (2.7 ms per key at 500 cells).
+# NOT VALIDATED in a build.
+
+--- a/frontend/src/components/ui/button.tsx
++++ b/frontend/src/components/ui/button.tsx
+@@ -128,7 +128,11 @@
+       [keyboardShortcut],
+     );
+ 
+-    useEventListener(document, "keydown", handleKeyPress);
++    useEventListener(
++      keyboardShortcut ? document : null,
++      "keydown",
++      handleKeyPress,
++    );
+ 
+     const Comp = asChild ? SlotPrimitive.Slot : "button";
+     return (

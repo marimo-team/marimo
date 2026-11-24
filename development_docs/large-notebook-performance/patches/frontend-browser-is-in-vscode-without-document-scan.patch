@@ -1,0 +1,22 @@
+# isInVscodeExtension() runs document.querySelector("[data-vscode-theme-kind]") on every call. It
+# is called on every render of every portal wrapper (withFullScreenAsRoot / withSmartCollisionBoundary:
+# tooltips, context menus, dropdowns, ~9 per cell). Outside VS Code nothing matches, so each call
+# scans the whole document: O(renders x DOM size). 15.7% of typing CPU at 250 cells.
+# VALIDATED by caching the result (experiment "vscode"). VS Code sets the attribute on <body>, so
+# the proposed fix reads it there (INFERRED: confirm in the extension's webview before merging).
+
+--- a/frontend/src/core/vscode/is-in-vscode.ts
++++ b/frontend/src/core/vscode/is-in-vscode.ts
+@@ -4,6 +4,10 @@
+  * Whether the current environment is in the VSCode extension
+  */
+ export function isInVscodeExtension(): boolean {
+-  // We check if the document has a data-vscode-theme-kind attribute
+-  return document.querySelector("[data-vscode-theme-kind]") !== null;
++  // VS Code sets data-vscode-theme-kind on the webview's body. Reading it there
++  // avoids scanning the whole document on every call.
++  return (
++    document.body.hasAttribute("data-vscode-theme-kind") ||
++    document.documentElement.hasAttribute("data-vscode-theme-kind")
++  );
+ }

@@ -1,0 +1,610 @@
+Proposed kernel-runtime changes for large notebooks (NOT applied to the tree).
+
+Generated from an overlay copy of marimo/ (.context/perf/backend-runtime/overlay);
+`git apply --check` passes against ce8f85a26. Validation with the overlay first on sys.path
+(scratch venv with the `test` group + duckdb/sqlglot/pandas/polars/pyarrow):
+  - tests/_runtime (whole directory), tests/test_entrypoints.py, tests/_sql, tests/_data,
+    tests/_ast/test_cell.py, tests/_ast/test_sql_visitor.py: 2854 passed, 4 failed.
+    The 4 failures are not caused by the diff: 3x tests/_data/test_preview_column.py
+    ::test_preview_column_duration_dtype also fail on the unmodified tree in that venv, and
+    tests/_runtime/test_pytest_runtime.py::test_offline_collection_inside_marimo_package
+    writes into marimo/_smoke_tests/, which the overlay copy omits (passes on the real tree).
+  - identical per-cell notification streams for smoke/outputs/chain-100
+    (.context/perf/backend-runtime/check_parity.py)
+  - tests/_runtime/test_large_notebook.py: chain-240 run-all 2.49M -> 0.73M function
+    calls, run-one-leaf 185.7k -> 9.6k; smoke-240 run-one-leaf 39.3k -> 13.6k
+
+Hunks by finding (see .context/perf/backend-runtime.md):
+  F1  lazy startup: reuse compiled pending cells instead of recompiling them per run request
+        _runtime/runtime.py (StartupCellCache.peek, prepare_execution_requests)
+  F3  duckdb datasource hook: `imported()` instead of `has()`; reuse the parsed module for `sqls`
+        _runtime/runner/hooks_post_execution.py, _ast/cell.py
+  F4  resolve the cell executor once per kernel
+        _runtime/runner/cell_runner.py (executor param), _runtime/runtime.py (_resolve_executor)
+  F5  module-registry scan once per graph mutation instead of twice per invalidated cell
+        _runtime/runtime.py (_invalidate_cell_state, mutate_graph)
+  F6  index python references per name (O(1) get_referring_cells)
+        _runtime/dataflow/topology.py, _runtime/dataflow/edges.py, _runtime/dataflow/graph.py
+  F7  one traversal for "which cells are disabled" per run; early-exit ancestor checks;
+      dispose descendants once per run
+        _runtime/dataflow/graph.py, _runtime/runner/hooks_preparation.py,
+        _runtime/runner/cell_runner.py, _runtime/runtime.py
+  F9  state registry: predicate instead of a per-cell union of every name
+        _runtime/runner/hooks_post_execution.py, _runtime/state.py
+
+Not in this diff (prototyped by monkeypatch in .context/perf/backend-runtime/patches.py):
+  F2  reuse one stdout/stderr pipe + reader thread across cells (apply_redirect_reuse)
+  F8  autoreload: coalesce the per-cell sys.modules scan (apply_autoreload_coalesce)
+  F12 skip the console flush round-trip when nothing was written (apply_flush_skip)
+  F6  linear-time stale/disabled-ancestor checks at registration (apply_disabled_counter)
+
+diff --git a/marimo/_ast/cell.py b/marimo/_ast/cell.py
+--- a/marimo/_ast/cell.py	2026-11-24 14:58:47
++++ b/marimo/_ast/cell.py	2026-11-24 15:39:47
+@@ -12,7 +12,6 @@
+ import msgspec
+ 
+ from marimo import _loggers
+-from marimo._ast.parse import ast_parse
+ from marimo._ast.sql_visitor import SQLRef, SQLVisitor
+ from marimo._ast.visitor import ImportData, Language, Name, VariableData
+ from marimo._messaging.msgspec_encoder import asdict
+@@ -257,9 +256,12 @@
+         return self._run_result_status.state
+ 
+     def _get_sqls(self, raw: bool = False) -> list[str]:
++        # SQL lives in `.sql(...)` / `.execute(...)` calls.
++        if "sql" not in self.code and "execute" not in self.code:
++            return []
+         try:
+             visitor = SQLVisitor(raw=raw)
+-            visitor.visit(ast_parse(self.code))
++            visitor.visit(self.mod)
+             return visitor.get_sqls()
+         except Exception:
+             return []
+diff --git a/marimo/_runtime/dataflow/edges.py b/marimo/_runtime/dataflow/edges.py
+--- a/marimo/_runtime/dataflow/edges.py	2026-11-24 14:58:47
++++ b/marimo/_runtime/dataflow/edges.py	2026-11-24 15:40:08
+@@ -85,9 +85,7 @@
+         return cells
+     else:
+         # For Python, return all cells that reference the name
+-        return {
+-            cid for cid, cell in topology.cells.items() if name in cell.refs
+-        }
++        return set(topology.referring_cells(name))
+ 
+ 
+ def _is_valid_cell_reference(
+@@ -284,13 +282,9 @@
+         #   cell v: del x
+         #
+         # u and v form a cycle.
+-        other_ids_deleting_name: set[CellId_t] = {
+-            cid
+-            for cid in get_referring_cells(
+-                name, language="python", topology=topology
+-            )
+-            if name in topology.cells[cid].deleted_refs
+-        } - {cell_id}
++        other_ids_deleting_name = (
++            topology.deleting_cells(name) & topology.referring_cells(name)
++        ) - {cell_id}
+         children.update(other_ids_deleting_name)
+ 
+     # Finally, if this cell deletes a variable, we make it a child of
+diff --git a/marimo/_runtime/dataflow/graph.py b/marimo/_runtime/dataflow/graph.py
+--- a/marimo/_runtime/dataflow/graph.py	2026-11-24 14:58:47
++++ b/marimo/_runtime/dataflow/graph.py	2026-11-24 15:40:48
+@@ -19,7 +19,7 @@
+ )
+ 
+ if TYPE_CHECKING:
+-    from collections.abc import Callable, Mapping
++    from collections.abc import Callable, Mapping, Set as AbstractSet
+ 
+     from marimo._ast.cell import CellImpl
+     from marimo._ast.visitor import ImportData, Name, VariableData
+@@ -80,6 +80,14 @@
+         """
+         return edges.get_referring_cells(name, language, self.topology)
+ 
++    def referring_cells(self, name: Name) -> AbstractSet[CellId_t]:
++        """Cells with a (Python) reference to `name`."""
++        return self.topology.referring_cells(name)
++
++    def deleting_cells(self, name: Name) -> AbstractSet[CellId_t]:
++        """Cells that delete `name`."""
++        return self.topology.deleting_cells(name)
++
+     def register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
+         """Add a cell to the graph.
+ 
+@@ -118,26 +126,58 @@
+         if self.is_any_ancestor_disabled(cell_id):
+             cell.set_runtime_state(status="disabled-transitively")
+ 
++    def _is_any_ancestor(
++        self, cell_id: CellId_t, predicate: Callable[[CellImpl], bool]
++    ) -> bool:
++        """Whether an ancestor satisfies `predicate`; stops at the first."""
++        cells, parents = self.topology.cells, self.topology.parents
++        seen = {cell_id}
++        stack = list(parents[cell_id])
++        while stack:
++            cid = stack.pop()
++            if cid in seen:
++                continue
++            seen.add(cid)
++            if predicate(cells[cid]):
++                return True
++            stack.extend(parents[cid])
++        return False
++
+     def is_any_ancestor_stale(self, cell_id: CellId_t) -> bool:
+         """Check if any ancestor of a cell is stale."""
+-        return any(
+-            self.topology.cells[cid].stale for cid in self.ancestors(cell_id)
+-        )
++        return self._is_any_ancestor(cell_id, lambda cell: cell.stale)
+ 
+     def is_any_ancestor_disabled(self, cell_id: CellId_t) -> bool:
+         """Check if any ancestor of a cell is disabled."""
+-        return any(
+-            self.topology.cells[cid].config.disabled
+-            for cid in self.ancestors(cell_id)
++        return self._is_any_ancestor(
++            cell_id, lambda cell: cell.config.disabled
+         )
+ 
+     def is_any_ancestor_errored(self, cell_id: CellId_t) -> bool:
+         """Check if any ancestor of a cell has an error."""
+-        return any(
+-            self.topology.cells[cid].run_result_status
+-            in ("exception", "marimo-error")
+-            for cid in self.ancestors(cell_id)
++        return self._is_any_ancestor(
++            cell_id,
++            lambda cell: (
++                cell.run_result_status in ("exception", "marimo-error")
++            ),
+         )
++
++    def disabled_cells(self) -> set[CellId_t]:
++        """All cells that are disabled, directly or transitively.
++
++        One traversal for the whole graph; prefer this to calling
++        `is_disabled` once per cell.
++        """
++        from marimo._runtime.dataflow import transitive_closure
++
++        directly_disabled = {
++            cid
++            for cid, cell in self.topology.cells.items()
++            if cell.config.disabled
++        }
++        if not directly_disabled:
++            return directly_disabled
++        return transitive_closure(self, directly_disabled)
+ 
+     def disable_cell(self, cell_id: CellId_t) -> None:
+         """Disables a cell in the graph.
+diff --git a/marimo/_runtime/dataflow/topology.py b/marimo/_runtime/dataflow/topology.py
+--- a/marimo/_runtime/dataflow/topology.py	2026-11-24 14:58:47
++++ b/marimo/_runtime/dataflow/topology.py	2026-11-24 15:40:48
+@@ -13,12 +13,15 @@
+ from marimo._runtime.dataflow.types import Edge
+ 
+ if TYPE_CHECKING:
+-    from collections.abc import Mapping
++    from collections.abc import Mapping, Set as AbstractSet
+ 
+     from marimo._ast.cell import CellImpl
++    from marimo._ast.visitor import Name
+     from marimo._types.ids import CellId_t
+ 
++_NO_CELLS: frozenset[CellId_t] = frozenset()
+ 
++
+ class GraphTopology(Protocol):
+     """Graph topology protocol.
+ 
+@@ -35,6 +38,10 @@
+     @property
+     def parents(self) -> Mapping[CellId_t, set[CellId_t]]: ...
+ 
++    def referring_cells(self, name: Name) -> AbstractSet[CellId_t]: ...
++
++    def deleting_cells(self, name: Name) -> AbstractSet[CellId_t]: ...
++
+     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]: ...
+ 
+     def ancestors(self, cell_id: CellId_t) -> set[CellId_t]: ...
+@@ -62,6 +69,11 @@
+     # Reversed edges (parent pointers) for convenience
+     _parents: dict[CellId_t, set[CellId_t]] = field(default_factory=dict)
+ 
++    # Cells that reference / delete each name, so that edges for a cell are
++    # resolved without scanning every other cell.
++    _referring: dict[Name, set[CellId_t]] = field(default_factory=dict)
++    _deleting: dict[Name, set[CellId_t]] = field(default_factory=dict)
++
+     @property
+     def cells(self) -> Mapping[CellId_t, CellImpl]:
+         return self._cells
+@@ -74,6 +86,14 @@
+     def parents(self) -> Mapping[CellId_t, set[CellId_t]]:
+         return self._parents
+ 
++    def referring_cells(self, name: Name) -> AbstractSet[CellId_t]:
++        """Cells with a reference to `name`."""
++        return self._referring.get(name, _NO_CELLS)
++
++    def deleting_cells(self, name: Name) -> AbstractSet[CellId_t]:
++        """Cells that delete `name`."""
++        return self._deleting.get(name, _NO_CELLS)
++
+     def ancestors(self, cell_id: CellId_t) -> set[CellId_t]:
+         """Get all ancestors of a cell."""
+         from marimo._runtime.dataflow import transitive_closure
+@@ -94,6 +114,10 @@
+         self._cells[cell_id] = cell
+         self._children[cell_id] = set()
+         self._parents[cell_id] = set()
++        for name in cell.refs:
++            self._referring.setdefault(name, set()).add(cell_id)
++        for name in cell.deleted_refs:
++            self._deleting.setdefault(name, set()).add(cell_id)
+ 
+     def remove_node(self, cell_id: CellId_t) -> None:
+         """Remove a cell from the graph topology.
+@@ -109,6 +133,19 @@
+         # Remove this node from its children's parent lists
+         for child_id in self._children[cell_id]:
+             self._parents[child_id].discard(cell_id)
++
++        cell = self._cells[cell_id]
++        for index, names in (
++            (self._referring, cell.refs),
++            (self._deleting, cell.deleted_refs),
++        ):
++            for name in names:
++                cells = index.get(name)
++                if cells is None:
++                    continue
++                cells.discard(cell_id)
++                if not cells:
++                    del index[name]
+ 
+         del self._cells[cell_id]
+         del self._children[cell_id]
+diff --git a/marimo/_runtime/runner/cell_runner.py b/marimo/_runtime/runner/cell_runner.py
+--- a/marimo/_runtime/runner/cell_runner.py	2026-11-24 14:58:47
++++ b/marimo/_runtime/runner/cell_runner.py	2026-11-24 15:40:38
+@@ -47,6 +47,7 @@
+     DebuggerLifecycle,
+     Evaluator,
+     ExecutionLifecycle,
++    Executor,
+     StrictLifecycle,
+     resolve_executor,
+ )
+@@ -170,6 +171,7 @@
+         | None = None,
+         get_inputs: Callable[[CellImpl], dict[str, Revision | None] | None]
+         | None = None,
++        executor: Executor | None = None,
+     ):
+         self.graph = graph
+         self.debugger = debugger
+@@ -245,8 +247,10 @@
+             lifecycles.append(
+                 DebuggerLifecycle(self.debugger if debugger_on else None)
+             )
++        # Resolving scans the entry points of every installed distribution.
+         self._evaluator = Evaluator(
+-            executor=resolve_executor(), lifecycles=lifecycles
++            executor=executor if executor is not None else resolve_executor(),
++            lifecycles=lifecycles,
+         )
+ 
+     @staticmethod
+@@ -986,6 +990,7 @@
+         snapshot = list(self._scheduler.cells_to_run)
+         runnable: list[CellId_t] = []
+         interrupted_at: int | None = None
++        disabled = self.graph.disabled_cells()
+         for index, cell_id in enumerate(snapshot):
+             if self._scheduler.interrupted:
+                 interrupted_at = index
+@@ -1032,7 +1037,7 @@
+                 cell.set_run_result_status("disabled")
+                 cell.set_runtime_state("idle")
+                 continue
+-            if self.graph.is_disabled(cell_id):
++            if cell_id in disabled:
+                 LOGGER.debug("%s disabled transitively", cell_id)
+                 cell.set_run_result_status("disabled")
+                 cell.set_runtime_state("disabled-transitively")
+diff --git a/marimo/_runtime/runner/hooks_post_execution.py b/marimo/_runtime/runner/hooks_post_execution.py
+--- a/marimo/_runtime/runner/hooks_post_execution.py	2026-11-24 14:58:47
++++ b/marimo/_runtime/runner/hooks_post_execution.py	2026-11-24 15:38:47
+@@ -183,7 +183,9 @@
+         return
+ 
+     del run_result
+-    if not DependencyManager.duckdb.has():
++    # The in-memory engine can only have changed if duckdb was imported;
++    # `has()` searches the import path on every call.
++    if not DependencyManager.duckdb.imported():
+         return
+ 
+     try:
+@@ -272,11 +274,12 @@
+ ) -> None:
+     del run_result
+     # Associate state variables with variable names
+-    runtime_ctx = get_context()
+-    runtime_ctx.state_registry.register_scope(ctx.glbls, defs=cell.defs)
+-    # Use pre-computed all_temporaries
+-    runtime_ctx.state_registry.retain_active_states(
+-        set(ctx.graph.definitions.keys()) | ctx.all_temporaries
++    state_registry = get_context().state_registry
++    state_registry.register_scope(ctx.glbls, defs=cell.defs)
++    definitions = ctx.graph.definitions
++    temporaries = ctx.all_temporaries
++    state_registry.retain_active_states(
++        lambda name: name in definitions or name in temporaries
+     )
+ 
+ 
+diff --git a/marimo/_runtime/runner/hooks_preparation.py b/marimo/_runtime/runner/hooks_preparation.py
+--- a/marimo/_runtime/runner/hooks_preparation.py	2026-11-24 14:58:47
++++ b/marimo/_runtime/runner/hooks_preparation.py	2026-11-24 15:40:38
+@@ -20,8 +20,9 @@
+         ):
+             graph.cells[cid].set_stale(stale=True)
+ 
++    disabled = graph.disabled_cells()
+     for cid in ctx.cells_to_run:
+-        if graph.is_disabled(cid):
++        if cid in disabled:
+             graph.cells[cid].set_stale(stale=True)
+         else:
+             graph.cells[cid].set_runtime_state(status="queued")
+diff --git a/marimo/_runtime/runtime.py b/marimo/_runtime/runtime.py
+--- a/marimo/_runtime/runtime.py	2026-11-24 14:58:47
++++ b/marimo/_runtime/runtime.py	2026-11-24 15:59:10
+@@ -143,6 +143,7 @@
+ from marimo._runtime.context.utils import get_mode
+ from marimo._runtime.control_flow import MarimoInterrupt
+ from marimo._runtime.execution import ExecutionAttempt
++from marimo._runtime.executor import Executor, resolve_executor
+ from marimo._runtime.input_override import getpass_override
+ from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
+ from marimo._runtime.packages.module_registry import ModuleRegistry
+@@ -483,6 +484,13 @@
+             return cached[1], cached[2]
+         return None
+ 
++    def peek(self, cell_id: CellId_t, code: str) -> CellImpl | None:
++        """The compiled cell for this source, left in the cache."""
++        cached = self._entries.get(cell_id)
++        if cached is not None and cached[0] == code:
++            return cached[1]
++        return None
++
+     def invalidate(self, cell_id: CellId_t, code: str | None = None) -> None:
+         """Discard a result unless it still matches the supplied source."""
+         cached = self._entries.get(cell_id)
+@@ -703,6 +711,9 @@
+         # evaluates or skips the cell, so a nested command does not open a
+         # second attempt for a cell the outer run has planned.
+         self._planned: dict[CellId_t, ExecutionAttempt] = {}
++        # Resolved on first run and reused: resolution scans the entry
++        # points of every installed distribution.
++        self._executor: Executor | None = None
+         self.module_registry = ModuleRegistry(
+             self.graph, excluded_modules=set()
+         )
+@@ -1249,19 +1260,20 @@
+         cell_id: CellId_t,
+         exclude_defs: set[Name] | None = None,
+         deletion: bool = False,
++        dispose_descendants: bool = True,
+     ) -> None:
+         """Cleanup state associated with this cell.
+ 
+         Deletes a cell's defs from the kernel state, except for the names in
+         `exclude_defs`, and instructs the frontend to invalidate its UI
+         elements.
++
++        A caller that invalidates many cells passes
++        `dispose_descendants=False` and disposes their descendants once.
+         """
+         cell = self.graph.cells[cell_id]
+         cell.import_workspace.imported_defs = set()
+         cell.import_workspace.carried_values.clear()
+-        missing_modules_before_deletion = (
+-            self.module_registry.missing_modules()
+-        )
+ 
+         temporaries = {
+             name: [VariableData(kind="variable")] for name in cell.temporaries
+@@ -1271,22 +1283,12 @@
+             exclude_defs if exclude_defs is not None else set(),
+         )
+ 
+-        missing_modules_after_deletion = (
+-            missing_modules_before_deletion & self.module_registry.modules()
+-        )
+-        if missing_modules_after_deletion != missing_modules_before_deletion:
+-            self.packages_callbacks.send_missing_packages_alert(
+-                missing_modules_after_deletion
+-            )
+-
+         cell.set_output(None)
+-        get_context().cell_lifecycle_registry.dispose(
+-            cell_id, deletion=deletion
+-        )
+-        for descendent in self.graph.descendants(cell_id):
+-            get_context().cell_lifecycle_registry.dispose(
+-                descendent, deletion=deletion
+-            )
++        registry = get_context().cell_lifecycle_registry
++        registry.dispose(cell_id, deletion=deletion)
++        if dispose_descendants:
++            for descendent in self.graph.descendants(cell_id):
++                registry.dispose(descendent, deletion=deletion)
+         broadcast_notification(RemoveUIElementsNotification(cell_id=cell_id))
+ 
+     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+@@ -1373,6 +1375,10 @@
+         # Cells that were unable to be added to the graph due to syntax errors
+         syntax_errors: dict[CellId_t, Error] = {}
+ 
++        missing_modules_before_mutation = (
++            self.module_registry.missing_modules()
++        )
++
+         # Register and delete cells
+         for er in execution_requests:
+             # Edit-only batches must also retire source that a later run
+@@ -1406,6 +1412,20 @@
+             )
+         cells_in_graph = set(self.graph.cells.keys())
+ 
++        # Removing or replacing a cell can shrink the set of missing packages.
++        if missing_modules_before_mutation:
++            missing_modules_after_mutation = (
++                missing_modules_before_mutation
++                & self.module_registry.modules()
++            )
++            if (
++                missing_modules_after_mutation
++                != missing_modules_before_mutation
++            ):
++                self.packages_callbacks.send_missing_packages_alert(
++                    missing_modules_after_mutation
++                )
++
+         # Check for semantic errors, like multiple definition errors, cycle
+         # errors, and delete nonlocal errors.
+         semantic_errors = check_for_errors(self.graph)
+@@ -1595,9 +1615,8 @@
+                 # ancestor recovered.
+                 pre_run_errored_disabled = {
+                     cid
+-                    for cid, cell in self.graph.cells.items()
+-                    if self.graph.is_disabled(cid)
+-                    and cell.run_result_status
++                    for cid in self.graph.disabled_cells()
++                    if self.graph.cells[cid].run_result_status
+                     in ("exception", "marimo-error", "cancelled")
+                 }
+                 while cell_ids := await self._run_cells_internal(cell_ids):
+@@ -1840,6 +1859,11 @@
+                 current.attempt.advance_inputs(revisions)
+         self._publish_variable_previews(previews)
+ 
++    def _resolve_executor(self) -> Executor:
++        if self._executor is None:
++            self._executor = resolve_executor()
++        return self._executor
++
+     def _propagate_kernel_errors(
+         self,
+         ctx: hook_context.OnFinishHookContext,
+@@ -1874,8 +1898,14 @@
+                         or source.import_workspace.carried_values
+                     )
+                     source.import_workspace.carried_values = {}
+-                    self._invalidate_cell_state(cid)
++                    self._invalidate_cell_state(cid, dispose_descendants=False)
+                     workspace.carried_values = carried
++            cells_to_run = set(ctx.cells_to_run)
++            registry = get_context().cell_lifecycle_registry
++            for cid in dataflow.transitive_closure(
++                self.graph, cells_to_run, inclusive=False
++            ):
++                registry.dispose(cid, deletion=False)
+ 
+         def note_time_of_interruption(
+             cell_impl: CellImpl,
+@@ -1914,6 +1944,7 @@
+             executions=self._planned,
+             plan_execution=self._plan_execution,
+             user_config=self.user_config,
++            executor=self._resolve_executor(),
+         )
+ 
+         # I/O
+@@ -2135,11 +2166,21 @@
+                 continue
+             cell = self.graph.cells.get(request.cell_id)
+             if cell is None or cell.code != request.code:
++                # Pending cells stay pending across many runs: compile each
++                # once, not once per run request.
++                cell = self._startup_cell_cache.peek(
++                    request.cell_id, request.code
++                )
++            if cell is None:
+                 try:
+                     cell = compile_cell(request.code, cell_id=request.cell_id)
+                 except Exception:  # noqa: S112
+                     # Graph mutation reports compilation failures.
+                     continue
++                if request.cell_id in self._pending_execution_requests:
++                    self._startup_cell_cache.store(
++                        request.cell_id, request.code, cell, None
++                    )
+             cells[request.cell_id] = cell
+         roots = requested_ids if run_cell_ids is None else run_cell_ids
+         ancestors = dataflow.get_ancestors_from_cells(cells, roots)
+@@ -2347,6 +2388,7 @@
+             get_inputs=self._read_inputs,
+             executions={SCRATCH_CELL_ID: execution},
+             user_config=self.user_config,
++            executor=self._resolve_executor(),
+         )
+ 
+         await runner.run_all()
+@@ -2370,8 +2412,9 @@
+             )
+             self._pending_execution_requests = {}
+ 
++        disabled = self.graph.disabled_cells()
+         for cid, cell_impl in self.graph.cells.items():
+-            if cell_impl.stale and not self.graph.is_disabled(cid):
++            if cell_impl.stale and cid not in disabled:
+                 cells_to_run.add(cid)
+ 
+         await self._run_cells(
+diff --git a/marimo/_runtime/state.py b/marimo/_runtime/state.py
+--- a/marimo/_runtime/state.py	2026-11-24 14:58:47
++++ b/marimo/_runtime/state.py	2026-11-24 15:38:47
+@@ -97,10 +97,20 @@
+         ):
+             self._delete(name, saved_state)
+ 
+-    def retain_active_states(self, active_variables: set[str]) -> None:
+-        """Retains only the active states in the registry."""
++    def retain_active_states(
++        self, active_variables: set[str] | Callable[[str], bool]
++    ) -> None:
++        """Retains only the active states in the registry.
++
++        `active_variables` is a set of names, or a predicate on a name.
++        """
++        is_active = (
++            active_variables
++            if callable(active_variables)
++            else active_variables.__contains__
++        )
+         for state_key in list(self._states.keys()):
+-            if extract_name(state_key) not in active_variables:
++            if not is_active(extract_name(state_key)):
+                 self.delete(state_key)
+ 
+     def lookup(self, name: str, context: str | None = None) -> State[T] | None:

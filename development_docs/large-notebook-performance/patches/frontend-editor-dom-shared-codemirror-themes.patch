@@ -1,0 +1,244 @@
+diff --git a/frontend/src/core/codemirror/cells/debugger-decorations.ts b/frontend/src/core/codemirror/cells/debugger-decorations.ts
+--- a/frontend/src/core/codemirror/cells/debugger-decorations.ts
++++ b/frontend/src/core/codemirror/cells/debugger-decorations.ts
+@@ -71,6 +71,26 @@
+   }
+ }
+ 
++const debuggerLineTheme = EditorView.theme({
++  ".cm-debugger-current-line": {
++    backgroundColor: "color-mix(in srgb, var(--amber-4) 50%, transparent)",
++  },
++});
++
++const breakpointTheme = EditorView.theme({
++  ".cm-breakpoint-gutter": {
++    width: "14px",
++    cursor: "pointer",
++  },
++  ".cm-breakpoint-marker": {
++    width: "8px",
++    height: "8px",
++    borderRadius: "50%",
++    backgroundColor: "var(--red-9)",
++    margin: "4px auto",
++  },
++});
++
+ /** Highlight the line a cell's frame watcher is currently executing. */
+ export function debuggerLineHighlighter(
+   lineObservable: Observable<number | null>,
+@@ -80,11 +100,7 @@
+       (view) => new CurrentLineHighlighter(view, lineObservable),
+       { decorations: (plugin) => plugin.decorations },
+     ),
+-    EditorView.theme({
+-      ".cm-debugger-current-line": {
+-        backgroundColor: "color-mix(in srgb, var(--amber-4) 50%, transparent)",
+-      },
+-    }),
++    debuggerLineTheme,
+   ];
+ }
+ 
+@@ -177,18 +193,6 @@
+         },
+       },
+     }),
+-    EditorView.theme({
+-      ".cm-breakpoint-gutter": {
+-        width: "14px",
+-        cursor: "pointer",
+-      },
+-      ".cm-breakpoint-marker": {
+-        width: "8px",
+-        height: "8px",
+-        borderRadius: "50%",
+-        backgroundColor: "var(--red-9)",
+-        margin: "4px auto",
+-      },
+-    }),
++    breakpointTheme,
+   ];
+ }
+diff --git a/frontend/src/core/codemirror/cells/line-timing-decorations.ts b/frontend/src/core/codemirror/cells/line-timing-decorations.ts
+--- a/frontend/src/core/codemirror/cells/line-timing-decorations.ts
++++ b/frontend/src/core/codemirror/cells/line-timing-decorations.ts
+@@ -138,6 +138,18 @@
+   }
+ }
+ 
++const lineTimingTheme = EditorView.theme({
++  ".cm-timing-current-line": {
++    backgroundColor: "color-mix(in srgb, var(--grass-4) 50%, transparent)",
++  },
++  ".cm-line-timer": {
++    color: "var(--grass-11)",
++    fontSize: "0.85em",
++    marginLeft: "1.5ch",
++    pointerEvents: "none",
++  },
++});
++
+ /**
+  * Highlight the line a cell's frame watcher is currently executing in green,
+  * with a dim elapsed-time pill at the end of the line once it has been busy
+@@ -150,16 +162,6 @@
+     ViewPlugin.define((view) => new ActiveLineTimer(view, infoObservable), {
+       decorations: (plugin) => plugin.decorations,
+     }),
+-    EditorView.theme({
+-      ".cm-timing-current-line": {
+-        backgroundColor: "color-mix(in srgb, var(--grass-4) 50%, transparent)",
+-      },
+-      ".cm-line-timer": {
+-        color: "var(--grass-11)",
+-        fontSize: "0.85em",
+-        marginLeft: "1.5ch",
+-        pointerEvents: "none",
+-      },
+-    }),
++    lineTimingTheme,
+   ];
+ }
+diff --git a/frontend/src/core/codemirror/cells/traceback-decorations.ts b/frontend/src/core/codemirror/cells/traceback-decorations.ts
+--- a/frontend/src/core/codemirror/cells/traceback-decorations.ts
++++ b/frontend/src/core/codemirror/cells/traceback-decorations.ts
+@@ -137,21 +137,22 @@
+   );
+ }
+ 
++// One style module for every editor: CodeMirror mounts each theme it is given
++// and never unmounts it.
++const errorLineTheme = EditorView.theme({
++  ".cm-error-line": {
++    backgroundColor: "color-mix(in srgb, var(--red-4) 40%, transparent)",
++  },
++  "&.cm-focused .cm-error-line.cm-activeLine": {
++    backgroundColor: "color-mix(in srgb, var(--red-5) 40%, transparent)",
++  },
++});
++
+ /**
+  * Create an extension that highlights error lines in the editor.
+  */
+ export function errorLineHighlighter(
+   errorsObservable: Observable<TracebackInfos>,
+ ): Extension {
+-  return [
+-    createErrorHighlighter(errorsObservable),
+-    EditorView.theme({
+-      ".cm-error-line": {
+-        backgroundColor: "color-mix(in srgb, var(--red-4) 40%, transparent)",
+-      },
+-      "&.cm-focused .cm-error-line.cm-activeLine": {
+-        backgroundColor: "color-mix(in srgb, var(--red-5) 40%, transparent)",
+-      },
+-    }),
+-  ];
++  return [createErrorHighlighter(errorsObservable), errorLineTheme];
+ }
+diff --git a/frontend/src/core/codemirror/go-to-definition/extension.ts b/frontend/src/core/codemirror/go-to-definition/extension.ts
+--- a/frontend/src/core/codemirror/go-to-definition/extension.ts
++++ b/frontend/src/core/codemirror/go-to-definition/extension.ts
+@@ -3,21 +3,21 @@
+ import { createUnderlinePlugin, underlineField } from "./underline";
+ import { goToDefinitionWithLspFallback } from "./utils";
+ 
++const underlineTheme = EditorView.baseTheme({
++  ".underline": {
++    textDecoration: "underline",
++    cursor: "pointer",
++    color: "var(--link)",
++  },
++});
++
++const underlinePlugin = createUnderlinePlugin((view) => {
++  goToDefinitionWithLspFallback(view);
++});
++
+ /**
+  * Create a go-to-definition extension.
+  */
+ export function goToDefinitionBundle() {
+-  return [
+-    underlineField,
+-    createUnderlinePlugin((view) => {
+-      goToDefinitionWithLspFallback(view);
+-    }),
+-    EditorView.baseTheme({
+-      ".underline": {
+-        textDecoration: "underline",
+-        cursor: "pointer",
+-        color: "var(--link)",
+-      },
+-    }),
+-  ];
++  return [underlineField, underlinePlugin, underlineTheme];
+ }
+diff --git a/frontend/src/core/codemirror/placeholder/extensions.ts b/frontend/src/core/codemirror/placeholder/extensions.ts
+--- a/frontend/src/core/codemirror/placeholder/extensions.ts
++++ b/frontend/src/core/codemirror/placeholder/extensions.ts
+@@ -55,6 +55,31 @@
+   return false;
+ }
+ 
++const clickablePlaceholderTheme = EditorView.theme({
++  ".cm-placeholder": {
++    color: "var(--slate-8)",
++  },
++  ".cm-clickable-placeholder": {
++    cursor: "pointer !important",
++    font: "inherit",
++    background: "transparent",
++    border: "none",
++    padding: "0",
++    pointerEvents: "auto",
++    color: "var(--slate-9)",
++    textDecoration: "underline",
++    textUnderlineOffset: "0.2em",
++  },
++  ".cm-clickable-placeholder:focus-visible": {
++    outline: "1px solid var(--muted-foreground)",
++    outlineOffset: "2px",
++    borderRadius: "2px",
++  },
++  ".cm-clickable-placeholder:hover": {
++    color: "var(--sky-11)",
++  },
++});
++
+ /**
+  * Create a placeholder with a clickable link.
+  */
+@@ -132,29 +157,6 @@
+           ])
+         : Decoration.none,
+     ),
+-    EditorView.theme({
+-      ".cm-placeholder": {
+-        color: "var(--slate-8)",
+-      },
+-      ".cm-clickable-placeholder": {
+-        cursor: "pointer !important",
+-        font: "inherit",
+-        background: "transparent",
+-        border: "none",
+-        padding: "0",
+-        pointerEvents: "auto",
+-        color: "var(--slate-9)",
+-        textDecoration: "underline",
+-        textUnderlineOffset: "0.2em",
+-      },
+-      ".cm-clickable-placeholder:focus-visible": {
+-        outline: "1px solid var(--muted-foreground)",
+-        outlineOffset: "2px",
+-        borderRadius: "2px",
+-      },
+-      ".cm-clickable-placeholder:hover": {
+-        color: "var(--sky-11)",
+-      },
+-    }),
++    clickablePlaceholderTheme,
+   ];
+ }

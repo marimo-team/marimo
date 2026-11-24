@@ -1,0 +1,28 @@
+# Each not-yet-mounted cell renders up to 50 skeleton bars with `animate-pulse` (an infinite CSS
+# animation): ~16 per cell, ~8,000 running animations at 500 cells. Every CodeMirror style sheet
+# rewrite invalidates all running keyframe animations, so each editor mount recalculates style for
+# every remaining bar: O(cells^2).
+# VALIDATED (CSS injection `.mo-code-placeholder-bar{animation:none!important}` and experiment
+# "pulse"): 250-cell load main-thread time 87.5 s -> 35.7 s; 500 cells 386 s -> 164 s.
+# If the shimmer matters, animate one wrapper per cell (opacity on .mo-code-placeholder) instead.
+
+--- a/frontend/src/components/editor/cell/code/code-placeholder.tsx
++++ b/frontend/src/components/editor/cell/code/code-placeholder.tsx
+@@ -1,6 +1,5 @@
+ /* Copyright 2026 Marimo. All rights reserved. */
+ import "./code-placeholder.css";
+-import { Skeleton } from "@/components/ui/skeleton";
+ import { cn } from "@/utils/cn";
+ 
+ interface CodePlaceholderProps {
+@@ -34,8 +33,8 @@
+         return (
+           <div key={index} className="mo-code-placeholder-line">
+             {length > 0 && (
+-              <Skeleton
+-                className="mo-code-placeholder-bar"
++              <div
++                className="mo-code-placeholder-bar rounded-md"
+                 style={{ width: `${getLineWidthCh(length)}ch` }}
+               />
+             )}

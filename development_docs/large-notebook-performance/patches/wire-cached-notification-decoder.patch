@@ -1,0 +1,64 @@
+diff --git a/marimo/_messaging/serde.py b/marimo/_messaging/serde.py
+index 5766284..f3e0d08 100644
+--- a/marimo/_messaging/serde.py
++++ b/marimo/_messaging/serde.py
+@@ -3,6 +3,7 @@
+ 
+ from __future__ import annotations
+ 
++from functools import cache
+ from typing import TYPE_CHECKING
+ 
+ import msgspec
+@@ -21,26 +22,36 @@ def serialize_kernel_message(message: NotificationMessage) -> KernelMessage:
+     return KernelMessage(encode_json_bytes(message))
+ 
+ 
++@cache
++def _notification_decoder() -> msgspec.json.Decoder[NotificationMessage]:
++    # Import here to avoid circular dependency
++    from marimo._messaging.notification import NotificationMessage
++
++    # `msgspec.json.decode(type=...)` rebuilds the lookup for this large
++    # tagged union on every call; a decoder builds it once.
++    return msgspec.json.Decoder(NotificationMessage, strict=True)
++
++
+ def deserialize_kernel_message(message: KernelMessage) -> NotificationMessage:
+     """
+     Deserialize a KernelMessage to a NotificationMessage.
+     """
+-    # Import here to avoid circular dependency
+-    from marimo._messaging.notification import NotificationMessage
+-
+-    return msgspec.json.decode(message, strict=True, type=NotificationMessage)  # type: ignore[no-any-return]
++    return _notification_decoder().decode(message)
+ 
+ 
+ class _NotificationName(msgspec.Struct):
+     op: str
+ 
+ 
++_name_decoder = msgspec.json.Decoder(_NotificationName, strict=True)
++
++
+ def deserialize_kernel_notification_name(message: KernelMessage) -> str:
+     """
+     Deserialize a KernelMessage to a NotificationMessage name.
+     """
+     # We use the _NotificationName type to deserialize the message because it is slimmer than NotificationMessage
+-    return msgspec.json.decode(message, strict=True, type=_NotificationName).op
++    return _name_decoder.decode(message).op
+ 
+ 
+ def try_deserialize_kernel_notification_name(
+@@ -51,8 +62,6 @@ def try_deserialize_kernel_notification_name(
+     """
+     # We use the _NotificationName type to deserialize the message because it is slimmer than NotificationMessage
+     try:
+-        return msgspec.json.decode(
+-            message, strict=True, type=_NotificationName
+-        ).op
++        return _name_decoder.decode(message).op
+     except msgspec.DecodeError:
+         return None

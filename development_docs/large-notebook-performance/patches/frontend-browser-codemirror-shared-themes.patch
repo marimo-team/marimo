@@ -1,0 +1,139 @@
+# Three extensions call EditorView.theme()/baseTheme() inside a per-cell factory, so every editor
+# adds 7 CSS rules and a unique scope class to CodeMirror's <style> element (535 rules at 50 cells,
+# ~3,700 at 500). With unique rules the style sheet text changes on every editor mount, which makes
+# Chrome recalculate style for most of the document.
+# VALIDATED together with the style-mod patch (experiment "load"): style recalc during a 250-cell
+# load 70.4 s -> 4.3 s. Alone it changes little, because style-mod still rewrites the sheet.
+
+--- a/frontend/src/core/codemirror/go-to-definition/extension.ts
++++ b/frontend/src/core/codemirror/go-to-definition/extension.ts
+@@ -3,6 +3,15 @@
+ import { createUnderlinePlugin, underlineField } from "./underline";
+ import { goToDefinitionWithLspFallback } from "./utils";
+ 
++
++// One style module for every editor: a theme created per cell adds its rules again.
++const underlineTheme = EditorView.baseTheme({
++  ".underline": {
++    textDecoration: "underline",
++    cursor: "pointer",
++    color: "var(--link)",
++  },
++});
+ /**
+  * Create a go-to-definition extension.
+  */
+@@ -12,12 +21,6 @@
+     createUnderlinePlugin((view) => {
+       goToDefinitionWithLspFallback(view);
+     }),
+-    EditorView.baseTheme({
+-      ".underline": {
+-        textDecoration: "underline",
+-        cursor: "pointer",
+-        color: "var(--link)",
+-      },
+-    }),
++    underlineTheme,
+   ];
+ }
+--- a/frontend/src/core/codemirror/placeholder/extensions.ts
++++ b/frontend/src/core/codemirror/placeholder/extensions.ts
+@@ -55,6 +55,32 @@
+   return false;
+ }
+ 
++
++// One style module for every editor: a theme created per cell adds its rules again.
++const placeholderTheme = EditorView.theme({
++  ".cm-placeholder": {
++    color: "var(--slate-8)",
++  },
++  ".cm-clickable-placeholder": {
++    cursor: "pointer !important",
++    font: "inherit",
++    background: "transparent",
++    border: "none",
++    padding: "0",
++    pointerEvents: "auto",
++    color: "var(--slate-9)",
++    textDecoration: "underline",
++    textUnderlineOffset: "0.2em",
++  },
++  ".cm-clickable-placeholder:focus-visible": {
++    outline: "1px solid var(--muted-foreground)",
++    outlineOffset: "2px",
++    borderRadius: "2px",
++  },
++  ".cm-clickable-placeholder:hover": {
++    color: "var(--sky-11)",
++  },
++});
+ /**
+  * Create a placeholder with a clickable link.
+  */
+@@ -132,29 +158,6 @@
+           ])
+         : Decoration.none,
+     ),
+-    EditorView.theme({
+-      ".cm-placeholder": {
+-        color: "var(--slate-8)",
+-      },
+-      ".cm-clickable-placeholder": {
+-        cursor: "pointer !important",
+-        font: "inherit",
+-        background: "transparent",
+-        border: "none",
+-        padding: "0",
+-        pointerEvents: "auto",
+-        color: "var(--slate-9)",
+-        textDecoration: "underline",
+-        textUnderlineOffset: "0.2em",
+-      },
+-      ".cm-clickable-placeholder:focus-visible": {
+-        outline: "1px solid var(--muted-foreground)",
+-        outlineOffset: "2px",
+-        borderRadius: "2px",
+-      },
+-      ".cm-clickable-placeholder:hover": {
+-        color: "var(--sky-11)",
+-      },
+-    }),
++    placeholderTheme,
+   ];
+ }
+--- a/frontend/src/core/codemirror/cells/traceback-decorations.ts
++++ b/frontend/src/core/codemirror/cells/traceback-decorations.ts
+@@ -137,6 +137,16 @@
+   );
+ }
+ 
++
++// One style module for every editor: a theme created per cell adds its rules again.
++const errorLineTheme = EditorView.theme({
++  ".cm-error-line": {
++    backgroundColor: "color-mix(in srgb, var(--red-4) 40%, transparent)",
++  },
++  "&.cm-focused .cm-error-line.cm-activeLine": {
++    backgroundColor: "color-mix(in srgb, var(--red-5) 40%, transparent)",
++  },
++});
+ /**
+  * Create an extension that highlights error lines in the editor.
+  */
+@@ -145,13 +155,6 @@
+ ): Extension {
+   return [
+     createErrorHighlighter(errorsObservable),
+-    EditorView.theme({
+-      ".cm-error-line": {
+-        backgroundColor: "color-mix(in srgb, var(--red-4) 40%, transparent)",
+-      },
+-      "&.cm-focused .cm-error-line.cm-activeLine": {
+-        backgroundColor: "color-mix(in srgb, var(--red-5) 40%, transparent)",
+-      },
+-    }),
++    errorLineTheme,
+   ];
+ }

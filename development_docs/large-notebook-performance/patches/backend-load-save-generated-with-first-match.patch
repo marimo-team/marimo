@@ -1,0 +1,18 @@
+--- a/marimo/_utils/generated_with.py
++++ b/marimo/_utils/generated_with.py
+@@ -9,9 +9,12 @@
+ 
+ 
+ def _strip_version(contents: str) -> str:
+-    return MARIMO_VERSION_RE.sub(
+-        "", GENERATED_WITH_RE.sub("", contents)
+-    ).strip()
++    # The version is recorded once, near the top, so stop at the first match
++    # instead of scanning (and copying) the whole notebook twice.
++    contents = GENERATED_WITH_RE.sub("", contents, count=1)
++    if "marimo-version: " in contents:
++        contents = MARIMO_VERSION_RE.sub("", contents, count=1)
++    return contents.strip()
+ 
+ 
+ def contents_differ_excluding_generated_with(

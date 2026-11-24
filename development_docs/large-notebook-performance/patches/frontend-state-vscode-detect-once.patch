@@ -1,0 +1,19 @@
+--- a/frontend/src/core/vscode/is-in-vscode.ts
++++ b/frontend/src/core/vscode/is-in-vscode.ts
+@@ -1,9 +1,14 @@
+ /* Copyright 2026 Marimo. All rights reserved. */
+ 
++let inVscodeExtension: boolean | undefined;
++
+ /**
+  * Whether the current environment is in the VSCode extension
+  */
+ export function isInVscodeExtension(): boolean {
+-  // We check if the document has a data-vscode-theme-kind attribute
+-  return document.querySelector("[data-vscode-theme-kind]") !== null;
++  // The attribute is on the document before the app loads and never changes.
++  // Callers ask on every render, and the query walks the whole document.
++  inVscodeExtension ??=
++    document.querySelector("[data-vscode-theme-kind]") !== null;
++  return inVscodeExtension;
+ }

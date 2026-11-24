@@ -1,0 +1,18 @@
+diff --git a/marimo/_core/code.py b/marimo/_core/code.py
+index a57f7d3..41625f7 100644
+--- a/marimo/_core/code.py
++++ b/marimo/_core/code.py
+@@ -10,11 +10,13 @@ import json
+ import sys
+ import token as token_types
+ import warnings
++from functools import lru_cache
+ from tokenize import TokenError, tokenize
+ 
+ _SCHEME = f"py-ast-v1:{sys.version_info.major}.{sys.version_info.minor}"
+ 
+ 
++@lru_cache(maxsize=8192)
+ def code_fingerprint(source: str) -> str:
+     """Fingerprint the AST and final-expression suppression.
+ 

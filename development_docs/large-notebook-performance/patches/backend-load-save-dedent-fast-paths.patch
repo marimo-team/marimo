@@ -1,0 +1,83 @@
+--- a/marimo/_ast/dedent.py
++++ b/marimo/_ast/dedent.py
+@@ -134,9 +134,11 @@
+         tokens = list(tokenize.generate_tokens(io.StringIO(code).readline))
+     except (TokenError, SyntaxError):
+         return textwrap.dedent(code)
++    return _dedent_unprotected(code, _get_protected_lines(code, tokens))
+ 
++
++def _dedent_unprotected(code: str, protected: list[bool]) -> str:
+     lines = split_source_lines(code, keepends=True)
+-    protected = _get_protected_lines(code, tokens)
+ 
+     min_indent: float = float("inf")
+     for i, line in enumerate(lines):
+@@ -166,13 +168,6 @@
+     """
+     lines = split_source_lines(text)
+ 
+-    try:
+-        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+-    except (TokenError, SyntaxError):
+-        tokens = []
+-
+-    protected = _get_protected_lines(text, tokens)
+-
+     # Mirror str.splitlines(): a final line terminator yields a trailing ""
+     # that we drop, so the result carries no spurious trailing newline. (The
+     # trailing line is never inside a string, so `protected` stays aligned.)
+@@ -180,6 +175,27 @@
+     if n > 1 and lines[-1] == "":
+         n -= 1
+ 
++    # Already flush left (the first line with content is never inside a
++    # string), so nothing shifts and there is nothing to tokenize for.
++    # Whitespace-only lines still take the slow path: `textwrap.dedent`
++    # normalizes them when the text does not tokenize.
++    first = next((line for line in lines[:n] if line.strip()), None)
++    if (
++        first is not None
++        and not first[0].isspace()
++        and not any(line and not line.strip() for line in lines[:n])
++    ):
++        return "\n".join(lines[:n])
++
++    tokenized = True
++    try:
++        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
++    except (TokenError, SyntaxError):
++        tokens = []
++        tokenized = False
++
++    protected = _get_protected_lines(text, tokens)
++
+     indent = None
+     for i in range(n):
+         if protected[i]:
+@@ -193,9 +209,20 @@
+         # dedent, matching textwrap's normalization of whitespace-only lines.
+         return textwrap.dedent(text)
+ 
+-    def refill(i: int, ln: str) -> str:
+-        if protected[i] or ln.startswith(indent):
+-            return ln
+-        return indent + ln
++    only_blank_padded = True
++    refilled: list[str] = []
++    for i in range(n):
++        line = lines[i]
++        if protected[i] or line.startswith(indent):
++            refilled.append(line)
++        else:
++            only_blank_padded = only_blank_padded and not line.strip()
++            refilled.append(indent + line)
++    code = "\n".join(refilled)
+ 
+-    return smart_dedent("\n".join(refill(i, lines[i]) for i in range(n)))
++    # Padding blank lines moves no token to another row, so the rows found
++    # above still hold. A lone "\r" is a line break here but not to the
++    # tokenizer, so rows only agree once it has been normalized away.
++    if tokenized and only_blank_padded and "\r" not in text:
++        return _dedent_unprotected(code, protected[:n])
++    return smart_dedent(code)

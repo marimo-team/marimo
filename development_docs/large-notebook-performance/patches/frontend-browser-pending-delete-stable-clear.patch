@@ -1,0 +1,17 @@
+# `clear` returns a new state object even when nothing is pending. Every cell subscribes to the
+# whole state (usePendingDeleteService in CellEditorInternal and useCellNavigationProps,
+# usePendingDelete in PendingDeleteConfirmation), and navigation clears it on every selection
+# change. So each arrow key in command mode re-renders every cell: 1.9 s per key at 500 cells.
+# NOT VALIDATED in a build. Follow up by subscribing per cell (selectAtom on entries.get(cellId)).
+
+--- a/frontend/src/core/cells/pending-delete-service.ts
++++ b/frontend/src/core/cells/pending-delete-service.ts
+@@ -117,7 +117,7 @@
+       };
+     },
+ 
+-    clear: () => initialState(),
++    clear: (state) => (state.entries.size === 0 ? state : initialState()),
+   },
+ );
+ 

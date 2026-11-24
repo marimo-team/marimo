@@ -1,0 +1,51 @@
+# Every cell re-renders on each document sync-status change (2-3 times per keystroke).
+# useSaveNotebook() -> useNotebookDocumentSave() -> useNotebookDocumentSync() subscribes to
+# model.syncStatusAtom although saving only needs `flush`. useSaveNotebook() is called once per
+# cell (useCellNavigationProps) and once per cell editor (CellEditorInternal).
+# VALIDATED with a build-time transform (see .context/perf/frontend-browser/vite.perf-experiment.mts,
+# experiment "sync"): typing at 250 cells 323 -> 88 ms of main-thread work per keystroke.
+
+--- a/frontend/src/core/notebook/document/hooks.tsx
++++ b/frontend/src/core/notebook/document/hooks.tsx
+@@ -111,6 +111,11 @@
+  * Rejections retain local edits; retry explicitly resubmits them. Requests
+  * with an unknown outcome reuse their original key within the retry window.
+  */
++/** Wait for this client's edits to be confirmed, without subscribing to the sync status. */
++export function useNotebookDocumentFlush() {
++  return useDocumentModel().flush;
++}
++
+ export function useNotebookDocumentSync() {
+   const model = useDocumentModel();
+   const status = useAtomValue(model.syncStatusAtom);
+--- a/frontend/src/core/notebook/document/index.ts
++++ b/frontend/src/core/notebook/document/index.ts
+@@ -10,6 +10,7 @@
+   useNotebookCellName,
+   useNotebookCellOrder,
+   useNotebookDocumentEdit,
++  useNotebookDocumentFlush,
+   useNotebookDocumentSync,
+ } from "./hooks";
+ export {
+--- a/frontend/src/core/saving/document.ts
++++ b/frontend/src/core/saving/document.ts
+@@ -4,7 +4,7 @@
+ 
+ import { useAtomValue } from "jotai";
+ import { useCallback } from "react";
+-import { useNotebookDocumentSync } from "@/core/notebook/document";
++import { useNotebookDocumentFlush } from "@/core/notebook/document";
+ import { activeNotebookBackendAtom } from "../session/active-notebook";
+ 
+ /**
+@@ -18,7 +18,7 @@
+  * ```
+  */
+ export function useNotebookDocumentSave() {
+-  const { flush } = useNotebookDocumentSync();
++  const flush = useNotebookDocumentFlush();
+   const backend = useAtomValue(activeNotebookBackendAtom);
+   return useCallback(async () => {
+     if (backend === null) {

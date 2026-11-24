@@ -1,0 +1,25 @@
+--- a/marimo/_runtime/dataflow/__init__.py
++++ b/marimo/_runtime/dataflow/__init__.py
+@@ -2,6 +2,7 @@
+ from __future__ import annotations
+ 
+ from collections import deque
++from collections.abc import Set
+ from typing import TYPE_CHECKING, Any
+ 
+ from marimo import _loggers
+@@ -110,11 +111,12 @@
+ 
+     Represents the subgraph induced by `cell_ids`.
+     """
++    members = cell_ids if isinstance(cell_ids, Set) else frozenset(cell_ids)
+     parents: dict[CellId_t, set[CellId_t]] = {}
+     children: dict[CellId_t, set[CellId_t]] = {}
+     for cid in cell_ids:
+-        parents[cid] = {p for p in graph.parents[cid] if p in cell_ids}
+-        children[cid] = {c for c in graph.children[cid] if c in cell_ids}
++        parents[cid] = graph.parents[cid] & members
++        children[cid] = graph.children[cid] & members
+     return parents, children
+ 
+ 

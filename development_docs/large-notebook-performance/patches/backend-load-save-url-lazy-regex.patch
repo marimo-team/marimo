@@ -1,0 +1,46 @@
+--- a/marimo/_utils/url.py
++++ b/marimo/_utils/url.py
+@@ -6,12 +6,13 @@
+ 
+ from __future__ import annotations
+ 
++import functools
+ import re
+ 
+ ip_middle_octet = r"(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5]))"
+ ip_last_octet = r"(?:\.(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5]))"
+ 
+-regex = re.compile(
++_REGEX = (
+     r"^"
+     # protocol identifier
+     r"(?:(?:https?|ftp)://)"
+@@ -88,13 +89,16 @@
+     # query string
+     r"(?:\?\S*)?"
+     # fragment
+-    r"(?:#\S*)?$",
+-    re.UNICODE | re.IGNORECASE,
++    r"(?:#\S*)?$"
+ )
+ 
+-pattern = re.compile(regex)
+ 
++@functools.cache
++def _pattern() -> re.Pattern[str]:
++    # ~35 ms to compile, so not at import time.
++    return re.compile(_REGEX, re.UNICODE | re.IGNORECASE)
+ 
++
+ def is_url(value: str, public: bool = False) -> bool:
+     """Return whether or not given value is a valid URL.
+ 
+@@ -131,7 +135,7 @@
+     :param value: URL address string to validate
+     :param public: (default=False) Set True to only allow a public IP address
+     """
+-    result = pattern.match(value)
++    result = _pattern().match(value)
+     if not public:
+         return result is not None
+ 
