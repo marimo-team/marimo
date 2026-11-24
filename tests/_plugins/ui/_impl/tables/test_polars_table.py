@@ -1627,21 +1627,48 @@ def test_csv_decimal_comma_nested(nested: bool) -> None:
 
 
 @pytest.mark.requires("polars")
-def test_csv_decimal_comma_old_polars(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("separator", [",", ";", "\t"])
+@pytest.mark.parametrize("lazy", [False, True])
+def test_csv_decimal_comma_old_polars(
+    monkeypatch: pytest.MonkeyPatch, separator: str, lazy: bool
+) -> None:
     import polars as pl
 
     original = pl.DataFrame.write_csv
 
-    def write_csv(self: Any, *, separator: str = ",") -> str:
+    def write_csv(self: pl.DataFrame, *, separator: str = ",") -> str:
         return original(self, separator=separator)
 
     monkeypatch.setattr(pl.DataFrame, "write_csv", write_csv)
     PolarsTableManagerFactory.create.cache_clear()
     try:
-        manager = PolarsTableManagerFactory.create()(
-            pl.DataFrame({"a": [3.14]})
+        frame = pl.DataFrame(
+            {
+                "amount": [3.14],
+                "list": [[1, 2]],
+                "struct": [{"value": 1.5}],
+                "count": [2],
+                "text": ["1.5"],
+            }
         )
-        assert manager.to_csv(decimal_comma=True) == b'a\n"3,14"\n'
-        assert manager.to_csv() == b"a\n3.14\n"
+        manager = PolarsTableManagerFactory.create()(
+            frame.lazy() if lazy else frame
+        )
+        for decimal_comma in (False, True):
+            output = manager.to_csv_str(
+                separator=separator, decimal_comma=decimal_comma
+            )
+            assert list(
+                csv.reader(io.StringIO(output), delimiter=separator)
+            ) == [
+                ["amount", "list", "struct", "count", "text"],
+                [
+                    "3,14" if decimal_comma else "3.14",
+                    "1,2",
+                    '{"value":1.5}',
+                    "2",
+                    "1.5",
+                ],
+            ]
     finally:
         PolarsTableManagerFactory.create.cache_clear()
