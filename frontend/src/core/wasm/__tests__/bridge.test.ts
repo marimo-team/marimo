@@ -6,6 +6,7 @@ import { atom } from "jotai";
 
 const {
   mockBridge,
+  mockLoadPackages,
   mockNotebookReadFile,
   mockReadNotebook,
   mockWriteNotebook,
@@ -19,6 +20,7 @@ const {
   workerState,
 } = vi.hoisted(() => ({
   mockBridge: vi.fn(),
+  mockLoadPackages: vi.fn(),
   mockNotebookReadFile: vi.fn(),
   mockReadNotebook: vi.fn(),
   mockWriteNotebook: vi.fn(),
@@ -68,6 +70,7 @@ vi.mock("@/core/wasm/rpc", () => ({
       proxy: {
         request: {
           bridge: mockBridge,
+          loadPackages: mockLoadPackages,
           startSession: vi.fn(),
           readFile: vi.fn(),
           readNotebook: mockReadNotebook,
@@ -110,6 +113,8 @@ import { initialModeAtom } from "@/core/mode";
 import type { NotebookReplica } from "@/core/notebook/replica";
 import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { fallbackFileStore, notebookFileStore } from "../store";
+import { pageAppConfigAtom } from "@/core/config/config";
+import { parseAppConfig } from "@/core/config/config-schema";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
 
 beforeEach(() => {
@@ -441,6 +446,30 @@ it("raises the interrupt buffer once a run cancelled while queued starts", async
     store.set(activeNotebookReplicaAtom, null);
     store.set(initialModeAtom, undefined);
   }
+});
+
+describe("PyodideBridge.sendRunScratchpad", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLoadPackages.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    store.set(pageAppConfigAtom, parseAppConfig({}));
+  });
+
+  it("passes the current SQL output to dependency loading", async () => {
+    store.set(pageAppConfigAtom, parseAppConfig({ sql_output: "pandas" }));
+
+    await PyodideBridge.INSTANCE.sendRunScratchpad({
+      code: 'result = mo.sql("SELECT 1", engine="polars")',
+    });
+
+    expect(mockLoadPackages).toHaveBeenCalledWith({
+      code: 'result = mo.sql("SELECT 1", engine="polars")',
+      sqlOutput: "pandas",
+    });
+  });
 });
 
 describe("getWasmWorkerName", () => {
