@@ -101,8 +101,7 @@ const TextComponent = (props: TextComponentProps) => {
 
   const [valueOnBlur, setValueOnBlur] = useState(props.value);
   // With debounce=true, the value only changes on blur or Enter.
-  const valueToValidate =
-    props.debounce === true ? value : (valueOnBlur ?? value);
+  const valueToValidate = props.debounce === true ? value : valueOnBlur;
   const isValid = validate(props.kind, valueToValidate);
 
   const icon: Record<InputType, JSX.Element | null> = {
