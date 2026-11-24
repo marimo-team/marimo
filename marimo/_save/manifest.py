@@ -92,6 +92,44 @@ def is_manifest_name(name: str) -> bool:
     return _MANIFEST_NAME.fullmatch(name) is not None
 
 
+def manifest_keys(cache_dir: Path) -> list[str]:
+    """The manifests held at the root of `cache_dir`.
+
+    Raises:
+        OSError: If `cache_dir` cannot be listed.
+    """
+    # A cache that was never written is the ordinary case, not a failure to
+    # read one.
+    if not cache_dir.is_dir():
+        return []
+    return sorted(
+        child.name
+        for child in cache_dir.iterdir()
+        if child.is_file() and is_manifest_name(child.name)
+    )
+
+
+def manifest_notebook(
+    cache_dir: Path, key: str, manifest: CacheManifest
+) -> Path | None:
+    """The notebook that `manifest` was written for, or `None` if unknown."""
+    if not manifest.notebook:
+        return None
+    record = Path(manifest.notebook)
+    notebook = normalize_path(cache_dir / record)
+    if manifest_name(notebook) == key:
+        return notebook
+    # The name holds a digest of the notebook's absolute path, so it stops
+    # matching after the notebook and its cache directory move together. The
+    # relative record still points at the notebook.
+    if not record.is_absolute() and notebook.is_file():
+        return notebook
+    # An absolute record, or one that points at no file, does not say which
+    # notebook to read. If it were read as a deleted notebook, every entry
+    # that it lists would be deleted.
+    return None
+
+
 @dataclass
 class CacheManifest:
     """The cache keys a notebook produced, grouped by path hash."""
@@ -276,13 +314,15 @@ def _record_cache_event(
     # Records are kept per store. A manifest lists only the entries stored
     # beside it, and a notebook can cache to more than one location.
     store = loader.store
+    seen = ctx.cache.manifest_seen.setdefault(store, set())
+    record = (node, block, entry)
+    if record in seen and not saved:
+        return
+    seen.add(record)
     blocks = ctx.cache.manifest_records.setdefault(store, {}).setdefault(
         node, {}
     )
-    keys = blocks.setdefault(block, set())
-    if entry in keys and not saved:
-        return
-    keys.add(entry)
+    blocks.setdefault(block, set()).add(entry)
     ctx.cache.manifest_dirty.add(store)
 
 
@@ -301,6 +341,7 @@ def flush_dirty_manifests(ctx: RuntimeContext) -> None:
             continue
         if written:
             ctx.cache.manifest_dirty.discard(store)
+            ctx.cache.manifest_records.pop(store, None)
 
 
 def flush_cache_manifest(ctx: RuntimeContext, store: Store) -> bool:

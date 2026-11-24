@@ -75,6 +75,8 @@ docker run -p 8080:8080 -it my_app
 
 After verifying that your application runs without errors, you can use these files to deploy your application on your preferred cloud provider that supports dockerized applications.
 
+If users open the app at `https://myapp.example.com`, add `"--allow-origins", "https://myapp.example.com"` to `CMD`.
+
 ## Health checks
 
 You can add a health check to your Dockerfile to ensure that your application is running as expected. This is especially useful when deploying to a cloud provider.

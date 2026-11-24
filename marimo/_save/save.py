@@ -371,6 +371,10 @@ class _cache_call(CacheContext, Generic[P, R]):
             },
             as_fn=True,
         )
+        # Unlike a cached cell, a cached function has no rerun to fall back
+        # on when a stub is used, so it runs live instead.
+        if attempt.hit and attempt.restores_unhashable():
+            attempt.hit = False
 
         return scope, ctx, attempt
 
@@ -816,6 +820,10 @@ class _cache_context(SkipContext, CacheContext):
                     pin_modules=self.pin_modules,
                     hash_type=self.hash_type,
                 )
+                # Unlike a cached cell, a block has no rerun to fall back on
+                # when a stub is used, so it runs live instead.
+                if self._cache.hit and self._cache.restores_unhashable():
+                    self._cache.hit = False
 
                 self.cache_type = self._cache.cache_type
                 # Raising on the first valid line, prevents a discrepancy where

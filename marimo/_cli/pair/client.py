@@ -326,6 +326,7 @@ def execute(
     request_url = _endpoint_url(url, "/api/kernel/execute")
     headers = {
         "Content-Type": "application/json",
+        "Marimo-Client": "marimo-pair-execute",
         "Marimo-Stable-Session-Id": session_id,
     }
     if token is not None:

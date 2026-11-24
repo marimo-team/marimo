@@ -30,6 +30,24 @@ HEADERS = {
 }
 
 
+@pytest.mark.parametrize("font_size", [14, 14.5, 19.5])
+def test_save_fractional_font_size(
+    client: TestClient, font_size: float
+) -> None:
+    manager = get_user_config_manager(client)
+    response = client.post(
+        "/api/kernel/save_user_config",
+        headers=HEADERS,
+        json={"config": {"display": {"code_editor_font_size": font_size}}},
+    )
+    assert response.status_code == 200, response.text
+    assert manager.get_config().display.code_editor_font_size == font_size
+    assert (
+        manager.user_config_mgr.read()["display"]["code_editor_font_size"]
+        == font_size
+    )
+
+
 def test_save_user_config_no_session(client: TestClient) -> None:
     user_config_manager = get_user_config_manager(client)
     response = client.post(

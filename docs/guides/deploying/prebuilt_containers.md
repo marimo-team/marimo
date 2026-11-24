@@ -33,3 +33,5 @@ FROM ghcr.io/marimo-team/marimo:latest-sql
 
 CMD ["marimo", "edit", "--no-token", "-p", "8080", "--host", "0.0.0.0"]
 ```
+
+If users open the editor at `https://editor.example.com`, replace `"--no-token"` in `CMD` with `"--allow-origins", "https://editor.example.com"`.

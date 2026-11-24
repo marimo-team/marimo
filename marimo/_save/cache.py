@@ -88,10 +88,17 @@ class CacheState:
     # config (user/env only; project/script trust is stripped upstream). A
     # `LazyLoader` reads it as the default trust/identity source.
     signing_policy: SigningPolicy | None = None
-    # Cache keys this session recorded, grouped by the store they were
-    # written through, then by path hash and block. A manifest lists only
-    # the entries stored beside it.
+    # Cache keys recorded since the last manifest write, grouped by the store
+    # they were written through, then by path hash and block. A manifest
+    # lists only the entries stored beside it. A manifest write merges only
+    # these records, so a record that `marimo cache prune` or `clean` removed
+    # stays removed.
     manifest_records: dict[Store, dict[str, dict[str, set[str]]]] = field(
+        default_factory=dict
+    )
+    # Every `(path hash, block, key)` that this session recorded, per store.
+    # A cache hit on one of these does not rewrite the manifest.
+    manifest_seen: dict[Store, set[tuple[str, str, str]]] = field(
         default_factory=dict
     )
     # The stores with a record not yet written to a manifest.
@@ -185,6 +192,13 @@ class Cache:
     # TODO: Consider storing graph information such that execution history can
     # be explored and visualized.
     meta: dict[MetaKey, Any]
+
+    def restores_unhashable(self) -> bool:
+        """Whether a def or the return value restores as an `UnhashableStub`."""
+        return any(
+            isinstance(value, UnhashableStub)
+            for value in (*self.defs.values(), self.meta.get("return"))
+        )
 
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""

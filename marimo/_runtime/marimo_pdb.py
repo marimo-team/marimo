@@ -1,21 +1,50 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import inspect
 import sys
 from pdb import Pdb, Restart as pdbRestart
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._ast.compiler import cell_id_from_filename
+from marimo._ast.parse import ast_parse
+from marimo._ast.variables import demangle_locals_in_text
+from marimo._ast.visitor import ScopedVisitor
 from marimo._messaging.streams import PdbInput
 from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from types import FrameType, TracebackType
 
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
+
+
+class _FrameLocalsVisitor(ScopedVisitor):
+    """Rewrite `_b` only when the frame binds `_cell_<id>_b` and not `_b`
+    itself. Raw imports, comprehension and function locals, and names that
+    the user typed in mangled form stay as typed.
+    """
+
+    def __init__(
+        self, mangle_prefix: str, scopes: tuple[Mapping[str, Any], ...]
+    ) -> None:
+        super().__init__(mangle_prefix)
+        self._scopes = scopes
+
+    def _bound(self, name: str) -> bool:
+        return any(name in scope for scope in self._scopes)
+
+    def is_local(self, name: str) -> bool:
+        return (
+            super().is_local(name)
+            and not self._bound(name)
+            and self._bound(self._mangle(name))
+        )
 
 
 def try_restart() -> bool:
@@ -103,6 +132,59 @@ class MarimoPdb(Pdb):
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
+
+    def _mangle_cell_locals(self, source: str, frame: FrameType | None) -> str:
+        """Mangle cell-local names in `source` to match the cell's code.
+
+        If `frame` does not belong to a cell, or if `source` is not valid
+        Python, `source` is returned unchanged.
+        """
+        if frame is None:
+            return source
+        cell_id = cell_id_from_filename(frame.f_code.co_filename)
+        # Cell ids in an embedded app contain `-`, so their mangled names
+        # cannot be typed at the prompt.
+        if cell_id is None or not f"_cell_{cell_id}".isidentifier():
+            return source
+        # Before 3.13, a prompt assignment is lost if `f_locals` is read
+        # again.
+        local_names = (
+            self.curframe_locals
+            if sys.version_info < (3, 13) and frame is self.curframe
+            else frame.f_locals
+        )
+        visitor = _FrameLocalsVisitor(
+            "cell_" + cell_id, (local_names, frame.f_globals, frame.f_builtins)
+        )
+        try:
+            tree = ast_parse(source)
+            before = ast.dump(tree)
+            visitor.visit(tree)
+        except (SyntaxError, ValueError):
+            return source
+        if ast.dump(tree) == before:
+            return source
+        # pdb compiles a line in `single` mode, so `a = 1; _b = 2` must stay
+        # on one line.
+        return "; ".join(ast.unparse(stmt) for stmt in tree.body)
+
+    def error(self, msg: object) -> None:
+        # Show names as the user typed them. Some commands pass an
+        # exception instead of a string.
+        super().error(demangle_locals_in_text(str(msg)))
+
+    def default(self, line: str) -> None:
+        # Remove a leading `!` before parsing. pdb removes it too, but only
+        # later.
+        line = line.removeprefix("!").lstrip()
+        super().default(self._mangle_cell_locals(line, self.curframe))
+
+    def _getval(self, arg: str) -> Any:
+        return super()._getval(self._mangle_cell_locals(arg, self.curframe))
+
+    def _getval_except(self, arg: str, frame: FrameType | None = None) -> Any:
+        source = self._mangle_cell_locals(arg, frame or self.curframe)
+        return super()._getval_except(source, frame)
 
     def cmdloop(self, intro: str | None = None) -> None:
         """Override to gracefully handle restarts."""

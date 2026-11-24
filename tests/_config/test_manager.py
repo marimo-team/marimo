@@ -596,7 +596,7 @@ def test_get_config_normalizes_legacy_copilot(
         )
         for _ in range(3):
             assert manager.get_config().completion.copilot == expected
-        assert log_error.call_count == (3 if invalid else 0)
+        assert log_error.call_count == (1 if invalid else 0)
     assert values == {"completion": {"copilot": copilot}}
 
 
@@ -673,6 +673,7 @@ def test_project_config_default_dotenv(tmp_path: Path) -> None:
     notebook_path = tmp_path / "notebook.py"
     notebook_content = "import marimo as mo"
     notebook_path.write_text(textwrap.dedent(notebook_content))
+    (tmp_path / ".env").touch()
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
@@ -684,6 +685,7 @@ def test_project_config_dotenv_without_pyproject(tmp_path: Path) -> None:
     notebook_path = tmp_path / "notebook.py"
     notebook_path.write_text("import marimo as mo")
 
+    (tmp_path / ".env").touch()
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
@@ -692,6 +694,7 @@ def test_project_config_dotenv_without_pyproject(tmp_path: Path) -> None:
 def test_project_config_dotenv_without_pyproject_directory(
     tmp_path: Path,
 ) -> None:
+    (tmp_path / ".env").touch()
     manager = get_default_config_manager(current_path=str(tmp_path))
     config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
@@ -705,6 +708,7 @@ def test_default_dotenv_is_masked_with_the_other_secrets(
     notebook_path = tmp_path / "notebook.py"
     notebook_path.write_text("import marimo as mo")
 
+    (tmp_path / ".env").touch()
     manager = get_default_config_manager(current_path=str(notebook_path))
     assert "dotenv" not in (manager.get_config()).to_dict()["runtime"]
     assert (manager.get_config(hide_secrets=False)).to_dict()["runtime"][
@@ -754,6 +758,7 @@ def test_default_dotenv_applies_to_a_pyproject_in_the_home_directory(
     notebook_path = home / "nb.py"
     notebook_path.write_text("import marimo as mo")
 
+    (home / ".env").touch()
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(home / ".env")]
@@ -816,6 +821,7 @@ def test_directory_workspace_dotenv_keeps_the_pyproject_root(
     notebook_path = sub / "app.py"
     notebook_path.write_text("import marimo as mo")
 
+    (repo / ".env").touch()
     workspace = get_default_config_manager(current_path=str(repo))
     session = workspace.with_partial(ScriptConfigReader(str(notebook_path)))
     config = (session.get_config(hide_secrets=False)).to_dict()
@@ -830,6 +836,7 @@ def test_directory_workspace_dotenv_falls_back_to_the_workspace_root(
     repo = tmp_path / "repo"
     repo.mkdir()
 
+    (repo / ".env").touch()
     workspace = get_default_config_manager(current_path=str(repo))
     session = workspace.with_partial(ScriptConfigReader(None))
     config = (session.get_config(hide_secrets=False)).to_dict()
@@ -845,6 +852,7 @@ def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
     notebook_path = notebooks / "notebook.py"
     notebook_path.write_text("import marimo as mo")
 
+    (tmp_path / ".env").touch()
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
@@ -947,6 +955,7 @@ def test_default_dotenv_applies_with_an_empty_user_config(
     _isolate_user_config(monkeypatch, tmp_path, "")
     notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
 
+    (notebook_path.parent / ".env").touch()
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = (manager.get_config(hide_secrets=False)).to_dict()
     assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
@@ -1403,7 +1412,7 @@ def test_project_config_manager_resolve_missing_paths(tmp_path: Path) -> None:
 
     # Verify missing paths don't cause issues
     assert config["runtime"].get("pythonpath", []) == []
-    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+    assert config["runtime"]["dotenv"] == []
     assert config["runtime"]["other_setting"] == "value"
 
 
@@ -1852,3 +1861,32 @@ def test_trusted_user_config_location_anchors_trust(
     assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
     assert config["cache"]["verification"] == "strict"
     assert config["cache"]["loader"] == "pickle"
+
+
+def test_invalid_config_warning_is_deduplicated_by_source_and_error(
+    tmp_path: Path,
+) -> None:
+    import logging
+
+    from marimo import _loggers
+    from marimo._config.manager import _warn_invalid_config
+
+    _warn_invalid_config.cache_clear()
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[display]\ntheme="invalid"\n')
+    store = UserConfigStore()
+    with patch.object(store, "get_config_path", return_value=str(config_path)):
+        with _loggers.capture_output(log_level=logging.ERROR) as (
+            _,
+            _,
+            records,
+        ):
+            for _ in range(3):
+                MarimoConfigManager(store).get_config()
+            config_path.write_text(
+                '[display]\ncode_editor_font_size="invalid"\n'
+            )
+            MarimoConfigManager(store).get_config()
+        assert len(records) == 2
+        assert "theme" in records[0].getMessage()
+        assert "code_editor_font_size" in records[1].getMessage()

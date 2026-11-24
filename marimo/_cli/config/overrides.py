@@ -60,7 +60,12 @@ def _parse_value(raw: str, annotation: Any) -> Any:
                 and issubclass(item_type, msgspec.Struct)
             ):
                 return value
-        return [_parse_value(item, item_type) for item in shlex.split(raw)]
+        lexer = shlex.shlex(raw, posix=True)
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        # The invoking shell already handles escapes; preserve Windows paths.
+        lexer.escape = ""
+        return [_parse_value(item, item_type) for item in lexer]
     # Validate structured values through MarimoConfig, which also normalizes MCP tags.
     return json.loads(raw)
 

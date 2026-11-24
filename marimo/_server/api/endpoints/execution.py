@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -34,7 +35,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
-from marimo._server.sse import wait_for_http_disconnect
+from marimo._server.sse import format_sse_event, wait_for_http_disconnect
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._session.consumer_policy import (
     TakeoverDecision,
@@ -58,6 +59,34 @@ LOGGER = _loggers.marimo_logger()
 
 # Router for execution endpoints
 router = APIRouter()
+
+_LEGACY_PAIR_WARNING = """\
+================================================================
+MARIMO PAIR WARNING — execute-code.sh IS DEPRECATED
+
+The marimo-pair tools now ship with the marimo CLI. Continue
+working in this notebook with `marimo pair execute`.
+Run `marimo pair execute --help` for usage.
+
+Let this execution finish. The warning does not require a retry.
+
+If your marimo-pair skill told you to use `execute-code.sh`,
+tell the user their skill is out of date. Give them the command
+that matches how they installed it.
+
+  Installed with npx skills
+    npx skills upgrade marimo-team/marimo-pair
+
+  Installed as a Claude Code plugin
+    claude plugin update marimo-pair@marimo-pair
+
+  Installed from the Codex plugin marketplace
+    codex plugin marketplace upgrade marimo-pair
+
+If you're unsure which command applies, ask the user to open
+https://marimo.io/pair, pick their agent, and follow "Update".
+================================================================
+"""
 
 
 @router.post("/set_ui_element_value")
@@ -296,6 +325,17 @@ async def execute_code(
                         ),
                         from_consumer_id=None,
                     )
+                    if (
+                        "Marimo-Client" not in request.headers
+                        and app_state.get_current_session_id() is not None
+                        and request.headers.get("user-agent", "").startswith(
+                            "curl/"
+                        )
+                    ):
+                        yield format_sse_event(
+                            json.dumps({"data": _LEGACY_PAIR_WARNING}),
+                            event="stderr",
+                        )
                     async for event in listener.stream():
                         yield event
 

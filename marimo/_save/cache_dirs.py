@@ -1051,6 +1051,9 @@ def _children(directory: Path) -> list[Path]:
     """List `directory`, logging a failure and returning nothing for it."""
     try:
         return list(directory.iterdir())
+    except FileNotFoundError:
+        # Another clean or prune removed it first.
+        return []
     except OSError as e:
         LOGGER.warning("Skipping %s: %s", directory, e)
         return []
@@ -1112,7 +1115,10 @@ def _cache_dirs_under(root: Path) -> Iterator[Path]:
 
 def _log_walk_error(error: OSError) -> None:
     # os.walk swallows these by default, and an unreadable subtree then
-    # reads as holding no caches.
+    # reads as holding no caches. A subtree that was removed during the walk
+    # holds no caches.
+    if isinstance(error, FileNotFoundError):
+        return
     LOGGER.warning("Skipping %s: %s", error.filename, error)
 
 
