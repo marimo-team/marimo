@@ -585,12 +585,13 @@ def detach_after() -> Iterator[None]:
     yield
     import duckdb
 
-    for alias in ("swap_db", "retry_db"):
+    for alias in ("fn_db", "swap_db", "retry_db"):
         duckdb.sql(f"DETACH DATABASE IF EXISTS {alias}")
 
 
 @pytest.mark.skipif(not HAS_SQL, reason="SQL deps not available")
 class TestBroadcastInternalDuckDB:
+    @pytest.mark.usefixtures("detach_after")
     async def test_attach_and_detach_through_function(
         self, mocked_kernel: MockedKernel, tmp_path: Path
     ) -> None:
@@ -702,22 +703,23 @@ class TestBroadcastInternalDuckDB:
             _internal_duckdb_notifications(stream)[-1]
         )
 
+    @pytest.mark.parametrize(
+        "cells",
+        [
+            ["import duckdb", 'duckdb.execute("SELECT 42")'],
+            ['import duckdb\nduckdb.execute("SELECT 42")'],
+        ],
+        ids=["import-in-own-cell", "import-with-query"],
+    )
     async def test_preserves_pending_default_connection_result(
-        self, mocked_kernel: MockedKernel
+        self, mocked_kernel: MockedKernel, cells: list[str]
     ) -> None:
         k = mocked_kernel.k
 
         await k.run(
             [
-                ExecuteCellCommand(
-                    cell_id=CellId_t("0"), code="import duckdb"
-                ),
-                ExecuteCellCommand(
-                    cell_id=CellId_t("1"), code='duckdb.execute("SELECT 42")'
-                ),
-                ExecuteCellCommand(
-                    cell_id=CellId_t("2"), code="rows = duckdb.fetchall()"
-                ),
+                ExecuteCellCommand(cell_id=CellId_t(str(i)), code=code)
+                for i, code in enumerate([*cells, "rows = duckdb.fetchall()"])
             ]
         )
         assert k.globals["rows"] == [(42,)]

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Optional, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import _db_type_to_data_type, get_table_columns
@@ -36,28 +36,17 @@ if TYPE_CHECKING:
 INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
 
 
-def get_attached_duckdb_catalogs() -> set[str]:
-    """Fetch the names of all catalogs attached to the default DuckDB connection."""
-    import duckdb
-
-    try:
-        result = duckdb.sql("SELECT database_name FROM duckdb_databases()")
-        if result is None:
-            return set()
-        return {row[0].lower() for row in result.fetchall()}
-    except Exception:
-        return set()
+class AttachedCatalog(NamedTuple):
+    name: str
+    oid: int
+    internal: bool
 
 
-def get_attached_duckdb_catalog_ids() -> set[tuple[str, int]]:
-    """Fetch `(name, oid)` for each catalog attached to the default DuckDB connection.
+def get_attached_duckdb_catalogs() -> list[AttachedCatalog]:
+    """Fetch the catalogs attached to the default DuckDB connection.
 
-    Unlike names alone, the OID changes when a catalog is re-attached, so
-    swapping the database behind an alias is detectable.
-
-    Queries through a cursor so the user's pending result on the default
-    connection is preserved. `temp` is per-connection, so its OID differs
-    on every cursor and is excluded.
+    Queries through a cursor so the default connection's pending result is
+    preserved.
     """
     import duckdb
 
@@ -66,12 +55,15 @@ def get_attached_duckdb_catalog_ids() -> set[tuple[str, int]]:
     try:
         with connection.cursor() as cursor:
             rows = cursor.sql(
-                "SELECT database_name, database_oid FROM duckdb_databases() "
-                "WHERE database_name != 'temp'"
+                "SELECT database_name, database_oid, internal "
+                "FROM duckdb_databases()"
             ).fetchall()
-        return {(name.lower(), oid) for name, oid in rows}
+        return [
+            AttachedCatalog(name.lower(), oid, internal)
+            for name, oid, internal in rows
+        ]
     except Exception:
-        return set()
+        return []
 
 
 @dataclass(frozen=True)

@@ -1101,7 +1101,9 @@ class Kernel:
         def get_attached_catalogs() -> set[str]:
             nonlocal attached_catalogs
             if attached_catalogs is None:
-                attached_catalogs = get_attached_duckdb_catalogs()
+                attached_catalogs = {
+                    catalog.name for catalog in get_attached_duckdb_catalogs()
+                }
             return attached_catalogs
 
         with self._state_lock:
