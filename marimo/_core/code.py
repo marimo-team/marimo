@@ -10,11 +10,13 @@ import json
 import sys
 import token as token_types
 import warnings
+from functools import lru_cache
 from tokenize import TokenError, tokenize
 
 _SCHEME = f"py-ast-v1:{sys.version_info.major}.{sys.version_info.minor}"
 
 
+@lru_cache(maxsize=8192)
 def code_fingerprint(source: str) -> str:
     """Fingerprint the AST and final-expression suppression.
 
