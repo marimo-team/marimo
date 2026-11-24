@@ -2,10 +2,12 @@
 
 import NodeFs from "node:fs";
 import NodeUrl from "node:url";
-import * as Protocol from "../protocol.ts";
 
 /** Read one of the protocol's portable SSE examples as decoded events. */
-export function fixtureEvents(name: string): Protocol.EventOutput[] {
+export function fixtureEvents<T>(
+  name: string,
+  schema: { parse(value: unknown): T },
+): T[] {
   const path = new NodeUrl.URL(
     `../../../../protocols/host/fixtures/${name}`,
     import.meta.url,
@@ -24,7 +26,7 @@ export function fixtureEvents(name: string): Protocol.EventOutput[] {
         .join("\n");
       const id = /^id: (.+)$/m.exec(frame)?.[1];
       return [
-        Protocol.Event.parse({
+        schema.parse({
           event,
           data: JSON.parse(data),
           ...(id ? { id } : {}),

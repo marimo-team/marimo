@@ -3,10 +3,11 @@
 import type { CatalogStreamEvent } from "../index.ts";
 import { describe, expect, it } from "vitest";
 import { createCatalogReducer, type CatalogResource } from "../index.ts";
+import * as Protocol from "../protocol.ts";
 import { fixtureEvents } from "./fixtures.ts";
 import { notebooks, projects } from "./catalog-resources.ts";
 
-const snapshot = fixtureEvents("events.sse") as CatalogStreamEvent[];
+const snapshot = fixtureEvents("events.sse", Protocol.CatalogStreamEvent);
 const record = snapshot.find((event) => event.event === "notebook")!.data
   .notebook;
 const ready = snapshot.findIndex((event) => event.event === "ready");
@@ -32,7 +33,10 @@ describe("catalog reducer", () => {
       "2026-10-01T09:21:02Z",
     );
     expect(live.resources.projects).toBe(partial.resources.projects);
-    const reset = fixtureEvents("events-reset.sse") as CatalogStreamEvent[];
+    const reset = fixtureEvents(
+      "events-reset.sse",
+      Protocol.CatalogStreamEvent,
+    );
     expect(reducer.reduce(live, reset[0])).toBe(reducer.initial);
     expect(reset.reduce(reducer.reduce, live)).toEqual(live);
     expect(reducer.initial).toEqual({

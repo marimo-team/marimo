@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import type * as Protocol from "../protocol.ts";
+import * as Protocol from "../protocol.ts";
 import { createNotebookReducer, type NotebookResource } from "../index.ts";
 import { fixtureEvents } from "./fixtures.ts";
 
@@ -59,13 +59,16 @@ function createTestReducer() {
 
 function replay(
   reducer: ReturnType<typeof createTestReducer>,
-  events: readonly Protocol.EventOutput[],
+  events: readonly Protocol.NotebookStreamEventOutput[],
   from = reducer.initial,
 ) {
   return events.reduce((state, event) => reducer.reduce(state, event), from);
 }
 
-const snapshot = fixtureEvents("notebook-events.sse");
+const snapshot = fixtureEvents(
+  "notebook-events.sse",
+  Protocol.NotebookStreamEvent,
+);
 const ready = snapshot.findIndex((event) => event.event === "ready");
 const cellEvent = snapshot.find((event) => event.event === "cell");
 if (cellEvent?.event !== "cell") {
@@ -91,16 +94,18 @@ describe("notebook reducer", () => {
       published: [["c1", "c3", "k7f2"]],
     });
 
-    const resetEvents = fixtureEvents("events-reset.sse");
-    const afterReset = reducer.reduce(live, resetEvents[0]);
+    const afterReset = reducer.reduce(live, { event: "reset", data: {} });
     expect(afterReset).toEqual(reducer.initial);
-    expect(replay(reducer, resetEvents, live).phase).toBe("live");
+    expect(replay(reducer, snapshot, afterReset).phase).toBe("live");
   });
 
   it("publishes a live edit group when its document arrives", () => {
     const reducer = createTestReducer();
     const live = replay(reducer, snapshot);
-    const [cell, , removed, published] = fixtureEvents("edits.sse");
+    const [cell, , removed, published] = fixtureEvents(
+      "edits.sse",
+      Protocol.NotebookStreamEvent,
+    );
     const editing = replay(reducer, [cell], live);
     expect(editing.resources.revisions.pending).toEqual(["c2"]);
 

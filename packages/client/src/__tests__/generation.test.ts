@@ -11,8 +11,10 @@ it.each(["stable", "catalog feature"] as const)(
   (selection) => {
     const root = NodeUrl.fileURLToPath(new URL("../../", import.meta.url));
     // Keep the temporary bindings in the package so Node can resolve zod.
-    const output = NodeFs.mkdtempSync(NodePath.join(root, ".protocol-test-"));
+    const project = NodeFs.mkdtempSync(NodePath.join(root, ".protocol-test-"));
+    const output = NodePath.join(project, "src");
     try {
+      NodeFs.cpSync(NodePath.join(root, "src"), output, { recursive: true });
       const command = [
         "--experimental-strip-types",
         NodePath.join(root, "scripts/generate-protocol.ts"),
@@ -35,10 +37,11 @@ it.each(["stable", "catalog feature"] as const)(
         import { OpenApi } from "effect/http-api";
         import { makeHostContract } from "./src/contract.ts";
         import { defineFeature } from "./src/experimental/defineFeature.ts";
+        import analysis from "./src/experimental/features/analysis.ts";
         import { referencePolicy } from "./src/Host.ts";
         const badge = Schema.Struct({ label: Schema.String }).annotate({ identifier: "Badge" });
         const feature = defineFeature({ objects: [{ kind: "badge", schema: badge, streams: ["catalog"], removable: false }] });
-        console.log(JSON.stringify(OpenApi.fromApi(makeHostContract([feature]).Api, { referencePolicy })));
+        console.log(JSON.stringify(OpenApi.fromApi(makeHostContract([analysis, feature]).Api, { referencePolicy })));
       `,
               ],
               { cwd: host },
@@ -48,17 +51,17 @@ it.each(["stable", "catalog feature"] as const)(
         input,
         stdio: "pipe",
       });
-      NodeFs.mkdirSync(NodePath.join(output, "transport"));
-      for (const name of ["frame.ts", "stream.ts"]) {
+      if (selection === "catalog feature") {
         NodeFs.copyFileSync(
-          NodePath.join(root, "src/transport", name),
-          NodePath.join(output, "transport", name),
+          NodePath.join(root, "tsconfig.json"),
+          NodePath.join(project, "tsconfig.json"),
+        );
+        NodeChildProcess.execFileSync(
+          "node",
+          [NodePath.join(root, "node_modules/typescript/bin/tsc"), "-p", project],
+          { stdio: "pipe" },
         );
       }
-      NodeFs.copyFileSync(
-        NodePath.join(root, "src/kinds.ts"),
-        NodePath.join(output, "kinds.ts"),
-      );
       const kinds = NodeUrl.pathToFileURL(
         NodePath.join(output, "kinds.ts"),
       ).href;
@@ -78,8 +81,8 @@ it.each(["stable", "catalog feature"] as const)(
       import assert from "node:assert/strict";
       import * as Protocol from ${JSON.stringify(protocol)};
       import { EventStream } from ${JSON.stringify(stream)};
-      assert.equal("Analysis" in Protocol, false);
-      assert.equal(Protocol.ObjectKind.options.includes("analysis"), false);
+      assert.equal("Analysis" in Protocol, ${selection === "catalog feature"});
+      assert.equal(Protocol.ObjectKind.options.includes("analysis"), ${selection === "catalog feature"});
       const { catalogKinds, notebookKinds } = await import(${JSON.stringify(kinds)});
       const catalog = new EventStream({}, catalogKinds);
       const catalogEvents = [];
@@ -92,12 +95,13 @@ it.each(["stable", "catalog feature"] as const)(
       stream.receive(badge);
       assert.deepEqual(catalogEvents, ${selection === "stable" ? "[]" : '["badge"]'});
       assert.deepEqual(received, []);
-      stream.receive({ event: "analysis", data: {} });
+      const unknown = ${selection === "stable" ? '"analysis"' : '"future"'};
+      stream.receive({ event: unknown, data: {} });
       stream.receive({ event: "ready", id: "1", data: {} });
-      stream.receive({ event: "analysis", id: "2", data: {} });
+      stream.receive({ event: unknown, id: "2", data: {} });
       assert.equal(stream.cursor, "2");
       assert.equal(stream.resume(), "2");
-      stream.receive({ event: "analysis", id: "3", data: {} });
+      stream.receive({ event: unknown, id: "3", data: {} });
       stream.receive({ event: "ready", id: "3", data: {} });
       stream.receive({ event: "reset", data: {} });
       assert.equal(stream.cursor, null);
@@ -113,7 +117,7 @@ it.each(["stable", "catalog feature"] as const)(
       );
       expect(result.trim()).toBe("stream kinds verified");
     } finally {
-      NodeFs.rmSync(output, { recursive: true, force: true });
+      NodeFs.rmSync(project, { recursive: true, force: true });
     }
   },
   30_000,

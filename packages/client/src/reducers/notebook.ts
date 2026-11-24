@@ -23,7 +23,7 @@ type ControlName = "reset" | "notebook" | "notebook.removed";
  */
 export type NotebookResourceEvent<K extends NotebookKind = NotebookKind> =
   Extract<
-    Exclude<Protocol.EventOutput, { event: ControlName }>,
+    Exclude<Protocol.NotebookStreamEventOutput, { event: ControlName }>,
     { event: K | `${K}.removed` | "ready" }
   >;
 
@@ -65,7 +65,7 @@ export interface NotebookReducer<States> {
    */
   reduce(
     state: NotebookReducerState<States>,
-    event: Protocol.EventOutput,
+    event: Protocol.NotebookStreamEventOutput,
   ): NotebookReducerState<States>;
 }
 
@@ -165,11 +165,6 @@ export function createNotebookReducer<States extends object>(
             ...identify(state, event.data.notebook.id),
             notebook: event.data.notebook,
           };
-        case "host":
-        case "project":
-        case "project.removed":
-          // The catalog's kinds do not appear on a notebook stream.
-          return state;
         case "notebook.removed":
           return state.notebookId !== null && event.data.id !== state.notebookId
             ? state
