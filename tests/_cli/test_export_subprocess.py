@@ -8,6 +8,7 @@ import select
 import signal
 import subprocess
 import sys
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -25,6 +26,8 @@ from marimo._environments.uv import UvMissingScriptMetadataError
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import psutil
 
 
 @pytest.fixture
@@ -319,6 +322,24 @@ finally:
     assert json.loads(completed.stdout) == [False]
 
 
+def _describe_sandbox_child(process: psutil.Process) -> str:
+    import psutil
+
+    description = f"pid={process.pid}"
+    try:
+        description += f" ppid={process.ppid()} status={process.status()}"
+        # The export worker listens on TCP for the kernel handshake.
+        connections = (
+            process.net_connections(kind="tcp")
+            if hasattr(process, "net_connections")
+            else process.connections(kind="tcp")
+        )
+        states = ", ".join(sorted(conn.status for conn in connections))
+        return f"{description} TCP=[{states}]"
+    except (psutil.Error, NotImplementedError) as error:
+        return f"{description} ({type(error).__name__})"
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")
 @pytest.mark.parametrize("signal_name", ["SIGINT", "SIGTERM"])
 @pytest.mark.parametrize("phase", ["preparation", "execution"])
@@ -392,9 +413,27 @@ main(prog_name="marimo")
             start_new_session=True,
         )
         try:
-            assert select.select([readiness], [], [], 15)[0], (
-                "Sandbox subprocess did not start"
-            )
+            if not select.select([readiness], [], [], 15)[0]:
+                details = []
+                try:
+                    children = psutil.Process(parent.pid).children(
+                        recursive=True
+                    )
+                except psutil.Error as error:
+                    details.append(
+                        f"Cannot list descendants ({type(error).__name__})"
+                    )
+                else:
+                    details.extend(map(_describe_sandbox_child, children))
+                raise AssertionError(
+                    "\n".join(
+                        [
+                            "Sandbox subprocess did not start",
+                            f"CLI pid={parent.pid} returncode={parent.poll()}",
+                            *details,
+                        ]
+                    )
+                )
             active_pid = int(readiness.read())
             children = psutil.Process(parent.pid).children(recursive=True)
             assert active_pid in {child.pid for child in children}
@@ -409,7 +448,10 @@ main(prog_name="marimo")
             )
         finally:
             if parent.poll() is None:
-                children += psutil.Process(parent.pid).children(recursive=True)
+                with suppress(psutil.NoSuchProcess):
+                    children += psutil.Process(parent.pid).children(
+                        recursive=True
+                    )
             for child in reversed(children):
                 try:
                     child.kill()
