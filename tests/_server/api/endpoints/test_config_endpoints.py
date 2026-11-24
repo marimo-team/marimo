@@ -62,6 +62,48 @@ def test_save_user_config_no_session(client: TestClient) -> None:
     assert "success" in response.json()
 
 
+@pytest.mark.parametrize(
+    ("section", "field", "contents", "valid"),
+    [
+        (
+            "ai",
+            "custom_providers",
+            '[ai.custom_providers.good]\nbase_url="https://example.com"\n[ai.custom_providers.bad]\nbase_url=123\n',
+            "good",
+        ),
+        (
+            "keymap",
+            "overrides",
+            '[keymap.overrides]\nrun-cell="Ctrl-Enter"\nbad=123\n',
+            "run-cell",
+        ),
+    ],
+)
+def test_save_resolved_collection_preserves_valid_entries(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    section: str,
+    field: str,
+    contents: str,
+    valid: str,
+) -> None:
+    manager = get_user_config_manager(client)
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(contents)
+    monkeypatch.setattr(
+        manager.user_config_mgr, "get_config_path", lambda: str(config_path)
+    )
+    resolved = manager.get_user_config().to_dict()[section][field]
+    response = client.post(
+        "/api/kernel/save_user_config",
+        headers=HEADERS,
+        json={"config": {section: {field: resolved}}},
+    )
+    assert response.status_code == 200, response.text
+    assert valid in manager.user_config_mgr.read()[section][field]
+
+
 def test_save_user_config_with_unrelated_invalid_setting(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

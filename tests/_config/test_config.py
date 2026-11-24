@@ -660,3 +660,41 @@ def test_merge_config_custom_providers_update_one_preserves_others() -> None:
     assert custom_providers["provider2"].get("base_url") == (
         "https://api2.example.com"
     ), "provider2 should be unchanged"
+
+
+@pytest.mark.parametrize(
+    "malformed", [None, 123, {"base_url": 123}, {"api_key": 123}]
+)
+def test_parse_config_preserves_valid_custom_providers(
+    malformed: object,
+) -> None:
+    values = {
+        "ai": {
+            "custom_providers": {
+                "first": {"base_url": "https://first.example"},
+                "invalid": malformed,
+                "last": {"api_key": "secret"},
+            }
+        }
+    }
+    original = copy.deepcopy(values)
+    assert parse_config(values).ai.custom_providers.keys() == {"first", "last"}
+    assert values == original
+
+
+def test_parse_config_preserves_valid_keymap_overrides() -> None:
+    values = {
+        "keymap": {
+            "overrides": {
+                "run-cell": "Ctrl-Enter",
+                "invalid": 123,
+                "save": "Ctrl-S",
+            }
+        }
+    }
+    original = copy.deepcopy(values)
+    assert parse_config(values).keymap.overrides == {
+        "run-cell": "Ctrl-Enter",
+        "save": "Ctrl-S",
+    }
+    assert values == original
