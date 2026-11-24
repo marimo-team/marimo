@@ -70,7 +70,10 @@ def _process_state(
 
 
 def _host_records(
-    directory: Path, *, state: Literal["live", "stale"]
+    directory: Path,
+    *,
+    state: Literal["live", "stale"],
+    exclude: Path | None = None,
 ) -> Iterator[tuple[Path, protocol.HostRecord]]:
     try:
         original = directory.lstat()
@@ -80,6 +83,8 @@ def _host_records(
     except OSError:
         return
     for path in paths:
+        if path == exclude:
+            continue
         try:
             with open(path, "rb", opener=_open_record) as file:
                 info = os.fstat(file.fileno())
@@ -211,10 +216,12 @@ class HostRecordFile:
             Thread(target=self._prune_stale, daemon=True).start()
 
     def _prune_stale(self) -> None:
-        for path, _ in _host_records(self._path.parent, state="stale"):
-            if path != self._path:
-                with suppress(OSError):
-                    path.unlink()
+        # An open record can block its removal on Windows.
+        for path, _ in _host_records(
+            self._path.parent, state="stale", exclude=self._path
+        ):
+            with suppress(OSError):
+                path.unlink()
 
     def remove(self) -> None:
         """Remove the record. Safe to call more than once."""
