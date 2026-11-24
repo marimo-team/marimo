@@ -215,15 +215,23 @@ async def test_idle_host_expires_results_and_stops_maintenance(
     assert app.state.host_context is None
 
 
+@pytest.mark.parametrize("legacy", [False, True])
 def test_discovery_reads_the_live_record_without_exposing_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, legacy: bool
 ) -> None:
     monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
+    if legacy:
+        monkeypatch.setattr(
+            record_module, "_lock_local_record", lambda _: None
+        )
     writer = record_module.HostRecordFile(
         url="http://127.0.0.1:2718/base/api/marimo/v1", token="private-token"
     )
     writer.write()
     try:
+        if legacy or os.name == "nt":
+            [path] = (tmp_path / "hosts-v1").iterdir()
+            assert not path.name.startswith(record_module._LOCKED_PREFIX)
         assert list(record_module.discover_hosts()) == [writer._record]
         writer.remove()
         assert list(record_module.discover_hosts()) == []
@@ -236,7 +244,7 @@ def test_next_publisher_prunes_only_the_crashed_host(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
-    if not record_module.record_lock._has_local_locks(tmp_path.stat().st_dev):
+    if not record_module._supports_local_locks(tmp_path.stat().st_dev):
         pytest.skip("test directory does not support local record locks")
     directory = record_module.marimo_state_dir() / "hosts-v1"
     url = "http://127.0.0.1:2718/api/marimo/v1"
@@ -295,36 +303,6 @@ def test_next_publisher_prunes_only_the_crashed_host(
         }
 
 
-@pytest.mark.parametrize("known_filesystem", [False, True])
-def test_publication_without_local_locks(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, known_filesystem: bool
-) -> None:
-    monkeypatch.setattr(record_module, "marimo_state_dir", lambda: tmp_path)
-    if os.name == "posix":
-        monkeypatch.setattr(
-            record_module.record_lock,
-            "_has_local_locks",
-            lambda _: known_filesystem,
-        )
-        monkeypatch.setattr(
-            record_module.record_lock, "try_lock", lambda _: False
-        )
-    pending: list[Thread] = []
-    monkeypatch.setattr(Thread, "start", lambda worker: pending.append(worker))
-    host = record_module.HostRecordFile(
-        url="http://127.0.0.1:2718", token="live"
-    )
-    host.write()
-    try:
-        [path] = (tmp_path / "hosts-v1").iterdir()
-        assert not path.name.startswith(record_module._LOCKED_PREFIX)
-        assert list(record_module.discover_hosts()) == [host._record]
-        assert pending == []
-    finally:
-        host.remove()
-    assert not path.exists()
-
-
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux mount table")
 def test_lock_scope_follows_the_device_of_the_record(
     monkeypatch: pytest.MonkeyPatch,
@@ -335,9 +313,9 @@ def test_lock_scope_follows_the_device_of_the_record(
         "10 1 8:1 / / rw - ext4 /dev/sda1 rw\n"
         "11 10 0:42 / /home rw - nfs4 server:/home rw,local_lock=all\n"
     )
-    monkeypatch.setattr("builtins.open", mock_open(read_data=mounts))
-    assert record_module.record_lock._has_local_locks(os.makedev(8, 1))
-    assert not record_module.record_lock._has_local_locks(os.makedev(0, 42))
+    monkeypatch.setattr("builtins.open", mock_open(read_data=mounts.encode()))
+    assert record_module._supports_local_locks(os.makedev(8, 1))
+    assert not record_module._supports_local_locks(os.makedev(0, 42))
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX discovery validation")

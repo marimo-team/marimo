@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import atexit
 import os
-import re
 import stat
+import sys
 import tempfile
 from contextlib import suppress
 from datetime import UTC, datetime
@@ -20,7 +20,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._core import protocol
-from marimo._server.host import HOST_API_PATH, record_lock
+from marimo._server.host import HOST_API_PATH
 from marimo._utils.xdg import marimo_state_dir
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 _LOCKED_PREFIX = "marimo-flock-v1-"
-_LOCKED_NAME = re.compile(rf"{_LOCKED_PREFIX}[0-9a-f]{{32}}\.json")
+_LOCKED_RECORDS = _LOCKED_PREFIX + "[0-9a-f]" * 32 + ".json"
 
 
 def discover_hosts(
@@ -45,31 +45,8 @@ def discover_hosts(
     import psutil
 
     directory = root if root is not None else marimo_state_dir() / "hosts-v1"
-    try:
-        original = directory.lstat()
-        if not stat.S_ISDIR(original.st_mode) or not _private(original):
-            return
-        paths = sorted(directory.glob("*.json"))
-    except OSError:
-        return
-    for path in paths:
+    for _, _, record in _read_records(directory):
         try:
-            descriptor = os.open(
-                path,
-                os.O_RDONLY
-                | getattr(os, "O_NOFOLLOW", 0)
-                | getattr(os, "O_NONBLOCK", 0),
-            )
-            with os.fdopen(descriptor, "rb") as file:
-                record = _read_private_record(file)
-                if record is None:
-                    continue
-            current = directory.lstat()
-            if (current.st_dev, current.st_ino) != (
-                original.st_dev,
-                original.st_ino,
-            ) or not _private(current):
-                return
             process = psutil.Process(record.process.pid)
             if (
                 process.is_running()
@@ -81,38 +58,57 @@ def discover_hosts(
                 < 1
             ):
                 yield record
-        except (
-            OSError,
-            ValueError,
-            RecursionError,
-            msgspec.DecodeError,
-            psutil.Error,
-        ):
+        except (OSError, ValueError, psutil.Error):
             continue
 
 
-def _read_private_record(file: BinaryIO) -> protocol.HostRecord | None:
-    info = os.fstat(file.fileno())
-    if not stat.S_ISREG(info.st_mode) or not _private(info):
-        return None
-    raw = file.read(65537)
-    if len(raw) > 65536:
-        return None
-    record = msgspec.json.decode(raw, type=protocol.HostRecord)
-    url = urlsplit(record.url)
-    if (
-        url.scheme != "http"
-        or url.hostname is None
-        or not ip_address(url.hostname).is_loopback
-        or url.username is not None
-        or url.password is not None
-        or url.query
-        or url.fragment
-        or any(c.isspace() or c == "\\" for c in record.url)
-        or url.port == 0
-    ):
-        return None
-    return record
+def _read_records(
+    directory: Path, pattern: str = "*.json"
+) -> Iterator[tuple[Path, os.stat_result, protocol.HostRecord]]:
+    try:
+        original = directory.lstat()
+        if not stat.S_ISDIR(original.st_mode) or not _private(original):
+            return
+        paths = sorted(directory.glob(pattern))
+    except OSError:
+        return
+    for path in paths:
+        try:
+            with open(path, "rb", opener=_open_record) as file:
+                info = os.fstat(file.fileno())
+                if not stat.S_ISREG(info.st_mode) or not _private(info):
+                    continue
+                raw = file.read(65537)
+                if len(raw) > 65536:
+                    continue
+                record = msgspec.json.decode(raw, type=protocol.HostRecord)
+            current = directory.lstat()
+            if (current.st_dev, current.st_ino) != (
+                original.st_dev,
+                original.st_ino,
+            ) or not _private(current):
+                return
+            url = urlsplit(record.url)
+            if (
+                url.scheme != "http"
+                or url.hostname is None
+                or not ip_address(url.hostname).is_loopback
+                or url.username is not None
+                or url.password is not None
+                or url.query
+                or url.fragment
+                or any(c.isspace() or c == "\\" for c in record.url)
+                or url.port == 0
+            ):
+                continue
+            yield path, info, record
+        except (OSError, ValueError, RecursionError, msgspec.DecodeError):
+            continue
+
+
+def _open_record(path: str, flags: int, *, dir_fd: int | None = None) -> int:
+    flags |= getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    return os.open(path, flags, dir_fd=dir_fd)
 
 
 def _private(info: os.stat_result) -> bool:
@@ -193,7 +189,7 @@ class HostRecordFile:
             file.flush()
             if os.name == "posix":
                 os.fchmod(fd, 0o600)
-            device = record_lock.lock_local_record(fd)
+            device = _lock_local_record(fd)
             if device is None:
                 file.close()  # Windows requires closing the file before rename.
                 name = f"{uuid4()}.json"
@@ -239,6 +235,53 @@ class HostRecordFile:
             atexit.unregister(self.remove)
 
 
+def _lock(fd: int) -> None:
+    import fcntl
+
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _lock_local_record(fd: int) -> int | None:
+    """Only opt in on filesystems whose locks are local to this kernel."""
+    # Mount inspection and locking are best effort.
+    with suppress(Exception):
+        device = os.fstat(fd).st_dev
+        if _supports_local_locks(device):
+            _lock(fd)
+            return device
+    return None
+
+
+def _supports_local_locks(device: int) -> bool:
+    if sys.platform == "linux":
+        number = f"{os.major(device)}:{os.minor(device)}".encode()
+        with open("/proc/self/mountinfo", "rb") as mounts:
+            for mount in mounts:
+                if mount.split(maxsplit=3)[2] == number:
+                    fstype = mount.partition(b" - ")[2].split(maxsplit=1)[0]
+                    return fstype in {
+                        b"ext2",
+                        b"ext3",
+                        b"ext4",
+                        b"xfs",
+                        b"btrfs",
+                        b"tmpfs",
+                        b"zfs",
+                    }
+    elif sys.platform == "darwin":
+        import psutil
+
+        # Match the device since APFS firmlinks can cross mounts.
+        for mount in psutil.disk_partitions(all=True):
+            if mount.fstype in {"apfs", "hfs"} and mount.device.startswith(
+                "/dev/"
+            ):
+                with suppress(OSError):
+                    if os.stat(mount.device).st_rdev == device:
+                        return True
+    return False
+
+
 def _prune_abandoned(directory: Path, device: int) -> None:
     """Try once per marked record, on the same local device as the publisher."""
     with suppress(OSError):
@@ -247,38 +290,29 @@ def _prune_abandoned(directory: Path, device: int) -> None:
             info = os.fstat(root)
             if info.st_dev != device or not _private(info):
                 return
-            for name in os.listdir(root):
-                if _LOCKED_NAME.fullmatch(name):
-                    with suppress(
-                        OSError,
-                        ValueError,
-                        RecursionError,
-                        msgspec.DecodeError,
-                    ):
-                        _prune_record(root, name, device)
+            for path, candidate, _ in _read_records(
+                directory, _LOCKED_RECORDS
+            ):
+                if candidate.st_dev == device:
+                    with suppress(OSError):
+                        _unlink_if_unlocked(root, path.name, candidate)
         finally:
             os.close(root)
 
 
-def _prune_record(root: int, name: str, device: int) -> None:
-    fd = os.open(
-        name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=root
-    )
+def _unlink_if_unlocked(
+    root: int, name: str, candidate: os.stat_result
+) -> None:
+    fd = _open_record(name, os.O_RDONLY, dir_fd=root)
     try:
-        info = os.fstat(fd)
-        if (
-            info.st_dev != device
-            or not stat.S_ISREG(info.st_mode)
-            or not _private(info)
-        ):
-            return
-        if not record_lock.try_lock(fd):
-            return
-        with os.fdopen(fd, "rb", closefd=False) as file:
-            if _read_private_record(file) is None:
-                return
-        entry = os.stat(name, dir_fd=root, follow_symlinks=False)
-        if _private(entry) and os.path.samestat(info, entry):
-            os.unlink(name, dir_fd=root)
+        if os.path.samestat(candidate, os.fstat(fd)):
+            _lock(fd)
+            entry = os.stat(name, dir_fd=root, follow_symlinks=False)
+            if (
+                _private(entry)
+                and os.path.samestat(candidate, entry)
+                and candidate.st_ctime_ns == entry.st_ctime_ns
+            ):
+                os.unlink(name, dir_fd=root)
     finally:
         os.close(fd)
