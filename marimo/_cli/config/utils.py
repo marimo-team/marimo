@@ -116,7 +116,9 @@ def format_config_docs(cls: type[Config]) -> str:
                 if get_origin(annotation) in (Union, types.UnionType)
                 else (annotation,)
             )
-            present = [arg for arg in variants if arg is not UnsetType]
+            present = [
+                arg for arg in variants if arg not in (UnsetType, type(None))
+            ]
             nested = present[0] if len(present) == 1 else None
             field_path = (
                 f"{path}.{item.encode_name}" if path else item.encode_name

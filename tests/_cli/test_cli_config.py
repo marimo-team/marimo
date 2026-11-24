@@ -42,6 +42,21 @@ def test_config_show() -> None:
     assert "[formatting]" in output
 
 
+def test_config_describe_includes_optional_sections() -> None:
+    from marimo._config.config_schema import MarimoConfig
+
+    output = format_config_docs(MarimoConfig)
+    for field in (
+        "sharing.html",
+        "sharing.wasm",
+        "sharing.molab",
+        "file_browser.folders",
+    ):
+        assert field in output
+    assert "ai.max_tokens" in output
+    assert "int | None" in output
+
+
 def test_config_describe() -> None:
     p = subprocess.run(
         ["marimo", "config", "describe"],
