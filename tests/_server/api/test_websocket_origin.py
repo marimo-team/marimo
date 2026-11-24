@@ -306,7 +306,9 @@ async def test_local_socket_address_is_allowed(host: str) -> None:
     assert messages[1] == {"type": "websocket.send", "text": "connected"}
 
 
-def test_socket_hostname_does_not_allow_other_origins() -> None:
+def test_socket_hostname_does_not_allow_other_origins(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     with pytest.raises(WebSocketDisconnect) as exc_info:
         with make_client().websocket_connect(
             "ws://other.example/ws",
@@ -314,6 +316,10 @@ def test_socket_hostname_does_not_allow_other_origins() -> None:
         ):
             pytest.fail("Unexpected connection")
     assert exc_info.value.reason == "Origin not allowed"
+    (record,) = caplog.records
+    assert record.levelno == logging.WARNING
+    assert "http://other.example" in record.getMessage()
+    assert "--allow-origins" in record.getMessage()
 
 
 def test_rewritten_host_with_configured_origin() -> None:
