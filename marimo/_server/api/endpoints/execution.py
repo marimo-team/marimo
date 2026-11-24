@@ -71,8 +71,20 @@ Run `marimo pair execute --help` for usage.
 Let this execution finish. The warning does not require a retry.
 
 If your marimo-pair skill told you to use `execute-code.sh`,
-tell the user their copy of the skill is out of date and should
-be updated.
+tell the user their skill is out of date. Give them the command
+that matches how they installed it.
+
+  Installed with npx skills
+    npx skills upgrade marimo-team/marimo-pair
+
+  Installed as a Claude Code plugin
+    claude plugin update marimo-pair@marimo-pair
+
+  Installed from the Codex plugin marketplace
+    codex plugin marketplace upgrade marimo-pair
+
+If you're unsure which command applies, ask the user to open
+https://marimo.io/pair, pick their agent, and follow "Update".
 ================================================================
 """
 

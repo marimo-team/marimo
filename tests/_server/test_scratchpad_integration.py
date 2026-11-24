@@ -404,6 +404,7 @@ def test_scratchpad_success(
         warning = json.loads(data.removeprefix("data: "))["data"]
         assert "execute-code.sh IS DEPRECATED" in warning
         assert "marimo pair execute --help" in warning
+        assert "https://marimo.io/pair" in warning
 
     assert lines == snapshot(
         [
