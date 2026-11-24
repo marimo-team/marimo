@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._ast.compiler import cell_id_from_filename
+from marimo._ast.parse import ast_parse
 from marimo._ast.variables import demangle_locals_in_text
 from marimo._ast.visitor import ScopedVisitor
 from marimo._messaging.streams import PdbInput
@@ -156,7 +157,7 @@ class MarimoPdb(Pdb):
             "cell_" + cell_id, (local_names, frame.f_globals, frame.f_builtins)
         )
         try:
-            tree = ast.parse(source)
+            tree = ast_parse(source)
             before = ast.dump(tree)
             visitor.visit(tree)
         except (SyntaxError, ValueError):

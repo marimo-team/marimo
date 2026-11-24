@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import sys
+import warnings
 from typing import Any
 
 import pytest
@@ -113,6 +114,14 @@ def test_mangled_names_typed_at_prompt_are_untouched() -> None:
     assert output.split("(Pdb) ")[1:-1] == ["", "", "(3, 3)\n"]
     assert glbls["_cell_0_b"] == 3
     assert "_cell_0_cell_0_b" not in glbls
+
+
+def test_resolving_names_emits_no_syntax_warning() -> None:
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        output, _ = _post_mortem("_b = 1\n1 / 0", [r'p _b, "\d"'])
+    assert output.split("(Pdb) ")[1:-1] == ["(1, '\\\\d')\n"]
+    assert [w for w in caught if w.category is SyntaxWarning] == []
 
 
 def test_errors_report_names_as_typed() -> None:
