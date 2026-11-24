@@ -196,6 +196,62 @@ def test_page_config_by_mode(
     assert overrides == original_overrides
 
 
+@pytest.mark.parametrize("page", ["edit", "run", "static"])
+@pytest.mark.parametrize(
+    "title", ["Notebook title", "\\", '<Title & "quotes">']
+)
+def test_page_config_preserves_title_placeholders(
+    page: str, title: str
+) -> None:
+    template = (Path(__file__).parent / "data" / "index.html").read_text()
+    app_config = _AppConfig.from_untrusted_dict(
+        {
+            "app_title": title,
+            "auto_download": ["{{ title }}", "+(1)]},//"],
+        }
+    )
+    if page == "static":
+        render = partial(
+            templates.static_notebook_template,
+            filepath="notebook.py",
+            code="",
+            code_hash="",
+            session_snapshot=NotebookSessionV1(
+                version=VERSION,
+                metadata=NotebookSessionMetadata(marimo_version="1.0.0"),
+                cells=[],
+            ),
+            notebook_snapshot=NotebookV1(
+                version=VERSION,
+                metadata=NotebookMetadata(marimo_version="1.0.0"),
+                cells=[],
+            ),
+            files={},
+        )
+    else:
+        render = partial(
+            templates.notebook_page_template,
+            base_url="",
+            filename="notebook.py",
+            mode=SessionMode.EDIT if page == "edit" else SessionMode.RUN,
+        )
+    result = render(
+        html=template,
+        user_config={},
+        config_overrides={},
+        server_token=SkewProtectionToken("token"),
+        app_config=app_config,
+    )
+
+    config = parse_mount_config(result)
+    assert config["appConfig"] == {
+        key: value
+        for key, value in app_config.asdict().items()
+        if value is not None and value != ""
+    }
+    assert f"<title>{html.escape(title)}</title>" in result
+
+
 @pytest.mark.parametrize("mode", ["edit", "home", "read", "gallery"])
 @pytest.mark.parametrize("legacy", [False, True])
 def test_page_config_empty(
