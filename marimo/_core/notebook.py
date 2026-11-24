@@ -739,7 +739,7 @@ class Notebook:
     def emit(
         self,
         type: str,  # noqa: A002
-        data: Any,
+        data: protocol.JsonValue,
         *,
         request_id: str | None = None,
     ) -> protocol.Custom:

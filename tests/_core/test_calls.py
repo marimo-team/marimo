@@ -24,7 +24,7 @@ NOTEBOOK = protocol.NotebookId("n1")
 
 
 @pytest.mark.parametrize("data", [None, 42, {"to": ["agent-1"]}])
-def test_emit_calls_decode_from_request_parts(data: object) -> None:
+def test_emit_calls_decode_from_request_parts(data: protocol.JsonValue) -> None:
     call = msgspec.json.decode(
         msgspec.json.encode(
             {

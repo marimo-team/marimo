@@ -52,6 +52,20 @@ afterEach(() => {
 });
 
 describe("NotebookClient", () => {
+  it("rejects non-JSON event data before sending it", async () => {
+    const { notebook, fetch } = connect(
+      () => new Response(null, { status: 204 }),
+    );
+    const json = z.json();
+    expectTypeOf<Parameters<typeof notebook.emit>[0]["data"]>().toEqualTypeOf<
+      z.input<typeof json>
+    >();
+    await expect(
+      notebook.emit({ type: "example.message", data: [NaN] }),
+    ).rejects.toBeInstanceOf(z.ZodError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("emits a custom event over HTTP without a response body", async () => {
     const { notebook, sent } = connect(
       () => new Response(null, { status: 204 }),
