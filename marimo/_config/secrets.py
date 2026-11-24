@@ -98,7 +98,8 @@ def _redact_dict(config: PartialMarimoConfig) -> PartialMarimoConfig:
     if isinstance(completion := new_config.get("completion"), dict):
         completion.pop("codeium_api_key", None)
 
-    for path in _sensitive_paths(MarimoConfig):
+    # Unknown provider tables are retained for compatibility across versions.
+    for path in (("ai", "*", "api_key"), *_sensitive_paths(MarimoConfig)):
         deep_remove_from_path(path, new_config)
 
     return new_config

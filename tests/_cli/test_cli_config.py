@@ -50,6 +50,23 @@ def test_config_describe() -> None:
     assert p.returncode == 0, p.stderr.decode()
 
 
+@pytest.mark.parametrize("show_sources", [False, True])
+def test_config_show_masks_unknown_provider_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, show_sources: bool
+) -> None:
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text('[ai.future_provider]\napi_key = "private-key"\n')
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(config_path)
+    )
+    result = CliRunner().invoke(
+        config, ["show", *(["--show-sources"] if show_sources else [])]
+    )
+    assert result.exit_code == 0, result.output
+    assert 'api_key = "********"' in result.output
+    assert "private-key" not in result.output
+
+
 def test_config_show_environment_source_names() -> None:
     resolved = resolve_config_with_sources(
         [
