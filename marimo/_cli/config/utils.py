@@ -58,8 +58,23 @@ def format_config_with_sources(resolved: ResolvedConfig) -> str:
             if isinstance(item, Table) and item:
                 annotate(item, field_path)
                 continue
+            # Redaction can leave an empty table with only descendant origins.
+            sources = (
+                [(field_path, resolved.origins[field_path])]
+                if field_path in resolved.origins
+                else [
+                    (origin, source)
+                    for origin, source in resolved.origins.items()
+                    if origin[: len(field_path)] == field_path
+                ]
+            )
             source = (
-                format_config_source(field_path, resolved.origins[field_path])
+                ", ".join(
+                    dict.fromkeys(
+                        format_config_source(origin, source)
+                        for origin, source in sources
+                    )
+                )
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
             )

@@ -70,6 +70,27 @@ output_max_bytes = 1000 # env var: MARIMO_RUNTIME_OUTPUT_MAX_BYTES
 transport = "sse" # env var: MARIMO_SERVER_TRANSPORT""")
 
 
+@pytest.mark.parametrize("provider", ["open_ai", "custom_providers.smoke"])
+def test_config_show_sources_handles_redacted_provider_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, provider: str
+) -> None:
+    import tomlkit
+
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text(
+        f'[ai.{provider}.extra_headers]\nAuthorization = "private-header"\n'
+    )
+    monkeypatch.setattr(
+        UserConfigStore, "get_config_path", lambda _self: str(config_path)
+    )
+    result = CliRunner().invoke(config, ["show", "--show-sources"])
+    assert result.exit_code == 0, result.output
+    assert f"[ai.{provider}] # {config_path}" in result.output
+    assert "private-header" not in result.output
+    assert "Authorization" not in result.output
+    tomlkit.parse(result.output)
+
+
 def test_config_show_source_comments_are_valid_toml(tmp_path: Path) -> None:
     import tomlkit
 
