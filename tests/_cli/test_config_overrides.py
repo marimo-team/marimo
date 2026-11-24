@@ -145,6 +145,27 @@ def test_invalid_overrides(value: str, message: str) -> None:
     assert "secret-value" not in result.output
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (r"C:\Users\x", [r"C:\Users\x"]),
+        (
+            r"'C:\Users\Jane Doe\src' other",
+            [r"C:\Users\Jane Doe\src", "other"],
+        ),
+        (r'"C:\Users\Jane Doe\src"', [r"C:\Users\Jane Doe\src"]),
+        (r'["C:\\Users\\Jane Doe\\src"]', [r"C:\Users\Jane Doe\src"]),
+        ("'path with spaces' ./src", ["path with spaces", "./src"]),
+    ],
+)
+def test_pythonpath_override_preserves_backslashes(
+    raw: str, expected: list[str]
+) -> None:
+    assert parse("runtime.pythonpath=" + raw) == {
+        "runtime": {"pythonpath": expected}
+    }
+
+
 def test_cli_metadata() -> None:
     flags = config_cli_flags(MarimoConfig)
     assert flags[("server", "port")] == ("--port", "-p")
