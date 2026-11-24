@@ -606,6 +606,7 @@ def test_execute_uses_legacy_endpoint_and_streams_results(
             "url": "http://localhost:2718/api/kernel/execute",
             "headers": {
                 "Content-Type": "application/json",
+                "Marimo-Client": "marimo-pair-execute",
                 "Marimo-Stable-Session-Id": "nb-one",
                 "Authorization": "Bearer private",
             },
