@@ -177,6 +177,7 @@ const CellColumn: React.FC<{
   const cellIds = useCellIds();
   const column = findColumn(useLayout(), columnId);
   invariant(column, `Expected column for: ${columnId}`);
+  // dnd-kit takes a mutable array.
   const sortableItems = useMemo(() => [...column.visible], [column.visible]);
 
   const hasOnlyOneCell = cellIds.length === 1;
