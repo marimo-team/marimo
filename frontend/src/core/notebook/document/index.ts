@@ -10,6 +10,7 @@ export {
   useNotebookCellName,
   useNotebookCellOrder,
   useNotebookDocumentEdit,
+  useNotebookDocumentFlush,
   useNotebookDocumentSync,
 } from "./hooks";
 export {

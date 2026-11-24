@@ -2,7 +2,9 @@
 
 /** The cells as they appear on the page: by column, with folded sections hidden. */
 
+import { dequal } from "dequal";
 import { atom, useAtomValue } from "jotai";
+import { selectAtom } from "jotai/vanilla/utils";
 import type { EditableDocument } from "@/core/notebook/document";
 import { findCollapseRange } from "../dom/outline";
 import { activeDocumentModelAtom } from "../session/active-notebook";
@@ -63,13 +65,21 @@ export const followColumnsAtom = atom(
   },
 );
 
+/** Only changes when cells move within or between columns, appear, or disappear. */
+const documentColumnsAtom = selectAtom(
+  atom((get) => {
+    const model = get(activeDocumentModelAtom);
+    return model === null ? null : get(model.documentAtom);
+  }),
+  (document) => (document === null ? [[]] : groupByColumn(document)),
+  dequal,
+);
+
 /** The document's columns, each with its id, then the empty ones the page keeps. */
-function columnsOf(
-  document: EditableDocument | null,
-  ids: readonly CellColumnId[],
-  empty: readonly CellColumnId[],
-): Array<{ id: CellColumnId; ids: CellId[] }> {
-  const groups = document === null ? [[]] : groupByColumn(document);
+const columnsAtom = atom((get) => {
+  const groups = get(documentColumnsAtom);
+  const ids = get(columnIdsAtom);
+  const empty = get(emptyColumnIdsAtom);
   return [
     ...groups.map((cells, index) => ({
       // Before the first document names them, columns go by position.
@@ -78,7 +88,7 @@ function columnsOf(
     })),
     ...empty.map((id) => ({ id, ids: [] as CellId[] })),
   ];
-}
+});
 
 export interface LayoutColumn {
   readonly id: CellColumnId;
@@ -142,11 +152,9 @@ export function deriveLayout(
  * output.
  */
 export const layoutAtom = atom((get): Layout => {
-  const model = get(activeDocumentModelAtom);
-  const document = model === null ? null : get(model.documentAtom);
   const outlines = get(cellOutlinesAtom);
   return deriveLayout(
-    columnsOf(document, get(columnIdsAtom), get(emptyColumnIdsAtom)),
+    get(columnsAtom),
     (id) => outlines[id] ?? null,
     get(collapsedAtom),
   );

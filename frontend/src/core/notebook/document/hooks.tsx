@@ -105,6 +105,11 @@ export function useNotebookDocumentEdit() {
   return useSetAtom(useDocumentModel().editAtom);
 }
 
+/** Wait for the host to confirm this client's edits. */
+export function useNotebookDocumentFlush() {
+  return useDocumentModel().flush;
+}
+
 /**
  * Sync status and explicit recovery. flush waits for edits, including newer
  * typing, to reach the confirmed source and returns the revision for Run/Save.

@@ -148,6 +148,19 @@ describe("layoutAtom", () => {
     };
   }
 
+  it("keeps the layout on a code edit and updates it on a column edit", () => {
+    const { store, model } = setupNotebook(stops);
+    const layout = store.get(layoutAtom);
+
+    store.set(model.editAtom, (tx) => tx.setCode(c2, "y = 3"));
+    expect(store.get(layoutAtom)).toBe(layout);
+
+    store.set(model.editAtom, (tx) => tx.updateConfig(c2, { column: 1 }));
+    expect(
+      store.get(layoutAtom).columns.map((column) => column.visible),
+    ).toEqual([[c1], [c2]]);
+  });
+
   it("is the same layout after output that changes no heading", () => {
     const { store } = setupNotebook(stops);
     const output = reporter(store);
