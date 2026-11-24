@@ -7,9 +7,11 @@ import atexit
 import os
 import stat
 import tempfile
+from contextlib import suppress
 from datetime import UTC, datetime
 from ipaddress import IPv6Address, ip_address
-from typing import TYPE_CHECKING
+from threading import Thread
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -35,9 +37,41 @@ def discover_hosts(
     Invalid and stale records are skipped without deleting them. Discovery
     does not contact servers; a process can stop after its record is read.
     """
-    import psutil
-
     directory = root if root is not None else marimo_state_dir() / "hosts-v1"
+    for _, record in _host_records(directory, state="live"):
+        yield record
+
+
+def _process_state(
+    identity: protocol.Process,
+) -> Literal["live", "stale", "unknown"]:
+    if identity.started_at.tzinfo is None:
+        return "unknown"
+    try:
+        import psutil
+    except ImportError:
+        return "unknown"
+
+    try:
+        process = psutil.Process(identity.pid)
+        if process.status() in (psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD):
+            return "stale"
+        start_delta = process.create_time() - identity.started_at.timestamp()
+        if abs(start_delta) < 1 and process.is_running():
+            return "live"
+        # An older process may have recorded the fallback timestamp at startup.
+        if start_delta >= 1:
+            return "stale"
+    except psutil.NoSuchProcess:
+        return "stale"
+    except (OSError, ValueError, OverflowError, psutil.Error):
+        return "unknown"
+    return "unknown"
+
+
+def _host_records(
+    directory: Path, *, state: Literal["live", "stale"]
+) -> Iterator[tuple[Path, protocol.HostRecord]]:
     try:
         original = directory.lstat()
         if not stat.S_ISDIR(original.st_mode) or not _private(original):
@@ -47,13 +81,7 @@ def discover_hosts(
         return
     for path in paths:
         try:
-            descriptor = os.open(
-                path,
-                os.O_RDONLY
-                | getattr(os, "O_NOFOLLOW", 0)
-                | getattr(os, "O_NONBLOCK", 0),
-            )
-            with os.fdopen(descriptor, "rb") as file:
+            with open(path, "rb", opener=_open_record) as file:
                 info = os.fstat(file.fileno())
                 if not stat.S_ISREG(info.st_mode) or not _private(info):
                     continue
@@ -61,12 +89,6 @@ def discover_hosts(
                 if len(raw) > 65536:
                     continue
                 record = msgspec.json.decode(raw, type=protocol.HostRecord)
-            current = directory.lstat()
-            if (current.st_dev, current.st_ino) != (
-                original.st_dev,
-                original.st_ino,
-            ) or not _private(current):
-                return
             url = urlsplit(record.url)
             if (
                 url.scheme != "http"
@@ -80,19 +102,21 @@ def discover_hosts(
                 or url.port == 0
             ):
                 continue
-            process = psutil.Process(record.process.pid)
-            if (
-                process.is_running()
-                and process.status() != psutil.STATUS_ZOMBIE
-                and abs(
-                    process.create_time()
-                    - record.process.started_at.timestamp()
-                )
-                < 1
-            ):
-                yield record
-        except (OSError, ValueError, msgspec.DecodeError, psutil.Error):
+            if _process_state(record.process) != state:
+                continue
+            current = directory.lstat()
+            if not (_private(current) and os.path.samestat(original, current)):
+                return
+            entry = path.lstat()
+            if os.path.samestat(info, entry) and _private(entry):
+                yield path, record
+        except (OSError, ValueError, RecursionError, msgspec.DecodeError):
             continue
+
+
+def _open_record(path: str, flags: int) -> int:
+    flags |= getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    return os.open(path, flags)
 
 
 def _private(info: os.stat_result) -> bool:
@@ -157,7 +181,7 @@ class HostRecordFile:
         self._written = False
 
     def write(self) -> None:
-        """Write atomically, with owner-only access on POSIX."""
+        """Publish the record, then clean up abandoned records in the background."""
         directory = self._path.parent
         directory.mkdir(parents=True, exist_ok=True)
         if os.name == "posix":
@@ -183,10 +207,18 @@ class HostRecordFile:
         self._written = True
         atexit.register(self.remove)
         LOGGER.debug("Wrote host record %s", self._path)
+        with suppress(RuntimeError):
+            Thread(target=self._prune_stale, daemon=True).start()
+
+    def _prune_stale(self) -> None:
+        for path, _ in _host_records(self._path.parent, state="stale"):
+            if path != self._path:
+                with suppress(OSError):
+                    path.unlink()
 
     def remove(self) -> None:
         """Remove the record. Safe to call more than once."""
-        if not self._written:
+        if not self._written or os.getpid() != self._record.process.pid:
             return
         self._written = False
         try:
