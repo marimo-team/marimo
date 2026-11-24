@@ -668,7 +668,7 @@ class TestBroadcastInternalDuckDB:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from marimo._runtime.runner import hooks_post_execution
+        from marimo._sql.engines.duckdb import DuckDBEngine
 
         k = mocked_kernel.k
         stream = mocked_kernel.stream
@@ -678,13 +678,12 @@ class TestBroadcastInternalDuckDB:
             [ExecuteCellCommand(cell_id=CellId_t("0"), code="import duckdb")]
         )
 
-        def fail(*_args: object) -> None:
+        def fail(*_args: object, **_kwargs: object) -> None:
             raise RuntimeError("introspection failed")
 
+        before = len(_internal_duckdb_notifications(stream))
         with monkeypatch.context() as m:
-            m.setattr(
-                hooks_post_execution, "engine_to_data_source_connection", fail
-            )
+            m.setattr(DuckDBEngine, "get_databases", fail)
             await k.run(
                 [
                     ExecuteCellCommand(
@@ -697,6 +696,7 @@ class TestBroadcastInternalDuckDB:
                     )
                 ]
             )
+        assert len(_internal_duckdb_notifications(stream)) == before
 
         await k.run([ExecuteCellCommand(cell_id=CellId_t("2"), code="y = 1")])
         assert "retry_db" in _database_names(

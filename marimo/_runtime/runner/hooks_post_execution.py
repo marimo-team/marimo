@@ -58,6 +58,7 @@ from marimo._sql.engines.duckdb import (
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
+    introspect_data_source_connection,
 )
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import VariableName
@@ -229,7 +230,7 @@ class _DuckDBDatasourceBroadcaster:
             broadcast_notification(
                 DataSourceConnectionsNotification(
                     connections=[
-                        engine_to_data_source_connection(
+                        introspect_data_source_connection(
                             INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
                         )
                     ]
@@ -237,8 +238,10 @@ class _DuckDBDatasourceBroadcaster:
             )
             if catalogs is not None:
                 self._broadcast_catalogs = catalogs
-        except Exception:
-            return
+        except Exception as e:
+            LOGGER.warning(
+                f"Failed to broadcast internal duckdb datasource: {e}"
+            )
 
 
 @kernel_tracer.start_as_current_span("broadcast_storage_backends")
