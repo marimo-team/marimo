@@ -226,6 +226,27 @@ def test_find_python_code_in_github_issue_multiple_codes() -> None:
     actual = GitHubIssueReader._find_python_code_in_github_issue(body)
     assert actual == expected
 
+    body = """
+    some text.
+    ```python
+    print("Python code")
+    ```
+    terminal output:
+    ```bash
+    marimo edit app.py
+    ```
+    """
+    expected = '\n    print("Python code")\n    '
+    actual = GitHubIssueReader._find_python_code_in_github_issue(body)
+    assert actual == expected
+
+    body = """
+    ```python
+    print("Unclosed block")
+    """
+    with pytest.raises(ValueError, match="No closing fence"):
+        GitHubIssueReader._find_python_code_in_github_issue(body)
+
 
 def test_validate_name_with_invalid_extension():
     with pytest.raises(click.ClickException):

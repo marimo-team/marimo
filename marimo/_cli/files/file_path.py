@@ -131,7 +131,11 @@ class GitHubIssueReader(FileReader):
         if "```python" not in body:
             raise ValueError(f"No Python code found in GitHub issue {body}")
 
-        return body.split("```python")[1].rsplit("```", 1)[0]
+        after_python = body.split("```python", 1)[1]
+        if "```" not in after_python:
+            raise ValueError(f"No closing fence found in GitHub issue {body}")
+
+        return after_python.split("```", 1)[0]
 
 
 class StaticNotebookReader(FileReader):
@@ -230,7 +234,7 @@ class GitHubSourceReader(FileReader):
 
 class GistSourceReader(FileReader):
     def can_read(self, name: str) -> bool:
-        return is_gist_src(name) or is_gist_src(name)
+        return is_gist_src(name)
 
     def read(self, name: str) -> tuple[str, str]:
         url = get_gist_src_url(name)
