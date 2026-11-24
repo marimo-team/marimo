@@ -159,6 +159,34 @@ anthropic:
     limits: {context: 200000, output: 64000}
 
 openai:
+  - name: GPT-6.2 Astra
+    model: gpt-6.2-astra
+    description: "Advanced reasoning model for complex coding, research, and professional work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-11-17
+    cost: {input: 8, output: 40}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
+  - name: GPT-6.2 Sol
+    model: gpt-6.2-sol
+    description: "Efficient reasoning model for everyday coding, knowledge work, and agent workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-11-17
+    cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
   - name: GPT-6.1 Terra
     model: gpt-6.1-terra
     description: "Mid-tier GPT-6.1 model for everyday coding, writing, and agent workflows"
@@ -328,6 +356,20 @@ openai:
     limits: {context: 1050000, output: 128000}
 
 google:
+  - name: Gemini 4 Neon
+    model: gemini-4-neon
+    description: "Multimodal reasoning model balancing depth and efficiency for complex coding, analytical work, and enterprise workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-11-18
+    cost: {input: 3, output: 15}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh]
+    limits: {context: 1048576, output: 65536}
+
   - name: Gemini 4 Hydrogen
     model: gemini-4-hydrogen
     description: "Efficient multimodal model for everyday work and rapid execution of agent workflows"
@@ -581,6 +623,34 @@ google:
     limits: {context: 1000000, output: 128000}
 
 bedrock:
+  - name: GPT-6.2 Astra (Global)
+    model: global.openai.gpt-6.2-astra
+    description: "Advanced reasoning model for complex coding, research, and professional work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-11-17
+    cost: {input: 8, output: 40}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
+  - name: GPT-6.2 Sol (Global)
+    model: global.openai.gpt-6.2-sol
+    description: "Efficient reasoning model for everyday coding, knowledge work, and agent workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-11-17
+    cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
   - name: Claude Fable 5.2 (Global)
     model: global.anthropic.claude-fable-5-2
     description: "Advanced reasoning model for demanding coding, scientific research, finance, and other technical knowledge work"
@@ -894,6 +964,34 @@ bedrock:
     limits: {context: 1000000, output: 128000}
 
 azure:
+  - name: GPT-6.2 Astra
+    model: gpt-6.2-astra
+    description: "Advanced reasoning model for complex coding, research, and professional work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-11-17
+    cost: {input: 8, output: 40}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
+  - name: GPT-6.2 Sol
+    model: gpt-6.2-sol
+    description: "Efficient reasoning model for everyday coding, knowledge work, and agent workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-11-17
+    cost: {input: 2, output: 10}
+    reasoning_options:
+      - type: effort
+        values: [low, medium, high, xhigh, max]
+    limits: {context: 1050000, output: 128000}
+
   - name: Claude Fable 5.2
     model: claude-fable-5-2
     description: "Advanced reasoning model for demanding coding, scientific research, finance, and other technical knowledge work"
@@ -1244,6 +1342,20 @@ azure:
     limits: {context: 1000000, output: 384000}
 
 ollama:
+  - name: hy4
+    model: hy4
+    description: "Mixture-of-Experts model from Tencent designed for coding agents, complex tool use, and productivity tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-11-04
+    cost: {input: 0.834, output: 2.501}
+    reasoning_options:
+      - type: effort
+        values: [none, high]
+    limits: {context: 1048576, output: 65536}
+
   - name: Inkling 2 Small
     model: inkling-2-small
     description: "Multimodal reasoning model with a one-million-token context window for text and image tasks"
@@ -1798,6 +1910,19 @@ wandb:
     limits: {context: 131072, output: 131072}
 
 opencode-go:
+  - name: LongCat-2.5
+    model: longcat-2.5
+    description: "Multimodal reasoning model from Meituan for text and image tasks with tool calling"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-11-02
+    cost: {input: 0.3, output: 1.2}
+    reasoning_options:
+      - type: toggle
+    limits: {context: 1000000, output: 262144}
+
   - name: Qwen4 Max
     model: qwen4-max
     description: "Multimodal reasoning model in the Qwen4 family for chat, coding, and tool-using workflows"
