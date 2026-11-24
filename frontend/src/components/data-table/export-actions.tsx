@@ -152,15 +152,20 @@ const ENCODINGS = [
 type Separator = (typeof SEPARATORS)[number]["value"];
 type Encoding = (typeof ENCODINGS)[number]["value"];
 
+interface DelimitedSettings {
+  encoding: Encoding;
+  decimalComma: boolean;
+}
+
 interface ExportSettings {
-  csv: { separator: Separator; encoding: Encoding };
-  tsv: { encoding: Encoding };
+  csv: DelimitedSettings & { separator: Separator };
+  tsv: DelimitedSettings;
   json: { ensureAscii: boolean };
 }
 
 const DEFAULT_SETTINGS: ExportSettings = {
-  csv: { separator: ",", encoding: "utf-8" },
-  tsv: { encoding: "utf-8" },
+  csv: { separator: ",", encoding: "utf-8", decimalComma: false },
+  tsv: { encoding: "utf-8", decimalComma: false },
   json: { ensureAscii: true },
 };
 
@@ -184,24 +189,25 @@ function requestOptions(
   const options: DownloadAsOptions = {};
   switch (format) {
     case "csv":
-      if (settings.csv.separator !== DEFAULT_SETTINGS.csv.separator) {
+    case "tsv": {
+      const delimited = settings[format];
+      if (
+        format === "csv" &&
+        settings.csv.separator !== DEFAULT_SETTINGS.csv.separator
+      ) {
         options.separator = settings.csv.separator;
       }
+      if (delimited.decimalComma) {
+        options.decimal_comma = true;
+      }
       if (
         destination === "download" &&
-        settings.csv.encoding !== DEFAULT_SETTINGS.csv.encoding
+        delimited.encoding !== DEFAULT_SETTINGS[format].encoding
       ) {
-        options.encoding = settings.csv.encoding;
+        options.encoding = delimited.encoding;
       }
       break;
-    case "tsv":
-      if (
-        destination === "download" &&
-        settings.tsv.encoding !== DEFAULT_SETTINGS.tsv.encoding
-      ) {
-        options.encoding = settings.tsv.encoding;
-      }
-      break;
+    }
     case "json":
       if (settings.json.ensureAscii !== DEFAULT_SETTINGS.json.ensureAscii) {
         options.ensure_ascii = settings.json.ensureAscii;
@@ -228,12 +234,16 @@ function settingsSummary(
 ): string | null {
   switch (format) {
     case "csv":
+    case "tsv": {
+      const delimited = settings[format];
       return [
-        labelForValue(SEPARATORS, settings.csv.separator),
-        labelForValue(ENCODINGS, settings.csv.encoding),
+        ...(format === "csv"
+          ? [labelForValue(SEPARATORS, settings.csv.separator)]
+          : []),
+        labelForValue(ENCODINGS, delimited.encoding),
+        ...(delimited.decimalComma ? ["Decimal comma"] : []),
       ].join(" · ");
-    case "tsv":
-      return labelForValue(ENCODINGS, settings.tsv.encoding);
+    }
     case "json":
       return settings.json.ensureAscii
         ? "Escapes non-ASCII"
@@ -1066,6 +1076,30 @@ const ExportSettingsFields: React.FC<ExportSettingsFieldsProps> = ({
 }) => {
   const id = React.useId();
 
+  const decimalField = (key: "csv" | "tsv") => (
+    <SettingField
+      id={`${id}-decimal`}
+      label="Decimal separator"
+      help="Character between the integer and fractional parts of a number."
+    >
+      <NativeSelect
+        id={`${id}-decimal`}
+        className="mb-0 w-full"
+        value={settings[key].decimalComma ? "comma" : "point"}
+        onChange={(event) => {
+          const decimalComma = event.target.value === "comma";
+          onChange((current) => ({
+            ...current,
+            [key]: { ...current[key], decimalComma },
+          }));
+        }}
+      >
+        <option value="point">Point</option>
+        <option value="comma">Comma</option>
+      </NativeSelect>
+    </SettingField>
+  );
+
   const encodingField = (encoding: Encoding, key: "csv" | "tsv") => (
     <SettingField
       id={`${id}-encoding`}
@@ -1122,10 +1156,21 @@ const ExportSettingsFields: React.FC<ExportSettingsFieldsProps> = ({
             </NativeSelect>
           </SettingField>
           {encodingField(settings.csv.encoding, "csv")}
+          {decimalField("csv")}
+          {settings.csv.separator === "," && settings.csv.decimalComma && (
+            <p className="col-span-2 text-xs text-muted-foreground">
+              Excel in a comma-decimal locale needs the Semicolon delimiter.
+            </p>
+          )}
         </>
       );
     case "tsv":
-      return encodingField(settings.tsv.encoding, "tsv");
+      return (
+        <>
+          {encodingField(settings.tsv.encoding, "tsv")}
+          {decimalField("tsv")}
+        </>
+      );
     case "json":
       return (
         <SettingField
