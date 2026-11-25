@@ -11,7 +11,7 @@ import {
   type ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { type DebouncedFunc, debounce } from "lodash-es";
+import { createDebouncedEditorUpdate } from "../debounced-editor-update";
 import type { CellId } from "@/core/cells/ids";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { dataConnectionsMapAtom } from "@/core/datasets/data-source-connections";
@@ -277,16 +277,14 @@ class CodeLensPlugin {
   private readonly includeCache: boolean;
   private readonly unsubscribes: Array<() => void>;
 
-  // Delay (in ms) before recomputing lenses after user changes or store updates
-  private readonly debounceMs = 300;
-  private readonly scheduleUpdate: DebouncedFunc<() => void>;
+  private readonly lensUpdate: ReturnType<typeof createDebouncedEditorUpdate>;
 
   public constructor(view: EditorView, cellId: CellId, includeCache: boolean) {
     this.view = view;
     this.cellId = cellId;
     this.includeCache = includeCache;
-    this.scheduleUpdate = debounce(() => this.run(), this.debounceMs);
-    const onStoreChange = () => this.scheduleUpdate();
+    this.lensUpdate = createDebouncedEditorUpdate(view, () => this.run());
+    const onStoreChange = () => this.lensUpdate.schedule();
     this.unsubscribes = [
       store.sub(datasetTablesAtom, onStoreChange),
       store.sub(dataConnectionsMapAtom, onStoreChange),
@@ -294,7 +292,7 @@ class CodeLensPlugin {
       // The declaring-cell filter depends on variables
       store.sub(variablesAtom, onStoreChange),
     ];
-    this.scheduleUpdate();
+    this.lensUpdate.schedule();
   }
 
   public update(update: ViewUpdate) {
@@ -303,17 +301,21 @@ class CodeLensPlugin {
     const adapterChanged =
       update.startState.field(languageAdapterState, false)?.type !==
       update.state.field(languageAdapterState, false)?.type;
+    this.documentChanged ||= update.docChanged;
     if (update.docChanged || adapterChanged) {
-      this.scheduleUpdate();
+      this.lensUpdate.schedule();
     }
   }
 
   public destroy() {
-    this.scheduleUpdate.cancel();
+    this.lensUpdate.destroy();
     for (const unsubscribe of this.unsubscribes) {
       unsubscribe();
     }
   }
+
+  private previousLenses: CodeLensSpec[] = [];
+  private documentChanged = false;
 
   private run() {
     const { state } = this.view;
@@ -346,10 +348,16 @@ class CodeLensPlugin {
       }
     }
 
-    // Defer dispatch to avoid triggering during an editor update cycle
-    queueMicrotask(() => {
-      this.view.dispatch({ effects: setCodeLenses.of(lenses) });
-    });
+    if (
+      !this.documentChanged &&
+      lenses.length === this.previousLenses.length &&
+      lenses.every((lens, i) => specEquals(lens, this.previousLenses[i]))
+    ) {
+      return;
+    }
+    this.previousLenses = lenses;
+    this.documentChanged = false;
+    return { effects: setCodeLenses.of(lenses) };
   }
 }
 

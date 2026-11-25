@@ -53,3 +53,18 @@ switch (value) {
 ```
 
 - Keep comments minimal. Comments should only explain "why", not "what".
+
+## Performance in repeated components
+
+- For shared DOM subscriptions, use `createSharedSubscription` from `src/utils/shared-resource.ts`.
+  For shared resources without notifications, use `createSharedResource` from the same module.
+  Define these subscriptions at module scope. When the consumer unmounts or the plugin is destroyed, release its subscription.
+- For debounced CodeMirror analysis, use `createDebouncedEditorUpdate` from `src/core/codemirror/debounced-editor-update.ts`.
+  Read the current state in its compute callback. When the result is unchanged, return `undefined`.
+  Call `destroy()` from the plugin's cleanup. Compare positions and metadata as well as array lengths.
+- When an optional feature is disabled, pass `null` to `useEventListener`.
+- Mount per-cell menu roots only while open, or share one root across the notebook.
+  Preserve trigger identity, keyboard focus, touch gestures, and nested menus.
+- Give layout effects explicit dependencies. When a component has no visible content, avoid layout reads.
+- Test listener, dispatch, and layout-read counts in normal unit tests. Avoid timing thresholds for these guarantees.
+  Cover repeated mounts, final cleanup, queued work after destruction, unchanged results, and changed results.

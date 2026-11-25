@@ -7,11 +7,10 @@ type PopoverContentProps = Popover.PopoverContentProps;
 import React, {
   type RefObject,
   useLayoutEffect,
-  useState,
   useSyncExternalStore,
 } from "react";
+import { createSharedSubscription } from "@/utils/shared-resource";
 import { isInVscodeExtension } from "@/core/vscode/is-in-vscode";
-import { useEventListener } from "@/hooks/useEventListener";
 
 const VSCODE_OUTPUT_CONTAINER_SELECTOR = "[data-vscode-output-container]";
 
@@ -30,9 +29,9 @@ export function useFullScreenClass() {
     };
 
     syncFullScreenClass();
-    document.addEventListener("fullscreenchange", syncFullScreenClass);
+    const unsubscribe = subscribeToFullScreen(syncFullScreenClass);
     return () => {
-      document.removeEventListener("fullscreenchange", syncFullScreenClass);
+      unsubscribe();
       document.documentElement.classList.remove("marimo-fullscreen");
     };
   }, []);
@@ -58,43 +57,13 @@ export function getFullScreenElement(): Element | null {
  * Get the full screen element if we are in full screen mode
  */
 export function useFullScreenElement() {
-  const [fullScreenElement, setFullScreenElement] = useState<Element | null>(
-    getFullScreenElement,
-  );
-  useEventListener(document, "fullscreenchange", () => {
-    setFullScreenElement(getFullScreenElement());
-  });
-  return fullScreenElement;
+  return useSyncExternalStore(subscribeToFullScreen, getFullScreenElement);
 }
 
-const fullScreenSubscribers = new Set<() => void>();
-
-function notifyFullScreenSubscribers() {
-  for (const subscriber of fullScreenSubscribers) {
-    subscriber();
-  }
-}
-
-/**
- * One document listener serves every subscriber, so the cost of a full screen
- * transition does not grow with the number of mounted components.
- */
-function subscribeToFullScreen(onStoreChange: () => void) {
-  if (fullScreenSubscribers.size === 0) {
-    document.addEventListener("fullscreenchange", notifyFullScreenSubscribers);
-  }
-  fullScreenSubscribers.add(onStoreChange);
-
-  return () => {
-    fullScreenSubscribers.delete(onStoreChange);
-    if (fullScreenSubscribers.size === 0) {
-      document.removeEventListener(
-        "fullscreenchange",
-        notifyFullScreenSubscribers,
-      );
-    }
-  };
-}
+const subscribeToFullScreen = createSharedSubscription((notify) => {
+  document.addEventListener("fullscreenchange", notify);
+  return () => document.removeEventListener("fullscreenchange", notify);
+});
 
 /**
  * Whether the given element is the full screen element.

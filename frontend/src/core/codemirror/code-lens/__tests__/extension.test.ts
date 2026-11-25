@@ -149,6 +149,37 @@ describe("codeLensBundle", () => {
     expect(codeLensBundle(cellId("cell1"), false)).toEqual([]);
   });
 
+  it.each([false, true])(
+    "skips unchanged lenses (with lens: %s)",
+    async (withLens) => {
+      seedStore({ tables: withLens ? [DF_TABLE] : [] });
+      const v = await mount("df = load()");
+      const dispatch = vi.spyOn(v, "dispatch");
+      store.set(variablesAtom, {});
+      vi.advanceTimersByTime(300);
+      await Promise.resolve();
+      expect(dispatch).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refreshes widget positions after edits and clears removed entities", async () => {
+    seedStore({ tables: [DF_TABLE] });
+    const v = await mount("df = load()");
+    v.dispatch({ changes: { from: 0, insert: "\n" } });
+    vi.advanceTimersByTime(300);
+    await Promise.resolve();
+    lenses(v)[0].dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(CODE_LENS_HOVER_DELAY_MS);
+    expect(mountLensPopover).toHaveBeenLastCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ pos: 3 }),
+    );
+    seedStore({});
+    vi.advanceTimersByTime(300);
+    await Promise.resolve();
+    expect(lenses(v)).toEqual([]);
+  });
+
   it("renders a lens at a dataframe declaration", async () => {
     seedStore({ tables: [DF_TABLE] });
     const v = await mount("df = load()\nx = 1");

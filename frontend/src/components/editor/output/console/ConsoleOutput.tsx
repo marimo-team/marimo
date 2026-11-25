@@ -83,13 +83,13 @@ interface Props {
   onSubmitDebugger: (text: string, inputId?: string) => void;
 }
 
-export const ConsoleOutput = (props: Props) => {
+export const ConsoleOutput = React.memo((props: Props) => {
   return (
     <ErrorBoundary>
       <ConsoleOutputInternal {...props} />
     </ErrorBoundary>
   );
-};
+});
 
 const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
@@ -133,7 +133,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   // always work perfectly when moved form the bottom and back.
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) {
+    if (!el || !hasOutputs) {
       return;
     }
     // N.B. This won't handle large jumps in the scroll position
@@ -146,7 +146,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     if (distanceFromBottom < threshold) {
       el.scrollTop = scrollOffset;
     }
-  });
+  }, [consoleOutputs, hasOutputs, pdbInput, isExpanded, wrapText]);
 
   if (!hasOutputs && isInternalCellName(cellName)) {
     return null;
@@ -164,55 +164,17 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     (output) => output.channel === "stdin",
   );
 
-  const getOutputString = (): string => {
-    const text = consoleOutputs
-      .filter((output) => output.channel !== "pdb")
-      .map((output) => processOutput(output))
-      .join("\n");
-    return text;
-  };
-
   return (
     <div className="relative group">
       {hasOutputs && (
-        <div className="absolute top-1 right-4 z-10 opacity-0 group-hover:opacity-100 flex items-center gap-1 print:hidden">
-          <CopyClipboardIcon
-            tooltip="Copy console output"
-            value={getOutputString}
-            className="h-4 w-4"
-          />
-          <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
-            <span>
-              <ToggleButton
-                aria-label="Toggle text wrapping"
-                className="p-1 rounded bg-transparent text-muted-foreground data-hovered:text-foreground data-selected:text-foreground"
-                isSelected={wrapText}
-                onChange={setWrapText}
-              >
-                <WrapTextIcon className="h-4 w-4" />
-              </ToggleButton>
-            </span>
-          </Tooltip>
-          {(isOverflowing || isExpanded) && (
-            <Button
-              aria-label={isExpanded ? "Collapse output" : "Expand output"}
-              className="p-0 mb-px"
-              onClick={() => setIsExpanded(!isExpanded)}
-              size="xs"
-              variant={null}
-            >
-              {isExpanded ? (
-                <Tooltip content="Collapse output">
-                  <ChevronsDownUpIcon className="h-4 w-4" />
-                </Tooltip>
-              ) : (
-                <Tooltip content="Expand output">
-                  <ChevronsUpDownIcon className="h-4 w-4 " />
-                </Tooltip>
-              )}
-            </Button>
-          )}
-        </div>
+        <ConsoleOutputToolbar
+          consoleOutputs={consoleOutputs}
+          wrapText={wrapText}
+          setWrapText={setWrapText}
+          isExpanded={isExpanded}
+          setIsExpanded={setIsExpanded}
+          isOverflowing={isOverflowing}
+        />
       )}
       <div
         title={stale ? "This console output is stale" : undefined}
@@ -309,6 +271,71 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
           className="bg-(--slate-4) border-(--slate-4) hover:bg-(--slate-5) dark:border-(--sky-5) dark:bg-(--sky-6) dark:text-(--sky-12) text-(--slate-12) rounded-l rounded-br-lg absolute right-0 bottom-0 text-xs px-1.5 py-0.5 font-mono max-w-[75%] whitespace-nowrap overflow-hidden"
         />
       </div>
+    </div>
+  );
+};
+
+const ConsoleOutputToolbar = ({
+  consoleOutputs,
+  wrapText,
+  setWrapText,
+  isExpanded,
+  setIsExpanded,
+  isOverflowing,
+}: {
+  consoleOutputs: ConsoleOutputMessage[];
+  wrapText: boolean;
+  setWrapText: (wrap: boolean) => void;
+  isExpanded: boolean;
+  setIsExpanded: (expanded: boolean) => void;
+  isOverflowing: boolean;
+}) => {
+  const getOutputString = (): string => {
+    const text = consoleOutputs
+      .filter((output) => output.channel !== "pdb")
+      .map((output) => processOutput(output))
+      .join("\n");
+    return text;
+  };
+
+  return (
+    <div className="absolute top-1 right-4 z-10 opacity-0 group-hover:opacity-100 flex items-center gap-1 print:hidden">
+      <CopyClipboardIcon
+        tooltip="Copy console output"
+        value={getOutputString}
+        className="h-4 w-4"
+      />
+      <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
+        <span>
+          <ToggleButton
+            aria-label="Toggle text wrapping"
+            className="p-1 rounded bg-transparent text-muted-foreground data-hovered:text-foreground data-selected:text-foreground"
+            isSelected={wrapText}
+            onChange={setWrapText}
+          >
+            <WrapTextIcon className="h-4 w-4" />
+          </ToggleButton>
+        </span>
+      </Tooltip>
+      {(isOverflowing || isExpanded) && (
+        <Button
+          aria-label={isExpanded ? "Collapse output" : "Expand output"}
+          className="p-0 mb-px"
+          onClick={() => setIsExpanded(!isExpanded)}
+          size="xs"
+          variant={null}
+        >
+          {isExpanded ? (
+            <Tooltip content="Collapse output">
+              <ChevronsDownUpIcon className="h-4 w-4" />
+            </Tooltip>
+          ) : (
+            <Tooltip content="Expand output">
+              <ChevronsUpDownIcon className="h-4 w-4 " />
+            </Tooltip>
+          )}
+        </Button>
+      )}
     </div>
   );
 };

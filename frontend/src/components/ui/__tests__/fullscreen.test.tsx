@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { act, render, renderHook } from "@testing-library/react";
-import { useRef } from "react";
+import { StrictMode, useRef } from "react";
 import { createPortal } from "react-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -104,6 +104,7 @@ describe("useFullScreenClass", () => {
 const FullScreenFlag = ({ label }: { label: string }) => {
   const ref = useRef<HTMLDivElement>(null);
   const isFullScreen = useIsFullScreen(ref);
+  useFullScreenElement();
 
   return (
     <div ref={ref} data-testid={label}>
@@ -129,6 +130,27 @@ describe("useIsFullScreen", () => {
 
   const countFullScreenListeners = (calls: unknown[][]) =>
     calls.filter((call) => call[0] === "fullscreenchange").length;
+
+  it("balances shared listeners across StrictMode remounts", () => {
+    const add = vi.spyOn(document, "addEventListener");
+    const remove = vi.spyOn(document, "removeEventListener");
+    const mounted = render(
+      <StrictMode>
+        <FullScreenFlag label="strict" />
+      </StrictMode>,
+    );
+    expect(
+      countFullScreenListeners(add.mock.calls) -
+        countFullScreenListeners(remove.mock.calls),
+    ).toBe(1);
+    mounted.unmount();
+    expect(
+      countFullScreenListeners(add.mock.calls) -
+        countFullScreenListeners(remove.mock.calls),
+    ).toBe(0);
+    add.mockRestore();
+    remove.mockRestore();
+  });
 
   it("adds one document listener for many subscribers", () => {
     const addEventListener = vi.spyOn(document, "addEventListener");

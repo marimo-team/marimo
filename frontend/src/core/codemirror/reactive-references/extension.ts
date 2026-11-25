@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { StateEffect, StateField } from "@codemirror/state";
+import { RangeSet, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
@@ -8,7 +8,8 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { type DebouncedFunc, debounce } from "lodash-es";
+import { dequal } from "dequal";
+import { createDebouncedEditorUpdate } from "../debounced-editor-update";
 
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
@@ -44,41 +45,38 @@ class ReactiveReferencesPlugin {
   private cellId: CellId;
   private variablesUnsubscribe: () => void;
 
-  // Delay (in ms) before highlighting reactive variables after user changes or store updates
-  private readonly highlightDebounceMs = 300;
-
-  // Debounced function to trigger highlighting
-  private readonly scheduleHighlighting: DebouncedFunc<() => void>;
+  private readonly highlighting: ReturnType<typeof createDebouncedEditorUpdate>;
 
   public constructor(view: EditorView, cellId: CellId) {
     this.view = view;
     this.cellId = cellId;
 
-    this.scheduleHighlighting = debounce(() => {
-      this.runHighlighting();
-    }, this.highlightDebounceMs);
+    this.highlighting = createDebouncedEditorUpdate(view, () =>
+      this.runHighlighting(),
+    );
 
     // React to variable store changes
     this.variablesUnsubscribe = store.sub(variablesAtom, () => {
-      this.scheduleHighlighting();
+      this.highlighting.schedule();
     });
 
     // Initial run
-    this.scheduleHighlighting();
+    this.highlighting.schedule();
   }
 
   public update(update: ViewUpdate) {
-    if (update.docChanged || update.focusChanged) {
-      this.scheduleHighlighting();
+    if (update.docChanged || update.focusChanged || update.viewportChanged) {
+      this.highlighting.schedule();
     }
   }
 
   public destroy() {
-    this.scheduleHighlighting.cancel();
+    this.highlighting.destroy();
     this.variablesUnsubscribe();
   }
 
   private runHighlighting() {
+    const state = this.view.state;
     const ranges = findReactiveVariables({
       state: this.view.state,
       cellId: this.cellId,
@@ -91,12 +89,23 @@ class ReactiveReferencesPlugin {
       );
     }
 
-    // Defer dispatch to avoid triggering during an editor update cycle
-    queueMicrotask(() => {
-      this.view.dispatch({
-        effects: updateReactiveVariables.of(ranges),
-      });
-    });
+    const current = state.field(reactiveReferencesField);
+    if (
+      dequal(current.ranges, ranges) &&
+      RangeSet.eq(
+        [current.decorations],
+        [
+          Decoration.set(
+            ranges.map((range) =>
+              reactiveVariableDecoration.range(range.from, range.to),
+            ),
+          ),
+        ],
+      )
+    ) {
+      return;
+    }
+    return { effects: updateReactiveVariables.of(ranges) };
   }
 }
 
