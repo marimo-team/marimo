@@ -113,6 +113,9 @@ class VariableData:
     # Only applicable for SQL kinds (table, view, schema, catalog)
     sql_ref: SQLRef | None = None
 
+    def binding_name(self, name: Name) -> Name:
+        return self.sql_ref.qualified_name if self.sql_ref else name
+
     @property
     def language(self) -> Language:
         return (

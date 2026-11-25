@@ -42,7 +42,7 @@ def get_sql_bindings(cell: CellImpl) -> list[SQLBinding]:
             continue
         candidates.append(
             SQLBinding(
-                variable.sql_ref.qualified_name if variable.sql_ref else name,
+                variable.binding_name(name),
                 cast(SQLKind, variable.kind),
                 variable.sql_ref,
             )

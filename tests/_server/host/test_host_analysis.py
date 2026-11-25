@@ -51,6 +51,9 @@ def test_qualified_sql_parent_is_the_table_in_the_referenced_schema() -> None:
             "c": 'mo.sql("SELECT * FROM one.t")',
         }
     )
+    assert cells["a"].defs == ("one.t",)
+    assert cells["b"].defs == ("two.t",)
+    assert cells["c"].refs == ("one.t",)
     assert cells["c"].parents == ("a",)
 
 
@@ -539,6 +542,11 @@ def test_definition_ranges_are_located_once_per_source(
         (
             'mo.sql("CREATE TABLE s.t (id INT)")',
             'mo.sql("SELECT * FROM s.t")',
+            ("s.t",),
+        ),
+        (
+            'mo.sql("CREATE TABLE s.t (id INT)")',
+            'mo.sql("SELECT * FROM t")',
             ("s.t",),
         ),
         (
