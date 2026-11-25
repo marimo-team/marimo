@@ -5,7 +5,6 @@ import { useCallback, useRef, useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { NotificationMessageData } from "../kernel/messages";
-import type { VariableName } from "../variables/types";
 import {
   ListStorageEntries,
   type StorageEntriesResult,
@@ -97,13 +96,11 @@ const {
     };
   },
 
-  filterFromVariables: (state, variableNames: VariableName[]) => {
-    const names = new Set(variableNames);
-    // Filter out namespaces whose backing variable is no longer in scope
-    const namespaces = state.namespaces.filter((ns) => {
-      return names.has(ns.name);
-    });
-    return { ...state, namespaces };
+  removeNamespacesForVariables: (state, removed: ReadonlySet<string>) => {
+    const namespaces = state.namespaces.filter((ns) => !removed.has(ns.name));
+    return namespaces.length === state.namespaces.length
+      ? state
+      : { ...state, namespaces };
   },
 });
 

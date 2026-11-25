@@ -2,12 +2,12 @@
 
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setNotebookAnalysis } from "@/__tests__/notebook-analysis";
+import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
 import { store } from "@/core/state/jotai";
-import { variablesAtom } from "@/core/variables/state";
-import type { Variables } from "@/core/variables/types";
 import {
   maybeAddAltairImport,
   maybeAddMarimoImport,
@@ -26,13 +26,12 @@ const Cell2 = cellId("2");
 
 describe("maybeAddMissingImport", () => {
   beforeEach(() => {
-    store.set(variablesAtom, {} as Variables);
     store.set(notebookAtom, MockNotebook.notebookState({ cellData: {} }));
   });
 
-  it("should not add an import if the variable is already in the variables state", () => {
+  it("skips the import when a cell declares the name", () => {
     const appStore = createStore();
-    appStore.set(variablesAtom, { mo: {} } as Variables);
+    setNotebookAnalysis(appStore, { [Cell1]: { defs: ["mo"] } });
     const onAddImport = vi.fn();
     maybeAddMissingImport({
       moduleName: "marimo",
@@ -52,7 +51,7 @@ describe("maybeAddMissingImport", () => {
     "should not add an import if the import statement already exists in the notebook",
     (code) => {
       const appStore = createStore();
-      appStore.set(variablesAtom, {} as Variables);
+
       appStore.set(
         notebookAtom,
         MockNotebook.notebookState({
@@ -72,9 +71,16 @@ describe("maybeAddMissingImport", () => {
     },
   );
 
-  it("should add an import if the variable is not in the variables state and the import statement does not exist in the notebook", () => {
+  it("adds a missing import even when the name is still bound in the kernel", () => {
     const appStore = createStore();
-    appStore.set(variablesAtom, {} as Variables);
+    MockExecutions.seed(appStore, [
+      {
+        ...MockExecutions.completed(Cell1),
+        bindings: [{ name: "mo", type: "module", preview: "marimo" }],
+      },
+    ]);
+    setNotebookAnalysis(appStore, { [Cell1]: { refs: ["mo"] } });
+
     appStore.set(
       notebookAtom,
       MockNotebook.notebookState({
@@ -96,7 +102,6 @@ describe("maybeAddMissingImport", () => {
   it("should not create a new cell if import already exists due to skipIfCodeExists", () => {
     const addImports = [maybeAddMarimoImport, maybeAddAltairImport];
     for (const addImport of addImports) {
-      store.set(variablesAtom, {} as Variables);
       store.set(
         notebookAtom,
         MockNotebook.notebookState({

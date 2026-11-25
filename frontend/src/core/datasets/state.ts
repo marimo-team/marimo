@@ -7,7 +7,6 @@ import type {
   NotificationMessageData,
 } from "../kernel/messages";
 import { getRequestClient } from "../network/requests";
-import type { VariableName } from "../variables/types";
 import type { DatasetsState } from "./types";
 
 function initialState(): DatasetsState {
@@ -75,17 +74,13 @@ const {
       tables: sortedTables,
     };
   },
-  filterDatasetsFromVariables: (state, variableNames: VariableName[]) => {
-    const names = new Set(variableNames);
-    // Filter out tables that come from variables that are not in the list
-    const tables = state.tables.filter((table) => {
-      // If there's no variable name, it's not a variable and we should keep it
-      if (!table.variable_name) {
-        return true;
-      }
-      return names.has(table.variable_name);
-    });
-    return { ...state, tables };
+  removeDatasetsForVariables: (state, removed: ReadonlySet<string>) => {
+    const tables = state.tables.filter(
+      (table) =>
+        !(table.variable_name && removed.has(table.variable_name)) &&
+        !(table.engine && removed.has(table.engine)),
+    );
+    return tables.length === state.tables.length ? state : { ...state, tables };
   },
   toggleTable: (state, tableName: string) => {
     const expandedTables = new Set(state.expandedTables);

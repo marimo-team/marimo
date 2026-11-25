@@ -11,7 +11,6 @@ import type {
   DataTable,
 } from "../kernel/messages";
 import { store } from "../state/jotai";
-import type { VariableName } from "../variables/types";
 import {
   type ConnectionName,
   DEFAULT_DUCKDB_DATABASE,
@@ -148,21 +147,19 @@ const {
     };
   },
 
-  // Keep internal engines and any connections that are used by variables
-  filterDataSourcesFromVariables: (
+  removeConnectionsForVariables: (
     state: DataSourceState,
-    variableNames: VariableName[],
+    removed: ReadonlySet<string>,
   ) => {
     const { latestEngineSelected, connectionsMap } = state;
-    const names = new Set(variableNames);
     const newMap = new Map(
-      [...connectionsMap].filter(([name]) => {
-        if (INTERNAL_SQL_ENGINES.has(name)) {
-          return true;
-        }
-        return names.has(name as unknown as VariableName);
-      }),
+      [...connectionsMap].filter(
+        ([name]) => INTERNAL_SQL_ENGINES.has(name) || !removed.has(name),
+      ),
     );
+    if (newMap.size === connectionsMap.size) {
+      return state;
+    }
     return {
       // Allow automatic selection again when the selected connection disappears.
       latestEngineSelected:

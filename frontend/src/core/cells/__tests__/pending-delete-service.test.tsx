@@ -3,12 +3,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setNotebookAnalysis } from "@/__tests__/notebook-analysis";
 import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
-import { variableName } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
-import { variablesAtom } from "@/core/variables/state";
 import {
   usePendingDelete,
   usePendingDeleteService,
@@ -48,7 +47,6 @@ describe("pending-delete-service", () => {
     MockExecutions.seed(store, [MockExecutions.took(cellId, 1)]);
 
     store.set(notebookAtom, notebook);
-    store.set(variablesAtom, {});
 
     const { result } = renderHook(
       () => {
@@ -82,7 +80,6 @@ describe("pending-delete-service", () => {
     MockExecutions.seed(store, [MockExecutions.took(cellId, 100_000)]);
 
     store.set(notebookAtom, notebook);
-    store.set(variablesAtom, {});
 
     const { result: serviceResult } = renderHook(
       () => usePendingDeleteService(),
@@ -130,12 +127,9 @@ describe("pending-delete-service", () => {
     ]);
 
     store.set(notebookAtom, notebook);
-    store.set(variablesAtom, {
-      [variableName("x")]: {
-        name: variableName("x"),
-        declaredBy: [cell1Id],
-        usedBy: [cell2Id],
-      },
+    setNotebookAnalysis(store, {
+      [cell1Id]: { defs: ["x"] },
+      [cell2Id]: { refs: ["x"] },
     });
 
     // cell1 with dependencies
@@ -171,7 +165,6 @@ describe("pending-delete-service", () => {
     ]);
 
     store.set(notebookAtom, notebook);
-    store.set(variablesAtom, {});
 
     const { result: serviceResult } = renderHook(
       () => usePendingDeleteService(),

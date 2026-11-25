@@ -1,9 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
-import { variableName } from "@/__tests__/branded";
 import type { DatabaseSchema, DataTable } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
-import type { VariableName } from "@/core/variables/types";
 import {
   allTablesAtom,
   type DataSourceConnection,
@@ -147,11 +145,10 @@ describe("data source connections", () => {
 });
 
 describe("filtering data sources", () => {
-  // helper function to filter data sources by variable names
-  function filterDataSources(payload: VariableName[]) {
+  function removeConnections(names: string[]) {
     return reducer(baseState, {
-      type: "filterDataSourcesFromVariables",
-      payload: payload,
+      type: "removeConnectionsForVariables",
+      payload: new Set(names),
     });
   }
 
@@ -179,16 +176,20 @@ describe("filtering data sources", () => {
     expect(baseState.connectionsMap.size).toBe(defaultConnSize + 2); // 2 + 2 (default) connections
   });
 
-  it("keeps only internal engines when no variables", () => {
-    const filtered = filterDataSources([]);
+  it("keeps internal engines when bindings are removed", () => {
+    const filtered = removeConnections([
+      "conn1",
+      "conn2",
+      ...INTERNAL_SQL_ENGINES,
+    ]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize);
     for (const engine of INTERNAL_SQL_ENGINES) {
       expect(filtered.connectionsMap.has(engine)).toBe(true);
     }
   });
 
-  it("keeps matching variables and internal engines", () => {
-    const filtered = filterDataSources([variableName("conn1")]);
+  it("keeps connections whose binding is still live", () => {
+    const filtered = removeConnections(["conn2"]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
     for (const engine of INTERNAL_SQL_ENGINES) {
@@ -196,16 +197,13 @@ describe("filtering data sources", () => {
     }
   });
 
-  it("filters out non-matching variables", () => {
-    const filtered = filterDataSources([variableName("non_existent")]);
-    expect(filtered.connectionsMap.size).toBe(defaultConnSize);
+  it("ignores removal of an unknown binding", () => {
+    const filtered = removeConnections(["non_existent"]);
+    expect(filtered.connectionsMap.size).toBe(defaultConnSize + 2);
   });
 
   it("handles mix of matching and non-matching variables", () => {
-    const filtered = filterDataSources([
-      variableName("conn1"),
-      variableName("non_existent"),
-    ]);
+    const filtered = removeConnections(["conn2", "non_existent"]);
     expect(filtered.connectionsMap.size).toBe(defaultConnSize + 1);
     expect(filtered.connectionsMap.has("conn1" as ConnectionName)).toBe(true);
     for (const engine of INTERNAL_SQL_ENGINES) {

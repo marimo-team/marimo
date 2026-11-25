@@ -3,6 +3,7 @@
 import { runCells } from "../executions";
 import { store } from "../state/jotai";
 import { variablesAtom } from "../variables/state";
+import type { VariableName } from "../variables/types";
 import { notebookAtom } from "./cells";
 import type { CreateCell, CreateCellOptions } from "./actions";
 import { CellId } from "./ids";
@@ -23,10 +24,8 @@ export function maybeAddMissingImport({
   onAddImport: (importStatement: string) => void;
   appStore?: typeof store;
 }): boolean {
-  // If variableName is already in the variables state,
-  // then the import is not missing (or the name has been taken).
   const variables = appStore.get(variablesAtom);
-  if (variableName in variables) {
+  if (variables[variableName as VariableName]?.declaredBy.length) {
     return false;
   }
 

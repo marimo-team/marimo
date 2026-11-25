@@ -8,9 +8,8 @@ import { EditorState } from "@codemirror/state";
 import { classHighlighter, highlightTree } from "@lezer/highlight";
 import { parser as markdownParser } from "@lezer/markdown";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cellId, variableName } from "@/__tests__/branded";
+import { setNotebookAnalysis } from "@/__tests__/notebook-analysis";
 import { store } from "@/core/state/jotai";
-import { variablesAtom } from "@/core/variables/state";
 import { parsePython, variableCompletionSource } from "../embedded-python";
 import { parseLatex } from "../latex";
 
@@ -158,22 +157,7 @@ describe("parsePython", () => {
 
 describe("variableCompletionSource", () => {
   beforeEach(() => {
-    const mockCellId = cellId("cell-1");
-    const mockVariables = {
-      [variableName("var1")]: {
-        name: variableName("var1"),
-        dataType: "int",
-        declaredBy: [mockCellId],
-        usedBy: [mockCellId],
-      },
-      [variableName("var2")]: {
-        name: variableName("var2"),
-        dataType: "str",
-        declaredBy: [mockCellId],
-        usedBy: [mockCellId],
-      },
-    };
-    store.set(variablesAtom, mockVariables);
+    setNotebookAnalysis(store, { c1: { defs: ["var1", "var2"] } });
   });
 
   it("should provide completions inside {} block", () => {

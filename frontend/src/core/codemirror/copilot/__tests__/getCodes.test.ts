@@ -5,12 +5,12 @@ import { defaultUserConfig } from "@/core/config/config-schema";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
+import { setNotebookAnalysis } from "@/__tests__/notebook-analysis";
 import { cellId, variableName } from "@/__tests__/branded";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCell } from "@/core/cells/types";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
-import { variablesAtom } from "@/core/variables/state";
 import { cellConfigExtension } from "../../config/extension";
 import { adaptiveLanguageConfiguration } from "../../language/extension";
 import {
@@ -204,12 +204,10 @@ describe("getCodes", () => {
         [Cells.cell3]: { current: mockEditorViews[2] },
       },
     });
-    store.set(variablesAtom, {
-      [Variables.var1]: {
-        name: Variables.var1,
-        declaredBy: [Cells.cell1],
-        usedBy: [Cells.cell2, Cells.cell3],
-      },
+    setNotebookAnalysis(store, {
+      [Cells.cell1]: { defs: [Variables.var1] },
+      [Cells.cell2]: { refs: [Variables.var1] },
+      [Cells.cell3]: { refs: [Variables.var1] },
     });
     const result = getCodes(otherCode);
     expect(result).toEqual("import os\nx = 1\ny = x + 1\nprint('Hello World')");
@@ -258,12 +256,10 @@ describe("topologicalCodesAtom", () => {
         [Cells.cell3]: createCell({ id: Cells.cell3, code: "y = x + 1" }),
       },
     });
-    store.set(variablesAtom, {
-      [Variables.var1]: {
-        name: Variables.var1,
-        declaredBy: [Cells.cell1],
-        usedBy: [Cells.cell2, Cells.cell3],
-      },
+    setNotebookAnalysis(store, {
+      [Cells.cell1]: { defs: [Variables.var1] },
+      [Cells.cell2]: { refs: [Variables.var1] },
+      [Cells.cell3]: { refs: [Variables.var1] },
     });
 
     const { cellIds, codes } = store.get(topologicalCodesAtom);

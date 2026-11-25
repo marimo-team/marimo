@@ -3,9 +3,10 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, expect, it, vi } from "vitest";
-import { cellId, variableName } from "@/__tests__/branded";
+import { setNotebookAnalysis } from "@/__tests__/notebook-analysis";
+import { cellId } from "@/__tests__/branded";
+import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { store } from "@/core/state/jotai";
-import { variablesAtom } from "@/core/variables/state";
 import {
   reactiveReferencesBundle,
   reactiveReferencesField,
@@ -15,12 +16,11 @@ let view: EditorView;
 afterEach(() => {
   view?.destroy();
   vi.useRealTimers();
-  store.set(variablesAtom, {});
+  store.set(activeNotebookReplicaAtom, null);
 });
 
 it("skips unchanged ranges, updates edited ranges, and clears removed references", async () => {
   vi.useFakeTimers();
-  store.set(variablesAtom, {});
   view = new EditorView({
     state: EditorState.create({
       doc: "value",
@@ -35,26 +35,20 @@ it("skips unchanged ranges, updates edited ranges, and clears removed references
   };
   await flush();
   expect(dispatch).not.toHaveBeenCalled();
-  const variables = {
-    [variableName("value")]: {
-      name: variableName("value"),
-      declaredBy: [cellId("cell2")],
-      usedBy: [cellId("cell1")],
-    },
-  };
-  store.set(variablesAtom, variables);
+  const cells = { cell2: { defs: ["value"] }, cell1: { refs: ["value"] } };
+  setNotebookAnalysis(store, cells);
   await flush();
   expect(view.state.field(reactiveReferencesField).ranges).toEqual([
     { from: 0, to: 5, variableName: "value" },
   ]);
   dispatch.mockClear();
-  store.set(variablesAtom, { ...variables });
+  setNotebookAnalysis(store, cells);
   await flush();
   expect(dispatch).not.toHaveBeenCalled();
   view.dispatch({ changes: { from: 0, insert: " " } });
   await flush();
   expect(view.state.field(reactiveReferencesField).ranges[0].from).toBe(1);
-  store.set(variablesAtom, {});
+  setNotebookAnalysis(store, {});
   await flush();
   expect(view.state.field(reactiveReferencesField).ranges).toEqual([]);
 });

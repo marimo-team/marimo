@@ -1,6 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  type AnalysisCells,
+  setNotebookAnalysis,
+} from "@/__tests__/notebook-analysis";
 import { cellId, variableName } from "@/__tests__/branded";
 import {
   type DataSourceConnection,
@@ -13,8 +17,6 @@ import type { DataTable } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { storageAtom } from "@/core/storage/state";
 import type { StorageNamespace } from "@/core/storage/types";
-import { variablesAtom } from "@/core/variables/state";
-import type { Variables } from "@/core/variables/types";
 import { Logger } from "@/utils/Logger";
 import { getLensEntities } from "../entities";
 
@@ -52,7 +54,7 @@ function seedStore(opts: {
   tables?: DataTable[];
   namespaces?: StorageNamespace[];
   connections?: DataSourceConnection[];
-  variables?: Variables;
+  cells?: AnalysisCells;
 }) {
   store.set(datasetsAtom, {
     tables: opts.tables ?? [],
@@ -69,7 +71,7 @@ function seedStore(opts: {
     latestEngineSelected: DUCKDB_ENGINE,
     connectionsMap: new Map((opts.connections ?? []).map((c) => [c.name, c])),
   });
-  store.set(variablesAtom, opts.variables ?? {});
+  setNotebookAnalysis(store, opts.cells ?? {});
 }
 
 describe("getLensEntities", () => {
@@ -107,13 +109,7 @@ describe("getLensEntities", () => {
   it("excludes entities declared by a different cell", () => {
     seedStore({
       tables: [table("df")],
-      variables: {
-        [variableName("df")]: {
-          name: variableName("df"),
-          declaredBy: [OTHER_CELL],
-          usedBy: [],
-        },
-      },
+      cells: { [OTHER_CELL]: { defs: ["df"] } },
     });
 
     expect(getLensEntities(CELL)).toEqual(new Map());

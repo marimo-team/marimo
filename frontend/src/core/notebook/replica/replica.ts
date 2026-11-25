@@ -287,12 +287,21 @@ export function createNotebookReplica(
         return {
           stream: next,
           retained: null,
-          analyzed: analysisView(followed.analyzed, document.current, analysis),
+          analyzed: analysisView(
+            retained && retained.notebook?.id !== next.notebook?.id
+              ? null
+              : followed.analyzed,
+            document.current,
+            analysis,
+          ),
         };
       }
       return {
         stream: next,
-        analyzed: null,
+        analyzed:
+          followed.analyzed?.freshness === "current"
+            ? { ...followed.analyzed, freshness: "stale" }
+            : followed.analyzed,
         retained: stream.phase === "snapshot" ? retained : stream,
       };
     });
