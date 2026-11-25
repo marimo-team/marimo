@@ -72,15 +72,15 @@ const SecretsPanel: React.FC = () => {
             <SearchInput
               placeholder="Search environment variables..."
               aria-label="Search environment variables"
-              className="h-6"
-              rootClassName="flex-1 h-full border-b-0 border-r"
+              className="h-6 min-w-0"
+              rootClassName="flex-1 min-w-0 h-full border-b-0 border-r"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <button
               type="button"
               aria-label="Add environment variable"
-              className="px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
+              className="shrink-0 px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
               onClick={() =>
                 openModal(
                   <WriteSecretModal
