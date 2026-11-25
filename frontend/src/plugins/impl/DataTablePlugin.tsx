@@ -15,7 +15,6 @@ import { Table2Icon } from "lucide-react";
 import type { JSX } from "react";
 import React, {
   memo,
-  Suspense,
   useCallback,
   useEffect,
   useId,
@@ -36,6 +35,7 @@ import { filtersToFilterGroup } from "@/components/data-table/filters";
 import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
 import { inferFieldTypes } from "@/components/data-table/infer-field-types";
 import { LoadingTable } from "@/components/data-table/loading-table";
+import { LazyTableExplorerPanel } from "@/components/data-table/table-explorer-panel/lazy-table-explorer-panel";
 import {
   type DownloadAsArgs,
   DownloadAsSchema,
@@ -89,12 +89,6 @@ import {
   type FilterGroupType,
   columnToFieldTypesSchema,
 } from "./data-frames/schema";
-
-const LazyTableExplorerPanel = React.lazy(() =>
-  import("@/components/data-table/table-explorer-panel/table-explorer-panel").then(
-    (mod) => ({ default: mod.TableExplorerPanel }),
-  ),
-);
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
@@ -1074,30 +1068,24 @@ const DataTableComponent = ({
     }
     return (table: TanstackTable<unknown>) => (
       <ContextAwarePanelItem>
-        <Suspense
-          fallback={
-            <div className="p-4 text-muted-foreground">Loading explorer...</div>
-          }
-        >
-          <LazyTableExplorerPanel
-            rowIdx={viewedRowIdx}
-            setRowIdx={setViewedRow}
-            totalRows={totalRows}
-            fieldTypes={memoizedUnclampedFieldTypes}
-            getRow={getRow}
-            isSelectable={isSelectable}
-            isRowSelected={Boolean(rowSelection[viewedRowIdx])}
-            handleRowSelectionChange={handleRowSelectionChange}
-            previewColumn={preview_column}
-            totalColumns={totalColumns}
-            tableId={id}
-            table={table}
-            showRowExplorer={showRowExplorer && !isInVscode}
-            showColumnExplorer={canShowColumnExplorer && !isInVscode}
-            activeTab={panelType}
-            onTabChange={setPanelType}
-          />
-        </Suspense>
+        <LazyTableExplorerPanel
+          rowIdx={viewedRowIdx}
+          setRowIdx={setViewedRow}
+          totalRows={totalRows}
+          fieldTypes={memoizedUnclampedFieldTypes}
+          getRow={getRow}
+          isSelectable={isSelectable}
+          isRowSelected={Boolean(rowSelection[viewedRowIdx])}
+          handleRowSelectionChange={handleRowSelectionChange}
+          previewColumn={preview_column}
+          totalColumns={totalColumns}
+          tableId={id}
+          table={table}
+          showRowExplorer={showRowExplorer && !isInVscode}
+          showColumnExplorer={canShowColumnExplorer && !isInVscode}
+          activeTab={panelType}
+          onTabChange={setPanelType}
+        />
       </ContextAwarePanelItem>
     );
   }, [
