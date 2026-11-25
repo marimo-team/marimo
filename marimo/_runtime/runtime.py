@@ -172,6 +172,7 @@ from marimo._sql.bindings import (
     existing_sql_bindings,
     get_sql_bindings,
 )
+from marimo._sql.engines.duckdb import get_attached_duckdb_catalogs
 from marimo._sql.engines.types import (
     EngineCatalog,
     QueryEngine,
@@ -524,19 +525,6 @@ class Binding:
     revision: Revision
     imported: object = _NOT_IMPORTED
     sql: SQLBinding | None = None
-
-
-def _get_attached_catalogs() -> set[str]:
-    """Fetch the names of all catalogs currently attached to DuckDB."""
-    import duckdb
-
-    try:
-        result = duckdb.sql("SELECT database_name FROM duckdb_databases()")
-        if result is None:
-            return set()
-        return {row[0].lower() for row in result.fetchall()}
-    except Exception:
-        return set()
 
 
 def _in_memory_qualified_name(
@@ -1163,7 +1151,9 @@ class Kernel:
         def get_attached_catalogs() -> set[str]:
             nonlocal attached_catalogs
             if attached_catalogs is None:
-                attached_catalogs = _get_attached_catalogs()
+                attached_catalogs = {
+                    catalog.name for catalog in get_attached_duckdb_catalogs()
+                }
             return attached_catalogs
 
         with self._state_lock:

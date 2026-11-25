@@ -70,10 +70,18 @@ def get_engines_from_variables(
 def engine_to_data_source_connection(
     variable_name: VariableName, engine: BaseEngine[Any]
 ) -> DataSourceConnection:
-    databases: list[Database] = []
-    default_database: str | None = None
-    default_schema: str | None = None
+    """Describe `engine` as a datasource, with no databases if introspection fails."""
+    try:
+        return introspect_data_source_connection(variable_name, engine)
+    except Exception as e:
+        LOGGER.warning(f"Failed to introspect datasource: {e}")
+        return _make_data_source_connection(variable_name, engine)
 
+
+def introspect_data_source_connection(
+    variable_name: VariableName, engine: BaseEngine[Any]
+) -> DataSourceConnection:
+    """Describe `engine` as a datasource, raising if introspection fails."""
     if not isinstance(engine, EngineCatalog):
         return DataSourceConnection(
             source=engine.source,
@@ -83,41 +91,53 @@ def engine_to_data_source_connection(
             databases=[],
         )
 
-    try:
-        default_database = engine.get_default_database()
-        default_schema = engine.get_default_schema()
-        inference_config = engine.inference_config
+    default_database = engine.get_default_database()
+    default_schema = engine.get_default_schema()
+    inference_config = engine.inference_config
 
-        config = get_datasources_config()
-        databases = engine.get_databases(
-            include_schemas=default_if_unset(
-                config.auto_discover_schemas,
-                inference_config.auto_discover_schemas,
-            ),
-            include_tables=default_if_unset(
-                config.auto_discover_tables,
-                inference_config.auto_discover_tables,
-            ),
-            include_table_details=default_if_unset(
-                config.auto_discover_columns,
-                inference_config.auto_discover_columns,
-            ),
-        )
-    except Exception as e:
-        LOGGER.warning(f"Failed to introspect datasource: {e}")
+    config = get_datasources_config()
+    databases = engine.get_databases(
+        include_schemas=default_if_unset(
+            config.auto_discover_schemas,
+            inference_config.auto_discover_schemas,
+        ),
+        include_tables=default_if_unset(
+            config.auto_discover_tables,
+            inference_config.auto_discover_tables,
+        ),
+        include_table_details=default_if_unset(
+            config.auto_discover_columns,
+            inference_config.auto_discover_columns,
+        ),
+    )
+    return _make_data_source_connection(
+        variable_name,
+        engine,
+        databases=databases,
+        default_database=default_database,
+        default_schema=default_schema,
+    )
 
+
+def _make_data_source_connection(
+    variable_name: VariableName,
+    engine: BaseEngine[Any],
+    *,
+    databases: list[Database] | None = None,
+    default_database: str | None = None,
+    default_schema: str | None = None,
+) -> DataSourceConnection:
     display_name = (
         f"{engine.dialect} ({variable_name})"
         if variable_name != INTERNAL_DUCKDB_ENGINE
         else f"{engine.dialect} (In-Memory)"
     )
-
     return DataSourceConnection(
         source=engine.source,
         dialect=engine.dialect,
         name=variable_name,
         display_name=display_name,
-        databases=databases,
+        databases=databases or [],
         default_database=default_database,
         default_schema=default_schema,
     )

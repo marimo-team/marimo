@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Optional, cast
 
 from marimo import _loggers
 from marimo._data.get_datasets import _db_type_to_data_type, get_table_columns
@@ -34,6 +34,36 @@ if TYPE_CHECKING:
 
 # Internal engine names
 INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
+
+
+class AttachedCatalog(NamedTuple):
+    name: str
+    oid: int
+    internal: bool
+
+
+def get_attached_duckdb_catalogs() -> list[AttachedCatalog]:
+    """Fetch the catalogs attached to the default DuckDB connection.
+
+    Queries through a cursor so the default connection's pending result is
+    preserved.
+    """
+    import duckdb
+
+    default = duckdb.default_connection
+    connection = default() if callable(default) else default
+    try:
+        with connection.cursor() as cursor:
+            rows = cursor.sql(
+                "SELECT database_name, database_oid, internal "
+                "FROM duckdb_databases()"
+            ).fetchall()
+        return [
+            AttachedCatalog(name.lower(), oid, internal)
+            for name, oid, internal in rows
+        ]
+    except Exception:
+        return []
 
 
 @dataclass(frozen=True)
