@@ -1,4 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import type { Variable } from "@marimo-team/client/protocol";
+import type { FileUIPart, UIMessage } from "ai";
 import {
   afterEach,
   beforeEach,
@@ -8,16 +10,16 @@ import {
   type Mock,
   vi,
 } from "vitest";
-import { variableName } from "@/__tests__/branded";
+import { MockExecutions } from "@/__mocks__/executions";
 import * as aiContext from "@/core/ai/context/context";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
+import { document as notebookDocument } from "@/core/notebook/document/__tests__/fixtures";
+import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { store } from "@/core/state/jotai";
-import { variablesAtom } from "@/core/variables/state";
-import type { FileUIPart, UIMessage } from "ai";
 import {
   getAICompletionBody,
   getAICompletionBodyWithAttachments,
@@ -31,6 +33,15 @@ vi.mock("@/core/codemirror/copilot/getCodes", () => ({
   getCodes: vi.fn(),
 }));
 
+function setBindings(bindings: Pick<Variable, "name" | "type" | "preview">[]) {
+  MockExecutions.seed(
+    store,
+    [{ ...MockExecutions.completed("c1"), bindings }],
+    null,
+    notebookDocument(),
+  );
+}
+
 describe("getAICompletionBody", () => {
   beforeEach(() => {
     // Reset the Jotai store before each test
@@ -41,7 +52,7 @@ describe("getAICompletionBody", () => {
       latestEngineSelected: DUCKDB_ENGINE,
       connectionsMap: new Map(),
     });
-    store.set(variablesAtom, {});
+    store.set(activeNotebookReplicaAtom, null);
     (getCodes as Mock).mockReturnValue("// Some other code");
   });
 
@@ -221,23 +232,10 @@ describe("getAICompletionBody", () => {
 
   it("should return the correct completion body with mentioned variables", () => {
     // Set up test data in the Jotai store
-    const testVariables = {
-      [variableName("var1")]: {
-        name: variableName("var1"),
-        value: "string value",
-        dataType: "string",
-        declaredBy: [],
-        usedBy: [],
-      },
-      [variableName("var2")]: {
-        name: variableName("var2"),
-        value: "42",
-        dataType: "number",
-        declaredBy: [],
-        usedBy: [],
-      },
-    };
-    store.set(variablesAtom, testVariables);
+    setBindings([
+      { name: "var1", type: "string", preview: "string value" },
+      { name: "var2", type: "number", preview: "42" },
+    ]);
 
     const input = "Use @variable://var1 and @variable://var2 for analysis";
     const result = getAICompletionBody({ input });
@@ -269,16 +267,7 @@ describe("getAICompletionBody", () => {
     ];
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
-    const testVariables = {
-      [variableName("var1")]: {
-        name: variableName("var1"),
-        value: "string value",
-        dataType: "string",
-        declaredBy: [],
-        usedBy: [],
-      },
-    };
-    store.set(variablesAtom, testVariables);
+    setBindings([{ name: "var1", type: "string", preview: "string value" }]);
 
     const input = "Use @data://dataset1 and @variable://var1 for analysis";
     const result = getAICompletionBody({ input });
@@ -301,16 +290,9 @@ describe("getAICompletionBody", () => {
 
   it("should handle non-existent variables", () => {
     // Set up test data in the Jotai store
-    const testVariables = {
-      [variableName("existingVar")]: {
-        name: variableName("existingVar"),
-        value: "string value",
-        dataType: "string",
-        declaredBy: [],
-        usedBy: [],
-      },
-    };
-    store.set(variablesAtom, testVariables);
+    setBindings([
+      { name: "existingVar", type: "string", preview: "string value" },
+    ]);
 
     const input =
       "Use @variable://existingVar and @variable://nonExistentVar for analysis";
@@ -338,16 +320,9 @@ describe("getAICompletionBody", () => {
     ];
     store.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
-    const testVariables = {
-      [variableName("conflict")]: {
-        name: variableName("conflict"),
-        value: "string value",
-        dataType: "string",
-        declaredBy: [],
-        usedBy: [],
-      },
-    };
-    store.set(variablesAtom, testVariables);
+    setBindings([
+      { name: "conflict", type: "string", preview: "string value" },
+    ]);
 
     const input = "Use @data://conflict for analysis";
     const result = getAICompletionBody({ input });
@@ -375,7 +350,7 @@ describe("resolveChatContext", () => {
       latestEngineSelected: DUCKDB_ENGINE,
       connectionsMap: new Map(),
     });
-    store.set(variablesAtom, {});
+    store.set(activeNotebookReplicaAtom, null);
   });
 
   it("returns no context when the input has no @-mentions", async () => {
@@ -390,15 +365,7 @@ describe("resolveChatContext", () => {
   });
 
   it("captures resolved @-context into a data part", async () => {
-    store.set(variablesAtom, {
-      [variableName("var1")]: {
-        name: variableName("var1"),
-        value: "string value",
-        dataType: "string",
-        declaredBy: [],
-        usedBy: [],
-      },
-    });
+    setBindings([{ name: "var1", type: "string", preview: "string value" }]);
 
     const result = await resolveChatContext("inspect @variable://var1");
 

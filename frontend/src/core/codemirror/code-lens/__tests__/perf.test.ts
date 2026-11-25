@@ -8,6 +8,10 @@
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
+import {
+  type AnalysisCells,
+  setNotebookAnalysis,
+} from "@/__tests__/notebook-analysis";
 import { cellId, variableName } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
@@ -17,8 +21,6 @@ import type { QualifiedColumn } from "@/core/datasets/types";
 import type { DataTable } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { storageAtom } from "@/core/storage/state";
-import { variablesAtom } from "@/core/variables/state";
-import type { Variables } from "@/core/variables/types";
 import { findCacheSites, findDeclarationSites } from "../analyzer";
 import { getLensEntities } from "../entities";
 
@@ -32,7 +34,7 @@ describe("code-lens performance", () => {
     const CELL_COUNT = 1000;
 
     const tables: DataTable[] = [];
-    const variables: Variables = {};
+    const cells: AnalysisCells = {};
     for (let i = 0; i < DATASOURCE_COUNT; i++) {
       const name = variableName(`table_${i}`);
       tables.push({
@@ -45,11 +47,7 @@ describe("code-lens performance", () => {
         variable_name: name,
       });
       // Every datasource is owned by a distinct cell, like a real notebook.
-      variables[name] = {
-        name,
-        declaredBy: [cellId(`owner-${i}`)],
-        usedBy: [],
-      };
+      cells[`owner-${i}`] = { defs: [name] };
     }
     store.set(datasetsAtom, {
       tables,
@@ -66,7 +64,7 @@ describe("code-lens performance", () => {
       latestEngineSelected: DUCKDB_ENGINE,
       connectionsMap: new Map(),
     });
-    store.set(variablesAtom, variables);
+    setNotebookAnalysis(store, cells);
 
     const cellIds: CellId[] = Array.from({ length: CELL_COUNT }, (_, i) =>
       cellId(`cell-${i}`),

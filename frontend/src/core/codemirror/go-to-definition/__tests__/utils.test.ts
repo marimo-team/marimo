@@ -4,12 +4,13 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { cellId, variableName } from "@/__tests__/branded";
+import { setNotebookAnalysis } from "@/__tests__/notebook-analysis";
+import { cellId } from "@/__tests__/branded";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
+import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { store } from "@/core/state/jotai";
-import { variablesAtom } from "@/core/variables/state";
 import {
   goToDefinitionAtCursorPosition,
   goToDefinitionWithLspFallback,
@@ -41,7 +42,7 @@ afterEach(() => {
   }
 
   store.set(notebookAtom, initialNotebookState());
-  store.set(variablesAtom, {});
+  store.set(activeNotebookReplicaAtom, null);
 });
 
 describe("goToDefinitionAtCursorPosition", () => {
@@ -64,14 +65,9 @@ describe("goToDefinitionAtCursorPosition", () => {
     };
 
     store.set(notebookAtom, notebook);
-    store.set(variablesAtom, {
-      [variableName("a")]: {
-        dataType: "int",
-        declaredBy: [definingCell],
-        name: variableName("a"),
-        usedBy: [usageCell],
-        value: "10",
-      },
+    setNotebookAnalysis(store, {
+      [definingCell]: { defs: ["a"] },
+      [usageCell]: { refs: ["a"] },
     });
 
     const result = goToDefinitionAtCursorPosition(usageView);
@@ -106,14 +102,9 @@ def test():
     };
 
     store.set(notebookAtom, notebook);
-    store.set(variablesAtom, {
-      [variableName("a")]: {
-        dataType: "int",
-        declaredBy: [globalCell],
-        name: variableName("a"),
-        usedBy: [localCell],
-        value: "10",
-      },
+    setNotebookAnalysis(store, {
+      [globalCell]: { defs: ["a"] },
+      [localCell]: { refs: ["a"] },
     });
 
     const result = goToDefinitionAtCursorPosition(localView);
@@ -167,14 +158,9 @@ print(mymodule)`;
     } as never;
 
     store.set(notebookAtom, notebook);
-    store.set(variablesAtom, {
-      [variableName("mymodule")]: {
-        dataType: "int",
-        declaredBy: [moduleCell],
-        name: variableName("mymodule"),
-        usedBy: [usageCell],
-        value: "100",
-      },
+    setNotebookAnalysis(store, {
+      [moduleCell]: { defs: ["mymodule"] },
+      [usageCell]: { refs: ["mymodule"] },
     });
 
     const result = goToDefinitionAtCursorPosition(usageView);
@@ -214,14 +200,9 @@ print(mymodule)`;
     };
 
     store.set(notebookAtom, notebook);
-    store.set(variablesAtom, {
-      [variableName("a")]: {
-        dataType: "int",
-        declaredBy: [definingCell],
-        name: variableName("a"),
-        usedBy: [usageCell],
-        value: "10",
-      },
+    setNotebookAnalysis(store, {
+      [definingCell]: { defs: ["a"] },
+      [usageCell]: { refs: ["a"] },
     });
 
     const result = goToDefinitionAtCursorPosition(usageView);

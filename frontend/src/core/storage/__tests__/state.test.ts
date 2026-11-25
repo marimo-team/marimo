@@ -350,16 +350,13 @@ describe("storage state", () => {
     });
   });
 
-  describe("filterFromVariables", () => {
+  describe("removeNamespacesForVariables", () => {
     it("should keep namespaces whose variable is still in scope", () => {
       const ns1 = makeNamespace({ name: variableName("var_a") });
       const ns2 = makeNamespace({ name: variableName("var_b") });
       actions.setNamespaces({ namespaces: [ns1, ns2] });
 
-      actions.filterFromVariables([
-        variableName("var_a"),
-        variableName("var_b"),
-      ]);
+      actions.removeNamespacesForVariables(new Set(["unrelated"]));
 
       expect(state.namespaces).toEqual([ns1, ns2]);
     });
@@ -369,17 +366,17 @@ describe("storage state", () => {
       const ns2 = makeNamespace({ name: variableName("var_b") });
       actions.setNamespaces({ namespaces: [ns1, ns2] });
 
-      actions.filterFromVariables([variableName("var_a")]);
+      actions.removeNamespacesForVariables(new Set(["var_b"]));
 
       expect(state.namespaces).toEqual([ns1]);
     });
 
-    it("should remove all named namespaces when given an empty variable list", () => {
+    it("should remove namespaces for each removed binding", () => {
       const ns1 = makeNamespace({ name: variableName("var_a") });
       const ns2 = makeNamespace({ name: variableName("var_b") });
       actions.setNamespaces({ namespaces: [ns1, ns2] });
 
-      actions.filterFromVariables([]);
+      actions.removeNamespacesForVariables(new Set(["var_a", "var_b"]));
 
       expect(state.namespaces).toEqual([]);
     });
@@ -395,7 +392,7 @@ describe("storage state", () => {
         entries: [entry],
       });
 
-      actions.filterFromVariables([]);
+      actions.removeNamespacesForVariables(new Set(["ns"]));
 
       // Namespace removed, but entries remain (they are keyed independently)
       expect(state.namespaces).toEqual([]);

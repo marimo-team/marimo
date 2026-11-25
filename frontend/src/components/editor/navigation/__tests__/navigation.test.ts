@@ -44,8 +44,6 @@ import {
 } from "@/core/config/config";
 import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
-import { variablesAtom } from "@/core/variables/state";
-import type { Variables } from "@/core/variables/types";
 import type { CellActionsDropdownHandle } from "../../cell/cell-actions";
 import {
   useCellEditorNavigationProps,
@@ -464,8 +462,6 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should add an import before and a SQL cell after when 'q' is pressed", () => {
-      store.set(variablesAtom, {} as Variables);
-
       const { result } = renderWithProvider(() =>
         useCellNavigationProps(mockCellId, options),
       );
