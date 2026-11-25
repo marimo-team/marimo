@@ -27,7 +27,8 @@ from marimo._session.room import Room
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
+    from contextvars import Context
     from pathlib import Path
 
 
@@ -929,6 +930,19 @@ async def test_startup_retention_ignores_long_session_ttl(
     entered = asyncio.Event()
     session_manager.ttl_seconds = 3600
     mock_session.app_file_manager = AppFileManager(filename=None)
+    loop = asyncio.get_running_loop()
+    call_later = loop.call_later
+    scheduled_delays: dict[asyncio.TimerHandle, float] = {}
+
+    def record_timer(
+        delay: float,
+        callback: Callable[..., object],
+        *args: object,
+        context: Context | None = None,
+    ) -> asyncio.TimerHandle:
+        handle = call_later(delay, callback, *args, context=context)
+        scheduled_delays[handle] = delay
+        return handle
 
     async def create(**_kwargs: object) -> Session:
         entered.set()
@@ -948,14 +962,15 @@ async def test_startup_retention_ignores_long_session_ttl(
     )
     try:
         await asyncio.wait_for(entered.wait(), 5)
-        connection.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await connection
+        with monkeypatch.context() as patch:
+            patch.setattr(loop, "call_later", record_timer)
+            connection.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await connection
         key = session_manager._connection_key(session_id, NEW_FILE)
         handle = session_manager._pending[key].close_handle
         assert handle is not None
-        remaining = handle.when() - asyncio.get_running_loop().time()
-        assert 0 < remaining <= _STARTUP_RECONNECT_SECONDS
+        assert 0 < scheduled_delays[handle] <= _STARTUP_RECONNECT_SECONDS
     finally:
         await session_manager.shutdown()
 
