@@ -73,20 +73,6 @@ components:
       - breakpoints
       title: BreakpointsNotification
       type: object
-    CacheClearedNotification:
-      description: "Execution cache cleared result.\n\nAttributes:\n    bytes_freed:\
-        \ Bytes freed by clearing cache."
-      properties:
-        bytes_freed:
-          type: integer
-        op:
-          enum:
-          - cache-cleared
-      required:
-      - op
-      - bytes_freed
-      title: CacheClearedNotification
-      type: object
     CacheInfoNotification:
       description: "Execution cache statistics.\n\nAttributes:\n    hits: Cache hits.\n\
         \    misses: Cache misses.\n    time: Time spent on cache operations (seconds).\n\

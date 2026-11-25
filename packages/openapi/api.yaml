@@ -410,20 +410,6 @@ components:
       - breakpoints
       title: BreakpointsNotification
       type: object
-    CacheClearedNotification:
-      description: "Execution cache cleared result.\n\nAttributes:\n    bytes_freed:\
-        \ Bytes freed by clearing cache."
-      properties:
-        bytes_freed:
-          type: integer
-        op:
-          enum:
-          - cache-cleared
-      required:
-      - op
-      - bytes_freed
-      title: CacheClearedNotification
-      type: object
     CacheConfig:
       description: Configuration for caching.
       properties:
@@ -4297,7 +4283,6 @@ components:
       - $ref: '#/components/schemas/StorageEntriesNotification'
       - $ref: '#/components/schemas/StorageDownloadReadyNotification'
       - $ref: '#/components/schemas/SecretKeysResultNotification'
-      - $ref: '#/components/schemas/CacheClearedNotification'
       - $ref: '#/components/schemas/CacheInfoNotification'
       - $ref: '#/components/schemas/FocusCellNotification'
       - $ref: '#/components/schemas/CallbackOutputNotification'
@@ -4313,7 +4298,6 @@ components:
           alert: '#/components/schemas/AlertNotification'
           banner: '#/components/schemas/BannerNotification'
           breakpoints: '#/components/schemas/BreakpointsNotification'
-          cache-cleared: '#/components/schemas/CacheClearedNotification'
           cache-info: '#/components/schemas/CacheInfoNotification'
           callback-output: '#/components/schemas/CallbackOutputNotification'
           completed-run: '#/components/schemas/CompletedRunNotification'

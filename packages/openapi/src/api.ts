@@ -3886,18 +3886,6 @@ export interface components {
       op: "breakpoints";
     };
     /**
-     * CacheClearedNotification
-     * @description Execution cache cleared result.
-     *
-     *     Attributes:
-     *         bytes_freed: Bytes freed by clearing cache.
-     */
-    CacheClearedNotification: {
-      bytes_freed: number;
-      /** @enum {unknown} */
-      op: "cache-cleared";
-    };
-    /**
      * CacheConfig
      * @description Configuration for caching.
      */
@@ -6219,7 +6207,6 @@ export interface components {
       | components["schemas"]["StorageEntriesNotification"]
       | components["schemas"]["StorageDownloadReadyNotification"]
       | components["schemas"]["SecretKeysResultNotification"]
-      | components["schemas"]["CacheClearedNotification"]
       | components["schemas"]["CacheInfoNotification"]
       | components["schemas"]["FocusCellNotification"]
       | components["schemas"]["CallbackOutputNotification"]

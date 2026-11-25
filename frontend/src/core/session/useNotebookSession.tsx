@@ -336,9 +336,6 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       case "cache-info":
         setCacheInfo(msg.data);
         return;
-      case "cache-cleared":
-        // Cache cleared, could refresh cache info if needed
-        return;
       case "data-source-connections":
         addDataSourceConnection({
           connections: msg.data.connections.map((conn) => ({

@@ -66,7 +66,6 @@ with app.setup:
         o.FocusCellNotification,
         o.BreakpointsNotification,
         o.SecretKeysResultNotification,
-        o.CacheClearedNotification,
         o.CacheInfoNotification,
     ]
 
