@@ -227,6 +227,49 @@ def test_find_python_code_in_github_issue_multiple_codes() -> None:
     assert actual == expected
 
 
+def test_find_python_code_in_github_issue_stops_at_first_fence() -> None:
+    # Regression test for marimo-team/marimo#12073: a python block
+    # followed by an error log / shell block must not leak the
+    # trailing blocks into the extracted code.
+    body = """
+    ```python
+    import marimo as mo
+    app = mo.App()
+    ```
+
+    Here is my error:
+    ```
+    ModuleNotFoundError: No module named 'xyz'
+    ```
+    """
+    expected = "\n    import marimo as mo\n    app = mo.App()\n    "
+    actual = GitHubIssueReader._find_python_code_in_github_issue(body)
+    assert actual == expected
+    compile(actual, "<github-issue>", "exec")
+
+    body = """
+    ```python
+    print("hello")
+    ```
+
+    ```bash
+    marimo edit app.py
+    ```
+    """
+    expected = '\n    print("hello")\n    '
+    actual = GitHubIssueReader._find_python_code_in_github_issue(body)
+    assert actual == expected
+
+
+def test_find_python_code_in_github_issue_unclosed_block() -> None:
+    body = """
+    ```python
+    print("never closed")
+    """
+    with pytest.raises(ValueError):
+        GitHubIssueReader._find_python_code_in_github_issue(body)
+
+
 def test_validate_name_with_invalid_extension():
     with pytest.raises(click.ClickException):
         validate_name(
