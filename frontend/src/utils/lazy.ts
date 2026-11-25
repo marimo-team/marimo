@@ -9,6 +9,7 @@ interface LazyComponentWithPreload<T> {
    * import is memoized).
    */
   preload: () => Promise<{ default: React.ComponentType<T> }>;
+  readonly loadedComponent: React.ComponentType<T> | undefined;
   Component: React.LazyExoticComponent<React.ComponentType<T>>;
 }
 
@@ -16,20 +17,23 @@ export const reactLazyWithPreload = <T>(
   factory: () => Promise<{ default: React.ComponentType<T> }>,
 ): LazyComponentWithPreload<T> => {
   let component: Promise<{ default: React.ComponentType<T> }> | null = null;
+  let loadedComponent: React.ComponentType<T> | undefined;
 
   const preload = async () => {
     if (!component) {
-      component = factory();
+      component = factory().then((module) => {
+        loadedComponent = module.default;
+        return module;
+      });
     }
     return component;
   };
 
-  const LazyComponent = React.lazy(() => {
-    return preload();
-  });
-
   return {
     preload,
-    Component: LazyComponent,
+    get loadedComponent() {
+      return loadedComponent;
+    },
+    Component: React.lazy(preload),
   };
 };
