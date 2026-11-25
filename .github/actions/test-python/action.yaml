@@ -30,7 +30,7 @@ runs:
         cp frontend/public/favicon.ico marimo/_static/favicon.ico
 
     # Checkout is shallow, so fetch just the base branch for `git diff` in
-    # packages/pytest_changed. Pushes to main run every test and never diff.
+    # packages/pytest_changed.
     - name: Fetch base branch
       if: ${{ github.base_ref }}
       shell: bash
