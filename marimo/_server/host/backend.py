@@ -100,7 +100,7 @@ class SessionBackend(SessionConsumer):
         manager: SessionManager,
         observe: Observe,
         sink: Sink,
-        document_changed: Callable[[], None] | None = None,
+        document_changed: Callable[[bool], None] | None = None,
         session_attached: Callable[[], None] | None = None,
         session_detached: Callable[[Session], None] | None = None,
         *,
@@ -531,7 +531,9 @@ class SessionBackend(SessionConsumer):
             return
         if isinstance(message, NotebookDocumentTransactionNotification):
             if self._document_changed is not None and self.session is not None:
-                self._document_changed()
+                self._document_changed(
+                    message.transaction.source == "file-watch"
+                )
             return
         if isinstance(message, StartupProgressNotification):
             if (kernel := self._kernel) is not None:

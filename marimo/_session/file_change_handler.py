@@ -95,13 +95,11 @@ class EditModeReloadStrategy(ReloadStrategy):
             if isinstance(change, DeleteCell)
         }
 
-        if transaction.changes:
-            session.notify(
-                NotebookDocumentTransactionNotification(
-                    transaction=transaction
-                ),
-                from_consumer_id=None,
-            )
+        # Even an empty diff can confirm that an editor change is now on disk.
+        session.notify(
+            NotebookDocumentTransactionNotification(transaction=transaction),
+            from_consumer_id=None,
+        )
 
         # Auto-run changed cells if configured.
         watcher_on_save = (

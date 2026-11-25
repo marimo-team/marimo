@@ -604,7 +604,9 @@ class SessionBridge(SessionEventListener):
             notebook.mark_saved(etag)
 
     # TODO(MO-7927): Remove this mirror. https://linear.app/marimo/issue/MO-7927
-    def _mirror(self, notebook_id: protocol.NotebookId) -> None:
+    def _mirror(
+        self, notebook_id: protocol.NotebookId, *, saved: bool = False
+    ) -> None:
         """Bring the document up to date with the session's after it changed."""
         session = self.session_for_notebook(notebook_id)
         try:
@@ -614,7 +616,9 @@ class SessionBridge(SessionEventListener):
         if session is None or notebook is None:
             return
         cells, app_config = documents.from_session(session)
-        self._mirrored[notebook_id] = notebook.replace(cells, app_config)
+        self._mirrored[notebook_id] = notebook.replace(
+            cells, app_config, saved=saved
+        )
 
     def _project_path(self, path: Path) -> Path:
         root = self.index.root
@@ -776,7 +780,9 @@ class SessionBridge(SessionEventListener):
             observe,
             sink,
             cell_order=cell_order,
-            document_changed=lambda: self._mirror(notebook_id),
+            document_changed=lambda saved: self._mirror(
+                notebook_id, saved=saved
+            ),
             session_attached=lambda: self._attach_document(notebook_id),
             session_detached=lambda session: self._detach_document(
                 notebook_id, session

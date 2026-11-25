@@ -36,6 +36,10 @@ from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.events import MarimoEvent, MarimoMessage
 from marimo._server.models.home import MarimoFile
 from marimo._server.workspace import FixedFilesWorkspace
+from marimo._session.file_change_handler import (
+    EditModeReloadStrategy,
+    FileChangeCoordinator,
+)
 from marimo._session.model import SessionMode
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils.code import hash_code
@@ -916,10 +920,52 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     bridge.close()
 
 
-def replace_code(cell: protocol.Cell, code: str) -> protocol.ReplaceCell:
+def replace_code(cell: DocumentCell, code: str) -> protocol.ReplaceCell:
     return protocol.ReplaceCell(
         base_etag=cell.etag, cell=protocol.CellInput(id=cell.id, code=code)
     )
+
+
+async def test_watched_file_updates_the_saved_revision(
+    manager: FakeManager, tmp_path: Path
+) -> None:
+    from marimo._session.notebook import AppFileManager
+
+    prepare(manager, tmp_path, "a.py")
+    path = tmp_path / "a.py"
+    path.write_text(NOTEBOOK)
+    editor = FakeSession(str(path))
+    editor.app_file_manager = AppFileManager(str(path))
+    editor.document = editor.app_file_manager.app.cell_manager.document
+    manager.sessions["browser"] = editor
+    bridge = SessionBridge(manager)  # type: ignore[arg-type]
+    await bridge.open()
+    try:
+        (record,) = bridge.host.notebooks.values()
+        notebook = await bridge.host.notebook(record.id)
+        session = bridge.session_for_notebook(record.id)
+        assert session is not None
+        watcher = FileChangeCoordinator(
+            EditModeReloadStrategy(session.config_manager)
+        )
+
+        path.write_text(NOTEBOOK.replace("x = 1", "x = 2"))
+        await watcher.handle_change(path, session)
+        (cell,) = notebook.document
+        assert cell.code == "x = 2"
+        assert notebook.saved_etag == notebook.document.etag
+
+        edited = await bridge.edit(
+            record.id, [replace_code(cell, "x = 3")], request_id="edit"
+        )
+        assert edited.document.saved_etag != edited.document.etag
+
+        # The file now matches the editor, so the reload has no cell changes.
+        path.write_text(NOTEBOOK.replace("x = 1", "x = 3"))
+        await watcher.handle_change(path, session)
+        assert notebook.saved_etag == edited.document.etag
+    finally:
+        bridge.close()
 
 
 async def test_save_writes_the_cells_and_keeps_the_app_config(
