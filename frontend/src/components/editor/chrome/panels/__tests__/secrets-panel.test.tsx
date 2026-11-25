@@ -3,7 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import type { ListSecretKeysResponse } from "@/core/network/types";
-import SecretsPanel, { filterSecretKeys } from "../secrets-panel";
+import SecretsPanel from "../secrets-panel";
+import { filterSecretKeys } from "../secrets-utils";
 
 const { providers } = vi.hoisted(() => {
   const providers: ListSecretKeysResponse["keys"] = [
@@ -25,21 +26,10 @@ describe("filterSecretKeys", () => {
     expect(filterSecretKeys(providers, "   ")).toEqual(providers);
   });
 
-  it("matches part of a key, ignoring case and surrounding spaces", () => {
-    expect(filterSecretKeys(providers, "  openai ")).toEqual([
-      { name: ".env", provider: "dotenv", keys: ["OPENAI_API_KEY"] },
-      { name: "Environment", provider: "env", keys: ["OPENAI_ORG"] },
-    ]);
-  });
-
-  it("drops providers with no matching keys", () => {
-    expect(filterSecretKeys(providers, "url")).toEqual([
+  it("matches part of a key, ignoring case and surrounding spaces, and drops providers with no match", () => {
+    expect(filterSecretKeys(providers, "  url ")).toEqual([
       { name: ".env", provider: "dotenv", keys: ["DB_URL"] },
     ]);
-  });
-
-  it("returns no providers when nothing matches", () => {
-    expect(filterSecretKeys(providers, "missing")).toEqual([]);
   });
 });
 

@@ -16,32 +16,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-import type { ListSecretKeysResponse } from "@/core/network/types";
 import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { PanelEmptyState } from "./empty-state";
+import { filterSecretKeys } from "./secrets-utils";
 import { sortProviders, WriteSecretModal } from "./write-secret-modal";
-
-type SecretKeyProviders = ListSecretKeysResponse["keys"];
-
-export function filterSecretKeys(
-  providers: SecretKeyProviders,
-  search: string,
-): SecretKeyProviders {
-  const query = search.trim().toLowerCase();
-  if (!query) {
-    return providers;
-  }
-  return providers
-    .map((provider) => ({
-      ...provider,
-      keys: provider.keys.filter((key) => key.toLowerCase().includes(query)),
-    }))
-    .filter((provider) => provider.keys.length > 0);
-}
 
 const SecretsPanel: React.FC = () => {
   const { openModal, closeModal } = useImperativeModal();
