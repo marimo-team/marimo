@@ -28,7 +28,6 @@ from marimo._messaging.notification import (
     ExecutionNotification,
     PdbInputNotification,
     StartupProgressNotification,
-    VariablesNotification,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.api.deps import AppStateBase
@@ -1387,7 +1386,9 @@ async def test_session_notifications_join_the_notebook_stream_once(
     bridge.host.subscribe(other.append, notebook_id=b.id)
     bridge.host.subscribe(filtered.append, notebook_id=a.id, kinds={"marimo"})
 
-    variables = VariablesNotification(variables=[])
+    progress = StartupProgressNotification(
+        phase="starting-kernel", logs="", log_mode="replace"
+    )
     planned = ExecutionNotification(
         run_id="run-1",
         execution_id="execution-1",
@@ -1398,17 +1399,17 @@ async def test_session_notifications_join_the_notebook_stream_once(
     )
     cell = CellNotification(cell_id="cell-1", status="queued")
     prompt = PdbInputNotification(cell_id="cell-1", input_id="p1")
-    session.broadcast(variables)
+    session.broadcast(progress)
     session.broadcast(planned)
     session.broadcast(cell)
     session.broadcast(prompt)
     session.session_view.snapshot_notifications.return_value = [
         cell,
         prompt,
-        variables,
+        progress,
     ]
     assert [e.event.data for e in bridge.session_snapshot(a.id)] == [
-        MarimoMessage(variables)
+        MarimoMessage(progress)
     ]
 
     session.session_view.snapshot_notifications.assert_called_once_with(
@@ -1419,7 +1420,7 @@ async def test_session_notifications_join_the_notebook_stream_once(
     assert catalog == other == []
     assert filtered == [e for e in first if isinstance(e.event, MarimoEvent)]
     assert [(e.run_id, e.event.data) for e in filtered] == [
-        (None, MarimoMessage(variables)),
+        (None, MarimoMessage(progress)),
     ]
     bridge.close()
 

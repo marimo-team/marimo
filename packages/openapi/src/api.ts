@@ -6191,8 +6191,6 @@ export interface components {
       | components["schemas"]["StartupLogsNotification"]
       | components["schemas"]["StartupProgressNotification"]
       | components["schemas"]["KernelStartupErrorNotification"]
-      | components["schemas"]["VariablesNotification"]
-      | components["schemas"]["VariableValuesNotification"]
       | components["schemas"]["QueryParamsSetNotification"]
       | components["schemas"]["QueryParamsAppendNotification"]
       | components["schemas"]["QueryParamsDeleteNotification"]
@@ -6597,13 +6595,6 @@ export interface components {
     };
     /** Format: request-id */
     RequestId: TypedString<"RequestId">;
-    /** Revision */
-    Revision: {
-      /** @description Identifies an execution. Unique within the host. */
-      execution_id: string;
-      /** @description How many times the value has been updated since it was produced. Zero at binding. */
-      update: number;
-    };
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
@@ -7567,79 +7558,8 @@ export interface components {
       previewValue: unknown;
       valueType: string;
     };
-    /**
-     * VariableDeclarationNotification
-     * @description Variable declaration and usage for dataflow graph.
-     *
-     *     Attributes:
-     *         name: Variable name.
-     *         declared_by: Cell IDs that define this variable.
-     *         used_by: Cell IDs that use this variable.
-     */
-    VariableDeclarationNotification: {
-      declared_by: components["schemas"]["CellId"][];
-      name: components["schemas"]["VariableName"];
-      used_by: components["schemas"]["CellId"][];
-    };
     /** Format: variable-name */
     VariableName: TypedString<"VariableName">;
-    /**
-     * VariableRemoval
-     * @description A binding removed from the runtime's namespace.
-     */
-    VariableRemoval: {
-      execution_id: string;
-      name: string;
-    };
-    /**
-     * VariableValue
-     * @description Variable value and type for variables panel.
-     *
-     *     Attributes:
-     *         name: Variable name.
-     *         value: String representation of value.
-     *         datatype: Data type as string.
-     */
-    VariableValue: {
-      datatype: string | null;
-      /** @default null */
-      execution_id?: string | null;
-      name: string;
-      /** @default null */
-      revision?: components["schemas"]["Revision"] | null;
-      value: string | null;
-    };
-    /**
-     * VariableValuesNotification
-     * @description Current variable values.
-     *
-     *     Attributes:
-     *         variables: Variables with current values and types.
-     *         removed: Bindings that no longer exist, identified by their producer.
-     *         exempt_cell: The cell these updates do not outdate. It is the cell
-     *             whose own code made them, when it does not run again for them.
-     */
-    VariableValuesNotification: {
-      /** @default null */
-      exempt_cell?: components["schemas"]["CellId"] | null;
-      /** @enum {unknown} */
-      op: "variable-values";
-      /** @default [] */
-      removed?: components["schemas"]["VariableRemoval"][];
-      variables: components["schemas"]["VariableValue"][];
-    };
-    /**
-     * VariablesNotification
-     * @description Variable dataflow graph.
-     *
-     *     Attributes:
-     *         variables: Variable declarations and usage.
-     */
-    VariablesNotification: {
-      /** @enum {unknown} */
-      op: "variables";
-      variables: components["schemas"]["VariableDeclarationNotification"][];
-    };
     /**
      * VenvConfig
      * @description Configuration for an external Python environment in edit mode.

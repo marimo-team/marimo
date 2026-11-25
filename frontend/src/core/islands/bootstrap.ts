@@ -190,8 +190,6 @@ function handleNotification(
       case "pdb-output":
       case "breakpoints":
       case "active-line":
-      case "variables":
-      case "variable-values":
       case "data-column-preview":
       case "sql-table-preview":
       case "sql-table-list-preview":

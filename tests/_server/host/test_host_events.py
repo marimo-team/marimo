@@ -21,6 +21,8 @@ from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
     NotificationMessage,
     PdbOutputNotification,
+    VariablesNotification,
+    VariableValuesNotification,
 )
 from marimo._server.host.api import _frame
 from marimo._server.host.events import (
@@ -157,6 +159,8 @@ def test_extension_routing_and_control_filters() -> None:
             transaction=Transaction(changes=(), source="code-mode")
         ),
         InterruptedNotification(run_id="run"),
+        VariablesNotification(variables=[]),
+        VariableValuesNotification(variables=[]),
     ],
 )
 def test_kernel_notifications_stay_internal(

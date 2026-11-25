@@ -971,7 +971,7 @@ class SessionView:
         """Copy retained notifications for a connecting client.
 
         The editor snapshot carries command transcripts and debugger state.
-        Only a full session snapshot includes kernel cell updates.
+        Only a full session snapshot includes kernel cell and variable updates.
         """
         notifications: list[NotificationMessage] = [
             EnvironmentStateNotification(source=source, state=state)
@@ -986,9 +986,9 @@ class SessionView:
         self, scope: SnapshotScope
     ) -> list[NotificationMessage]:
         all_notifications: list[NotificationMessage] = [self.breakpoints]
-        if self.variable_notifications.variables:
+        if scope == "full" and self.variable_notifications.variables:
             all_notifications.append(self.variable_notifications)
-        if self.variable_values:
+        if scope == "full" and self.variable_values:
             all_notifications.append(
                 VariableValuesNotification(
                     variables=list(self.variable_values.values())

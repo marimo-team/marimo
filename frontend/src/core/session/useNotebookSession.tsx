@@ -223,9 +223,6 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       case "pdb-output":
         showCommandOutput(msg.data);
         return;
-      case "variables":
-      case "variable-values":
-        return;
       case "alert":
         toast({
           title: msg.data.title,
