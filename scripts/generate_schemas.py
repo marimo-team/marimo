@@ -39,7 +39,6 @@ with app.setup:
         o.FunctionCallResultNotification,
         o.RemoveUIElementsNotification,
         o.UIElementMessageNotification,
-        o.InterruptedNotification,
         o.CompletedRunNotification,
         o.KernelReadyNotification,
         o.CompletionResultNotification,

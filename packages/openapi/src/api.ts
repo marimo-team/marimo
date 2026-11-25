@@ -5408,15 +5408,6 @@ export interface components {
         [key: string]: string;
       };
     };
-    /**
-     * InterruptedNotification
-     * @description Kernel was interrupted by user (SIGINT/Ctrl+C).
-     */
-    InterruptedNotification: {
-      /** @enum {unknown} */
-      op: "interrupted";
-      run_id?: string | null;
-    };
     /** InvokeAiToolRequest */
     InvokeAiToolRequest: {
       arguments: Record<string, any>;
@@ -6199,7 +6190,6 @@ export interface components {
       | components["schemas"]["ModelLifecycleNotification"]
       | components["schemas"]["RemoveUIElementsNotification"]
       | components["schemas"]["ReloadNotification"]
-      | components["schemas"]["InterruptedNotification"]
       | components["schemas"]["CompletedRunNotification"]
       | components["schemas"]["KernelReadyNotification"]
       | components["schemas"]["CompletionResultNotification"]

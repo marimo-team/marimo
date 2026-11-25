@@ -1160,7 +1160,6 @@ EditorNotification = (
     | RemoveUIElementsNotification
     # Notebook lifecycle
     | ReloadNotification
-    | InterruptedNotification
     | CompletedRunNotification
     | KernelReadyNotification
     # Editor
@@ -1217,5 +1216,6 @@ NotificationMessage = (
     EditorNotification
     | CellNotification
     | ExecutionNotification
+    | InterruptedNotification
     | NotebookDocumentTransactionNotification
 )

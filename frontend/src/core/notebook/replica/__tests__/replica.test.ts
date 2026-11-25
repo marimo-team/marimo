@@ -283,7 +283,7 @@ describe("NotebookReplica lifetime", () => {
     }
     attempt.receive({
       event: "marimo",
-      data: { marimo: { op: "interrupted" } },
+      data: { marimo: { op: "reload" } },
     });
     await vi.waitFor(() =>
       expect(store.get(client.connectionAtom).state).toBe(
@@ -506,10 +506,10 @@ describe("NotebookReplica lifetime", () => {
     earlier.receive(kernelReady);
     current.receive({
       event: "marimo",
-      data: { marimo: { op: "interrupted" } },
+      data: { marimo: { op: "reload" } },
     });
     expect(onNotification).toHaveBeenCalledExactlyOnceWith({
-      data: { op: "interrupted" },
+      data: { op: "reload" },
     });
   });
 
@@ -563,7 +563,7 @@ describe("NotebookReplica lifetime", () => {
     const { receive } = await opened();
     receive({ event: "notebook", data: { notebook } });
     receive(kernelReady);
-    receive({ event: "marimo", data: { marimo: { op: "interrupted" } } });
+    receive({ event: "marimo", data: { marimo: { op: "reload" } } });
     onNotification.mockImplementationOnce(() => current.abort());
 
     receive({ event: "ready", id: "1", data: {} });
@@ -578,8 +578,8 @@ describe("NotebookReplica lifetime", () => {
     const { receive } = await opened();
     receive({ event: "notebook", data: { notebook } });
     receive(kernelReady);
-    const interrupted = { op: "interrupted" };
-    receive({ event: "marimo", data: { marimo: interrupted } });
+    const reload = { op: "reload" };
+    receive({ event: "marimo", data: { marimo: reload } });
     const error = new Error("notification failed");
     onNotification.mockImplementationOnce(() => {
       throw error;
@@ -592,7 +592,7 @@ describe("NotebookReplica lifetime", () => {
     receive({ event: "ready", id: "1", data: {} });
     expect(onNotification.mock.calls).toEqual([
       [{ data: kernelReady.data.marimo }],
-      [{ data: interrupted }],
+      [{ data: reload }],
     ]);
     expect(report).toHaveBeenCalledOnce();
     expect(report.mock.calls[0][0]).toThrow(error);
