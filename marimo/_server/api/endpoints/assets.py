@@ -16,7 +16,6 @@ from starlette.responses import (
     Response,
     StreamingResponse,
 )
-from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
 from marimo._config.manager import get_default_config_manager
@@ -31,6 +30,7 @@ from marimo._server.api.auth import TOKEN_QUERY_PARAM
 from marimo._server.api.deps import AppState
 from marimo._server.files.path_validator import PathValidator
 from marimo._server.router import APIRouter
+from marimo._server.static_assets import static_assets
 from marimo._session.model import SessionMode
 from marimo._templates import (
     home_page_template,
@@ -109,13 +109,11 @@ if not follow_symlinks and _has_symlinks(assets_dir):
         "follow_symlink = true"
     )
 
+
 try:
     router.mount(
         "/assets",
-        app=StaticFiles(
-            directory=assets_dir,
-            follow_symlink=follow_symlinks,
-        ),
+        app=static_assets(assets_dir, follow_symlink=follow_symlinks),
         name="assets",
     )
 except RuntimeError:

@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 import subprocess
 import sys
 import textwrap
+from functools import lru_cache
 
 from marimo import _loggers
 from marimo._ast.parse import unwrap_cell_body
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import CellId_t
+from marimo._utils.async_map import bounded_map
 
 LOGGER = _loggers.marimo_logger()
 
@@ -22,23 +25,22 @@ async def _run_subprocess_safe(
 ) -> tuple[bytes, bytes, int]:
     """Run subprocess safely on all platforms, including Windows."""
     try:
-        # Try asyncio first (works on most platforms)
-        if input_data is not None:
-            process = await asyncio.create_subprocess_exec(
-                *args,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+        process = await asyncio.create_subprocess_exec(
+            *args,
+            stdin=asyncio.subprocess.PIPE if input_data is not None else None,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
             stdout, stderr = await process.communicate(input_data)
-        else:
-            process = await asyncio.create_subprocess_exec(
-                *args,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await process.communicate()
-
+        except asyncio.CancelledError:
+            if process.returncode is None:
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+            await process.communicate()
+            raise
         return stdout, stderr, process.returncode or 0
     except NotImplementedError:
         # Windows may throw NotImplementedError if using _WindowsSelectorEventLoop
@@ -61,49 +63,61 @@ async def _run_subprocess_safe(
         return await asyncio.to_thread(run_sync)
 
 
+@lru_cache(maxsize=1)
+def _ruff_binary() -> str:
+    try:
+        # Keep project modules out of the server and Ruff's discovery process.
+        return subprocess.check_output(
+            [
+                sys.executable,
+                "-I",
+                "-c",
+                "from ruff.__main__ import find_ruff_bin; print(find_ruff_bin())",
+            ],
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=30,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        binary = shutil.which("ruff")
+        if binary is not None:
+            return binary
+        raise ModuleNotFoundError(
+            "To enable code formatting, please install ruff", name="ruff"
+        ) from None
+
+
 async def ruff(
     codes: CellCodes, *cmd: str, stdin_filename: str | None = None
 ) -> CellCodes:
-    # Try with sys.executable first
-    ruff_cmd = [sys.executable, "-P", "-m", "ruff"]
-    stdout, _stderr, returncode = await _run_subprocess_safe(
-        *ruff_cmd, "--help"
-    )
+    if not codes:
+        return {}
+    command = [_ruff_binary(), *cmd]
+    if stdin_filename:
+        command.extend(["--stdin-filename", stdin_filename])
+    command.append("-")
 
-    # If that fails, try global ruff
-    if returncode != 0:
-        ruff_cmd = ["ruff"]
-        stdout, _stderr, returncode = await _run_subprocess_safe(
-            *ruff_cmd, "--help"
-        )
-        if returncode != 0:
-            raise ModuleNotFoundError(
-                "To enable code formatting, please install ruff", name="ruff"
-            )
-
-    formatted_codes: CellCodes = {}
-    for key, code in codes.items():
+    async def format_cell(code: str) -> str | None:
         try:
-            command = [*ruff_cmd, *cmd]
-            if stdin_filename:
-                command.extend(["--stdin-filename", stdin_filename])
-            command.append("-")
-
             stdout, _stderr, returncode = await _run_subprocess_safe(
                 *command, input_data=code.encode()
             )
-
             if returncode != 0:
                 raise FormatError("Failed to format code with ruff")
-
-            formatted = stdout.decode()
-            formatted_codes[key] = formatted.strip()
+            return stdout.decode().strip()
         except Exception as e:
             LOGGER.error("Failed to format code with ruff")
             LOGGER.debug(e)
-            continue
+            return None
 
-    return formatted_codes
+    results = await bounded_map(
+        format_cell, list(codes.values()), concurrency=8
+    )
+    return {
+        key: result
+        for key, result in zip(codes, results, strict=True)
+        if result is not None
+    }
 
 
 class Formatter:
