@@ -74,7 +74,11 @@ from marimo._runtime.commands import (
     UpdateUIElementCommand,
 )
 from marimo._runtime.layout.layout import LayoutConfig
-from marimo._session.state.session_view import ModelReplayState, SessionView
+from marimo._session.state.session_view import (
+    ModelReplayState,
+    SessionView,
+    SnapshotScope,
+)
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, RequestId, VariableName, WidgetModelId
 from marimo._utils.parse_dataclass import parse_raw
@@ -2560,6 +2564,33 @@ def test_preparation_remains_available_after_package_changes(
             logs={},
         ),
     ]
+
+
+@pytest.mark.parametrize("scope", ["full", "editor", "host"])
+def test_only_full_snapshots_replay_variable_notifications(
+    session_view: SessionView, scope: SnapshotScope
+) -> None:
+    declarations = VariablesNotification(
+        variables=[
+            VariableDeclarationNotification(
+                name="x", declared_by=[cell_id], used_by=[]
+            )
+        ]
+    )
+    values = VariableValuesNotification(
+        variables=[create_variable_value(name="x", value=1)]
+    )
+    session_view.add_notification(declarations)
+    session_view.add_notification(values)
+
+    replayed = [
+        notification
+        for notification in session_view.snapshot_notifications(scope=scope)
+        if isinstance(
+            notification, (VariablesNotification, VariableValuesNotification)
+        )
+    ]
+    assert replayed == ([declarations, values] if scope == "full" else [])
 
 
 def test_host_snapshot_omits_private_cell_state(
