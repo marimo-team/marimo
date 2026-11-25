@@ -7,6 +7,7 @@ import signal
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from functools import partial
 from typing import (
     IO,
@@ -285,6 +286,29 @@ def safe_popen(
 _REAP_TASKS: set[asyncio.Task[None]] = set()
 
 
+@dataclass(frozen=True)
+class ProcessReaper:
+    _process: ProcessLike
+    _task: asyncio.Task[None]
+
+    async def wait(self) -> None:
+        """Reap this child before its owner exits, even on cancellation."""
+        cancellation = None
+        while not self._task.done():
+            # The reaper sleeps through the TERM grace period. An owner
+            # waiting for shutdown can reap a child that exits sooner.
+            if _process_finished(self._process):
+                self._task.cancel()
+            try:
+                await asyncio.wait((self._task,), timeout=0.05)
+            except asyncio.CancelledError as exc:
+                cancellation = exc
+        if cancellation is not None:
+            raise cancellation
+        if not self._task.cancelled():
+            self._task.result()
+
+
 def _process_finished(process: ProcessLike) -> bool:
     """Return whether the process has finished without blocking."""
     # NB: It is not safe to call os.waitpid() directly because
@@ -375,20 +399,20 @@ def interrupt_kernel_process(
         pass
 
 
-def try_kill_process_and_group(process: ProcessLike) -> None:
+def try_kill_process_and_group(process: ProcessLike) -> ProcessReaper | None:
     """Attempt to kill the process group to which process belongs.
 
-    Refuses to kill the group if it the current process belongs to it.
+    Refuses to kill the group if the current process belongs to it.
 
     Regardless, tries to kill the process.
 
-    If running in an event loop, starts a task to reap the process on Unix-like
-    systems. If not running in an event loop, it is the caller's responsibility
-    to reap the process.
+    On Unix-like systems, returns a handle to the reap task if one was
+    scheduled on the running loop. Without a loop, the caller must reap
+    the process.
     """
     pid = process.pid
     if pid is None or _process_finished(process):
-        return
+        return None
 
     if is_windows():
         # A launcher such as uv may sit between us and the kernel; kill
@@ -406,7 +430,7 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
                 process.terminate()
         except Exception:
             process.terminate()
-        return
+        return None
 
     pgid = os.getpgid(pid)
     target_pgid: int | None
@@ -421,15 +445,16 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         os.killpg(pgid, signal.SIGTERM)
 
     if _process_finished(process):
-        return
+        return None
 
     try:
         loop = asyncio.get_running_loop()
-        task = loop.create_task(_reap_process_unix(process, target_pgid))
-        _REAP_TASKS.add(task)
-        task.add_done_callback(_REAP_TASKS.discard)
     except RuntimeError:
-        pass
+        return None
+    task = loop.create_task(_reap_process_unix(process, target_pgid))
+    _REAP_TASKS.add(task)
+    task.add_done_callback(_REAP_TASKS.discard)
+    return ProcessReaper(process, task)
 
 
 def kill_subprocess(

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from marimo._session.room import Room
     from marimo._session.state.session_view import SessionView
     from marimo._types.ids import ConsumerId, StableSessionId
+    from marimo._utils.subprocess import ProcessReaper
     from marimo._utils.typed_connection import TypedConnection
 
 
@@ -77,12 +78,14 @@ class KernelManager(Protocol):
         """Interrupt the running kernel."""
         ...
 
-    def close_kernel(self, *, graceful: bool = False) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> ProcessReaper | None:
         """Close the kernel and clean up resources.
 
         When `graceful` is True, wait (join) for the kernel to flush pending
         work (e.g. cache writes) before killing it. The join is off by default
         so event-loop callers aren't stalled by it.
+
+        Returns a handle if a process still needs to be reaped asynchronously.
         """
         ...
 
@@ -245,9 +248,9 @@ class Session(Protocol):
         """Attach an extension for the duration of the context."""
         ...
 
-    def close(self, *, graceful: bool = False) -> None:
+    def close(self, *, graceful: bool = False) -> ProcessReaper | None:
         """Close the session.
 
-        See `KernelManager.close_kernel` for `graceful`.
+        See `KernelManager.close_kernel` for `graceful` and the reap handle.
         """
         ...

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import signal
+import sys
+from multiprocessing.process import BaseProcess
 from textwrap import dedent
 from typing import TYPE_CHECKING, get_type_hints
 
@@ -21,10 +25,13 @@ from marimo._schemas.serialization import (
     Header,
     NotebookSerialization,
 )
+from marimo._session.managers.kernel import KernelManagerImpl
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from marimo._utils.subprocess import ProcessReaper
 
 snapshot = snapshotter(__file__)
 
@@ -78,6 +85,39 @@ async def test_build():
     # Check if build() raises an error when called more than once
     with pytest.raises(ValueError):
         await generator.build()
+
+
+@pytest.mark.skipif(
+    sys.platform in ("win32", "emscripten"), reason="POSIX only"
+)
+def test_build_reaps_kernel_that_ignores_sigterm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    close_kernel = KernelManagerImpl.close_kernel
+    kernel: BaseProcess | None = None
+
+    def capture_kernel(
+        manager: KernelManagerImpl, *, graceful: bool = False
+    ) -> ProcessReaper | None:
+        nonlocal kernel
+        assert isinstance(manager.kernel_task, BaseProcess)
+        kernel = manager.kernel_task
+        return close_kernel(manager, graceful=graceful)
+
+    monkeypatch.setattr(KernelManagerImpl, "close_kernel", capture_kernel)
+    generator = MarimoIslandGenerator()
+    generator.add_code(
+        "import signal\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)"
+    )
+
+    try:
+        asyncio.run(generator.build())
+        assert kernel is not None
+        assert kernel.exitcode == -signal.SIGKILL
+    finally:
+        if kernel is not None and kernel.is_alive():
+            kernel.kill()
+            kernel.join(timeout=5)
 
 
 async def test_render():
