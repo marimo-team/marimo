@@ -178,7 +178,7 @@ class NotebookOperations {
   public cancel({
     runId,
     ...options
-  }: { readonly runId: Protocol.RunId } & MutationOptions): Promise<
+  }: { readonly runId: Protocol.Run["id"] } & MutationOptions): Promise<
     ResultOf<"runtime.cancel">
   > {
     return this.#send("runtime.cancel", {

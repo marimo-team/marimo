@@ -1,13 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { cellId } from "@/__tests__/branded";
+import { cellId, runId } from "@/__tests__/branded";
 import type { ExecutionOutput as Execution } from "@marimo-team/client/protocol";
 import {
   exportedForTesting,
   MAX_CODE_LENGTH,
   MAX_RUNS,
-  type RunId,
   type RunsState,
 } from "../runs";
 
@@ -15,7 +14,7 @@ const { reducer, initialState, isPureMarkdown } = exportedForTesting;
 
 const queued = {
   id: "e1",
-  run_id: "r1",
+  run_id: runId("r1"),
   runtime_id: "runtime",
   caused_by_id: null,
   cell_id: cellId("cell"),
@@ -45,7 +44,6 @@ describe("execution traces", () => {
       status: "completed",
       outcome: { kind: "cancelled" },
     } satisfies Execution["state"];
-    const runId = "r1" as RunId;
     const running = observe(observe(initialState()), {
       state: { started_at, status: "running" },
     });
@@ -53,7 +51,9 @@ describe("execution traces", () => {
       observe(running, { state: completed }),
       observe(initialState(), { state: completed }),
     ]) {
-      expect(state.runMap.get(runId)?.cellRuns.get(cellId("cell"))).toEqual({
+      expect(
+        state.runMap.get(queued.run_id)?.cellRuns.get(cellId("cell")),
+      ).toEqual({
         cellId: "cell",
         executionId: "e1",
         code: "print(1)",
@@ -66,7 +66,7 @@ describe("execution traces", () => {
       observe(running, {
         state: { ...completed, outcome: { kind: "succeeded" } },
       })
-        .runMap.get(runId)
+        .runMap.get(queued.run_id)
         ?.cellRuns.get(cellId("cell"))?.status,
     ).toBe("success");
   });
@@ -89,7 +89,7 @@ describe("execution traces", () => {
         },
       });
       expect(
-        state.runMap.get("r1" as RunId)?.cellRuns.get(cellId("cell"))?.status,
+        state.runMap.get(queued.run_id)?.cellRuns.get(cellId("cell"))?.status,
       ).toBe("skipped");
     },
   );
@@ -109,7 +109,7 @@ describe("execution traces", () => {
         },
       });
       expect(
-        next.runMap.get("r1" as RunId)?.cellRuns.get(cellId("cell"))?.code,
+        next.runMap.get(queued.run_id)?.cellRuns.get(cellId("cell"))?.code,
       ).toBe(preview);
     }
   });
@@ -119,13 +119,13 @@ describe("execution traces", () => {
     for (let i = 0; i <= MAX_RUNS; i++) {
       state = observe(
         state,
-        { run_id: String(i) },
+        { run_id: runId(String(i)) },
         "x".repeat(MAX_CODE_LENGTH + 1),
       );
     }
     expect(state.runMap.size).toBe(MAX_RUNS);
     expect(state.runIds[0]).toBe(String(MAX_RUNS));
-    expect(state.runMap.has("0" as RunId)).toBe(false);
+    expect(state.runMap.has(runId("0"))).toBe(false);
     expect(
       state.runMap.get(state.runIds[0])?.cellRuns.get(cellId("cell"))?.code
         .length,
@@ -148,7 +148,7 @@ describe("execution traces", () => {
     expect(observe(initial, {}, markdown)).toBe(initial);
     expect(
       observe(observe(initial), { cell_id: cellId("md") }, markdown).runMap.get(
-        "r1" as RunId,
+        queued.run_id,
       )?.cellRuns.size,
     ).toBe(2);
   });

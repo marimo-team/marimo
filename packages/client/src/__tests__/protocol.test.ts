@@ -92,6 +92,21 @@ describe("host protocol bindings", () => {
     expectTypeOf<Protocol.RequestedCell["id"]>().toEqualTypeOf<string>();
   });
 
+  it("decodes the same run ID on records and removal events", () => {
+    const removed = Protocol.RunRemovedEvent.parse({
+      event: "run.removed",
+      data: { id: "r1" },
+    });
+    expectTypeOf(removed.data.id).toEqualTypeOf<Protocol.RunId>();
+    expectTypeOf<Protocol.RunOutput["id"]>().toEqualTypeOf<Protocol.RunId>();
+    expectTypeOf<
+      Protocol.ExecutionOutput["run_id"]
+    >().toEqualTypeOf<Protocol.RunId | null>();
+    expectTypeOf<Protocol.CellId>().not.toExtend<Protocol.RunId>();
+    expectTypeOf<string>().not.toExtend<Protocol.RunId>();
+    expectTypeOf<"RunId">().not.toExtend<keyof typeof Protocol>();
+  });
+
   it.each([
     ["precondition-failed", "index"],
     ["precondition-failed", "cell"],

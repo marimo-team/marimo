@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
 import { MockNotebook } from "@/__mocks__/notebook";
-import { cellId } from "@/__tests__/branded";
+import { cellId, runId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import type { DocumentModel } from "@/core/notebook/document";
 import {
@@ -37,7 +37,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 function accepted(cells: string[]): Protocol.RunOutput {
   return {
-    id: "run-1",
+    id: runId("run-1"),
     notebook_id: "n1",
     runtime_id: "r1",
     origin: { kind: "cells", cell_ids: cells.map(cellId) },

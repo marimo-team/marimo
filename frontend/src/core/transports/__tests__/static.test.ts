@@ -3,6 +3,7 @@
 import { createNotebookReducer, NotebookEvents } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
+import { runId } from "@/__tests__/branded";
 import type { NotebookBackend } from "../../notebook/replica";
 import { document as documentResource } from "../../notebook/replica/resources/document";
 import { executions } from "../../notebook/replica/resources/executions";
@@ -110,7 +111,7 @@ describe("static notebook backend", () => {
     const cell = source.cells[0];
     const execution: Protocol.ExecutionOutput = {
       id: "embedded:result",
-      run_id: "embedded:run",
+      run_id: runId("embedded:run"),
       runtime_id: "embedded",
       caused_by_id: null,
       cell_id: cell.id,

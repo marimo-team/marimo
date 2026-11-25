@@ -187,17 +187,26 @@ try {
     /^export const JsonValue = zod\.unknown\(\)/m,
     "export const JsonValue = zod.json()",
   );
-  // Keep the scalar validator private. The client exposes CellId as a type,
-  // and brands IDs while decoding their enclosing records and events.
-  generated = generated.replace(
-    /export (const CellId = [\s\S]*?);\s*export type CellId = zod\.input<typeof CellId>;/,
-    '$1.brand("CellId");\ntype CellId = zod.output<typeof CellId>;\nexport type { CellId };',
-  );
-  // The shared removal envelope gets its ID type from the event name.
-  generated = generated.replace(
-    /(export const CellRemovedEvent = [\s\S]*?"data":\s*)RemovedMessage\b/,
-    "$1RemovedMessage.extend({ id: CellId })",
-  );
+  // Brand IDs when decoding their enclosing records. Removal envelopes
+  // share a schema, so their event kind identifies the corresponding ID.
+  for (const kind of ["Cell", "Run"]) {
+    const id = `${kind}Id`;
+    const scalar = new RegExp(
+      `export (const ${id} = [\\s\\S]*?);\\s*export type ${id} = zod\\.input<typeof ${id}>;`,
+    );
+    const removal = new RegExp(
+      `(export const ${kind}RemovedEvent = [\\s\\S]*?"data":\\s*)RemovedMessage\\b`,
+    );
+    if (!scalar.test(generated) || !removal.test(generated)) {
+      throw new Error(`Expected schemas for ${id} and ${kind}RemovedEvent`);
+    }
+    generated = generated
+      .replace(
+        scalar,
+        `$1.brand("${id}");\ntype ${id} = zod.output<typeof ${id}>;\nexport type { ${id} };`,
+      )
+      .replace(removal, `$1RemovedMessage.extend({ id: ${id} })`);
+  }
   for (const [name, schema] of Object.entries(schemas)) {
     if (
       typeof schema === "object" &&

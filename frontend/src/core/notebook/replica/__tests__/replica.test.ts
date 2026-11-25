@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 // @vitest-environment jsdom
 
+import { runId } from "@/__tests__/branded";
 import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 import { createStore } from "jotai";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
@@ -318,7 +319,9 @@ describe("NotebookReplica lifetime", () => {
       "k7f2",
     ]);
     expect(store.get(client.runtimeAtom)?.id).toBe("r1");
-    expect(store.get(client.executionsAtom).runs.has("run-scratch")).toBe(true);
+    expect(
+      store.get(client.executionsAtom).runs.has(runId("run-scratch")),
+    ).toBe(true);
     expect(store.get(client.resultsAtom).size).toBe(3);
     attempt.drop();
     await backoff();
@@ -328,7 +331,9 @@ describe("NotebookReplica lifetime", () => {
       "k7f2",
     ]);
     expect(store.get(client.runtimeAtom)).toBeNull();
-    expect(store.get(client.executionsAtom).runs.has("run-scratch")).toBe(true);
+    expect(
+      store.get(client.executionsAtom).runs.has(runId("run-scratch")),
+    ).toBe(true);
     expect(store.get(client.resultsAtom).size).toBe(3);
     current.abort();
     expect(store.get(client.documentAtom)).toBeNull();

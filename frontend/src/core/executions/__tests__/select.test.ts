@@ -13,7 +13,7 @@ import {
   queuedOrRunningCount,
   runningCellIds,
 } from "../select";
-import { cellId } from "@/__tests__/branded";
+import { cellId, runId } from "@/__tests__/branded";
 
 const C1 = cellId("c1");
 const C2 = cellId("c2");
@@ -53,7 +53,7 @@ function record(
   overrides: Partial<Protocol.ExecutionOutput> & { id: string },
 ): Protocol.ExecutionOutput {
   return {
-    run_id: "run-1",
+    run_id: runId("run-1"),
     runtime_id: "r1",
     caused_by_id: null,
     cell_id: C1,
@@ -88,7 +88,7 @@ function run(
   id = "run-1",
 ): Protocol.RunOutput {
   return {
-    id,
+    id: runId(id),
     notebook_id: "n1",
     runtime_id: "r1",
     origin: { kind: "cells", cell_ids: cells.map(cellId) },
@@ -303,7 +303,7 @@ describe("cellExecutionView", () => {
       executions: [
         execution({
           id: "e2",
-          run_id: "run-2",
+          run_id: runId("run-2"),
           state: RUNNING,
         }),
       ],
@@ -313,8 +313,8 @@ describe("cellExecutionView", () => {
 
     const done = inputs({
       runs: [run(["c1", "c2"], "running", "run-2")],
-      executions: [execution({ id: "e2", run_id: "run-2" })],
-      results: new Map([[C1, execution({ id: "e2", run_id: "run-2" })]]),
+      executions: [execution({ id: "e2", run_id: runId("run-2") })],
+      results: new Map([[C1, execution({ id: "e2", run_id: runId("run-2") })]]),
     });
     expect(cellExecutionView(done, C1).status).toBe("idle");
     expect(cellExecutionView(done, C1).outcome).toBe("succeeded");
@@ -323,7 +323,7 @@ describe("cellExecutionView", () => {
     // The stream let the execution go while its run goes on with other cells.
     const retained = inputs({
       runs: [run(["c1", "c2"], "running", "run-2")],
-      results: new Map([[C1, execution({ id: "e2", run_id: "run-2" })]]),
+      results: new Map([[C1, execution({ id: "e2", run_id: runId("run-2") })]]),
     });
     expect(cellExecutionView(retained, C1).status).toBe("idle");
     expect(cellExecutionView(retained, C2).status).toBe("queued");
@@ -331,8 +331,8 @@ describe("cellExecutionView", () => {
     // A later run names the cell again while the earlier one's result stands.
     const again = inputs({
       runs: [run(["c1"], "running", "run-2"), run(["c1"], "queued", "run-3")],
-      executions: [execution({ id: "e2", run_id: "run-2" })],
-      results: new Map([[C1, execution({ id: "e2", run_id: "run-2" })]]),
+      executions: [execution({ id: "e2", run_id: runId("run-2") })],
+      results: new Map([[C1, execution({ id: "e2", run_id: runId("run-2") })]]),
     });
     expect(cellExecutionView(again, C1).status).toBe("queued");
 

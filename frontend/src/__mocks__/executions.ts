@@ -2,7 +2,7 @@
 
 /** Executions as the host would report them, for tests that read cell status. */
 
-import { cellId } from "@/__tests__/branded";
+import { cellId, runId } from "@/__tests__/branded";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, type createStore } from "jotai";
 import type { CellExecutionInputs } from "@/core/executions";
@@ -62,7 +62,7 @@ function execution(
   sequence += 1;
   return {
     id: `e${sequence}`,
-    run_id: "run-1",
+    run_id: runId("run-1"),
     runtime_id: "r1",
     caused_by_id: null,
     cell_id: cid === null ? null : cellId(cid),

@@ -3,7 +3,7 @@
 import type * as Protocol from "@marimo-team/client/protocol";
 import { describe, expect, it } from "vitest";
 import { type ExecutionEntries, MockExecutions } from "@/__mocks__/executions";
-import { cellId } from "@/__tests__/branded";
+import { cellId, runId } from "@/__tests__/branded";
 import { cell } from "@/core/notebook/document/__tests__/fixtures";
 import {
   type CellOutputInputs,
@@ -321,7 +321,7 @@ describe("scratchOutputView", () => {
     expect(
       scratchOutputView({
         ...executions,
-        scratchFailure: { ...failure, runId: "run-2" },
+        scratchFailure: { ...failure, runId: runId("run-2") },
       })?.data,
     ).toEqual([
       { type: "unknown", msg: "Kernel channel closed", error_type: null },
