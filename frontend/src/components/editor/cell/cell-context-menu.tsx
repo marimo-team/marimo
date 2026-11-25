@@ -9,6 +9,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import React, { Fragment } from "react";
+import { Slot } from "radix-ui";
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import {
   ContextMenu,
@@ -48,12 +49,124 @@ interface Props extends Pick<
   disabled?: boolean;
 }
 
+type ActiveCell = Pick<Props, "cellId" | "getEditorView"> & {
+  imageRightClicked?: HTMLImageElement;
+};
+
+const CellMenuContext = React.createContext<
+  ((cell: ActiveCell) => void) | null
+>(null);
+
+// Only events handled by a cell should reach the shared Radix trigger.
+const cellMenuEvents = new WeakSet<Event>();
+
+export const NotebookContextMenu = ({ children }: React.PropsWithChildren) => {
+  const [activeCell, setActiveCell] = React.useState<ActiveCell>();
+  const restoreFocus = useRestoreFocus();
+  const [open, setOpen] = React.useState(false);
+  return (
+    <CellMenuContext.Provider value={setActiveCell}>
+      <ContextMenu
+        onOpenChange={(open) => {
+          setOpen(open);
+          if (open) {
+            restoreFocus.onOpenAutoFocus();
+          }
+        }}
+      >
+        <ContextMenuTrigger asChild={true}>
+          <div
+            className="contents"
+            onPointerUp={() => {
+              if (!open) {
+                setActiveCell(undefined);
+              }
+            }}
+            onPointerCancel={() => {
+              if (!open) {
+                setActiveCell(undefined);
+              }
+            }}
+          >
+            <div
+              className="contents"
+              onContextMenu={(event) => {
+                if (!cellMenuEvents.has(event.nativeEvent)) {
+                  event.stopPropagation();
+                }
+              }}
+              onPointerDown={(event) => {
+                if (
+                  event.pointerType !== "mouse" &&
+                  !cellMenuEvents.has(event.nativeEvent)
+                ) {
+                  event.stopPropagation();
+                }
+              }}
+            >
+              {children}
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        {activeCell && (
+          <CellMenuContent
+            key={activeCell.cellId}
+            {...activeCell}
+            restoreFocus={restoreFocus}
+            onClosed={() => setActiveCell(undefined)}
+          />
+        )}
+      </ContextMenu>
+    </CellMenuContext.Provider>
+  );
+};
+
 export const CellActionsContextMenu = ({
   children,
   cellId,
   getEditorView,
   disabled,
 }: Props) => {
+  const setActiveCell = React.useContext(CellMenuContext);
+  const activateCell = (event: React.MouseEvent | React.PointerEvent) => {
+    cellMenuEvents.add(event.nativeEvent);
+    setActiveCell?.({
+      cellId,
+      getEditorView,
+      imageRightClicked:
+        event.target instanceof HTMLImageElement ? event.target : undefined,
+    });
+  };
+  return (
+    <Slot.Root
+      onPointerDown={(evt: React.PointerEvent) => {
+        if (evt.pointerType === "mouse" || disabled) {
+          return;
+        }
+        activateCell(evt);
+      }}
+      onContextMenu={(evt: React.MouseEvent) => {
+        if (disabled || evt.defaultPrevented) {
+          return;
+        }
+        activateCell(evt);
+      }}
+    >
+      {children}
+    </Slot.Root>
+  );
+};
+
+const CellMenuContent = ({
+  cellId,
+  getEditorView,
+  imageRightClicked,
+  restoreFocus,
+  onClosed,
+}: ActiveCell & {
+  restoreFocus: ReturnType<typeof useRestoreFocus>;
+  onClosed: () => void;
+}) => {
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
   const execution = useCellExecution(cellId);
@@ -70,12 +183,8 @@ export const CellActionsContextMenu = ({
       getEditorView,
     },
   });
-  const [imageRightClicked, setImageRightClicked] =
-    React.useState<HTMLImageElement>();
   const suppressCloseAutoFocus = React.useRef(false);
   const pendingAction = React.useRef<(() => void) | null>(null);
-  const restoreFocus = useRestoreFocus();
-
   const DEFAULT_CONTEXT_MENU_ITEMS: ActionButton[] = [
     {
       label: "Copy",
@@ -198,110 +307,90 @@ export const CellActionsContextMenu = ({
     .filter((group) => group.length > 0);
 
   return (
-    <ContextMenu
-      onOpenChange={(open) => {
-        if (open) {
-          restoreFocus.onOpenAutoFocus();
+    <ContextMenuContent
+      className="w-[300px]"
+      scrollable={true}
+      onCloseAutoFocus={(evt) => {
+        onClosed();
+        const action = pendingAction.current;
+        pendingAction.current = null;
+        if (action) {
+          restoreFocus.onCloseAutoFocus(evt);
+          evt.preventDefault();
+          action();
+        }
+        if (suppressCloseAutoFocus.current) {
+          evt.preventDefault();
+          suppressCloseAutoFocus.current = false;
         }
       }}
     >
-      <ContextMenuTrigger
-        disabled={disabled}
-        onContextMenu={(evt) => {
-          if (evt.target instanceof HTMLImageElement) {
-            setImageRightClicked(evt.target);
-          } else {
-            setImageRightClicked(undefined);
-          }
-        }}
-        asChild={true}
-      >
-        {children}
-      </ContextMenuTrigger>
-      <ContextMenuContent
-        className="w-[300px]"
-        scrollable={true}
-        onCloseAutoFocus={(evt) => {
-          const action = pendingAction.current;
-          pendingAction.current = null;
-          if (action) {
-            restoreFocus.onCloseAutoFocus(evt);
-            evt.preventDefault();
-            action();
-          }
-          if (suppressCloseAutoFocus.current) {
-            evt.preventDefault();
-            suppressCloseAutoFocus.current = false;
-          }
-        }}
-      >
-        {visibleActions.map((group, i) => (
-          <Fragment key={i}>
-            {group.map((action) => {
-              let body = (
-                <div className="flex items-center flex-1">
-                  {action.icon && (
-                    <div className="mr-2 w-5 text-muted-foreground">
-                      {action.icon}
-                    </div>
-                  )}
-                  <div className="flex-1">{action.label}</div>
-                  <div className="shrink-0 text-sm">
-                    {action.hotkey && renderMinimalShortcut(action.hotkey)}
-                    {action.rightElement}
+      {visibleActions.map((group, i) => (
+        <Fragment key={i}>
+          {group.map((action) => {
+            let body = (
+              <div className="flex items-center flex-1">
+                {action.icon && (
+                  <div className="mr-2 w-5 text-muted-foreground">
+                    {action.icon}
                   </div>
+                )}
+                <div className="flex-1">{action.label}</div>
+                <div className="shrink-0 text-sm">
+                  {action.hotkey && renderMinimalShortcut(action.hotkey)}
+                  {action.rightElement}
                 </div>
-              );
+              </div>
+            );
 
-              if (action.tooltip) {
-                body = (
-                  <Tooltip delayDuration={100} content={action.tooltip}>
-                    {body}
-                  </Tooltip>
-                );
-              }
-
-              return (
-                <Fragment key={action.label}>
-                  {
-                    // Set disableClick items such as cell name input
-                    // to div to prevent roving focus
-                    action.disableClick ? (
-                      <div
-                        className={menuItemVariants({
-                          className: action.disabled ? "opacity-50!" : "",
-                          variant: action.variant,
-                        })}
-                        onKeyDown={(evt) => {
-                          evt.stopPropagation();
-                        }}
-                        // Prevent keydown propagation, that focus does not jump to shortcut which start with same letter
-                        // e.g. input "C", then focus jump to "Copy"
-                      >
-                        {body}
-                      </div>
-                    ) : (
-                      <ContextMenuItem
-                        className={action.disabled ? "opacity-50!" : ""}
-                        onSelect={(evt) => {
-                          if (action.disableClick || action.disabled) {
-                            return;
-                          }
-                          pendingAction.current = () => action.handle(evt);
-                        }}
-                        variant={action.variant}
-                      >
-                        {body}
-                      </ContextMenuItem>
-                    )
-                  }
-                </Fragment>
+            if (action.tooltip) {
+              body = (
+                <Tooltip delayDuration={100} content={action.tooltip}>
+                  {body}
+                </Tooltip>
               );
-            })}
-            {i < visibleActions.length - 1 && <ContextMenuSeparator />}
-          </Fragment>
-        ))}
-      </ContextMenuContent>
-    </ContextMenu>
+            }
+
+            return (
+              <Fragment key={action.label}>
+                {
+                  // Set disableClick items such as cell name input
+                  // to div to prevent roving focus
+                  action.disableClick ? (
+                    <div
+                      className={menuItemVariants({
+                        className: action.disabled ? "opacity-50!" : "",
+                        variant: action.variant,
+                      })}
+                      onKeyDown={(evt) => {
+                        evt.stopPropagation();
+                      }}
+                      // Prevent keydown propagation, that focus does not jump to shortcut which start with same letter
+                      // e.g. input "C", then focus jump to "Copy"
+                    >
+                      {body}
+                    </div>
+                  ) : (
+                    <ContextMenuItem
+                      className={action.disabled ? "opacity-50!" : ""}
+                      onSelect={(evt) => {
+                        if (action.disableClick || action.disabled) {
+                          return;
+                        }
+                        pendingAction.current = () => action.handle(evt);
+                      }}
+                      variant={action.variant}
+                    >
+                      {body}
+                    </ContextMenuItem>
+                  )
+                }
+              </Fragment>
+            );
+          })}
+          {i < visibleActions.length - 1 && <ContextMenuSeparator />}
+        </Fragment>
+      ))}
+    </ContextMenuContent>
   );
 };

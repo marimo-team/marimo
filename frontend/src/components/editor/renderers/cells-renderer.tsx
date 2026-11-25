@@ -12,6 +12,7 @@ import {
   useLayoutState,
 } from "@/core/layout/state";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
+import { NotebookContextMenu } from "../cell/cell-context-menu";
 import { cellRendererPlugins } from "./plugins";
 import type { ICellRendererPlugin } from "./types";
 
@@ -33,7 +34,7 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
       !kioskMode &&
       (mode === "edit" || (mode === "present" && selectedLayout === "vertical"))
     ) {
-      return children;
+      return <NotebookContextMenu>{children}</NotebookContextMenu>;
     }
 
     // We allow overriding the layout type by url params when in 'read' mode,
@@ -49,7 +50,7 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
 
     // Just render children if there is no plugin
     if (!plugin) {
-      return children;
+      return <NotebookContextMenu>{children}</NotebookContextMenu>;
     }
 
     return (

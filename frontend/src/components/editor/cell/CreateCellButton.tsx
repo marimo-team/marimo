@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { MinimalHotkeys } from "@/components/shortcuts/renderShortcut";
 import {
@@ -35,6 +35,8 @@ export const CreateCellButton = ({
 }) => {
   const { createCell, addSetupCell } = useCellActions();
   const shortcut = `${oneClickShortcut}-Click`;
+  const menuId = useId();
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   // Time the dropdown last opened, to ignore the click that opened it
   const openedAt = useRef(0);
@@ -132,45 +134,72 @@ export const CreateCellButton = ({
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild={true}>
-        <Button
-          className={cn(
-            "border-none hover-action shadow-none! bg-transparent! focus-visible:outline-hidden",
-            isAppInteractionDisabled(connectionState) && " inactive-button",
-          )}
-          onPointerDownCapture={handlePointerDownCapture}
-          onContextMenuCapture={handleContextMenu}
-          size="small"
-          data-testid="create-cell-button"
-        >
-          <Tooltip content={finalTooltipContent}>
-            <PlusIcon
-              strokeWidth={1.8}
-              size={14}
-              className="opacity-60 hover:opacity-90"
+    <div className="relative inline-flex">
+      <Button
+        ref={buttonRef}
+        aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
+        aria-expanded={open}
+        onKeyDown={(event) => {
+          if (["Enter", " ", "ArrowDown"].includes(event.key)) {
+            event.preventDefault();
+            openDropdown();
+          }
+        }}
+        className={cn(
+          "border-none hover-action shadow-none! bg-transparent! focus-visible:outline-hidden",
+          isAppInteractionDisabled(connectionState) && " inactive-button",
+        )}
+        onPointerDownCapture={handlePointerDownCapture}
+        onContextMenuCapture={handleContextMenu}
+        size="small"
+        data-testid="create-cell-button"
+      >
+        <Tooltip content={finalTooltipContent}>
+          <PlusIcon
+            strokeWidth={1.8}
+            size={14}
+            className="opacity-60 hover:opacity-90"
+          />
+        </Tooltip>
+      </Button>
+      {open && (
+        <DropdownMenu open={open} onOpenChange={handleOpenChange}>
+          {/* Keep the real button mounted while the menu and its anchor come and go. */}
+          <DropdownMenuTrigger asChild={true}>
+            <span
+              aria-hidden={true}
+              className="absolute inset-0 pointer-events-none"
             />
-          </Tooltip>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="bottom" sideOffset={-30}>
-        <DropdownMenuItem onClick={handleFirstItemClick}>
-          {renderIcon(<PythonIcon />)}
-          Python cell
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={addMarkdownCell}>
-          {renderIcon(<MarkdownIcon />)}
-          Markdown cell
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={addSQLCell}>
-          {renderIcon(<DatabaseIcon size={13} strokeWidth={1.5} />)}
-          SQL cell
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => addSetupCell()}>
-          {renderIcon(<DiamondPlusIcon size={13} strokeWidth={1.5} />)}
-          Setup cell
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            id={menuId}
+            side="bottom"
+            sideOffset={-30}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              buttonRef.current?.focus();
+            }}
+          >
+            <DropdownMenuItem onClick={handleFirstItemClick}>
+              {renderIcon(<PythonIcon />)}
+              Python cell
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={addMarkdownCell}>
+              {renderIcon(<MarkdownIcon />)}
+              Markdown cell
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={addSQLCell}>
+              {renderIcon(<DatabaseIcon size={13} strokeWidth={1.5} />)}
+              SQL cell
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => addSetupCell()}>
+              {renderIcon(<DiamondPlusIcon size={13} strokeWidth={1.5} />)}
+              Setup cell
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
   );
 };

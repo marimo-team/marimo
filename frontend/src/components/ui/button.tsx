@@ -128,7 +128,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       [keyboardShortcut],
     );
 
-    useEventListener(document, "keydown", handleKeyPress);
+    useEventListener(
+      keyboardShortcut ? document : null,
+      "keydown",
+      handleKeyPress,
+    );
 
     const Comp = asChild ? SlotPrimitive.Slot : "button";
     return (

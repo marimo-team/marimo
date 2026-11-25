@@ -83,13 +83,13 @@ interface Props {
   onSubmitDebugger: (text: string, inputId?: string) => void;
 }
 
-export const ConsoleOutput = (props: Props) => {
+export const ConsoleOutput = React.memo((props: Props) => {
   return (
     <ErrorBoundary>
       <ConsoleOutputInternal {...props} />
     </ErrorBoundary>
   );
-};
+});
 
 const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
@@ -133,7 +133,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   // always work perfectly when moved form the bottom and back.
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) {
+    if (!el || !hasOutputs) {
       return;
     }
     // N.B. This won't handle large jumps in the scroll position
@@ -146,7 +146,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
     if (distanceFromBottom < threshold) {
       el.scrollTop = scrollOffset;
     }
-  });
+  }, [consoleOutputs, hasOutputs, pdbInput, isExpanded, wrapText]);
 
   if (!hasOutputs && isInternalCellName(cellName)) {
     return null;

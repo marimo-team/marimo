@@ -48,6 +48,34 @@ describe("ConsoleOutput integration", () => {
     },
   };
 
+  it("measures scrolling only when console content changes", () => {
+    const outputs = [createOutput("hello")];
+    const ui = (stale: boolean, consoleOutputs = outputs) => (
+      <Provider store={store}>
+        <DocumentProvider model={model}>
+          <TooltipProvider>
+            <ConsoleOutput
+              {...defaultProps}
+              stale={stale}
+              consoleOutputs={consoleOutputs}
+            />
+          </TooltipProvider>
+        </DocumentProvider>
+      </Provider>
+    );
+    const { rerender } = render(ui(false));
+    const area = screen.getByTestId("console-output-area");
+    const measure = vi.fn(() => 100);
+    Object.defineProperty(area, "scrollHeight", {
+      configurable: true,
+      get: measure,
+    });
+    rerender(ui(true));
+    expect(measure).not.toHaveBeenCalled();
+    rerender(ui(true, [...outputs, createOutput("world")]));
+    expect(measure).toHaveBeenCalled();
+  });
+
   it("should render console output with clickable URLs", () => {
     const props = {
       ...defaultProps,
