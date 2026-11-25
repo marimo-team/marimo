@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 import subprocess
+import sys
 import textwrap
 from functools import lru_cache
 
@@ -65,10 +66,19 @@ async def _run_subprocess_safe(
 @lru_cache(maxsize=1)
 def _ruff_binary() -> str:
     try:
-        from ruff.__main__ import find_ruff_bin  # type: ignore[import-untyped]
-
-        return str(find_ruff_bin())
-    except (ImportError, FileNotFoundError):
+        # Keep project modules out of the server and Ruff's discovery process.
+        return subprocess.check_output(
+            [
+                sys.executable,
+                "-I",
+                "-c",
+                "from ruff.__main__ import find_ruff_bin; print(find_ruff_bin())",
+            ],
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=30,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
         binary = shutil.which("ruff")
         if binary is not None:
             return binary

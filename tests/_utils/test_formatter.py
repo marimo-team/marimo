@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -479,11 +480,17 @@ class TestRuffFunction:
         _ruff_binary.cache_clear()
         try:
             with patch(
-                "ruff.__main__.find_ruff_bin", return_value="/venv/ruff"
+                "marimo._utils.formatter.subprocess.check_output",
+                return_value="/venv/ruff\n",
             ) as find:
                 assert _ruff_binary() == "/venv/ruff"
                 assert _ruff_binary() == "/venv/ruff"
-                find.assert_called_once_with()
+                assert find.call_count == 1
+                assert find.call_args.args[0][:3] == [
+                    sys.executable,
+                    "-I",
+                    "-c",
+                ]
         finally:
             _ruff_binary.cache_clear()
 
@@ -495,8 +502,8 @@ class TestRuffFunction:
         try:
             with (
                 patch(
-                    "ruff.__main__.find_ruff_bin",
-                    side_effect=FileNotFoundError,
+                    "marimo._utils.formatter.subprocess.check_output",
+                    side_effect=subprocess.CalledProcessError(1, "python"),
                 ),
                 patch(
                     "marimo._utils.formatter.shutil.which", return_value=binary
@@ -507,6 +514,26 @@ class TestRuffFunction:
                 else:
                     with pytest.raises(ModuleNotFoundError):
                         _ruff_binary()
+        finally:
+            _ruff_binary.cache_clear()
+
+    @pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+    async def test_local_ruff_module_is_not_imported(
+        self, tmp_path, monkeypatch
+    ):
+        from marimo._utils.formatter import _ruff_binary
+
+        (tmp_path / "ruff.py").write_text(
+            'raise RuntimeError("project module must not execute")\n'
+        )
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.syspath_prepend(str(tmp_path))
+        monkeypatch.delitem(sys.modules, "ruff", raising=False)
+        monkeypatch.delitem(sys.modules, "ruff.__main__", raising=False)
+        _ruff_binary.cache_clear()
+        try:
+            assert await ruff({"a": "x=1"}, "format") == {"a": "x = 1"}
+            assert "ruff" not in sys.modules
         finally:
             _ruff_binary.cache_clear()
 
