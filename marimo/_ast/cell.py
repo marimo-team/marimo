@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any, Literal
 import msgspec
 
 from marimo import _loggers
-from marimo._ast.parse import ast_parse
 from marimo._ast.sql_visitor import SQLRef, SQLVisitor
 from marimo._ast.visitor import ImportData, Language, Name, VariableData
 from marimo._messaging.msgspec_encoder import asdict
@@ -257,9 +256,12 @@ class CellImpl:
         return self._run_result_status.state
 
     def _get_sqls(self, raw: bool = False) -> list[str]:
+        # SQL lives in `.sql(...)` / `.execute(...)` calls.
+        if "sql" not in self.code and "execute" not in self.code:
+            return []
         try:
             visitor = SQLVisitor(raw=raw)
-            visitor.visit(ast_parse(self.code))
+            visitor.visit(self.mod)
             return visitor.get_sqls()
         except Exception:
             return []

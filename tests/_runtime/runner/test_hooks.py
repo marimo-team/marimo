@@ -134,3 +134,78 @@ class TestSetRunResultStatus:
 
         assert call is not None
         assert call.args[0] == "success"
+
+
+@pytest.mark.parametrize("imported", [False, True])
+def test_duckdb_hook_does_not_discover_packages(imported: bool) -> None:
+    from unittest.mock import Mock, patch
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._dependencies.dependencies import DependencyManager
+    from marimo._runtime.runner import hooks_post_execution as hooks
+
+    cell = compile_cell(
+        'db.execute("CREATE TABLE t (x INTEGER)")', cell_id="cell"
+    )
+    with (
+        patch.object(
+            DependencyManager.duckdb, "imported", return_value=imported
+        ),
+        patch.object(DependencyManager.duckdb, "has") as discover,
+        patch.object(hooks, "has_updates_to_datasource", return_value=True),
+        patch.object(hooks, "DuckDBEngine") as engine,
+        patch.object(hooks, "engine_to_data_source_connection"),
+        patch.object(hooks, "broadcast_notification") as broadcast,
+    ):
+        hooks._broadcast_duckdb_datasource(
+            cell, Mock(should_broadcast_data=True), Mock()
+        )
+        discover.assert_not_called()
+        assert engine.call_count == int(imported)
+        assert broadcast.call_count == int(imported)
+        assert ("sqls" in cell.__dict__) == imported
+
+
+def test_state_hook_checks_membership_without_enumerating_names() -> None:
+    from unittest.mock import Mock, patch
+
+    from marimo._ast.compiler import compile_cell
+    from marimo._runtime.runner.hook_context import (
+        CancelledCells,
+        PostExecutionHookContext,
+    )
+    from marimo._runtime.runner.hooks_post_execution import (
+        _store_state_reference,
+    )
+    from marimo._runtime.state import State, StateRegistry
+
+    class MembershipOnlyDict(dict[str, set[str]]):
+        def __iter__(self):
+            raise AssertionError("Do not enumerate notebook definitions")
+
+        def keys(self):
+            raise AssertionError("Do not enumerate notebook definitions")
+
+    registry = StateRegistry()
+    states = {
+        name: State(0, _registry=registry, _name=name)
+        for name in ["public", "temporary", "deleted"]
+    }
+    ctx = PostExecutionHookContext(
+        graph=Mock(definitions=MembershipOnlyDict(public={"cell"})),
+        glbls={},
+        execution_context=None,
+        exceptions={},
+        cancelled_cells=CancelledCells(),
+        all_temporaries=frozenset({"temporary"}),
+    )
+    with patch(
+        "marimo._runtime.runner.hooks_post_execution.get_context",
+        return_value=Mock(state_registry=registry),
+    ):
+        _store_state_reference(compile_cell("", cell_id="cell"), ctx, Mock())
+    assert {name: registry.lookup(name) for name in states} == {
+        "public": states["public"],
+        "temporary": states["temporary"],
+        "deleted": None,
+    }

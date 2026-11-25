@@ -108,6 +108,10 @@ class PostExecutionHookContext:
     # User configuration, for hooks that need access to runtime settings
     user_config: MarimoConfig | None = None
 
+    def is_active_variable(self, name: str) -> bool:
+        """Check membership without materializing the notebook namespace."""
+        return name in self.graph.definitions or name in self.all_temporaries
+
 
 @dataclass(frozen=True)
 class OnFinishHookContext:
