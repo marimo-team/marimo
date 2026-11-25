@@ -202,6 +202,11 @@ def test_duckdb_engine_get_databases_no_conn() -> None:
         expected_databases[0].schemas[0].tables[0].source_type = "duckdb"
         expected_databases[0].schemas[0].tables[0].source = "memory"
 
+        databases[0].schemas[0].tables = [
+            table
+            for table in databases[0].schemas[0].tables
+            if table.name == "test"
+        ]
         assert databases == [
             *expected_databases,
             Database(

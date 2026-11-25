@@ -1,117 +1,75 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { copyFile } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@playwright/test";
-import { getAppUrl, resetFile } from "../playwright.config";
-import { maybeRestartKernel, takeScreenshot } from "./helper";
+import { expect, type Locator, test } from "@playwright/test";
+import { getAppUrl } from "../playwright.config";
+import { takeScreenshot } from "./helper";
 
 const _filename = fileURLToPath(import.meta.url);
 
-const appUrl = getAppUrl("disabled_cells.py");
-test.beforeEach(async ({ page }, info) => {
-  await page.goto(appUrl);
-  if (info.retry) {
-    await page.reload();
-    await maybeRestartKernel(page);
-  }
-});
+test("disabled cells", async ({ page }, info) => {
+  // Use a new notebook path so this test can't resume a modified session.
+  const fixture = "disabled_cells.py";
+  const notebook = info.outputPath(fixture);
+  await copyFile(path.join("e2e-tests", "py", fixture), notebook);
+  const url = new URL(getAppUrl(fixture));
+  url.searchParams.set("file", path.relative(process.cwd(), notebook));
+  await page.goto(url.toString());
 
-test.afterEach(async () => {
-  // Need to reset the file because this test modifies it
-  await resetFile("disabled_cells.py");
-});
+  const cells = page.locator(".marimo-cell");
+  const firstCell = cells.nth(0);
+  const secondCell = cells.nth(1);
+  const runFirstCell = firstCell.getByTestId("run-button").first();
+  const firstStatus = firstCell.getByTestId("cell-status");
+  const secondStatus = secondCell.getByTestId("cell-status");
+  const headings = page.getByRole("heading", { level: 1 });
 
-test("disabled cells", async ({ page }) => {
-  // Can see output / code
-  await expect(page.locator("h1").getByText("Cell 1")).toBeVisible();
-  await expect(page.locator("h1").getByText("Cell 2")).toBeVisible();
+  const setExecution = async (
+    cell: Locator,
+    action: "Disable execution" | "Enable execution",
+  ) => {
+    await cell.hover();
+    await cell.getByTestId("cell-actions-button").click();
+    await page.getByRole("option", { name: action }).click();
+  };
 
-  // No add buttons are visible
-  await expect(
-    page.getByTestId("create-cell-button").locator(":visible"),
-  ).toHaveCount(0);
+  await expect(headings).toHaveText(["Cell 1", "Cell 2"]);
+  await setExecution(firstCell, "Disable execution");
+  await expect(firstStatus).toHaveAttribute("data-status", "disabled");
+  await expect(secondStatus).toHaveAttribute(
+    "data-status",
+    "disabled-transitively",
+  );
 
-  // Hover over a cell the drag button button appears
-  // Click the drag button and then disable the cell
-  await page.hover("text=Cell 1");
-  await page.getByTestId("drag-button").locator(":visible").first().click();
-  await page.getByText("Disable cell").click();
+  await firstCell
+    .getByRole("textbox")
+    .fill('import marimo as mo\n\nmo.md("# Cell 1 updated")');
+  const save = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.endsWith("/runtime/runs"),
+  );
+  await runFirstCell.click();
+  expect((await save).ok()).toBe(true);
+  await expect(headings).toHaveText(["Cell 1", "Cell 2"]);
 
-  // Check the cell status
-  await expect(page.getByTitle("This cell is disabled")).toBeVisible();
-  await expect(
-    page.getByTitle("This cell has a disabled ancestor"),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByTestId("cell-status")
-      .first()
-      .evaluate((el) => el.dataset.status),
-  ).resolves.toBe("disabled");
-  await expect(
-    page
-      .getByTestId("cell-status")
-      .last()
-      .evaluate((el) => el.dataset.status),
-  ).resolves.toBe("disabled-transitively");
+  await expect(firstStatus).toHaveAttribute("data-status", "disabled");
+  await expect(secondStatus).toHaveAttribute(
+    "data-status",
+    "disabled-transitively",
+  );
 
-  // Add code to the first cell and save
-  // The result should be stale
-  await page.click(".cm-editor");
-  await page.keyboard.type("\nx = 2");
-  await page.getByTestId("run-button").locator(":visible").first().click();
-  await expect(page.getByTitle("This cell is disabled")).toBeVisible();
-  await expect(
-    page.getByTitle("This cell has a disabled ancestor"),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByTestId("cell-status")
-      .first()
-      .evaluate((el) => el.dataset.status),
-  ).resolves.toBe("stale");
-  await expect(
-    page
-      .getByTestId("cell-status")
-      .last()
-      .evaluate((el) => el.dataset.status),
-  ).resolves.toBe("stale");
+  await setExecution(secondCell, "Disable execution");
+  await expect(secondStatus).toHaveAttribute("data-status", "disabled");
 
-  // Disable the second cell
-  await page.hover("text=Cell 2");
-  await page.getByTestId("drag-button").locator(":visible").first().click();
-  await page.getByText("Disable cell").click();
+  await setExecution(firstCell, "Enable execution");
+  await runFirstCell.click();
+  await expect(headings).toHaveText(["Cell 1 updated", "Cell 2"]);
+  await expect(secondStatus).toHaveAttribute("data-status", "disabled");
 
-  // Check they are still stale
-  await expect(page.getByTitle("This cell is disabled")).toHaveCount(2);
-  await expect(
-    page
-      .getByTestId("cell-status")
-      .first()
-      .evaluate((el) => el.dataset.status),
-  ).resolves.toBe("stale");
-  await expect(
-    page
-      .getByTestId("cell-status")
-      .last()
-      .evaluate((el) => el.dataset.status),
-  ).resolves.toBe("stale");
-
-  // Enable the first
-  await page.hover("text=Cell 1");
-  await page.getByTestId("drag-button").locator(":visible").first().click();
-  await page.getByText("Enable cell").click();
-
-  // Check the status
-  await expect(page.getByTitle("This cell is disabled")).toHaveCount(1);
-
-  // Enable the second
-  await page.hover("text=Cell 2");
-  await page.getByTestId("drag-button").locator(":visible").first().click();
-  await page.getByText("Enable cell").click();
-
-  // Check the status
-  await expect(page.getByTitle("This cell is disabled")).toHaveCount(0);
+  await setExecution(secondCell, "Enable execution");
+  await secondCell.getByTestId("run-button").first().click();
+  await expect(secondStatus).toHaveAttribute("data-status", "idle");
 
   await takeScreenshot(page, _filename);
 });

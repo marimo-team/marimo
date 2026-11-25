@@ -192,7 +192,6 @@ const config: PlaywrightTestConfig = {
         // Add viewport for consistency
         viewport: { width: 1280, height: 720 },
       },
-      testIgnore: ["**/cells.spec.ts", "**/disabled.spec.ts"],
     },
     //    Re-enable later ...
     //    {

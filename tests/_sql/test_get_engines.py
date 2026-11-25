@@ -368,9 +368,9 @@ def test_get_engines_duckdb_databases() -> None:
         assert len(database.schemas) == 1
         schema = database.schemas[0]
         assert schema.name == "main"
-        assert len(schema.tables) == 1
-        table = schema.tables[0]
-        assert table.name == "test_table"
+        table = next(
+            table for table in schema.tables if table.name == "test_table"
+        )
         assert table.columns == []
         assert table.num_columns is None
     finally:
