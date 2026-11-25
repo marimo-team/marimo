@@ -183,7 +183,7 @@ describe("IslandsPyodideBridge", () => {
 
   /** Send a notification and return the call the consumer should receive. */
   function sendKernelMessage(sessionGeneration: number) {
-    const notification = { op: "interrupted" };
+    const notification = { op: "reload" };
     sendNotebookEvent(sessionGeneration, {
       event: "marimo",
       data: { marimo: notification },

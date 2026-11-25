@@ -22,7 +22,7 @@ vi.mock("../backend", () => ({ createEditorBackend: vi.fn() }));
 /** A host-framed native notification. */
 const notification = {
   event: "marimo",
-  data: { marimo: { op: "interrupted" } },
+  data: { marimo: { op: "reload" } },
 };
 
 /** A transport whose connections the test drives. */
@@ -154,7 +154,7 @@ describe("useNotebookReplica", () => {
     act(() => fake.notify());
     expect(options.onNotification).not.toHaveBeenCalled();
     expect(onNotification).toHaveBeenCalledExactlyOnceWith({
-      data: { op: "interrupted" },
+      data: { op: "reload" },
     });
     const [{ url }] = vi.mocked(createEditorBackend).mock.calls[0];
     expect(url()).toBe("ws://redirected/ws");

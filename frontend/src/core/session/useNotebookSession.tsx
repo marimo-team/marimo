@@ -180,8 +180,6 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       case "completed-run":
         setInitialRunCompleted(true);
         return;
-      case "interrupted":
-        return;
 
       case "kernel-startup-error":
         // Full error received via message before websocket close

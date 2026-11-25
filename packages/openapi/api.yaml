@@ -2953,20 +2953,6 @@ components:
       - versions
       title: InstallPackagesRequest
       type: object
-    InterruptedNotification:
-      description: Kernel was interrupted by user (SIGINT/Ctrl+C).
-      properties:
-        op:
-          enum:
-          - interrupted
-        run_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-      required:
-      - op
-      title: InterruptedNotification
-      type: object
     InvokeAiToolRequest:
       properties:
         arguments:
@@ -4282,7 +4268,6 @@ components:
       - $ref: '#/components/schemas/ModelLifecycleNotification'
       - $ref: '#/components/schemas/RemoveUIElementsNotification'
       - $ref: '#/components/schemas/ReloadNotification'
-      - $ref: '#/components/schemas/InterruptedNotification'
       - $ref: '#/components/schemas/CompletedRunNotification'
       - $ref: '#/components/schemas/KernelReadyNotification'
       - $ref: '#/components/schemas/CompletionResultNotification'
@@ -4343,7 +4328,6 @@ components:
           environment-state: '#/components/schemas/EnvironmentStateNotification'
           focus-cell: '#/components/schemas/FocusCellNotification'
           function-call-result: '#/components/schemas/FunctionCallResultNotification'
-          interrupted: '#/components/schemas/InterruptedNotification'
           kernel-ready: '#/components/schemas/KernelReadyNotification'
           kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
           missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
