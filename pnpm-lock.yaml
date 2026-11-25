@@ -298,14 +298,14 @@ importers:
         specifier: ^0.3.10
         version: 0.3.10(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
       '@marimo-team/codemirror-languageserver':
-        specifier: ^2.0.1
-        version: 2.0.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
+        specifier: ^2.0.2
+        version: 2.0.2(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
       '@marimo-team/codemirror-mcp':
         specifier: ^0.1.7
         version: 0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)(@modelcontextprotocol/sdk@1.32.2(supports-color@10.0.0)(zod@4.6.7))
       '@marimo-team/codemirror-sql':
-        specifier: ^0.3.1
-        version: 0.3.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
+        specifier: ^0.3.2
+        version: 0.3.2(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
       '@marimo-team/llm-info':
         specifier: workspace:*
         version: link:../packages/llm-info
@@ -2005,8 +2005,8 @@ packages:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
 
-  '@marimo-team/codemirror-languageserver@2.0.1':
-    resolution: {integrity: sha512-MwT+AyUSHs2ChUBTIgtqc8lM2oKvt+S+kgGRFsN+KhnboPEi2fgpoF+3taBnzf7EjjlmizKZ9CjUFs9dV5zA4A==}
+  '@marimo-team/codemirror-languageserver@2.0.2':
+    resolution: {integrity: sha512-CQScLrw0LdoW7xCJGGzF+D2tHu9Hc05RxsnWQiH6+eXBfR6ySBlXxhw7K244LXTSHl45LlwsXBHVxeWKuZ8Qzw==}
     peerDependencies:
       '@codemirror/autocomplete': ^6
       '@codemirror/lint': ^6
@@ -2021,8 +2021,8 @@ packages:
       '@codemirror/view': ^6
       '@modelcontextprotocol/sdk': ^1
 
-  '@marimo-team/codemirror-sql@0.3.1':
-    resolution: {integrity: sha512-MOWoEGGzrLnwu9s1/tr1HOF7MRlMBFsFjr1tAFp6PPpCQGJ8r9Jwl6i02nX3nVqN1JAZDNE6neNwE2jDIoO5bw==}
+  '@marimo-team/codemirror-sql@0.3.2':
+    resolution: {integrity: sha512-RphF6/bFDm3+nSZ1q9GBtSftTsC2cHXZoVM8nqZnLa6iDAjKmjvxFSykMfHpmpDlXvQIPVpQy6LyhsREcLearw==}
     peerDependencies:
       '@codemirror/autocomplete': ^6
       '@codemirror/lint': ^6
@@ -11298,7 +11298,7 @@ snapshots:
       '@codemirror/view': 6.43.13
       diff: 8.0.4
 
-  '@marimo-team/codemirror-languageserver@2.0.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)':
+  '@marimo-team/codemirror-languageserver@2.0.2(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)':
     dependencies:
       '@codemirror/autocomplete': 6.20.3
       '@codemirror/lint': 6.9.7
@@ -11314,7 +11314,7 @@ snapshots:
       '@codemirror/view': 6.43.13
       '@modelcontextprotocol/sdk': 1.32.2(supports-color@10.0.0)(zod@4.6.7)
 
-  '@marimo-team/codemirror-sql@0.3.1(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)':
+  '@marimo-team/codemirror-sql@0.3.2(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)':
     dependencies:
       '@codemirror/autocomplete': 6.20.3
       '@codemirror/lint': 6.9.7

@@ -1011,6 +1011,42 @@ describe("SQL analysis features", () => {
     view.destroy();
   });
 
+  it("updates gutter validity when the connection changes without an edit", async () => {
+    const doc = "SELECT TOP 1 * FROM users";
+    const extensions = adapter.getExtension({
+      ...TEST_EXTENSION_ARGS[0],
+      lspConfig: {
+        diagnostics: { sql_linter: true },
+      } as LSPConfig & { diagnostics: DiagnosticsConfig },
+    });
+    const view = new EditorView({
+      doc,
+      extensions: [
+        languageMetadataField.init(() => ({
+          ...metadata,
+          engine: DUCKDB_ENGINE,
+        })),
+        ...extensions,
+      ],
+    });
+    const markerColor = () =>
+      view.dom.querySelector<HTMLElement>(".cm-sql-gutter-marker")?.style
+        .backgroundColor;
+
+    try {
+      await vi.waitFor(() => expect(markerColor()).toBe("rgb(59, 130, 246)"));
+
+      view.dispatch({
+        effects: updateLanguageMetadata.of({ engine: TEST_ENGINE }),
+      });
+
+      await vi.waitFor(() => expect(markerColor()).toBe("rgb(239, 68, 68)"));
+      expect(view.state.doc.toString()).toBe(doc);
+    } finally {
+      view.destroy();
+    }
+  });
+
   it("invalidates analysis caches when the engine changes", async () => {
     const mssqlEngine = "mssql_engine" as ConnectionName;
     const postgresEngine = "postgres_engine" as ConnectionName;

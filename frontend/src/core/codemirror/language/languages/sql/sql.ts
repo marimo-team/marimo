@@ -214,6 +214,9 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
       extensions.push(
         sqlExtension({
           schema: getSchema,
+          needsRefresh: (update) =>
+            getSQLMetadata(update.startState).engine !==
+            getSQLMetadata(update.state).engine,
           enableLinting: true,
           linterConfig: {
             delay: 250, // Delay before running validation
