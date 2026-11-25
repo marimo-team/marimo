@@ -144,7 +144,7 @@ def resolve_cell_references(
 ) -> dict[Name, set[CellId_t]]:
     """Resolve each reference to its defining cells using language semantics.
 
-    Keys retain the reference as written, including SQL qualification.
+    Keys name the resolved bindings, including SQL qualification.
     Unresolved names and references to the cell itself are excluded.
     """
     resolved: dict[Name, set[CellId_t]] = {}
@@ -154,8 +154,6 @@ def resolve_cell_references(
         other_ids_defining_name: set[CellId_t] = definitions.definitions.get(
             name, set()
         ) - {cell_id}
-
-        variable_name: Name = name
 
         # Handle SQL matching for hierarchical references
         sql_matches: list[tuple[set[CellId_t], Name]] = []
@@ -174,12 +172,12 @@ def resolve_cell_references(
             if other_id == cell_id:
                 LOGGER.error("Cell %s is referencing itself", cell_id)
                 continue
-            if not _is_valid_cell_reference(other_id, variable_name, topology):
+            if not _is_valid_cell_reference(other_id, name, topology):
                 continue
             other_cell = topology.cells[other_id]
 
             variable_name = _resolve_variable_name(
-                variable_name, other_cell, sql_ref, sql_matches
+                name, other_cell, sql_ref, sql_matches
             )
 
             # If we don't have a matching variable name, skip
@@ -209,7 +207,8 @@ def resolve_cell_references(
                         kind=cast(SQLTypes, other_variable_data.kind),
                     ):
                         continue
-            resolved.setdefault(name, set()).add(other_id)
+            binding_name = other_variable_data.binding_name(variable_name)
+            resolved.setdefault(binding_name, set()).add(other_id)
 
     return resolved
 

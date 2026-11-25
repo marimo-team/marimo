@@ -126,7 +126,12 @@ class CellAnalyzer:
                 compiled.cell_id, compiled, graph, graph.definition_registry
             )
             analyses[cell.id] = protocol.CellAnalysis(
-                defs=tuple(sorted(compiled.defs)),
+                defs=tuple(
+                    sorted(
+                        compiled.variable_data[name][-1].binding_name(name)
+                        for name in compiled.defs
+                    )
+                ),
                 refs=tuple(sorted(refs)),
                 parents=tuple(
                     protocol.CellId(parent)
