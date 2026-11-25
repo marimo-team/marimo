@@ -17,14 +17,20 @@ if TYPE_CHECKING:
     from starlette.testclient import WebSocketTestSession
 
 
-def receive_notification(websocket: WebSocketTestSession) -> dict[str, Any]:
-    """Read a private session notification from the host event stream."""
+def receive_event(
+    websocket: WebSocketTestSession, kind: str
+) -> dict[str, Any]:
+    """Read the data of the next host event of this kind."""
     while True:
         event = websocket.receive_json()
-        assert "event" in event
-        if event["event"] == "marimo":
-            notification = event["data"]["marimo"]
-            return {"op": notification["op"], "data": notification}
+        if event["event"] == kind:
+            return event["data"]
+
+
+def receive_notification(websocket: WebSocketTestSession) -> dict[str, Any]:
+    """Read a private session notification from the host event stream."""
+    notification = receive_event(websocket, "marimo")["marimo"]
+    return {"op": notification["op"], "data": notification}
 
 
 def receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:

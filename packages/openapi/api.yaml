@@ -1093,38 +1093,6 @@ components:
       - destination
       title: CopyNotebookRequest
       type: object
-    CreateCell:
-      description: Insert a new cell into the notebook.
-      properties:
-        after:
-          anyOf:
-          - $ref: '#/components/schemas/CellId'
-          - type: 'null'
-          default: null
-        before:
-          anyOf:
-          - $ref: '#/components/schemas/CellId'
-          - type: 'null'
-          default: null
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        code:
-          type: string
-        config:
-          $ref: '#/components/schemas/CellConfig'
-        name:
-          type: string
-        type:
-          enum:
-          - create-cell
-      required:
-      - type
-      - cellId
-      - code
-      - name
-      - config
-      title: CreateCell
-      type: object
     CreateSecretRequest:
       properties:
         key:
@@ -1496,19 +1464,6 @@ components:
       required:
       - cellId
       title: DebugCellRequest
-      type: object
-    DeleteCell:
-      description: Remove a cell from the notebook.
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        type:
-          enum:
-          - delete-cell
-      required:
-      - type
-      - cellId
-      title: DeleteCell
       type: object
     DeleteCellCommand:
       description: "Delete a cell from the notebook.\n\nRemoves cell from the dependency\
@@ -4280,29 +4235,6 @@ components:
       - bufferPaths
       title: ModelUpdateMessage
       type: object
-    MoveCell:
-      description: Reposition a cell in the notebook.
-      properties:
-        after:
-          anyOf:
-          - $ref: '#/components/schemas/CellId'
-          - type: 'null'
-          default: null
-        before:
-          anyOf:
-          - $ref: '#/components/schemas/CellId'
-          - type: 'null'
-          default: null
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        type:
-          enum:
-          - move-cell
-      required:
-      - type
-      - cellId
-      title: MoveCell
-      type: object
     MultipleDefinitionError:
       properties:
         cells:
@@ -4342,24 +4274,6 @@ components:
       - name
       - config
       title: NotebookCell
-      type: object
-    NotebookDocumentTransactionNotification:
-      description: 'Broadcasts an applied transaction to the frontend.
-
-
-        Sent by the session when the document changes (from any source).
-
-        The frontend applies the ops to update its local state.'
-      properties:
-        op:
-          enum:
-          - notebook-document-transaction
-        transaction:
-          $ref: '#/components/schemas/Transaction'
-      required:
-      - op
-      - transaction
-      title: NotebookDocumentTransactionNotification
       type: object
     NotificationMessage:
       anyOf:
@@ -4407,7 +4321,6 @@ components:
       - $ref: '#/components/schemas/PdbInputNotification'
       - $ref: '#/components/schemas/BreakpointsNotification'
       - $ref: '#/components/schemas/ActiveLineNotification'
-      - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
       - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
       discriminator:
         mapping:
@@ -4435,7 +4348,6 @@ components:
           kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
           missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
           model-lifecycle: '#/components/schemas/ModelLifecycleNotification'
-          notebook-document-transaction: '#/components/schemas/NotebookDocumentTransactionNotification'
           pdb-input: '#/components/schemas/PdbInputNotification'
           pdb-output: '#/components/schemas/PdbOutputNotification'
           query-params-append: '#/components/schemas/QueryParamsAppendNotification'
@@ -5052,26 +4964,6 @@ components:
       required:
       - filename
       title: RenameNotebookRequest
-      type: object
-    ReorderCells:
-      description: 'Replace the full cell ordering.
-
-
-        Cell IDs present in the document but missing from `cell_ids`
-
-        are appended at the end. IDs not in the document are ignored.'
-      properties:
-        cellIds:
-          items:
-            $ref: '#/components/schemas/CellId'
-          type: array
-        type:
-          enum:
-          - reorder-cells
-      required:
-      - type
-      - cellIds
-      title: ReorderCells
       type: object
     RequestId:
       format: request-id
@@ -5754,65 +5646,6 @@ components:
       - breakpoints
       title: SetBreakpointsRequest
       type: object
-    SetCode:
-      description: Replace a cell's source code.
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        code:
-          type: string
-        type:
-          enum:
-          - set-code
-      required:
-      - type
-      - cellId
-      - code
-      title: SetCode
-      type: object
-    SetConfig:
-      description: Replace a cell's config.
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        column:
-          anyOf:
-          - type: integer
-          - type: 'null'
-        disabled:
-          type: boolean
-        expandOutput:
-          type: boolean
-        hideCode:
-          type: boolean
-        type:
-          enum:
-          - set-config
-      required:
-      - type
-      - cellId
-      - column
-      - disabled
-      - hideCode
-      - expandOutput
-      title: SetConfig
-      type: object
-    SetName:
-      description: Rename a cell.
-      properties:
-        cellId:
-          $ref: '#/components/schemas/CellId'
-        name:
-          type: string
-        type:
-          enum:
-          - set-name
-      required:
-      - type
-      - cellId
-      - name
-      title: SetName
-      type: object
     SetupRootError:
       properties:
         edges_with_vars:
@@ -6349,55 +6182,6 @@ components:
       - source
       - mode
       title: ToolDefinition
-      type: object
-    Transaction:
-      description: 'An atomic batch of changes applied to a NotebookDocument.
-
-
-        `source` identifies the writer (e.g. `"frontend"`, `"kernel"`).
-
-        `version` is `None` when created and stamped by
-
-        `NotebookDocument.apply()`.'
-      properties:
-        changes:
-          items:
-            anyOf:
-            - $ref: '#/components/schemas/CreateCell'
-            - $ref: '#/components/schemas/DeleteCell'
-            - $ref: '#/components/schemas/MoveCell'
-            - $ref: '#/components/schemas/ReorderCells'
-            - $ref: '#/components/schemas/SetCode'
-            - $ref: '#/components/schemas/SetName'
-            - $ref: '#/components/schemas/SetConfig'
-            discriminator:
-              mapping:
-                create-cell: '#/components/schemas/CreateCell'
-                delete-cell: '#/components/schemas/DeleteCell'
-                move-cell: '#/components/schemas/MoveCell'
-                reorder-cells: '#/components/schemas/ReorderCells'
-                set-code: '#/components/schemas/SetCode'
-                set-config: '#/components/schemas/SetConfig'
-                set-name: '#/components/schemas/SetName'
-              propertyName: type
-          type: array
-        source:
-          enum:
-          - cell-manager
-          - code-mode
-          - file-watch
-          - frontend
-          - host
-          - kernel
-        version:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          default: null
-      required:
-      - changes
-      - source
-      title: Transaction
       type: object
     TyLanguageServerConfig:
       description: 'Configuration options for Ty Language Server.

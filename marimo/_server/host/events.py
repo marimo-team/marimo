@@ -14,7 +14,6 @@ from marimo._messaging.notification import (
     CellNotification,
     ConsoleInputsClearedNotification,
     EditorNotification,
-    ExecutionNotification,
     KernelReadyNotification,
     NotificationMessage,
     PdbInputNotification,
@@ -129,7 +128,7 @@ def notification_event(
     editor_session: bool = False,
 ) -> RoutedEvent | None:
     """Project a kernel notification onto the host or attached editor stream."""
-    if isinstance(notification, (ExecutionNotification, CellNotification)):
+    if not isinstance(notification, EditorNotification):
         return None
     if not editor_session and isinstance(
         notification,

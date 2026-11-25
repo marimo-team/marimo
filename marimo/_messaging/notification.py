@@ -1147,11 +1147,7 @@ class CacheInfoNotification(Notification, tag="cache-info"):
 class NotebookDocumentTransactionNotification(
     Notification, tag="notebook-document-transaction"
 ):
-    """Broadcasts an applied transaction to the frontend.
-
-    Sent by the session when the document changes (from any source).
-    The frontend applies the ops to update its local state.
-    """
+    """Carry a document transaction between the kernel and its session."""
 
     name: ClassVar[str] = "notebook-document-transaction"
     transaction: Transaction
@@ -1213,12 +1209,13 @@ EditorNotification = (
     | PdbInputNotification
     | BreakpointsNotification
     | ActiveLineNotification
-    # Document
-    | NotebookDocumentTransactionNotification
     # Consumer
     | ConsumerCapabilitiesNotification
 )
 
 NotificationMessage = (
-    EditorNotification | CellNotification | ExecutionNotification
+    EditorNotification
+    | CellNotification
+    | ExecutionNotification
+    | NotebookDocumentTransactionNotification
 )

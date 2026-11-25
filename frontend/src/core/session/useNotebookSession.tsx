@@ -379,9 +379,6 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
             : { cellId: msg.data.cell_id, line: msg.data.line },
         );
         return;
-      case "notebook-document-transaction":
-        // Edits reach the notebook through the host document.
-        return;
       case "consumer-capabilities":
         setKioskMode(!msg.data.consumer_capabilities.edit);
         if (!msg.data.consumer_capabilities.edit) {

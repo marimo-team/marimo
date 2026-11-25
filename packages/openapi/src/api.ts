@@ -4299,22 +4299,6 @@ export interface components {
       destination: string;
       source: string;
     };
-    /**
-     * CreateCell
-     * @description Insert a new cell into the notebook.
-     */
-    CreateCell: {
-      /** @default null */
-      after?: components["schemas"]["CellId"] | null;
-      /** @default null */
-      before?: components["schemas"]["CellId"] | null;
-      cellId: components["schemas"]["CellId"];
-      code: string;
-      config: components["schemas"]["CellConfig"];
-      name: string;
-      /** @enum {unknown} */
-      type: "create-cell";
-    };
     /** CreateSecretRequest */
     CreateSecretRequest: {
       key: string;
@@ -4533,15 +4517,6 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
-    };
-    /**
-     * DeleteCell
-     * @description Remove a cell from the notebook.
-     */
-    DeleteCell: {
-      cellId: components["schemas"]["CellId"];
-      /** @enum {unknown} */
-      type: "delete-cell";
     };
     /**
      * DeleteCellCommand
@@ -6196,19 +6171,6 @@ export interface components {
       method: "update";
       state: Record<string, any>;
     };
-    /**
-     * MoveCell
-     * @description Reposition a cell in the notebook.
-     */
-    MoveCell: {
-      /** @default null */
-      after?: components["schemas"]["CellId"] | null;
-      /** @default null */
-      before?: components["schemas"]["CellId"] | null;
-      cellId: components["schemas"]["CellId"];
-      /** @enum {unknown} */
-      type: "move-cell";
-    };
     /** MultipleDefinitionError */
     MultipleDefinitionError: {
       cells: components["schemas"]["CellId"][];
@@ -6230,18 +6192,6 @@ export interface components {
       name: string;
       /** @default 0 */
       version?: number;
-    };
-    /**
-     * NotebookDocumentTransactionNotification
-     * @description Broadcasts an applied transaction to the frontend.
-     *
-     *     Sent by the session when the document changes (from any source).
-     *     The frontend applies the ops to update its local state.
-     */
-    NotebookDocumentTransactionNotification: {
-      /** @enum {unknown} */
-      op: "notebook-document-transaction";
-      transaction: components["schemas"]["Transaction"];
     };
     NotificationMessage:
       | components["schemas"]["FunctionCallResultNotification"]
@@ -6288,7 +6238,6 @@ export interface components {
       | components["schemas"]["PdbInputNotification"]
       | components["schemas"]["BreakpointsNotification"]
       | components["schemas"]["ActiveLineNotification"]
-      | components["schemas"]["NotebookDocumentTransactionNotification"]
       | components["schemas"]["ConsumerCapabilitiesNotification"];
     /**
      * OpenAiConfig
@@ -6666,18 +6615,6 @@ export interface components {
     /** RenameNotebookRequest */
     RenameNotebookRequest: {
       filename: string;
-    };
-    /**
-     * ReorderCells
-     * @description Replace the full cell ordering.
-     *
-     *     Cell IDs present in the document but missing from `cell_ids`
-     *     are appended at the end. IDs not in the document are ignored.
-     */
-    ReorderCells: {
-      cellIds: components["schemas"]["CellId"][];
-      /** @enum {unknown} */
-      type: "reorder-cells";
     };
     /** Format: request-id */
     RequestId: TypedString<"RequestId">;
@@ -7134,39 +7071,6 @@ export interface components {
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
-    /**
-     * SetCode
-     * @description Replace a cell's source code.
-     */
-    SetCode: {
-      cellId: components["schemas"]["CellId"];
-      code: string;
-      /** @enum {unknown} */
-      type: "set-code";
-    };
-    /**
-     * SetConfig
-     * @description Replace a cell's config.
-     */
-    SetConfig: {
-      cellId: components["schemas"]["CellId"];
-      column: number | null;
-      disabled: boolean;
-      expandOutput: boolean;
-      hideCode: boolean;
-      /** @enum {unknown} */
-      type: "set-config";
-    };
-    /**
-     * SetName
-     * @description Rename a cell.
-     */
-    SetName: {
-      cellId: components["schemas"]["CellId"];
-      name: string;
-      /** @enum {unknown} */
-      type: "set-name";
-    };
     /** SetupRootError */
     SetupRootError: {
       edges_with_vars: [string, string[], string][];
@@ -7486,35 +7390,6 @@ export interface components {
       parameters: Record<string, any>;
       /** @enum {unknown} */
       source: "backend" | "frontend" | "mcp";
-    };
-    /**
-     * Transaction
-     * @description An atomic batch of changes applied to a NotebookDocument.
-     *
-     *     `source` identifies the writer (e.g. `"frontend"`, `"kernel"`).
-     *     `version` is `None` when created and stamped by
-     *     `NotebookDocument.apply()`.
-     */
-    Transaction: {
-      changes: (
-        | components["schemas"]["CreateCell"]
-        | components["schemas"]["DeleteCell"]
-        | components["schemas"]["MoveCell"]
-        | components["schemas"]["ReorderCells"]
-        | components["schemas"]["SetCode"]
-        | components["schemas"]["SetName"]
-        | components["schemas"]["SetConfig"]
-      )[];
-      /** @enum {unknown} */
-      source:
-        | "cell-manager"
-        | "code-mode"
-        | "file-watch"
-        | "frontend"
-        | "host"
-        | "kernel";
-      /** @default null */
-      version?: number | null;
     };
     /**
      * TyLanguageServerConfig
