@@ -290,8 +290,10 @@ all executions before completing their run, and complete all runs before
 publishing their runtime as `ended`.
 
 Statuses move forward. A final state stays fixed and remains visible to
-reconnecting clients while the host retains the record. Records without a
-status are removed when the object they describe or their owner goes away.
+reconnecting clients while the host retains the record. The one exception is
+a completed execution's `depends_on`, which can
+[advance](#variables-and-result-freshness). Records without a status are
+removed when the object they describe or their owner goes away.
 
 A client can tell that a runtime is busy when one of its runs is `running`.
 An execution waiting for an answer stays `running` and has a `pending` input.
@@ -360,6 +362,12 @@ rules to describe the values in its namespace.
 - a value carried forward unchanged, such as an import, keeps its revision,
   so a revision's `execution_id` can be earlier than the variable's
   `execution_id`.
+
+A cell's own code can also update a value after its execution has completed.
+The first rule still applies, so the host publishes that execution again with
+the `depends_on` entry advanced to the revision the update set. An entry
+advances only from the revision just before it, so a result that had already
+missed another update stays outdated.
 
 Updates are published before any execution that depends on them. A result is
 **live** when its execution's `runtime_id` names the notebook's runtime and

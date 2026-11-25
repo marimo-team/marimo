@@ -458,7 +458,10 @@ def variable_messages(notification: NotificationMessage) -> list[be.Message]:
                     preview=value.value,
                     revision=value.revision,
                     type=value.datatype,
-                )
+                ),
+                exempt_cell=protocol.CellId(notification.exempt_cell)
+                if notification.exempt_cell is not None
+                else None,
             )
         )
     return out

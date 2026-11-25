@@ -234,9 +234,15 @@ class Produced:
 
     Reusing an item ID replaces its previous value, except for inputs:
     each prompt is produced once, and the host owns its later status changes.
+
+    A variable update outdates the results that read the value.
+    `exempt_cell` names the cell it does not outdate, which is the cell
+    whose own code made the update when the runtime does not run that cell
+    again for it. That cell's completed result stays current.
     """
 
     item: protocol.Console | protocol.Variable | protocol.Input
+    exempt_cell: protocol.CellId | None = None
 
 
 @dataclass(frozen=True)

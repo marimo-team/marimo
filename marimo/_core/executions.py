@@ -435,7 +435,7 @@ class Executions:
                         for item in result.outputs.values()
                     )
                     result.outputs.clear()
-            case be.Produced(item=item):
+            case be.Produced(item=item, exempt_cell=exempt_cell):
                 if (
                     result := self._results.get(item.execution_id)
                 ) is not None:
@@ -453,7 +453,15 @@ class Executions:
                     elif isinstance(item, protocol.Variable):
                         if result.execution.cell_id is None:
                             return []
+                        previous = result.variables.get(item.id)
                         result.variables[item.id] = item
+                        if exempt_cell is not None and previous is not None:
+                            return [
+                                item,
+                                *self._keep_current(
+                                    exempt_cell, previous.revision, item
+                                ),
+                            ]
                     else:
                         result.outputs[item.id] = item
                     changes.append(item)
@@ -685,6 +693,43 @@ class Executions:
         ):
             return []
         return [Released(tracked.run.id)]
+
+    def _keep_current(
+        self,
+        cell_id: protocol.CellId,
+        previous: protocol.Revision,
+        updated: protocol.Variable,
+    ) -> list[Change]:
+        """Advance a cell's completed result past an update its own code made.
+
+        The input moves only if it held the value's revision before the
+        update, so a result that had already missed another update stays
+        outdated.
+        """
+        execution_id = self._cells.get(cell_id)
+        result = (
+            self._results.get(execution_id)
+            if execution_id is not None
+            else None
+        )
+        if (
+            result is None
+            or previous == updated.revision
+            or not isinstance(
+                state := result.execution.state, protocol.ExecutionCompleted
+            )
+            or state.depends_on.get(updated.name) != previous
+        ):
+            return []
+        depends_on = {**state.depends_on, updated.name: updated.revision}
+        return [
+            self._set_execution(
+                replace(
+                    result.execution,
+                    state=replace(state, depends_on=depends_on),
+                )
+            )
+        ]
 
     def _retire_execution(
         self, execution_id: protocol.ExecutionId

@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import itertools
 import json
@@ -31,7 +30,6 @@ if TYPE_CHECKING:
 
     from marimo._config.types import OnCellChangeType
     from marimo._core.backend import RunEnding
-    from marimo._core.stream import RoutedEvent
     from tests._server.host.drive import Response
     from tests._server.host.staleness import Outdated
 
@@ -114,6 +112,38 @@ class Client:
             ).encode(),
         )
         assert edited.status == 200, edited.body
+
+    async def printed(self, code: str) -> list[str]:
+        """Run scratch code and return the lines it printed."""
+        start = len(self.events.records)
+        await self.run(code=code)
+        return [
+            text
+            for r in self.events.records[start:]
+            if r.get("event") == "console"
+            and (text := r["data"]["console"]["content"]["text"].strip())
+        ]
+
+    async def kernel_stale(self) -> set[str]:
+        """The cells the kernel itself holds as stale."""
+        stale = await self.printed(
+            "from marimo._runtime.context import get_context\n"
+            "print(*(i for i, c in get_context().graph.cells.items() if c.stale))"
+        )
+        ids = set(stale[0].split()) if stale else set()
+        return {name for name, cell_id in self.cells.items() if cell_id in ids}
+
+    async def set_ui_value(self, name: str, value: object) -> None:
+        """Change a UI element's value as a browser would."""
+        [object_id] = await self.printed(f"print({name}._id)")
+        session = next(iter(self.app.state.session_manager.sessions.values()))
+        session.put_control_request(
+            UpdateUIElementCommand.from_ids_and_values([(object_id, value)]),
+            from_consumer_id=None,
+        )
+        # The kernel takes commands in order, so this run completes after
+        # the interaction and the cells it reran.
+        await self.run(code=f"assert {name}.value == {value!r}")
 
     async def snapshot(self) -> Snapshot:
         return await snapshot(self.app, self.notebook_id)
@@ -411,6 +441,144 @@ async def test_a_setter_that_reads_its_own_update_is_current(
         assert await c.outdated() == {}
 
 
+async def test_a_setter_that_allows_self_loops_is_outdated_by_its_own_update(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        state="get_x, set_x = mo.state(1, allow_self_loops=True)",
+        setter="if get_x() < 2:\n    set_x(2)\nz = get_x()",
+    ) as c:
+        await c.run("mo", "state", "setter")
+        assert await c.outdated() == {"setter": "updated"}
+        assert await c.kernel_stale() == {"setter"}
+
+        await c.run("setter")
+        assert await c.outdated() == {}
+
+
+@pytest.mark.parametrize(
+    ("mode", "allow_self_loops", "outdated"),
+    [
+        ("autorun", False, {}),
+        ("lazy", False, {"reader": "updated"}),
+        ("lazy", True, {"slider": "updated", "reader": "updated"}),
+    ],
+)
+async def test_a_callback_that_sets_state_keeps_its_own_cell_current(
+    tmp_path: Path,
+    mode: OnCellChangeType,
+    allow_self_loops: bool,
+    outdated: dict[str, Outdated],
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change=mode,
+        mo="import marimo as mo",
+        state=f"get_x, set_x = mo.state(0, allow_self_loops={allow_self_loops})",
+        slider="s = mo.ui.slider(0, 10, value=get_x(), on_change=set_x)",
+        reader="x = get_x()",
+    ) as c:
+        await c.run(*c.cells)
+        before = (await c.snapshot()).latest(c.cells["slider"])
+        assert before is not None
+
+        await c.set_ui_value("s", 5)
+        assert await c.outdated() == outdated
+        assert await c.kernel_stale() == set(outdated)
+        current = await c.snapshot()
+        after = current.latest(c.cells["slider"])
+        assert after is not None
+        assert after.id == before.id
+        if "slider" in outdated:
+            assert after == before
+            return
+        getter = next(
+            v for v in current.variables.values() if v.name == "get_x"
+        )
+        assert getter.revision.update == 1
+        assert after.state.depends_on["get_x"] == getter.revision
+        records = c.events.records
+        updated = next(
+            i
+            for i, r in enumerate(records)
+            if r.get("event") == "variable"
+            and r["data"]["variable"]["id"] == getter.id
+            and r["data"]["variable"]["revision"]["update"] == 1
+        )
+        advanced = max(
+            i
+            for i, r in enumerate(records)
+            if r.get("event") == "execution"
+            and r["data"]["execution"]["id"] == after.id
+        )
+        assert updated < advanced
+
+
+async def test_a_cells_own_update_does_not_hide_one_it_missed(
+    tmp_path: Path,
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change="lazy",
+        mo="import marimo as mo",
+        state="get_x, set_x = mo.state(0)",
+        slider="s = mo.ui.slider(0, 10, value=get_x(), on_change=set_x)",
+    ) as c:
+        await c.run(*c.cells)
+        await c.run(code="set_x(7)")
+        assert await c.outdated() == {"slider": "updated"}
+
+        await c.set_ui_value("s", 9)
+        assert await c.outdated() == {"slider": "updated"}
+
+
+@pytest.mark.parametrize(
+    ("mode", "outdated"),
+    [("autorun", {}), ("lazy", {"reader": "updated"})],
+)
+async def test_a_thread_that_sets_state_keeps_its_own_cell_current(
+    tmp_path: Path,
+    mode: OnCellChangeType,
+    outdated: dict[str, Outdated],
+) -> None:
+    async with client(
+        tmp_path,
+        on_cell_change=mode,
+        mo="import marimo as mo",
+        state="get_x, set_x = mo.state(0)",
+        gate="import threading\ngate = threading.Event()",
+        worker=(
+            "v = get_x()\n"
+            "def _work():\n"
+            "    gate.wait()\n"
+            "    set_x(1)\n"
+            "thread = mo.Thread(target=_work)\n"
+            "thread.start()"
+        ),
+        reader="x = get_x()",
+    ) as c:
+        await c.run(*c.cells)
+        before = (await c.snapshot()).latest(c.cells["worker"])
+        assert before is not None
+
+        await c.run(code="gate.set()\nthread.join()")
+        await c.run(code="assert get_x() == 1")
+        current = await c.snapshot()
+        getter = next(
+            v for v in current.variables.values() if v.name == "get_x"
+        )
+        after = current.latest(c.cells["worker"])
+        assert after is not None
+        assert after.id == before.id
+        assert getter.revision.update == 1
+        assert after.state.depends_on["get_x"] == getter.revision
+        assert await c.outdated() == outdated
+        assert await c.kernel_stale() == set(outdated)
+
+
 async def test_reimporting_keeps_dependents_current(tmp_path: Path) -> None:
     async with client(
         tmp_path,
@@ -551,38 +719,10 @@ async def test_a_ui_update_outdates_lazy_readers(tmp_path: Path) -> None:
         slider = next(
             v for v in before.variables.values() if v.name == "slider"
         )
-        start = len(c.events.records)
-        await c.run(code="print(slider._id)")
-        [object_id] = [
-            r["data"]["console"]["content"]["text"].strip()
-            for r in c.events.records[start:]
-            if r.get("event") == "console"
-            and r["data"]["console"]["content"]["text"].strip()
-        ]
         expected = replace(
             slider, preview="5", revision=replace(slider.revision, update=1)
         )
-        updated = asyncio.Event()
-
-        def observe(event: RoutedEvent) -> None:
-            if (
-                isinstance(event.event, protocol.VariableEvent)
-                and event.event.data.variable == expected
-            ):
-                updated.set()
-
-        host = c.app.state.host_context.bridge.host
-        unsubscribe = host.subscribe(observe, notebook_id=c.notebook_id)
-        try:
-            session = next(iter(c.app.state.session_manager.sessions.values()))
-            session.put_control_request(
-                UpdateUIElementCommand.from_ids_and_values([(object_id, 5)]),
-                from_consumer_id=None,
-            )
-            await updated.wait()
-        finally:
-            unsubscribe()
-
+        await c.set_ui_value("slider", 5)
         after = await c.snapshot()
         assert after.variables[slider.id] == expected
         assert after.latest(c.cells["reader"]) == before.latest(

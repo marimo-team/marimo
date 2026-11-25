@@ -182,6 +182,46 @@ def test_completion_freezes_the_outcome_and_input_revisions(
     assert executions.current(protocol.CellId("a")) == retained
 
 
+def test_an_update_keeps_the_completed_cell_that_made_it_current() -> None:
+    executions = Executions()
+    executions.begin(run("r1"), "request")
+    executions.observe(planned("r1", ("e1", "a"), ("e2", "b")), RUNTIME)
+    complete(executions, "e1")
+    executions.observe(be.Produced(variable("e1")), RUNTIME)
+    reader, cell = protocol.ExecutionId("e2"), protocol.CellId("b")
+
+    def update(count: int) -> protocol.Variable:
+        revision = protocol.Revision(protocol.ExecutionId("e1"), count)
+        return replace(variable("e1"), revision=revision)
+
+    executions.observe(be.Started(reader), RUNTIME)
+    assert executions.observe(be.Produced(update(1), cell), RUNTIME) == [
+        update(1)
+    ]
+    [completed] = executions.observe(
+        be.Completed(
+            reader, protocol.SucceededOutcome(), {"x": update(1).revision}
+        ),
+        RUNTIME,
+    )
+    assert isinstance(completed, protocol.Execution)
+
+    assert executions.observe(be.Produced(update(2), cell), RUNTIME) == [
+        update(2),
+        replace(
+            completed,
+            state=replace(
+                completed.state, depends_on={"x": update(2).revision}
+            ),
+        ),
+    ]
+    # An update from elsewhere is missed, and a later own update keeps it so.
+    assert executions.observe(be.Produced(update(3)), RUNTIME) == [update(3)]
+    assert executions.observe(be.Produced(update(4), cell), RUNTIME) == [
+        update(4)
+    ]
+
+
 def test_a_cell_result_outlives_its_run_until_the_next_replaces_it() -> None:
     executions = Executions()
     executions.begin(run("r1"), "first")
