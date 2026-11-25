@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import type { Execution } from "@marimo-team/client/protocol";
+import type { ExecutionOutput as Execution } from "@marimo-team/client/protocol";
 import {
   exportedForTesting,
   MAX_CODE_LENGTH,
@@ -18,7 +18,7 @@ const queued = {
   run_id: "r1",
   runtime_id: "runtime",
   caused_by_id: null,
-  cell_id: "cell",
+  cell_id: cellId("cell"),
   code_fingerprint: "fp",
   created_at: "2026-10-01T09:20:00Z",
   state: { status: "queued" },
@@ -147,7 +147,7 @@ describe("execution traces", () => {
     expect(isPureMarkdown(markdown)).toBe(true);
     expect(observe(initial, {}, markdown)).toBe(initial);
     expect(
-      observe(observe(initial), { cell_id: "md" }, markdown).runMap.get(
+      observe(observe(initial), { cell_id: cellId("md") }, markdown).runMap.get(
         "r1" as RunId,
       )?.cellRuns.size,
     ).toBe(2);

@@ -53,7 +53,7 @@ describe("useEnrichCellOutputs", () => {
   /** A completed execution per cell that shows its `output`. */
   const createMockCellRuntimes = (
     cells: Record<string, { output: CellOutput | null }>,
-  ): Array<Protocol.Execution | Protocol.Output> =>
+  ): Array<Protocol.ExecutionOutput | Protocol.Output> =>
     Object.entries(cells).flatMap(([cellId, { output }]) =>
       output === null
         ? []

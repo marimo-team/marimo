@@ -8,11 +8,11 @@ import { MockNotebook } from "@/__mocks__/notebook";
 import { type CellId, CellId as CellIdClass } from "@/core/cells/ids";
 import { ErrorContextProvider } from "../error";
 
-const SYNTAX: Partial<Protocol.Error> = {
+const SYNTAX: Partial<Protocol.ErrorOutput> = {
   kind: "invalid-syntax",
   message: "Invalid syntax",
 };
-const RUNTIME: Partial<Protocol.Error> = {
+const RUNTIME: Partial<Protocol.ErrorOutput> = {
   kind: "exception",
   name: "RuntimeError",
   message: "Runtime error",
@@ -332,7 +332,10 @@ describe("ErrorContextProvider", () => {
 
   describe("error description handling", () => {
     it("describes each kind of host error", () => {
-      const errors: { error: Partial<Protocol.Error>; expected: string }[] = [
+      const errors: {
+        error: Partial<Protocol.ErrorOutput>;
+        expected: string;
+      }[] = [
         {
           error: { kind: "exception", message: "Runtime exception" },
           expected: "Runtime exception",

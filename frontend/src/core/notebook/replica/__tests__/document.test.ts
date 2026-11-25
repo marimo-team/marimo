@@ -5,6 +5,10 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { document } from "../resources/document";
 import { createNotebookReducer } from "@marimo-team/client";
 import { fixtureEvents } from "./fixtures";
+import { cellId } from "@/__tests__/branded";
+
+const C3 = cellId("c3");
+const FIXTURE_CELL = cellId("k7f2");
 
 const reducer = createNotebookReducer({ document });
 const snapshot = fixtureEvents("notebook-events.sse");
@@ -43,11 +47,11 @@ describe("document resource", () => {
     );
     const saved = current(reducer.reduce(changed, save));
     expect(saved?.revision).toEqual(save.data.document);
-    expect(saved?.cells.get("c3")?.code).toBe("x = 22");
-    expect(saved?.cells.has("k7f2")).toBe(false);
+    expect(saved?.cells.get(C3)?.code).toBe("x = 22");
+    expect(saved?.cells.has(FIXTURE_CELL)).toBe(false);
     expect(saved?.revision.saved_etag).toBe(saved?.revision.etag);
-    expect(first?.cells.get("c3")?.code).toBe("x = 21");
-    expect(first?.cells.has("k7f2")).toBe(true);
+    expect(first?.cells.get(C3)?.code).toBe("x = 21");
+    expect(first?.cells.has(FIXTURE_CELL)).toBe(true);
   });
 
   it("applies order-only changes and distinguishes an empty notebook from no document", () => {
@@ -117,7 +121,7 @@ describe("document resource", () => {
     expect(() =>
       reducer.reduce(state, {
         event: "document",
-        data: { document: { ...revision, order: ["missing"] } },
+        data: { document: { ...revision, order: [cellId("missing")] } },
         id: "200",
       }),
     ).toThrow("Document records do not match");

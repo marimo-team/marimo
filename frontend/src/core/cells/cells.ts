@@ -57,7 +57,7 @@ import {
 
 /** A deleted cell as it was, with where it went in the document. */
 export interface DeletedCell {
-  cell: Protocol.CellInput;
+  cell: Protocol.CellInputOutput;
   placement: Placement;
   /** The editor's state at deletion, so undo brings its history back. */
   serializedEditorState: SerializedEditorState | null;

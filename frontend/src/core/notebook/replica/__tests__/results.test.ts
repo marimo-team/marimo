@@ -5,6 +5,10 @@ import * as Protocol from "@marimo-team/client/protocol";
 import { executions } from "../resources/executions";
 import { createNotebookReducer } from "@marimo-team/client";
 import { fixtureEvents } from "./fixtures";
+import { cellId } from "@/__tests__/branded";
+
+const C3 = cellId("c3");
+const FIXTURE_CELL = cellId("k7f2");
 
 const reducer = createNotebookReducer({ executions });
 const snapshot = fixtureEvents("notebook-events.sse");
@@ -67,28 +71,28 @@ describe("retained results", () => {
         ...snapshot.slice(ready),
       ]),
     );
-    expect(opened.get("c3")?.record.id).toBe("e-restored");
-    expect(opened.get("c3")?.record.run_id).toBeNull();
+    expect(opened.get(C3)?.record.id).toBe("e-restored");
+    expect(opened.get(C3)?.record.run_id).toBeNull();
   });
 
   it("records a cell's result when its execution completes", () => {
     const start = replay(snapshot);
     const running = resource(replay(runCells.slice(0, 5), start));
-    expect(running.get("c3")).toBeNull();
-    expect(running.get("k7f2")).toBeNull();
+    expect(running.get(C3)).toBeNull();
+    expect(running.get(FIXTURE_CELL)).toBeNull();
 
     const done = resource(replay(runCells, start));
-    expect(done.get("c3")?.record.id).toBe("e12");
-    expect(done.get("c3")?.record.state.status).toBe("completed");
-    expect(done.get("k7f2")?.record.state).toHaveProperty("depends_on", {
+    expect(done.get(C3)?.record.id).toBe("e12");
+    expect(done.get(C3)?.record.state.status).toBe("completed");
+    expect(done.get(FIXTURE_CELL)?.record.state).toHaveProperty("depends_on", {
       x: { execution_id: "e12", update: 0 },
     });
-    expect(done.get("c1")).toBeNull();
+    expect(done.get(cellId("c1"))).toBeNull();
   });
 
   it("keeps a result when the attempt that replaced it was superseded", () => {
     const done = replay(runCells, replay(snapshot));
-    const result = resource(done).get("c3")!;
+    const result = resource(done).get(C3)!;
     const superseded = reducer.reduce(
       replay(retire("e12", "e12-x"), done),
       event({
@@ -115,14 +119,14 @@ describe("retained results", () => {
         },
       }),
     );
-    expect(resource(superseded).get("c3")).toBe(result);
+    expect(resource(superseded).get(C3)).toBe(result);
   });
 
   it("keeps a result while the host replaces it", () => {
     const done = replay(runCells, replay(snapshot));
-    const result = resource(done).get("c3")!;
+    const result = resource(done).get(C3)!;
     const retired = replay(retire("e12", "e12-x"), done);
-    expect(resource(retired).get("c3")).toBe(result);
+    expect(resource(retired).get(C3)).toBe(result);
 
     const again = {
       ...result.record,
@@ -134,7 +138,7 @@ describe("retained results", () => {
       retired,
       event({ event: "execution", id: "113", data: { execution: again } }),
     );
-    expect(resource(queued).get("c3")).toBe(result);
+    expect(resource(queued).get(C3)).toBe(result);
 
     const completed = reducer.reduce(
       queued,
@@ -155,12 +159,12 @@ describe("retained results", () => {
         },
       }),
     );
-    expect(resource(completed).get("c3")?.record.id).toBe("e14");
+    expect(resource(completed).get(C3)?.record.id).toBe("e14");
   });
 
   it("replaces a result with an execution interrupted before it started", () => {
     const done = replay(runCells, replay(snapshot));
-    const result = resource(done).get("c3")!;
+    const result = resource(done).get(C3)!;
     const interrupted = {
       ...result.record,
       id: "e14",
@@ -194,7 +198,7 @@ describe("retained results", () => {
       ],
       done,
     );
-    expect(resource(cancelled).get("c3")?.record.state).toHaveProperty(
+    expect(resource(cancelled).get(C3)?.record.state).toHaveProperty(
       "outcome",
       {
         kind: "cancelled",
@@ -205,11 +209,11 @@ describe("retained results", () => {
   it("drops a cell deleted while its execution runs", () => {
     const start = replay(runCells.slice(0, 5), replay(snapshot));
     const deleted = reducer.reduce(start, removed("cell", "c3", "105"));
-    expect(resource(deleted).has("c3")).toBe(false);
+    expect(resource(deleted).has(C3)).toBe(false);
 
     const finished = replay(runCells.slice(5), deleted);
-    expect(resource(finished).has("c3")).toBe(false);
-    expect(resource(finished).get("k7f2")?.record.id).toBe("e13");
+    expect(resource(finished).has(C3)).toBe(false);
+    expect(resource(finished).get(FIXTURE_CELL)?.record.id).toBe("e13");
   });
 
   it("ignores cells it has not seen and clears on reset", () => {

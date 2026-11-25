@@ -38,7 +38,7 @@ const CURRENT: CellFreshness = { sourceChanged: false, inputsChanged: false };
 /** What freshness is derived from. */
 export interface CellFreshnessInputs {
   /** The document's cells, for the fingerprint of each cell's source. */
-  readonly cells: ReadonlyMap<Protocol.CellId, Protocol.Cell>;
+  readonly cells: ReadonlyMap<Protocol.CellId, Protocol.CellOutput>;
   /** The stream's executions, for the variables currently bound. */
   readonly executions: Executions;
   /** Each cell's last completed record, the result being compared. */
@@ -81,7 +81,7 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
 
   /** Whether a value the record read has changed, or one upstream has. */
   function inputsChanged(
-    record: Protocol.Execution,
+    record: Protocol.ExecutionOutput,
     visiting: ReadonlySet<Protocol.ExecutionId>,
   ): boolean {
     const path = new Set(visiting).add(record.id);
@@ -135,8 +135,8 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
 
   /** Compare against pending work before the result it will replace. */
   function sourceChanged(
-    cell: Protocol.Cell,
-    result: Protocol.Execution,
+    cell: Protocol.CellOutput,
+    result: Protocol.ExecutionOutput,
   ): boolean {
     const latest = inputs.executions.latest.get(cell.id);
     const pending = latest === undefined ? undefined : recordOf(latest);
@@ -148,7 +148,7 @@ export function freshnessOf(inputs: CellFreshnessInputs): CellFreshnessLookup {
   }
 
   function ofRecord(
-    record: Protocol.Execution,
+    record: Protocol.ExecutionOutput,
     visiting: ReadonlySet<Protocol.ExecutionId>,
   ): CellFreshness {
     const known = memo.get(record.id);

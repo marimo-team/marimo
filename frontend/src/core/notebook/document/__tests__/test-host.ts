@@ -24,7 +24,7 @@ function record(
   input: Protocol.CellInput,
   notebookId: Protocol.NotebookId,
   version: number,
-): Protocol.Cell {
+): Protocol.CellOutput {
   const cell = Protocol.CellInput.parse(input);
   const config = Protocol.CellConfigInput.parse(cell.config ?? {});
   const code = cell.code.replace(/\r\n?/g, "\n");
@@ -86,7 +86,8 @@ export function createTestHost(initial: Document) {
         document: current.revision,
       });
 
-    for (const [index, change] of changes.entries()) {
+    for (const [index, input] of changes.entries()) {
+      const change = Protocol.Change.parse(input);
       switch (change.kind) {
         case "create_cell":
         case "replace_cell": {

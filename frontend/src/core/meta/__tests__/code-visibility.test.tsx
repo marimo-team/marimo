@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { cellId } from "@/__tests__/branded";
 import { renderHook } from "@testing-library/react";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, createStore, Provider } from "jotai";
@@ -28,8 +29,8 @@ interface StoreOpts {
 }
 
 function document(codes: ReadonlyArray<string | null>): Document {
-  const cells = codes.map((code, index): Protocol.Cell => ({
-    id: `cell-${index}` as Protocol.CellId,
+  const cells = codes.map((code, index): Protocol.CellOutput => ({
+    id: cellId(`cell-${index}`),
     notebook_id: "nb",
     code,
     name: "_",

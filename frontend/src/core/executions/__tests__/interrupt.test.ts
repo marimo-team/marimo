@@ -23,7 +23,7 @@ function run(
   id: string,
   status: Protocol.RunState["status"] = "running",
   runtimeId = "r1",
-): Protocol.Run {
+): Protocol.RunOutput {
   return {
     id,
     notebook_id: "n1",
@@ -44,7 +44,7 @@ function run(
   };
 }
 
-function setup(runs: Protocol.Run[]) {
+function setup(runs: Protocol.RunOutput[]) {
   const store = createStore();
   const replica = MockExecutions.seed(store, [], MockExecutions.runtime());
   const interrupt = vi.fn<FakeInterrupt>(async () => ({

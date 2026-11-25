@@ -10,9 +10,9 @@ import {
   StreamStopped,
 } from "@marimo-team/client";
 import type {
-  Analysis,
+  AnalysisOutput as Analysis,
   Attachment,
-  Execution as HostExecution,
+  ExecutionOutput as HostExecution,
   Output as HostOutput,
   NotebookOutput,
   Runtime,

@@ -148,7 +148,7 @@ export const MockNotebook = {
       cellId: CellId;
       cellName: string;
       code?: string;
-      error: Partial<Protocol.Error>;
+      error: Partial<Protocol.ErrorOutput>;
       consoleTraceback?: string;
     }[],
   ): NotebookState => {

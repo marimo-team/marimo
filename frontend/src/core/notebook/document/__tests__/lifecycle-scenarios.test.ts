@@ -2,12 +2,15 @@
 
 import { vi } from "vitest";
 import { test } from "./scenario-fixture";
+import { cellId } from "@/__tests__/branded";
+
+const C3 = cellId("c3");
 
 test("closing a session before the scheduled send prevents submission", async ({
   expect,
   session: { user, notebook, controller },
 }) => {
-  user.changeCode("c3", "local");
+  user.changeCode(C3, "local");
   const reason = new Error("Editing session ended");
   controller.abort(reason);
   await vi.advanceTimersByTimeAsync(1000);
@@ -20,7 +23,7 @@ test("closing a session before a queued flush starts prevents submission", async
   expect,
   session: { user, notebook, controller },
 }) => {
-  user.changeCode("c3", "local");
+  user.changeCode(C3, "local");
   const flushed = user.sync();
   const reason = new Error("Editing session ended");
   controller.abort(reason);
@@ -32,7 +35,7 @@ test("closing a session before a queued flush starts prevents submission", async
 test.for(["request", "confirmation", "retry"] as const)(
   "closing a session during %s stops synchronization",
   async (phase, { expect, session: { user, host, notebook, controller } }) => {
-    user.changeCode("c3", "local");
+    user.changeCode(C3, "local");
     const flushed = user.sync();
     const request = await host.nextRequest();
     if (phase === "confirmation") {
@@ -49,9 +52,9 @@ test.for(["request", "confirmation", "retry"] as const)(
       expect(request.signal.aborted).toBe(true);
     }
 
-    host.changeCell("c1", { code: "later" });
+    host.changeCell(cellId("c1"), { code: "later" });
     host.deliverSnapshot();
-    user.changeCode("c3", "after closing");
+    user.changeCode(C3, "after closing");
     await vi.advanceTimersByTimeAsync(1000);
     expect(notebook.edit).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);

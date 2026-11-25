@@ -59,7 +59,7 @@ function brand(id: Protocol.CellId): CellId {
 }
 
 function related(
-  cells: readonly Protocol.Related[],
+  cells: readonly Protocol.RelatedOutput[],
 ): HostDiagnostic["related"] {
   return cells.map(({ cell_id, message }) => ({
     cell_id: brand(cell_id),
@@ -71,12 +71,12 @@ function seconds(iso: string | null): number {
   return iso === null ? 0 : Date.parse(iso) / 1000;
 }
 
-function endedAt(record: Protocol.Execution): number {
+function endedAt(record: Protocol.ExecutionOutput): number {
   return seconds(completedAt(record) ?? startedAt(record));
 }
 
 function valueOutput(
-  record: Protocol.Execution,
+  record: Protocol.ExecutionOutput,
   value: Protocol.Media,
 ): CellOutput {
   return {
@@ -88,7 +88,7 @@ function valueOutput(
 }
 
 function errorOutput(
-  record: Protocol.Execution,
+  record: Protocol.ExecutionOutput,
   data: CellError[],
 ): CellOutput {
   return {
@@ -100,7 +100,7 @@ function errorOutput(
 }
 
 /** The cell an exception was blamed on, which is the one cell the host relates to it. */
-function raisingCell(error: Protocol.Error): CellId | null {
+function raisingCell(error: Protocol.ErrorOutput): CellId | null {
   const raised = error.related.at(0);
   return raised === undefined ? null : brand(raised.cell_id);
 }
@@ -112,7 +112,7 @@ function raisingCell(error: Protocol.Error): CellId | null {
  * which the renderer treats with their own affordances. Every other kind
  * is a diagnostic.
  */
-export function cellError(error: Protocol.Error): CellError {
+export function cellError(error: Protocol.ErrorOutput): CellError {
   switch (error.kind) {
     case "exception":
       return {
@@ -142,8 +142,8 @@ export function cellError(error: Protocol.Error): CellError {
 
 /** The notice a skipped cell shows in place of a value. */
 function skippedOutput(
-  record: Protocol.Execution,
-  outcome: Protocol.ExecutionSkippedOutcome,
+  record: Protocol.ExecutionOutput,
+  outcome: Protocol.ExecutionSkippedOutcomeOutput,
 ): CellOutput {
   const cause = outcome.related[0];
   if (cause !== undefined && outcome.reason === "upstream-stopped") {
@@ -186,7 +186,7 @@ function skippedOutput(
  * the execution's own until an edit is confirmed.
  */
 export function executionSource(
-  record: Protocol.Execution,
+  record: Protocol.ExecutionOutput,
   cells: ReadonlyMap<Protocol.CellId, Protocol.Cell> = NO_CELLS,
 ): string | undefined {
   const cell = record.cell_id === null ? undefined : cells.get(record.cell_id);

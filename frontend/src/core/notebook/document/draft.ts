@@ -5,7 +5,7 @@ import * as Protocol from "@marimo-team/client/protocol";
 
 /** The fields a client edits. Null code means the host withheld source. */
 export type EditableCell = Readonly<
-  Pick<Protocol.Cell, "id" | "code" | "name">
+  Pick<Protocol.CellOutput, "id" | "code" | "name">
 > & {
   readonly config: Readonly<Protocol.CellConfig>;
 };

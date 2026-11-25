@@ -137,7 +137,7 @@ describe("layoutAtom", () => {
   function reporter(store: ReturnType<typeof setupNotebook>["store"]) {
     const results = new Map<
       CellId,
-      readonly [Protocol.Execution, Protocol.Output]
+      readonly [Protocol.ExecutionOutput, Protocol.Output]
     >();
     return (id: CellId, html: string) => {
       results.set(

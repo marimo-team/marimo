@@ -5,7 +5,7 @@ import { completedAt, shown, startedAt } from "../execution-state";
 
 /** An execution record and its output, with the local revision of what it shows. */
 export interface Result {
-  readonly record: Protocol.Execution;
+  readonly record: Protocol.ExecutionOutput;
   /** The execution's output item, null until it sets one. */
   readonly output: Protocol.Output | null;
   /** Unchanged by lifecycle-only events. */
@@ -55,7 +55,7 @@ export function retainScratchResult(
   if (record.cell_id !== null || shown(result) === null) {
     return previous;
   }
-  const time = (execution: Protocol.Execution) =>
+  const time = (execution: Protocol.ExecutionOutput) =>
     Date.parse(
       completedAt(execution) ?? startedAt(execution) ?? "1970-01-01T00:00:00Z",
     );

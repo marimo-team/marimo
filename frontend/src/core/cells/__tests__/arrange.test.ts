@@ -44,7 +44,7 @@ afterEach(() => {
   }
 });
 
-const setup = (cells?: Record<string, Protocol.Cell | null>) =>
+const setup = (cells?: Record<string, Protocol.CellOutput | null>) =>
   setupNotebook(stops, cells);
 
 /** Four cells, the last two in a second column. */

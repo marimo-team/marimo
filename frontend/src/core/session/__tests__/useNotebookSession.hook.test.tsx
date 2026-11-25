@@ -77,6 +77,8 @@ import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { useNotebookSession } from "../useNotebookSession";
 import { type NotebookTransport, StreamStopped } from "@marimo-team/client";
 
+const C1 = cellId("c1");
+
 const SESSION_ID = generateSessionId();
 
 /** One connection the fake transport opened. */
@@ -270,8 +272,8 @@ describe("useNotebookSession document model", () => {
       fixtureMessages("notebook-events.sse").forEach(connection(fake).receive);
     });
     const model = result.current.documentModel;
-    const code = () => store.get(model.documentAtom)?.cells.get("c1")?.code;
-    act(() => store.set(model.editAtom, (tx) => tx.setCode("c1", "local")));
+    const code = () => store.get(model.documentAtom)?.cells.get(C1)?.code;
+    act(() => store.set(model.editAtom, (tx) => tx.setCode(C1, "local")));
     expect(code()).toBe("local");
 
     await act(async () => connection(fake).drop());
@@ -335,7 +337,9 @@ describe("useNotebookSession document model", () => {
     });
 
     const model = result.current.documentModel;
-    act(() => store.set(model.editAtom, (tx) => tx.setCode("c3", "x = 42")));
+    act(() =>
+      store.set(model.editAtom, (tx) => tx.setCode(cellId("c3"), "x = 42")),
+    );
     notebook = store.get(notebookAtom);
     expect(notebook.cellData[cellId("c3")].code).toBe("x = 42");
 
@@ -421,7 +425,8 @@ describe("useNotebookSession messages", () => {
     expect(blocked()).toEqual(new Set(["b", "c"]));
 
     const badge = () =>
-      cellExecutionView(store.get(cellExecutionInputsAtom), "b").shownBlock;
+      cellExecutionView(store.get(cellExecutionInputsAtom), cellId("b"))
+        .shownBlock;
     expect(badge()).toBe("current");
     publish(2);
     expect(blocked().size).toBe(0);

@@ -53,7 +53,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const setup = (cells?: Record<string, Protocol.Cell | null>) =>
+const setup = (cells?: Record<string, Protocol.CellOutput | null>) =>
   setupNotebook(stops, cells);
 
 describe("createCellAtom", () => {
@@ -456,7 +456,7 @@ describe("undoDeleteCellAtom", () => {
           type: "delete",
           cells: [
             {
-              cell: { id: "c9", code: "q = 9" },
+              cell: { id: cellId("c9"), code: "q = 9", name: "_" },
               placement: { after: cellId("gone") },
               serializedEditorState: null,
             },

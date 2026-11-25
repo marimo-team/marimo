@@ -168,7 +168,7 @@ function createEmptySessionCell(): SessionCell {
 }
 
 /** The cell as a host would describe it. A snapshot never changes, so its etags only need to be distinct. */
-function cellRecord(cellId: CellId, cell: NotebookCell): Protocol.Cell {
+function cellRecord(cellId: CellId, cell: NotebookCell): Protocol.CellOutput {
   return {
     id: cellId,
     notebook_id: EMBEDDED,
@@ -214,12 +214,12 @@ function normalizeTraceback(lines: readonly string[]): string | null {
  * current, with no runtime behind it.
  */
 function resultRecord(
-  cell: Protocol.Cell,
+  cell: Protocol.CellOutput,
   sessionCell: SessionCell | null | undefined,
 ): StaticResult | null {
   const primary = primaryOutputOf(sessionCell);
   const id = `${EMBEDDED}:${cell.id}:result`;
-  let outcome: Protocol.ExecutionOutcome;
+  let outcome: Protocol.ExecutionOutcomeOutput;
   let output: Protocol.Output | null = null;
   if (primary === undefined) {
     return null;
@@ -352,7 +352,7 @@ export function readExport({
     return { snapshot: null, cellRuntime: {} };
   }
 
-  const cells: Protocol.Cell[] = [];
+  const cells: Protocol.CellOutput[] = [];
   const results: StaticResult[] = [];
   const cellRuntime: Record<CellId, CellRuntimeState> = {};
   for (const cellId of cellIds) {

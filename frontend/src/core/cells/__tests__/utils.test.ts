@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
+import { cellId } from "@/__tests__/branded";
 import { describe, expect, it } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
 import { initialNotebookState, type NotebookState } from "@/core/cells/cells";
@@ -105,7 +106,7 @@ describe("staleCellIds", () => {
     const state = notebook(cells);
     const executions = MockExecutions.inputs(
       [MockExecutions.completed("cell1"), MockExecutions.completed("cell2")],
-      { blocked: new Set(["cell2"]) },
+      { blocked: new Set([cellId("cell2")]) },
     );
 
     expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);
@@ -131,7 +132,7 @@ describe("staleCellIds with a run in progress", () => {
     const state = notebook(cells);
     const ran = MockExecutions.completed("cell1");
     const executions = MockExecutions.inputs([ran], {
-      requested: new Set(["cell1"]),
+      requested: new Set([cellId("cell1")]),
     });
 
     expect(staleCellIds(state, executions, freshness(cells))).toEqual([]);

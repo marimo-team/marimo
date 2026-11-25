@@ -12,6 +12,9 @@ import {
 } from "@/core/notebook/replica/__tests__/fixtures";
 import { activeDocumentModelAtom } from "@/core/session/active-notebook";
 import { DocumentSyncStatus } from "../footer-items/document-sync-status";
+import { cellId } from "@/__tests__/branded";
+
+const C1 = cellId("c1");
 
 const lifetimes: AbortController[] = [];
 
@@ -28,7 +31,7 @@ const conflict = {
     status: 412,
     detail: "cell c1 has changed since it was read.",
     index: 0,
-    cell: document().cells.get("c1")!,
+    cell: document().cells.get(C1)!,
     document: document().revision,
   },
 } satisfies Awaited<ReturnType<FakeEdit>>;
@@ -78,7 +81,7 @@ describe("DocumentSyncStatus", () => {
     const { store, model } = setup(edit);
 
     await act(async () => {
-      store.set(model.editAtom, (tx) => tx.setCode("c1", "x = 2"));
+      store.set(model.editAtom, (tx) => tx.setCode(C1, "x = 2"));
       await model.flush().catch(() => undefined);
     });
     const item = screen.getByTestId("footer-document-sync");
