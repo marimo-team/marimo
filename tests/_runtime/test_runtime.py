@@ -5675,3 +5675,125 @@ class TestLaunchKernelEventLoop:
 
         set_policy.assert_not_called()
         assert "loop_factory" not in harness.call_args.kwargs
+
+
+async def test_pending_cells_reuse_compilation(k: Kernel) -> None:
+    requests = [
+        ExecuteCellCommand(cell_id="parent", code="x = 1"),
+        ExecuteCellCommand(cell_id="leaf", code="y = x + 1"),
+        ExecuteCellCommand(cell_id="unrelated", code="z = 0"),
+    ]
+    await k.instantiate(
+        CreateNotebookCommand(
+            execution_requests=requests,
+            cell_ids=tuple(r.cell_id for r in requests),
+            auto_run=False,
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+        )
+    )
+    with patch(
+        "marimo._runtime.runtime.compile_cell", wraps=compile_cell
+    ) as compiler:
+        for _ in range(2):
+            assert k.prepare_execution_requests([requests[2]]) == [requests[2]]
+        compiler.assert_not_called()
+
+        await k.edit_cells(
+            EditCellsCommand(
+                codes={"parent": "x = 2"}, configs={}, delete_ids=[]
+            )
+        )
+        for _ in range(2):
+            prepared = k.prepare_execution_requests([requests[1]])
+            assert {r.cell_id: r.code for r in prepared} == {
+                "leaf": "y = x + 1",
+                "parent": "x = 2",
+            }
+        compiler.assert_called_once_with("x = 2", cell_id="parent")
+        await k.run(prepared)
+        compiler.assert_called_once()
+    assert k.globals["y"] == 3
+
+
+async def test_executor_resolved_once_per_kernel(k: Kernel) -> None:
+    from marimo._runtime.executor import resolve_executor
+
+    with patch(
+        "marimo._runtime.runtime.resolve_executor", wraps=resolve_executor
+    ) as resolver:
+        await k.run([ExecuteCellCommand(cell_id="cell", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id="cell", code="x = 2")])
+        await k.run_scratchpad("1 + 1")
+        resolver.assert_called_once()
+
+
+@pytest.mark.parametrize("replace", [False, True])
+def test_missing_package_alert_after_mutation(
+    k: Kernel, replace: bool
+) -> None:
+    k.mutate_graph(
+        [
+            ExecuteCellCommand(
+                cell_id="cell", code="import missing_package_8787"
+            )
+        ],
+        [],
+    )
+    with patch.object(
+        k.packages_callbacks, "send_missing_packages_alert"
+    ) as alert:
+        if replace:
+            k.mutate_graph(
+                [ExecuteCellCommand(cell_id="cell", code="x = 1")], []
+            )
+        else:
+            k.mutate_graph([], [DeleteCellCommand(cell_id="cell")])
+        alert.assert_called_once_with(set())
+
+
+@pytest.mark.parametrize("size", [10, 100])
+async def test_per_run_work_budget(k: Kernel, size: int) -> None:
+    from marimo._runtime.executor import resolve_executor
+    from tests._runtime._helpers.performance import assert_call_budget
+
+    requests = [
+        ExecuteCellCommand(cell_id=CellId_t(str(i)), code=f"x_{i} = {i}")
+        for i in range(size)
+    ]
+    await k.instantiate(
+        CreateNotebookCommand(
+            execution_requests=requests,
+            cell_ids=tuple(r.cell_id for r in requests),
+            auto_run=False,
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+        )
+    )
+    with assert_call_budget({compile_cell: 0, resolve_executor: 1}):
+        for _ in range(3):
+            await k.run(k.prepare_execution_requests([requests[-1]]))
+
+    # Registering and invalidating many cells must not rescan imports per cell.
+    with assert_call_budget({k.module_registry.missing_modules: 1}):
+        k.mutate_graph(requests, [])
+    with assert_call_budget({k.module_registry.missing_modules: 0}):
+        for request in requests:
+            k._invalidate_cell_state(request.cell_id)
+
+
+def test_executor_cache_is_owned_by_each_kernel() -> None:
+    from marimo._runtime.executor import resolve_executor
+
+    with patch(
+        "marimo._runtime.runtime.resolve_executor", wraps=resolve_executor
+    ) as resolver:
+        with mocked_kernel_session() as first:
+            resolver.assert_not_called()
+            first_executor = first.kernel._executor
+            assert first.kernel._executor is first_executor
+        with mocked_kernel_session() as second:
+            assert second.kernel._executor is not first_executor
+        assert resolver.call_count == 2

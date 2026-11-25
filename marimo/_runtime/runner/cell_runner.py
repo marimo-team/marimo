@@ -47,6 +47,7 @@ from marimo._runtime.executor import (
     DebuggerLifecycle,
     Evaluator,
     ExecutionLifecycle,
+    Executor,
     StrictLifecycle,
     resolve_executor,
 )
@@ -170,6 +171,7 @@ class Runner:
         | None = None,
         get_inputs: Callable[[CellImpl], dict[str, Revision | None] | None]
         | None = None,
+        executor: Executor | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -245,8 +247,10 @@ class Runner:
             lifecycles.append(
                 DebuggerLifecycle(self.debugger if debugger_on else None)
             )
+        # Resolving scans the entry points of every installed distribution.
         self._evaluator = Evaluator(
-            executor=resolve_executor(), lifecycles=lifecycles
+            executor=executor if executor is not None else resolve_executor(),
+            lifecycles=lifecycles,
         )
 
     @staticmethod

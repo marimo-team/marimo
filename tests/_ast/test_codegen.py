@@ -1605,16 +1605,29 @@ def test_get_header_comments_invalid() -> None:
     assert comments is None, "Comments found when there should be none"
 
 
-def test_sqls() -> None:
-    code = dedent(
-        """
-    db.sql("SELECT * FROM foo")
-    db.sql("ATTACH TABLE bar")
-    """
+@pytest.mark.parametrize("method", ["sql", "execute"])
+def test_sqls(method: str) -> None:
+    cell = compile_cell(
+        f'_db.{method}("SELECT * FROM foo")\n'
+        f'_db.{method}(f"SELECT * FROM bar WHERE id = {{_value}}")'
     )
-    cell = compile_cell(code)
-    sqls = cell.sqls
-    assert sqls == ["SELECT * FROM foo", "ATTACH TABLE bar"]
+    with patch("ast.parse", side_effect=AssertionError("Unexpected parse")):
+        assert cell.sqls == [
+            "SELECT * FROM foo",
+            "SELECT * FROM bar WHERE id = 1",
+        ]
+        assert cell.raw_sqls == [
+            "SELECT * FROM foo",
+            "SELECT * FROM bar WHERE id = {_value}",
+        ]
+
+
+def test_no_sql_skips_visitor() -> None:
+    cell = compile_cell("x = 1")
+    with patch("marimo._ast.cell.SQLVisitor") as visitor:
+        assert cell.sqls == []
+        assert cell.raw_sqls == []
+        visitor.assert_not_called()
 
 
 def test_is_internal_cell_name() -> None:

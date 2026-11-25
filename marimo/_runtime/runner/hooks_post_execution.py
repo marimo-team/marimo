@@ -183,7 +183,9 @@ def _broadcast_duckdb_datasource(
         return
 
     del run_result
-    if not DependencyManager.duckdb.has():
+    # The in-memory engine can only have changed if duckdb was imported;
+    # `has()` searches the import path on every call.
+    if not DependencyManager.duckdb.imported():
         return
 
     try:
@@ -272,12 +274,9 @@ def _store_state_reference(
 ) -> None:
     del run_result
     # Associate state variables with variable names
-    runtime_ctx = get_context()
-    runtime_ctx.state_registry.register_scope(ctx.glbls, defs=cell.defs)
-    # Use pre-computed all_temporaries
-    runtime_ctx.state_registry.retain_active_states(
-        set(ctx.graph.definitions.keys()) | ctx.all_temporaries
-    )
+    state_registry = get_context().state_registry
+    state_registry.register_scope(ctx.glbls, defs=cell.defs)
+    state_registry.retain_active_states(ctx.is_active_variable)
 
 
 @kernel_tracer.start_as_current_span("issue_exception_side_effect")

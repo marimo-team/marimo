@@ -14,6 +14,7 @@ import threading
 import time
 import traceback
 from copy import copy, deepcopy
+from functools import cached_property
 from multiprocessing import connection
 from typing import (
     TYPE_CHECKING,
@@ -143,6 +144,7 @@ from marimo._runtime.context.kernel_context import (
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.execution import ExecutionAttempt
+from marimo._runtime.executor import Executor, resolve_executor
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -481,6 +483,13 @@ class StartupCellCache:
         cached = self._entries.pop(cell_id, None)
         if cached is not None and cached[0] == code and not carried_imports:
             return cached[1], cached[2]
+        return None
+
+    def peek(self, cell_id: CellId_t, code: str) -> CellImpl | None:
+        """The compiled cell for this source, left in the cache."""
+        cached = self._entries.get(cell_id)
+        if cached is not None and cached[0] == code:
+            return cached[1]
         return None
 
     def invalidate(self, cell_id: CellId_t, code: str | None = None) -> None:
@@ -1259,9 +1268,6 @@ class Kernel:
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
         cell.import_workspace.carried_values.clear()
-        missing_modules_before_deletion = (
-            self.module_registry.missing_modules()
-        )
 
         temporaries = {
             name: [VariableData(kind="variable")] for name in cell.temporaries
@@ -1270,14 +1276,6 @@ class Kernel:
             {**cell.variable_data, **temporaries},
             exclude_defs if exclude_defs is not None else set(),
         )
-
-        missing_modules_after_deletion = (
-            missing_modules_before_deletion & self.module_registry.modules()
-        )
-        if missing_modules_after_deletion != missing_modules_before_deletion:
-            self.packages_callbacks.send_missing_packages_alert(
-                missing_modules_after_deletion
-            )
 
         cell.set_output(None)
         get_context().cell_lifecycle_registry.dispose(
@@ -1373,6 +1371,10 @@ class Kernel:
         # Cells that were unable to be added to the graph due to syntax errors
         syntax_errors: dict[CellId_t, Error] = {}
 
+        missing_modules_before_mutation = (
+            self.module_registry.missing_modules()
+        )
+
         # Register and delete cells
         for er in execution_requests:
             # Edit-only batches must also retire source that a later run
@@ -1405,6 +1407,20 @@ class Kernel:
                 dr.cell_id
             )
         cells_in_graph = set(self.graph.cells.keys())
+
+        # Removing or replacing a cell can shrink the set of missing packages.
+        if missing_modules_before_mutation:
+            missing_modules_after_mutation = (
+                missing_modules_before_mutation
+                & self.module_registry.modules()
+            )
+            if (
+                missing_modules_after_mutation
+                != missing_modules_before_mutation
+            ):
+                self.packages_callbacks.send_missing_packages_alert(
+                    missing_modules_after_mutation
+                )
 
         # Check for semantic errors, like multiple definition errors, cycle
         # errors, and delete nonlocal errors.
@@ -1852,6 +1868,11 @@ class Kernel:
                 attempt.advance_inputs(revisions)
         self._publish_variable_previews(previews)
 
+    @cached_property
+    def _executor(self) -> Executor:
+        # Plugin discovery scans installed distributions; scope it to the kernel.
+        return resolve_executor()
+
     def _propagate_kernel_errors(
         self,
         ctx: hook_context.OnFinishHookContext,
@@ -1926,6 +1947,7 @@ class Kernel:
             executions=self._planned,
             plan_execution=self._plan_execution,
             user_config=self.user_config,
+            executor=self._executor,
         )
 
         # I/O
@@ -2157,11 +2179,21 @@ class Kernel:
                 continue
             cell = self.graph.cells.get(request.cell_id)
             if cell is None or cell.code != request.code:
+                # Pending cells stay pending across many runs: compile each
+                # once, not once per run request.
+                cell = self._startup_cell_cache.peek(
+                    request.cell_id, request.code
+                )
+            if cell is None:
                 try:
                     cell = compile_cell(request.code, cell_id=request.cell_id)
                 except Exception:  # noqa: S112
                     # Graph mutation reports compilation failures.
                     continue
+                if request.cell_id in self._pending_execution_requests:
+                    self._startup_cell_cache.store(
+                        request.cell_id, request.code, cell, None
+                    )
             cells[request.cell_id] = cell
         roots = requested_ids if run_cell_ids is None else run_cell_ids
         ancestors = dataflow.get_ancestors_from_cells(cells, roots)
@@ -2369,6 +2401,7 @@ class Kernel:
             get_inputs=self._read_inputs,
             executions={SCRATCH_CELL_ID: execution},
             user_config=self.user_config,
+            executor=self._executor,
         )
 
         await runner.run_all()

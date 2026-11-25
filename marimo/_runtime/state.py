@@ -97,10 +97,14 @@ class StateRegistry:
         ):
             self._delete(name, saved_state)
 
-    def retain_active_states(self, active_variables: set[str]) -> None:
-        """Retains only the active states in the registry."""
+    def retain_active_states(self, is_active: Callable[[str], bool]) -> None:
+        """Retain states whose names satisfy `is_active`.
+
+        A predicate avoids copying all notebook definitions for every cell;
+        work scales with registered states, not notebook size.
+        """
         for state_key in list(self._states.keys()):
-            if extract_name(state_key) not in active_variables:
+            if not is_active(extract_name(state_key)):
                 self.delete(state_key)
 
     def lookup(self, name: str, context: str | None = None) -> State[T] | None:

@@ -20,7 +20,7 @@ def test_retain_active_aliases() -> None:
     value = State(0, _registry=registry, _name="value")
     registry.register(value, "alias", context="file")
 
-    registry.retain_active_states({"alias"})
+    registry.retain_active_states({"alias"}.__contains__)
 
     assert registry.lookup("value") is None
     assert registry.lookup("alias", context="file") is value
