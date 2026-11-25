@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import React, { Fragment } from "react";
 import { Slot } from "radix-ui";
+import useEvent from "react-use-event-hook";
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import {
   ContextMenu,
@@ -63,12 +64,12 @@ const cellMenuEvents = new WeakSet<Event>();
 export const NotebookContextMenu = ({ children }: React.PropsWithChildren) => {
   const [activeCell, setActiveCell] = React.useState<ActiveCell>();
   const restoreFocus = useRestoreFocus();
-  const [open, setOpen] = React.useState(false);
+  const openRef = React.useRef(false);
   return (
     <CellMenuContext.Provider value={setActiveCell}>
       <ContextMenu
         onOpenChange={(open) => {
-          setOpen(open);
+          openRef.current = open;
           if (open) {
             restoreFocus.onOpenAutoFocus();
           }
@@ -78,12 +79,12 @@ export const NotebookContextMenu = ({ children }: React.PropsWithChildren) => {
           <div
             className="contents"
             onPointerUp={() => {
-              if (!open) {
+              if (!openRef.current) {
                 setActiveCell(undefined);
               }
             }}
             onPointerCancel={() => {
-              if (!open) {
+              if (!openRef.current) {
                 setActiveCell(undefined);
               }
             }}
@@ -185,6 +186,15 @@ const CellMenuContent = ({
   });
   const suppressCloseAutoFocus = React.useRef(false);
   const pendingAction = React.useRef<(() => void) | null>(null);
+  const navigateToDefinition = useEvent(() => {
+    const editorView = getEditorView();
+    if (editorView) {
+      // Only suppress focus restoration when we actually navigated;
+      // otherwise let Radix return focus to the trigger cell.
+      suppressCloseAutoFocus.current =
+        goToDefinitionWithLspFallback(editorView);
+    }
+  });
   const DEFAULT_CONTEXT_MENU_ITEMS: ActionButton[] = [
     {
       label: "Copy",
@@ -286,15 +296,7 @@ const CellMenuContent = ({
     {
       label: "Go to Definition",
       icon: <SearchIcon size={13} strokeWidth={1.5} />,
-      handle: () => {
-        const editorView = getEditorView();
-        if (editorView) {
-          // Only suppress focus restoration when we actually navigated;
-          // otherwise let Radix return focus to the trigger cell.
-          suppressCloseAutoFocus.current =
-            goToDefinitionWithLspFallback(editorView);
-        }
-      },
+      handle: navigateToDefinition,
     },
   ];
 
@@ -325,72 +327,72 @@ const CellMenuContent = ({
         }
       }}
     >
-      {visibleActions.map((group, i) => (
-        <Fragment key={i}>
-          {group.map((action) => {
-            let body = (
-              <div className="flex items-center flex-1">
-                {action.icon && (
-                  <div className="mr-2 w-5 text-muted-foreground">
-                    {action.icon}
-                  </div>
-                )}
-                <div className="flex-1">{action.label}</div>
-                <div className="shrink-0 text-sm">
-                  {action.hotkey && renderMinimalShortcut(action.hotkey)}
-                  {action.rightElement}
+      {visibleActions.flatMap((group, i) => [
+        ...group.map((action) => {
+          let body = (
+            <div className="flex items-center flex-1">
+              {action.icon && (
+                <div className="mr-2 w-5 text-muted-foreground">
+                  {action.icon}
                 </div>
+              )}
+              <div className="flex-1">{action.label}</div>
+              <div className="shrink-0 text-sm">
+                {action.hotkey && renderMinimalShortcut(action.hotkey)}
+                {action.rightElement}
               </div>
-            );
+            </div>
+          );
 
-            if (action.tooltip) {
-              body = (
-                <Tooltip delayDuration={100} content={action.tooltip}>
-                  {body}
-                </Tooltip>
-              );
-            }
-
-            return (
-              <Fragment key={action.label}>
-                {
-                  // Set disableClick items such as cell name input
-                  // to div to prevent roving focus
-                  action.disableClick ? (
-                    <div
-                      className={menuItemVariants({
-                        className: action.disabled ? "opacity-50!" : "",
-                        variant: action.variant,
-                      })}
-                      onKeyDown={(evt) => {
-                        evt.stopPropagation();
-                      }}
-                      // Prevent keydown propagation, that focus does not jump to shortcut which start with same letter
-                      // e.g. input "C", then focus jump to "Copy"
-                    >
-                      {body}
-                    </div>
-                  ) : (
-                    <ContextMenuItem
-                      className={action.disabled ? "opacity-50!" : ""}
-                      onSelect={(evt) => {
-                        if (action.disableClick || action.disabled) {
-                          return;
-                        }
-                        pendingAction.current = () => action.handle(evt);
-                      }}
-                      variant={action.variant}
-                    >
-                      {body}
-                    </ContextMenuItem>
-                  )
-                }
-              </Fragment>
+          if (action.tooltip) {
+            body = (
+              <Tooltip delayDuration={100} content={action.tooltip}>
+                {body}
+              </Tooltip>
             );
-          })}
-          {i < visibleActions.length - 1 && <ContextMenuSeparator />}
-        </Fragment>
-      ))}
+          }
+
+          return (
+            <Fragment key={action.label}>
+              {
+                // Set disableClick items such as cell name input
+                // to div to prevent roving focus
+                action.disableClick ? (
+                  <div
+                    className={menuItemVariants({
+                      className: action.disabled ? "opacity-50!" : "",
+                      variant: action.variant,
+                    })}
+                    onKeyDown={(evt) => {
+                      evt.stopPropagation();
+                    }}
+                    // Prevent keydown propagation, that focus does not jump to shortcut which start with same letter
+                    // e.g. input "C", then focus jump to "Copy"
+                  >
+                    {body}
+                  </div>
+                ) : (
+                  <ContextMenuItem
+                    className={action.disabled ? "opacity-50!" : ""}
+                    onSelect={(evt) => {
+                      if (action.disableClick || action.disabled) {
+                        return;
+                      }
+                      pendingAction.current = () => action.handle(evt);
+                    }}
+                    variant={action.variant}
+                  >
+                    {body}
+                  </ContextMenuItem>
+                )
+              }
+            </Fragment>
+          );
+        }),
+        i < visibleActions.length - 1 && (
+          <ContextMenuSeparator key={`separator-${group[0].label}`} />
+        ),
+      ])}
     </ContextMenuContent>
   );
 };

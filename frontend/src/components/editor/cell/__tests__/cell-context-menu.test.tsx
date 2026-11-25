@@ -1,4 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { EditorView } from "@codemirror/view";
+import { goToDefinitionWithLspFallback } from "@/core/codemirror/go-to-definition/utils";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
@@ -7,6 +9,10 @@ import {
   CellActionsContextMenu,
   NotebookContextMenu,
 } from "../cell-context-menu";
+
+vi.mock("@/core/codemirror/go-to-definition/utils", () => ({
+  goToDefinitionWithLspFallback: vi.fn(),
+}));
 
 vi.mock("@/core/cells/cells", () => ({
   useCellData: () => ({ name: "cell", config: {} }),
@@ -78,3 +84,43 @@ it("shares one closed menu and resolves plot actions for the cell that opens it"
   unmount();
   add.mockRestore();
 });
+
+it.each([false, true])(
+  "restores focus unless go-to-definition navigates (navigated: %s)",
+  async (navigated) => {
+    const editor = new EditorView();
+    const { unmount } = render(
+      <TooltipProvider>
+        <NotebookContextMenu>
+          <CellActionsContextMenu
+            cellId={cellId("cell")}
+            getEditorView={() => editor}
+          >
+            <button type="button">Source cell</button>
+          </CellActionsContextMenu>
+          <button type="button">Destination cell</button>
+        </NotebookContextMenu>
+      </TooltipProvider>,
+    );
+    const source = screen.getByText("Source cell");
+    const destination = screen.getByText("Destination cell");
+    vi.mocked(goToDefinitionWithLspFallback).mockImplementation(() => {
+      if (navigated) {
+        destination.focus();
+      }
+      return navigated;
+    });
+    source.focus();
+    fireEvent.contextMenu(source);
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Go to Definition" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await waitFor(() =>
+      expect(document.activeElement).toBe(navigated ? destination : source),
+    );
+    expect(goToDefinitionWithLspFallback).toHaveBeenLastCalledWith(editor);
+    unmount();
+    editor.destroy();
+  },
+);
