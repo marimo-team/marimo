@@ -8,17 +8,20 @@ import signal
 import subprocess
 import sys
 import time
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
 
 from marimo._session.queue import ProcessLike
 from marimo._utils.subprocess import (
-    _REAP_TASKS,
+    ProcessReaper,
     safe_popen,
     try_kill_process_and_group,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class TestSafePopen:
@@ -154,46 +157,93 @@ def test_try_kill_process_and_group_kills_pgroup_spares_new_session() -> None:
         leader.wait(timeout=5)
 
 
-@pytest.mark.asyncio
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX only")
-async def test_try_kill_process_and_group_sigkills_stubborn_child(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """try_kill_process_and_group schedules a reap task that escalates to
-    SIGKILL when the child ignores SIGTERM.
-    """
-    # Cap the reaper's real 5s/1s waits to 50ms so the test is fast, but
-    # leave enough wall-clock time for the kernel to deliver SIGKILL and
-    # for the reaper's own `poll()` to reap the zombie. Zeroing the delay
-    # entirely lets the reaper exit before the child is reaped, after which
-    # `_is_alive` (which sees zombies as alive) would spin to timeout.
-    real_sleep = asyncio.sleep
+_IGNORE_SIGTERM_SCRIPT = (
+    "import signal, time\n"
+    "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+    "while True: time.sleep(1)\n"
+)
 
-    async def short_sleep(_delay: float) -> None:
-        await real_sleep(0.05)
 
-    monkeypatch.setattr(
-        "marimo._utils.subprocess.asyncio",
-        Mock(wraps=asyncio, sleep=short_sleep),
-    )
-
-    script = (
-        "import signal, time\n"
-        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
-        "while True: time.sleep(1)\n"
-    )
+@contextlib.contextmanager
+def _spawn_group_leader(script: str) -> Iterator[subprocess.Popen[bytes]]:
     proc = subprocess.Popen(  # noqa: ASYNC220
         [sys.executable, "-c", script], start_new_session=True
     )
     pgid = os.getpgid(proc.pid)
     try:
-        try_kill_process_and_group(cast(ProcessLike, proc))
-        # Drain the reap task(s) scheduled on the current loop.
-        await asyncio.gather(*list(_REAP_TASKS), return_exceptions=True)
-        _wait_until_dead(proc.pid)
+        yield proc
     finally:
         with contextlib.suppress(ProcessLookupError):
             os.killpg(pgid, signal.SIGKILL)
+        proc.wait(timeout=5)
+
+
+def _kill_and_get_reaper(proc: subprocess.Popen[bytes]) -> ProcessReaper:
+    reaper = try_kill_process_and_group(cast(ProcessLike, proc))
+    assert reaper is not None
+    return reaper
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX only")
+async def test_reaper_sigkills_child_that_ignores_sigterm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("marimo._utils.subprocess._SIGTERM_GRACE_S", 0.1)
+
+    with _spawn_group_leader(_IGNORE_SIGTERM_SCRIPT) as proc:
+        # Let the child install its handler before we signal it.
+        await asyncio.sleep(0.5)
+        await _kill_and_get_reaper(proc).wait()
+        assert proc.returncode == -signal.SIGKILL
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX only")
+async def test_reaper_returns_once_child_exits_on_sigterm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("marimo._utils.subprocess._SIGTERM_GRACE_S", 60.0)
+
+    with _spawn_group_leader("import time; time.sleep(60)") as proc:
+        start = time.monotonic()
+        await _kill_and_get_reaper(proc).wait()
+        assert time.monotonic() - start < 10
+        assert proc.returncode == -signal.SIGTERM
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX only")
+async def test_reaper_wait_defers_cancellation_until_reaped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("marimo._utils.subprocess._SIGTERM_GRACE_S", 0.1)
+
+    with _spawn_group_leader(_IGNORE_SIGTERM_SCRIPT) as proc:
+        await asyncio.sleep(0.5)
+        waiter = asyncio.create_task(_kill_and_get_reaper(proc).wait())
+        await asyncio.sleep(0)
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        assert proc.returncode == -signal.SIGKILL
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX only")
+async def test_reaper_wait_logs_reap_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def failing_reap(_process: ProcessLike, _pgid: int | None) -> None:
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(
+        "marimo._utils.subprocess._reap_process_unix", failing_reap
+    )
+
+    with (
+        _spawn_group_leader(_IGNORE_SIGTERM_SCRIPT) as proc,
+        patch("marimo._utils.subprocess.LOGGER") as logger,
+    ):
+        await asyncio.sleep(0.5)
+        await _kill_and_get_reaper(proc).wait()
+        logger.warning.assert_called_once()
 
 
 @pytest.mark.parametrize("windows", [False, True])

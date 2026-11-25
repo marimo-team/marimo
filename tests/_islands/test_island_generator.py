@@ -105,6 +105,7 @@ def test_build_reaps_kernel_that_ignores_sigterm(
         return close_kernel(manager, graceful=graceful)
 
     monkeypatch.setattr(KernelManagerImpl, "close_kernel", capture_kernel)
+    monkeypatch.setattr("marimo._utils.subprocess._SIGTERM_GRACE_S", 0.1)
     generator = MarimoIslandGenerator()
     generator.add_code(
         "import signal\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)"
