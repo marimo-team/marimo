@@ -15,7 +15,7 @@ export interface NotebookEventsOptions<
   K extends string = NotebookKind,
 > extends EventsOptions<K> {
   /** Follow one run. A custom transport filters its own requests. */
-  readonly runId?: Protocol.RunId;
+  readonly runId?: Protocol.Run["id"];
 }
 
 /**

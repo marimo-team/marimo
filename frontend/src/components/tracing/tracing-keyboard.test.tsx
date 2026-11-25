@@ -1,10 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { runId } from "@/__tests__/branded";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { type Run, type RunId, runsAtom } from "@/core/cells/runs";
+import { type Run, runsAtom } from "@/core/cells/runs";
 import { Tracing } from "./tracing";
 
 vi.mock("react-vega", () => ({ useVegaEmbed: () => undefined }));
@@ -14,7 +15,7 @@ vi.mock("@/components/editor/chrome/panels/panel-context", () => ({
 }));
 
 const run: Run = {
-  runId: "run-1" as RunId,
+  runId: runId("run-1"),
   runStartTime: 1_704_067_200,
   cellRuns: new Map(),
 };
@@ -67,7 +68,7 @@ describe("trace disclosure keyboard focus", () => {
     act(() => header.focus());
     const newer: Run = {
       ...run,
-      runId: "run-2" as RunId,
+      runId: runId("run-2"),
       runStartTime: run.runStartTime + 1,
     };
     act(() => {

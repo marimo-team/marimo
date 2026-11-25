@@ -1,10 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { TypedString } from "@/utils/typed";
-import type { ExecutionOutput as Execution } from "@marimo-team/client/protocol";
+import type {
+  ExecutionOutput as Execution,
+  RunId,
+} from "@marimo-team/client/protocol";
 import { completedAt, startedAt } from "@/core/notebook/replica";
 import type { CellId } from "./ids";
-export type RunId = TypedString<"RunId">;
+export type { RunId };
 
 export interface CellRun {
   cellId: CellId;
@@ -75,7 +77,7 @@ const {
     if (record.run_id === null || record.cell_id === null) {
       return state;
     }
-    const runId = record.run_id as RunId;
+    const runId = record.run_id;
     const cellId = record.cell_id;
     const previous = state.runMap.get(runId);
     if (previous === undefined && code !== undefined && isPureMarkdown(code)) {

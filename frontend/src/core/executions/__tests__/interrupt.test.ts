@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { runId } from "@/__tests__/branded";
 import type { ProblemOf } from "@marimo-team/client";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
@@ -25,7 +26,7 @@ function run(
   runtimeId = "r1",
 ): Protocol.RunOutput {
   return {
-    id,
+    id: runId(id),
     notebook_id: "n1",
     runtime_id: runtimeId,
     origin: { kind: "code", code: "pass" },

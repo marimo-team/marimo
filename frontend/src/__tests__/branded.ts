@@ -10,6 +10,7 @@
  * everywhere.
  */
 
+import type { RunId } from "@marimo-team/client/protocol";
 import type { components } from "@marimo-team/marimo-api";
 import type { CellId, UIElementId } from "@/core/cells/ids";
 import type { RequestId } from "@/core/network/DeferredRequestRegistry";
@@ -18,7 +19,10 @@ import type { VariableName } from "@/core/variables/types";
 type WidgetModelId = components["schemas"]["WidgetModelId"];
 type Base64String = components["schemas"]["Base64String"];
 
+// SAFETY: The fixture author supplies a valid value for each brand, such as
+// the nonempty ID of the run represented in the fixture.
 export const cellId = (s: string) => s as CellId;
+export const runId = (s: string) => s as RunId;
 export const variableName = (s: string) => s as VariableName;
 export const requestId = (s: string) => s as RequestId;
 export const uiElementId = (s: string) => s as UIElementId;

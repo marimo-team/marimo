@@ -4,7 +4,7 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { atom } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
-import { cellId } from "@/__tests__/branded";
+import { cellId, runId } from "@/__tests__/branded";
 import type { DocumentModel, EditableDocument } from "@/core/notebook/document";
 import {
   cell,
@@ -36,7 +36,7 @@ const C2 = cellId("c2");
 
 function accepted(cells: string[]): Protocol.RunOutput {
   return {
-    id: "run-1",
+    id: runId("run-1"),
     notebook_id: "n1",
     runtime_id: "r1",
     origin: { kind: "cells", cell_ids: cells.map(cellId) },

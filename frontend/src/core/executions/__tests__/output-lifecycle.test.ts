@@ -6,7 +6,7 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { MockExecutions } from "@/__mocks__/executions";
-import { cellId } from "@/__tests__/branded";
+import { cellId, runId } from "@/__tests__/branded";
 import { createNotebookReplica } from "@/core/notebook/replica";
 import {
   fakeBackend,
@@ -116,8 +116,8 @@ describe("output lifetime", () => {
       const { store, snapshot, message, reconnect } = await setup();
       const result = MockExecutions.shown(C1, text("A"));
       snapshot(result);
-      const run: Protocol.Run = {
-        id: "missed",
+      const run: Protocol.RunOutput = {
+        id: runId("missed"),
         notebook_id: "n1",
         runtime_id: "r1",
         origin: { kind: "cells", cell_ids: [C1] },

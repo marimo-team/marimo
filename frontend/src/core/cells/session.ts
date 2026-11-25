@@ -16,6 +16,9 @@ import { type CellRuntimeState, createCellRuntimeState } from "./types";
 
 /** The identity of a snapshot the page carries. A host's own stream replaces it. */
 export const EMBEDDED = "embedded";
+// SAFETY: This snapshot assigns one synthetic run ID to all its restored
+// executions. The fixed suffix satisfies RunId's nonempty-string requirement.
+const EMBEDDED_RUN_ID = `${EMBEDDED}:run` as Protocol.RunId;
 
 // Constants
 const DEFAULT_TIMESTAMP = 0;
@@ -261,7 +264,7 @@ function resultRecord(
   return {
     execution: {
       id,
-      run_id: `${EMBEDDED}:run`,
+      run_id: EMBEDDED_RUN_ID,
       runtime_id: EMBEDDED,
       caused_by_id: null,
       cell_id: cell.id,

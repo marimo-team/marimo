@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
 
+import type { RunOutput } from "@marimo-team/client/protocol";
 import { createRPCRequestHandler } from "rpc-anywhere";
 import { toast } from "@/components/ui/use-toast";
 import { userConfigAtom } from "@/core/config/config";
@@ -349,10 +350,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     if (replica === null) {
       return false;
     }
-    return (
-      store.get(replica.executionsAtom).runs.get(runId)?.state.status ===
-      "running"
-    );
+    const runs: ReadonlyMap<string, RunOutput> = store.get(
+      replica.executionsAtom,
+    ).runs;
+    return runs.get(runId)?.state.status === "running";
   }
 
   public sendRename: EditRequests["sendRename"] = async ({ filename }) => {

@@ -644,14 +644,15 @@ export const AttachmentEvent = zod
 export type AttachmentEvent = zod.input<typeof AttachmentEvent>;
 export type AttachmentEventOutput = zod.output<typeof AttachmentEvent>;
 
-export const RunId = zod
+const RunId = zod
   .string()
   .min(1)
   .describe(
     "Identifies a run independently of the request's `Idempotency-Key`. Events carry the key in `request_id`.",
-  );
-
-export type RunId = zod.input<typeof RunId>;
+  )
+  .brand("RunId");
+type RunId = zod.output<typeof RunId>;
+export type { RunId };
 export type RunIdOutput = zod.output<typeof RunId>;
 
 export const RunCellsOrigin = zod.object({
@@ -1648,7 +1649,7 @@ export const RunRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: RemovedMessage.extend({ id: RunId }),
   })
   .describe("The `run.removed` event, carried by the notebook stream.");
 

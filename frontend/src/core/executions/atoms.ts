@@ -380,7 +380,7 @@ export function withdrawRequest(store: Store, request: RunRequest): void {
 export function acceptRun(
   store: Store,
   request: RunRequest,
-  run: Protocol.Run,
+  run: Protocol.RunOutput,
 ): void {
   const waitingAtom = atom(
     (get) =>

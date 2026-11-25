@@ -4,7 +4,7 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { describe, expect, it } from "vitest";
 import type { Execution, Executions, Result } from "@/core/notebook/replica";
 import { type CellFreshnessInputs, freshnessOf } from "../freshness";
-import { cellId } from "@/__tests__/branded";
+import { cellId, runId } from "@/__tests__/branded";
 
 const C3 = cellId("c3");
 const FIXTURE_CELL = cellId("k7f2");
@@ -63,7 +63,7 @@ function record(
   },
 ): Protocol.ExecutionOutput {
   return {
-    run_id: "run-1",
+    run_id: runId("run-1"),
     runtime_id: "r1",
     caused_by_id: null,
     created_at: null,
