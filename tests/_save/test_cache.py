@@ -1119,6 +1119,8 @@ class TestCacheDecorator:
     ) -> None:
         cached_cell = exec_req.get(
             """
+            gc.collect()
+
             @lru_cache(maxsize=128)
             def foo():
                 print("ran")
@@ -1132,6 +1134,7 @@ class TestCacheDecorator:
             [
                 exec_req.get(
                     """
+                    import gc
                     from marimo._save.save import lru_cache
                     """
                 ),
@@ -1143,6 +1146,19 @@ class TestCacheDecorator:
         assert not k.stderr.messages, k.stderr
         assert k.stdout.messages.count("ran") == 1
         assert k.globals["foo"].hits == 3
+
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cached_cell.cell_id,
+                    cached_cell.code + "\n# Comment-only edit",
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.stdout.messages.count("ran") == 1
+        assert k.globals["foo"].hits == 5
 
     async def test_lru_cache_underscore_alias(
         self, k: Kernel, exec_req: ExecReqProvider

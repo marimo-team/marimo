@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
-from marimo._runtime.state import State
+from marimo._runtime.state import CACHE_LOADER_STATE_CONTEXT, State
 from marimo._save.cache import (
     CACHE_PREFIX,
     Cache,
@@ -69,7 +69,7 @@ class LoaderPartial:
             ) from e
 
     def create_or_reconfigure(
-        self, name: str, context: str = "cache_partial"
+        self, name: str, context: str = CACHE_LOADER_STATE_CONTEXT
     ) -> State[Loader]:
         try:
             ctx = get_context()

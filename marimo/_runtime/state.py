@@ -12,6 +12,7 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 
 T = TypeVar("T")
 Id = int
+CACHE_LOADER_STATE_CONTEXT = "cache_partial"
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
