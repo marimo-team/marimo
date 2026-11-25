@@ -546,16 +546,24 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     manager: FakeManager, tmp_path: Path
 ) -> None:
     from marimo._ast.cell import CellConfig
-    from marimo._messaging.notebook import NotebookCell, NotebookDocument
+    from marimo._messaging.notebook import (
+        CreateCell,
+        NotebookCell,
+        NotebookDocument,
+        ReorderCells,
+        SetCode,
+        Transaction,
+    )
     from marimo._messaging.notification import (
         NotebookDocumentTransactionNotification,
     )
     from marimo._types.ids import CellId_t
 
     prepare(manager, tmp_path, "a.py")
+    existing_id, new_id = CellId_t("Hbol"), CellId_t("new")
     session = FakeSession(str(tmp_path / "a.py"))
     session.document = NotebookDocument(
-        [NotebookCell(CellId_t("Hbol"), "x = 1", "_", CellConfig())]
+        [NotebookCell(existing_id, "x = 1", "_", CellConfig())]
     )
     manager.sessions["browser-1"] = session
     bridge = SessionBridge(manager)  # type: ignore[arg-type]
@@ -569,32 +577,61 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     response = await bridge.edit(
         record.id,
         [
+            protocol.ReplaceCell(
+                base_etag="*",
+                cell=protocol.CellInput(
+                    id=protocol.CellId(existing_id), code="x = 2"
+                ),
+            ),
             protocol.CreateCell(
                 cell=protocol.CellInput(
-                    id=protocol.CellId("new"), code="y = x"
+                    id=protocol.CellId(new_id), code="y = x"
                 ),
-            )
+            ),
         ],
         request_id="edit-1",
     )
 
-    assert set(response.cells) == {"new"}
-    assert session.document.cell_ids == ["Hbol", "new"]
-    (notification,) = session.notifications
-    assert isinstance(notification, NotebookDocumentTransactionNotification)
-    assert notification.transaction.source == "host"
-    # The session echoes the edit without publishing the document twice.
-    assert names(
-        [e for e in events if not isinstance(e.event, MarimoEvent)]
-    ) == [
-        "cell",
-        "document",
+    assert session.notifications == [
+        NotebookDocumentTransactionNotification(
+            transaction=Transaction(
+                changes=(
+                    SetCode(cell_id=existing_id, code="x = 2"),
+                    CreateCell(
+                        cell_id=new_id,
+                        code="y = x",
+                        name="_",
+                        config=CellConfig(),
+                        after=existing_id,
+                    ),
+                    ReorderCells(cell_ids=(existing_id, new_id)),
+                ),
+                source="host",
+                version=1,
+            )
+        )
     ]
-    assert [
-        e.event.data for e in events if isinstance(e.event, MarimoEvent)
-    ] == [MarimoMessage(notification)]
+    expected_cells = [(existing_id, "x = 2"), (new_id, "y = x")]
+    assert session.document.version == 1
+    assert [(c.id, c.code) for c in session.document.cells] == expected_cells
+
+    # The session echo stays internal. The host publishes the edit once.
+    updated, created, document = (event.event for event in events)
+    assert isinstance(updated, protocol.CellEvent)
+    assert isinstance(created, protocol.CellEvent)
+    assert isinstance(document, protocol.DocumentEvent)
+    published_cells = [
+        (e.data.cell.id, e.data.cell.code) for e in (updated, created)
+    ]
+    assert published_cells == expected_cells
+    assert all(
+        e.data.request_id == "edit-1" for e in (updated, created, document)
+    )
+    assert set(response.cells) == {existing_id, new_id}
+    assert document.data.document == response.document
+    assert response.document.order == (existing_id, new_id)
     assert notebook.document.etag == response.document.etag
-    assert "y = x" not in (tmp_path / "a.py").read_text()
+    assert (tmp_path / "a.py").read_text() == ""
     bridge.close()
 
 
