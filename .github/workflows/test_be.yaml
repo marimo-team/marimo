@@ -144,8 +144,6 @@ jobs:
           # TODO: Add in 3.14 and 3.15 optional once there is broader wheel support
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0 # Fetch all history for git diff
       - uses: ./.github/actions/test-python
         with:
           python-version: ${{ matrix.python-version }}
@@ -155,8 +153,10 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
     name: macos-latest / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
-    runs-on: macos-latest
-    timeout-minutes: 35 # 2026-11-16 core,optional takes 22-25m on broad backend changes
+    # `macos-latest` is sometimes served an Intel image, which is 2-3x slower and
+    # compiles cryptography from source (it only ships arm64 macOS wheels).
+    runs-on: macos-26
+    timeout-minutes: 25
     strategy:
       # Keep targets aligned with tool.uv.required-environments in pyproject.toml.
       matrix:
@@ -164,8 +164,6 @@ jobs:
         dependencies: ["core", "core,optional"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0 # Fetch all history for git diff
       - uses: ./.github/actions/test-python
         with:
           python-version: ${{ matrix.python-version }}
@@ -184,8 +182,6 @@ jobs:
         dependencies: ["core", "core,optional"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0 # Fetch all history for git diff
       - uses: ./.github/actions/test-python
         with:
           python-version: ${{ matrix.python-version }}

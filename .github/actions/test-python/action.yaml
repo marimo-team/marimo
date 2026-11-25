@@ -29,6 +29,15 @@ runs:
         cp frontend/index.html marimo/_static/index.html
         cp frontend/public/favicon.ico marimo/_static/favicon.ico
 
+    # Checkout is shallow, so fetch just the base branch for `git diff` in
+    # packages/pytest_changed.
+    - name: Fetch base branch
+      if: ${{ github.base_ref }}
+      shell: bash
+      run: |
+        git fetch --no-tags --depth=1 origin \
+          "+refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+
     # Setup test flags based on conditions
     - name: Setup test flags
       id: setup-flags
