@@ -447,8 +447,9 @@ const CellEditorInternal = ({
 
   const navigationProps = useCellEditorNavigationProps(cellId, editorViewRef);
 
+  const isCollapsed = isMarkdown && hidden && hasOutput;
   let editorClassName = "";
-  if (isMarkdown && hidden && hasOutput) {
+  if (isCollapsed) {
     editorClassName = "h-0 overflow-hidden";
   } else if (hidden) {
     // Shortens the editor and hides the cell panels
@@ -503,7 +504,9 @@ const CellEditorInternal = ({
             showHiddenCode={showHiddenCode}
           />
         ) : (
-          <CodePlaceholder code={code} className={editorClassName} />
+          !isCollapsed && (
+            <CodePlaceholder code={code} className={editorClassName} />
+          )
         )}
         {!hidden && showLanguageToggles && (
           <div className="absolute top-1 right-5">

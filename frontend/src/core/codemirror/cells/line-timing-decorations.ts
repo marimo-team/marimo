@@ -138,6 +138,18 @@ class ActiveLineTimer implements PluginValue {
   }
 }
 
+const lineTimingTheme = EditorView.theme({
+  ".cm-timing-current-line": {
+    backgroundColor: "color-mix(in srgb, var(--grass-4) 50%, transparent)",
+  },
+  ".cm-line-timer": {
+    color: "var(--grass-11)",
+    fontSize: "0.85em",
+    marginLeft: "1.5ch",
+    pointerEvents: "none",
+  },
+});
+
 /**
  * Highlight the line a cell's frame watcher is currently executing in green,
  * with a dim elapsed-time pill at the end of the line once it has been busy
@@ -150,16 +162,6 @@ export function activeLineTimer(
     ViewPlugin.define((view) => new ActiveLineTimer(view, infoObservable), {
       decorations: (plugin) => plugin.decorations,
     }),
-    EditorView.theme({
-      ".cm-timing-current-line": {
-        backgroundColor: "color-mix(in srgb, var(--grass-4) 50%, transparent)",
-      },
-      ".cm-line-timer": {
-        color: "var(--grass-11)",
-        fontSize: "0.85em",
-        marginLeft: "1.5ch",
-        pointerEvents: "none",
-      },
-    }),
+    lineTimingTheme,
   ];
 }

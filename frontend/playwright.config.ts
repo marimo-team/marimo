@@ -41,6 +41,7 @@ const appToOptions = {
   "disabled_cells.py": { command: "edit" },
   "disabled_ancestor_error.py": { command: "edit" },
   "kitchen_sink.py": { command: "edit" },
+  "many_cells.py": { command: "edit" },
   "layout_grid.py": { command: "edit" },
   "stdin.py": { command: "edit" },
   "layout_grid_with_sidebar.py": { command: "edit" },

@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import "./code-placeholder.css";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/utils/cn";
 
 interface CodePlaceholderProps {
@@ -20,6 +19,9 @@ function getLineWidthCh(length: number): number {
 /**
  * Stand-in shown while a cell's CodeMirror editor has not been built yet.
  * one skeleton bar per code line, so the final render doesn't cause a big jump.
+ *
+ * The bars are static: a large notebook shows thousands of them at once, and
+ * animating each one makes every stylesheet change restyle all of them.
  */
 export const CodePlaceholder = ({ code, className }: CodePlaceholderProps) => {
   const lines = code.split("\n", MAX_LINES);
@@ -34,8 +36,8 @@ export const CodePlaceholder = ({ code, className }: CodePlaceholderProps) => {
         return (
           <div key={index} className="mo-code-placeholder-line">
             {length > 0 && (
-              <Skeleton
-                className="mo-code-placeholder-bar"
+              <div
+                className="mo-code-placeholder-bar rounded-md"
                 style={{ width: `${getLineWidthCh(length)}ch` }}
               />
             )}

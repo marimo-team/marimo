@@ -3,6 +3,14 @@ import { EditorView } from "@codemirror/view";
 import { createUnderlinePlugin, underlineField } from "./underline";
 import { goToDefinitionWithLspFallback } from "./utils";
 
+const underlineTheme = EditorView.baseTheme({
+  ".underline": {
+    textDecoration: "underline",
+    cursor: "pointer",
+    color: "var(--link)",
+  },
+});
+
 /**
  * Create a go-to-definition extension.
  */
@@ -12,12 +20,6 @@ export function goToDefinitionBundle() {
     createUnderlinePlugin((view) => {
       goToDefinitionWithLspFallback(view);
     }),
-    EditorView.baseTheme({
-      ".underline": {
-        textDecoration: "underline",
-        cursor: "pointer",
-        color: "var(--link)",
-      },
-    }),
+    underlineTheme,
   ];
 }

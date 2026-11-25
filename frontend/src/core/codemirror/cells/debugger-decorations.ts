@@ -71,6 +71,12 @@ class CurrentLineHighlighter implements PluginValue {
   }
 }
 
+const debuggerLineTheme = EditorView.theme({
+  ".cm-debugger-current-line": {
+    backgroundColor: "color-mix(in srgb, var(--amber-4) 50%, transparent)",
+  },
+});
+
 /** Highlight the line a cell's frame watcher is currently executing. */
 export function debuggerLineHighlighter(
   lineObservable: Observable<number | null>,
@@ -80,11 +86,7 @@ export function debuggerLineHighlighter(
       (view) => new CurrentLineHighlighter(view, lineObservable),
       { decorations: (plugin) => plugin.decorations },
     ),
-    EditorView.theme({
-      ".cm-debugger-current-line": {
-        backgroundColor: "color-mix(in srgb, var(--amber-4) 50%, transparent)",
-      },
-    }),
+    debuggerLineTheme,
   ];
 }
 
@@ -155,6 +157,20 @@ class BreakpointSync implements PluginValue {
   }
 }
 
+const breakpointGutterTheme = EditorView.theme({
+  ".cm-breakpoint-gutter": {
+    width: "14px",
+    cursor: "pointer",
+  },
+  ".cm-breakpoint-marker": {
+    width: "8px",
+    height: "8px",
+    borderRadius: "50%",
+    backgroundColor: "var(--red-9)",
+    margin: "4px auto",
+  },
+});
+
 /** A clickable gutter for toggling breakpoints on a cell's lines. */
 export function breakpointGutter(
   cellId: CellId,
@@ -177,18 +193,6 @@ export function breakpointGutter(
         },
       },
     }),
-    EditorView.theme({
-      ".cm-breakpoint-gutter": {
-        width: "14px",
-        cursor: "pointer",
-      },
-      ".cm-breakpoint-marker": {
-        width: "8px",
-        height: "8px",
-        borderRadius: "50%",
-        backgroundColor: "var(--red-9)",
-        margin: "4px auto",
-      },
-    }),
+    breakpointGutterTheme,
   ];
 }
