@@ -35,6 +35,8 @@ import { createDocumentModel } from "../model";
 import { fakeBackend } from "../../replica/__tests__/fixtures";
 import { cell, document, withCells } from "./fixtures";
 
+const C1 = brandedCellId("c1");
+
 const views: EditorView[] = [];
 const lifetimes: AbortController[] = [];
 
@@ -117,7 +119,7 @@ function languages(id: CellId) {
 
 function setup({
   initial = document(),
-  cellId = "c1",
+  cellId = brandedCellId("c1"),
   doc = "",
   adapters = false,
 }: {
@@ -193,10 +195,10 @@ describe("cellCodeBinding", () => {
     await settle();
     // Another subscriber normalizes code synchronously, inside the push.
     const unsubscribe = store.sub(model.documentAtom, () => {
-      const code = store.get(model.documentAtom)?.cells.get("c1")?.code;
+      const code = store.get(model.documentAtom)?.cells.get(C1)?.code;
       if (code?.includes(" + ")) {
         const normalized = code.replaceAll(" + ", "+");
-        store.set(model.editAtom, (tx) => tx.setCode("c1", normalized));
+        store.set(model.editAtom, (tx) => tx.setCode(C1, normalized));
       }
     });
     type(" + 1");
@@ -282,7 +284,7 @@ describe("cellCodeBinding", () => {
   });
 
   it("follows a cell once its code is available", async () => {
-    const absent = setup({ cellId: "c3" });
+    const absent = setup({ cellId: brandedCellId("c3") });
     const withheld = setup({
       initial: withCells(document(), { c1: cell("c1", "", { code: null }) }),
     });
@@ -316,7 +318,7 @@ describe("cellCodeBinding", () => {
   });
 
   it("leaves the editor alone for an absent cell or withheld source", async () => {
-    const absent = setup({ cellId: "c9", doc: "local" });
+    const absent = setup({ cellId: brandedCellId("c9"), doc: "local" });
     const withheld = setup({
       initial: withCells(document(), { c1: cell("c1", "", { code: null }) }),
       doc: "local",
@@ -519,7 +521,7 @@ describe("cellCodeBinding", () => {
       switchLanguage(view, { language: "python" });
       await settle();
 
-      store.set(model.editAtom, (tx) => tx.setName("c1", "renamed"));
+      store.set(model.editAtom, (tx) => tx.setName(C1, "renamed"));
       await settle();
 
       expect(language(view)).toBe("python");

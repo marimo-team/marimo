@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { cellId } from "@/__tests__/branded";
 import type * as Protocol from "@marimo-team/client/protocol";
 import type { createStore } from "jotai/vanilla";
 import type { Placement } from "../draft";
@@ -21,10 +22,11 @@ export function createUser(
       store.set(model.editAtom, (tx) => tx.setCode(id, code));
     },
     changeCells(
-      changes: Record<Protocol.CellId, Partial<Omit<Protocol.CellInput, "id">>>,
+      changes: Record<string, Partial<Omit<Protocol.CellInput, "id">>>,
     ) {
       store.set(model.editAtom, (tx) => {
-        for (const [id, patch] of Object.entries(changes)) {
+        for (const [key, patch] of Object.entries(changes)) {
+          const id = cellId(key);
           if (patch.code !== undefined) {
             tx.setCode(id, patch.code);
           }
@@ -38,7 +40,9 @@ export function createUser(
       });
     },
     createCell(cell: Protocol.CellInput, placement?: Placement) {
-      store.set(model.editAtom, (tx) => tx.createCell(cell, placement));
+      store.set(model.editAtom, (tx) =>
+        tx.createCell({ ...cell, id: cellId(cell.id) }, placement),
+      );
     },
     deleteCell(id: Protocol.CellId) {
       store.set(model.editAtom, (tx) => tx.deleteCell(id));

@@ -78,6 +78,20 @@ describe("host protocol fixtures", () => {
 });
 
 describe("host protocol bindings", () => {
+  it("brands parsed cell IDs and accepts string IDs in requests", () => {
+    const cell = Protocol.Cell.parse(readFixture("cell.json"));
+    expectTypeOf<"CellId">().not.toExtend<keyof typeof Protocol>();
+    expectTypeOf<
+      Protocol.CellRemovedEventOutput["data"]["id"]
+    >().toEqualTypeOf<Protocol.CellId>();
+    expectTypeOf(cell.id).toEqualTypeOf<Protocol.CellId>();
+    expectTypeOf<
+      Protocol.DocumentOutput["order"][number]
+    >().toEqualTypeOf<Protocol.CellId>();
+    expectTypeOf<string>().not.toExtend<Protocol.CellId>();
+    expectTypeOf<Protocol.RequestedCell["id"]>().toEqualTypeOf<string>();
+  });
+
   it.each([
     ["precondition-failed", "index"],
     ["precondition-failed", "cell"],

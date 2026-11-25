@@ -35,12 +35,12 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   <Provider store={store}>{children}</Provider>
 );
 
-function accepted(cells: Protocol.CellId[]): Protocol.Run {
+function accepted(cells: string[]): Protocol.RunOutput {
   return {
     id: "run-1",
     notebook_id: "n1",
     runtime_id: "r1",
-    origin: { kind: "cells", cell_ids: cells },
+    origin: { kind: "cells", cell_ids: cells.map(cellId) },
     created_at: "2026-10-01T09:20:00Z",
     state: { status: "queued" },
   };
@@ -62,7 +62,7 @@ describe("useRunStaleCells", () => {
     store.set(activeDocumentModelAtom, null);
   });
 
-  function seed(records: Protocol.Execution[]) {
+  function seed(records: Protocol.ExecutionOutput[]) {
     const document = documentOf();
     const replica = MockExecutions.seed(
       store,

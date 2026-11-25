@@ -506,7 +506,7 @@ export const deleteCellsAtom = atom(
         Logger.warn("Skipping delete for missing cellId", { cellId: id });
       }
     }
-    const order = document.order as CellId[];
+    const order = document.order;
     const deleting = order.flatMap((id) => {
       const cell = document.cells.get(id);
       return cell !== undefined && requested.has(id) ? [cell] : [];
@@ -517,11 +517,11 @@ export const deleteCellsAtom = atom(
     if (deleting.length === 0) {
       return false;
     }
-    const gone = new Set(deleting.map((cell) => cell.id as CellId));
+    const gone = new Set(deleting.map((cell) => cell.id));
     const firstSurvivor = order.find((id) => !gone.has(id));
 
     const cells: DeletedCell[] = deleting.map((cell) => {
-      const id = cell.id as CellId;
+      const id = cell.id;
       const index = order.indexOf(id);
       const code = cell.code ?? notebook.cellData[id]?.code ?? "";
       const editorView = notebook.cellHandles[id]?.current?.editorView;
@@ -541,7 +541,7 @@ export const deleteCellsAtom = atom(
     });
 
     // Focus the nearest visible survivor in the column, looking up before down.
-    const first = deleting[0].id as CellId;
+    const first = deleting[0].id;
     const column = columnOf(get(layoutAtom), first);
     const ids = column.visible.includes(first) ? column.visible : column.ids;
     const at = ids.indexOf(first);
@@ -634,7 +634,7 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
     const next = new Map(states);
     for (const { cell, serializedEditorState } of last.cells) {
       if (serializedEditorState !== null) {
-        next.set(cell.id as CellId, serializedEditorState);
+        next.set(cell.id, serializedEditorState);
       }
     }
     return next;
@@ -642,7 +642,7 @@ export const undoDeleteCellAtom = atom(null, (get, set): void => {
   set(notebookAtom, (state) => ({
     ...state,
     history: state.history.slice(0, -1),
-    scrollKey: last.cells[0].cell.id as CellId,
+    scrollKey: last.cells[0].cell.id,
   }));
 });
 

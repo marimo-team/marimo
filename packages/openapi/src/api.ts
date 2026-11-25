@@ -3,6 +3,8 @@
  * Do not make direct changes to the file.
  */
 
+import type { CellId } from "@marimo-team/client/protocol";
+
 /** Branded string type — compile-time only. */
 type TypedString<T extends string> = string & { __brand: T };
 
@@ -3977,7 +3979,7 @@ export interface components {
       hide_code?: boolean;
     };
     /** Format: cell-id */
-    CellId: TypedString<"CellId">;
+    CellId: CellId;
     /** CellOutput */
     CellOutput: {
       channel: components["schemas"]["CellChannel"];

@@ -20,8 +20,8 @@ export function protocolFixture(name: string): unknown {
 }
 
 export function initialDocument(): Document {
-  const cells = new Map<Protocol.CellId, Protocol.Cell>();
-  let revision: Protocol.Document | undefined;
+  const cells = new Map<Protocol.CellId, Protocol.CellOutput>();
+  let revision: Protocol.DocumentOutput | undefined;
   for (const event of fixtureEvents("notebook-events.sse")) {
     if (event.event === "ready") {
       break;

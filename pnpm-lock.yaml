@@ -817,6 +817,9 @@ importers:
 
   packages/openapi:
     dependencies:
+      '@marimo-team/client':
+        specifier: workspace:*
+        version: link:../client
       openapi-fetch:
         specifier: 0.9.7
         version: 0.9.7

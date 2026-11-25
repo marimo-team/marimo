@@ -29,7 +29,7 @@ function run(
   cells: Protocol.CellId[],
   status: Protocol.RunState["status"] = "queued",
   id = "run-1",
-): Protocol.Run {
+): Protocol.RunOutput {
   return {
     id,
     notebook_id: "n1",
@@ -50,7 +50,10 @@ function run(
   };
 }
 
-function withRuns(executions: Executions, runs: Protocol.Run[]): Executions {
+function withRuns(
+  executions: Executions,
+  runs: Protocol.RunOutput[],
+): Executions {
   return { ...executions, runs: new Map(runs.map((r) => [r.id, r])) };
 }
 

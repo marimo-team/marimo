@@ -5,10 +5,12 @@ import * as Protocol from "@marimo-team/client/protocol";
 
 /** The fields a client edits. Null code means the host withheld source. */
 export type EditableCell = Readonly<
-  Pick<Protocol.Cell, "id" | "code" | "name">
+  Pick<Protocol.CellOutput, "id" | "code" | "name">
 > & {
   readonly config: Readonly<Protocol.CellConfig>;
 };
+
+export type NewCell = Protocol.CellInput & { id: Protocol.CellId };
 
 type CellWithSource = EditableCell & { readonly code: string };
 
@@ -221,6 +223,7 @@ export function editCell(
   id: Protocol.CellId,
   edit: CellEdit,
 ): Draft {
+  checkColumn(edit.config?.column);
   const current = draft.cells.get(id);
   if (current?.kind === "delete") {
     return draft;
@@ -250,10 +253,10 @@ export function editCell(
  */
 export function createCell(
   draft: Draft,
-  input: Protocol.CellInput,
+  input: NewCell,
   placement: Placement = {},
 ): Draft {
-  const cell = parseCell(input);
+  const cell = withDefaults(input);
   const next = withCell(draft, cell.id, { kind: "create", cell, placement });
   return draft.order === null
     ? next
@@ -270,11 +273,11 @@ export function createCell(
 export function restoreCell(
   confirmed: Document,
   draft: Draft,
-  input: Protocol.CellInput,
+  input: NewCell,
   placement: Placement = {},
   sent: Draft = EMPTY_DRAFT,
 ): Draft {
-  const { id, code, name, config } = parseCell(input);
+  const { id, code, name, config } = withDefaults(input);
   const withdrawn = withCell(draft, id, undefined);
   const next =
     sent.cells.get(id)?.kind === "delete"
@@ -285,14 +288,29 @@ export function restoreCell(
   return sameOrder(order, placed) ? next : setOrder(next, placed);
 }
 
+function checkColumn(column: number | null | undefined): void {
+  if (column != null && !Number.isSafeInteger(column)) {
+    throw new Error("Invalid input: cell column must be an integer");
+  }
+}
+
 /** A cell input with the protocol's defaults filled in. */
-function parseCell(input: Protocol.CellInput): CellWithSource {
-  const parsed = Protocol.CellInput.parse(input);
+function withDefaults(input: NewCell): CellWithSource {
+  checkColumn(input.config?.column);
   return {
-    id: parsed.id,
-    code: parsed.code,
-    name: parsed.name,
-    config: parsed.config ?? Protocol.CellConfigInput.parse({}),
+    id: input.id,
+    code: input.code,
+    name: input.name ?? Protocol.cellInputNameDefault,
+    config: {
+      column: input.config?.column ?? Protocol.cellConfigInputColumnDefault,
+      disabled:
+        input.config?.disabled ?? Protocol.cellConfigInputDisabledDefault,
+      hide_code:
+        input.config?.hide_code ?? Protocol.cellConfigInputHideCodeDefault,
+      expand_output:
+        input.config?.expand_output ??
+        Protocol.cellConfigInputExpandOutputDefault,
+    },
   };
 }
 

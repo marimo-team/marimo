@@ -10,6 +10,9 @@ import type { Document } from "../../replica/resources/document";
 import { createDocumentModel } from "../model";
 import { type FakeEdit, fakeBackend } from "../../replica/__tests__/fixtures";
 import { cell, document, withCells } from "./fixtures";
+import { cellId } from "@/__tests__/branded";
+
+const C1 = cellId("c1");
 
 function response(confirmed: Document): ResultOf<"notebook.edit"> {
   return {
@@ -72,9 +75,9 @@ function setup({ connected = true } = {}) {
     controller,
     unmounted,
     edit: (code: string) =>
-      store.set(model.editAtom, (tx) => tx.setCode("c1", code)),
+      store.set(model.editAtom, (tx) => tx.setCode(C1, code)),
     status: () => store.get(model.syncStatusAtom),
-    value: () => store.get(model.documentAtom)?.cells.get("c1"),
+    value: () => store.get(model.documentAtom)?.cells.get(C1),
   };
 }
 
@@ -98,7 +101,7 @@ describe("document synchronization", () => {
       shownDocumentAtom: source,
       backendAtom: atom(fakeBackend({ edit })),
     });
-    store.set(model.editAtom, (tx) => tx.setCode("c1", "local"));
+    store.set(model.editAtom, (tx) => tx.setCode(C1, "local"));
     await expect(model.flush()).rejects.toThrow("not started");
     expect(store.get(model.documentAtom)).toBeNull();
     expect(store.get(model.syncStatusAtom)).toEqual({ status: "unavailable" });
@@ -150,7 +153,7 @@ describe("document synchronization", () => {
     const next = new AbortController();
     lifetimes.push(next);
     model.start({ signal: next.signal });
-    expect(store.get(model.documentAtom)?.cells.get("c1")?.code).toBe("x = 1");
+    expect(store.get(model.documentAtom)?.cells.get(C1)?.code).toBe("x = 1");
   });
 
   it("starts again without the drafts of a stopped run", () => {
@@ -164,7 +167,7 @@ describe("document synchronization", () => {
     lifetimes.push(next);
     model.start({ signal: next.signal });
     expect(value()?.code).toBe("x = 1");
-    store.set(model.editAtom, (tx) => tx.setCode("c1", "restarted"));
+    store.set(model.editAtom, (tx) => tx.setCode(C1, "restarted"));
     expect(value()?.code).toBe("restarted");
   });
 

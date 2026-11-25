@@ -43,7 +43,10 @@ export interface CellExecutionInputs {
    * The cells of the confirmed document. A run can only reach a cell the
    * document has, and the kernel sets aside one the document has disabled.
    */
-  readonly cells: ReadonlyMap<Protocol.CellId, Pick<Protocol.Cell, "config">>;
+  readonly cells: ReadonlyMap<
+    Protocol.CellId,
+    Pick<Protocol.CellOutput, "config">
+  >;
   /**
    * Cells this browser has asked to run, while the stream has not yet
    * shown the run.
@@ -76,19 +79,24 @@ function latestOf(
 
 /** Cells with a distinct disabled ancestor in the host's dependency graph. */
 export function blockedDescendants(
-  analysis: Protocol.Analysis,
-  cells: Iterable<Protocol.Cell>,
+  analysis: Protocol.AnalysisOutput,
+  cells: Iterable<Protocol.CellOutput>,
 ): ReadonlySet<Protocol.CellId> {
   const blocked = new Set<Protocol.CellId>();
-  const roots = [...cells].filter((cell) => cell.config.disabled);
+  const documentCells = [...cells];
+  const roots = documentCells.filter((cell) => cell.config.disabled);
   if (roots.length === 0) {
     return blocked;
   }
-  const children = new Map<Protocol.CellId, Protocol.CellId[]>();
-  for (const id of Object.keys(analysis.cells)) {
-    children.set(id, []);
-  }
-  for (const [id, { parents }] of Object.entries(analysis.cells)) {
+  const children = new Map<Protocol.CellId, Protocol.CellId[]>(
+    documentCells.map(({ id }) => [id, []]),
+  );
+  for (const { id } of documentCells) {
+    const entry = analysis.cells[id];
+    if (!entry) {
+      continue;
+    }
+    const { parents } = entry;
     if (parents === undefined) {
       return blocked;
     }

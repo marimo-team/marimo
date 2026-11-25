@@ -108,7 +108,7 @@ describe("static notebook backend", () => {
   it("delivers embedded results as completed executions after the document", async () => {
     const source = snapshot();
     const cell = source.cells[0];
-    const execution: Protocol.Execution = {
+    const execution: Protocol.ExecutionOutput = {
       id: "embedded:result",
       run_id: "embedded:run",
       runtime_id: "embedded",

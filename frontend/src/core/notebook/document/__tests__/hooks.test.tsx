@@ -17,6 +17,10 @@ import {
 import { createDocumentModel, DocumentProvider } from "..";
 import { cell, CONFIG, document, withCells } from "./fixtures";
 import { type FakeEdit, fakeBackend } from "../../replica/__tests__/fixtures";
+import { cellId } from "@/__tests__/branded";
+
+const C1 = cellId("c1");
+const C2 = cellId("c2");
 
 const lifetimes: AbortController[] = [];
 
@@ -65,13 +69,13 @@ describe("document hooks", () => {
     const { store, source, wrapper, controller } = setup(document(), edit);
     const { result, unmount } = renderHook(
       () => ({
-        code: useNotebookCellCode("c1"),
+        code: useNotebookCellCode(C1),
         edit: useNotebookDocumentEdit(),
         sync: useNotebookDocumentSync(),
       }),
       { wrapper, reactStrictMode: true },
     );
-    act(() => result.current.edit((tx) => tx.setCode("c1", "local")));
+    act(() => result.current.edit((tx) => tx.setCode(C1, "local")));
     expect(result.current.sync.status).toEqual({ status: "pending" });
     const { flush, retry } = result.current.sync;
     await act(async () => {
@@ -87,7 +91,7 @@ describe("document hooks", () => {
       retry,
     });
     expect(result.current.code).toBe("local");
-    act(() => result.current.edit((tx) => tx.setCode("c1", "next")));
+    act(() => result.current.edit((tx) => tx.setCode(C1, "next")));
     await act(async () => {
       const rejected = (async () => {
         await expect(flush()).rejects.toThrow("session ended");
@@ -108,9 +112,9 @@ describe("document hooks", () => {
     const { result } = renderHook(
       () => {
         const value = {
-          code: useNotebookCellCode("c1"),
-          name: useNotebookCellName("c1"),
-          config: useNotebookCellConfig("c1"),
+          code: useNotebookCellCode(C1),
+          name: useNotebookCellName(C1),
+          config: useNotebookCellConfig(C1),
           order: useNotebookCellOrder(),
         };
         seen(value);
@@ -123,10 +127,10 @@ describe("document hooks", () => {
 
     act(() =>
       edit((tx) => {
-        tx.setCode("c1", "edited");
-        tx.setName("c1", "renamed");
-        tx.updateConfig("c1", { hide_code: true });
-        tx.setOrder(["c2", "c1"]);
+        tx.setCode(C1, "edited");
+        tx.setName(C1, "renamed");
+        tx.updateConfig(C1, { hide_code: true });
+        tx.setOrder([C2, C1]);
       }),
     );
 
@@ -146,8 +150,8 @@ describe("document hooks", () => {
     expect(() =>
       act(() =>
         edit((tx) => {
-          tx.setCode("c1", "rolled back");
-          tx.deleteCell("missing");
+          tx.setCode(C1, "rolled back");
+          tx.deleteCell(cellId("missing"));
         }),
       ),
     ).toThrow("does not exist");
@@ -162,15 +166,15 @@ describe("document hooks", () => {
     const onOrder = vi.fn();
     const onEdit = vi.fn();
     function Code() {
-      onCode(useNotebookCellCode("c1"));
+      onCode(useNotebookCellCode(C1));
       return null;
     }
     function Name() {
-      onName(useNotebookCellName("c1"));
+      onName(useNotebookCellName(C1));
       return null;
     }
     function Config() {
-      onConfig(useNotebookCellConfig("c1"));
+      onConfig(useNotebookCellConfig(C1));
       return null;
     }
     function Order() {
@@ -199,7 +203,7 @@ describe("document hooks", () => {
       );
     clear();
 
-    act(() => edit((tx) => tx.setCode("c1", "local")));
+    act(() => edit((tx) => tx.setCode(C1, "local")));
     expect(onCode).toHaveBeenCalledWith("local");
     expect(onName).not.toHaveBeenCalled();
     expect(onConfig).not.toHaveBeenCalled();
@@ -207,7 +211,7 @@ describe("document hooks", () => {
     expect(onEdit).not.toHaveBeenCalled();
     clear();
 
-    act(() => edit((tx) => tx.setCode("c2", "other")));
+    act(() => edit((tx) => tx.setCode(C2, "other")));
     expect(
       [onCode, onName, onConfig, onOrder, onEdit].map((fn) => fn.mock.calls),
     ).toEqual([[], [], [], [], []]);
@@ -232,8 +236,8 @@ describe("document hooks", () => {
 
     act(() =>
       edit((tx) => {
-        tx.updateConfig("c1", { disabled: true });
-        tx.setOrder(["c2", "c1"]);
+        tx.updateConfig(C1, { disabled: true });
+        tx.setOrder([C2, C1]);
       }),
     );
     expect(onConfig).toHaveBeenCalledWith({ ...CONFIG, disabled: true });
@@ -250,14 +254,14 @@ describe("document hooks", () => {
         code: useNotebookCellCode(id),
         edit: useNotebookDocumentEdit(),
       }),
-      { wrapper, initialProps: "c1" },
+      { wrapper, initialProps: C1 },
     );
     const edit = result.current.edit;
-    rerender("c2");
+    rerender(C2);
     expect(result.current).toEqual({ code: "y = 2", edit });
-    act(() => edit((tx) => tx.setCode("c1", "old subscription")));
+    act(() => edit((tx) => tx.setCode(C1, "old subscription")));
     expect(result.current).toEqual({ code: "y = 2", edit });
-    act(() => edit((tx) => tx.setCode("c2", "new subscription")));
+    act(() => edit((tx) => tx.setCode(C2, "new subscription")));
     expect(result.current).toEqual({ code: "new subscription", edit });
   });
 
@@ -266,9 +270,9 @@ describe("document hooks", () => {
     const { result } = renderHook(
       () => ({
         order: useNotebookCellOrder(),
-        code: useNotebookCellCode("c1"),
-        name: useNotebookCellName("c1"),
-        config: useNotebookCellConfig("c1"),
+        code: useNotebookCellCode(C1),
+        name: useNotebookCellName(C1),
+        config: useNotebookCellConfig(C1),
         edit: useNotebookDocumentEdit(),
       }),
       { wrapper },
@@ -292,7 +296,7 @@ describe("document hooks", () => {
       order: ["c1", "c2"],
       edit,
     });
-    act(() => edit((tx) => tx.setCode("c1", "")));
+    act(() => edit((tx) => tx.setCode(C1, "")));
     expect(result.current.code).toBe("");
     act(() => store.set(source, null));
     expect(result.current).toEqual({ ...absent, order: null });
@@ -300,8 +304,8 @@ describe("document hooks", () => {
     expect(result.current.code).toBe("");
     act(() =>
       edit((tx) => {
-        tx.deleteCell("c1");
-        tx.deleteCell("c2");
+        tx.deleteCell(C1);
+        tx.deleteCell(C2);
       }),
     );
     expect(result.current).toEqual({ ...absent, order: [] });
@@ -310,19 +314,19 @@ describe("document hooks", () => {
   it("preserves drafts across Strict Mode remounts until the session ends", () => {
     const { wrapper, controller, detached } = setup();
     const useProbe = () => ({
-      code: useNotebookCellCode("c1"),
+      code: useNotebookCellCode(C1),
       edit: useNotebookDocumentEdit(),
     });
     const first = renderHook(useProbe, { wrapper, reactStrictMode: true });
     const edit = first.result.current.edit;
-    act(() => edit((tx) => tx.setCode("c1", "strict mode edit")));
+    act(() => edit((tx) => tx.setCode(C1, "strict mode edit")));
     expect(first.result.current.code).toBe("strict mode edit");
     first.unmount();
     expect(detached).not.toHaveBeenCalled();
 
     const second = renderHook(useProbe, { wrapper, reactStrictMode: true });
     expect(second.result.current.code).toBe("strict mode edit");
-    act(() => edit((tx) => tx.setCode("c1", "same session")));
+    act(() => edit((tx) => tx.setCode(C1, "same session")));
     expect(second.result.current.code).toBe("same session");
     second.unmount();
     controller.abort();
@@ -342,7 +346,7 @@ describe("document hooks", () => {
     const seen = vi.fn();
     function Probe() {
       seen({
-        code: useNotebookCellCode("c1"),
+        code: useNotebookCellCode(C1),
         edit: useNotebookDocumentEdit(),
       });
       return null;
@@ -357,7 +361,7 @@ describe("document hooks", () => {
     const { rerender } = render(tree(first));
     const oldEdit: ReturnType<typeof useNotebookDocumentEdit> =
       seen.mock.calls.at(-1)![0].edit;
-    act(() => oldEdit((tx) => tx.setCode("c1", "first draft")));
+    act(() => oldEdit((tx) => tx.setCode(C1, "first draft")));
     rerender(tree(second));
     act(() => first.controller.abort());
     expect(first.detached).toHaveBeenCalledOnce();
@@ -367,7 +371,7 @@ describe("document hooks", () => {
     } = seen.mock.calls.at(-1)![0];
     expect(latest.code).toBe("second source");
     expect(latest.edit).not.toBe(oldEdit);
-    act(() => latest.edit((tx) => tx.setCode("c1", "second draft")));
+    act(() => latest.edit((tx) => tx.setCode(C1, "second draft")));
     expect(seen.mock.calls.at(-1)![0].code).toBe("second draft");
     const stale = vi.fn();
     oldEdit(stale);

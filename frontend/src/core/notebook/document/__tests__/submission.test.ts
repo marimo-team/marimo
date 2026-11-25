@@ -6,6 +6,9 @@ import type { Document } from "../../replica/resources/document";
 import { selectCell } from "../select";
 import { createDocumentState, type DocumentSubmission } from "../state";
 import { cell, document, withCells } from "./fixtures";
+import { cellId } from "@/__tests__/branded";
+
+const C1 = cellId("c1");
 
 const lifetimes: AbortController[] = [];
 afterEach(() =>
@@ -27,7 +30,7 @@ function setup() {
     store,
     source,
     ...model,
-    cellAtom: (id: string) => selectCell(model.documentAtom, id),
+    cellAtom: (id: string) => selectCell(model.documentAtom, cellId(id)),
     submit() {
       const submission = store.set(model.submitAtom);
       if (submission === null) {
@@ -59,8 +62,8 @@ describe("document submissions", () => {
       });
       store.set(source, hidden);
       store.set(editAtom, (tx) => {
-        tx.setCode("c2", "other edit");
-        tx.setName("c1", "renamed");
+        tx.setCode(cellId("c2"), "other edit");
+        tx.setName(C1, "renamed");
       });
       expect(store.get(changesAtom)).toBeNull();
       expect(store.set(submitAtom)).toBeNull();
@@ -70,7 +73,7 @@ describe("document submissions", () => {
       if (recovery === "host source") {
         store.set(source, withCells(hidden, { c1: cell("c1", code) }));
       } else {
-        store.set(editAtom, (tx) => tx.setCode("c1", code));
+        store.set(editAtom, (tx) => tx.setCode(C1, code));
       }
       const sent = submit();
       expect(sent.changes).toEqual([
@@ -110,13 +113,13 @@ describe("document submissions", () => {
     (first) => {
       const { store, source, editAtom, cellAtom, submit, settle } = setup();
       store.set(editAtom, (tx) => {
-        tx.setCode("c1", "sent");
-        tx.createCell({ id: "c3", code: "new" });
+        tx.setCode(C1, "sent");
+        tx.createCell({ id: cellId("c3"), code: "new" });
       });
       const sent = submit();
       store.set(editAtom, (tx) => {
-        tx.setCode("c1", "still typing");
-        tx.deleteCell("c3");
+        tx.setCode(C1, "still typing");
+        tx.deleteCell(cellId("c3"));
       });
       const onCode = vi.fn();
       const onCreation = vi.fn();
@@ -145,7 +148,7 @@ describe("document submissions", () => {
   it("waits for the response's later revision and follows subsequent host edits", () => {
     const { store, source, editAtom, cellAtom, submitAtom, submit, settle } =
       setup();
-    store.set(editAtom, (tx) => tx.setCode("c1", "sent"));
+    store.set(editAtom, (tx) => tx.setCode(C1, "sent"));
     const sent = submit();
     const edited = withCells(document(), { c1: cell("c1", "sent") });
     const response = withCells(edited, { c2: cell("c2", "mirrored update") });
@@ -164,10 +167,10 @@ describe("document submissions", () => {
 
   it("invalidates submissions when switching notebooks, retaining each draft", () => {
     const { store, source, editAtom, cellAtom, submit, settle } = setup();
-    store.set(editAtom, (tx) => tx.setCode("c1", "first"));
+    store.set(editAtom, (tx) => tx.setCode(C1, "first"));
     const sent = submit();
     store.set(source, document("n2"));
-    store.set(editAtom, (tx) => tx.setCode("c1", "second"));
+    store.set(editAtom, (tx) => tx.setCode(C1, "second"));
     store.set(source, withCells(document(), { c2: cell("c2", "remote") }));
     settle(sent, withCells(document(), { c1: cell("c1", "first") }));
     expect(store.get(cellAtom("c1"))?.code).toBe("first");
@@ -178,7 +181,7 @@ describe("document submissions", () => {
   it("retries a rejected edit with fresh preconditions and ignores its late reply", () => {
     const { store, source, editAtom, settleAtom, submitAtom, submit, settle } =
       setup();
-    store.set(editAtom, (tx) => tx.setCode("c1", "local"));
+    store.set(editAtom, (tx) => tx.setCode(C1, "local"));
     const sent = submit();
     store.set(settleAtom, sent, null);
     const remote = withCells(document(), {

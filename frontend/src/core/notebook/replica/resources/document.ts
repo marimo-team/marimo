@@ -10,15 +10,15 @@ import type { NotebookResource } from "@marimo-team/client";
  * version. Each cell in its order has a record in `cells`.
  */
 export interface Document {
-  readonly revision: Protocol.Document;
-  readonly cells: ReadonlyMap<Protocol.CellId, Protocol.Cell>;
+  readonly revision: Protocol.DocumentOutput;
+  readonly cells: ReadonlyMap<Protocol.CellId, Protocol.CellOutput>;
 }
 
 /** The records of a revision still being received. */
 interface PendingDocument {
   /** Null until the `document` event that closes the group arrives. */
-  readonly revision: Protocol.Document | null;
-  readonly cells: ReadonlyMap<Protocol.CellId, Protocol.Cell>;
+  readonly revision: Protocol.DocumentOutput | null;
+  readonly cells: ReadonlyMap<Protocol.CellId, Protocol.CellOutput>;
 }
 
 /**
@@ -43,8 +43,8 @@ function pendingOf(state: DocumentState): PendingDocument {
 
 /** Confirm a revision whose records are complete. */
 function publish(
-  revision: Protocol.Document,
-  cells: ReadonlyMap<Protocol.CellId, Protocol.Cell>,
+  revision: Protocol.DocumentOutput,
+  cells: ReadonlyMap<Protocol.CellId, Protocol.CellOutput>,
 ): DocumentState {
   const order = new Set(revision.order);
   if (
@@ -73,11 +73,12 @@ export const document: NotebookResource<DocumentState, "cell" | "document"> = {
     },
     "cell.removed": (state, { data }) => {
       const pending = pendingOf(state);
-      if (!pending.cells.has(data.id)) {
+      const { id } = data;
+      if (!pending.cells.has(id)) {
         return state;
       }
       const cells = new Map(pending.cells);
-      cells.delete(data.id);
+      cells.delete(id);
       return { ...state, pending: { ...pending, cells } };
     },
     document: (state, { data }, { phase }) => {

@@ -10,6 +10,11 @@ import {
 } from "../state";
 import { selectCell, selectOrder } from "../select";
 import { cell, document, withCells } from "./fixtures";
+import { cellId } from "@/__tests__/branded";
+
+const C1 = cellId("c1");
+const C2 = cellId("c2");
+const C3 = cellId("c3");
 
 const lifetimes: AbortController[] = [];
 afterEach(() =>
@@ -31,7 +36,7 @@ function setup(initial: Document | null = document()) {
     store,
     source,
     ...model,
-    cellAtom: (id: string) => selectCell(model.documentAtom, id),
+    cellAtom: (id: string) => selectCell(model.documentAtom, cellId(id)),
     orderAtom: selectOrder(model.documentAtom),
     abort: () => controller.abort(),
     edit: (callback: DocumentEdit) => store.set(model.editAtom, callback),
@@ -51,7 +56,7 @@ describe("document model", () => {
   it("keeps metadata drafts while source is unavailable and follows its return", () => {
     const initial = document();
     const { store, source, cellAtom, changesAtom, edit } = setup(initial);
-    edit((tx) => tx.setName("c1", "local name"));
+    edit((tx) => tx.setName(C1, "local name"));
     const hidden = withCells(initial, {
       c1: cell("c1", "", { code: null }),
     });
@@ -86,10 +91,10 @@ describe("document model", () => {
 
   it("rebases a local order onto the latest host order and its precondition", () => {
     const { store, source, orderAtom, changesAtom, edit } = setup();
-    edit((tx) => tx.setOrder(["c2", "c1"]));
+    edit((tx) => tx.setOrder([C2, C1]));
     store.set(
       source,
-      withCells(document(), { c3: cell("c3", "new") }, ["c1", "c3", "c2"]),
+      withCells(document(), { c3: cell("c3", "new") }, [C1, C3, C2]),
     );
     expect(store.get(orderAtom)).toEqual(["c2", "c1", "c3"]);
     expect(store.get(changesAtom)).toEqual([
@@ -105,9 +110,7 @@ describe("document model", () => {
     "appends a creation when its %s anchor was removed remotely",
     (direction) => {
       const { store, source, orderAtom, changesAtom, edit } = setup();
-      edit((tx) =>
-        tx.createCell({ id: "c3", code: "" }, { [direction]: "c1" }),
-      );
+      edit((tx) => tx.createCell({ id: C3, code: "" }, { [direction]: C1 }));
       store.set(source, withCells(document(), { c1: null }));
       expect(store.get(orderAtom)).toEqual(["c2", "c3"]);
       expect(store.get(changesAtom)).toEqual([
@@ -126,8 +129,8 @@ describe("document model", () => {
 
   it("brings back a cell deleted earlier in the draft with new content", () => {
     const { store, cellAtom, orderAtom, changesAtom, edit } = setup();
-    edit((tx) => tx.deleteCell("c1"));
-    edit((tx) => tx.createCell({ id: "c1", code: "back" }, { after: "c2" }));
+    edit((tx) => tx.deleteCell(C1));
+    edit((tx) => tx.createCell({ id: C1, code: "back" }, { after: C2 }));
     expect(store.get(cellAtom("c1"))?.code).toBe("back");
     expect(store.get(orderAtom)).toEqual(["c2", "c1"]);
     expect(store.get(changesAtom)).toEqual([
@@ -148,16 +151,16 @@ describe("document model", () => {
   it("publishes the visible order when an anchor is deleted later in the draft", () => {
     const { store, orderAtom, changesAtom, edit } = setup();
     edit((tx) => {
-      tx.setCode("c1", "edited before creation");
-      tx.createCell({ id: "c3", code: "" }, { after: "c1" });
-      tx.deleteCell("c1");
+      tx.setCode(C1, "edited before creation");
+      tx.createCell({ id: C3, code: "" }, { after: C1 });
+      tx.deleteCell(C1);
     });
     expect(store.get(orderAtom)).toEqual(["c3", "c2"]);
     expect(store.get(changesAtom)).toEqual([
       { kind: "delete_cell", id: "c1", base_etag: "c1-etag" },
       {
         kind: "create_cell",
-        cell: { id: "c3", code: "", name: "_", config: cell("c3", "").config },
+        cell: { id: C3, code: "", name: "_", config: cell("c3", "").config },
       },
       { kind: "set_order", base_etag: "order-1", order: ["c3", "c2"] },
     ]);
@@ -166,7 +169,7 @@ describe("document model", () => {
   it("does not release a draft because the host caught up", () => {
     const initial = document();
     const { store, source, cellAtom, edit } = setup(initial);
-    edit((tx) => tx.setCode("c1", "local"));
+    edit((tx) => tx.setCode(C1, "local"));
     for (const code of ["local", "later remote edit"]) {
       store.set(source, withCells(initial, { c1: cell("c1", code) }));
       expect(store.get(cellAtom("c1"))?.code).toBe("local");
@@ -175,10 +178,10 @@ describe("document model", () => {
 
   it("keeps drafts separate when notebooks reuse cell ids", () => {
     const { store, source, cellAtom, edit } = setup();
-    edit((tx) => tx.setCode("c1", "first notebook"));
+    edit((tx) => tx.setCode(C1, "first notebook"));
     store.set(source, document("n2"));
     expect(store.get(cellAtom("c1"))?.code).toBe("x = 1");
-    edit((tx) => tx.setCode("c1", "second notebook"));
+    edit((tx) => tx.setCode(C1, "second notebook"));
     store.set(source, document("n1"));
     expect(store.get(cellAtom("c1"))?.code).toBe("first notebook");
     store.set(source, document("n2"));
@@ -188,15 +191,15 @@ describe("document model", () => {
   it("does not repeat a satisfied deletion without mounted readers", () => {
     const { store, source, cellAtom, changesAtom, edit } = setup();
     edit((tx) => {
-      tx.deleteCell("c1");
-      tx.setCode("c2", "keep this draft");
+      tx.deleteCell(C1);
+      tx.setCode(C2, "keep this draft");
     });
     const removed = withCells(document(), { c1: null });
     store.set(source, removed);
     // No reads between snapshots: reconciliation must observe the removal.
     store.set(
       source,
-      withCells(removed, { c1: cell("c1", "restored") }, ["c1", "c2"]),
+      withCells(removed, { c1: cell("c1", "restored") }, [C1, C2]),
     );
     expect(store.get(cellAtom("c1"))?.code).toBe("restored");
     expect(store.get(cellAtom("c2"))?.code).toBe("keep this draft");
@@ -217,8 +220,8 @@ describe("document model", () => {
   it("retains edits when the host removes a cell and blocks partial submissions", () => {
     const { store, source, cellAtom, changesAtom, edit } = setup();
     edit((tx) => {
-      tx.setCode("c1", "recover this code");
-      tx.setCode("c2", "another edit");
+      tx.setCode(C1, "recover this code");
+      tx.setCode(C2, "another edit");
     });
     const removed = withCells(document(), { c1: null });
     store.set(source, removed);
@@ -241,12 +244,12 @@ describe("document model", () => {
     });
     const unsubscribeOrder = store.sub(orderAtom, onOrder);
     edit((tx) => {
-      tx.createCell({ id: "c3", code: "3" }, { after: "c2" });
-      tx.setCode("c3", "updated");
-      tx.setName("c3", "example");
-      tx.updateConfig("c3", { hide_code: true });
-      tx.deleteCell("c1");
-      tx.setOrder(["c3", "c2"]);
+      tx.createCell({ id: C3, code: "3" }, { after: C2 });
+      tx.setCode(C3, "updated");
+      tx.setName(C3, "example");
+      tx.updateConfig(C3, { hide_code: true });
+      tx.deleteCell(C1);
+      tx.setOrder([C3, C2]);
       expect(store.get(orderAtom)).toEqual(["c1", "c2"]);
       expect(store.get(cellAtom("c3"))).toBeUndefined();
     });
@@ -262,13 +265,13 @@ describe("document model", () => {
     const unsubscribeCell = store.sub(cellAtom("c1"), onCell);
     const unsubscribeOrder = store.sub(orderAtom, onOrder);
     edit((tx) => {
-      tx.setCode("c1", "x = 1");
-      tx.updateConfig("c1", { column: null });
+      tx.setCode(C1, "x = 1");
+      tx.updateConfig(C1, { column: null });
     });
     expect(onCell).not.toHaveBeenCalled();
-    edit((tx) => tx.setCode("c1", "local"));
-    edit((tx) => tx.setCode("c1", "local"));
-    edit((tx) => tx.setOrder(["c1", "c2"]));
+    edit((tx) => tx.setCode(C1, "local"));
+    edit((tx) => tx.setCode(C1, "local"));
+    edit((tx) => tx.setOrder([C1, C2]));
     expect(onCell).toHaveBeenCalledOnce();
     expect(onOrder).not.toHaveBeenCalled();
     unsubscribeCell();
@@ -279,8 +282,8 @@ describe("document model", () => {
     const initial = document();
     const { store, source, cellAtom, orderAtom, edit } = setup(initial);
     edit((tx) => {
-      tx.setCode("c1", "local");
-      tx.createCell({ id: "c3", code: "new" });
+      tx.setCode(C1, "local");
+      tx.createCell({ id: C3, code: "new" });
     });
     const c1 = cellAtom("c1");
     const first = store.get(c1);
@@ -294,7 +297,7 @@ describe("document model", () => {
       store.sub(orderAtom, onOrder),
     ];
 
-    edit((tx) => tx.setCode("c2", "other local"));
+    edit((tx) => tx.setCode(C2, "other local"));
     const remote = withCells(initial, {
       c1: cell("c1", "remote", { version: 2, etag: "new-etag" }),
     });
@@ -325,7 +328,7 @@ describe("document model", () => {
       config: cell("c1", "").config,
     });
     expect(onFirst).toHaveBeenCalledOnce();
-    edit((tx) => tx.setOrder(["c3", "c2", "c1"]));
+    edit((tx) => tx.setOrder([C3, C2, C1]));
     expect(onOrder).toHaveBeenCalledOnce();
     expect(onFirst).toHaveBeenCalledOnce();
     unsubscribe.forEach((fn) => fn());
@@ -335,14 +338,14 @@ describe("document model", () => {
     [
       "a missing placement anchor",
       (tx: DocumentEditor) =>
-        tx.createCell({ id: "c3", code: "" }, { after: "missing" }),
+        tx.createCell({ id: C3, code: "" }, { after: cellId("missing") }),
       "Cell missing does not exist",
     ],
     [
       "a deleted placement anchor",
       (tx: DocumentEditor) => {
-        tx.deleteCell("c2");
-        tx.createCell({ id: "c3", code: "" }, { before: "c2" });
+        tx.deleteCell(C2);
+        tx.createCell({ id: C3, code: "" }, { before: C2 });
       },
       "Cell c2 does not exist",
     ],
@@ -355,40 +358,40 @@ describe("document model", () => {
     ],
     [
       "a missing cell",
-      (tx: DocumentEditor) => tx.setCode("missing", "code"),
+      (tx: DocumentEditor) => tx.setCode(cellId("missing"), "code"),
       "Cell missing does not exist",
     ],
     [
       "a deleted cell",
       (tx: DocumentEditor) => {
-        tx.deleteCell("c2");
-        tx.setName("c2", "missing");
+        tx.deleteCell(C2);
+        tx.setName(C2, "missing");
       },
       "Cell c2 does not exist",
     ],
     [
       "a duplicate cell",
-      (tx: DocumentEditor) => tx.createCell({ id: "c1", code: "duplicate" }),
+      (tx: DocumentEditor) => tx.createCell({ id: C1, code: "duplicate" }),
       "Cell c1 already exists",
     ],
     [
       "an incomplete order",
-      (tx: DocumentEditor) => tx.setOrder(["c1"]),
+      (tx: DocumentEditor) => tx.setOrder([C1]),
       "Cell order must contain every cell exactly once",
     ],
     [
       "a duplicate in the order",
-      (tx: DocumentEditor) => tx.setOrder(["c1", "c1"]),
+      (tx: DocumentEditor) => tx.setOrder([C1, C1]),
       "Cell order must contain every cell exactly once",
     ],
     [
       "an unknown cell in the order",
-      (tx: DocumentEditor) => tx.setOrder(["c1", "missing"]),
+      (tx: DocumentEditor) => tx.setOrder([C1, cellId("missing")]),
       "Cell order must contain every cell exactly once",
     ],
     [
       "an invalid config",
-      (tx: DocumentEditor) => tx.updateConfig("c2", { column: 0.5 }),
+      (tx: DocumentEditor) => tx.updateConfig(C2, { column: 0.5 }),
       "Invalid input",
     ],
   ])("rolls back the whole transaction for %s", (_, fail, message) => {
@@ -397,13 +400,13 @@ describe("document model", () => {
     const unsubscribe = store.sub(cellAtom("c1"), onChange);
     expect(() =>
       edit((tx) => {
-        tx.setCode("c1", "not committed");
+        tx.setCode(C1, "not committed");
         fail(tx);
       }),
     ).toThrow(message);
     expect(store.get(changesAtom)).toEqual([]);
     expect(onChange).not.toHaveBeenCalled();
-    edit((tx) => tx.setCode("c1", "next transaction"));
+    edit((tx) => tx.setCode(C1, "next transaction"));
     expect(store.get(cellAtom("c1"))?.code).toBe("next transaction");
     unsubscribe();
   });
@@ -413,9 +416,9 @@ describe("document model", () => {
     let saved: DocumentEditor | undefined;
     edit((tx) => {
       saved = tx;
-      tx.setCode("c1", "committed");
+      tx.setCode(C1, "committed");
     });
-    expect(() => saved?.setCode("c1", "too late")).toThrow("has ended");
+    expect(() => saved?.setCode(C1, "too late")).toThrow("has ended");
     expect(store.get(cellAtom("c1"))?.code).toBe("committed");
   });
 
@@ -423,9 +426,9 @@ describe("document model", () => {
     const { store, changesAtom, edit } = setup();
     expect(() =>
       edit(async (tx) => {
-        tx.setCode("c1", "before await");
+        tx.setCode(C1, "before await");
         await Promise.resolve();
-        tx.setCode("c1", "after await");
+        tx.setCode(C1, "after await");
       }),
     ).toThrow("must be synchronous");
     await Promise.resolve();
@@ -436,8 +439,8 @@ describe("document model", () => {
     const { store, changesAtom, edit } = setup();
     expect(() =>
       edit((tx) => {
-        tx.setCode("c1", "outer");
-        edit((inner) => inner.setCode("c2", "inner"));
+        tx.setCode(C1, "outer");
+        edit((inner) => inner.setCode(C2, "inner"));
       }),
     ).toThrow("cannot be nested");
     expect(store.get(changesAtom)).toEqual([]);
@@ -447,7 +450,7 @@ describe("document model", () => {
     const { store, source, changesAtom, edit } = setup();
     expect(() =>
       edit((tx) => {
-        tx.setCode("c1", "old notebook");
+        tx.setCode(C1, "old notebook");
         store.set(source, document("n2"));
       }),
     ).toThrow("changed during the transaction");

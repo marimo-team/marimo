@@ -63,7 +63,7 @@ describe("NameCellContentEditable", () => {
     Object.defineProperty(field, "innerText", { value: " renamed " });
     fireEvent.blur(field);
 
-    expect(store.get(model.documentAtom)?.cells.get("c1")?.name).toBe(
+    expect(store.get(model.documentAtom)?.cells.get(cellId("c1"))?.name).toBe(
       "renamed",
     );
   });

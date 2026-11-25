@@ -10,14 +10,14 @@ import type { NotebookBackend } from "../notebook/replica";
 export interface StaticNotebookSnapshot {
   readonly notebook: Omit<Protocol.Notebook, "operations">;
   readonly document: Protocol.Document;
-  readonly cells: readonly Protocol.Cell[];
+  readonly cells: readonly Protocol.CellOutput[];
   /** What the cells last produced, as completed executions and their outputs. */
   readonly results: readonly StaticResult[];
 }
 
 /** A completed execution and the output it showed, if it set one. */
 export interface StaticResult {
-  readonly execution: Protocol.Execution;
+  readonly execution: Protocol.ExecutionOutput;
   readonly output: Protocol.Output | null;
 }
 

@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { cellId } from "@/__tests__/branded";
 import type { Document } from "../../replica/resources/document";
 import type * as Protocol from "@marimo-team/client/protocol";
 
@@ -11,12 +12,12 @@ export const CONFIG: Protocol.CellConfig = {
 };
 
 export function cell(
-  id: Protocol.CellId,
+  id: string,
   code: string,
-  overrides: Partial<Protocol.Cell> = {},
-): Protocol.Cell {
+  overrides: Partial<Protocol.CellOutput> = {},
+): Protocol.CellOutput {
   return {
-    id,
+    id: cellId(id),
     notebook_id: "n1",
     code,
     name: "_",
@@ -52,15 +53,15 @@ export function document(notebookId: Protocol.NotebookId = "n1"): Document {
 /** The document with some cells replaced or removed and the order updated. */
 export function withCells(
   base: Document,
-  changes: Record<Protocol.CellId, Protocol.Cell | null>,
+  changes: Record<string, Protocol.CellOutput | null>,
   order?: readonly Protocol.CellId[],
 ): Document {
   const cells = new Map(base.cells);
   for (const [id, next] of Object.entries(changes)) {
     if (next === null) {
-      cells.delete(id);
+      cells.delete(cellId(id));
     } else {
-      cells.set(id, next);
+      cells.set(cellId(id), next);
     }
   }
   const nextOrder = order

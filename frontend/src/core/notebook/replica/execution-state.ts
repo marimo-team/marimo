@@ -7,14 +7,14 @@ import type * as Protocol from "@marimo-team/client/protocol";
 /** What an execution shows in place of a cell's output. */
 export type Shown =
   | { readonly kind: "output"; readonly media: Protocol.Media | null }
-  | Exclude<Protocol.ExecutionOutcome, { kind: "succeeded" }>;
+  | Exclude<Protocol.ExecutionOutcomeOutput, { kind: "succeeded" }>;
 
 /**
  * How an execution ended when it did not succeed, else its output. Null
  * until a queued or running execution sets its output.
  */
 export function shown(result: {
-  readonly record: Protocol.Execution;
+  readonly record: Protocol.ExecutionOutput;
   readonly output: Protocol.Output | null;
 }): Shown | null {
   const { state } = result.record;

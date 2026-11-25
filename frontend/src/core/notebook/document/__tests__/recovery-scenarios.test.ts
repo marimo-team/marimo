@@ -2,13 +2,18 @@
 
 import { vi } from "vitest";
 import { test } from "./scenario-fixture";
+import { cellId } from "@/__tests__/branded";
+
+const C1 = cellId("c1");
+const C3 = cellId("c3");
+const FIXTURE_CELL = cellId("k7f2");
 
 test("keeps a split of the last cell together across a concurrent append", async ({
   expect,
   session: { user, host },
 }) => {
-  user.changeCode("k7f2", "y = x");
-  user.createCell({ id: "split", code: "y *= 2" }, { after: "k7f2" });
+  user.changeCode(FIXTURE_CELL, "y = x");
+  user.createCell({ id: "split", code: "y *= 2" }, { after: FIXTURE_CELL });
   const synced = user.sync();
   const request = await host.nextRequest();
 
@@ -28,8 +33,8 @@ test("keeps a split of the last cell together across a concurrent append", async
   const { cells, revision } = host.document();
   await expect(retried).resolves.toEqual(revision);
   expect(revision.order).toEqual(["c1", "c3", "k7f2", "split", "remote"]);
-  expect(cells.get("k7f2")?.code).toBe("y = x");
-  expect(cells.get("split")?.code).toBe("y *= 2");
+  expect(cells.get(FIXTURE_CELL)?.code).toBe("y = x");
+  expect(cells.get(cellId("split"))?.code).toBe("y *= 2");
 });
 
 test.for(["response", "document"] as const)(
@@ -42,12 +47,12 @@ test.for(["response", "document"] as const)(
     });
     const synced = user.sync();
     const request = await host.nextRequest();
-    host.changeCell("c3", { code: "remote", name: "remote name" });
+    host.changeCell(C3, { code: "remote", name: "remote name" });
     const remote = host.document();
-    expect(user.cell("c3")?.code).toBe("local");
+    expect(user.cell(C3)?.code).toBe("local");
     request.process();
     expect(host.document()).toEqual(remote);
-    user.changeCode("c3", "updated local");
+    user.changeCode(C3, "updated local");
 
     if (first === "document") {
       host.deliverDocument();
@@ -60,8 +65,8 @@ test.for(["response", "document"] as const)(
     }
     await vi.advanceTimersByTimeAsync(2000);
     expect(notebook.edit).toHaveBeenCalledOnce();
-    expect(user.cell("c3")?.code).toBe("updated local");
-    expect(user.cell("c1")?.code).toBe("other local edit");
+    expect(user.cell(C3)?.code).toBe("updated local");
+    expect(user.cell(C1)?.code).toBe("other local edit");
 
     const retried = user.retry();
     const retry = await host.nextRequest();
@@ -70,12 +75,12 @@ test.for(["response", "document"] as const)(
     retry.deliverResponse();
     host.deliverDocument();
     await expect(retried).resolves.toEqual(host.document().revision);
-    expect(host.document().cells.get("c1")?.code).toBe("other local edit");
-    expect(host.document().cells.get("c3")).toMatchObject({
+    expect(host.document().cells.get(C1)?.code).toBe("other local edit");
+    expect(host.document().cells.get(C3)).toMatchObject({
       code: "updated local",
       name: "remote name",
     });
-    expect(user.cell("c3")).toMatchObject({
+    expect(user.cell(C3)).toMatchObject({
       code: "updated local",
       name: "remote name",
     });
@@ -87,16 +92,16 @@ test("waits for the conflicting revision before allowing a retry", async ({
   expect,
   session: { user, host, notebook },
 }) => {
-  user.changeCode("c3", "local");
+  user.changeCode(C3, "local");
   const synced = user.sync();
   const request = await host.nextRequest();
-  host.changeCell("c3", { code: "remote" });
+  host.changeCell(C3, { code: "remote" });
   request.process();
   request.deliverResponse();
   await expect(synced).rejects.toThrow("conflict");
   await expect(user.retry()).rejects.toThrow("Wait for the host");
   expect(notebook.edit).toHaveBeenCalledOnce();
-  expect(user.cell("c3")?.code).toBe("local");
+  expect(user.cell(C3)?.code).toBe("local");
 
   host.deliverDocument();
   const retried = user.retry();
@@ -105,7 +110,7 @@ test("waits for the conflicting revision before allowing a retry", async ({
   retry.deliverResponse();
   host.deliverDocument();
   await expect(retried).resolves.toEqual(host.document().revision);
-  expect(host.document().cells.get("c3")?.code).toBe("local");
+  expect(host.document().cells.get(C3)?.code).toBe("local");
   expect(user.status()).toEqual({ status: "idle" });
 });
 
@@ -113,13 +118,13 @@ test("replays a lost response without committing twice or losing newer typing", 
   expect,
   session: { user, host },
 }) => {
-  user.changeCode("c3", "sent");
+  user.changeCode(C3, "sent");
   const flushed = user.sync();
   const request = await host.nextRequest();
   request.process();
   const committed = host.document();
   host.deliverDocument();
-  user.changeCode("c3", "newer");
+  user.changeCode(C3, "newer");
   request.loseResponse();
 
   await vi.advanceTimersByTimeAsync(500);
@@ -137,15 +142,15 @@ test("replays a lost response without committing twice or losing newer typing", 
   host.deliverDocument();
   await expect(flushed).resolves.toEqual(host.document().revision);
   expect(host.document().revision.version).toBe(committed.revision.version + 1);
-  expect(host.document().cells.get("c3")?.code).toBe("newer");
-  expect(user.cell("c3")?.code).toBe("newer");
+  expect(host.document().cells.get(C3)?.code).toBe("newer");
+  expect(user.cell(C3)?.code).toBe("newer");
 });
 
 test("ignores a timed-out attempt that completes after its retry", async ({
   expect,
   session: { user, host, notebook },
 }) => {
-  user.changeCode("c3", "local");
+  user.changeCode(C3, "local");
   const flushed = user.sync();
   const first = await host.nextRequest();
   await vi.advanceTimersByTimeAsync(10_500);
@@ -161,7 +166,7 @@ test("ignores a timed-out attempt that completes after its retry", async ({
   first.deliverResponse();
   await vi.advanceTimersByTimeAsync(0);
   expect(host.document()).toEqual(committed);
-  expect(user.cell("c3")?.code).toBe("local");
+  expect(user.cell(C3)?.code).toBe("local");
   expect(notebook.edit).toHaveBeenCalledTimes(2);
 });
 
@@ -169,7 +174,7 @@ test("a manual retry reuses the committed edit after automatic retries give up",
   expect,
   session: { user, host, notebook },
 }) => {
-  user.changeCode("c3", "sent");
+  user.changeCode(C3, "sent");
   const synced = user.sync();
   const request = await host.nextRequest();
   request.process();
@@ -203,7 +208,7 @@ test("refuses a manual retry after the safe retry window while retaining the dra
   expect,
   session: { user, host, notebook },
 }) => {
-  user.changeCode("c3", "sent");
+  user.changeCode(C3, "sent");
   const synced = user.sync();
   const request = await host.nextRequest();
   request.process();
@@ -223,37 +228,37 @@ test("refuses a manual retry after the safe retry window while retaining the dra
   expect(user.status()).toMatchObject({ status: "error", retryable: false });
   expect(notebook.edit).toHaveBeenCalledTimes(3);
   expect(host.document()).toEqual(committed);
-  expect(user.cell("c3")?.code).toBe("sent");
+  expect(user.cell(C3)?.code).toBe("sent");
 });
 
 test("keeps the whole draft when another writer deletes an edited cell", async ({
   expect,
   session: { user, host, notebook },
 }) => {
-  user.changeCode("c3", "keep this");
+  user.changeCode(C3, "keep this");
   const synced = user.sync();
   const request = await host.nextRequest();
-  host.deleteCell("c3");
+  host.deleteCell(C3);
   request.process();
   request.deliverResponse();
   host.deliverDocument();
   await expect(synced).rejects.toThrow("conflict");
 
-  user.changeCode("c1", "other edit");
+  user.changeCode(C1, "other edit");
   await expect(user.retry()).rejects.toThrow("unavailable");
   await vi.advanceTimersByTimeAsync(1000);
   expect(notebook.edit).toHaveBeenCalledOnce();
-  expect(host.document().cells.get("c1")?.code).toBe("import marimo as mo");
+  expect(host.document().cells.get(C1)?.code).toBe("import marimo as mo");
 
   host.createCell({ id: "c3", code: "restored" });
   host.deliverDocument();
-  expect(user.cell("c3")?.code).toBe("keep this");
+  expect(user.cell(C3)?.code).toBe("keep this");
   const retried = user.retry();
   const retry = await host.nextRequest();
   retry.process();
   retry.deliverResponse();
   host.deliverDocument();
   await expect(retried).resolves.toEqual(host.document().revision);
-  expect(host.document().cells.get("c3")?.code).toBe("keep this");
-  expect(host.document().cells.get("c1")?.code).toBe("other edit");
+  expect(host.document().cells.get(C3)?.code).toBe("keep this");
+  expect(host.document().cells.get(C1)?.code).toBe("other edit");
 });

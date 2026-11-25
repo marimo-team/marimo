@@ -17,7 +17,7 @@ import { activeNotebookReplicaAtom } from "@/core/session/active-notebook";
 import { Deferred } from "@/utils/Deferred";
 import { useNotebookDocumentSave } from "../document";
 
-const confirmed: Protocol.Document = {
+const confirmed: Protocol.DocumentOutput = {
   notebook_id: "n1",
   order: [],
   app_config: {},

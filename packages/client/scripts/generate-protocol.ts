@@ -187,6 +187,17 @@ try {
     /^export const JsonValue = zod\.unknown\(\)/m,
     "export const JsonValue = zod.json()",
   );
+  // Keep the scalar validator private. The client exposes CellId as a type,
+  // and brands IDs while decoding their enclosing records and events.
+  generated = generated.replace(
+    /export (const CellId = [\s\S]*?);\s*export type CellId = zod\.input<typeof CellId>;/,
+    '$1.brand("CellId");\ntype CellId = zod.output<typeof CellId>;\nexport type { CellId };',
+  );
+  // The shared removal envelope gets its ID type from the event name.
+  generated = generated.replace(
+    /(export const CellRemovedEvent = [\s\S]*?"data":\s*)RemovedMessage\b/,
+    "$1RemovedMessage.extend({ id: CellId })",
+  );
   for (const [name, schema] of Object.entries(schemas)) {
     if (
       typeof schema === "object" &&

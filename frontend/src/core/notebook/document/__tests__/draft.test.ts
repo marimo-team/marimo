@@ -15,12 +15,17 @@ import {
   viewDocument,
 } from "../draft";
 import { cell, CONFIG, document, withCells } from "./fixtures";
+import { cellId } from "@/__tests__/branded";
+
+const C1 = cellId("c1");
+const C2 = cellId("c2");
+const C3 = cellId("c3");
 
 const confirmed = document();
 
 function edits(...steps: Parameters<typeof editCell>[3][]): Draft {
   return steps.reduce(
-    (draft, edit) => editCell(confirmed, draft, "c1", edit),
+    (draft, edit) => editCell(confirmed, draft, C1, edit),
     EMPTY_DRAFT,
   );
 }
@@ -31,7 +36,7 @@ describe("editCell", () => {
       { code: "a", config: { hide_code: true } },
       { name: "n", config: { column: 1, hide_code: undefined } },
     );
-    expect(viewDocument(confirmed, draft).cells.get("c1")).toEqual({
+    expect(viewDocument(confirmed, draft).cells.get(C1)).toEqual({
       id: "c1",
       code: "a",
       name: "n",
@@ -42,7 +47,7 @@ describe("editCell", () => {
   it("keeps a reversal to the confirmed value as a draft", () => {
     const draft = edits({ code: "local" }, { code: "x = 1" });
     const remote = withCells(confirmed, { c1: cell("c1", "earlier edit") });
-    expect(viewDocument(remote, draft).cells.get("c1")?.code).toBe("x = 1");
+    expect(viewDocument(remote, draft).cells.get(C1)?.code).toBe("x = 1");
   });
 
   it("accepts empty strings, false and null while ignoring undefined", () => {
@@ -53,7 +58,7 @@ describe("editCell", () => {
         config: { column: null, disabled: false, hide_code: undefined },
       },
     );
-    expect(viewDocument(confirmed, draft).cells.get("c1")).toEqual({
+    expect(viewDocument(confirmed, draft).cells.get(C1)).toEqual({
       id: "c1",
       code: "",
       name: "_",
@@ -64,27 +69,23 @@ describe("editCell", () => {
 
 describe("createCell and deleteCell", () => {
   it("fills protocol defaults and places the cell in the view", () => {
-    const atEnd = createCell(EMPTY_DRAFT, { id: "c3", code: "3" });
-    const after = createCell(
-      EMPTY_DRAFT,
-      { id: "c3", code: "3" },
-      { after: "c1" },
-    );
+    const atEnd = createCell(EMPTY_DRAFT, { id: C3, code: "3" });
+    const after = createCell(EMPTY_DRAFT, { id: C3, code: "3" }, { after: C1 });
     const before = createCell(
       EMPTY_DRAFT,
-      { id: "c3", code: "3" },
-      { before: "c1" },
+      { id: C3, code: "3" },
+      { before: C1 },
     );
     const orphan = createCell(
       EMPTY_DRAFT,
-      { id: "c3", code: "3" },
-      { after: "gone" },
+      { id: C3, code: "3" },
+      { after: cellId("gone") },
     );
     expect(viewDocument(confirmed, atEnd).order).toEqual(["c1", "c2", "c3"]);
     expect(viewDocument(confirmed, after).order).toEqual(["c1", "c3", "c2"]);
     expect(viewDocument(confirmed, before).order).toEqual(["c3", "c1", "c2"]);
     expect(viewDocument(confirmed, orphan).order).toEqual(["c1", "c2", "c3"]);
-    expect(viewDocument(confirmed, atEnd).cells.get("c3")).toEqual({
+    expect(viewDocument(confirmed, atEnd).cells.get(C3)).toEqual({
       id: "c3",
       code: "3",
       name: "_",
@@ -93,25 +94,22 @@ describe("createCell and deleteCell", () => {
   });
 
   it("forgets a created cell when it is deleted", () => {
-    const draft = deleteCell(
-      createCell(EMPTY_DRAFT, { id: "c3", code: "" }),
-      "c3",
-    );
+    const draft = deleteCell(createCell(EMPTY_DRAFT, { id: C3, code: "" }), C3);
     expect(toChanges(confirmed, draft)).toEqual([]);
     expect(viewDocument(confirmed, draft).order).toEqual(["c1", "c2"]);
   });
 
   it("restores a deleted cell as an edit at the requested place", () => {
-    const deleted = deleteCell(EMPTY_DRAFT, "c1");
-    const back = { id: "c1", code: "back" };
+    const deleted = deleteCell(EMPTY_DRAFT, C1);
+    const back = { id: C1, code: "back" };
     const put = {
       kind: "replace_cell",
       base_etag: "c1-etag",
       cell: { ...back, name: "_", config: CONFIG },
     };
-    const inPlace = restoreCell(confirmed, deleted, back, { before: "c2" });
-    const moved = restoreCell(confirmed, deleted, back, { after: "c2" });
-    expect(viewDocument(confirmed, inPlace).cells.get("c1")?.code).toBe("back");
+    const inPlace = restoreCell(confirmed, deleted, back, { before: C2 });
+    const moved = restoreCell(confirmed, deleted, back, { after: C2 });
+    expect(viewDocument(confirmed, inPlace).cells.get(C1)?.code).toBe("back");
     expect(viewDocument(confirmed, inPlace).order).toEqual(["c1", "c2"]);
     expect(toChanges(confirmed, inPlace)).toEqual([put]);
     expect(viewDocument(confirmed, moved).order).toEqual(["c2", "c1"]);
@@ -122,10 +120,10 @@ describe("createCell and deleteCell", () => {
   });
 
   it("recreates a cell whose deletion is in flight once the host removes it", () => {
-    const sent = deleteCell(EMPTY_DRAFT, "c1");
-    const back = { id: "c1", code: "back" };
-    const draft = restoreCell(confirmed, sent, back, { before: "c2" }, sent);
-    expect(viewDocument(confirmed, draft).cells.get("c1")?.code).toBe("back");
+    const sent = deleteCell(EMPTY_DRAFT, C1);
+    const back = { id: C1, code: "back" };
+    const draft = restoreCell(confirmed, sent, back, { before: C2 }, sent);
+    expect(viewDocument(confirmed, draft).cells.get(C1)?.code).toBe("back");
     expect(viewDocument(confirmed, draft).order).toEqual(["c1", "c2"]);
 
     const removed = withCells(confirmed, { c1: null });
@@ -172,7 +170,7 @@ describe("viewDocument", () => {
         }),
         c2: cell("c2", "remote too"),
       },
-      ["c2", "c1"],
+      [C2, C1],
     );
     expect(viewDocument(remote, draft)).toEqual({
       order: ["c2", "c1"],
@@ -180,13 +178,13 @@ describe("viewDocument", () => {
         [
           "c1",
           {
-            id: "c1",
+            id: C1,
             code: "local",
             name: "renamed",
             config: { ...CONFIG, disabled: true, hide_code: true },
           },
         ],
-        ["c2", remote.cells.get("c2")],
+        ["c2", remote.cells.get(C2)],
       ]),
     });
   });
@@ -199,10 +197,10 @@ describe("toChanges", () => {
       const hidden = withCells(confirmed, {
         c1: cell("c1", "", { code: null }),
       });
-      const created = createCell(EMPTY_DRAFT, { id: "c3", code: "" });
-      const draft = editCell(hidden, created, "c1", edit);
+      const created = createCell(EMPTY_DRAFT, { id: C3, code: "" });
+      const draft = editCell(hidden, created, C1, edit);
       expect(toChanges(hidden, draft)).toBeNull();
-      expect(viewDocument(hidden, draft).cells.get("c1")?.code).toBeNull();
+      expect(viewDocument(hidden, draft).cells.get(C1)?.code).toBeNull();
     },
   );
 
@@ -212,7 +210,7 @@ describe("toChanges", () => {
       const hidden = withCells(confirmed, {
         c1: cell("c1", "", { code: null }),
       });
-      const draft = editCell(hidden, EMPTY_DRAFT, "c1", {
+      const draft = editCell(hidden, EMPTY_DRAFT, C1, {
         name: "renamed",
         code,
       });
@@ -231,10 +229,10 @@ describe("toChanges", () => {
       c1: cell("c1", "", { code: null }),
       c2: cell("c2", "", { code: null }),
     });
-    expect(toChanges(hidden, deleteCell(EMPTY_DRAFT, "c1"))).toEqual([
+    expect(toChanges(hidden, deleteCell(EMPTY_DRAFT, C1))).toEqual([
       { kind: "delete_cell", id: "c1", base_etag: "c1-etag" },
     ]);
-    expect(toChanges(hidden, setOrder(EMPTY_DRAFT, ["c2", "c1"]))).toEqual([
+    expect(toChanges(hidden, setOrder(EMPTY_DRAFT, [C2, C1]))).toEqual([
       { kind: "set_order", base_etag: "order-1", order: ["c2", "c1"] },
     ]);
   });
@@ -255,22 +253,22 @@ describe("toChanges", () => {
       {
         kind: "replace_cell",
         base_etag: "c1-etag-2",
-        cell: { id: "c1", code: "local", name: "renamed", config: CONFIG },
+        cell: { id: C1, code: "local", name: "renamed", config: CONFIG },
       },
     ]);
   });
 
   it("places a cell before another creation with one order change", () => {
-    let draft = createCell(EMPTY_DRAFT, { id: "c3", code: "3" });
-    draft = createCell(draft, { id: "c4", code: "4" }, { before: "c3" });
+    let draft = createCell(EMPTY_DRAFT, { id: C3, code: "3" });
+    draft = createCell(draft, { id: cellId("c4"), code: "4" }, { before: C3 });
     expect(toChanges(confirmed, draft)).toEqual([
       {
         kind: "create_cell",
-        cell: { id: "c3", code: "3", name: "_", config: CONFIG },
+        cell: { id: C3, code: "3", name: "_", config: CONFIG },
       },
       {
         kind: "create_cell",
-        cell: { id: "c4", code: "4", name: "_", config: CONFIG },
+        cell: { id: cellId("c4"), code: "4", name: "_", config: CONFIG },
       },
       {
         kind: "set_order",
@@ -280,29 +278,29 @@ describe("toChanges", () => {
     ]);
   });
 
-  it.each([{ after: "c2" }, { before: "c2" }])(
+  it.each([{ after: C2 }, { before: C2 }])(
     "appends when the placement anchor was deleted earlier in the request: %o",
     (placement) => {
-      let draft = deleteCell(EMPTY_DRAFT, "c2");
-      draft = createCell(draft, { id: "c3", code: "3" }, placement);
+      let draft = deleteCell(EMPTY_DRAFT, C2);
+      draft = createCell(draft, { id: C3, code: "3" }, placement);
       expect(toChanges(confirmed, draft)).toEqual([
         { kind: "delete_cell", id: "c2", base_etag: "c2-etag" },
         {
           kind: "create_cell",
-          cell: { id: "c3", code: "3", name: "_", config: CONFIG },
+          cell: { id: C3, code: "3", name: "_", config: CONFIG },
         },
       ]);
     },
   );
 
   it("creates, deletes, then sets the reconciled order", () => {
-    let draft = setOrder(EMPTY_DRAFT, ["c2", "c1"]);
-    draft = createCell(draft, { id: "c3", code: "3" }, { after: "c2" });
-    draft = deleteCell(draft, "c1");
+    let draft = setOrder(EMPTY_DRAFT, [C2, C1]);
+    draft = createCell(draft, { id: C3, code: "3" }, { after: C2 });
+    draft = deleteCell(draft, C1);
     expect(toChanges(confirmed, draft)).toEqual([
       {
         kind: "create_cell",
-        cell: { id: "c3", code: "3", name: "_", config: CONFIG },
+        cell: { id: C3, code: "3", name: "_", config: CONFIG },
       },
       { kind: "delete_cell", id: "c1", base_etag: "c1-etag" },
       { kind: "set_order", base_etag: "order-1", order: ["c2", "c3"] },
@@ -316,7 +314,7 @@ describe("acknowledge", () => {
       code: "sent",
       config: { hide_code: true, column: 1 },
     });
-    const later = editCell(confirmed, sent, "c1", {
+    const later = editCell(confirmed, sent, C1, {
       code: "typed more",
       config: { column: 2 },
     });
@@ -324,7 +322,7 @@ describe("acknowledge", () => {
       c1: cell("c1", "remote", { config: { ...CONFIG, column: 1 } }),
     });
     expect(
-      viewDocument(remote, acknowledge(later, sent)).cells.get("c1"),
+      viewDocument(remote, acknowledge(later, sent)).cells.get(C1),
     ).toEqual({
       id: "c1",
       code: "typed more",
@@ -334,22 +332,22 @@ describe("acknowledge", () => {
   });
 
   it("turns an accepted creation into an edit of only the fields changed since", () => {
-    const sent = createCell(EMPTY_DRAFT, { id: "c3", code: "3" });
-    const later = editCell(confirmed, sent, "c3", { name: "named" });
+    const sent = createCell(EMPTY_DRAFT, { id: C3, code: "3" });
+    const later = editCell(confirmed, sent, C3, { name: "named" });
     const remote = withCells(confirmed, { c3: cell("c3", "remote code") });
     expect(toChanges(remote, acknowledge(later, sent))).toEqual([
       {
         kind: "replace_cell",
         base_etag: "c3-etag",
-        cell: { id: "c3", code: "remote code", name: "named", config: CONFIG },
+        cell: { id: C3, code: "remote code", name: "named", config: CONFIG },
       },
     ]);
   });
 
   it("releases an accepted order but preserves a subsequent reorder", () => {
-    const sent = setOrder(EMPTY_DRAFT, ["c2", "c1"]);
-    const later = setOrder(sent, ["c1", "c2"]);
-    const remote = withCells(confirmed, {}, ["c2", "c1"]);
+    const sent = setOrder(EMPTY_DRAFT, [C2, C1]);
+    const later = setOrder(sent, [C1, C2]);
+    const remote = withCells(confirmed, {}, [C2, C1]);
     expect(toChanges(remote, acknowledge(sent, sent))).toEqual([]);
     expect(toChanges(remote, acknowledge(later, sent))).toEqual([
       {

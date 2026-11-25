@@ -36,7 +36,7 @@ export interface Execution extends Result {
  * stays for display while a new execution runs.
  */
 export interface Executions {
-  readonly runs: ReadonlyMap<Protocol.RunId, Protocol.Run>;
+  readonly runs: ReadonlyMap<Protocol.RunId, Protocol.RunOutput>;
   /** Every execution on the stream, scratch included. */
   readonly executions: ReadonlyMap<Protocol.ExecutionId, Execution>;
   /** The execution on the stream for each cell that has one. */
@@ -56,7 +56,7 @@ export interface RunFailure {
   readonly completedAt: string;
 }
 
-function hostFailure(run: Protocol.Run): RunFailure | undefined {
+function hostFailure(run: Protocol.RunOutput): RunFailure | undefined {
   const { state } = run;
   return state.status === "completed" &&
     state.outcome.kind === "failed" &&

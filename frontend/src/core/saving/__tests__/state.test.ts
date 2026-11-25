@@ -17,8 +17,8 @@ import { initialLayoutState, layoutStateAtom } from "../../layout/state";
 import { documentVersionAtom, needsSaveAtom, savedLayoutAtom } from "../state";
 
 function revision(
-  overrides: Partial<Protocol.Document> = {},
-): Protocol.Document {
+  overrides: Partial<Protocol.DocumentOutput> = {},
+): Protocol.DocumentOutput {
   return {
     notebook_id: "nb",
     order: [],

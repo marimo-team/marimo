@@ -412,7 +412,7 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
     },
     checkHealth: () => runtimeManager.reconcileFromHealth(),
     onExecution: (record) => {
-      const cellId = (record.cell_id ?? SCRATCH_CELL_ID) as CellId;
+      const cellId = record.cell_id ?? SCRATCH_CELL_ID;
       const time = completedAt(record) ?? startedAt(record);
       const timestamp =
         time === null ? Date.now() / 1000 : Date.parse(time) / 1000;

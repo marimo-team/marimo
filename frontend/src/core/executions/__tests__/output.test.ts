@@ -19,7 +19,9 @@ const HTML: Protocol.Media = { mimetype: "text/html", data: "<b>1</b>" };
 /** After every time the execution mocks use. */
 const LATER = "2026-10-01T09:30:00Z";
 
-function hostError(overrides: Partial<Protocol.Error>): Protocol.Error {
+function hostError(
+  overrides: Partial<Protocol.ErrorOutput>,
+): Protocol.ErrorOutput {
   return {
     kind: "exception",
     message: "boom",

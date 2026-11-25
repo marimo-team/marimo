@@ -42,7 +42,7 @@ const NO_EXECUTIONS: Executions = {
   scratch: null,
 };
 const NO_RESULTS: Results = new Map();
-const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();
+const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.CellOutput> = new Map();
 const NO_REQUESTS: ReadonlySet<RunRequest> = new Set();
 const NO_REQUESTED: ReadonlySet<Protocol.CellId> = new Set();
 const NO_BLOCKED: ReadonlySet<Protocol.CellId> = new Set();

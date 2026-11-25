@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { cellId } from "@/__tests__/branded";
 import { defaultUserConfig } from "@/core/config/config-schema";
 
 /** A store whose notebook follows a document model, as the session wires it. */
@@ -12,7 +13,6 @@ import type * as Protocol from "@marimo-team/client/protocol";
 import { createStore } from "jotai";
 import { mockDocumentModel } from "@/__mocks__/document";
 import { MockExecutions } from "@/__mocks__/executions";
-import type { CellId } from "@/core/cells/ids";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
@@ -26,7 +26,7 @@ import { layoutAtom } from "../layout";
 
 export function setupNotebook(
   stops: Array<() => void>,
-  cells?: Record<string, Protocol.Cell | null>,
+  cells?: Record<string, Protocol.CellOutput | null>,
 ) {
   const store = createStore();
   store.set(notebookAtom, exportedForTesting.initialNotebookState());
@@ -39,7 +39,7 @@ export function setupNotebook(
   /** What the host shows for each cell, by cell id. */
   const results = new Map<
     string,
-    readonly [Protocol.Execution, Protocol.Output]
+    readonly [Protocol.ExecutionOutput, Protocol.Output]
   >();
   followDocument({
     store,
@@ -64,9 +64,11 @@ export function setupNotebook(
     /** The columns' ids, as the page keys them. */
     columnIds: () => store.get(layoutAtom).columns.map((column) => column.id),
     notebook: () => store.get(notebookAtom),
-    cellIn: (id: string) => store.get(model.documentAtom)?.cells.get(id),
+    cellIn: (id: string) =>
+      store.get(model.documentAtom)?.cells.get(cellId(id)),
     /** Give a cell an editor, as mounting it would, with a cell's language setup. */
-    mountEditor: (id: string) => {
+    mountEditor: (rawId: string) => {
+      const id = cellId(rawId);
       const view = new EditorView({
         state: EditorState.create({
           doc: store.get(model.documentAtom)?.cells.get(id)?.code ?? "",
@@ -74,7 +76,7 @@ export function setupNotebook(
             history(),
             python(),
             adaptiveLanguageConfiguration({
-              cellId: id as CellId,
+              cellId: id,
               completionConfig: {
                 ...defaultUserConfig().completion,
                 activate_on_typing: true,
@@ -88,7 +90,7 @@ export function setupNotebook(
           ],
         }),
       });
-      store.get(notebookAtom).cellHandles[id as never].current = {
+      store.get(notebookAtom).cellHandles[id].current = {
         editorView: view,
         editorViewOrNull: view,
       };

@@ -21,6 +21,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@marimo-team/client": "workspace:*",
     "openapi-fetch": "0.9.7"
   }
 }
