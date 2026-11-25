@@ -1764,7 +1764,7 @@ class Kernel:
             )
 
     def _publish_bindings(
-        self, names: Iterable[str]
+        self, names: Iterable[str], exempt_cell: CellId_t | None = None
     ) -> dict[str, tuple[object, Binding | None]]:
         # Called under _state_lock: readers must not see an unpublished revision.
         previews = {
@@ -1784,7 +1784,10 @@ class Kernel:
         ]
         if values:
             broadcast_notification(
-                VariableValuesNotification(variables=values), self.stream
+                VariableValuesNotification(
+                    variables=values, exempt_cell=exempt_cell
+                ),
+                self.stream,
             )
         return previews
 
@@ -1816,7 +1819,15 @@ class Kernel:
                     VariableValuesNotification(variables=current), self.stream
                 )
 
-    def _update_variables(self, names: Iterable[str]) -> None:
+    def _update_variables(
+        self, names: Iterable[str], exempt_cell: CellId_t | None = None
+    ) -> None:
+        """Advance the revision of each name's value.
+
+        An update outdates every result that read the value. `exempt_cell`
+        names the one cell it must not outdate, which is the cell whose own
+        code made the update when the runtime will not run it again for it.
+        """
         if get_context().is_embedded() or get_mode() != "edit":
             return
         with self._state_lock:
@@ -1834,10 +1845,11 @@ class Kernel:
                     binding, revision=revision
                 )
                 revisions[name] = revision
-            previews = self._publish_bindings(revisions)
+            previews = self._publish_bindings(revisions, exempt_cell)
             current = EXECUTION_CTX.get()
-            if current is not None and current.attempt is not None:
-                current.attempt.advance_inputs(revisions)
+            attempt = current.attempt if current is not None else None
+            if exempt_cell is not None and attempt is not None:
+                attempt.advance_inputs(revisions)
         self._publish_variable_previews(previews)
 
     def _propagate_kernel_errors(
@@ -1941,8 +1953,18 @@ class Kernel:
         from marimo._runtime.threads import is_marimo_thread
 
         ctx = get_context()
+        execution = ctx.execution_context
+        # A setter does not rerun the cell that called it unless the state
+        # allows self-loops, so that cell's result must not read as outdated.
         self._update_variables(
-            name for name in self._bindings if self.globals.get(name) is state
+            (
+                name
+                for name in self._bindings
+                if self.globals.get(name) is state
+            ),
+            exempt_cell=execution.cell_id
+            if execution is not None and not state.allow_self_loops
+            else None,
         )
         if ctx.execution_context is not None:
             setter_cell_id = ctx.execution_context.cell_id

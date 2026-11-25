@@ -6775,8 +6775,15 @@ components:
     VariableValuesNotification:
       description: "Current variable values.\n\nAttributes:\n    variables: Variables\
         \ with current values and types.\n    removed: Bindings that no longer exist,\
-        \ identified by their producer."
+        \ identified by their producer.\n    exempt_cell: The cell these updates do\
+        \ not outdate. It is the cell\n        whose own code made them, when it does\
+        \ not run again for them."
       properties:
+        exempt_cell:
+          anyOf:
+          - $ref: '#/components/schemas/CellId'
+          - type: 'null'
+          default: null
         op:
           enum:
           - variable-values

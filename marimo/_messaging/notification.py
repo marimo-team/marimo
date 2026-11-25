@@ -720,11 +720,14 @@ class VariableValuesNotification(Notification, tag="variable-values"):
     Attributes:
         variables: Variables with current values and types.
         removed: Bindings that no longer exist, identified by their producer.
+        exempt_cell: The cell these updates do not outdate. It is the cell
+            whose own code made them, when it does not run again for them.
     """
 
     name: ClassVar[str] = "variable-values"
     variables: list[VariableValue]
     removed: list[VariableRemoval] = msgspec.field(default_factory=list)
+    exempt_cell: CellId_t | None = None
 
 
 class DatasetsNotification(Notification, tag="datasets"):

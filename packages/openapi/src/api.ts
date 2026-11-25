@@ -7762,8 +7762,12 @@ export interface components {
      *     Attributes:
      *         variables: Variables with current values and types.
      *         removed: Bindings that no longer exist, identified by their producer.
+     *         exempt_cell: The cell these updates do not outdate. It is the cell
+     *             whose own code made them, when it does not run again for them.
      */
     VariableValuesNotification: {
+      /** @default null */
+      exempt_cell?: components["schemas"]["CellId"] | null;
       /** @enum {unknown} */
       op: "variable-values";
       /** @default [] */
