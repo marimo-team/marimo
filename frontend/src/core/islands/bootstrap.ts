@@ -206,7 +206,6 @@ function handleNotification(
       case "secret-keys-result":
       case "startup-logs":
       case "startup-progress":
-      case "cache-cleared":
       case "cache-info":
       case "kernel-startup-error":
         return;

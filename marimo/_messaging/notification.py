@@ -1114,17 +1114,6 @@ class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
     secrets: list[SecretKeysWithProvider]
 
 
-class CacheClearedNotification(Notification, tag="cache-cleared"):
-    """Execution cache cleared result.
-
-    Attributes:
-        bytes_freed: Bytes freed by clearing cache.
-    """
-
-    name: ClassVar[str] = "cache-cleared"
-    bytes_freed: int
-
-
 class CacheInfoNotification(Notification, tag="cache-info"):
     """Execution cache statistics.
 
@@ -1197,7 +1186,6 @@ EditorNotification = (
     # Secrets
     | SecretKeysResultNotification
     # Cache
-    | CacheClearedNotification
     | CacheInfoNotification
     # Kiosk
     | FocusCellNotification

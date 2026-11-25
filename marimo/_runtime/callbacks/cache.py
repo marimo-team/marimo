@@ -4,10 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._messaging.notification import (
-    CacheClearedNotification,
-    CacheInfoNotification,
-)
+from marimo._messaging.notification import CacheInfoNotification
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import ClearCacheCommand, GetCacheInfoCommand
 
@@ -86,12 +83,9 @@ class CacheCallbacks:
         del request
         from marimo._save.cache import CacheContext
 
-        saved = 0
         for obj in self._scope.globals.values():
             if isinstance(obj, CacheContext):
                 obj.loader.clear()
-
-        broadcast_notification(CacheClearedNotification(bytes_freed=saved))
 
     def _disk_usage(self, loaders: list[Loader]) -> tuple[int, int]:
         """Bytes the caches in scope hold, and bytes a purge frees.

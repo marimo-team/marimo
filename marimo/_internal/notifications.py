@@ -4,7 +4,6 @@
 from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
-    CacheClearedNotification,
     CacheInfoNotification,
     CellNotification,
     ColumnPreview,
@@ -49,7 +48,6 @@ from marimo._messaging.notification import (
 __all__ = [
     "AlertNotification",
     "BannerNotification",
-    "CacheClearedNotification",
     "CacheInfoNotification",
     "CellNotification",
     "ColumnPreview",
