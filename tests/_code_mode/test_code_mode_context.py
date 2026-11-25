@@ -1537,6 +1537,7 @@ class TestPendingExecutionRequests:
         }
         notifications_before = list(k.stream.operations)
         pending_before = dict(k._pending_execution_requests)
+        assert set(pending_before) == {"unrelated"}
         request = ExecuteCellCommand(
             cell_id=CellId_t("child" if existing_target else "final"),
             code="y = x + 1" if existing_target else "z = y + 1",
@@ -1548,10 +1549,8 @@ class TestPendingExecutionRequests:
         compiled_ids = [
             call.kwargs["cell_id"] for call in compile_spy.call_args_list
         ]
-        expected_ids = ["unrelated"]
-        if not existing_target:
-            expected_ids.append("final")
-        assert sorted(compiled_ids) == sorted(expected_ids)
+        # The unrelated pending cell was already compiled at startup.
+        assert compiled_ids == ([] if existing_target else ["final"])
         assert {
             cid: (cell.runtime_state, cell.stale, cell.config.asdict())
             for cid, cell in k.graph.cells.items()
