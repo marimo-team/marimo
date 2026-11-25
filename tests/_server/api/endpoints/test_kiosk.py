@@ -7,6 +7,7 @@ from tests._server.api.endpoints.ws_helpers import (
     HEADERS as _HEADERS,
     assert_kernel_ready_response,
     create_response,
+    receive_event,
     receive_notification,
     receive_until,
 )
@@ -89,9 +90,9 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             )
             assert response.status_code == 200, response.text
 
-            # Assert kiosk session received the document transaction
-            data = receive_notification(other_websocket)
-            assert data["op"] == "notebook-document-transaction"
+            edit = receive_event(other_websocket, "document")
+            assert edit["request_id"] == "edit-1"
+            assert edit["document"]["order"][-1] == "fresh"
 
             # Run a single cell through the host
             response = run_cells(
@@ -200,6 +201,7 @@ def test_third_viewer_survives_takeover(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=a", headers=_HEADERS) as ta:
         notebook_id = notebook_id_of(socket_snapshot(ta))
         assert_kernel_ready_response(receive_notification(ta))
+        await_host_startup(client, ta)
         with client.websocket_connect(
             "/ws?session_id=b", headers=_HEADERS
         ) as tb:
@@ -227,8 +229,9 @@ def test_third_viewer_survives_takeover(client: TestClient) -> None:
                     json={"changes": [new_cell("fresh")]},
                 )
                 assert resp.status_code == 200, resp.text
-                data = receive_until("notebook-document-transaction", tc)
-                assert data["op"] == "notebook-document-transaction"
+                edit = receive_event(tc, "document")
+                assert edit["request_id"] == "edit-1"
+                assert edit["document"]["order"][-1] == "fresh"
 
 
 def test_capabilities_changed_is_not_recorded(client: TestClient) -> None:

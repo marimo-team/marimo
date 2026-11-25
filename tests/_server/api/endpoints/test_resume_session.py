@@ -29,6 +29,7 @@ from tests._server.api.endpoints.ws_helpers import (
     assert_kernel_ready_response,
     create_response,
     headers,
+    receive_event,
     receive_notification,
     receive_until,
 )
@@ -386,14 +387,10 @@ def test_resume_session_after_file_change(client: TestClient) -> None:
         )
         assert result.handled
 
-        data = receive_notification(websocket)
-        assert data["op"] == "notebook-document-transaction"
-        tx = data["data"]["transaction"]
-        # Transaction should contain the new cell and reorder.
-        op_types = [op["type"] for op in tx["changes"]]
-        assert "create-cell" in op_types
-        assert "reorder-cells" in op_types
-        assert tx["source"] == "file-watch"
+        cell = receive_event(websocket, "cell")["cell"]
+        assert cell["code"] == "x=10; x"
+        document = receive_event(websocket, "document")["document"]
+        assert document["order"][-2] == cell["id"]
 
     # Resume session with new ID (simulates refresh)
     with client.websocket_connect(_create_ws_url("456")) as websocket:

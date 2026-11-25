@@ -210,7 +210,6 @@ function handleNotification(
       case "cache-cleared":
       case "cache-info":
       case "kernel-startup-error":
-      case "notebook-document-transaction":
         return;
 
       case "completed-run":
