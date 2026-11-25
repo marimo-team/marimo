@@ -55,6 +55,7 @@ function setup(runs: Protocol.RunOutput[]) {
   }));
   store.set(replica.backendAtom, fakeBackend({ interrupt }));
   store.set(replica.executionsAtom, {
+    variables: new Map(),
     runs: new Map(runs.map((run) => [run.id, run])),
     executions: new Map(),
     latest: new Map(),

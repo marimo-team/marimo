@@ -35,6 +35,7 @@ import { shown } from "@/core/notebook/replica";
 type Store = ReturnType<typeof createStore>;
 
 const NO_EXECUTIONS: Executions = {
+  variables: new Map(),
   runs: new Map(),
   executions: new Map(),
   latest: new Map(),

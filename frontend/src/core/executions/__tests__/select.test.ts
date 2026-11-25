@@ -78,7 +78,6 @@ function execution(
     output: null,
     outputVersion: 0,
     items: new Map(),
-    variables: new Map(),
   };
 }
 
@@ -130,6 +129,7 @@ function inputs({
   const stream: Executions = {
     scratch: null,
     results,
+    variables: new Map(),
     runs: new Map(runs.map((r) => [r.id, r])),
     executions: new Map(executions.map((e) => [e.record.id, e])),
     latest: new Map(

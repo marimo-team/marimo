@@ -53,8 +53,8 @@ function boundVariables(
   executions: Executions,
 ): ReadonlyMap<string, Protocol.Variable[]> {
   const byName = new Map<string, Protocol.Variable[]>();
-  for (const execution of executions.executions.values()) {
-    for (const variable of execution.variables.values()) {
+  for (const bindings of executions.variables.values()) {
+    for (const variable of bindings.values()) {
       const bound = byName.get(variable.name);
       if (bound === undefined) {
         byName.set(variable.name, [variable]);

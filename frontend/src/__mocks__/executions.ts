@@ -38,7 +38,10 @@ const READY: Protocol.RuntimeState = { status: "ready" };
 const SUCCEEDED: Protocol.ExecutionOutcomeOutput = { kind: "succeeded" };
 
 /** An execution, or the output it set, as the stream delivers them. */
-type ExecutionFixture = Protocol.ExecutionOutput & { items?: readonly Item[] };
+type ExecutionFixture = Protocol.ExecutionOutput & {
+  items?: readonly Item[];
+  bindings?: readonly Pick<Protocol.Variable, "name" | "type" | "preview">[];
+};
 type Entry = ExecutionFixture | Protocol.Output;
 export type ExecutionEntries = ReadonlyArray<Entry | readonly Entry[]>;
 
@@ -96,7 +99,11 @@ function mirror(entries: ExecutionEntries): Executions {
   const { records, outputs } = split(entries);
   const executions = new Map<Protocol.ExecutionId, Execution>();
   const latest = new Map<Protocol.CellId, Protocol.ExecutionId>();
-  for (const { items = [], ...record } of records) {
+  const variables = new Map<
+    Protocol.CellId,
+    Map<Protocol.ItemId, Protocol.Variable>
+  >();
+  for (const { items = [], bindings = [], ...record } of records) {
     if (record.cell_id !== null) {
       // The host retains one execution per cell on the stream.
       const previous = latest.get(record.cell_id);
@@ -104,13 +111,27 @@ function mirror(entries: ExecutionEntries): Executions {
         executions.delete(previous);
       }
       latest.set(record.cell_id, record.id);
+      const bound = new Map<Protocol.ItemId, Protocol.Variable>();
+      for (const binding of bindings) {
+        const id = `${record.id}:${binding.name}`;
+        bound.set(id, {
+          ...binding,
+          id,
+          execution_id: record.id,
+          revision: { execution_id: record.id, update: 0 },
+        });
+      }
+      if (bound.size) {
+        variables.set(record.cell_id, bound);
+      } else {
+        variables.delete(record.cell_id);
+      }
     }
     executions.set(record.id, {
       record,
       output: outputs.get(record.id) ?? null,
       outputVersion: 0,
       items: new Map(items.map((item) => [item.id, item])),
-      variables: new Map(),
     });
   }
   const scratch = [...executions.values()].findLast(
@@ -118,6 +139,7 @@ function mirror(entries: ExecutionEntries): Executions {
       execution.record.cell_id === null && shown(execution) !== null,
   );
   return {
+    variables,
     runs: new Map(),
     executions,
     latest,
