@@ -18,15 +18,13 @@ type ProducedItem =
 /** Time the host published the item, when included in a live event. */
 export type Item = ProducedItem & { readonly time?: string };
 
-/** An execution on the stream, with the items and variables it has produced. */
+/** An execution on the stream, with the items it has produced. */
 export interface Execution extends Result {
   /** Items by id. `itemsInOrder` sorts them by `seq`. */
   readonly lastSeq?: number;
   /** Fast path for a reader displaying exactly the version before an append. */
   readonly append?: { before: WeakRef<Execution["items"]>; item: Item };
   readonly items: ReadonlyMap<Protocol.ItemId, Item>;
-  /** The variables the execution bound, by item id. */
-  readonly variables: ReadonlyMap<Protocol.ItemId, Protocol.Variable>;
 }
 
 /**
@@ -41,6 +39,11 @@ export interface Executions {
   readonly executions: ReadonlyMap<Protocol.ExecutionId, Execution>;
   /** The execution on the stream for each cell that has one. */
   readonly latest: ReadonlyMap<Protocol.CellId, Protocol.ExecutionId>;
+  /** Bindings by defining cell and item id, shared across unrelated stream updates. */
+  readonly variables: ReadonlyMap<
+    Protocol.CellId,
+    ReadonlyMap<Protocol.ItemId, Protocol.Variable>
+  >;
   readonly results: Results;
   readonly scratch: Result | null;
   /** The latest scratch execution to start, including one that printed nothing. */
@@ -135,15 +138,14 @@ function remove(state: Executions, id: Protocol.ExecutionId): Executions {
     return state;
   }
   const cellId = execution.record.cell_id;
+  const isLatest = cellId !== null && state.latest.get(cellId) === id;
   return {
     ...state,
     executions: without(state.executions, id),
+    variables: isLatest ? without(state.variables, cellId) : state.variables,
     scratchConsole:
       state.scratchConsole?.record.id === id ? undefined : state.scratchConsole,
-    latest:
-      cellId !== null && state.latest.get(cellId) === id
-        ? without(state.latest, cellId)
-        : state.latest,
+    latest: isLatest ? without(state.latest, cellId) : state.latest,
   };
 }
 
@@ -182,23 +184,30 @@ function detach(state: Executions, itemId: Protocol.ItemId): Executions {
 }
 
 function bind(state: Executions, variable: Protocol.Variable): Executions {
-  const execution = state.executions.get(variable.execution_id);
-  if (execution === undefined) {
+  const cellId = state.executions.get(variable.execution_id)?.record.cell_id;
+  if (cellId == null) {
     return state;
   }
-  return set(state, {
-    ...execution,
-    variables: new Map(execution.variables).set(variable.id, variable),
-  });
+  const bindings = new Map(state.variables.get(cellId)).set(
+    variable.id,
+    variable,
+  );
+  return {
+    ...state,
+    variables: new Map(state.variables).set(cellId, bindings),
+  };
 }
 
 function unbind(state: Executions, itemId: Protocol.ItemId): Executions {
-  for (const execution of state.executions.values()) {
-    if (execution.variables.has(itemId)) {
-      return set(state, {
-        ...execution,
-        variables: without(execution.variables, itemId),
-      });
+  for (const [cellId, bindings] of state.variables) {
+    if (bindings.has(itemId)) {
+      const variables = new Map(state.variables);
+      if (bindings.size === 1) {
+        variables.delete(cellId);
+      } else {
+        variables.set(cellId, without(bindings, itemId));
+      }
+      return { ...state, variables };
     }
   }
   return state;
@@ -282,6 +291,7 @@ export const executions: NotebookResource<Executions, Kind> = {
     runs: new Map(),
     executions: new Map(),
     latest: new Map(),
+    variables: new Map(),
     results: new Map(),
     scratch: null,
   },
@@ -319,7 +329,6 @@ export const executions: NotebookResource<Executions, Kind> = {
         append: previous?.append,
         lastSeq: previous?.lastSeq,
         items: previous?.items ?? new Map(),
-        variables: previous?.variables ?? new Map(),
       });
     },
     "execution.removed": (state, { data }) => remove(state, data.id),

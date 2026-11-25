@@ -77,7 +77,9 @@ describe("executions resource", () => {
     const done = replay(runCells, start);
     const e12 = resource(done).executions.get("e12");
     expect(e12?.record.state.status).toBe("completed");
-    expect([...e12!.variables.values()].map((v) => v.name)).toEqual(["x"]);
+    expect(
+      [...resource(done).variables.get(C3)!.values()].map((v) => v.name),
+    ).toEqual(["x"]);
     expect(resource(done).executions.get("e13")?.record.state).toHaveProperty(
       "depends_on",
       {
@@ -153,7 +155,7 @@ describe("executions resource", () => {
     );
     const e12 = resource(cleared).executions.get("e12")!;
     expect(ids(e12)).toEqual([]);
-    expect(e12.variables.size).toBe(0);
+    expect(resource(cleared).variables.has(C3)).toBe(false);
     expect(resource(cleared).latest.get(C3)).toBe("e12");
   });
 
