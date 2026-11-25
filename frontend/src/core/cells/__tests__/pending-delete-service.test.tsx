@@ -12,6 +12,7 @@ import { variablesAtom } from "@/core/variables/state";
 import {
   usePendingDelete,
   usePendingDeleteService,
+  visibleForTesting,
 } from "../pending-delete-service";
 
 const mockDeleteCell = vi.fn();
@@ -35,6 +36,107 @@ beforeEach(() => {
 });
 
 describe("pending-delete-service", () => {
+  it("preserves state identity when clearing an empty service", () => {
+    const { reducer, initialState } = visibleForTesting;
+    const state = initialState();
+    expect(reducer(state, { type: "clear", payload: undefined })).toBe(state);
+  });
+
+  it.each([25, 250, 500])(
+    "does not render %i subscribers on repeated empty clears",
+    (count) => {
+      const { wrapper } = createTestWrapper();
+      const renders = vi.fn();
+      const { result } = renderHook(() => usePendingDeleteService(), {
+        wrapper,
+      });
+      const subscribers = Array.from({ length: count }, () => {
+        const cellId = CellId.create();
+        return renderHook(
+          () => {
+            usePendingDeleteService();
+            usePendingDelete(cellId);
+            renders();
+          },
+          { wrapper },
+        );
+      });
+      renders.mockClear();
+
+      for (let i = 0; i < 6; i++) {
+        act(() => result.current.clear());
+      }
+
+      expect(renders).not.toHaveBeenCalled();
+      for (const subscriber of subscribers) {
+        subscriber.unmount();
+      }
+    },
+  );
+
+  it("isolates same-count changes and follows a changed cell id", () => {
+    const { wrapper, store } = createTestWrapper();
+    const first = CellId.create();
+    const second = CellId.create();
+    const unrelated = CellId.create();
+    store.set(
+      notebookAtom,
+      MockNotebook.notebookState({
+        cellData: {
+          [first]: { code: "expensive1()" },
+          [second]: { code: "expensive2()" },
+        },
+      }),
+    );
+    MockExecutions.seed(store, [
+      MockExecutions.took(first, 3000),
+      MockExecutions.took(second, 4000),
+    ]);
+    const serviceRenders = vi.fn();
+    const { result: service } = renderHook(
+      () => {
+        serviceRenders();
+        return usePendingDeleteService();
+      },
+      { wrapper },
+    );
+    const unrelatedRenders = vi.fn();
+    renderHook(
+      () => {
+        unrelatedRenders();
+        return usePendingDelete(unrelated);
+      },
+      { wrapper },
+    );
+    const { result, rerender } = renderHook(
+      ({ cellId }) => usePendingDelete(cellId),
+      {
+        wrapper,
+        initialProps: { cellId: first },
+      },
+    );
+    act(() => service.current.submit([first]));
+    expect(result.current.isPending).toBe(true);
+    serviceRenders.mockClear();
+    unrelatedRenders.mockClear();
+
+    act(() => service.current.submit([second]));
+    expect(result.current).toEqual({ isPending: false });
+    expect(serviceRenders).not.toHaveBeenCalled();
+    expect(unrelatedRenders).not.toHaveBeenCalled();
+
+    rerender({ cellId: second });
+    expect(result.current.isPending).toBe(true);
+    act(() => {
+      if (result.current.isPending && result.current.shouldConfirmDelete) {
+        result.current.cancel();
+      }
+    });
+    expect(result.current).toEqual({ isPending: false });
+    expect(service.current.idle).toBe(true);
+    expect(mockDeleteManyCells).not.toHaveBeenCalled();
+  });
+
   it("auto-deletes simple cells (no dependencies, short execution time)", async () => {
     const { wrapper, store } = createTestWrapper();
 
@@ -190,5 +292,20 @@ describe("pending-delete-service", () => {
     }
     expect(result.current.shouldConfirmDelete).toBe(false);
     expect("confirm" in result.current).toBe(false);
+
+    expect(serviceResult.current.shouldConfirmDelete).toBe(true);
+    act(() => serviceResult.current.submit([cell1Id]));
+    expect(serviceResult.current.shouldConfirmDelete).toBe(false);
+    expect(result.current.shouldConfirmDelete).toBe(true);
+    act(() => {
+      if (result.current.isPending && result.current.shouldConfirmDelete) {
+        result.current.confirm();
+      }
+    });
+    expect(mockDeleteManyCells).toHaveBeenCalledExactlyOnceWith({
+      cellIds: [cell1Id],
+    });
+    expect(result.current).toEqual({ isPending: false });
+    expect(serviceResult.current.idle).toBe(true);
   });
 });
