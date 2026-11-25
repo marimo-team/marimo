@@ -1165,9 +1165,6 @@ EditorNotification = (
     | StartupLogsNotification
     | StartupProgressNotification
     | KernelStartupErrorNotification
-    # Variables
-    | VariablesNotification
-    | VariableValuesNotification
     # Query params
     | QueryParamsSetNotification
     | QueryParamsAppendNotification
@@ -1208,5 +1205,7 @@ NotificationMessage = (
     | CellNotification
     | ExecutionNotification
     | InterruptedNotification
+    | VariablesNotification
+    | VariableValuesNotification
     | NotebookDocumentTransactionNotification
 )

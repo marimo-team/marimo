@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from marimo._utils.platform import is_windows
-from tests._server.api.endpoints.ws_helpers import receive_notification
+from tests._server.api.endpoints.ws_helpers import receive_event
 from tests._server.mocks import (
     get_session_manager,
     get_single_notebook_id,
@@ -376,14 +376,18 @@ def test_rename_propagates(
     )
     assert initial_response.status_code == 202, initial_response.text
 
-    variables = {}
-    while len(variables) < 2:
-        data = receive_notification(websocket)
-        if data["op"] == "variable-values":
-            for var in data["data"]["variables"]:
-                # Revisions arrive before their rendered previews.
-                if var["value"] is not None:
-                    variables[var["name"]] = var["value"]
+    def previews() -> dict[str, str]:
+        variables = {}
+        while variables.keys() != {"a", "b"}:
+            variable = receive_event(websocket, "variable")["variable"]
+            if (
+                variable["name"] in {"a", "b"}
+                and variable["preview"] is not None
+            ):
+                variables[variable["name"]] = variable["preview"]
+        return variables
+
+    variables = previews()
 
     # Variable outputs are truncated to 50 characters
     # current_filename can exceed this count on windows and OSX.
@@ -404,14 +408,7 @@ def test_rename_propagates(
     assert response.json() == {"success": True}
     assert response.status_code == 200, response.text
 
-    variables = {}
-    while len(variables) < 2:
-        data = receive_notification(websocket)
-        if data["op"] == "variable-values":
-            for var in data["data"]["variables"]:
-                # Revisions arrive before their rendered previews.
-                if var["value"] is not None:
-                    variables[var["name"]] = var["value"]
+    variables = previews()
 
     assert ("x" + new_filename).startswith(variables["a"])
     assert new_filename.startswith(variables["b"])

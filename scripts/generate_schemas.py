@@ -49,8 +49,6 @@ with app.setup:
         o.StartupLogsNotification,
         o.BannerNotification,
         o.ReloadNotification,
-        o.VariablesNotification,
-        o.VariableValuesNotification,
         o.DatasetsNotification,
         o.SQLTablePreviewNotification,
         o.SQLTableListPreviewNotification,

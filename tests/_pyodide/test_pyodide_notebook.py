@@ -21,8 +21,7 @@ from marimo._messaging.notification import (
     ModelLifecycleNotification,
     ModelOpen,
     NotebookDocumentTransactionNotification,
-    VariableDeclarationNotification,
-    VariablesNotification,
+    StartupProgressNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._pyodide.bootstrap import instantiate
@@ -285,19 +284,20 @@ async def test_a_later_subscription_resumes_with_retained_notifications(
 ):
     session = bridge.session
     session.instantiated = True
-    variables = VariablesNotification(
-        variables=[
-            VariableDeclarationNotification(
-                name="x", declared_by=[], used_by=[]
-            )
-        ]
+    progress = StartupProgressNotification(
+        phase="starting-kernel", logs="boot", log_mode="replace"
     )
-    session._on_message(serialize_kernel_message(variables))
+    session._on_message(serialize_kernel_message(progress))
     notifications = []
     await snapshot(bridge, notifications=notifications)
     assert ops(notifications)[0] == "kernel-ready"
     assert notifications[0]["resumed"] is True
-    assert "variables" in ops(notifications)
+    assert {
+        "op": "startup-progress",
+        "phase": "starting-kernel",
+        "logs": "boot",
+        "log_mode": "replace",
+    } in notifications
 
 
 async def test_resubscription_preserves_frontend_widget_updates(bridge):
@@ -349,14 +349,16 @@ async def test_live_notifications_reach_each_subscription_until_it_closes(
     first, second = [], []
     await snapshot(bridge, "first", notifications=first)
     await snapshot(bridge, "second", notifications=second)
-    variables = VariablesNotification(variables=[])
-    bridge.session._on_message(serialize_kernel_message(variables))
-    assert ops(first)[-1] == ops(second)[-1] == "variables"
+    progress = StartupProgressNotification(
+        phase="starting-kernel", logs="boot", log_mode="replace"
+    )
+    bridge.session._on_message(serialize_kernel_message(progress))
+    assert ops(first)[-1] == ops(second)[-1] == "startup-progress"
     bridge.notebook.unsubscribe("first")
     count = len(first)
-    bridge.session._on_message(serialize_kernel_message(variables))
+    bridge.session._on_message(serialize_kernel_message(progress))
     assert len(first) == count
-    assert ops(second)[-2:] == ["variables", "variables"]
+    assert ops(second)[-2:] == ["startup-progress", "startup-progress"]
     bridge.notebook.unsubscribe("second")
     # The runtime backend stays attached; only the subscriptions leave.
     assert bridge.session.consumers[:2] == [

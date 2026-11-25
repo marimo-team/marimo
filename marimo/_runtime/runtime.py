@@ -1546,8 +1546,7 @@ class Kernel:
                 )
             execution.finish()
 
-        # Always broadcast Variables message after graph mutation to ensure
-        # frontend has the latest dependency information
+        # The session uses kernel declarations to prune its runtime resources.
         if not get_context().is_embedded():
             broadcast_notification(
                 VariablesNotification(
