@@ -4,9 +4,13 @@ import { defaultUserConfig } from "@/core/config/config-schema";
 
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
+import { configOverridesAtom } from "@/core/config/config";
+import type { ExperimentalFeatures } from "@/core/config/feature-flag";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { store } from "@/core/state/jotai";
+import { invariant } from "@/utils/invariant";
 import { Objects } from "@/utils/objects";
 import type { CodemirrorCellActions } from "../cells/state";
 import { type CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
@@ -272,4 +276,60 @@ test("empty-cell AI action opens chat without invoking the local refactor prompt
   } finally {
     view.destroy();
   }
+});
+
+describe("editor styles are shared between cells", () => {
+  afterEach(() => {
+    store.set(configOverridesAtom, {});
+  });
+
+  test.each([
+    ["default", {}, {}],
+    ["clickable placeholder", { enableAIChat: true }, {}],
+    ["debugger", {}, { debugger: true }],
+    ["line timing", {}, { line_timing: true }],
+  ] satisfies [
+    string,
+    Partial<CodeMirrorSetupOpts>,
+    Partial<ExperimentalFeatures>,
+  ][])(
+    "no style module is built per editor (%s)",
+    (_name, config, experimental) => {
+      store.set(configOverridesAtom, { experimental });
+      const styleModules = () =>
+        EditorState.create({ extensions: setup(config) }).facet(
+          EditorView.styleModule,
+        );
+
+      const first = styleModules();
+      const second = styleModules();
+
+      expect(second).toHaveLength(first.length);
+      const perEditor = second.filter((mod, i) => mod !== first[i]);
+      expect(perEditor.map((mod) => mod.getRules())).toEqual([]);
+    },
+  );
+
+  test("mounting another editor does not rewrite the stylesheet", () => {
+    const mount = () =>
+      new EditorView({
+        state: EditorState.create({ extensions: setup() }),
+        parent: document.body,
+      });
+    const first = mount();
+    const styleTag = document.head.querySelector("style");
+    invariant(styleTag, "CodeMirror did not mount a style tag");
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(styleTag, { childList: true, characterData: true });
+
+    const second = mount();
+
+    try {
+      expect(observer.takeRecords()).toEqual([]);
+    } finally {
+      observer.disconnect();
+      first.destroy();
+      second.destroy();
+    }
+  });
 });

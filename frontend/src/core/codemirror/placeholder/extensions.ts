@@ -55,6 +55,31 @@ function acceptPlaceholder(cm: EditorView, text: string) {
   return false;
 }
 
+const placeholderTheme = EditorView.theme({
+  ".cm-placeholder": {
+    color: "var(--slate-8)",
+  },
+  ".cm-clickable-placeholder": {
+    cursor: "pointer !important",
+    font: "inherit",
+    background: "transparent",
+    border: "none",
+    padding: "0",
+    pointerEvents: "auto",
+    color: "var(--slate-9)",
+    textDecoration: "underline",
+    textUnderlineOffset: "0.2em",
+  },
+  ".cm-clickable-placeholder:focus-visible": {
+    outline: "1px solid var(--muted-foreground)",
+    outlineOffset: "2px",
+    borderRadius: "2px",
+  },
+  ".cm-clickable-placeholder:hover": {
+    color: "var(--sky-11)",
+  },
+});
+
 /**
  * Create a placeholder with a clickable link.
  */
@@ -132,29 +157,6 @@ export function clickablePlaceholderExtension(opts: {
           ])
         : Decoration.none,
     ),
-    EditorView.theme({
-      ".cm-placeholder": {
-        color: "var(--slate-8)",
-      },
-      ".cm-clickable-placeholder": {
-        cursor: "pointer !important",
-        font: "inherit",
-        background: "transparent",
-        border: "none",
-        padding: "0",
-        pointerEvents: "auto",
-        color: "var(--slate-9)",
-        textDecoration: "underline",
-        textUnderlineOffset: "0.2em",
-      },
-      ".cm-clickable-placeholder:focus-visible": {
-        outline: "1px solid var(--muted-foreground)",
-        outlineOffset: "2px",
-        borderRadius: "2px",
-      },
-      ".cm-clickable-placeholder:hover": {
-        color: "var(--sky-11)",
-      },
-    }),
+    placeholderTheme,
   ];
 }

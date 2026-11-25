@@ -137,21 +137,20 @@ function createErrorHighlighter(errorsObservable: Observable<TracebackInfos>) {
   );
 }
 
+const errorLineTheme = EditorView.theme({
+  ".cm-error-line": {
+    backgroundColor: "color-mix(in srgb, var(--red-4) 40%, transparent)",
+  },
+  "&.cm-focused .cm-error-line.cm-activeLine": {
+    backgroundColor: "color-mix(in srgb, var(--red-5) 40%, transparent)",
+  },
+});
+
 /**
  * Create an extension that highlights error lines in the editor.
  */
 export function errorLineHighlighter(
   errorsObservable: Observable<TracebackInfos>,
 ): Extension {
-  return [
-    createErrorHighlighter(errorsObservable),
-    EditorView.theme({
-      ".cm-error-line": {
-        backgroundColor: "color-mix(in srgb, var(--red-4) 40%, transparent)",
-      },
-      "&.cm-focused .cm-error-line.cm-activeLine": {
-        backgroundColor: "color-mix(in srgb, var(--red-5) 40%, transparent)",
-      },
-    }),
-  ];
+  return [createErrorHighlighter(errorsObservable), errorLineTheme];
 }
