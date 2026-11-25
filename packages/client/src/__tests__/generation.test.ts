@@ -58,7 +58,11 @@ it.each(["stable", "catalog feature"] as const)(
         );
         NodeChildProcess.execFileSync(
           "node",
-          [NodePath.join(root, "node_modules/typescript/bin/tsc"), "-p", project],
+          [
+            NodePath.join(root, "node_modules/typescript/bin/tsc"),
+            "-p",
+            project,
+          ],
           { stdio: "pipe" },
         );
       }

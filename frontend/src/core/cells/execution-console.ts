@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Execution } from "@marimo-team/client/protocol";
+import type { ExecutionOutput as Execution } from "@marimo-team/client/protocol";
 import type { Getter } from "jotai";
 import type { ReducerCellActions } from "./cells";
 import {
@@ -89,14 +89,14 @@ export function consoleObservers(
       if (changed) {
         if (record.state.status === "running") {
           actions.startCellConsole({
-            cellId: (record.cell_id ?? SCRATCH_CELL_ID) as CellId,
+            cellId: record.cell_id ?? SCRATCH_CELL_ID,
           });
         }
         onExecution?.(record);
       }
     },
     onItem(record, item, live) {
-      const cellId = (record.cell_id ?? SCRATCH_CELL_ID) as CellId;
+      const cellId = record.cell_id ?? SCRATCH_CELL_ID;
       const start = startedAt(record);
       const output = consoleEntry(item, start ? Date.parse(start) / 1000 : 0);
       if (output.channel === "media") {

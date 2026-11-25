@@ -94,7 +94,10 @@ export class NoRuntimeProblem extends HttpApiError.Problem<NoRuntimeProblem>()(
   "NoRuntimeProblem",
   { type: type("no-runtime"), status: 409, title: "No runtime" },
   {},
-  { description: "The request needs a runtime and the notebook has none, or its runtime has ended." },
+  {
+    description:
+      "The request needs a runtime and the notebook has none, or its runtime has ended.",
+  },
 ) {}
 
 export class DecisionRequiredProblem extends HttpApiError.Problem<DecisionRequiredProblem>()(

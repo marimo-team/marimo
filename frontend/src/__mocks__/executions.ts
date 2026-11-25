@@ -2,7 +2,7 @@
 
 /** Executions as the host would report them, for tests that read cell status. */
 
-import { cellId as fixtureCellId } from "@/__tests__/branded";
+import { cellId } from "@/__tests__/branded";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { atom, type createStore } from "jotai";
 import type { CellExecutionInputs } from "@/core/executions";
@@ -56,7 +56,7 @@ function split(entries: ExecutionEntries) {
 }
 
 function execution(
-  cellId: string | null,
+  cid: string | null,
   state: Protocol.ExecutionStateOutput,
 ): Protocol.ExecutionOutput {
   sequence += 1;

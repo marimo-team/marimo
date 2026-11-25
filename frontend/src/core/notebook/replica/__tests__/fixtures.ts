@@ -96,8 +96,12 @@ export function fixtureMessages(name: string) {
 }
 
 /** Read the protocol's portable examples as decoded protocol events. */
-export function fixtureEvents(name: string): Protocol.NotebookStreamEventOutput[] {
+export function fixtureEvents(
+  name: string,
+): Protocol.NotebookStreamEventOutput[] {
   return fixtureMessages(name).map(({ id, ...message }) =>
-    Protocol.NotebookStreamEvent.parse(id === undefined ? message : { ...message, id }),
+    Protocol.NotebookStreamEvent.parse(
+      id === undefined ? message : { ...message, id },
+    ),
   );
 }

@@ -73,11 +73,12 @@ export const document: NotebookResource<DocumentState, "cell" | "document"> = {
     },
     "cell.removed": (state, { data }) => {
       const pending = pendingOf(state);
-      if (!pending.cells.has(data.id)) {
+      const { id } = data;
+      if (!pending.cells.has(id)) {
         return state;
       }
       const cells = new Map(pending.cells);
-      cells.delete(data.id);
+      cells.delete(id);
       return { ...state, pending: { ...pending, cells } };
     },
     document: (state, { data }, { phase }) => {

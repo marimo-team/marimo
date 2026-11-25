@@ -64,10 +64,9 @@ export function applyDocument(
   state: NotebookState,
   document: EditableDocument,
 ): NotebookState {
-  // The protocol's ids are plain strings; the notebook brands them.
   const cellIds = isEqual(document.order, state.cellIds)
     ? state.cellIds
-    : ([...document.order] as CellId[]);
+    : [...document.order];
   let { cellData, cellRuntime, cellHandles } = state;
   for (const id of cellIds) {
     const cell = document.cells.get(id);

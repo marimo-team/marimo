@@ -2,7 +2,7 @@
 
 /** The editor session's replica, following its backend while mounted. */
 
-import type { Execution } from "@marimo-team/client/protocol";
+import type { ExecutionOutput as Execution } from "@marimo-team/client/protocol";
 import { consoleObservers } from "../cells/execution-console";
 import { useReducerActions } from "../cells/cells";
 import { useStore } from "jotai";

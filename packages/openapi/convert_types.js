@@ -15,7 +15,6 @@ import ts from "typescript";
  */
 const BRANDED_FORMATS = /** @type {const} */ ({
   base64: "Base64String",
-  "cell-id": "CellId",
   "session-id": "SessionId",
   "variable-name": "VariableName",
   "request-id": "RequestId",
@@ -41,7 +40,10 @@ function postTransform(content) {
   result = result.replace(/Record<string, never>/g, "Record<string, any>");
 
   // Inject TypedString helper before the first export
-  result = result.replace(/^(export )/m, `${TYPED_STRING_HELPER}\n$1`);
+  result = result.replace(
+    /^(export )/m,
+    `import type { CellId } from "@marimo-team/client/protocol";\n\n${TYPED_STRING_HELPER}\n$1`,
+  );
 
   // UIElementId is a template literal, not a simple branded string.
   result = result.replace(
@@ -60,6 +62,9 @@ async function main() {
   const nodes = await openapiTS(source, {
     defaultNonNullable: false,
     transform(schemaObject) {
+      if (schemaObject.format === "cell-id") {
+        return ts.factory.createTypeReferenceNode("CellId");
+      }
       if (
         schemaObject.type === "string" &&
         typeof schemaObject.format === "string" &&

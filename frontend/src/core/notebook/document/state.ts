@@ -7,7 +7,7 @@ import {
   type WritableAtom,
 } from "jotai/vanilla";
 import type { Document } from "../replica";
-import * as Protocol from "@marimo-team/client/protocol";
+import type * as Protocol from "@marimo-team/client/protocol";
 import {
   acknowledge,
   type CellEdit,
@@ -19,6 +19,7 @@ import {
   editCell,
   EMPTY_DRAFT,
   isEmptyDraft,
+  type NewCell,
   type Placement,
   prune,
   setOrder,
@@ -32,7 +33,7 @@ export interface DocumentEditor {
   setName(id: Protocol.CellId, name: string): void;
   updateConfig(id: Protocol.CellId, patch: Partial<Protocol.CellConfig>): void;
   /** Create a cell, or bring back one this draft deletes with this content. */
-  createCell(cell: Protocol.CellInput, placement?: Placement): void;
+  createCell(cell: NewCell, placement?: Placement): void;
   deleteCell(id: Protocol.CellId): void;
   /** A permutation of the cells present at this point in the transaction. */
   setOrder(order: readonly Protocol.CellId[]): void;
@@ -351,11 +352,11 @@ function editDocument(
   const editor: DocumentEditor = {
     setCode: (id, code) => updateCell(id, { code }),
     setName: (id, name) => updateCell(id, { name }),
-    updateConfig: (id, patch) =>
-      updateCell(id, { config: Protocol.CellConfig.partial().parse(patch) }),
+    updateConfig: (id, config) => updateCell(id, { config }),
     createCell: (cell, placement = {}) => {
       assertActive();
-      if (hasCell(cell.id)) {
+      const { id } = cell;
+      if (hasCell(id)) {
         throw new Error(`Cell ${cell.id} already exists`);
       }
       if (placement.after !== undefined && placement.before !== undefined) {
@@ -365,7 +366,7 @@ function editDocument(
       if (anchor !== undefined) {
         requireCell(anchor);
       }
-      next = confirmed.cells.has(cell.id)
+      next = confirmed.cells.has(id)
         ? restoreCell(confirmed, next, cell, { ...placement }, sent)
         : createCell(next, cell, { ...placement });
     },

@@ -53,16 +53,11 @@ const NO_CELLS: ReadonlyMap<Protocol.CellId, Protocol.Cell> = new Map();
 
 const ERROR_MIMETYPE = "application/vnd.marimo+error";
 
-/** The protocol's ids are plain strings; the editor brands them. */
-function brand(id: Protocol.CellId): CellId {
-  return id as CellId;
-}
-
 function related(
   cells: readonly Protocol.RelatedOutput[],
 ): HostDiagnostic["related"] {
   return cells.map(({ cell_id, message }) => ({
-    cell_id: brand(cell_id),
+    cell_id: cell_id,
     message,
   }));
 }
@@ -101,8 +96,7 @@ function errorOutput(
 
 /** The cell an exception was blamed on, which is the one cell the host relates to it. */
 function raisingCell(error: Protocol.ErrorOutput): CellId | null {
-  const raised = error.related.at(0);
-  return raised === undefined ? null : brand(raised.cell_id);
+  return error.related.at(0)?.cell_id ?? null;
 }
 
 /**
@@ -151,7 +145,7 @@ function skippedOutput(
       {
         type: "ancestor-stopped",
         msg: outcome.message,
-        raising_cell: brand(cause.cell_id),
+        raising_cell: cause.cell_id,
       },
     ]);
   }
@@ -163,8 +157,8 @@ function skippedOutput(
       {
         type: "ancestor-prevented",
         msg: outcome.message,
-        raising_cell: brand(cause.cell_id),
-        blamed_cell: blamed === undefined ? null : brand(blamed.cell_id),
+        raising_cell: cause.cell_id,
+        blamed_cell: blamed === undefined ? null : blamed.cell_id,
       },
     ]);
   }
@@ -309,7 +303,7 @@ export function cellOutputsView(
   for (const cellId of cellIds) {
     const output = cellOutputView(inputs, cellId);
     if (output !== null) {
-      outputs.set(brand(cellId), output);
+      outputs.set(cellId, output);
     }
   }
   return outputs;

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-redeclare */
 
+import type * as Protocol from "@marimo-team/client/protocol";
 import type { components } from "@marimo-team/marimo-api";
 import { OBJECT_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { invariant } from "@/utils/invariant";
@@ -13,10 +14,7 @@ const seen = new Set<CellId>();
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
 
-/**
- * A typed CellId — derived from the generated OpenAPI schema.
- */
-export type CellId = components["schemas"]["CellId"];
+export type CellId = Protocol.CellId;
 export const CellId = {
   /**
    * Create a new CellId, a random 4 letter string.
