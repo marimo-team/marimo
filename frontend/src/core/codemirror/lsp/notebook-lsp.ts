@@ -2,6 +2,7 @@
 
 import type { EditorView } from "@codemirror/view";
 import type * as LSP from "vscode-languageserver-protocol";
+import { setCellCodeAtom } from "@/core/cells/actions";
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
@@ -757,11 +758,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       }
 
       if (!ev) {
-        Logger.warn(
-          "[lsp] No editor view for cell during rename",
-          currentCellId,
-        );
-        failedCells.push(currentCellId);
+        store.set(setCellCodeAtom, { cellId: currentCellId, code: newCode });
+        updatedCount++;
         continue;
       }
 

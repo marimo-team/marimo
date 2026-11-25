@@ -614,7 +614,7 @@ export const useCellHandle = (cellId: CellId) =>
   useAtomValue(cellHandleAtom(cellId));
 
 /**
- * Get the editor views for all cells.
+ * Get mounted editor views only. Read cellData for cells without an editor.
  */
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
@@ -624,8 +624,9 @@ export const getAllEditorViews = () => {
 };
 
 export const getCellEditorView = (cellId: CellId) => {
+  editorMountScheduler.promote(cellId);
   const { cellHandles } = store.get(notebookAtom);
-  return cellHandles[cellId].current?.editorView;
+  return cellHandles[cellId]?.current?.editorView;
 };
 
 /**
@@ -633,10 +634,7 @@ export const getCellEditorView = (cellId: CellId) => {
  * progressive-mount scheduler, build it synchronously first. This lets user
  * actions target a cell whose editor is not mounted yet.
  */
-export const ensureCellEditorView = (cellId: CellId) => {
-  editorMountScheduler.promote(cellId);
-  return getCellEditorView(cellId);
-};
+export const ensureCellEditorView = getCellEditorView;
 
 /** The document's cells with their runtime state and what each shows. */
 export const renderedNotebookCellsAtom = atom((get): RuntimeCell[] =>

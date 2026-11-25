@@ -1,4 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { languageAdapterFromCode } from "@/core/codemirror/language/extension";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
@@ -407,7 +408,12 @@ const EditableCellComponent = ({
   const answerPrompt = useAnswerPrompt(cellId);
   const isPendingCut = useIsPendingCut(cellId);
 
-  const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
+  const [editorLanguageAdapter, setLanguageAdapter] = useState<
+    LanguageAdapterType | undefined
+  >(() => languageAdapterFromCode(cellData.code).type);
+  const languageAdapter = editorView.current
+    ? editorLanguageAdapter
+    : languageAdapterFromCode(cellData.code).type;
 
   const uninstantiated = isUninstantiated(execution);
 

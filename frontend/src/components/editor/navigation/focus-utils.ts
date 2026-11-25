@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { createStore } from "jotai";
-import { getCellEditorView } from "@/core/cells/cells";
+import { ensureCellEditorView } from "@/core/cells/cells";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";
 import { Logger } from "@/utils/Logger";
@@ -10,7 +10,7 @@ export function focusCellEditor(
   store: ReturnType<typeof createStore>,
   cellId: CellId,
 ): void {
-  const editor = getCellEditorView(cellId);
+  const editor = ensureCellEditorView(cellId);
   if (editor) {
     editor.focus();
   } else {

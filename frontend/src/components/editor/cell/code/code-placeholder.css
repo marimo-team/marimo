@@ -1,18 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 .mo-code-placeholder {
-  --mo-skeleton-bar: color-mix(in srgb, var(--muted), var(--foreground) 18%);
-  cursor: default;
-  padding: 4px 10px;
-  font-size: var(--cm-font-size, 0.875rem);
+  cursor: text;
+  padding: 8px 29px 8px 10px;
+  font-size: var(--marimo-code-editor-font-size, 0.9rem);
+  font-family: var(--monospace-font);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
 }
-
-.mo-code-placeholder-line {
-  display: flex;
-  align-items: center;
-  height: 1.5em;
+.mo-code-placeholder .tok-keyword {
+  color: var(--cm-keyword, #708);
 }
-
-.mo-code-placeholder-bar {
-  height: 0.7em;
-  background-color: var(--mo-skeleton-bar);
+.mo-code-placeholder .tok-string {
+  color: var(--cm-string, #a11);
+}
+.mo-code-placeholder .tok-comment {
+  color: var(--cm-comment);
+}
+.mo-code-placeholder .tok-number {
+  color: var(--cm-number, #164);
 }

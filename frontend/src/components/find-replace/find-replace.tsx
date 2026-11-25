@@ -1,4 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { cellIdState } from "@/core/codemirror/config/extension";
+import type { CellId } from "@/core/cells/ids";
 
 import type { EditorView } from "@codemirror/view";
 import { useAtom, useAtomValue } from "jotai";
@@ -43,7 +45,7 @@ export const FindReplace: React.FC = () => {
   const [state, dispatch] = useAtom(findReplaceAtom);
   const [matches, setMatches] = useState<{
     count: number;
-    position: Map<EditorView, Map<string, number>>;
+    position: Map<EditorView | CellId, Map<string, number>>;
   }>();
   const findInputRef = useRef<HTMLInputElement>(null);
   const hotkeys = useAtomValue(hotkeysAtom);
@@ -100,9 +102,10 @@ export const FindReplace: React.FC = () => {
   const selection = state.currentView;
   const currentMatch =
     selection && matches
-      ? matches.position
-          .get(selection.view)
-          ?.get(`${selection.range.from}:${selection.range.to}`)
+      ? (
+          matches.position.get(selection.view) ??
+          matches.position.get(selection.view.state.facet(cellIdState))
+        )?.get(`${selection.range.from}:${selection.range.to}`)
       : undefined;
 
   return (

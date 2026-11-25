@@ -68,3 +68,17 @@ switch (value) {
 - Give layout effects explicit dependencies. When a component has no visible content, avoid layout reads.
 - Test listener, dispatch, and layout-read counts in normal unit tests. Avoid timing thresholds for these guarantees.
   Cover repeated mounts, final cleanup, queued work after destruction, unchanged results, and changed results.
+
+- Use `useLazyEditorMount` for cell editor registration, viewport eligibility, and destruction.
+  Keep construction inside its `build` callback so deferred editors use the latest code and configuration.
+- Use a module-level `createSharedIntersectionObserver` for repeated components with the same viewport options.
+  Use `useSharedIntersectionObserver` to manage React subscriptions, including disable and cleanup.
+  Keep its callback stable with `useCallback`. The final release disconnects the shared observer.
+- Return the disposer from `editorMountScheduler.request` in effect cleanup.
+  This disposer cannot cancel a newer registration for the same cell.
+  Keep dormant registrations separate from runnable queues; do not scan dormant cells when scheduling work.
+- Read notebook document text for operations across all cells.
+  Use `getAllEditorViews` only for mounted-view effects, and `ensureCellEditorView` for explicit navigation or editing.
+- Keep resource-count tests in the normal Vitest suite.
+  Cover 500 consumers, duplicate disposal, late callbacks, StrictMode, Activity hide/show, and updated inputs before deferred construction.
+  Use `src/__mocks__/intersection-observer.ts` to deliver viewport events without browser timing.

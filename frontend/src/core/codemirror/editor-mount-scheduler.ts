@@ -7,8 +7,8 @@ import {
 type BuildFn = () => void;
 
 export interface EditorMountScheduler {
-  /** Queue a cell's editor build to run on a future task. */
-  request(cellId: string, build: BuildFn): void;
+  /** Register a build. Deferred builds wait for prioritize or promote. */
+  request(cellId: string, build: BuildFn, deferred?: boolean): () => void;
   /** Build a queued cell's editor synchronously, right now (e.g. on focus). */
   promote(cellId: string): void;
   /**
@@ -32,12 +32,13 @@ export interface EditorMountScheduler {
 export function createEditorMountScheduler(
   scheduleTask: ScheduleTaskFn = defaultScheduleTask,
 ): EditorMountScheduler {
-  const queue = new Map<string, BuildFn>();
+  const queue = new Map<string, { build: BuildFn }>();
   const priority = new Set<string>();
+  const ready = new Set<string>();
   let isProcessingScheduled = false;
 
   function scheduleProcessing(): void {
-    if (isProcessingScheduled || queue.size === 0) {
+    if (isProcessingScheduled || nextCellId() === undefined) {
       return;
     }
     isProcessingScheduled = true;
@@ -46,13 +47,19 @@ export function createEditorMountScheduler(
 
   // Prioritized cells first, in the order they were prioritized; then FIFO.
   function nextCellId(): string | undefined {
-    for (const cellId of priority) {
-      if (queue.has(cellId)) {
-        return cellId;
-      }
-      priority.delete(cellId);
-    }
-    return queue.keys().next().value;
+    return priority.values().next().value ?? ready.values().next().value;
+  }
+
+  function remove(cellId: string): void {
+    queue.delete(cellId);
+    ready.delete(cellId);
+    priority.delete(cellId);
+  }
+
+  function buildNow(cellId: string): void {
+    const entry = queue.get(cellId);
+    remove(cellId);
+    entry?.build();
   }
 
   function processNext(): void {
@@ -60,10 +67,7 @@ export function createEditorMountScheduler(
     try {
       const cellId = nextCellId();
       if (cellId !== undefined) {
-        const build = queue.get(cellId);
-        queue.delete(cellId);
-        priority.delete(cellId);
-        build?.();
+        buildNow(cellId);
       }
     } finally {
       scheduleProcessing();
@@ -71,30 +75,32 @@ export function createEditorMountScheduler(
   }
 
   return {
-    request(cellId, build) {
-      queue.set(cellId, build);
-      scheduleProcessing();
-    },
-    promote(cellId) {
-      const build = queue.get(cellId);
-      if (build) {
-        queue.delete(cellId);
-        priority.delete(cellId);
-        build();
+    request(cellId, build, isDeferred = false) {
+      const entry = { build };
+      remove(cellId);
+      queue.set(cellId, entry);
+      if (!isDeferred) {
+        ready.add(cellId);
+        scheduleProcessing();
       }
+      return () => {
+        // An old effect's cleanup must not cancel a newer registration.
+        if (queue.get(cellId) === entry) {
+          remove(cellId);
+        }
+      };
     },
+    promote: buildNow,
     prioritize(cellId) {
       if (queue.has(cellId)) {
         priority.add(cellId);
+        scheduleProcessing();
       }
     },
     deprioritize(cellId) {
       priority.delete(cellId);
     },
-    cancel(cellId) {
-      queue.delete(cellId);
-      priority.delete(cellId);
-    },
+    cancel: remove,
   };
 }
 

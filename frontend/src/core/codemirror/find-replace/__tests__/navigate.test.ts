@@ -16,8 +16,14 @@ import { findReplaceAtom } from "../state";
 
 // Mock getAllEditorViews to return our test views
 const mockGetAllEditorViews = vi.fn();
-vi.mock("@/core/cells/cells", () => ({
-  getAllEditorViews: () => mockGetAllEditorViews(),
+vi.mock("../documents", () => ({
+  getSearchDocuments: () =>
+    mockGetAllEditorViews().map((view: EditorView) => ({
+      key: view,
+      view,
+      state: view.state,
+      ensureView: () => view,
+    })),
 }));
 
 /**

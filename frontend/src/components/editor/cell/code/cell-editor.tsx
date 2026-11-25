@@ -2,9 +2,8 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, type Extension, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef } from "react";
 import useEvent from "react-use-event-hook";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
@@ -23,7 +22,7 @@ import type { CellData } from "@/core/cells/types";
 import type { CellRunStatus } from "@/core/executions";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { acceptCompletionOnEnterAtom } from "@/core/codemirror/completion/accept-on-enter-atom";
-import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
+import { useLazyEditorMount } from "@/core/codemirror/use-lazy-editor-mount";
 import {
   getInitialLanguageAdapter,
   languageAdapterState,
@@ -326,18 +325,6 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
-  const handleInitializeEditor = useEvent(() => {
-    // Create a new editor
-    const ev = new EditorView({
-      state: EditorState.create({ doc: code, extensions }),
-    });
-    setEditorView(ev);
-    // Initialize the language adapter
-    switchLanguage(ev, {
-      language: getInitialLanguageAdapter(ev.state).type,
-    });
-  });
-
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
 
@@ -358,92 +345,36 @@ const CellEditorInternal = ({
     });
   });
 
-  const handleDeserializeEditor = useEvent(() => {
-    invariant(serializedEditorState, "Editor view is not initialized");
-
-    const ev = new EditorView({
-      state: EditorState.fromJSON(
-        serializedEditorState,
-        { doc: code, extensions },
-        { history: historyField },
-      ),
-    });
-    // Initialize the language adapter
-    switchLanguage(ev, {
-      language: getInitialLanguageAdapter(ev.state).type,
-    });
-    setEditorView(ev);
-    // The restored state is used once; the next mount builds a fresh editor.
-    takeRestoredEditorState({ cellId });
-  });
-  const [isEditorMounted, setIsEditorMounted] = useState(
-    serializedEditorState !== null,
-  );
-
-  // Build the editor. Deserialize eagerly; otherwise queue an async build so
-  // large notebooks stay responsive while editors come online progressively.
-  useEffect(() => {
-    if (editorViewRef.current !== null) {
-      setIsEditorMounted(true);
-      return;
-    }
-    setIsEditorMounted(false);
-    if (serializedEditorState !== null) {
-      handleDeserializeEditor();
-      setIsEditorMounted(true);
-      return;
-    }
-    editorMountScheduler.request(cellId, () => {
-      if (editorViewRef.current !== null) {
-        return;
-      }
-      handleInitializeEditor();
-      setIsEditorMounted(true);
-    });
-    return () => editorMountScheduler.cancel(cellId);
-  }, [
+  const {
+    elementRef: intersectionRef,
+    mounted: isEditorMounted,
+    promote,
+  } = useLazyEditorMount({
     cellId,
     editorViewRef,
-    handleDeserializeEditor,
-    handleInitializeEditor,
-    serializedEditorState,
-  ]);
-
-  useEffect(() => {
-    if (editorViewRef.current === null) {
-      return;
-    }
-    handleReconfigureEditor();
-  }, [handleReconfigureEditor, extensions, editorViewRef]);
-
-  // Destroy the editor when the component is unmounted. Read the ref in cleanup
-  // (not setup) so Activity hide/show cycles don't leave a stale destroyed view.
-  useEffect(() => {
-    return () => {
-      editorViewRef.current?.destroy();
-      editorViewRef.current = null;
-    };
-  }, [editorViewRef]);
-
-  // Prioritize building this cell's editor when it scrolls into view, so the
-  // visible region fills in first instead of waiting for the top-to-bottom
-  // queue. The margin builds cells just before they reach the viewport.
-  // uidotdev sets threshold default to 1. Set it 0 so cells are prioritized
-  // at 300px.
-  const [intersectionRef, intersection] = useIntersectionObserver({
-    rootMargin: "300px 0px",
-    threshold: 0,
+    hidden: Boolean(hidden && hasOutput),
+    build: () => {
+      const config = { doc: code, extensions };
+      const state =
+        serializedEditorState === null
+          ? EditorState.create(config)
+          : EditorState.fromJSON(serializedEditorState, config, {
+              history: historyField,
+            });
+      const view = new EditorView({ state });
+      switchLanguage(view, { language: getInitialLanguageAdapter(state).type });
+      setEditorView(view);
+      if (serializedEditorState !== null) {
+        takeRestoredEditorState({ cellId });
+      }
+    },
   });
+
   useEffect(() => {
-    if (isEditorMounted) {
-      return;
+    if (editorViewRef.current !== null) {
+      handleReconfigureEditor();
     }
-    if (intersection?.isIntersecting) {
-      editorMountScheduler.prioritize(cellId);
-    } else {
-      editorMountScheduler.deprioritize(cellId);
-    }
-  }, [isEditorMounted, intersection?.isIntersecting, cellId]);
+  }, [handleReconfigureEditor, extensions, editorViewRef]);
 
   const navigationProps = useCellEditorNavigationProps(cellId, editorViewRef);
 
@@ -494,6 +425,8 @@ const CellEditorInternal = ({
         className="relative w-full"
         ref={intersectionRef}
         {...navigationProps}
+        onPointerDownCapture={promote}
+        onFocusCapture={promote}
       >
         {isEditorMounted ? (
           <CellCodeMirrorEditor

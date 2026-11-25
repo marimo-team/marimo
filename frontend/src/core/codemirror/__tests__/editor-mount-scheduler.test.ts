@@ -141,3 +141,67 @@ describe("createEditorMountScheduler", () => {
     expect(built).toEqual(["a"]);
   });
 });
+
+describe("deferred editors", () => {
+  it("leaves offscreen editors unbuilt until prioritized or promoted", () => {
+    const { schedule, flush, hasPending } = makeManualSchedule();
+    const built: string[] = [];
+    const scheduler = createEditorMountScheduler(schedule);
+    for (let i = 0; i < 500; i++) {
+      scheduler.request(String(i), () => built.push(String(i)), true);
+    }
+    expect(hasPending()).toBe(false);
+    scheduler.prioritize("250");
+    flush();
+    expect(built).toEqual(["250"]);
+    expect(hasPending()).toBe(false);
+    scheduler.promote("499");
+    scheduler.promote("499");
+    expect(built).toEqual(["250", "499"]);
+  });
+
+  it("does not build a deferred editor that leaves the viewport or unmounts", () => {
+    const { schedule, flush, hasPending } = makeManualSchedule();
+    const built: string[] = [];
+    const scheduler = createEditorMountScheduler(schedule);
+    scheduler.request("a", () => built.push("a"), true);
+    scheduler.prioritize("a");
+    scheduler.deprioritize("a");
+    flush();
+    expect(built).toEqual([]);
+    expect(hasPending()).toBe(false);
+    scheduler.prioritize("a");
+    scheduler.cancel("a");
+    flush();
+    scheduler.promote("a");
+    expect(built).toEqual([]);
+  });
+});
+
+it("old and repeated disposals cannot cancel a replacement registration", () => {
+  const { schedule, flush } = makeManualSchedule();
+  const scheduler = createEditorMountScheduler(schedule);
+  const built: string[] = [];
+  const old = scheduler.request("a", () => built.push("old"), true);
+  const current = scheduler.request("a", () => built.push("new"), true);
+  old();
+  old();
+  scheduler.prioritize("a");
+  flush();
+  current();
+  expect(built).toEqual(["new"]);
+});
+
+it("allows a build to register new work for the same cell", () => {
+  const { schedule, flush } = makeManualSchedule();
+  const scheduler = createEditorMountScheduler(schedule);
+  const built: string[] = [];
+  const release = scheduler.request("a", () => {
+    built.push("first");
+    scheduler.request("a", () => built.push("second"));
+  });
+  flush();
+  release();
+  flush();
+  expect(built).toEqual(["first", "second"]);
+});

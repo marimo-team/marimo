@@ -9,10 +9,7 @@ import { atom } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
-import type { NotebookState } from "@/core/cells/cells";
-import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { notebookCellEditorViews } from "@/core/cells/utils";
 import { getResolvedMarimoConfig } from "@/core/config/config";
 import type { ConnectionName } from "@/core/datasets/engines";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -28,13 +25,22 @@ import {
 
 const mockRequestClient = MockRequestClient.create();
 
-vi.mock("@/core/cells/cells", () => ({
-  getNotebook: vi.fn(),
-}));
-
-vi.mock("@/core/cells/utils", () => ({
-  notebookCellEditorViews: vi.fn(),
-}));
+const { writtenCodes } = vi.hoisted(() => ({ writtenCodes: vi.fn() }));
+vi.mock("@/core/cells/actions", async () => {
+  const { atom } = await import("jotai");
+  return {
+    setCellCodeAtom: atom(null, (_get, _set, value) => writtenCodes(value)),
+  };
+});
+vi.mock("../copilot/getCodes", async () => {
+  const { atom } = await import("jotai");
+  return {
+    notebookCellCodes: atom({
+      "1": "import numpy as    np",
+      "2": "import pandas as    pd",
+    }),
+  };
+});
 
 vi.mock("@/core/config/config", () => ({
   getResolvedMarimoConfig: vi.fn(),
@@ -154,13 +160,6 @@ describe("format", () => {
     it("should format all cells in notebook", async () => {
       const cid1 = cellId("1");
       const cid2 = cellId("2");
-      const views = {
-        [cid1]: createEditor("import numpy as    np", cid1),
-        [cid2]: createEditor("import pandas as    pd", cid2),
-      };
-
-      vi.mocked(getNotebook).mockReturnValueOnce({} as NotebookState);
-      vi.mocked(notebookCellEditorViews).mockReturnValueOnce(views);
       mockRequestClient.sendFormat.mockResolvedValueOnce({
         codes: {
           [cid1]: "import numpy as np",
@@ -171,6 +170,10 @@ describe("format", () => {
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
       await formatAll();
+      expect(writtenCodes.mock.calls).toEqual([
+        [{ cellId: cid1, code: "import numpy as np" }],
+        [{ cellId: cid2, code: "import pandas as pd" }],
+      ]);
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {

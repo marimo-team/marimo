@@ -1,4 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 
 /** What only this browser knows about cells: hidden code showing for now, and editor state to restore. */
 
@@ -34,6 +35,7 @@ export const showHiddenCodeAtom = atom(
   null,
   (_get, set, { cellId }: { cellId: CellId }): void => {
     set(shownHiddenCodeAtom, (cells) => new Set([...cells, cellId]));
+    editorMountScheduler.promote(cellId);
   },
 );
 

@@ -9,7 +9,9 @@ import { Logger } from "@/utils/Logger";
 import { Objects } from "../../utils/objects";
 import { getNotebook } from "../cells/cells";
 import type { CellId } from "../cells/ids";
-import { notebookCellEditorViews } from "../cells/utils";
+import { setCellCodeAtom } from "../cells/actions";
+import { store } from "../state/jotai";
+import { notebookCellCodes } from "./copilot/getCodes";
 import { getResolvedMarimoConfig } from "../config/config";
 import type { ConnectionName } from "../datasets/engines";
 import { getRequestClient } from "../network/requests";
@@ -21,6 +23,13 @@ import { getEditorCodeAsPython } from "./language/utils";
 import { replaceEditorContent } from "./replace-editor-content";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
+
+function applyFormattedCode(view: EditorView, code: string) {
+  const update = prepareCellCodeUpdate(view.state, code);
+  if (update) {
+    view.dispatch(update, { effects: formattingChangeEffect.of(true) });
+  }
+}
 
 /**
  * Format the code in the editor views via the marimo server,
@@ -52,19 +61,35 @@ export async function formatEditorViews(views: Record<CellId, EditorView>) {
       continue;
     }
 
-    const update = prepareCellCodeUpdate(view.state, formattedCode);
-    if (update) {
-      view.dispatch(update, { effects: formattingChangeEffect.of(true) });
-    }
+    applyFormattedCode(view, formattedCode);
   }
 }
 
 /**
  * Format all cells in the notebook.
  */
-export function formatAll() {
-  const views = notebookCellEditorViews(getNotebook());
-  return formatEditorViews(views);
+export async function formatAll() {
+  const codes = store.get(notebookCellCodes);
+  const response = await getRequestClient().sendFormat({
+    codes,
+    lineLength: getResolvedMarimoConfig().formatting.line_length,
+  });
+  const current = store.get(notebookCellCodes);
+  for (const cellId of Objects.keys(codes)) {
+    const code = response.codes[cellId];
+    if (code === undefined) {
+      continue;
+    }
+    if (current[cellId] !== codes[cellId] || code === codes[cellId]) {
+      continue;
+    }
+    const view = getNotebook().cellHandles[cellId]?.current?.editorViewOrNull;
+    if (view) {
+      applyFormattedCode(view, code);
+    } else {
+      store.set(setCellCodeAtom, { cellId, code });
+    }
+  }
 }
 
 /**
