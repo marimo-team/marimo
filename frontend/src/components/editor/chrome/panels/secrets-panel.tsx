@@ -6,6 +6,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Spinner } from "@/components/icons/spinner";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -15,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
+import type { ListSecretKeysResponse } from "@/core/network/types";
 import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -23,8 +25,27 @@ import { copyToClipboard } from "@/utils/copy";
 import { PanelEmptyState } from "./empty-state";
 import { sortProviders, WriteSecretModal } from "./write-secret-modal";
 
+type SecretKeyProviders = ListSecretKeysResponse["keys"];
+
+export function filterSecretKeys(
+  providers: SecretKeyProviders,
+  search: string,
+): SecretKeyProviders {
+  const query = search.trim().toLowerCase();
+  if (!query) {
+    return providers;
+  }
+  return providers
+    .map((provider) => ({
+      ...provider,
+      keys: provider.keys.filter((key) => key.toLowerCase().includes(query)),
+    }))
+    .filter((provider) => provider.keys.length > 0);
+}
+
 const SecretsPanel: React.FC = () => {
   const { openModal, closeModal } = useImperativeModal();
+  const [search, setSearch] = React.useState("");
   const {
     data: secretKeyProviders,
     isPending,
@@ -59,15 +80,25 @@ const SecretsPanel: React.FC = () => {
     );
   }
 
+  const filteredProviders = filterSecretKeys(secretKeyProviders, search);
+
   return (
     <PanelGroup direction="horizontal" className="h-full">
       <Panel defaultSize={50} minSize={30} maxSize={80}>
         <div className="flex flex-col h-full">
-          <div className="flex justify-start h-8 border-b">
+          <div className="flex items-center h-8 border-b">
+            <SearchInput
+              placeholder="Search environment variables..."
+              aria-label="Search environment variables"
+              className="h-6"
+              rootClassName="flex-1 h-full border-b-0 border-r"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
             <button
               type="button"
               aria-label="Add environment variable"
-              className="border-r px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
+              className="px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
               onClick={() =>
                 openModal(
                   <WriteSecretModal
@@ -84,23 +115,37 @@ const SecretsPanel: React.FC = () => {
               <PlusIcon className="h-4 w-4" />
             </button>
           </div>
-          <Table className="overflow-auto flex-1 mb-16">
+          <Table className="table-fixed overflow-auto flex-1 mb-16">
             <TableHeader>
               <TableRow>
                 <TableHead>Environment Variable</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead />
+                <TableHead className="w-1/4">Source</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {secretKeyProviders.map((provider) => {
+              {filteredProviders.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={3}
+                    className="text-center text-muted-foreground"
+                  >
+                    No results
+                  </TableCell>
+                </TableRow>
+              )}
+              {filteredProviders.map((provider) => {
                 return provider.keys.map((key) => (
                   <TableRow key={`${provider.name}-${key}`} className="group">
-                    <TableCell>{key}</TableCell>
+                    <TableCell className="break-all">{key}</TableCell>
                     <TableCell>
                       {provider.provider !== "env" && (
-                        <Badge variant="outline" className="select-none">
-                          {provider.name}
+                        <Badge
+                          variant="outline"
+                          className="select-none max-w-full"
+                          title={provider.name}
+                        >
+                          <span className="truncate">{provider.name}</span>
                         </Badge>
                       )}
                     </TableCell>
