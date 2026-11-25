@@ -263,10 +263,10 @@ importers:
         version: 3.2.2(react@19.3.1)
       '@glideapps/glide-data-grid':
         specifier: 6.0.4-alpha24
-        version: 6.0.4-alpha24(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)
+        version: 6.0.4-alpha24(lodash@4.18.1)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)
       '@glideapps/glide-data-grid-cells':
         specifier: 6.0.4-alpha24
-        version: 6.0.4-alpha24(@types/react@19.3.0)(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)
+        version: 6.0.4-alpha24(@types/react@19.3.0)(lodash@4.18.1)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)
       '@hookform/resolvers':
         specifier: ^5.9.2
         version: 5.9.2(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.54.2(react@19.3.1))(zod@4.6.7)
@@ -7180,8 +7180,8 @@ packages:
   lodash.uniq@4.5.0:
     resolution: {integrity: sha512-xfBaXQd9ryd9dlSDvnvI0lvxfLJlYAZzXomUYzLKtUeOQvOP5piqAWuGtrhWeqaXK9hhoM/iyJc5AV+XfsX3HQ==}
 
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
@@ -10966,9 +10966,9 @@ snapshots:
   '@github/copilot-win32-x64@1.0.96':
     optional: true
 
-  '@glideapps/glide-data-grid-cells@6.0.4-alpha24(@types/react@19.3.0)(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)':
+  '@glideapps/glide-data-grid-cells@6.0.4-alpha24(@types/react@19.3.0)(lodash@4.18.1)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)':
     dependencies:
-      '@glideapps/glide-data-grid': 6.0.4-alpha24(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)
+      '@glideapps/glide-data-grid': 6.0.4-alpha24(lodash@4.18.1)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)
       '@linaria/react': 6.3.0(react@19.3.1)(supports-color@10.0.0)
       '@toast-ui/editor': 3.2.2
       '@toast-ui/react-editor': 3.2.3(react@19.3.1)
@@ -10982,11 +10982,11 @@ snapshots:
       - react-responsive-carousel
       - supports-color
 
-  '@glideapps/glide-data-grid@6.0.4-alpha24(lodash@4.17.21)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)':
+  '@glideapps/glide-data-grid@6.0.4-alpha24(lodash@4.18.1)(marked@15.0.12)(react-dom@19.3.1(react@19.3.1))(react-responsive-carousel@3.2.23)(react@19.3.1)(supports-color@10.0.0)':
     dependencies:
       '@linaria/react': 6.3.0(react@19.3.1)(supports-color@10.0.0)
       canvas-hypertxt: 1.0.3
-      lodash: 4.17.21
+      lodash: 4.18.1
       marked: 15.0.12
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -16418,7 +16418,7 @@ snapshots:
 
   lodash.uniq@4.5.0: {}
 
-  lodash@4.17.21: {}
+  lodash@4.18.1: {}
 
   longest-streak@3.1.0: {}
 
