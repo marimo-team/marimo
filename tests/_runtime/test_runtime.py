@@ -4360,7 +4360,7 @@ class TestStateTransitions:
         assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
     @staticmethod
-    async def test_variables_broadcast_always(
+    async def test_variables_broadcast_only_on_change(
         mocked_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:
         k = mocked_kernel.k
@@ -4378,7 +4378,7 @@ class TestStateTransitions:
         )
         assert initial_messages == 1
 
-        # Re-running same cell should now broadcast Variables
+        # Re-running the same cell leaves declarations unchanged
         stream.messages.clear()
         await k.run([er])
         assert (
@@ -4387,7 +4387,7 @@ class TestStateTransitions:
                 for m in stream.operations
                 if isinstance(m, VariablesNotification)
             )
-            == 1
+            == 0
         )
 
         # Adding a new variable should broadcast Variables
@@ -4415,7 +4415,7 @@ class TestStateTransitions:
             == 1
         )
 
-        # Modifying value without changing edges/defs should now broadcast
+        # Modifying a value without changing edges/defs needs no broadcast
         stream.messages.clear()
         er_2.code = "y = 2"
         await k.run([exec_req.get_with_id(er_2.cell_id, er_2.code)])
@@ -4425,7 +4425,7 @@ class TestStateTransitions:
                 for m in stream.operations
                 if isinstance(m, VariablesNotification)
             )
-            == 1
+            == 0
         )
 
         # Deleting a cell should broadcast Variables
@@ -4439,6 +4439,36 @@ class TestStateTransitions:
             )
             == 1
         )
+
+    @staticmethod
+    async def test_variables_empty_and_reordered(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        def declarations() -> list[VariablesNotification]:
+            return [
+                m
+                for m in stream.operations
+                if isinstance(m, VariablesNotification)
+            ]
+
+        er = exec_req.get("pass")
+        await k.run([er])
+        assert declarations() == [VariablesNotification(variables=[])]
+        stream.messages.clear()
+        await k.run([er])
+        assert declarations() == []
+
+        await k.run([exec_req.get_with_id(er.cell_id, "z = 1\na = 2")])
+        assert [v.name for v in declarations()[0].variables] == ["a", "z"]
+        stream.messages.clear()
+        await k.run([exec_req.get_with_id(er.cell_id, "a = 3\nz = 4")])
+        assert declarations() == []
+
+        await k.delete_cell(DeleteCellCommand(cell_id=er.cell_id))
+        assert declarations() == [VariablesNotification(variables=[])]
 
     @staticmethod
     async def test_variables_broadcast_on_usage_change(

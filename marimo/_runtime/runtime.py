@@ -688,6 +688,9 @@ class Kernel:
             sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
+        self._last_variables: list[VariableDeclarationNotification] | None = (
+            None
+        )
         self.agent = Agent()
         self._instantiated = False
         # Source awaiting graph registration, from lazy startup or later edits.
@@ -1530,25 +1533,26 @@ class Kernel:
                 )
             execution.finish()
 
-        # Always broadcast Variables message after graph mutation to ensure
-        # frontend has the latest dependency information
         if not get_context().is_embedded():
-            broadcast_notification(
-                VariablesNotification(
-                    variables=[
-                        VariableDeclarationNotification(
-                            name=VariableName(variable),
-                            declared_by=list(declared_by),
-                            used_by=list(
-                                self.graph.get_referring_cells(
-                                    variable, language="python"
-                                )
-                            ),
+            variables = [
+                VariableDeclarationNotification(
+                    name=VariableName(variable),
+                    declared_by=sorted(declared_by),
+                    used_by=sorted(
+                        self.graph.get_referring_cells(
+                            variable, language="python"
                         )
-                        for variable, declared_by in self.graph.definitions.items()
-                    ]
-                ),
-            )
+                    ),
+                )
+                for variable, declared_by in sorted(
+                    self.graph.definitions.items()
+                )
+            ]
+            if variables != self._last_variables:
+                broadcast_notification(
+                    VariablesNotification(variables=variables),
+                )
+                self._last_variables = variables
 
         stale_cells = (
             set(

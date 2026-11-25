@@ -1014,3 +1014,55 @@ def test_index_does_not_provision_a_notebook(
     assert "notebookId" not in config
     assert bridge.host.notebooks == initial_notebooks
     assert not state.session_manager.sessions
+
+
+@pytest.mark.parametrize(
+    ("filename", "immutable"),
+    [
+        ("index-Ab12_-Cd.js", True),
+        ("style-aBcD1234.css", True),
+        ("plain.js", False),
+        ("index.html", False),
+    ],
+)
+@pytest.mark.parametrize("encoding", ["gzip", "identity"])
+def test_asset_cache_and_compression(tmp_path, filename, immutable, encoding):
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    from starlette.testclient import TestClient
+
+    from marimo._server.static_assets import static_assets
+
+    content = "const value = 123;\n" * 1000
+    (tmp_path / filename).write_text(content)
+    app = Starlette(
+        routes=[
+            Mount(
+                "/assets",
+                static_assets(tmp_path),
+            )
+        ]
+    )
+    with TestClient(app) as client:
+        response = client.get(
+            f"/assets/{filename}", headers={"Accept-Encoding": encoding}
+        )
+        assert response.text == content
+        if encoding == "gzip":
+            assert int(response.headers["content-length"]) < len(content)
+            assert "Accept-Encoding" in response.headers["vary"]
+        assert response.headers.get("cache-control") == (
+            "public, max-age=31536000, immutable" if immutable else None
+        )
+        assert response.headers.get("content-encoding") == (
+            "gzip" if encoding == "gzip" else None
+        )
+        cached = client.get(
+            f"/assets/{filename}",
+            headers={"If-None-Match": response.headers["etag"]},
+        )
+        assert cached.status_code == 304
+        assert cached.headers.get("cache-control") == response.headers.get(
+            "cache-control"
+        )
+        assert client.get("/assets/missing-Ab12_-Cd.js").status_code == 404
