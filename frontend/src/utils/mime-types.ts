@@ -3,6 +3,17 @@
 import type { MimeType } from "@/components/editor/Output";
 import { once } from "./once";
 
+export const MIME_BUNDLE_METADATA_KEY = "__metadata__";
+
+/** Metadata configures rendering but is not itself a display entry. */
+export function getMimeBundleEntries<T>(
+  bundle: Record<string, T>,
+): [MimeType, T][] {
+  return Object.entries(bundle)
+    .filter(([key]) => key !== MIME_BUNDLE_METADATA_KEY)
+    .map(([mime, data]) => [mime as MimeType, data]);
+}
+
 /**
  * Configuration for mime type precedence and filtering.
  * Uses Map/Set for O(1) lookups at runtime.
