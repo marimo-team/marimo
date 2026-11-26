@@ -11,7 +11,7 @@ async function render({ el, model, host, signal }) {
   if (signal.aborted) {
     return;
   }
-  const { brush, pan, zoom, debounce } = model.get("options");
+  const { brush, pan, zoom, single, debounce } = model.get("options");
   const frame = document.createElement("div");
   frame.className = "marimo-mpl-figure";
   frame.style.cssText = "position:relative;max-width:100%;line-height:0";
@@ -45,61 +45,78 @@ async function render({ el, model, host, signal }) {
       }
     }
   }
-  function navigate(command) {
-    pending.push(command);
+  function navigate(command, panel) {
+    pending.push({ ...command, panel });
     if (!scheduled) {
       scheduled = true;
       requestAnimationFrame(flush);
     }
   }
-  const root = document.createElement("div");
-  const container = document.createElement("div");
-  root.append(container);
-  frame.append(root);
-  let renderer;
+  const layers = [];
   function sync() {
     const width = Number.parseFloat(figure.get("css_width"));
     const height = Number.parseFloat(figure.get("css_height"));
     const value = model.get("selection");
-    const panel = figure.get("geometry");
-    const [left, top, right, bottom] = panel.rect;
-    // Leave a pixel around the axes for the outside half of the brush stroke.
-    const w = (right - left) * width + 2;
-    const h = (bottom - top) * height + 2;
-    const state = {
-      width: w,
-      height: h,
-      brush,
-      pan,
-      zoom,
-      debounce,
-      selectionColor: "#3b82f6",
-      selectionOpacity: 0.15,
-      strokeWidth: 2,
-      xBounds: panel.x,
-      yBounds: panel.y,
-      xScale: panel.xScale,
-      yScale: panel.yScale,
-      axesPixelBounds: [1, 1, w - 1, h - 1],
-      dragMode: brushing ? "brush" : "pan",
-      navigate,
-      value,
-      setValue(selection) {
-        model.set("selection", selection);
-      },
-    };
-    if (renderer) {
-      renderer.update(state);
-    } else {
-      renderer = new BrushOverlay(container, { state, signal });
+    for (const [index, panel] of figure.get("geometry").entries()) {
+      const [left, top, right, bottom] = panel.rect;
+      // Leave a pixel around the axes for the outside half of the brush stroke.
+      const w = (right - left) * width + 2;
+      const h = (bottom - top) * height + 2;
+      const state = {
+        width: w,
+        height: h,
+        brush,
+        pan,
+        zoom,
+        debounce,
+        selectionColor: "#3b82f6",
+        selectionOpacity: 0.15,
+        strokeWidth: 2,
+        xBounds: panel.x,
+        yBounds: panel.y,
+        xScale: panel.xScale,
+        yScale: panel.yScale,
+        axesPixelBounds: [1, 1, w - 1, h - 1],
+        dragMode: brushing ? "brush" : "pan",
+        navigate: (command) => navigate(command, index),
+        value: value && "panels" in value ? value.panels[index] : value,
+        setValue(selection) {
+          const current = model.get("selection");
+          model.set(
+            "selection",
+            single
+              ? selection
+              : {
+                  panels: {
+                    ...(current && "panels" in current ? current.panels : {}),
+                    [index]: selection,
+                  },
+                },
+          );
+        },
+      };
+      let layer = layers[index];
+      if (!layer) {
+        const root = document.createElement("div");
+        const container = document.createElement("div");
+        root.append(container);
+        frame.append(root);
+        layer = {
+          root,
+          renderer: new BrushOverlay(container, { state, signal }),
+        };
+        layers.push(layer);
+      } else {
+        layer.renderer.update(state);
+      }
+      Object.assign(layer.root.style, {
+        position: "absolute",
+        left: `${(left - 1 / width) * 100}%`,
+        top: `${(top - 1 / height) * 100}%`,
+        width: `${(w / width) * 100}%`,
+        height: `${(h / height) * 100}%`,
+      });
     }
-    Object.assign(root.style, {
-      position: "absolute",
-      left: `${(left - 1 / width) * 100}%`,
-      top: `${(top - 1 / height) * 100}%`,
-      width: `${(w / width) * 100}%`,
-      height: `${(h / height) * 100}%`,
-    });
   }
   figure.on("change:geometry", sync);
   model.on("change:selection", sync);
@@ -152,7 +169,7 @@ async function render({ el, model, host, signal }) {
     toggle(true);
   }
   button("Reset view", '<path d="M3 12a9 9 0 1 1 3 6.7M3 4v8h8"/>', () =>
-    navigate({ navigation: "reset" }),
+    navigate({ navigation: "reset" }, 0),
   );
   el.append(controls);
 }

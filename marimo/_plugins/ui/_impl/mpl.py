@@ -3,13 +3,17 @@ from __future__ import annotations
 
 import base64
 import io
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
+    Generic,
     Literal,
     Protocol,
+    TypeVar,
     cast,
+    overload,
 )
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -18,9 +22,11 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     import numpy as np
     from matplotlib.axes import Axes  # type: ignore[import-untyped]
-    from matplotlib.figure import Figure  # type: ignore[import-untyped]
+    from matplotlib.figure import Figure, SubFigure  # type: ignore[import-untyped]
     from numpy.typing import ArrayLike, NDArray
 
     from marimo._messaging.mimetypes import KnownMimeType
@@ -31,6 +37,47 @@ Dimension = bool | Literal["x", "y"]
 
 class MatplotlibSelection(Protocol):
     def get_mask(self, x: ArrayLike, y: ArrayLike) -> NDArray[np.bool_]: ...
+
+
+class AxesSelections(Mapping["Axes", MatplotlibSelection]):
+    """Selections in figure order. Look up a panel by Axes, position, or unique label."""
+
+    def __init__(self, selections: dict[Axes, MatplotlibSelection]) -> None:
+        self._selections = selections.copy()
+        self._axes = tuple(selections)
+
+    def __len__(self) -> int:
+        return len(self._axes)
+
+    def __iter__(self) -> Iterator[Axes]:
+        return iter(self._axes)
+
+    def __getitem__(self, key: Axes | int | str) -> MatplotlibSelection:
+        if isinstance(key, int):
+            key = self._axes[key]
+        elif isinstance(key, str):
+            matches = [
+                ax for ax in self._axes if key and ax.get_label() == key
+            ]
+            if not matches:
+                raise KeyError(key)
+            if len(matches) > 1:
+                raise KeyError(
+                    f"Multiple Axes have label {key!r}; use a position or Axes object."
+                )
+            key = matches[0]
+        return self._selections[key]
+
+
+_Target = TypeVar("_Target", bound="Axes | Figure | SubFigure")
+_Container = TypeVar("_Container", bound="Figure | SubFigure")
+_Value = TypeVar("_Value", bound="MatplotlibSelection | AxesSelections")
+
+
+def _subfigure_axes(subfigure: SubFigure) -> Iterator[Axes]:
+    yield from subfigure.axes
+    for child in subfigure.subfigs:
+        yield from _subfigure_axes(child)
 
 
 def _panel_geometry(ax: Axes) -> dict[str, JSONType]:
@@ -204,7 +251,9 @@ def _figure_to_base64(figure: Figure) -> str:
 
 
 @mddoc
-class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
+class matplotlib(
+    UIElement[dict[str, JSONType], _Value], Generic[_Target, _Value]
+):
     """Make reactive selections on matplotlib plots.
 
     Use `mo.ui.matplotlib` to make matplotlib plots interactive: draw a box
@@ -242,10 +291,14 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         ```
 
     Attributes:
-        value: The current selection. Use `get_mask(x, y)` to find the selected points.
+        value: A selection for one Axes, or an `AxesSelections` collection
+            for a Figure or SubFigure. Each selection has `get_mask(x, y)`.
 
     Args:
-        axes: The Matplotlib Axes to display.
+        axes: An `Axes`, `Figure`, or `SubFigure`. A single Axes returns a
+            selection. For containers, index `.value` by subplot position,
+            unique Axes label, or Axes object. Subfigures scope selection and
+            navigation to their own panels in the rendered figure.
         value: Initial box selection as `{"x": (min, max), "y": (min, max)}`.
             A one-dimensional brush needs only its selected dimension.
             The selection is clamped to the axes' bounds.
@@ -259,9 +312,33 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
             mouse-up. If `False` (the default), it streams while dragging.
     """
 
+    @overload
+    def __init__(
+        self: matplotlib[Axes, MatplotlibSelection],
+        axes: Axes,
+        value: dict[str, tuple[float, float]] | None = None,
+        *,
+        debounce: bool = False,
+        brush: Dimension = True,
+        pan: Dimension = False,
+        zoom: Dimension = False,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: matplotlib[_Container, AxesSelections],
+        axes: _Container,
+        value: None = None,
+        *,
+        debounce: bool = False,
+        brush: Dimension = True,
+        pan: Dimension = False,
+        zoom: Dimension = False,
+    ) -> None: ...
+
     def __init__(
         self,
-        axes: Axes,
+        axes: Axes | Figure | SubFigure,
         value: dict[str, tuple[float, float]] | None = None,
         *,
         debounce: bool = False,
@@ -272,30 +349,50 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         DependencyManager.matplotlib.require("for `mo.ui.matplotlib`")
 
         from matplotlib.axes import Axes
+        from matplotlib.figure import Figure, SubFigure  # type: ignore[import-untyped]
 
-        if not isinstance(axes, Axes):
-            raise TypeError("Expected a Matplotlib Axes.")
-        if axes.get_figure() is None:
-            raise ValueError("Axes must be attached to a figure.")
-        self._ax = axes
-        figure = axes.figure.canvas.figure
+        self._target = cast(_Target, axes)
+        panels: tuple[Axes, ...]
+        self._single = isinstance(axes, Axes)
+        if isinstance(axes, Axes):
+            panels = (axes,)
+            if axes.get_figure() is None:
+                raise ValueError("Axes must be attached to a figure.")
+            figure = axes.figure.canvas.figure
+        elif isinstance(axes, Figure):
+            figure = axes
+            panels = tuple(axes.axes)
+        elif isinstance(axes, SubFigure):
+            figure = axes.canvas.figure
+            scoped = set(_subfigure_axes(axes))
+            panels = tuple(ax for ax in figure.axes if ax in scoped)
+        else:
+            raise TypeError(
+                "Expected a Matplotlib Axes, Figure, or SubFigure."
+            )
+        self._panels = panels
+        if not self._single and value is not None:
+            raise ValueError(
+                "An initial box selection requires a single Axes."
+            )
         for name, option in (("brush", brush), ("pan", pan), ("zoom", zoom)):
             if not isinstance(option, bool) and option not in ("x", "y"):
                 raise ValueError(f"{name} must be True, False, 'x', or 'y'.")
         self._brush = brush
 
-        for dim, scale in (("x", axes.get_xscale()), ("y", axes.get_yscale())):
-            if scale not in ("linear", "log"):
-                raise ValueError(
-                    f"Unsupported {dim}-axis scale {scale!r}. "
-                    "mo.ui.matplotlib supports: linear, log."
-                )
+        for ax in panels:
+            for dim, scale in (("x", ax.get_xscale()), ("y", ax.get_yscale())):
+                if scale not in ("linear", "log"):
+                    raise ValueError(
+                        f"Unsupported {dim}-axis scale {scale!r}. "
+                        "mo.ui.matplotlib supports: linear, log."
+                    )
 
         self._figure = figure
         initial_value: dict[str, JSONType] = {}
         if value is not None and brush is not False:
-            x_bounds = axes.get_xlim()
-            y_bounds = axes.get_ylim()
+            x_bounds = panels[0].get_xlim()
+            y_bounds = panels[0].get_ylim()
             try:
                 selection_x_min, selection_x_max = sorted(
                     map(float, x_bounds if brush == "y" else value["x"])
@@ -324,6 +421,8 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
                         "y_max": y_max,
                     },
                 }
+        if not self._single:
+            initial_value = {"panels": {}}
 
         from marimo._output.hypertext import is_non_interactive
         from marimo._runtime.context import safe_get_context
@@ -355,8 +454,10 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
                     "pip install 'matplotlib[widget]'."
                 ) from exc
             self._plot_widget = _PlotWidget(
-                axes,
+                figure,
+                panels,
                 selection=initial_value,
+                single=self._single,
                 brush=brush,
                 pan=pan,
                 zoom=zoom,
@@ -400,15 +501,29 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
         return super()._mime_()
 
     @property
-    def axes(self) -> Axes:
+    def axes(self) -> _Target:
         """The Matplotlib object passed to the constructor."""
-        return self._ax
+        return self._target
 
-    def _convert_value(
-        self, value: dict[str, JSONType]
-    ) -> MatplotlibSelection:
+    def _convert_value(self, value: dict[str, JSONType]) -> _Value:
         if "selection" in value:
             value = cast(dict[str, JSONType], value["selection"])
+        if self._single:
+            return cast(_Value, self._selection(value))
+        by_panel = cast(
+            dict[str, dict[str, JSONType]], value.get("panels") or {}
+        )
+        return cast(
+            _Value,
+            AxesSelections(
+                {
+                    ax: self._selection(by_panel.get(str(index), {}))
+                    for index, ax in enumerate(self._panels)
+                }
+            ),
+        )
+
+    def _selection(self, value: dict[str, JSONType]) -> MatplotlibSelection:
         if not self._brush or not value or not value.get("has_selection"):
             return EmptySelection()
         sel_type = value.get("type")

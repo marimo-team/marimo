@@ -99,6 +99,42 @@ def __():
 Drag inside a selection to move it. Drag an edge or corner of a box to resize
 it. When nothing is selected, `plot.value` is falsy and the mask is all `False`.
 
+#### Select across subplots
+
+With a single Axes, `.value` is one selection. Pass a `Figure` or `SubFigure`
+to select points in several subplots. You can then read each subplot’s selection
+from `.value`.
+
+```python
+pressure = 1012 + 4 * np.cos(hours / 3)
+weather, axes = plt.subplot_mosaic([["temperature", "pressure"]])
+axes["temperature"].scatter(hours, temperature)
+axes["pressure"].scatter(hours, pressure)
+panels = mo.ui.matplotlib(weather)
+panels
+```
+
+In another cell, look up a selection by position, unique Axes label, or the
+Axes object itself. These all refer to the temperature subplot.
+
+```python
+panels.value[0]
+panels.value["temperature"]
+panels.value[axes["temperature"]]
+```
+
+Each selection has the same `get_mask` method. To find the hours selected in
+both plots, combine their masks.
+
+```python
+hot = panels.value["temperature"].get_mask(hours, temperature)
+high = panels.value["pressure"].get_mask(hours, pressure)
+hours[hot & high]
+```
+
+Positions follow figure order. A `SubFigure` includes only its own subplots
+and those in nested subfigures.
+
 #### Brush, pan, and zoom
 
 By default, dragging selects points. Enable `pan` to move around the plot or

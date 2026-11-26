@@ -20,11 +20,23 @@ if TYPE_CHECKING:
     from typing import assert_type
 
     from matplotlib.axes import Axes
+    from matplotlib.figure import Figure, SubFigure
 
-    from marimo._plugins.ui._impl.mpl import MatplotlibSelection
+    import marimo as mo
+    from marimo._plugins.ui._impl.mpl import (
+        AxesSelections,
+        MatplotlibSelection,
+    )
 
-    def _check_value(ax: Axes) -> None:
-        assert_type(matplotlib(ax).value, MatplotlibSelection)
+    def _check_constructor_overloads(
+        ax: Axes, fig: Figure, sub: SubFigure
+    ) -> None:
+        assert_type(mo.ui.matplotlib(ax).value, MatplotlibSelection)
+        assert_type(mo.ui.matplotlib(axes=ax).axes, Axes)
+        assert_type(mo.ui.matplotlib(fig).value, AxesSelections)
+        assert_type(mo.ui.matplotlib(sub).value, AxesSelections)
+        assert_type(mo.ui.matplotlib(sub).axes, SubFigure)
+        assert_type(mo.ui.matplotlib(fig).value[ax], MatplotlibSelection)
 
 
 mpl = pytest.importorskip("matplotlib")
@@ -150,6 +162,7 @@ def test_modes_share_the_figure_widget(brush, pan, zoom) -> None:
         "brush": brush,
         "pan": pan,
         "zoom": zoom,
+        "single": True,
         "debounce": False,
     }
 
@@ -322,7 +335,7 @@ def test_axes_bounds_follow_layout(layout):
     try:
         widget.canvas.draw()
         bbox = ax.get_position()
-        assert widget.geometry["rect"] == pytest.approx(
+        assert widget.geometry[0]["rect"] == pytest.approx(
             [bbox.x0, 1 - bbox.y1, bbox.x1, 1 - bbox.y0]
         )
     finally:
@@ -452,8 +465,9 @@ def test_single_axes_in_right_subfigure():
     ax = right.subplots()
     try:
         view = matplotlib(ax)
-        left = view._plot_widget.figure_widget.geometry["rect"][0]
+        left = view._plot_widget.figure_widget.geometry[0]["rect"][0]
         assert left > 0.5
+        assert list(matplotlib(right).value) == [ax]
     finally:
         plt.close(fig)
 
@@ -471,13 +485,13 @@ def test_live_axes_survives_pyplot_cleanup():
 
     fig, (ax, sibling) = plt.subplots(1, 2)
     initial = sibling.get_xlim()
-    widget = _NavigationWidget(ax, pan=True, zoom=False)
+    widget = _NavigationWidget((ax,), pan=True, zoom=False)
     try:
         close_figures()
         assert fig.canvas is widget.canvas
         widget._navigate(widget, {"navigation": "pan", "x": 0.5, "y": 0}, [])
         widget.get_frame()
-        np.testing.assert_allclose(widget.geometry["x"], ax.get_xlim())
+        np.testing.assert_allclose(widget.geometry[0]["x"], ax.get_xlim())
         np.testing.assert_allclose(sibling.get_xlim(), initial)
         assert ax.get_autoscaley_on()
     finally:
@@ -504,7 +518,7 @@ def test_navigation_preserves_independently_fixed_dimensions():
 
     ax = _make_scatter_ax()
     ax.set(xscale="log", xlim=(100, 1), ylim=(0, 12))
-    widget = _NavigationWidget(ax, pan="x", zoom="y")
+    widget = _NavigationWidget((ax,), pan="x", zoom="y")
     try:
         frames = []
         widget.canvas.mpl_connect(
@@ -525,7 +539,7 @@ def test_navigation_preserves_independently_fixed_dimensions():
         assert len(frames) == 0
         widget.get_frame()
         assert len(frames) == 1
-        np.testing.assert_allclose(widget.geometry["y"], (1.5, 7.5))
+        np.testing.assert_allclose(widget.geometry[0]["y"], (1.5, 7.5))
         # Commands in a frame keep their order, even across a reset.
         widget._navigate(
             widget,
@@ -547,6 +561,54 @@ def test_navigation_preserves_independently_fixed_dimensions():
         widget.close()
 
 
+def test_figure_selection_lookup_and_scope():
+    from matplotlib.figure import Figure
+
+    fig = Figure()
+    assert len(matplotlib(fig).value) == 0
+    left, right = fig.subfigures(1, 2)
+    first = left.subplots()
+    nested = right.subfigures(1, 1)
+    second = nested.subplots()
+    first.set_label("temperature")
+    second.set_label("pressure")
+    view = matplotlib(fig)
+    assert list(view.value) == [first, second]
+    assert view.value[0] is view.value["temperature"] is view.value[first]
+    assert view.value[-1] is view.value["pressure"]
+    scoped = matplotlib(right)
+    assert list(scoped.value) == [second]
+    with pytest.raises(KeyError):
+        scoped.value[first]
+    with pytest.raises(IndexError):
+        scoped.value[1]
+    assert not view.value[first]
+    selection = view._convert_value(
+        {
+            "panels": {
+                "1": {
+                    "type": "box",
+                    "has_selection": True,
+                    "data": {
+                        "x_min": 0,
+                        "x_max": 1,
+                        "y_min": 2,
+                        "y_max": 3,
+                    },
+                }
+            }
+        }
+    )
+    assert selection[1] == BoxSelection(0, 1, 2, 3)
+    assert not selection[0]
+    first.set_label("pressure")
+    with pytest.raises(KeyError, match="Multiple Axes"):
+        selection["pressure"]
+    with pytest.raises(KeyError):
+        selection["missing"]
+    assert selection[second] is selection[1]
+
+
 @pytest.mark.parametrize("layout", ["tight", "constrained"])
 def test_zoom_keeps_the_pointer_anchor_with_automatic_layout(layout):
     from matplotlib.figure import Figure
@@ -556,7 +618,7 @@ def test_zoom_keeps_the_pointer_anchor_with_automatic_layout(layout):
     figure = Figure(figsize=(5, 2.5), layout=layout)
     ax = figure.subplots()
     ax.plot(range(12), range(12))
-    widget = _NavigationWidget(ax, pan=False, zoom=True)
+    widget = _NavigationWidget((ax,), pan=False, zoom=True)
     try:
         anchor = ax.transAxes.transform((0.31, 0.67))
         data = ax.transData.inverted().transform(anchor)
