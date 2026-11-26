@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
-import { getCellEditorView } from "@/core/cells/cells";
+import { ensureCellEditorView } from "@/core/cells/cells";
 import { buildErrorReport } from "@/core/cells/error-report";
 import type { CellId } from "@/core/cells/ids";
 import { SCRATCH_CELL_ID } from "@/core/cells/ids";
@@ -257,7 +257,7 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
                     toggleBreakpoint(info.cellId, info.lineNumber);
                     return;
                   }
-                  const view = getCellEditorView(info.cellId);
+                  const view = ensureCellEditorView(info.cellId);
                   if (view) {
                     insertDebuggerAtLine(view, info.lineNumber);
                   }

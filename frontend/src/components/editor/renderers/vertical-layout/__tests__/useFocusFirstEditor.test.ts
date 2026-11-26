@@ -65,7 +65,7 @@ describe("useFocusFirstEditor", () => {
         cellIds: [cellId],
         cellHandles: {
           [cellId]: {
-            current: { editorView: editor, editorViewOrNull: editor },
+            current: { editorView: editor },
           },
         },
       });
@@ -134,15 +134,11 @@ describe("useFocusFirstEditor", () => {
       .spyOn(document, "querySelector")
       .mockReturnValue(mockElement as unknown as HTMLElement);
 
-    // Mock getNotebook
+    // The target cell may be offscreen, so its editor is built on demand.
     const mockEditor = { focus: vi.fn() };
-    vi.spyOn(cellsModule, "getNotebook").mockReturnValue({
-      cellIds: [],
-      cellData: {},
-      cellHandles: {
-        "cell-123": { current: { editorView: mockEditor } },
-      },
-    } as unknown as cellsModule.NotebookState);
+    const ensureSpy = vi
+      .spyOn(cellsModule, "ensureCellEditorView")
+      .mockReturnValue(mockEditor as unknown as EditorView);
 
     renderHook(() => useFocusFirstEditor());
 
@@ -157,6 +153,7 @@ describe("useFocusFirstEditor", () => {
     expect(mockElement.scrollIntoView).toHaveBeenCalled();
     // oxlint-disable-next-line typescript/unbound-method
     expect(mockElement.focus).toHaveBeenCalled();
+    expect(ensureSpy).toHaveBeenCalledWith("cell-123");
     expect(mockEditor.focus).toHaveBeenCalled();
 
     // Restore original hash

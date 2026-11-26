@@ -6,7 +6,12 @@ import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CreateCellOptions } from "@/core/cells/actions";
 import { CellId } from "@/core/cells/ids";
-import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
+import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
+import { getCellPythonCode } from "@/core/codemirror/cell-documents";
+import {
+  getCellCode,
+  prepareCellCodeUpdate,
+} from "@/core/codemirror/language/cell-code";
 import {
   type CellColumnId,
   type Layout,
@@ -129,7 +134,7 @@ export class EditNotebookTool implements AiTool<
 
         // If previous code exists, we don't want to replace it, it means there is a new edit on top of the previous update
         // Keep the original code
-        const currentCellCode = editorView.state.doc.toString();
+        const currentCellCode = getCellCode(editorView.state);
         const previousCode =
           existingStagedCell?.previousCode ?? currentCellCode;
 
@@ -243,8 +248,7 @@ export class EditNotebookTool implements AiTool<
         const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
 
-        const editorView = this.getCellEditorView(cellId, notebook);
-        const currentCellCode = editorView.state.doc.toString();
+        const currentCellCode = getCellPythonCode(cellId, notebook);
 
         // Add to staged AICells - don't actually delete the cell yet
         addStagedCell({
@@ -293,15 +297,16 @@ export class EditNotebookTool implements AiTool<
     cellId: CellId,
     notebook: NotebookState,
   ): EditorView {
-    const cellHandles = notebook.cellHandles;
-    const cellHandle = cellHandles[cellId].current;
-    if (!cellHandle?.editorView) {
+    // A cell the user has not scrolled to has no editor until it is built.
+    editorMountScheduler.promote(cellId);
+    const editorView = notebook.cellHandles[cellId]?.current?.editorView;
+    if (!editorView) {
       throw new ToolExecutionError("Cell editor not found", {
         code: "CELL_EDITOR_NOT_FOUND",
         isRetryable: false,
         suggestedFix: "Internal error, ask the user to report this error",
       });
     }
-    return cellHandle.editorView;
+    return editorView;
   }
 }

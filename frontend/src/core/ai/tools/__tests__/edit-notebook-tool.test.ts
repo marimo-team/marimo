@@ -669,27 +669,29 @@ describe("EditNotebookTool", () => {
       ).rejects.toThrow("Cell not found");
     });
 
-    it("should throw error when cell editor not found", async () => {
+    it("stages a cell without building its editor", async () => {
       const notebook = MockNotebook.notebookState({
         cellData: {
           [cellId1]: { code: "x = 1" },
         },
       });
-      // Don't set editorView
-      notebook.cellHandles[cellId1] = { current: null } as never;
+      notebook.cellHandles[cellId1] = { current: { editorView: null } };
       store.set(notebookAtom, notebook);
 
-      await expect(
-        tool.handler(
-          {
-            edit: {
-              type: "delete_cell",
-              position: { cellId: cellId1 },
-            },
+      await tool.handler(
+        {
+          edit: {
+            type: "delete_cell",
+            position: { cellId: cellId1 },
           },
-          toolContext as never,
-        ),
-      ).rejects.toThrow("Cell editor not found");
+        },
+        toolContext as never,
+      );
+
+      expect(store.get(stagedAICellsAtom).get(cellId1)).toEqual({
+        type: "delete_cell",
+        previousCode: "x = 1",
+      });
     });
 
     it("should throw error when cellId is missing for delete_cell", async () => {

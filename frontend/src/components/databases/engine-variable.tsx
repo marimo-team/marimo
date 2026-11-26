@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { getCellEditorView } from "@/core/cells/cells";
+import { ensureCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 import { store } from "@/core/state/jotai";
@@ -22,7 +22,7 @@ export const EngineVariable: React.FC<Props> = ({
     if (!cellId) {
       return;
     }
-    const editorView = getCellEditorView(cellId);
+    const editorView = ensureCellEditorView(cellId);
     if (editorView) {
       goToVariableDefinition(editorView, variableName);
     }

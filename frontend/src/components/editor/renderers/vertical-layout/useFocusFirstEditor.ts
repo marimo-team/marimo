@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { focusCellEditor } from "@/components/editor/navigation/focus-utils";
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { useOnMount } from "@/hooks/useLifecycle";
@@ -98,7 +99,6 @@ function focusCellByName(cellName: string) {
       cellElement.focus();
 
       // Look for an editor to focus
-      const { cellHandles } = getNotebook();
       const cellId = extractCellIdFromDomElement(cellElement);
 
       if (!cellId) {
@@ -106,10 +106,7 @@ function focusCellByName(cellName: string) {
         return;
       }
 
-      const editor = cellHandles[cellId]?.current?.editorView;
-      if (editor) {
-        editor.focus();
-      }
+      focusCellEditor(cellId);
     }
   } else {
     Logger.warn(

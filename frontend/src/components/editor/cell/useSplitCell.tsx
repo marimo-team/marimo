@@ -3,7 +3,7 @@
 import useEvent from "react-use-event-hook";
 import { UndoButton } from "@/components/buttons/undo-button";
 import { toast } from "@/components/ui/use-toast";
-import { getCellEditorView } from "@/core/cells/cells";
+import { ensureCellEditorView } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
@@ -13,7 +13,7 @@ export function useSplitCellCallback() {
 
   return useEvent((opts: { cellId: CellId }): CellId | null => {
     // Save snapshot of code for undo
-    const cellEditorView = getCellEditorView(opts.cellId);
+    const cellEditorView = ensureCellEditorView(opts.cellId);
     if (!cellEditorView) {
       return null;
     }

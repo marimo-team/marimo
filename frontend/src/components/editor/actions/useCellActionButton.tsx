@@ -44,7 +44,7 @@ import { showHiddenCodeAtom } from "@/core/cells/editor";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellData } from "@/core/cells/types";
-import { formatEditorViews } from "@/core/codemirror/format";
+import { formatCells } from "@/core/codemirror/format";
 import {
   getCurrentLanguageAdapter,
   toggleToLanguage,
@@ -185,13 +185,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         icon: <Code2Icon size={13} strokeWidth={1.5} />,
         label: "Format",
         hotkey: "cell.format",
-        handle: () => {
-          const editorView = getEditorView();
-          if (!editorView) {
-            return;
-          }
-          formatEditorViews({ [cellId]: editorView });
-        },
+        handle: () => formatCells([cellId]),
       },
       {
         icon: config.hide_code ? (

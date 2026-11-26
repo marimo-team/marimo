@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import {
   AlertTriangleIcon,
@@ -30,13 +29,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getCellEditorView, hasOnlyOneCellAtom } from "@/core/cells/cells";
+import { hasOnlyOneCellAtom } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import { columnOf, layoutAtom } from "@/core/cells/layout";
 import { useNotebookDocumentEdit } from "@/core/notebook/document";
 import type { CellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
-import { formatEditorViews } from "@/core/codemirror/format";
+import { formatCells } from "@/core/codemirror/format";
 import { userConfigAtom } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import type { CellConfig } from "@/core/network/types";
@@ -176,14 +175,7 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
   });
 
   const formatSelectedCells = useEvent((cellIds: CellId[]) => {
-    const editorViews: Record<CellId, EditorView> = {};
-    cellIds.forEach((cellId) => {
-      const editorView = getCellEditorView(cellId);
-      if (editorView) {
-        editorViews[cellId] = editorView;
-      }
-    });
-    formatEditorViews(editorViews);
+    formatCells(cellIds);
   });
 
   const clearSelectedCellsOutput = useEvent((cellIds: CellId[]) => {

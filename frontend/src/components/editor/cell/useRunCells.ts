@@ -115,7 +115,7 @@ export function useRunCells() {
 
     const { cellHandles } = getNotebook();
     for (const cellId of cellIds) {
-      const ev = cellHandles[cellId]?.current?.editorViewOrNull;
+      const ev = cellHandles[cellId]?.current?.editorView;
       // Skip close on markdown, since we autorun, otherwise we'll close the
       // completion each time.
       if (ev && getCurrentLanguageAdapter(ev) !== "markdown") {

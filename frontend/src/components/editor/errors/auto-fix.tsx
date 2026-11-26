@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue, useSetAtom, useStore } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
-import { notebookAtom } from "@/core/cells/cells";
+import { ensureCellEditorView } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { aiFeaturesEnabledAtom } from "@/core/config/config";
@@ -26,6 +26,7 @@ import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
+import { focusEditor } from "../navigation/focus-utils";
 import { type FixMode, useFixMode } from "./fix-mode";
 
 export function buildFixInChatPrompt(
@@ -51,7 +52,6 @@ export const AutoFixButton = ({
   cellId: CellId;
   className?: string;
 }) => {
-  const store = useStore();
   const { createCell } = useCellActions();
   const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
   const autoFixes = errors.flatMap((error) =>
@@ -69,8 +69,8 @@ export const AutoFixButton = ({
   const firstFix = autoFixes[0];
 
   const handleFix = (triggerFix: boolean) => {
-    const editorView =
-      store.get(notebookAtom).cellHandles[cellId].current?.editorView;
+    // A hidden cell with output never scrolls its editor into view.
+    const editorView = ensureCellEditorView(cellId);
     firstFix.onFix({
       addCodeBelow: (code: string) => {
         createCell({ after: cellId, code, focus: false });
@@ -82,8 +82,9 @@ export const AutoFixButton = ({
         triggerFix,
       },
     });
-    // Focus the editor
-    editorView?.focus();
+    if (editorView) {
+      focusEditor(editorView);
+    }
   };
 
   const openAISidebar = () => {

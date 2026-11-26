@@ -22,3 +22,19 @@ it("shows markdown editor text instead of its Python wrapper", () => {
   );
   expect(container.textContent).toBe("hello");
 });
+
+it("renders a bounded number of lines and keeps the rest of a long cell as height", () => {
+  const code = Array.from({ length: 5000 }, (_, i) => `x${i} = ${i}`).join(
+    "\n",
+  );
+  const { container } = render(<CodePlaceholder code={code} />);
+  const placeholder = container.querySelector<HTMLElement>(
+    ".mo-code-placeholder",
+  );
+
+  expect(container.textContent?.split("\n")).toHaveLength(200);
+  expect(container.textContent?.startsWith("x0 = 0\n")).toBe(true);
+  expect(placeholder?.style.getPropertyValue("--mo-hidden-lines")).toBe("4800");
+  expect(placeholder?.style.getPropertyValue("--mo-gutter-digits")).toBe("4");
+  expect(container.querySelector(".mo-code-placeholder-rest")).not.toBeNull();
+});

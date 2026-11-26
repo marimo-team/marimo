@@ -57,10 +57,10 @@ describe("goToDefinitionAtCursorPosition", () => {
 
     const notebook = initialNotebookState();
     notebook.cellHandles[definingCell] = {
-      current: { editorView: definingView, editorViewOrNull: definingView },
+      current: { editorView: definingView },
     };
     notebook.cellHandles[usageCell] = {
-      current: { editorView: usageView, editorViewOrNull: usageView },
+      current: { editorView: usageView },
     };
 
     store.set(notebookAtom, notebook);
@@ -99,10 +99,10 @@ def test():
 
     const notebook = initialNotebookState();
     notebook.cellHandles[globalCell] = {
-      current: { editorView: globalView, editorViewOrNull: globalView },
+      current: { editorView: globalView },
     };
     notebook.cellHandles[localCell] = {
-      current: { editorView: localView, editorViewOrNull: localView },
+      current: { editorView: localView },
     };
 
     store.set(notebookAtom, notebook);
@@ -160,10 +160,10 @@ print(mymodule)`;
 
     const notebook = initialNotebookState();
     notebook.cellHandles[moduleCell] = {
-      current: { editorView: moduleView, editorViewOrNull: moduleView },
+      current: { editorView: moduleView },
     } as never;
     notebook.cellHandles[usageCell] = {
-      current: { editorView: usageView, editorViewOrNull: usageView },
+      current: { editorView: usageView },
     } as never;
 
     store.set(notebookAtom, notebook);
@@ -200,17 +200,16 @@ print(mymodule)`;
     // The defining cell's editor build still waits in the mount queue, the
     // state right after a large notebook opens.
     const handle: { current: CellHandle | null } = { current: null };
-    editorMountScheduler.request(definingCell, () => {
+    editorMountScheduler.register(definingCell, () => {
       handle.current = {
         editorView: definingView,
-        editorViewOrNull: definingView,
       };
     });
 
     const notebook = initialNotebookState();
     notebook.cellHandles[definingCell] = handle;
     notebook.cellHandles[usageCell] = {
-      current: { editorView: usageView, editorViewOrNull: usageView },
+      current: { editorView: usageView },
     };
 
     store.set(notebookAtom, notebook);

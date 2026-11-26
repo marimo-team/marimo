@@ -3,10 +3,9 @@
 import { SearchQuery } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { getSearchDocuments } from "./documents";
 import type { CellId } from "@/core/cells/ids";
-import { replaceEditorContent } from "@/core/codemirror/replace-editor-content";
 import { store } from "@/core/state/jotai";
+import { getCellDocuments, writeCellCode } from "../cell-documents";
 import { scrollOwnerCell } from "../utils";
 import { asQueryCreator, type QueryType } from "./query";
 import { findReplaceAtom } from "./state";
@@ -35,9 +34,9 @@ function findMatch(
   direction: "next" | "prev",
   includeCurrent = false,
 ) {
-  const documents = getSearchDocuments();
+  const documents = getCellDocuments();
   const current = store.get(findReplaceAtom).currentView;
-  const startingKey = current?.view ?? documents[0]?.key;
+  const startingCellId = current?.cellId ?? documents[0]?.cellId;
   let position: number | undefined = current
     ? direction === "prev" || includeCurrent
       ? current.range.from
@@ -48,10 +47,9 @@ function findMatch(
   }
   const start = Math.max(
     0,
-    documents.findIndex((doc) => doc.key === startingKey),
+    documents.findIndex((doc) => doc.cellId === startingCellId),
   );
-  const ordered = [...documents, ...documents].slice(start);
-  for (const document of ordered) {
+  for (const document of [...documents, ...documents].slice(start)) {
     const { state } = document;
     const match =
       direction === "next"
@@ -61,9 +59,9 @@ function findMatch(
             position ?? state.doc.length,
             state.doc.length,
           );
-    if (match) {
-      const view = document.ensureView();
-      return view ? { view, match } : undefined;
+    const view = match ? document.ensureView() : undefined;
+    if (match && view) {
+      return { view, match };
     }
     position = undefined;
     document.view?.dispatch({ selection: EditorSelection.single(0) });
@@ -105,10 +103,9 @@ export const findPrev = findInDirection("prev");
  * Replace the next match after the global selection.
  */
 export const replaceAll = searchCommand(({ query }) => {
-  const views = getSearchDocuments();
   const undoHandlers: (() => void)[] = [];
-  for (const document of views) {
-    const { state, view } = document;
+  for (const document of getCellDocuments()) {
+    const { state } = document;
     if (state.readOnly) {
       continue;
     }
@@ -122,22 +119,11 @@ export const replaceAll = searchCommand(({ query }) => {
       continue;
     }
 
-    const prevDoc = state.doc.toString();
-    if (!view) {
-      document.replaceText(state.update({ changes }).state.doc.toString());
-      undoHandlers.push(() => document.replaceText(prevDoc));
-      continue;
-    }
+    const { cellId, code: previousCode } = document;
     undoHandlers.push(() => {
-      replaceEditorContent(view, prevDoc, {
-        userEvent: "input.replace.all",
-      });
+      writeCellCode(cellId, previousCode, { userEvent: "input.replace.all" });
     });
-
-    view.dispatch({
-      changes,
-      userEvent: "input.replace.all",
-    });
+    document.applyChanges(changes, "input.replace.all");
   }
 
   const handleUndo = () => {
@@ -175,20 +161,17 @@ export const replaceNext = searchCommand(({ query }) => {
  * @returns The number of matches in the document for each view.
  */
 export const getMatches = searchCommand(({ query }) => {
-  const views = getSearchDocuments();
   let count = 0;
 
-  // Position in the document, keyed by view and then by to:from
-  const position = new Map<EditorView | CellId, Map<string, number>>();
-  for (const document of views) {
-    const { state } = document;
+  // Position in the document, keyed by cell and then by to:from
+  const position = new Map<CellId, Map<string, number>>();
+  for (const { cellId, state } of getCellDocuments()) {
     const matches = query.matchAll(state, 1e9) || [];
     for (const match of matches) {
       const { from, to } = match;
-      const viewPosition =
-        position.get(document.key) || new Map<string, number>();
-      viewPosition.set(`${from}:${to}`, count++);
-      position.set(document.key, viewPosition);
+      const cellPosition = position.get(cellId) || new Map<string, number>();
+      cellPosition.set(`${from}:${to}`, count++);
+      position.set(cellId, cellPosition);
     }
   }
 
