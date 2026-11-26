@@ -1,0 +1,20 @@
+name: Agent Review
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions: {}
+
+jobs:
+  agent-review:
+    if: github.event.label.name == 'agent-review'
+    concurrency:
+      group: agent-review-${{ github.event.pull_request.number }}
+    # Upper bound for the reusable workflow; each of its jobs narrows this further.
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write # Doppler OIDC
+    uses: marimo-team/.github/.github/workflows/agent-review.yml@c341868567d1eabdf32e814e697b83956ecb3147
+    with:
+      policy-ref: c341868567d1eabdf32e814e697b83956ecb3147
