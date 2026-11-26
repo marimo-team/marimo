@@ -500,8 +500,8 @@ class UvPackageManager(PypiPackageManager):
         *,
         packages_to_add: list[str] | None = None,
         packages_to_remove: list[str] | None = None,
-        import_namespaces_to_add: list[str] | None = None,
-        import_namespaces_to_remove: list[str] | None = None,
+        import_modules_to_add: list[str] | None = None,
+        import_modules_to_remove: list[str] | None = None,
         upgrade: bool,
     ) -> bool:
         """Update the notebook's script metadata with the packages to add/remove.
@@ -510,20 +510,20 @@ class UvPackageManager(PypiPackageManager):
             filepath: Path to the notebook file
             packages_to_add: List of packages to add to the script metadata
             packages_to_remove: List of packages to remove from the script metadata
-            import_namespaces_to_add: List of import namespaces to add
-            import_namespaces_to_remove: List of import namespaces to remove
+            import_modules_to_add: List of imported module paths to add
+            import_modules_to_remove: List of imported module paths to remove
             upgrade: Whether to upgrade the packages
         """
         packages_to_add = packages_to_add or []
         packages_to_remove = packages_to_remove or []
-        import_namespaces_to_add = import_namespaces_to_add or []
-        import_namespaces_to_remove = import_namespaces_to_remove or []
+        import_modules_to_add = import_modules_to_add or []
+        import_modules_to_remove = import_modules_to_remove or []
 
         packages_to_add = packages_to_add + [
-            self.module_to_package(im) for im in import_namespaces_to_add
+            self.module_to_package(im) for im in import_modules_to_add
         ]
         packages_to_remove = packages_to_remove + [
-            self.module_to_package(im) for im in import_namespaces_to_remove
+            self.module_to_package(im) for im in import_modules_to_remove
         ]
 
         if not packages_to_add and not packages_to_remove:

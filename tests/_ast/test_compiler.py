@@ -40,7 +40,7 @@ class TestParseCell:
         cell = compile_cell(code)
         assert cell.defs == {"module", "y"}
         assert cell.refs == {"f", "x"}
-        assert cell.imported_namespaces == {"_secret_module"}
+        assert cell.imported_modules == {"_secret_module"}
 
     @staticmethod
     def test_dunder_dunder_excluded() -> None:
@@ -64,7 +64,7 @@ class TestParseCell:
         assert cell.defs == {"m"}
         assert cell.refs == set()
         # but _m is the module from which it was imported
-        assert cell.imported_namespaces == {"_m"}
+        assert cell.imported_modules == {"_m"}
 
     @staticmethod
     def test_ref_local_var() -> None:
@@ -77,7 +77,7 @@ class TestParseCell:
         cell = compile_cell(code)
         assert cell.defs == {"f"}
         assert cell.refs == set()
-        assert not cell.imported_namespaces
+        assert not cell.imported_modules
 
 
 class TestClassScope:
@@ -212,8 +212,8 @@ class TestImportWorkspace:
         # "d" is the imported name ...
         assert cell.defs == {"d", "x"}
         assert cell.refs == set()
-        # but "a" is the module from which it was imported
-        assert cell.imported_namespaces == {"a"}
+        # but "a.b.c.d" is the path it was imported from
+        assert cell.imported_modules == {"a.b.c.d"}
         assert not cell.import_workspace.is_import_block
 
     @staticmethod

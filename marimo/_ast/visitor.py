@@ -70,6 +70,11 @@ class ImportData:
     def __post_init__(self) -> None:
         self.namespace = self.module.split(".")[0]
 
+    @property
+    def import_path(self) -> str:
+        """E.g. `a.b.c.d` for `from a.b.c import d`; `d` may be an attribute."""
+        return self.imported_symbol or self.module
+
 
 @dataclass
 class AnnotationData:

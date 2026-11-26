@@ -106,7 +106,7 @@ async def test_cell_imports_record_transitive_sandbox_dependencies(
         assert manager.update_notebook_script_metadata(
             str(notebook),
             packages_to_add=["parso"],
-            import_namespaces_to_add=["parso"],
+            import_modules_to_add=["parso"],
             upgrade=False,
         )
         assert notebook.read_bytes() == before

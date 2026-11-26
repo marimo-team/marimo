@@ -57,6 +57,49 @@ def test_module_to_package() -> None:
     assert mgr.module_to_package("sklearn") == "scikit-learn"
 
 
+@pytest.mark.parametrize(
+    ("module", "package"),
+    [
+        ("azure.identity", "azure-identity"),
+        ("azure.storage.blob", "azure-storage-blob"),
+        ("azure.storage.blob.BlobClient", "azure-storage-blob"),
+        ("azure.identity.aio", "azure-identity"),
+        ("azure.core.pipeline.policies", "azure-core"),
+        ("azure.monitor.opentelemetry", "azure-monitor-opentelemetry"),
+        (
+            "azure.monitor.opentelemetry.exporter",
+            "azure-monitor-opentelemetry-exporter",
+        ),
+        ("azure.durable_functions", "azure-functions-durable"),
+        ("azure.storage.fileshare", "azure-storage-file-share"),
+        ("azure.unlisted.package", "azure"),
+        ("ruamel.yaml", "ruamel.yaml"),
+    ],
+)
+def test_module_to_package_nested(module: str, package: str) -> None:
+    assert PipPackageManager().module_to_package(module) == package
+
+
+@pytest.mark.parametrize(
+    ("package", "module"),
+    [
+        ("azure-mgmt-web", "azure.mgmt.web"),
+        ("Azure-AI-TextAnalytics", "azure.ai.textanalytics"),
+        ("azure-functions-durable", "azure.durable_functions"),
+        ("azure-storage-file-share", "azure.storage.fileshare"),
+    ],
+)
+def test_package_to_module_nested(package: str, module: str) -> None:
+    assert PipPackageManager().package_to_module(package) == module
+
+
+def test_dotted_package_name_round_trips() -> None:
+    mgr = PipPackageManager()
+    assert mgr.module_to_package(mgr.package_to_module("ruamel.yaml")) == (
+        "ruamel.yaml"
+    )
+
+
 def test_package_to_module() -> None:
     mgr = PipPackageManager()
     assert mgr.package_to_module("marimo") == "marimo"

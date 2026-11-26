@@ -6,7 +6,9 @@ import pytest
 
 from marimo._runtime.packages.utils import (
     append_version,
+    drop_ancestor_modules,
     filter_requirements_for_emscripten,
+    import_lookup_names,
     is_python_isolated,
     marker_environment_for_platform,
     requirement_applies,
@@ -291,3 +293,29 @@ def test_strip_requirement_name_url_and_vcs() -> None:
 def test_marker_environment_for_platform_overrides_sys_platform() -> None:
     env = marker_environment_for_platform("emscripten")
     assert env["sys_platform"] == "emscripten"
+
+
+def test_drop_ancestor_modules() -> None:
+    assert drop_ancestor_modules(
+        {
+            "azure",
+            "azure.storage",
+            "azure.storage.blob",
+            "azure.identity",
+            "numpy",
+        }
+    ) == {"azure.storage.blob", "azure.identity", "numpy"}
+    assert drop_ancestor_modules({"azure_core", "azure"}) == {
+        "azure_core",
+        "azure",
+    }
+
+
+def test_import_lookup_names() -> None:
+    assert import_lookup_names(
+        {
+            "numpy",
+            "sklearn.ensemble.RandomForestClassifier",
+            "azure.identity.aio",
+        }
+    ) == {"numpy", "sklearn", "azure.identity.aio"}

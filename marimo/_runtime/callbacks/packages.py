@@ -30,7 +30,9 @@ from marimo._runtime.packages.package_manager import (
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import (
     PackageRequirement,
+    drop_ancestor_modules,
     is_python_isolated,
+    is_same_or_submodule,
 )
 from marimo._runtime.runner import hook_context
 
@@ -195,7 +197,7 @@ class PackagesCallbacks:
                 )
 
         # Grab missing modules from module registry and from module not found errors
-        missing_modules = (
+        missing_modules = drop_ancestor_modules(
             self._kernel.module_registry.missing_modules() | missing_modules
         )
 
@@ -363,9 +365,13 @@ class PackagesCallbacks:
         }
 
         for cid, cell in self._kernel.graph.cells.items():
-            if (
-                isinstance(cell.exception, ModuleNotFoundError)
-                and cell.exception.name in installed_modules
+            if not isinstance(cell.exception, ModuleNotFoundError):
+                continue
+            # The error names the first missing parent, e.g. `azure`
+            if (failed := cell.exception.name) and any(
+                is_same_or_submodule(failed, module)
+                or is_same_or_submodule(module, failed)
+                for module in installed_modules
             ):
                 cells_to_run.add(cid)
 
@@ -383,9 +389,7 @@ class PackagesCallbacks:
             and self.package_manager is not None
         )
 
-    def update_script_metadata(
-        self, import_namespaces_to_add: list[str]
-    ) -> None:
+    def update_script_metadata(self, import_modules_to_add: list[str]) -> None:
         filename = self._kernel.app_metadata.filename
 
         if not filename or not self.package_manager:
@@ -395,11 +399,11 @@ class PackagesCallbacks:
             LOGGER.debug(
                 "Updating script metadata: %s. Adding namespaces: %s.",
                 filename,
-                import_namespaces_to_add,
+                import_modules_to_add,
             )
             self.package_manager.update_notebook_script_metadata(
                 filepath=filename,
-                import_namespaces_to_add=import_namespaces_to_add,
+                import_modules_to_add=import_modules_to_add,
                 upgrade=False,
             )
         except Exception as e:

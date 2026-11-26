@@ -221,7 +221,7 @@ def test_update_script_metadata_with_mapping(
     # It should not canonicalize when passed as an import name
     # case-insensitive
     pm.update_notebook_script_metadata(
-        "nb.py", import_namespaces_to_add=["yaml"], upgrade=False
+        "nb.py", import_modules_to_add=["yaml"], upgrade=False
     )
     assert runs_calls == [
         ["uv", "--quiet", "add", "--script", NB_ABSPATH, "pyyaml==1.0"],
@@ -231,7 +231,7 @@ def test_update_script_metadata_with_mapping(
     # It should not canonicalize when passed as an import name
     # and works with brackets
     pm.update_notebook_script_metadata(
-        "nb.py", import_namespaces_to_add=["ibis"], upgrade=False
+        "nb.py", import_modules_to_add=["ibis"], upgrade=False
     )
     assert runs_calls == [
         [

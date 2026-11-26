@@ -12,7 +12,7 @@ from marimo._utils.platform import is_pyodide
 from marimo._utils.subprocess import safe_popen
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
 
 
 def run_package_command(
@@ -324,3 +324,36 @@ class PackageRequirement:
         if not self.extras:
             return self.name
         return f"{self.name}[{','.join(sorted(self.extras))}]"
+
+
+# The root itself is not a package; the rest of the path says which one
+NAMESPACE_PACKAGE_ROOTS = frozenset({"azure"})
+
+
+def is_namespace_root(module_name: str) -> bool:
+    return module_name.split(".", maxsplit=1)[0] in NAMESPACE_PACKAGE_ROOTS
+
+
+def import_lookup_names(import_paths: Iterable[str]) -> set[str]:
+    """Packages are named after the top-level module, except under a namespace
+    root, where the rest of the path tells them apart."""
+    return {
+        path if is_namespace_root(path) else path.split(".")[0]
+        for path in import_paths
+    }
+
+
+def is_same_or_submodule(module_name: str, parent: str) -> bool:
+    return module_name == parent or module_name.startswith(parent + ".")
+
+
+def drop_ancestor_modules(modules: set[str]) -> set[str]:
+    """Drop modules that are a parent of another module in the set."""
+    return {
+        module
+        for module in modules
+        if not any(
+            other != module and is_same_or_submodule(other, module)
+            for other in modules
+        )
+    }

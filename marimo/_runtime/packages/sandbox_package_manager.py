@@ -142,23 +142,23 @@ class SandboxPackageManager(PypiPackageManager):
         *,
         packages_to_add: list[str] | None = None,
         packages_to_remove: list[str] | None = None,
-        import_namespaces_to_add: list[str] | None = None,
-        import_namespaces_to_remove: list[str] | None = None,
+        import_modules_to_add: list[str] | None = None,
+        import_modules_to_remove: list[str] | None = None,
         upgrade: bool,
     ) -> bool:
         del (
             filepath,
             packages_to_add,
             packages_to_remove,
-            import_namespaces_to_remove,
+            import_modules_to_remove,
             upgrade,
         )
         # Explicit add/remove already updated the manifest. Cell registration
         # can also discover an imported package without any preceding install.
         try:
             packages = [
-                self.module_to_package(namespace)
-                for namespace in import_namespaces_to_add or []
+                self.module_to_package(module)
+                for module in import_modules_to_add or []
             ]
             runtime_versions: dict[str, str] = {}
             environment = self._sandbox.environment

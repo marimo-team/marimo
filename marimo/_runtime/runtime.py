@@ -148,6 +148,7 @@ from marimo._runtime.executor import Executor, resolve_executor
 from marimo._runtime.input_override import getpass_override
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.packages.module_registry import ModuleRegistry
+from marimo._runtime.packages.utils import import_lookup_names
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.parent_poller import (
     start_parent_poller,
@@ -1139,7 +1140,7 @@ class Kernel:
                 # and it is no longer stale.
                 previous_cell.set_stale(False)
 
-            # For any newly imported namespaces, add them to the metadata
+            # For any newly imported modules, add them to the metadata
             #
             # TODO(akshayka): Consider using the module watcher to discover
             # packages used by a notebook; that would have the benefit of
@@ -1149,13 +1150,16 @@ class Kernel:
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
                     prev_imports: set[Name] = (
-                        {im.namespace for im in previous_cell.imports}
+                        import_lookup_names(previous_cell.imported_modules)
                         if previous_cell
                         else set()
                     )
-                    to_add = cell.imported_namespaces - prev_imports
+                    to_add = (
+                        import_lookup_names(cell.imported_modules)
+                        - prev_imports
+                    )
                     self.packages_callbacks.update_script_metadata(
-                        import_namespaces_to_add=list(to_add)
+                        import_modules_to_add=list(to_add)
                     )
 
         LOGGER.debug(

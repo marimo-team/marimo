@@ -512,6 +512,65 @@ def test_missing_packages_hook_pip(
         # Note: The exact sequence might vary, but we should have final success
 
 
+def test_missing_packages_hook_nested_import(
+    mocked_kernel: MockedKernel,
+) -> None:
+    k = mocked_kernel.k
+    alerts: list[MissingPackageAlertNotification] = []
+
+    def record_alert(msg: Any, stream: Any = None) -> None:
+        del stream
+        alerts.append(msg)
+
+    class MockRunner:
+        def __init__(self) -> None:
+            # Python names the first missing parent, not the full import
+            self.exceptions = {
+                "cell": ModuleNotFoundError(
+                    "No module named 'azure'", name="azure"
+                )
+            }
+
+    with patch(
+        "marimo._runtime.callbacks.packages.broadcast_notification",
+        record_alert,
+    ):
+        k.packages_callbacks.package_manager = create_package_manager("pip")
+        k.packages_callbacks.package_manager.should_auto_install = lambda: (
+            False
+        )  # type: ignore
+        k.module_registry.missing_modules = lambda: {  # type: ignore
+            "azure.storage.blob"
+        }
+        k.packages_callbacks.missing_packages_hook(
+            cast(cell_runner.Runner, MockRunner())
+        )
+
+    assert [alert.packages for alert in alerts] == [["azure-storage-blob"]]
+
+
+def test_script_metadata_receives_lookup_names(
+    mocked_kernel: MockedKernel,
+) -> None:
+    k = mocked_kernel.k
+    callbacks = k.packages_callbacks
+    callbacks.should_update_script_metadata = lambda: True  # type: ignore
+    callbacks.update_script_metadata = Mock()  # type: ignore
+
+    k._maybe_register_cell(
+        "0",
+        "from azure import identity\n"
+        "import azure.storage.blob\n"
+        "from sklearn.ensemble import RandomForestClassifier",
+        stale=False,
+    )
+
+    added = callbacks.update_script_metadata.call_args.kwargs[
+        "import_modules_to_add"
+    ]
+    assert sorted(added) == ["azure.identity", "azure.storage.blob", "sklearn"]
+
+
 @pytest.mark.parametrize("succeed", [False, True])
 async def test_install_logs_reach_the_stream_from_worker_threads(
     mocked_kernel: MockedKernel,

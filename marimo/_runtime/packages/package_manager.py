@@ -15,6 +15,7 @@ from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.packages.utils import (
     append_version,
+    is_namespace_root,
     popen_package_command,
     run_package_command,
 )
@@ -235,16 +236,16 @@ class PackageManager(abc.ABC):
         *,
         packages_to_add: list[str] | None = None,
         packages_to_remove: list[str] | None = None,
-        import_namespaces_to_add: list[str] | None = None,
-        import_namespaces_to_remove: list[str] | None = None,
+        import_modules_to_add: list[str] | None = None,
+        import_modules_to_remove: list[str] | None = None,
         upgrade: bool,
     ) -> bool:
         del (
             filepath,
             packages_to_add,
             packages_to_remove,
-            import_namespaces_to_add,
-            import_namespaces_to_remove,
+            import_modules_to_add,
+            import_modules_to_remove,
             upgrade,
         )
         """
@@ -252,7 +253,7 @@ class PackageManager(abc.ABC):
         in the marimo notebook.
 
         For packages_to_add, packages_to_remove, we use the package name as-is.
-        For import_namespaces_to_add, import_namespaces_to_remove, we canonicalize
+        For import_modules_to_add, import_modules_to_remove, we canonicalize
         to the module name based on popular packages on PyPI.
 
         This follows PEP 723 https://peps.python.org/pep-0723/
@@ -340,8 +341,19 @@ class CanonicalizingPackageManager(PackageManager):
 
         if module_name in self._module_name_to_repo_name:
             return self._module_name_to_repo_name[module_name]
-        else:
-            return module_name.replace("_", "-")
+
+        if is_namespace_root(module_name):
+            parts = module_name.split(".")
+            for depth in range(len(parts) - 1, 0, -1):
+                if (
+                    package := self._module_name_to_repo_name.get(
+                        ".".join(parts[:depth])
+                    )
+                ) is not None:
+                    return package
+            return parts[0]
+
+        return module_name.replace("_", "-")
 
     def package_to_module(self, package_name: str) -> str:
         """Canonicalizes a package name to a module name."""

@@ -307,10 +307,12 @@ class CellImpl:
         return import_data
 
     @property
-    def imported_namespaces(self) -> set[Name]:
-        """Return a set of the namespaces imported by this cell."""
+    def imported_modules(self) -> set[Name]:
+        """Return the dotted paths of the absolute imports in this cell."""
         return {
-            import_data.module.split(".")[0] for import_data in self.imports
+            import_data.import_path
+            for import_data in self.imports
+            if not import_data.import_level
         }
 
     def namespace_to_variable(self, namespace: str) -> Name | None:
