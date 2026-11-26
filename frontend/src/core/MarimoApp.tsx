@@ -73,7 +73,7 @@ export const MarimoApp: React.FC = memo(() => {
       return <LazyGalleryPage.Component />;
     }
     if (initialMode === "read") {
-      return <LazyRunPage.Component appConfig={appConfig} />;
+      return <LazyRunPage.NonSuspendingComponent appConfig={appConfig} />;
     }
     return (
       <LazyEditPage.Component userConfig={userConfig} appConfig={appConfig} />
