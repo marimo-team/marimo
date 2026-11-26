@@ -11,7 +11,7 @@ async function render({ el, model, host, signal }) {
   if (signal.aborted) {
     return;
   }
-  const { brush, debounce } = model.get("options");
+  const { brush, pan, zoom, debounce } = model.get("options");
   const frame = document.createElement("div");
   frame.className = "marimo-mpl-figure";
   frame.style.cssText = "position:relative;max-width:100%;line-height:0";
@@ -22,10 +22,36 @@ async function render({ el, model, host, signal }) {
   // Marimo owns these gestures. The child only needs to receive resize and frame events.
   mount.inert = true;
   await view.render({ el: mount, signal });
-  if (signal.aborted || !brush) {
+  if (signal.aborted || !(brush || pan || zoom)) {
     return;
   }
 
+  let brushing = Boolean(brush);
+  let pending = [];
+  let scheduled = false;
+  async function flush() {
+    if (signal.aborted) {
+      return;
+    }
+    const gestures = pending;
+    pending = [];
+    try {
+      await figure.send({ gestures });
+    } finally {
+      if (pending.length && !signal.aborted) {
+        requestAnimationFrame(flush);
+      } else {
+        scheduled = false;
+      }
+    }
+  }
+  function navigate(command) {
+    pending.push(command);
+    if (!scheduled) {
+      scheduled = true;
+      requestAnimationFrame(flush);
+    }
+  }
   const root = document.createElement("div");
   const container = document.createElement("div");
   root.append(container);
@@ -44,6 +70,8 @@ async function render({ el, model, host, signal }) {
       width: w,
       height: h,
       brush,
+      pan,
+      zoom,
       debounce,
       selectionColor: "#3b82f6",
       selectionOpacity: 0.15,
@@ -53,6 +81,8 @@ async function render({ el, model, host, signal }) {
       xScale: panel.xScale,
       yScale: panel.yScale,
       axesPixelBounds: [1, 1, w - 1, h - 1],
+      dragMode: brushing ? "brush" : "pan",
+      navigate,
       value,
       setValue(selection) {
         model.set("selection", selection);
@@ -74,6 +104,57 @@ async function render({ el, model, host, signal }) {
   figure.on("change:geometry", sync);
   model.on("change:selection", sync);
   sync();
+  if (!(pan || zoom)) {
+    return;
+  }
+
+  const controls = document.createElement("div");
+  controls.className = "marimo-mpl-controls";
+  controls.setAttribute("role", "group");
+  controls.setAttribute("aria-label", "Plot controls");
+  controls.style.maxWidth = frame.style.width;
+  function button(label, icon, click) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${
+      icon
+    }</svg>`;
+    button.addEventListener("click", click, { signal });
+    controls.append(button);
+    return button;
+  }
+  if (brush && pan) {
+    const toggle = (next) => {
+      brushing = next;
+      select.setAttribute("aria-pressed", String(next));
+      hand.setAttribute("aria-pressed", String(!next));
+      sync();
+    };
+    const select = button(
+      "Brush",
+      '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/>',
+      () => toggle(true),
+    );
+    const hand = button(
+      "Pan",
+      '<path d="M8 13V6a1.5 1.5 0 0 1 3 0v5-7a1.5 1.5 0 0 1 3 0v7-6a1.5 1.5 0 0 1 3 0v6-4a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-12 5l-5-6a1.5 1.5 0 0 1 2-2l3 2z"/>',
+      () => toggle(false),
+    );
+    if (brush === true) {
+      select.title = "Brush (Shift-drag for lasso)";
+    }
+    const divider = document.createElement("span");
+    divider.setAttribute("role", "separator");
+    divider.setAttribute("aria-orientation", "vertical");
+    controls.append(divider);
+    toggle(true);
+  }
+  button("Reset view", '<path d="M3 12a9 9 0 1 1 3 6.7M3 4v8h8"/>', () =>
+    navigate({ navigation: "reset" }),
+  );
+  el.append(controls);
 }
 // A save resolves when marimo has queued the update. While it is in flight,
 // the model holds the latest selection, shared by every view of this plot.
@@ -186,6 +267,17 @@ function getResizeConfig(handle, start, end) {
   }
 }
 
+function wheelPixels(delta, mode, pageSize) {
+  switch (mode) {
+    case WheelEvent.DOM_DELTA_LINE:
+      return delta * 16;
+    case WheelEvent.DOM_DELTA_PAGE:
+      return delta * pageSize;
+    default:
+      return delta;
+  }
+}
+
 function createScale(type, bounds) {
   const [min, max] = bounds;
   if (type === "log") {
@@ -276,6 +368,7 @@ export class BrushOverlay {
   #surface = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   #shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
   #state;
+  #panDrag;
   #interaction = { type: "idle" };
   constructor(container, options) {
     this.#state = options.state;
@@ -305,6 +398,21 @@ export class BrushOverlay {
     surface.addEventListener("pointerup", this.#handlePointerUp, {
       signal: options.signal,
     });
+    if (options.state.pan || options.state.zoom) {
+      surface.addEventListener("wheel", this.#handleWheel, {
+        passive: false,
+        signal: options.signal,
+      });
+      surface.addEventListener(
+        "lostpointercapture",
+        (event) => {
+          if (event.pointerId === this.#panDrag?.pointerId) {
+            this.#panDrag = undefined;
+          }
+        },
+        { signal: options.signal },
+      );
+    }
     surface.addEventListener("keydown", this.#handleKeyDown, {
       signal: options.signal,
     });
@@ -464,8 +572,78 @@ export class BrushOverlay {
     this.#draw();
   };
 
+  #panTo(pointerId, point) {
+    const drag = this.#panDrag;
+    if (!drag || drag.pointerId !== pointerId) {
+      return;
+    }
+    const x = (point.x - drag.last.x) / drag.width;
+    const y = (drag.last.y - point.y) / drag.height;
+    if (x || y) {
+      this.#state.navigate?.({ navigation: "pan", x, y });
+    }
+    drag.last = point;
+  }
+
+  #handleWheel = (event) => {
+    const { navigate, pan, zoom, axesPixelBounds, width } = this.#state;
+    if (!navigate || this.#panDrag || event.buttons) {
+      return;
+    }
+
+    const rect = this.#surface.getBoundingClientRect();
+    const point = this.#getPoint(event, rect);
+    if (!isInAxes(point, this.#state)) {
+      return;
+    }
+
+    const [left, top, right, bottom] = axesPixelBounds;
+    const { deltaMode, deltaX, deltaY } = event;
+    let command;
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (pan !== "x") {
+        return;
+      }
+      const axesWidth = ((right - left) / width) * rect.width;
+      const x = -wheelPixels(deltaX, deltaMode, rect.width) / axesWidth;
+      command = { navigation: "pan", x, y: 0 };
+    } else {
+      if (!zoom || deltaY === 0) {
+        return;
+      }
+      const delta = wheelPixels(deltaY, deltaMode, rect.height);
+      const factor = Math.exp(Math.max(-1, Math.min(1, delta * 0.002)));
+      const x = (point.x - left) / (right - left);
+      const y = (bottom - point.y) / (bottom - top);
+      command = { navigation: "zoom", x, y, factor };
+    }
+
+    event.preventDefault();
+    navigate(command);
+  };
+
   #handlePointerDown = (e) => {
     const pt = this.#getPoint(e);
+    if (this.#state.dragMode === "pan") {
+      if (
+        !this.#state.pan ||
+        !isInAxes(pt, this.#state) ||
+        e.button !== 0 ||
+        this.#panDrag
+      ) {
+        return;
+      }
+      const [left, top, right, bottom] = this.#state.axesPixelBounds;
+      this.#panDrag = {
+        pointerId: e.pointerId,
+        last: pt,
+        width: right - left,
+        height: bottom - top,
+      };
+      this.#surface.setPointerCapture(e.pointerId);
+      this.#surface.style.cursor = "grabbing";
+      return;
+    }
     if (this.#state.brush === false) {
       return;
     }
@@ -546,6 +724,15 @@ export class BrushOverlay {
 
   #handlePointerMove = (e) => {
     const pt = this.#getPoint(e);
+    if (this.#panDrag) {
+      this.#panTo(e.pointerId, pt);
+      return;
+    }
+    if (this.#state.dragMode === "pan") {
+      this.#surface.style.cursor =
+        this.#state.pan && isInAxes(pt, this.#state) ? "grab" : "default";
+      return;
+    }
     if (this.#state.brush === false) {
       return;
     }
@@ -658,6 +845,13 @@ export class BrushOverlay {
       return;
     }
     this.#surface.releasePointerCapture(e.pointerId);
+    if (this.#panDrag) {
+      this.#panTo(e.pointerId, this.#getPoint(e));
+      this.#panDrag = undefined;
+      this.#surface.style.cursor = "grab";
+      return;
+    }
+
     const ix = this.#interaction;
     const s = this.#state;
 

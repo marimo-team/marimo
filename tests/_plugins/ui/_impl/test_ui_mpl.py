@@ -135,16 +135,21 @@ def test_unsupported_yscale_raises() -> None:
         matplotlib(ax)
 
 
-@pytest.mark.parametrize("brush", [True, False, "x", "y"])
-def test_modes_share_the_figure_widget(brush) -> None:
+@pytest.mark.parametrize(
+    ("brush", "pan", "zoom"),
+    [(True, False, False), (False, False, False), (False, True, True)],
+)
+def test_modes_share_the_figure_widget(brush, pan, zoom) -> None:
     ax = _make_scatter_ax()
-    view = matplotlib(ax, brush=brush)
+    view = matplotlib(ax, brush=brush, pan=pan, zoom=zoom)
     widget = view._plot_widget
     assert view._component_args == {"model-id": widget.model_id}
     assert widget.figure_ref == f"anywidget:{widget.figure_widget.model_id}"
     assert widget.figure_widget.canvas.figure is ax.figure
     assert widget.options == {
         "brush": brush,
+        "pan": pan,
+        "zoom": zoom,
         "debounce": False,
     }
 
@@ -453,9 +458,30 @@ def test_single_axes_in_right_subfigure():
         plt.close(fig)
 
 
-def test_invalid_dimension():
-    with pytest.raises(ValueError, match="brush"):
-        matplotlib(_make_scatter_ax(), brush="z")
+@pytest.mark.parametrize("option", ["brush", "pan", "zoom"])
+def test_invalid_dimension(option):
+    with pytest.raises(ValueError, match=option):
+        matplotlib(_make_scatter_ax(), **{option: "z"})
+
+
+def test_live_axes_survives_pyplot_cleanup():
+    pytest.importorskip("matplotlib.backends.backend_anywidget")
+    from marimo._output.mpl import close_figures
+    from marimo._plugins.ui._impl.mpl_widget import _NavigationWidget
+
+    fig, (ax, sibling) = plt.subplots(1, 2)
+    initial = sibling.get_xlim()
+    widget = _NavigationWidget(ax, pan=True, zoom=False)
+    try:
+        close_figures()
+        assert fig.canvas is widget.canvas
+        widget._navigate(widget, {"navigation": "pan", "x": 0.5, "y": 0}, [])
+        widget.get_frame()
+        np.testing.assert_allclose(widget.geometry["x"], ax.get_xlim())
+        np.testing.assert_allclose(sibling.get_xlim(), initial)
+        assert ax.get_autoscaley_on()
+    finally:
+        widget.close()
 
 
 @pytest.mark.parametrize("axis", ["x", "y"])
@@ -470,3 +496,79 @@ def test_range_brush_filters_only_its_dimension(axis):
     np.testing.assert_array_equal(
         fig.value.get_mask(*coordinates), [False, True, True, False]
     )
+
+
+def test_navigation_preserves_independently_fixed_dimensions():
+    pytest.importorskip("matplotlib.backends.backend_anywidget")
+    from marimo._plugins.ui._impl.mpl_widget import _NavigationWidget
+
+    ax = _make_scatter_ax()
+    ax.set(xscale="log", xlim=(100, 1), ylim=(0, 12))
+    widget = _NavigationWidget(ax, pan="x", zoom="y")
+    try:
+        frames = []
+        widget.canvas.mpl_connect(
+            "draw_event", lambda event: frames.append(event)
+        )
+        widget._navigate(
+            widget, {"navigation": "pan", "x": 0.5, "y": 0.25}, []
+        )
+        np.testing.assert_allclose(ax.get_xlim(), (1000, 10))
+        np.testing.assert_allclose(ax.get_ylim(), (0, 12))
+        widget._navigate(
+            widget,
+            {"navigation": "zoom", "x": 0.5, "y": 0.25, "factor": 0.5},
+            [],
+        )
+        np.testing.assert_allclose(ax.get_xlim(), (1000, 10))
+        np.testing.assert_allclose(ax.get_ylim(), (1.5, 7.5))
+        assert len(frames) == 0
+        widget.get_frame()
+        assert len(frames) == 1
+        np.testing.assert_allclose(widget.geometry["y"], (1.5, 7.5))
+        # Commands in a frame keep their order, even across a reset.
+        widget._navigate(
+            widget,
+            {
+                "gestures": [
+                    {"navigation": "pan", "x": 0.5, "y": 0},
+                    {"navigation": "reset"},
+                    {"navigation": "zoom", "x": 0, "y": 0.5, "factor": 0.5},
+                ]
+            },
+            [],
+        )
+        np.testing.assert_allclose(ax.get_xlim(), (100, 1))
+        np.testing.assert_allclose(ax.get_ylim(), (3, 9))
+        widget._navigate(widget, {"navigation": "reset"}, [])
+        np.testing.assert_allclose(ax.get_xlim(), (100, 1))
+        np.testing.assert_allclose(ax.get_ylim(), (0, 12))
+    finally:
+        widget.close()
+
+
+@pytest.mark.parametrize("layout", ["tight", "constrained"])
+def test_zoom_keeps_the_pointer_anchor_with_automatic_layout(layout):
+    from matplotlib.figure import Figure
+
+    from marimo._plugins.ui._impl.mpl_widget import _NavigationWidget
+
+    figure = Figure(figsize=(5, 2.5), layout=layout)
+    ax = figure.subplots()
+    ax.plot(range(12), range(12))
+    widget = _NavigationWidget(ax, pan=False, zoom=True)
+    try:
+        anchor = ax.transAxes.transform((0.31, 0.67))
+        data = ax.transData.inverted().transform(anchor)
+        layout_engine = figure.get_layout_engine()
+        for _ in range(20):
+            widget._apply_gesture(
+                {"navigation": "zoom", "x": 0.31, "y": 0.67, "factor": 0.84}
+            )
+            widget.get_frame()
+            np.testing.assert_allclose(
+                ax.transData.transform(data), anchor, atol=1e-6
+            )
+        assert figure.get_layout_engine() is layout_engine
+    finally:
+        widget.close()
