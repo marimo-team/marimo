@@ -296,3 +296,24 @@ def test_dataframe_to_csv_decimal_comma(lazy: bool, separator: str) -> None:
         ["amount", "count", "text"],
         ["3,14", "2", "3.14"],
     ]
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.requires("pyarrow")
+def test_dataframe_to_csv_decimal_comma_only_changes_floats() -> None:
+    import datetime
+
+    import polars as pl
+
+    frame = pl.DataFrame(
+        {
+            "amount": [3.5, None],
+            "flag": [True, False],
+            "moment": [datetime.datetime(2020, 1, 1, 3)] * 2,
+        }
+    )
+    expected = dataframe_to_csv(frame).replace("3.5", '"3,5"')
+    assert dataframe_to_csv(frame, decimal_comma=True) == expected
+    assert dataframe_to_csv(frame.to_arrow(), decimal_comma=True) == (
+        dataframe_to_csv(frame.to_arrow()).replace("3.5", '"3,5"')
+    )

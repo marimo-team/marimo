@@ -28,7 +28,6 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManagerFactory,
     regex_literal,
 )
-from marimo._utils.narwhals_utils import dataframe_to_csv
 
 LOGGER = _loggers.marimo_logger()
 
@@ -52,6 +51,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import polars as pl
+        import polars.selectors as cs
 
         supports_decimal_comma = (
             "decimal_comma"
@@ -184,45 +184,48 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             decimal_comma=decimal_comma,
                         )
                     if decimal_comma:
-                        return dataframe_to_csv(
-                            frame,
-                            separator=resolved_separator,
-                            decimal_comma=True,
+                        frame = frame.with_columns(
+                            cs.float()
+                            .cast(pl.String)
+                            .str.replace(".", ",", literal=True)
                         )
                     return frame.write_csv(separator=resolved_separator)
 
-                if supports_decimal_comma or not decimal_comma:
-                    try:
-                        return write_csv(_data)
-                    except pl.exceptions.ComputeError:
-                        pass
-
-                result = _data
-                for column in result.get_columns():
-                    dtype = column.dtype
-                    if contains_map(dtype):
-                        result = result.with_columns(
-                            self._nested_to_json(column)
-                        )
-                    elif isinstance(dtype, pl.Struct):
-                        result = result.with_columns(
-                            column.struct.json_encode()
-                        )
-                    elif isinstance(dtype, pl.List):
-                        result = result.with_columns(
-                            column.cast(pl.List(pl.Utf8)).list.join(",")
-                        )
-                    elif isinstance(dtype, pl.Array):
-                        result = result.with_columns(
-                            column.cast(
-                                pl.Array(pl.Utf8, shape=dtype.shape)
-                            ).arr.join(",")
-                        )
-                    elif isinstance(dtype, pl.Object):
-                        result = self._cast_object_to_string(result, column)
-                    elif isinstance(dtype, pl.Duration):
-                        result = self._convert_time_to_string(result, column)
-                return write_csv(result)
+                try:
+                    return write_csv(_data)
+                except pl.exceptions.ComputeError:
+                    # Likely CSV format does not support nested data or objects
+                    # Try to convert columns to json or strings
+                    result = _data
+                    for column in result.get_columns():
+                        dtype = column.dtype
+                        if contains_map(dtype):
+                            result = result.with_columns(
+                                self._nested_to_json(column)
+                            )
+                        elif isinstance(dtype, pl.Struct):
+                            result = result.with_columns(
+                                column.struct.json_encode()
+                            )
+                        elif isinstance(dtype, pl.List):
+                            result = result.with_columns(
+                                column.cast(pl.List(pl.Utf8)).list.join(",")
+                            )
+                        elif isinstance(dtype, pl.Array):
+                            result = result.with_columns(
+                                column.cast(
+                                    pl.Array(pl.Utf8, shape=dtype.shape)
+                                ).arr.join(",")
+                            )
+                        elif isinstance(dtype, pl.Object):
+                            result = self._cast_object_to_string(
+                                result, column
+                            )
+                        elif isinstance(dtype, pl.Duration):
+                            result = self._convert_time_to_string(
+                                result, column
+                            )
+                    return write_csv(result)
 
             def _nested_to_json(self, column: pl.Series) -> pl.Series:
                 # Entry arrays preserve non-string and repeated keys.

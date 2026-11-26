@@ -1124,8 +1124,8 @@ class table(
         For cell-selection modes ("single-cell"/"multi-cell"), selection is
         ignored and the current searched/filtered view is downloaded. For
         row-selection modes, downloads selected rows if any, otherwise the
-        current searched/filtered view. Downloads omit display formatting.
-        Export options control serialization.
+        current searched/filtered view. Raw data is downloaded without any
+        formatting applied.
 
         When a requested format requires a package that isn't installed
         (e.g., Parquet without pyarrow/pandas/polars), returns a

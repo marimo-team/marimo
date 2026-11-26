@@ -90,12 +90,6 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     return True
 
 
-def format_csv_float(value: object, decimal_comma: bool) -> object:
-    if decimal_comma and isinstance(value, float):
-        return str(value).replace(".", ",")
-    return value
-
-
 def dataframe_to_csv(
     df: IntoFrame, separator: str | None = None, decimal_comma: bool = False
 ) -> str:
@@ -108,21 +102,26 @@ def dataframe_to_csv(
     resolved_separator = separator if separator is not None else ","
 
     frame = df.collect() if is_narwhals_lazyframe(df) else df
-    if resolved_separator == "," and not decimal_comma:
+    if decimal_comma:
+        # Only floats are rewritten, so every other column keeps the
+        # backend's native CSV formatting.
+        frame = frame.with_columns(
+            nw.selectors.by_dtype(nw.Float32, nw.Float64)
+            .cast(nw.String)
+            .str.replace(".", ",", literal=True)
+        )
+    if resolved_separator == ",":
         return frame.write_csv()
 
     # Narwhals inputs can map to different backends, and
     # write_csv(separator=...) is not consistently reliable across them.
-    # Use Python's csv writer for custom separators and decimal formatting.
+    # For non-comma separators, use Python's csv writer for stable behavior.
     buffer = io.StringIO()
     writer = csv.writer(
         buffer, delimiter=resolved_separator, lineterminator="\n"
     )
     writer.writerow(frame.columns)
-    writer.writerows(
-        [format_csv_float(value, decimal_comma) for value in row]
-        for row in frame.iter_rows()
-    )
+    writer.writerows(frame.iter_rows())
     return buffer.getvalue()
 
 
