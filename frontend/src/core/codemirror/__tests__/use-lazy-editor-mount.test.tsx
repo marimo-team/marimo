@@ -109,13 +109,18 @@ it("destroys and rebuilds with current code across Activity hide/show", () => {
     editorViewRef.current = new EditorView({ doc: code });
   });
   function Cell({ code }: { code: string }) {
-    const { elementRef } = useLazyEditorMount({
+    const { elementRef, editorHostRef, mounted } = useLazyEditorMount({
       cellId: "activity",
       editorViewRef,
       build: () => build(code),
       hidden: false,
     });
-    return <div ref={elementRef} />;
+    return (
+      <div ref={elementRef}>
+        <div ref={editorHostRef} />
+        {!mounted && <span>placeholder</span>}
+      </div>
+    );
   }
   const screen = render(
     <Activity mode="visible">
@@ -139,7 +144,10 @@ it("destroys and rebuilds with current code across Activity hide/show", () => {
       <Cell code="second" />
     </Activity>,
   );
+  expect(screen.queryByText("placeholder")).not.toBeNull();
   act(() => editorMountScheduler.promote("activity"));
+  expect(editorViewRef.current?.dom.isConnected).toBe(true);
+  expect(screen.container.querySelectorAll(".cm-editor")).toHaveLength(1);
   expect(build.mock.calls).toEqual([["first"], ["second"]]);
   expect(editorViewRef.current).not.toBe(first);
   expect(editorViewRef.current?.state.doc.toString()).toBe("second");
@@ -190,4 +198,40 @@ it("mounts only the three visible editors in a 500-cell notebook", () => {
     expect(destroy).toHaveBeenCalledTimes(1);
   }
   expect(refs.every((ref) => ref.current === null)).toBe(true);
+});
+
+it("attaches promoted editors before immediate focus and owner lookup", () => {
+  mockIntersectionObservers();
+  const editorViewRef = createRef<EditorView>();
+  function Cell() {
+    const { elementRef, editorHostRef, mounted } = useLazyEditorMount({
+      cellId: "focus",
+      editorViewRef,
+      hidden: true,
+      build: () => {
+        editorViewRef.current = new EditorView({ doc: "needle" });
+      },
+    });
+    return (
+      <div ref={elementRef} data-testid="owner">
+        <div ref={editorHostRef} />
+        {!mounted && <span>placeholder</span>}
+      </div>
+    );
+  }
+  const screen = render(<Cell />);
+  act(() => {
+    editorMountScheduler.promote("focus");
+    const view = editorViewRef.current!;
+    expect(view.dom.isConnected).toBe(true);
+    expect(view.dom.closest('[data-testid="owner"]')).toBe(
+      screen.getByTestId("owner"),
+    );
+    view.focus();
+    expect(view.hasFocus).toBe(true);
+    // React has not committed the mounted state yet.
+    expect(screen.queryByText("placeholder")).not.toBeNull();
+  });
+  expect(screen.queryByText("placeholder")).toBeNull();
+  expect(editorViewRef.current?.hasFocus).toBe(true);
 });

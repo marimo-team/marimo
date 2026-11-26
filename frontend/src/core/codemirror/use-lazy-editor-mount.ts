@@ -27,19 +27,27 @@ export function useLazyEditorMount({
   hidden: boolean;
 }) {
   const elementRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
+  const editorHostRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<EditorView | null>(null);
+  const mounted = view !== null;
   const buildLatest = useEvent(() => {
     build();
-    setMounted(true);
+    const view = editorViewRef.current;
+    if (view && editorHostRef.current) {
+      editorHostRef.current.replaceChildren(view.dom);
+    }
+    setView(view);
   });
 
   useEffect(() => {
-    setMounted(false);
+    const host = editorHostRef.current;
     const cancel = editorMountScheduler.register(cellId, buildLatest);
     return () => {
       cancel();
       editorViewRef.current?.destroy();
       editorViewRef.current = null;
+      host?.replaceChildren();
+      setView(null);
     };
   }, [cellId, buildLatest, editorViewRef]);
 
@@ -63,5 +71,5 @@ export function useLazyEditorMount({
   }, [cellId, awaitsVisibility]);
 
   const promote = useEvent(() => editorMountScheduler.promote(cellId));
-  return { elementRef, mounted, promote };
+  return { elementRef, editorHostRef, view, mounted, promote };
 }

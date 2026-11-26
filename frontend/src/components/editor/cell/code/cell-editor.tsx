@@ -3,7 +3,7 @@ import { historyField } from "@codemirror/commands";
 import { EditorState, type Extension, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import React, { memo, useEffect, useMemo, useRef } from "react";
+import React, { memo, useEffect, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
@@ -347,6 +347,8 @@ const CellEditorInternal = ({
 
   const {
     elementRef: intersectionRef,
+    editorHostRef,
+    view: mountedEditor,
     mounted: isEditorMounted,
     promote,
   } = useLazyEditorMount({
@@ -400,7 +402,7 @@ const CellEditorInternal = ({
     <AiCompletionEditor
       cellId={cellId}
       aiCompletionCell={aiCompletionCell}
-      currentCode={editorViewRef.current?.state.doc.toString() ?? code}
+      currentCode={mountedEditor?.state.doc.toString() ?? code}
       currentLanguageAdapter={languageAdapter}
       declineChange={useEvent(() => {
         setAiCompletionCell(null);
@@ -442,16 +444,19 @@ const CellEditorInternal = ({
           }
         }}
       >
-        {isEditorMounted ? (
-          <CellCodeMirrorEditor
-            className={editorClassName}
-            editorView={editorViewRef.current}
-            ref={editorViewParentRef}
-          />
-        ) : (
-          !isCollapsed && (
-            <CodePlaceholder code={code} className={editorClassName} />
-          )
+        <div
+          className={cn(
+            "cm mathjax_ignore",
+            isEditorMounted && editorClassName,
+          )}
+          ref={useMemo(
+            () => mergeRefs(editorHostRef, editorViewParentRef ?? null),
+            [editorHostRef, editorViewParentRef],
+          )}
+          data-testid="cell-editor"
+        />
+        {!isEditorMounted && !isCollapsed && (
+          <CodePlaceholder code={code} className={editorClassName} />
         )}
         {!hidden && showLanguageToggles && (
           <div className="absolute top-1 right-5">
@@ -468,47 +473,5 @@ const CellEditorInternal = ({
     </AiCompletionEditor>
   );
 };
-
-const CellCodeMirrorEditor = React.forwardRef(
-  (
-    props: {
-      className?: string;
-      editorView: EditorView | null;
-    },
-    ref?: React.Ref<HTMLDivElement>,
-  ) => {
-    const { className, editorView } = props;
-    const internalRef = useRef<HTMLDivElement>(null);
-
-    // If this gets unmounted/remounted, we need to re-append the editorView
-    useEffect(() => {
-      if (editorView === null) {
-        return;
-      }
-      if (internalRef.current === null) {
-        return;
-      }
-      // Has no children, so we can replaceChildren
-      if (internalRef.current.children.length === 0) {
-        internalRef.current.append(editorView.dom);
-      }
-    }, [editorView, internalRef]);
-
-    return (
-      <div
-        className={cn("cm mathjax_ignore", className)}
-        ref={(r) => {
-          if (ref) {
-            mergeRefs(ref, internalRef)(r);
-          } else {
-            mergeRefs(internalRef)(r);
-          }
-        }}
-        data-testid="cell-editor"
-      />
-    );
-  },
-);
-CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
 export const CellEditor = memo(CellEditorInternal);

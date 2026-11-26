@@ -10,7 +10,13 @@ import { createCell } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
 import { cellIdState } from "../../config/extension";
 import { editorMountScheduler } from "../../editor-mount-scheduler";
-import { findNext, getMatches, replaceAll } from "../navigate";
+import {
+  findNext,
+  findPrev,
+  getMatches,
+  replaceAll,
+  replaceNext,
+} from "../navigate";
 import { findReplaceAtom } from "../state";
 
 const { writes } = vi.hoisted(() => ({ writes: vi.fn() }));
@@ -80,29 +86,33 @@ it("counts matches in cells without editors and builds only the navigation targe
   view.destroy();
 });
 
-it("moves past a match whose editor cannot be built", () => {
-  const [stuck, buildable] = [cellId("stuck"), cellId("buildable")];
-  setNotebook([
-    [stuck, "needle = 1", withoutEditor],
-    [buildable, "needle = 2", withoutEditor],
-  ]);
-  const view = new EditorView({
-    state: EditorState.create({
-      doc: "needle = 2",
-      extensions: cellIdState.of(buildable),
-    }),
-  });
-  editorMountScheduler.register(buildable, () => {
-    store.get(notebookAtom).cellHandles[buildable].current = {
-      editorView: view,
-    };
-  });
-  store.set(findReplaceAtom, { type: "setFind", find: "needle" });
+it.each([findNext, findPrev, replaceNext])(
+  "moves past a match whose editor cannot be built with %s",
+  (navigate) => {
+    const [stuck, buildable] = [cellId("stuck"), cellId("buildable")];
+    setNotebook([
+      [stuck, "needle = 1", withoutEditor],
+      [buildable, "needle = 2", withoutEditor],
+    ]);
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "needle = 2",
+        extensions: cellIdState.of(buildable),
+      }),
+    });
+    editorMountScheduler.register(buildable, () => {
+      store.get(notebookAtom).cellHandles[buildable].current = {
+        editorView: view,
+      };
+    });
+    store.set(findReplaceAtom, { type: "setFind", find: "needle" });
 
-  expect(findNext()).toMatchObject({ from: 0, to: 6 });
-  expect(store.get(findReplaceAtom).currentView?.cellId).toBe(buildable);
-  view.destroy();
-});
+    store.set(findReplaceAtom, { type: "setReplace", replace: "needle" });
+    expect(navigate()).toMatchObject({ from: 0, to: 6 });
+    expect(store.get(findReplaceAtom).currentView?.cellId).toBe(buildable);
+    view.destroy();
+  },
+);
 
 it("ignores cells that are not on the page", () => {
   const [visible, folded] = [cellId("visible"), cellId("folded")];
