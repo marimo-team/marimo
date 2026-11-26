@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useMemo } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { notebookAtom, useReducerActions } from "@/core/cells/cells";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
+import { followCollapsedHeadings } from "@/core/cells/collapsed-storage";
 import { followDocument } from "@/core/cells/document";
 import { SCRATCH_CELL_ID, type CellId } from "@/core/cells/ids";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
@@ -472,6 +473,7 @@ export function useNotebookSession(opts: { sessionId: SessionId }) {
       },
       signal: controller.signal,
     });
+    followCollapsedHeadings({ store, signal: controller.signal });
     return () => {
       controller.abort();
       if (store.get(activeDocumentModelAtom) === documentModel) {
