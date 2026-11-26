@@ -165,6 +165,9 @@ def _apply_embed_options(chart: AltairChartType) -> AltairChartType:
 
     embed_options = _apply_format_locales(embed_options)
 
+    # Copy so that the user's chart is not mutated: `usermeta` is only valid
+    # on top-level charts, so it would break `chart | chart` and friends.
+    chart = chart.copy()
     chart["usermeta"] = {
         **prev_usermeta,
         "embedOptions": {
