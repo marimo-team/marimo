@@ -275,12 +275,12 @@ plt.gca()
 
 ### How do I display interactive matplotlib plots?
 
-Use [`marimo.mpl.interactive`][marimo.mpl.interactive].
+Enable pan and zoom with [`mo.ui.matplotlib`][marimo.ui.matplotlib].
 
-```bash
+```python
 fig, ax = plt.subplots()
 ax.plot([1, 2])
-mo.mpl.interactive(ax)
+mo.ui.matplotlib(ax, brush=False, pan=True, zoom=True)
 ```
 
 <a name="faq-rows-columns"></a>

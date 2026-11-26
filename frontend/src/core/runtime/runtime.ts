@@ -340,7 +340,6 @@ export class RuntimeManager {
       "Marimo-Session-Id": getSessionId(),
       "Marimo-Server-Token": this.config.serverToken ?? "",
       // Needed for widgets that need absolute URLs when embedding in an iframe
-      // e.g. mpl.interactive()
       // We don't prefix with `marimo` since those get stripped internally
       "x-runtime-url": this.httpURL.toString(),
     };

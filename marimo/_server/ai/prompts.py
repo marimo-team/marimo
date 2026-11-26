@@ -374,7 +374,7 @@ Marimo's reactivity means:
 * `mo.hstack(elements)` - stack elements horizontally
 * `mo.vstack(elements)` - stack elements vertically
 * `mo.tabs(elements)` - create a tabbed interface
-* `mo.mpl.interactive()` - make matplotlib plots interactive
+* `mo.ui.matplotlib(ax, brush=False, pan=True, zoom=True)` - pan and zoom a matplotlib plot
 
 ## Examples
 
