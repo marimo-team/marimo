@@ -63,8 +63,11 @@ marimo/_lsp: $(shell find packages/lsp)
 license-snapshot:
 	./scripts/generate_license.sh
 
+# The backend serves index.html from marimo/_static, which Vite fetches as its
+# HTML template. It's not rebuilt on every frontend edit since Vite serves the
+# live sources.
 .PHONY: dev
-dev: fe-codegen
+dev: fe-codegen | marimo/_static
 	@echo "Starting development servers..."
 	@(cleanup() { \
 		trap - INT TERM; \
@@ -74,7 +77,7 @@ dev: fe-codegen
 	trap cleanup EXIT; trap 'exit 0' INT TERM; \
 	uv run marimo edit --no-token --headless /tmp --port 2718 & \
 	backend=$$!; pnpm --dir frontend exec vite)
-dev-sandbox:
+dev-sandbox: | marimo/_static
 	@echo "Starting development servers..."
 	@(cleanup() { \
 		trap - INT TERM; \
