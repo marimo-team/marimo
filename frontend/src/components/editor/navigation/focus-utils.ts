@@ -1,18 +1,30 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { createStore } from "jotai";
-import { getCellEditorView } from "@/core/cells/cells";
+import type { EditorView } from "@codemirror/view";
+import { ensureCellEditorView } from "@/core/cells/cells";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";
 import { Logger } from "@/utils/Logger";
+import { retryWithTimeout } from "@/utils/timeout";
 
-export function focusCellEditor(
-  store: ReturnType<typeof createStore>,
-  cellId: CellId,
-): void {
-  const editor = getCellEditorView(cellId);
+/**
+ * Focus an editor that may have just been built. It is attached to the page
+ * only after React renders, so a single focus call would be ignored.
+ */
+export function focusEditor(editor: EditorView): void {
+  retryWithTimeout(
+    () => {
+      editor.focus();
+      return editor.hasFocus;
+    },
+    { retries: 5, delay: 20 },
+  );
+}
+
+export function focusCellEditor(cellId: CellId): void {
+  const editor = ensureCellEditorView(cellId);
   if (editor) {
-    editor.focus();
+    focusEditor(editor);
   } else {
     Logger.warn(
       `[CellFocusManager] focusCellEditor: element not found: ${cellId}`,

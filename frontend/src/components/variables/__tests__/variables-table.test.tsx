@@ -58,10 +58,9 @@ describe("VariableTable cell links", () => {
     // state right after a large notebook opens.
     const handle: { current: CellHandle | null } = { current: null };
     notebook.cellHandles[definingCell] = handle;
-    editorMountScheduler.request(definingCell, () => {
+    editorMountScheduler.register(definingCell, () => {
       handle.current = {
         editorView: definingView,
-        editorViewOrNull: definingView,
       };
     });
     store.set(notebookAtom, notebook);

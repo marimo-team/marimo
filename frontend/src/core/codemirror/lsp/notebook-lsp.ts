@@ -10,9 +10,9 @@ import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import { Objects } from "@/utils/objects";
 import { isRecord } from "@/utils/records";
+import { writeCellCode } from "../cell-documents";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { topologicalCodesAtom } from "../copilot/getCodes";
-import { prepareCellCodeUpdate } from "../language/cell-code";
 import { getEditorCodeAsPython } from "../language/utils";
 import { createNotebookLens, type NotebookLens } from "./lens";
 import { normalizeLspDocumentation } from "./normalize-markdown-math";
@@ -88,7 +88,7 @@ class Snapshotter {
 
 const defaultGetNotebookEditors = () => {
   const evs = getNotebook().cellHandles;
-  return Objects.mapValues(evs, (r) => r.current?.editorViewOrNull);
+  return Objects.mapValues(evs, (r) => r.current?.editorView);
 };
 
 function normalizeTextDocumentation(
@@ -756,22 +756,12 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
         continue;
       }
 
-      if (!ev) {
-        Logger.warn(
-          "[lsp] No editor view for cell during rename",
-          currentCellId,
-        );
-        failedCells.push(currentCellId);
-        continue;
-      }
-
       // Only update if it has changed
-      const code = getEditorCodeAsPython(ev);
+      const code = ev
+        ? getEditorCodeAsPython(ev)
+        : getNotebook().cellData[currentCellId]?.code;
       if (code !== newCode) {
-        const update = prepareCellCodeUpdate(ev.state, newCode);
-        if (update) {
-          ev.dispatch(update);
-        }
+        writeCellCode(currentCellId, newCode);
         updatedCount++;
       }
     }

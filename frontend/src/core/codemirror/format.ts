@@ -9,53 +9,48 @@ import { Logger } from "@/utils/Logger";
 import { Objects } from "../../utils/objects";
 import { getNotebook } from "../cells/cells";
 import type { CellId } from "../cells/ids";
-import { notebookCellEditorViews } from "../cells/utils";
 import { getResolvedMarimoConfig } from "../config/config";
 import type { ConnectionName } from "../datasets/engines";
 import { getRequestClient } from "../network/requests";
+import { store } from "../state/jotai";
+import { writeCellCode } from "./cell-documents";
+import { notebookCellCodes } from "./copilot/getCodes";
 import { languageAdapterState } from "./language/extension";
 import { SCHEMA_CACHE } from "./language/languages/sql/completion-store";
 import { isKnownDialect } from "./language/languages/sql/utils";
-import { prepareCellCodeUpdate } from "./language/cell-code";
-import { getEditorCodeAsPython } from "./language/utils";
 import { replaceEditorContent } from "./replace-editor-content";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
 /**
- * Format the code in the editor views via the marimo server,
- * and update the editor views with the formatted code.
+ * Format cells via the marimo server and write back the cells that changed.
+ * Cells without an editor are formatted from the notebook document.
  */
-export async function formatEditorViews(views: Record<CellId, EditorView>) {
-  const { sendFormat } = getRequestClient();
-  const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
+export async function formatCells(cellIds: readonly CellId[]) {
+  const allCodes = store.get(notebookCellCodes);
+  const codes = Objects.fromEntries(
+    cellIds
+      .filter((cellId) => cellId in allCodes)
+      .map((cellId) => [cellId, allCodes[cellId]]),
+  );
 
-  const formatResponse = await sendFormat({
+  const { codes: formattedCodes } = await getRequestClient().sendFormat({
     codes,
     lineLength: getResolvedMarimoConfig().formatting.line_length,
   });
 
-  for (const [cellIdString, formattedCode] of Objects.entries(
-    formatResponse.codes,
-  )) {
-    const cellId = cellIdString as CellId;
-    const originalCode = codes[cellId];
-    const view = views[cellId];
-
-    if (!view) {
+  const currentCodes = store.get(notebookCellCodes);
+  for (const cellId of Objects.keys(codes)) {
+    const formattedCode = formattedCodes[cellId];
+    const unchanged =
+      formattedCode === undefined || formattedCode === codes[cellId];
+    const editedSinceRequest = currentCodes[cellId] !== codes[cellId];
+    if (unchanged || editedSinceRequest) {
       continue;
     }
-
-    // Only update the editor view if the formatted code is different
-    // from the original code
-    if (formattedCode === originalCode) {
-      continue;
-    }
-
-    const update = prepareCellCodeUpdate(view.state, formattedCode);
-    if (update) {
-      view.dispatch(update, { effects: formattingChangeEffect.of(true) });
-    }
+    writeCellCode(cellId, formattedCode, {
+      effects: [formattingChangeEffect.of(true)],
+    });
   }
 }
 
@@ -63,8 +58,7 @@ export async function formatEditorViews(views: Record<CellId, EditorView>) {
  * Format all cells in the notebook.
  */
 export function formatAll() {
-  const views = notebookCellEditorViews(getNotebook());
-  return formatEditorViews(views);
+  return formatCells(getNotebook().cellIds);
 }
 
 /**

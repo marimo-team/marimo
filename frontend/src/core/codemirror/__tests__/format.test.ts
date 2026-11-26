@@ -9,10 +9,9 @@ import { atom } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
-import type { NotebookState } from "@/core/cells/cells";
-import { getNotebook } from "@/core/cells/cells";
+import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { notebookCellEditorViews } from "@/core/cells/utils";
+import { createCell } from "@/core/cells/types";
 import { getResolvedMarimoConfig } from "@/core/config/config";
 import type { ConnectionName } from "@/core/datasets/engines";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -20,7 +19,7 @@ import { requestClientAtom } from "@/core/network/requests";
 import type { MarimoConfig } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { cellIdState } from "../config/extension";
-import { formatAll, formatEditorViews, formatSQL } from "../format";
+import { formatAll, formatCells, formatSQL } from "../format";
 import {
   adaptiveLanguageConfiguration,
   switchLanguage,
@@ -28,14 +27,13 @@ import {
 
 const mockRequestClient = MockRequestClient.create();
 
-vi.mock("@/core/cells/cells", () => ({
-  getNotebook: vi.fn(),
-}));
-
-vi.mock("@/core/cells/utils", () => ({
-  notebookCellEditorViews: vi.fn(),
-}));
-
+const { writtenCodes } = vi.hoisted(() => ({ writtenCodes: vi.fn() }));
+vi.mock("@/core/cells/actions", async () => {
+  const { atom } = await import("jotai");
+  return {
+    setCellCodeAtom: atom(null, (_get, _set, value) => writtenCodes(value)),
+  };
+});
 vi.mock("@/core/config/config", () => ({
   getResolvedMarimoConfig: vi.fn(),
   resolvedMarimoConfigAtom: atom({
@@ -94,88 +92,112 @@ afterEach(() => {
 });
 
 describe("format", () => {
-  describe("formatEditorViews", () => {
-    it("should format code in editor views", async () => {
-      const cid1 = cellId("1");
-      const cid2 = cellId("2");
-      const views = {
-        [cid1]: createEditor("import numpy as    np", cid1),
-        [cid2]: createEditor("import pandas as    pd", cid2),
-      };
+  describe("formatCells", () => {
+    const mounted = cellId("mounted");
+    const dormant = cellId("dormant");
 
-      const formattedCode1 = "import numpy as np";
-      const formattedCode2 = "import pandas as pd";
-
-      mockRequestClient.sendFormat.mockResolvedValueOnce({
-        codes: {
-          [cid1]: formattedCode1,
-          [cid2]: formattedCode2,
+    function setNotebook(view: EditorView) {
+      store.set(notebookAtom, {
+        ...initialNotebookState(),
+        cellIds: [mounted, dormant],
+        cellData: {
+          [mounted]: createCell({ id: mounted, code: "import numpy as    np" }),
+          [dormant]: createCell({
+            id: dormant,
+            code: "import pandas as    pd",
+          }),
+        },
+        cellHandles: {
+          [mounted]: { current: { editorView: view } },
+          [dormant]: { current: { editorView: null } },
         },
       });
+    }
 
+    function formatted() {
+      return {
+        codes: {
+          [mounted]: "import numpy as np",
+          [dormant]: "import pandas as pd",
+        },
+      };
+    }
+
+    afterEach(() => {
+      store.set(notebookAtom, initialNotebookState());
+    });
+
+    it("formats an editor in place and a cell without one through the document", async () => {
+      const view = createEditor("import numpy as    np", mounted);
+      setNotebook(view);
+      mockRequestClient.sendFormat.mockResolvedValueOnce(formatted());
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatEditorViews(views);
+      await formatCells([mounted, dormant]);
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {
-          [cid1]: "import numpy as    np",
-          [cid2]: "import pandas as    pd",
+          [mounted]: "import numpy as    np",
+          [dormant]: "import pandas as    pd",
         },
         lineLength: 88,
       });
-
-      expect(views[cid1].state.doc.toString()).toBe(formattedCode1);
-      expect(views[cid2].state.doc.toString()).toBe(formattedCode2);
+      expect(view.state.doc.toString()).toBe("import numpy as np");
+      expect(writtenCodes.mock.calls).toEqual([
+        [{ cellId: dormant, code: "import pandas as pd" }],
+      ]);
     });
 
-    it("should not update editor if formatted code is same as original", async () => {
-      const cid = cellId("1");
-      const originalCode = "import numpy as np";
-      const views = {
-        [cid]: createEditor(originalCode, cid),
-      };
-
+    it("leaves cells that formatting did not change", async () => {
+      const view = createEditor("import numpy as    np", mounted);
+      setNotebook(view);
       mockRequestClient.sendFormat.mockResolvedValueOnce({
         codes: {
-          [cid]: originalCode,
+          [mounted]: "import numpy as    np",
+          [dormant]: "import pandas as    pd",
         },
       });
-
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatEditorViews(views);
+      await formatCells([mounted, dormant]);
 
-      expect(views[cid].state.doc.toString()).toBe(originalCode);
+      expect(view.state.doc.toString()).toBe("import numpy as    np");
+      expect(writtenCodes).not.toHaveBeenCalled();
     });
-  });
 
-  describe("formatAll", () => {
-    it("should format all cells in notebook", async () => {
-      const cid1 = cellId("1");
-      const cid2 = cellId("2");
-      const views = {
-        [cid1]: createEditor("import numpy as    np", cid1),
-        [cid2]: createEditor("import pandas as    pd", cid2),
-      };
-
-      vi.mocked(getNotebook).mockReturnValueOnce({} as NotebookState);
-      vi.mocked(notebookCellEditorViews).mockReturnValueOnce(views);
-      mockRequestClient.sendFormat.mockResolvedValueOnce({
-        codes: {
-          [cid1]: "import numpy as np",
-          [cid2]: "import pandas as pd",
-        },
+    it("skips a cell edited while the server was formatting", async () => {
+      const view = createEditor("import numpy as    np", mounted);
+      setNotebook(view);
+      mockRequestClient.sendFormat.mockImplementationOnce(async () => {
+        const notebook = store.get(notebookAtom);
+        store.set(notebookAtom, {
+          ...notebook,
+          cellData: {
+            ...notebook.cellData,
+            [dormant]: createCell({ id: dormant, code: "x = 1" }),
+          },
+        });
+        return formatted();
       });
+      vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
+      await formatCells([mounted, dormant]);
+
+      expect(view.state.doc.toString()).toBe("import numpy as np");
+      expect(writtenCodes).not.toHaveBeenCalled();
+    });
+
+    it("formats every cell of the notebook with formatAll", async () => {
+      setNotebook(createEditor("import numpy as    np", mounted));
+      mockRequestClient.sendFormat.mockResolvedValueOnce(formatted());
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
       await formatAll();
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {
-          [cid1]: "import numpy as    np",
-          [cid2]: "import pandas as    pd",
+          [mounted]: "import numpy as    np",
+          [dormant]: "import pandas as    pd",
         },
         lineLength: 88,
       });

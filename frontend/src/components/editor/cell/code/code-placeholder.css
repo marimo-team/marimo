@@ -1,18 +1,68 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+/* Colors mirror core/codemirror/theme/{light,dark}.ts so building the editor does not recolor the code. */
+
+/* The editor's line-number gutter pushes its text right; leave the same room so the code does not jump. */
 .mo-code-placeholder {
-  --mo-skeleton-bar: color-mix(in srgb, var(--muted), var(--foreground) 18%);
-  cursor: default;
-  padding: 4px 10px;
-  font-size: var(--cm-font-size, 0.875rem);
+  --mo-gutter-digits: 2;
+
+  cursor: text;
+  padding: 8px 29px 8px
+    calc(
+      53.5px + min(var(--mo-gutter-digits) - 1, 1) * 3.1px + max(var(--mo-gutter-digits) - 2, 0) *
+        7.56px
+    );
+  font-size: var(--marimo-code-editor-font-size, 0.9rem);
+  font-family: var(--monospace-font);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+  color: light-dark(#000, #abb2bf);
 }
 
-.mo-code-placeholder-line {
-  display: flex;
-  align-items: center;
-  height: 1.5em;
+.mo-code-placeholder-rest {
+  height: calc(
+    var(--mo-hidden-lines) * 1.4 * var(--marimo-code-editor-font-size, 0.9rem)
+  );
 }
 
-.mo-code-placeholder-bar {
-  height: 0.7em;
-  background-color: var(--mo-skeleton-bar);
+.mo-code-placeholder .tok-keyword {
+  color: light-dark(#708, #c678dd);
+  font-weight: 500;
+}
+
+.mo-code-placeholder .tok-string,
+.mo-code-placeholder .tok-string2 {
+  color: light-dark(#a11, #98c379);
+}
+
+.mo-code-placeholder .tok-number {
+  color: light-dark(#164, #d19a66);
+}
+
+.mo-code-placeholder .tok-bool,
+.mo-code-placeholder .tok-atom {
+  color: light-dark(#219, #d19a66);
+}
+
+.mo-code-placeholder .tok-operator {
+  color: light-dark(#a2f, #56b6c2);
+  font-weight: 500;
+}
+
+.mo-code-placeholder .tok-className {
+  color: light-dark(#00f, #61afef);
+}
+
+.mo-code-placeholder .tok-typeName {
+  color: light-dark(#085, #56b6c2);
+}
+
+.mo-code-placeholder .tok-propertyName {
+  color: light-dark(#05a, #e5c07b);
+}
+
+.mo-code-placeholder .tok-comment {
+  color: var(--cm-comment);
 }

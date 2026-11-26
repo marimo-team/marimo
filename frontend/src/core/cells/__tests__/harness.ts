@@ -92,7 +92,6 @@ export function setupNotebook(
       });
       store.get(notebookAtom).cellHandles[id].current = {
         editorView: view,
-        editorViewOrNull: view,
       };
       return view;
     },

@@ -66,13 +66,9 @@ export function focusInputAndMoveToEnd(
  * https://github.com/marimo-team/marimo/issues/10222
  */
 export function scrollOwnerCell(view: EditorView): void {
-  const cell = view.dom.closest(".marimo-cell");
-  if (!cell) {
-    return;
-  }
-
+  // Look the cell up in the frame: a freshly built editor is attached later.
   requestAnimationFrame(() => {
-    cell.scrollIntoView({
+    view.dom.closest(".marimo-cell")?.scrollIntoView({
       behavior: "instant",
       block: "nearest",
       inline: "nearest",

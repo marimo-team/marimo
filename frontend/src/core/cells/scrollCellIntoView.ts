@@ -1,11 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { RefObject } from "react";
 import {
+  focusEditor,
   isAnyCellFocused,
   tryFocus,
 } from "@/components/editor/navigation/focus-utils";
 import type { CellHandle } from "@/components/editor/notebook-cell";
-import { retryWithTimeout } from "@/utils/timeout";
 import { Logger } from "../../utils/Logger";
 import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 import { scrollActiveLineIntoView } from "../codemirror/extensions";
@@ -49,8 +49,8 @@ export function focusAndScrollCellIntoView({
     // https://github.com/marimo-team/marimo/issues/2940
     tryFocus(element);
   } else {
-    // Build this cell's editor now if it is still queued, so focus can land in
-    // it instead of the placeholder.
+    // Build this cell's editor now if it is still dormant, so focus can land
+    // in it instead of the placeholder.
     editorMountScheduler.promote(cellId);
     const editor = cell.current?.editorView;
     if (!editor) {
@@ -63,17 +63,7 @@ export function focusAndScrollCellIntoView({
       return;
     }
 
-    // Try to focus a few times
-    retryWithTimeout(
-      () => {
-        editor.focus();
-        return editor.hasFocus;
-      },
-      {
-        retries: 5,
-        delay: 20,
-      },
-    );
+    focusEditor(editor);
 
     if (codeFocus === "top") {
       // If codeFocus is top, move the cursor to the top of the editor.

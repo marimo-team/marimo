@@ -37,6 +37,21 @@ type TestLanguageServerClient = ILanguageServerClient & {
 
 type GetNotebookEditors = () => Record<CellId, EditorView | null | undefined>;
 
+// The notebook the mocked store reports, so writes find the same editors.
+let mountedEditors: ReturnType<GetNotebookEditors> = {};
+
+function notebookWithMountedEditors() {
+  return {
+    ...initialNotebookState(),
+    cellHandles: Object.fromEntries(
+      Object.entries(mountedEditors).map(([cellId, view]) => [
+        cellId,
+        { current: { editorView: view } },
+      ]),
+    ),
+  };
+}
+
 function replaceNotebookEditors(
   client: NotebookLanguageServerClient,
   getNotebookEditors: GetNotebookEditors,
@@ -45,6 +60,7 @@ function replaceNotebookEditors(
     getNotebookEditors: GetNotebookEditors;
   };
   mutableClient.getNotebookEditors = getNotebookEditors;
+  mountedEditors = getNotebookEditors();
 }
 
 function isPublishDiagnosticsNotification(
@@ -339,6 +355,9 @@ describe("NotebookLanguageServerClient", () => {
 
     // Mock the atom instead of the instance method
     vi.spyOn(store, "get").mockImplementation((atom) => {
+      if (atom === notebookAtom) {
+        return notebookWithMountedEditors();
+      }
       if (atom === topologicalCodesAtom) {
         return {
           cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
@@ -1370,6 +1389,9 @@ describe("NotebookLanguageServerClient", () => {
 
       // Update the mock to return the correct codes
       vi.spyOn(store, "get").mockImplementation((atom) => {
+        if (atom === notebookAtom) {
+          return notebookWithMountedEditors();
+        }
         if (atom === topologicalCodesAtom) {
           return {
             cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
@@ -1481,6 +1503,9 @@ describe("NotebookLanguageServerClient", () => {
 
       // Update the mock to return the correct codes
       vi.spyOn(store, "get").mockImplementation((atom) => {
+        if (atom === notebookAtom) {
+          return notebookWithMountedEditors();
+        }
         if (atom === topologicalCodesAtom) {
           return {
             cellIds: [Cells.cell1, Cells.cell2],

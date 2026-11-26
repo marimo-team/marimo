@@ -2,7 +2,9 @@
 
 import type { EditorView } from "@codemirror/view";
 import { atomWithReducer } from "jotai/utils";
+import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
+import { cellIdState } from "../config/extension";
 
 interface FindReplaceState {
   findText: string;
@@ -12,7 +14,7 @@ interface FindReplaceState {
   regexp: boolean;
   isOpen: boolean;
   currentView?: {
-    view: EditorView;
+    cellId: CellId;
     range: { from: number; to: number };
   };
 }
@@ -82,7 +84,10 @@ export const findReplaceAtom = atomWithReducer<FindReplaceState, Action>(
       case "setCurrentView":
         return {
           ...state,
-          currentView: { view: action.view, range: action.range },
+          currentView: {
+            cellId: action.view.state.facet(cellIdState),
+            range: action.range,
+          },
         };
       case "clearCurrentView":
         return { ...state, currentView: undefined };

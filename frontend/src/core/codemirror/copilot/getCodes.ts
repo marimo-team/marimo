@@ -7,24 +7,13 @@ import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variables } from "@/core/variables/types";
 import { Objects } from "@/utils/objects";
-import { getEditorCodeAsPython } from "../language/utils";
+import { getCellPythonCode } from "../cell-documents";
 
 export const notebookCellCodes = atom((get) => {
   const notebook = get(notebookAtom);
-  const codes = Objects.fromEntries(
-    notebook.cellIds.map((id) => {
-      // A cell editor mounts progressively, so the notebook store is the only
-      // complete source of code until every editor is built.
-      const editorView = notebook.cellHandles[id]?.current?.editorViewOrNull;
-      return [
-        id,
-        editorView
-          ? getEditorCodeAsPython(editorView)
-          : (notebook.cellData[id]?.code ?? ""),
-      ];
-    }),
+  return Objects.fromEntries(
+    notebook.cellIds.map((id) => [id, getCellPythonCode(id, notebook)]),
   );
-  return codes;
 });
 
 export function getCodes(otherCode: string) {

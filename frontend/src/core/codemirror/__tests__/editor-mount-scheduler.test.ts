@@ -2,142 +2,112 @@
 import { describe, expect, it } from "vitest";
 import { createEditorMountScheduler } from "../editor-mount-scheduler";
 
-function makeManualSchedule() {
+function setup() {
   let pending: (() => void) | null = null;
-  const schedule = (cb: () => void) => {
-    pending = cb;
-  };
   const flush = () => {
-    const cb = pending;
+    const task = pending;
     pending = null;
-    cb?.();
+    task?.();
   };
-  return { schedule, flush, hasPending: () => pending !== null };
+  const scheduler = createEditorMountScheduler((task) => {
+    pending = task;
+  });
+  const built: string[] = [];
+  const register = (cellId: string) =>
+    scheduler.register(cellId, () => built.push(cellId));
+  return { scheduler, register, built, flush, hasPending: () => !!pending };
 }
 
 describe("createEditorMountScheduler", () => {
-  it("builds one queued editor per tick in FIFO order, rescheduling between", () => {
-    const { schedule, flush, hasPending } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
-    s.request("b", () => built.push("b"));
+  it("keeps registrations dormant until prioritized or promoted", () => {
+    const { scheduler, register, built, flush, hasPending } = setup();
+    register("a");
+    register("b");
+    register("c");
+    expect(hasPending()).toBe(false);
+
+    scheduler.prioritize("b");
     flush();
-    expect(built).toEqual(["a"]);
-    expect(hasPending()).toBe(true);
-    flush();
-    expect(built).toEqual(["a", "b"]);
+    expect(built).toEqual(["b"]);
+    expect(hasPending()).toBe(false);
+
+    scheduler.promote("c");
+    scheduler.promote("c");
+    expect(built).toEqual(["b", "c"]);
   });
 
-  it("stops rescheduling once the queue is empty", () => {
-    const { schedule, flush, hasPending } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
+  it("builds prioritized cells one per task, in prioritization order", () => {
+    const { scheduler, register, built, flush, hasPending } = setup();
+    register("a");
+    register("b");
+    register("c");
+    scheduler.prioritize("c");
+    scheduler.prioritize("a");
     flush();
-    expect(built).toEqual(["a"]);
+    expect(built).toEqual(["c"]);
+    expect(hasPending()).toBe(true);
+    flush();
+    expect(built).toEqual(["c", "a"]);
     expect(hasPending()).toBe(false);
   });
 
-  it("promote builds immediately and removes from the queue", () => {
-    const { schedule, flush } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
-    s.request("b", () => built.push("b"));
-    s.promote("b");
-    expect(built).toEqual(["b"]);
+  it("does not build a cell that was deprioritized or disposed", () => {
+    const { scheduler, register, built, flush } = setup();
+    register("a");
+    const disposeB = register("b");
+    scheduler.prioritize("a");
+    scheduler.deprioritize("a");
+    scheduler.prioritize("b");
+    disposeB();
     flush();
-    expect(built).toEqual(["b", "a"]);
-  });
-
-  it("cancel prevents a queued build", () => {
-    const { schedule, flush } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
-    s.cancel("a");
-    flush();
+    scheduler.promote("b");
     expect(built).toEqual([]);
-  });
 
-  it("builds prioritized cells before earlier-queued ones", () => {
-    const { schedule, flush } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
-    s.request("b", () => built.push("b"));
-    s.request("c", () => built.push("c"));
-    s.prioritize("c");
-    flush();
-    flush();
-    flush();
-    expect(built).toEqual(["c", "a", "b"]);
-  });
-
-  it("builds multiple prioritized cells in prioritization order, then FIFO", () => {
-    const { schedule, flush } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
-    s.request("b", () => built.push("b"));
-    s.request("c", () => built.push("c"));
-    s.request("d", () => built.push("d"));
-    s.prioritize("d");
-    s.prioritize("b");
-    flush();
-    flush();
-    flush();
-    flush();
-    expect(built).toEqual(["d", "b", "a", "c"]);
-  });
-
-  it("ignores prioritize for a cell that is not queued", () => {
-    const { schedule, flush } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
-    s.prioritize("not-queued");
+    scheduler.prioritize("a");
     flush();
     expect(built).toEqual(["a"]);
   });
 
-  it("deprioritize reverts a cell to FIFO order without dropping it", () => {
-    const { schedule, flush } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
-    s.request("b", () => built.push("b"));
-    s.prioritize("b");
-    s.deprioritize("b");
-    flush();
-    flush();
-    expect(built).toEqual(["a", "b"]);
+  it("ignores prioritize for a cell that is not registered", () => {
+    const { scheduler, hasPending } = setup();
+    scheduler.prioritize("missing");
+    expect(hasPending()).toBe(false);
   });
 
-  it("keeps draining the queue after a build throws", () => {
-    const { schedule, flush } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => {
+  it("lets a stale or repeated disposal leave a replacement registration alone", () => {
+    const { scheduler, built, flush } = setup();
+    const stale = scheduler.register("a", () => built.push("stale"));
+    const current = scheduler.register("a", () => built.push("current"));
+    stale();
+    stale();
+    scheduler.prioritize("a");
+    flush();
+    current();
+    expect(built).toEqual(["current"]);
+  });
+
+  it("allows a build to register new work for the same cell", () => {
+    const { scheduler, built, flush } = setup();
+    scheduler.register("a", () => {
+      built.push("first");
+      scheduler.register("a", () => built.push("second"));
+    });
+    scheduler.promote("a");
+    scheduler.promote("a");
+    flush();
+    expect(built).toEqual(["first", "second"]);
+  });
+
+  it("keeps draining prioritized cells after a build throws", () => {
+    const { scheduler, register, built, flush } = setup();
+    scheduler.register("a", () => {
       throw new Error("boom");
     });
-    s.request("b", () => built.push("b"));
+    register("b");
+    scheduler.prioritize("a");
+    scheduler.prioritize("b");
     expect(() => flush()).toThrow("boom");
     flush();
     expect(built).toEqual(["b"]);
-  });
-
-  it("cancel removes a prioritized cell", () => {
-    const { schedule, flush } = makeManualSchedule();
-    const built: string[] = [];
-    const s = createEditorMountScheduler(schedule);
-    s.request("a", () => built.push("a"));
-    s.request("b", () => built.push("b"));
-    s.prioritize("b");
-    s.cancel("b");
-    flush();
-    flush();
-    expect(built).toEqual(["a"]);
   });
 });

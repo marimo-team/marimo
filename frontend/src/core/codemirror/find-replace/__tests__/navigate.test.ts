@@ -3,8 +3,10 @@
 import { EditorState, Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cellId } from "@/__tests__/branded";
 import { store } from "@/core/state/jotai";
 import { invariant } from "@/utils/invariant";
+import { cellIdState } from "../../config/extension";
 import {
   findNext,
   findPrev,
@@ -14,10 +16,24 @@ import {
 } from "../navigate";
 import { findReplaceAtom } from "../state";
 
-// Mock getAllEditorViews to return our test views
+const cell1 = cellId("cell-1");
+const cell2 = cellId("cell-2");
+
+// Present the test views as the mounted documents of two cells.
 const mockGetAllEditorViews = vi.fn();
-vi.mock("@/core/cells/cells", () => ({
-  getAllEditorViews: () => mockGetAllEditorViews(),
+const { writeCellCode } = vi.hoisted(() => ({ writeCellCode: vi.fn() }));
+vi.mock("../../cell-documents", () => ({
+  getCellDocuments: () =>
+    mockGetAllEditorViews().map((view: EditorView) => ({
+      cellId: view.state.facet(cellIdState),
+      view,
+      state: view.state,
+      code: view.state.doc.toString(),
+      ensureView: () => view,
+      applyChanges: (changes: unknown, userEvent: string) =>
+        view.dispatch({ changes, userEvent } as never),
+    })),
+  writeCellCode,
 }));
 
 /**
@@ -49,10 +65,12 @@ describe("navigate", () => {
     // Create test editor views with different content
     const state1 = EditorState.create({
       doc: Text.of(["Hello world", "This is a test", "Hello again"]),
+      extensions: [cellIdState.of(cell1)],
     });
 
     const state2 = EditorState.create({
       doc: Text.of(["Another hello", "Different content", "Hello there"]),
+      extensions: [cellIdState.of(cell2)],
     });
 
     // Create mock views that track dispatch calls
@@ -116,7 +134,7 @@ describe("navigate", () => {
 
       // Check that state was updated
       const state = store.get(findReplaceAtom);
-      expect(state.currentView?.view).toBe(view1);
+      expect(state.currentView?.cellId).toBe(cell1);
       expect(state.currentView?.range).toEqual({ from: 0, to: 5 });
     });
 
@@ -136,7 +154,7 @@ describe("navigate", () => {
       expect(view1.dispatch).toHaveBeenCalled();
 
       const state = store.get(findReplaceAtom);
-      expect(state.currentView?.view).toBeDefined();
+      expect(state.currentView?.cellId).toBeDefined();
     });
 
     it("should wrap around to beginning when reaching end", () => {
@@ -153,7 +171,7 @@ describe("navigate", () => {
       invariant(result, "findNext should return a result");
       // Should wrap back to view1
       const state = store.get(findReplaceAtom);
-      expect(state.currentView?.view).toBe(view1);
+      expect(state.currentView?.cellId).toBe(cell1);
     });
 
     it("should return false when no matches found", () => {
@@ -291,7 +309,7 @@ describe("navigate", () => {
       invariant(result, "findNext should return a result");
       // Should find match in view2 or wrap to view1
       const state = store.get(findReplaceAtom);
-      expect([view1, view2]).toContain(state.currentView?.view);
+      expect([cell1, cell2]).toContain(state.currentView?.cellId);
     });
 
     it("should return false when no previous matches", () => {
@@ -329,10 +347,15 @@ describe("navigate", () => {
         undoHandler();
       }
       // Should restore original content
-      expect(view1.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userEvent: "input.replace.all",
-        }),
+      expect(writeCellCode).toHaveBeenCalledWith(
+        cell1,
+        "Hello world\nThis is a test\nHello again",
+        { userEvent: "input.replace.all" },
+      );
+      expect(writeCellCode).toHaveBeenCalledWith(
+        cell2,
+        "Another hello\nDifferent content\nHello there",
+        { userEvent: "input.replace.all" },
       );
     });
 
@@ -340,7 +363,10 @@ describe("navigate", () => {
       // Create a read-only state
       const readOnlyState = EditorState.create({
         doc: Text.of(["Hello world", "This is a test"]),
-        extensions: [EditorState.readOnly.of(true)],
+        extensions: [
+          EditorState.readOnly.of(true),
+          cellIdState.of(cellId("cell-3")),
+        ],
       });
 
       const readOnlyView = createMockView(readOnlyState);
@@ -497,8 +523,8 @@ describe("navigate", () => {
 
       invariant(result, "getMatches should return a result");
       // Check that positions are stored correctly
-      const view1Positions = result.position.get(view1);
-      const view2Positions = result.position.get(view2);
+      const view1Positions = result.position.get(cell1);
+      const view2Positions = result.position.get(cell2);
 
       invariant(view1Positions, "Expected positions for the first view");
       expect(view1Positions.size).toBeGreaterThan(0);
@@ -575,8 +601,8 @@ describe("navigate", () => {
       const isDifferentMatch =
         firstMatchRange?.from !== secondMatchRange?.from ||
         firstMatchRange?.to !== secondMatchRange?.to ||
-        stateAfterFirst.currentView?.view !==
-          stateAfterSecond.currentView?.view;
+        stateAfterFirst.currentView?.cellId !==
+          stateAfterSecond.currentView?.cellId;
 
       expect(isDifferentMatch).toBe(true);
     });

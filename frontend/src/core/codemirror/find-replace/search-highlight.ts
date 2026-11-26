@@ -57,8 +57,10 @@ export function clearGlobalSearchQuery() {
 export const searchState: StateField<QueryType> = StateField.define<QueryType>({
   create() {
     const state = store.get(findReplaceAtom);
+    // Editors are built on demand, so one built after the panel closed must
+    // not highlight the previous search.
     const search = new SearchQuery({
-      search: state.findText,
+      search: state.isOpen ? state.findText : "",
       caseSensitive: state.caseSensitive,
       regexp: state.regexp,
       replace: state.replaceText,

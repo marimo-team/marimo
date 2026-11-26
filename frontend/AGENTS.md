@@ -68,3 +68,6 @@ switch (value) {
 - Give layout effects explicit dependencies. When a component has no visible content, avoid layout reads.
 - Test listener, dispatch, and layout-read counts in normal unit tests. Avoid timing thresholds for these guarantees.
   Cover repeated mounts, final cleanup, queued work after destruction, unchanged results, and changed results.
+
+- Build cell editors only through `useLazyEditorMount`. Text operations across cells read and write cell documents (`getCellDocuments`, `writeCellCode`), since `getAllEditorViews` returns only the editors that are built.
+- `getCellEditorView` returns a built editor only. Use `ensureCellEditorView` for an explicit action on one cell, and `focusCellEditor` to build and focus one.

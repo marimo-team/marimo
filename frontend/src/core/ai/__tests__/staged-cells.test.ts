@@ -17,30 +17,14 @@ import {
 const { createActions, reducer, initialState } = visibleForTesting;
 
 // Mock the dependencies
-const mockSetCellCode = vi.fn();
 const mockDeleteCellCallback = vi.fn();
+const { writeCellCode } = vi.hoisted(() => ({ writeCellCode: vi.fn() }));
 
-// Mock cell handle with editor view
-const mockCellHandle = {
-  current: {
-    editorViewOrNull: {
-      dispatch: vi.fn(),
-    },
-  },
-};
-
-vi.mock("../../cells/actions", () => ({
-  useCellActions: () => ({
-    setCellCode: mockSetCellCode,
-  }),
-}));
 vi.mock("../../cells/cells", async () => {
   const { atom } = await import("jotai");
-  return {
-    notebookAtom: atom({ cellData: {}, cellIds: [] }),
-    getCellEditorView: vi.fn(() => mockCellHandle.current.editorViewOrNull),
-  };
+  return { notebookAtom: atom({ cellData: {}, cellIds: [] }) };
 });
+vi.mock("../../codemirror/cell-documents", () => ({ writeCellCode }));
 
 vi.mock("@/components/editor/cell/useDeleteCell", () => ({
   useDeleteCellCallback: () => mockDeleteCellCallback,
@@ -48,10 +32,6 @@ vi.mock("@/components/editor/cell/useDeleteCell", () => ({
 
 vi.mock("@/core/network/requests", () => ({
   getRequestClient: () => ({}),
-}));
-
-vi.mock("../../codemirror/language/cell-code", () => ({
-  prepareCellCodeUpdate: vi.fn(() => ({ effects: [] })),
 }));
 
 describe("staged-cells", () => {
@@ -287,23 +267,10 @@ describe("staged-cells", () => {
       const edit: Edit = { type: "update_cell", previousCode: "x = 1" };
       stage(cellId1, edit);
       result.current.rejectStagedCell(cellId1, edit);
-      expect(
-        mockCellHandle.current.editorViewOrNull.dispatch,
-      ).toHaveBeenCalled();
-      expect(store.get(stagedAICellsAtom).size).toBe(0);
-    });
-
-    it("writes to the document when the editor is not mounted", async () => {
-      const { getCellEditorView } = await import("../../cells/cells");
-      vi.mocked(getCellEditorView).mockReturnValueOnce(undefined);
-      const { result } = renderHook(() => useStagedCells());
-      const edit: Edit = { type: "update_cell", previousCode: "x = 1" };
-      stage(cellId1, edit);
-      result.current.rejectStagedCell(cellId1, edit);
-      expect(mockSetCellCode).toHaveBeenCalledWith({
-        cellId: cellId1,
-        code: "x = 1",
+      expect(writeCellCode).toHaveBeenCalledWith(cellId1, "x = 1", {
+        initialize: true,
       });
+      expect(store.get(stagedAICellsAtom).size).toBe(0);
     });
 
     it("deletes an added cell and leaves a proposed deletion in place when discarded", () => {

@@ -110,7 +110,7 @@ function cellFocusDetails(get: Getter, cellId: CellId) {
   if (!data || !handle) {
     return null;
   }
-  const getEditorView = () => handle.editorViewOrNull;
+  const getEditorView = () => handle.editorView;
   const execution = cellExecutionView(get(cellExecutionInputsAtom), cellId);
 
   return {

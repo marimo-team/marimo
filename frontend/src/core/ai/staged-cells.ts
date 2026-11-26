@@ -6,9 +6,7 @@ import { useMemo } from "react";
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import type { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import { getCellEditorView } from "../cells/cells";
-import { useCellActions } from "../cells/actions";
-import { prepareCellCodeUpdate } from "../codemirror/language/cell-code";
+import { writeCellCode } from "../codemirror/cell-documents";
 import type { EditType } from "./tools/edit-notebook-tool";
 
 /** Pending AI edits shared by chat and agent workflows. */
@@ -74,23 +72,7 @@ export function useStagedAICell(cellId: CellId | undefined): Edit | undefined {
 /** Keep or discard staged cells, whichever AI workflow staged them. */
 export function useStagedCells() {
   const { removeStagedCell } = useStagedAICellsActions();
-  const { setCellCode } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
-
-  // Only a mounted editor infers the cell's language; otherwise use the document.
-  const writeCellCode = (cellId: CellId, code: string) => {
-    const editorView = getCellEditorView(cellId);
-    if (editorView) {
-      const update = prepareCellCodeUpdate(editorView.state, code, {
-        initialize: true,
-      });
-      if (update) {
-        editorView.dispatch(update);
-      }
-    } else {
-      setCellCode({ cellId, code });
-    }
-  };
 
   const deleteStagedCell = (cellId: CellId) => {
     removeStagedCell(cellId);
@@ -108,7 +90,7 @@ export function useStagedCells() {
   const rejectStagedCell = (cellId: CellId, edit: Edit) => {
     switch (edit.type) {
       case "update_cell":
-        writeCellCode(cellId, edit.previousCode);
+        writeCellCode(cellId, edit.previousCode, { initialize: true });
         removeStagedCell(cellId);
         break;
       case "add_cell":

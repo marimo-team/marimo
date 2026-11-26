@@ -1,6 +1,4 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-
-import type { EditorView } from "@codemirror/view";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ArrowLeftIcon,
@@ -41,10 +39,8 @@ import { toast } from "../ui/use-toast";
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [state, dispatch] = useAtom(findReplaceAtom);
-  const [matches, setMatches] = useState<{
-    count: number;
-    position: Map<EditorView, Map<string, number>>;
-  }>();
+  const [matches, setMatches] =
+    useState<Exclude<ReturnType<typeof getMatches>, false>>();
   const findInputRef = useRef<HTMLInputElement>(null);
   const hotkeys = useAtomValue(hotkeysAtom);
 
@@ -101,7 +97,7 @@ export const FindReplace: React.FC = () => {
   const currentMatch =
     selection && matches
       ? matches.position
-          .get(selection.view)
+          .get(selection.cellId)
           ?.get(`${selection.range.from}:${selection.range.to}`)
       : undefined;
 

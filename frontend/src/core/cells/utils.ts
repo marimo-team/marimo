@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { EditorView } from "@codemirror/view";
 import {
   type CellError,
   type CellExecutionInputs,
@@ -11,7 +10,6 @@ import {
   cellExecutionView,
 } from "@/core/executions";
 import type { Executions } from "@/core/notebook/replica";
-import { Objects } from "@/utils/objects";
 import { isErrorMime } from "../mime";
 import type { NotebookState } from "./cells";
 import type { CellId } from "./ids";
@@ -19,17 +17,6 @@ import type { CellData } from "./types";
 
 export function notebookCells(state: NotebookState) {
   return state.cellIds.map((cellId) => state.cellData[cellId]);
-}
-
-export function notebookCellEditorViews({ cellHandles }: NotebookState) {
-  const views: Record<CellId, EditorView> = {};
-  for (const [cell, ref] of Objects.entries(cellHandles)) {
-    if (!ref.current?.editorView) {
-      continue;
-    }
-    views[cell] = ref.current.editorView;
-  }
-  return views;
 }
 
 export function disabledCellIds(state: NotebookState) {
