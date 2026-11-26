@@ -1,10 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
-import { selectAtom } from "jotai/utils";
-import { useMemo } from "react";
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import type { CellId } from "@/core/cells/ids";
+import { createKeyedSelectorHook } from "@/core/state/create-keyed-selector-hook";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { getCellEditorView } from "../cells/cells";
 import { useCellActions } from "../cells/actions";
@@ -58,18 +56,11 @@ const {
 
 export { useStagedAICellsActions };
 
-export function useStagedAICell(cellId: CellId | undefined): Edit | undefined {
-  const stagedCellAtom = useMemo(
-    () =>
-      selectAtom(
-        stagedAICellsAtom,
-        (cells) => (cellId === undefined ? undefined : cells.get(cellId)),
-        Object.is,
-      ),
-    [cellId],
-  );
-  return useAtomValue(stagedCellAtom);
-}
+export const useStagedAICell = createKeyedSelectorHook(
+  stagedAICellsAtom,
+  (cells, cellId: CellId | undefined) =>
+    cellId === undefined ? undefined : cells.get(cellId),
+);
 
 /** Keep or discard staged cells, whichever AI workflow staged them. */
 export function useStagedCells() {

@@ -326,12 +326,17 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
+  const [mountedEditorView, setMountedEditorView] = useState<EditorView | null>(
+    null,
+  );
+
   const handleInitializeEditor = useEvent(() => {
     // Create a new editor
     const ev = new EditorView({
       state: EditorState.create({ doc: code, extensions }),
     });
     setEditorView(ev);
+    setMountedEditorView(ev);
     // Initialize the language adapter
     switchLanguage(ev, {
       language: getInitialLanguageAdapter(ev.state).type,
@@ -373,24 +378,22 @@ const CellEditorInternal = ({
       language: getInitialLanguageAdapter(ev.state).type,
     });
     setEditorView(ev);
+    setMountedEditorView(ev);
     // The restored state is used once; the next mount builds a fresh editor.
     takeRestoredEditorState({ cellId });
   });
-  const [isEditorMounted, setIsEditorMounted] = useState(
-    serializedEditorState !== null,
-  );
+  const isEditorMounted = mountedEditorView !== null;
 
   // Build the editor. Deserialize eagerly; otherwise queue an async build so
   // large notebooks stay responsive while editors come online progressively.
   useEffect(() => {
     if (editorViewRef.current !== null) {
-      setIsEditorMounted(true);
+      setMountedEditorView(editorViewRef.current);
       return;
     }
-    setIsEditorMounted(false);
+    setMountedEditorView(null);
     if (serializedEditorState !== null) {
       handleDeserializeEditor();
-      setIsEditorMounted(true);
       return;
     }
     editorMountScheduler.request(cellId, () => {
@@ -398,7 +401,6 @@ const CellEditorInternal = ({
         return;
       }
       handleInitializeEditor();
-      setIsEditorMounted(true);
     });
     return () => editorMountScheduler.cancel(cellId);
   }, [
@@ -461,7 +463,7 @@ const CellEditorInternal = ({
     <AiCompletionEditor
       cellId={cellId}
       aiCompletionCell={aiCompletionCell}
-      currentCode={editorViewRef.current?.state.doc.toString() ?? code}
+      currentCode={mountedEditorView?.state.doc.toString() ?? code}
       currentLanguageAdapter={languageAdapter}
       declineChange={useEvent(() => {
         setAiCompletionCell(null);
@@ -498,7 +500,7 @@ const CellEditorInternal = ({
         {isEditorMounted ? (
           <CellCodeMirrorEditor
             className={editorClassName}
-            editorView={editorViewRef.current}
+            editorView={mountedEditorView}
             ref={editorViewParentRef}
             hidden={hidden}
             showHiddenCode={showHiddenCode}
