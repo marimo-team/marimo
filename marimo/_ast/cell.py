@@ -313,6 +313,11 @@ class CellImpl:
             import_data.module.split(".")[0] for import_data in self.imports
         }
 
+    @property
+    def imported_modules(self) -> set[Name]:
+        """Return a set of the full module names imported by this cell."""
+        return {import_data.module for import_data in self.imports}
+
     def namespace_to_variable(self, namespace: str) -> Name | None:
         """Returns the variable name corresponding to an imported namespace
 

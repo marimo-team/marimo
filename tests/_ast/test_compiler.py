@@ -214,6 +214,8 @@ class TestImportWorkspace:
         assert cell.refs == set()
         # but "a" is the module from which it was imported
         assert cell.imported_namespaces == {"a"}
+        # while imported_modules keeps the full dotted name
+        assert cell.imported_modules == {"a.b.c"}
         assert not cell.import_workspace.is_import_block
 
     @staticmethod

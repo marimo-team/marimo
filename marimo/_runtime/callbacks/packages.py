@@ -129,13 +129,17 @@ class PackagesCallbacks:
         if self.package_manager is None:
             return
 
+        # Several missing modules can resolve to the same package;
+        # notify about each package once.
         packages = sorted(
-            pkg
-            for mod in missing_packages
-            if not _is_marimo_module(mod)
-            and not self.package_manager.attempted_to_install(
-                pkg := self.package_manager.module_to_package(mod)
-            )
+            {
+                pkg
+                for mod in missing_packages
+                if not _is_marimo_module(mod)
+                and not self.package_manager.attempted_to_install(
+                    pkg := self.package_manager.module_to_package(mod)
+                )
+            }
         )
         # Deleting a cell can make the set of missing packages smaller
         broadcast_notification(

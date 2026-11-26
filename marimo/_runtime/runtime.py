@@ -1153,6 +1153,8 @@ class Kernel:
                         if previous_cell
                         else set()
                     )
+                    # Intentionally namespaces, not the full module names
+                    # the module registry works with.
                     to_add = cell.imported_namespaces - prev_imports
                     self.packages_callbacks.update_script_metadata(
                         import_namespaces_to_add=list(to_add)
