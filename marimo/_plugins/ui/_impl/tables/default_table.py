@@ -90,6 +90,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         self,
         format_mapping: FormatMapping | None = None,
         separator: str | None = None,
+        decimal_comma: bool = False,
     ) -> str:
         import csv
         import io
@@ -107,7 +108,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
         writer.writeheader()
         writer.writerows(
-            {col: _to_csv_cell(row.get(col)) for col in columns}
+            {col: _to_csv_cell(row.get(col), decimal_comma) for col in columns}
             for row in rows
         )
         return buf.getvalue()
@@ -543,9 +544,11 @@ def is_column_oriented(
     )
 
 
-def _to_csv_cell(value: Any) -> str:
+def _to_csv_cell(value: Any, decimal_comma: bool = False) -> str:
     if value is None:
         return ""
+    if decimal_comma and isinstance(value, float):
+        return str(value).replace(".", ",")
     if isinstance(value, (dict, list, tuple)):
         return str(encode_json_str(SuperJson(value)))
     return str(value)

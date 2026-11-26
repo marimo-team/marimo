@@ -113,12 +113,15 @@ class DownloadAsOptions:
     Args:
         separator (str, optional): Field separator for CSV output.
         encoding (str, optional): Text encoding for CSV and TSV output.
+        decimal_comma (bool, optional): Use a comma as the decimal separator
+            for floats. Decimal support depends on the dataframe library.
         ensure_ascii (bool, optional): Whether JSON output escapes
             non-ASCII characters.
     """
 
     separator: str | None = None
     encoding: str | None = None
+    decimal_comma: bool | None = None
     ensure_ascii: bool | None = None
 
     def resolve(self, defaults: DownloadOptions) -> DownloadOptions:
@@ -127,6 +130,11 @@ class DownloadAsOptions:
             delimited=DelimitedOptions(
                 encoding=self.encoding or defaults.delimited.encoding,
                 separator=self.separator or defaults.delimited.separator,
+                decimal_comma=(
+                    defaults.delimited.decimal_comma
+                    if self.decimal_comma is None
+                    else self.decimal_comma
+                ),
             ),
             json=JsonOptions(
                 ensure_ascii=(

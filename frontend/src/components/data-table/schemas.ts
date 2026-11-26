@@ -8,6 +8,7 @@ const DownloadRequestSchema = z.object({
   options: z
     .object({
       separator: z.string().optional(),
+      decimal_comma: z.boolean().optional(),
       encoding: z.string().optional(),
       ensure_ascii: z.boolean().optional(),
     })

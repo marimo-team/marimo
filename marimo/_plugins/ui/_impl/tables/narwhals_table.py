@@ -151,9 +151,12 @@ class NarwhalsTableManager(
         self,
         format_mapping: FormatMapping | None = None,
         separator: str | None = None,
+        decimal_comma: bool = False,
     ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data, separator=separator)
+        return dataframe_to_csv(
+            _data, separator=separator, decimal_comma=decimal_comma
+        )
 
     def to_json_str(
         self,

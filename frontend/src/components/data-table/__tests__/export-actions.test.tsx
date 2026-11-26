@@ -114,6 +114,85 @@ describe("ExportActions dialog", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each(["CSV", "TSV"])(
+    "sends decimal comma for %s downloads and copies",
+    async (label) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          text: vi.fn().mockResolvedValue("3,14\n"),
+        }),
+      );
+      renderExportActions();
+      await openDialog();
+      const format = label.toLowerCase();
+      fireEvent.click(screen.getByRole("button", { name: `${label} options` }));
+      const select = screen.getByRole("combobox", {
+        name: "Decimal separator",
+      });
+      expect(select).toHaveValue("point");
+      expect(
+        screen.getByTestId(`export-summary-${format}`),
+      ).not.toHaveTextContent("Decimal comma");
+      fireEvent.click(
+        screen.getByRole("button", { name: `Download ${label}` }),
+      );
+      await waitFor(() => expect(downloadAs).toHaveBeenCalledWith({ format }));
+      downloadAs.mockClear();
+      fireEvent.change(select, { target: { value: "comma" } });
+      expect(screen.getByTestId(`export-summary-${format}`)).toHaveTextContent(
+        "Decimal comma",
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: `Download ${label}` }),
+      );
+      await waitFor(() =>
+        expect(downloadAs).toHaveBeenCalledWith({
+          format,
+          options: { decimal_comma: true },
+        }),
+      );
+      downloadAs.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: `Copy ${label}` }));
+      await waitFor(() =>
+        expect(copyToClipboard).toHaveBeenCalledWith("3,14\n"),
+      );
+      expect(downloadAs).toHaveBeenCalledWith({
+        format,
+        options: { decimal_comma: true },
+      });
+    },
+  );
+
+  it("shows the Excel hint only for a comma delimiter with decimal comma", async () => {
+    renderExportActions();
+    await openDialog();
+    fireEvent.click(screen.getByRole("button", { name: "CSV options" }));
+    const hint =
+      "Excel in a comma-decimal locale needs the Semicolon delimiter.";
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Decimal separator" }),
+      {
+        target: { value: "comma" },
+      },
+    );
+    expect(screen.getByText(hint)).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Delimiter" }), {
+      target: { value: ";" },
+    });
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "TSV options" }));
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Decimal separator" }),
+      {
+        target: { value: "comma" },
+      },
+    );
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+  });
+
   it("selects a primary geometry for GeoParquet without changing other formats", async () => {
     const getExportMetadata = vi.fn().mockResolvedValue(geometryMetadata);
     renderExportActions({ getExportMetadata });

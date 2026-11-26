@@ -262,6 +262,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self,
                 format_mapping: FormatMapping | None = None,
                 separator: str | None = None,
+                decimal_comma: bool = False,
             ) -> str:
                 has_headers = len(self.get_row_headers()) > 0
                 resolved_separator = (
@@ -270,7 +271,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return self.apply_formatting(
                     format_mapping
                 )._original_data.to_csv(
-                    index=has_headers, sep=resolved_separator
+                    index=has_headers,
+                    sep=resolved_separator,
+                    decimal="," if decimal_comma else ".",
                 )
 
             def to_json_str(

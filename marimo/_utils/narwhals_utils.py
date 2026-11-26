@@ -90,7 +90,9 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     return True
 
 
-def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
+def dataframe_to_csv(
+    df: IntoFrame, separator: str | None = None, decimal_comma: bool = False
+) -> str:
     """
     Convert a dataframe to a CSV string.
     """
@@ -100,6 +102,14 @@ def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
     resolved_separator = separator if separator is not None else ","
 
     frame = df.collect() if is_narwhals_lazyframe(df) else df
+    if decimal_comma:
+        # Only floats are rewritten, so every other column keeps the
+        # backend's native CSV formatting.
+        frame = frame.with_columns(
+            nw.selectors.by_dtype(nw.Float32, nw.Float64)
+            .cast(nw.String)
+            .str.replace(".", ",", literal=True)
+        )
     if resolved_separator == ",":
         return frame.write_csv()
 

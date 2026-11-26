@@ -1608,3 +1608,67 @@ def test_take_filtered_sorted_page(
     if lazy:
         assert collected_shapes == [(len(expected), 3)]
     assert source.equals(original)
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("nested", [False, True])
+def test_csv_decimal_comma_nested(nested: bool) -> None:
+    import polars as pl
+
+    data = {"amount": [3.1416]}
+    frame = pl.DataFrame(data)
+    if nested:
+        frame = frame.with_columns(pl.Series("nested", [[1, 2]]))
+    manager = PolarsTableManagerFactory.create()(frame)
+    rows = list(
+        csv.reader(io.StringIO(manager.to_csv_str(decimal_comma=True)))
+    )
+    assert rows[1][0] == "3,1416"
+
+
+@pytest.mark.requires("polars")
+@pytest.mark.parametrize("separator", [",", ";", "\t"])
+@pytest.mark.parametrize("lazy", [False, True])
+def test_csv_decimal_comma_old_polars(
+    monkeypatch: pytest.MonkeyPatch, separator: str, lazy: bool
+) -> None:
+    import polars as pl
+
+    original = pl.DataFrame.write_csv
+
+    def write_csv(self: pl.DataFrame, *, separator: str = ",") -> str:
+        return original(self, separator=separator)
+
+    monkeypatch.setattr(pl.DataFrame, "write_csv", write_csv)
+    PolarsTableManagerFactory.create.cache_clear()
+    try:
+        frame = pl.DataFrame(
+            {
+                "amount": [3.14],
+                "list": [[1, 2]],
+                "struct": [{"value": 1.5}],
+                "count": [2],
+                "text": ["1.5"],
+            }
+        )
+        manager = PolarsTableManagerFactory.create()(
+            frame.lazy() if lazy else frame
+        )
+        for decimal_comma in (False, True):
+            output = manager.to_csv_str(
+                separator=separator, decimal_comma=decimal_comma
+            )
+            assert list(
+                csv.reader(io.StringIO(output), delimiter=separator)
+            ) == [
+                ["amount", "list", "struct", "count", "text"],
+                [
+                    "3,14" if decimal_comma else "3.14",
+                    "1,2",
+                    '{"value":1.5}',
+                    "2",
+                    "1.5",
+                ],
+            ]
+    finally:
+        PolarsTableManagerFactory.create.cache_clear()

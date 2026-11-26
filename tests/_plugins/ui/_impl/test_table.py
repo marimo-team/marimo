@@ -4004,3 +4004,34 @@ def test_lazy_table_pagination_of_limited_plan(df: Any) -> None:
         [{"value": 2}, {"value": 1}],
         False,
     )
+
+
+@pytest.mark.parametrize("export_format", ["csv", "tsv"])
+def test_download_as_decimal_comma(export_format: str) -> None:
+    table = ui.table({"amount": [3.14], "count": [2], "text": ["3.14"]})
+    response = table._download_as(
+        DownloadAsArgs(
+            format=export_format,
+            options=DownloadAsOptions(separator=";", decimal_comma=True),
+        )
+    )
+    expected = (
+        "amount;count;text\n3,14;2;3.14\n"
+        if export_format == "csv"
+        else "amount\tcount\ttext\n3,14\t2\t3.14\n"
+    )
+    assert from_data_uri(response.url)[1].decode() == expected
+
+
+def test_decimal_comma_request_defaults() -> None:
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DelimitedOptions,
+        DownloadOptions,
+    )
+
+    defaults = DownloadOptions(delimited=DelimitedOptions(decimal_comma=True))
+    assert DownloadAsOptions().resolve(defaults) == defaults
+    assert (
+        DownloadAsOptions(decimal_comma=False).resolve(defaults)
+        == DownloadOptions()
+    )

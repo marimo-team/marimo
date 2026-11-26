@@ -43,4 +43,18 @@
 
 ///
 
+## Exporting data
+
+Use **Export** to download table data or copy it to the clipboard.
+
+For CSV and TSV, expand the format options to choose **Point** (default) or
+**Comma** as the **Decimal separator**. This setting applies to downloads and
+clipboard copies. It changes floats, such as `3.14` to `3,14`, without changing
+integers or strings. For `Decimal` columns, support depends on the dataframe
+library.
+
+For Excel in a comma-decimal locale, choose the **Semicolon** delimiter for CSV
+or use TSV. With a comma CSV delimiter, the export quotes values such as
+`"3,14"`.
+
 ::: marimo.ui.table
