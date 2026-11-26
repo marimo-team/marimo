@@ -93,6 +93,88 @@ def test_sql_with_variable() -> None:
     assert visitor.get_sqls() == []
 
 
+def test_raw_sql_f_string_preserves_unicode() -> None:
+    source_code = (
+        "mo.sql(f\"\"\"SELECT 'café' as name, '🎉' as celebration, "
+        '\'日本語\' as lang FROM {table}""")'
+    )
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == [
+        "SELECT 'café' as name, '🎉' as celebration, '日本語' as lang FROM {table}"
+    ]
+
+
+def test_raw_sql_f_string_preserves_backslashes() -> None:
+    source_code = r"""mo.sql(rf"SELECT * FROM 'C:\Users\test\data.csv' WHERE id = {id}")"""
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == [
+        r"SELECT * FROM 'C:\Users\test\data.csv' WHERE id = {id}"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("source_code", "expected"),
+    [
+        (
+            """mo.sql(f"'value' AND {col}")""",
+            "'value' AND {col}",
+        ),
+        (
+            """mo.sql(f'"value" AND {col}')""",
+            '"value" AND {col}',
+        ),
+        (
+            """mo.sql(f"{col} AND 'value'")""",
+            "{col} AND 'value'",
+        ),
+        (
+            """mo.sql(f'{col} AND "value"')""",
+            '{col} AND "value"',
+        ),
+        (
+            """mo.sql(f"SELECT '{{foo}}', {col!r}, {val:.2f}, {x:{width}}")""",
+            "SELECT '{{foo}}', {col!r}, {val:.2f}, {x:{width}}",
+        ),
+        (
+            """mo.sql(f"{ {'a': 1} }")""",
+            "{ {'a': 1}}",
+        ),
+        (
+            'mo.sql(f"")',
+            "",
+        ),
+    ],
+)
+def test_raw_sql_f_string_quotes_and_expressions(
+    source_code: str, expected: str
+) -> None:
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == [expected]
+
+
+def test_raw_sql_f_string_dedents_multiline() -> None:
+    source_code = (
+        "mo.sql(\n"
+        '    f"""\n'
+        "    SELECT * FROM cars\n"
+        "    WHERE origin = '{origin}'\n"
+        '    """\n'
+        ")\n"
+    )
+    tree = ast.parse(source_code)
+    visitor = SQLVisitor(raw=True)
+    visitor.visit(tree)
+    assert visitor.get_sqls() == [
+        "\nSELECT * FROM cars\nWHERE origin = '{origin}'\n"
+    ]
+
+
 @pytest.mark.skipif(not HAS_DUCKDB, reason="Missing DuckDB")
 class TestFindSQLDefs:
     @staticmethod

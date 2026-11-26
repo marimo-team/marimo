@@ -54,13 +54,7 @@ class SQLVisitor(ast.NodeVisitor):
                     sql = first_arg.value
                 elif isinstance(first_arg, ast.JoinedStr):
                     if self._raw:
-                        f_sql = ast.unparse(first_arg)
-                        sql = dedent(
-                            f_sql[1:]
-                            .strip(f_sql[1])
-                            .encode()
-                            .decode("unicode_escape")
-                        )
+                        sql = _extract_raw_f_string(first_arg)
                     else:
                         sql = normalize_sql_f_string(first_arg)
 
@@ -72,6 +66,22 @@ class SQLVisitor(ast.NodeVisitor):
 
     def get_sqls(self) -> list[str]:
         return self._sqls
+
+
+def _extract_raw_f_string(node: ast.JoinedStr) -> str:
+    """
+    Reconstruct the raw contents of an f-string AST node.
+
+    Preserves Unicode characters, backslashes, and leading/trailing SQL quotes
+    without re-encoding through `unicode_escape` or stripping quote characters.
+    """
+    parts: list[str] = []
+    for part in node.values:
+        if isinstance(part, ast.Constant) and isinstance(part.value, str):
+            parts.append(part.value.replace("{", "{{").replace("}", "}}"))
+        else:
+            parts.append(ast.unparse(part))
+    return dedent("".join(parts))
 
 
 def normalize_sql_f_string(node: ast.JoinedStr) -> str:
