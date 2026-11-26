@@ -232,6 +232,7 @@ NamedNode = Union[
     ast.FunctionDef,
     ast.AsyncFunctionDef,
     ast.arg,
+    ast.alias,
     ast.Global,
     "ast.MatchAs",  # type: ignore
     "ast.MatchMapping",  # type: ignore
@@ -1237,7 +1238,7 @@ class ScopedVisitor(ast.NodeVisitor):
         for alias_node in node.names:
             variable_name = self._get_alias_name(alias_node)
             self._define(
-                None,
+                alias_node,
                 variable_name,
                 VariableData(
                     kind="import",
@@ -1260,7 +1261,7 @@ class ScopedVisitor(ast.NodeVisitor):
             variable_name = self._get_alias_name(alias_node, import_node=node)
             original_name = alias_node.name
             self._define(
-                None,
+                alias_node,
                 variable_name,
                 VariableData(
                     kind="import",
