@@ -46,7 +46,7 @@ function notebookWithMountedEditors() {
     cellHandles: Object.fromEntries(
       Object.entries(mountedEditors).map(([cellId, view]) => [
         cellId,
-        { current: { editorView: view, editorViewOrNull: view } },
+        { current: { editorView: view } },
       ]),
     ),
   };

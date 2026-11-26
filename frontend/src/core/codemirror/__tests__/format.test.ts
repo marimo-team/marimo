@@ -108,8 +108,8 @@ describe("format", () => {
           }),
         },
         cellHandles: {
-          [mounted]: { current: { editorView: view, editorViewOrNull: view } },
-          [dormant]: { current: { editorView: null, editorViewOrNull: null } },
+          [mounted]: { current: { editorView: view } },
+          [dormant]: { current: { editorView: null } },
         },
       });
     }

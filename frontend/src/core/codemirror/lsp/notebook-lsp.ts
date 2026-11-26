@@ -88,7 +88,7 @@ class Snapshotter {
 
 const defaultGetNotebookEditors = () => {
   const evs = getNotebook().cellHandles;
-  return Objects.mapValues(evs, (r) => r.current?.editorViewOrNull);
+  return Objects.mapValues(evs, (r) => r.current?.editorView);
 };
 
 function normalizeTextDocumentation(

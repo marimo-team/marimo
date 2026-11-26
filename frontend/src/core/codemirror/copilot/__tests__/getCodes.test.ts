@@ -68,7 +68,6 @@ function createMockEditorView(code: string) {
 
   return {
     editorView: view,
-    editorViewOrNull: view,
   };
 }
 

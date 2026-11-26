@@ -8,6 +8,7 @@ import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { createCell } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
+import { cellIdState } from "../../config/extension";
 import { editorMountScheduler } from "../../editor-mount-scheduler";
 import { findNext, getMatches, replaceAll } from "../navigate";
 import { findReplaceAtom } from "../state";
@@ -32,7 +33,7 @@ function writeToNotebook({ cellId, code }: { cellId: CellId; code: string }) {
   });
 }
 
-const withoutEditor: CellHandle = { editorView: null, editorViewOrNull: null };
+const withoutEditor: CellHandle = { editorView: null };
 
 function setNotebook(cells: [CellId, string, CellHandle | null][]) {
   store.set(notebookAtom, {
@@ -67,7 +68,6 @@ it("counts matches in cells without editors and builds only the navigation targe
   const build = vi.fn(() => {
     store.get(notebookAtom).cellHandles[b].current = {
       editorView: view,
-      editorViewOrNull: view,
     };
   });
   editorMountScheduler.register(b, build);
@@ -87,18 +87,20 @@ it("moves past a match whose editor cannot be built", () => {
     [buildable, "needle = 2", withoutEditor],
   ]);
   const view = new EditorView({
-    state: EditorState.create({ doc: "needle = 2" }),
+    state: EditorState.create({
+      doc: "needle = 2",
+      extensions: cellIdState.of(buildable),
+    }),
   });
   editorMountScheduler.register(buildable, () => {
     store.get(notebookAtom).cellHandles[buildable].current = {
       editorView: view,
-      editorViewOrNull: view,
     };
   });
   store.set(findReplaceAtom, { type: "setFind", find: "needle" });
 
   expect(findNext()).toMatchObject({ from: 0, to: 6 });
-  expect(store.get(findReplaceAtom).currentView?.view).toBe(view);
+  expect(store.get(findReplaceAtom).currentView?.cellId).toBe(buildable);
   view.destroy();
 });
 

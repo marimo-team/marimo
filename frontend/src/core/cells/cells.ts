@@ -335,7 +335,7 @@ const {
   },
   unfoldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorViewOrNull,
+      (handle) => handle.current?.editorView,
     );
     unfoldAllBulk(targets);
     return state;
@@ -621,7 +621,7 @@ export const useCellHandle = (cellId: CellId) =>
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
   return cellIds
-    .map((cellId) => cellHandles[cellId]?.current?.editorViewOrNull)
+    .map((cellId) => cellHandles[cellId]?.current?.editorView)
     .filter(Boolean);
 };
 

@@ -7,7 +7,11 @@ import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import type { CreateCellOptions } from "@/core/cells/actions";
 import { CellId } from "@/core/cells/ids";
 import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
-import { prepareCellCodeUpdate } from "@/core/codemirror/language/cell-code";
+import { getCellPythonCode } from "@/core/codemirror/cell-documents";
+import {
+  getCellCode,
+  prepareCellCodeUpdate,
+} from "@/core/codemirror/language/cell-code";
 import {
   type CellColumnId,
   type Layout,
@@ -130,7 +134,7 @@ export class EditNotebookTool implements AiTool<
 
         // If previous code exists, we don't want to replace it, it means there is a new edit on top of the previous update
         // Keep the original code
-        const currentCellCode = editorView.state.doc.toString();
+        const currentCellCode = getCellCode(editorView.state);
         const previousCode =
           existingStagedCell?.previousCode ?? currentCellCode;
 
@@ -244,8 +248,7 @@ export class EditNotebookTool implements AiTool<
         const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
 
-        const editorView = this.getCellEditorView(cellId, notebook);
-        const currentCellCode = editorView.state.doc.toString();
+        const currentCellCode = getCellPythonCode(cellId, notebook);
 
         // Add to staged AICells - don't actually delete the cell yet
         addStagedCell({

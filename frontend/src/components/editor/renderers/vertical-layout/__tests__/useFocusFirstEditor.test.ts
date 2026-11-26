@@ -65,7 +65,7 @@ describe("useFocusFirstEditor", () => {
         cellIds: [cellId],
         cellHandles: {
           [cellId]: {
-            current: { editorView: editor, editorViewOrNull: editor },
+            current: { editorView: editor },
           },
         },
       });

@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { EditorView } from "@codemirror/view";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
@@ -282,12 +281,7 @@ describe("lastFocusedCellAtom", () => {
     const store = createStore();
     const markdownCellId = cellId("markdown");
 
-    const unmountedEditorHandle: CellHandle = {
-      get editorView(): EditorView {
-        throw new ReferenceError("Attempting to dereference null object.");
-      },
-      editorViewOrNull: null,
-    };
+    const unmountedEditorHandle: CellHandle = { editorView: null };
 
     const notebook = MockNotebook.notebookState({
       cellData: {

@@ -61,7 +61,6 @@ describe("VariableTable cell links", () => {
     editorMountScheduler.register(definingCell, () => {
       handle.current = {
         editorView: definingView,
-        editorViewOrNull: definingView,
       };
     });
     store.set(notebookAtom, notebook);

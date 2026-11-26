@@ -12,6 +12,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -32,7 +33,6 @@ import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { clearCellBreakpoints } from "@/core/codemirror/cells/debugger-state";
 import { parseCellCode } from "@/core/codemirror/language/cell-code";
-import { languageAdapterFromCode } from "@/core/codemirror/language/extension";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { CSSClasses } from "@/core/constants";
 import { canCollapseOutline } from "@/core/dom/outline";
@@ -52,7 +52,6 @@ import type { CellConfig } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
 import {
-  ensureCellEditorView,
   useCellData,
   useCellHandle,
   useCellRuntime,
@@ -95,7 +94,7 @@ import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { cellDomProps } from "./common";
 import { SqlValidationErrorBanner } from "./errors/sql-validation-errors";
-import { focusEditor } from "./navigation/focus-utils";
+import { focusCellEditor } from "./navigation/focus-utils";
 import { useCellNavigationProps } from "./navigation/navigation";
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
@@ -171,7 +170,6 @@ function useCellHiddenLogic({
   cellId: CellId;
   cellConfig: CellConfig;
   languageAdapter: LanguageAdapterType | undefined;
-  editorViewParentRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const showsHiddenCode = useShowsHiddenCode(cellId);
   const showHiddenCodeNow = useSetAtom(showHiddenCodeAtom);
@@ -194,10 +192,7 @@ function useCellHiddenLogic({
     showHiddenCodeNow({ cellId });
 
     if (focus) {
-      const editor = ensureCellEditorView(cellId);
-      if (editor) {
-        focusEditor(editor);
-      }
+      focusCellEditor(cellId);
     }
 
     // Undoing happens in editor/focus/focus.ts, when the cell is blurred.
@@ -234,15 +229,8 @@ export type CellComponentActions = Pick<
  * Imperative interface of the cell.
  */
 export interface CellHandle {
-  /**
-   * The CodeMirror editor view.
-   * TODO: merge this with editorViewOrNull
-   */
+  /** The CodeMirror editor view, or null until it is built. */
   editorView: EditorView | null;
-  /**
-   * The CodeMirror editor view, or null if it is not yet mounted.
-   */
-  editorViewOrNull: EditorView | null;
 }
 
 export interface CellProps {
@@ -284,9 +272,6 @@ const CellComponent = (props: CellProps) => {
     ref,
     () => ({
       get editorView() {
-        return editorView.current;
-      },
-      get editorViewOrNull() {
         return editorView.current;
       },
     }),
@@ -415,8 +400,11 @@ const EditableCellComponent = ({
   // The editor reports its language once built; until then it follows the code.
   const [editorLanguageAdapter, setLanguageAdapter] =
     useState<LanguageAdapterType>();
-  const languageAdapter =
-    editorLanguageAdapter ?? languageAdapterFromCode(cellData.code).type;
+  const parsedCode = useMemo(
+    () => parseCellCode(cellData.code),
+    [cellData.code],
+  );
+  const languageAdapter = editorLanguageAdapter ?? parsedCode.adapter.type;
 
   const uninstantiated = isUninstantiated(execution);
 
@@ -470,7 +458,6 @@ const EditableCellComponent = ({
     cellId,
     cellConfig: cellData.config,
     languageAdapter,
-    editorViewParentRef,
   });
 
   // Hotkey and focus props
@@ -495,8 +482,7 @@ const EditableCellComponent = ({
   const [isCellButtonsInline, setIsCellButtonsInline] = useState(false);
 
   // The notebook code wraps markdown in mo.md(...); emptiness is about its content.
-  const isEmptyMarkdownContent =
-    isMarkdown && parseCellCode(cellData.code).text.trim() === "";
+  const isEmptyMarkdownContent = isMarkdown && parsedCode.text.trim() === "";
 
   useResizeObserver({
     ref: cellContainerRef,
@@ -1017,7 +1003,6 @@ const SetupCellComponent = ({
     cellId,
     cellConfig: cellData.config,
     languageAdapter: "python",
-    editorViewParentRef,
   });
 
   // Use the extracted hooks

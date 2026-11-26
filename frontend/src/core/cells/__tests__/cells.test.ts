@@ -115,7 +115,6 @@ describe("cell reducer", () => {
         const view = createEditor(state.cellData[cid].code);
         const handle: CellHandle = {
           editorView: view,
-          editorViewOrNull: view,
         };
         state.cellHandles[cid] = { current: handle };
       }

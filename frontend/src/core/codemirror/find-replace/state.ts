@@ -15,7 +15,6 @@ interface FindReplaceState {
   isOpen: boolean;
   currentView?: {
     cellId: CellId;
-    view: EditorView;
     range: { from: number; to: number };
   };
 }
@@ -87,7 +86,6 @@ export const findReplaceAtom = atomWithReducer<FindReplaceState, Action>(
           ...state,
           currentView: {
             cellId: action.view.state.facet(cellIdState),
-            view: action.view,
             range: action.range,
           },
         };

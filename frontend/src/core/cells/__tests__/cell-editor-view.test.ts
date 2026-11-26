@@ -19,10 +19,9 @@ afterEach(() => {
 });
 
 it("returns an editor only once it is built, and building is explicit", () => {
-  const handle = { current: { editorView: null, editorViewOrNull: null } } as {
+  const handle = { current: { editorView: null } } as {
     current: {
       editorView: EditorView | null;
-      editorViewOrNull: EditorView | null;
     };
   };
   store.set(notebookAtom, {
@@ -31,7 +30,7 @@ it("returns an editor only once it is built, and building is explicit", () => {
     cellHandles: { [id]: handle },
   });
   const build = vi.fn(() => {
-    handle.current = { editorView: view, editorViewOrNull: view };
+    handle.current = { editorView: view };
   });
   const release = editorMountScheduler.register(id, build);
 

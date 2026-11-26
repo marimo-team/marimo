@@ -6,7 +6,6 @@ import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import { createCell } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
 import { getCellDocuments, writeCellCode } from "../cell-documents";
-import { editorMountScheduler } from "../editor-mount-scheduler";
 
 const { writes } = vi.hoisted(() => ({ writes: vi.fn() }));
 vi.mock("@/core/cells/actions", async () => {
@@ -23,7 +22,7 @@ function setNotebook(code: string, view: EditorView | null) {
     cellData: { [id]: createCell({ id, code }) },
     cellHandles: {
       [id]: {
-        current: { editorView: view, editorViewOrNull: view },
+        current: { editorView: view },
       },
     },
   });
@@ -67,19 +66,6 @@ it("writes document changes back as the cell's Python code", () => {
     code: expect.stringContaining("# Heading"),
   });
   expect(writes.mock.lastCall?.[0].code).toMatch(/^mo\.md\(/);
-});
-
-it("builds the editor only when asked", () => {
-  setNotebook("x = 1", null);
-  const build = vi.fn();
-  const release = editorMountScheduler.register(id, build);
-  const [document] = getCellDocuments();
-  expect(build).not.toHaveBeenCalled();
-
-  document.ensureView();
-
-  expect(build).toHaveBeenCalledTimes(1);
-  release();
 });
 
 it("does not write code the cell already has", () => {

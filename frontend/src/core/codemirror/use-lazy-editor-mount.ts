@@ -1,14 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import useEvent from "react-use-event-hook";
-import { useSharedIntersectionObserver } from "@/hooks/useSharedIntersectionObserver";
 import { createSharedIntersectionObserver } from "@/utils/shared-intersection-observer";
 import { editorMountScheduler } from "./editor-mount-scheduler";
 
@@ -36,9 +29,7 @@ export function useLazyEditorMount({
   const elementRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const buildLatest = useEvent(() => {
-    if (!editorViewRef.current) {
-      build();
-    }
+    build();
     setMounted(true);
   });
 
@@ -52,22 +43,24 @@ export function useLazyEditorMount({
     };
   }, [cellId, buildLatest, editorViewRef]);
 
-  const onVisibilityChange = useCallback(
-    (visible: boolean) => {
+  const awaitsVisibility = !mounted && !hidden;
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!awaitsVisibility || !element) {
+      return;
+    }
+    const release = observeEditor(element, (visible) => {
       if (visible) {
         editorMountScheduler.prioritize(cellId);
       } else {
         editorMountScheduler.deprioritize(cellId);
       }
-    },
-    [cellId],
-  );
-  useSharedIntersectionObserver(
-    elementRef,
-    observeEditor,
-    onVisibilityChange,
-    !mounted && !hidden,
-  );
+    });
+    return () => {
+      release();
+      editorMountScheduler.deprioritize(cellId);
+    };
+  }, [cellId, awaitsVisibility]);
 
   const promote = useEvent(() => editorMountScheduler.promote(cellId));
   return { elementRef, mounted, promote };

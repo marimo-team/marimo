@@ -23,31 +23,12 @@ const parsers = {
 // long cell is a spacer, so the layout still matches the editor.
 const MAX_RENDERED_LINES = 200;
 
-function splitAtLine(text: string, maxLines: number) {
-  let end = 0;
-  let lines = 0;
-  while (lines < maxLines) {
-    const newline = text.indexOf("\n", end);
-    if (newline === -1) {
-      return { shown: text, hiddenLines: 0 };
-    }
-    end = newline + 1;
-    lines++;
-  }
-  const hidden = text.slice(end - 1);
-  return {
-    shown: text.slice(0, end - 1),
-    hiddenLines: hidden.split("\n").length - 1,
-  };
-}
-
 export const CodePlaceholder = ({ code, className }: CodePlaceholderProps) => {
   const { content, gutterDigits, hiddenLines } = useMemo(() => {
     const { adapter, text: fullText } = parseCellCode(code);
-    const { shown: text, hiddenLines } = splitAtLine(
-      fullText,
-      MAX_RENDERED_LINES,
-    );
+    const lines = fullText.split("\n");
+    const text = lines.slice(0, MAX_RENDERED_LINES).join("\n");
+    const hiddenLines = Math.max(0, lines.length - MAX_RENDERED_LINES);
     const parser = parsers[adapter.type];
     const nodes: ReactNode[] = [];
     let position = 0;
@@ -69,7 +50,7 @@ export const CodePlaceholder = ({ code, className }: CodePlaceholderProps) => {
     }
     return {
       content: nodes,
-      gutterDigits: String(fullText.split("\n").length).length,
+      gutterDigits: String(lines.length).length,
       hiddenLines,
     };
   }, [code]);

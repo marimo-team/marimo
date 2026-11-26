@@ -6,7 +6,11 @@ import {
 } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { setCellCodeAtom } from "@/core/cells/actions";
-import { ensureCellEditorView, getNotebook } from "@/core/cells/cells";
+import {
+  ensureCellEditorView,
+  getNotebook,
+  type NotebookState,
+} from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import {
@@ -65,7 +69,7 @@ export function getCellDocuments(): CellDocument[] {
     if (!handle) {
       continue;
     }
-    const view = handle.editorViewOrNull;
+    const view = handle.editorView;
     const source = cellData[cellId].code;
     const { adapter, text, metadata } = parsedCodeOf(cellId, source);
     const state = view?.state ?? EditorState.create({ doc: text });
@@ -88,6 +92,17 @@ export function getCellDocuments(): CellDocument[] {
   return documents;
 }
 
+/** A mounted editor's code is ahead of the notebook store while the user types. */
+export function getCellPythonCode(
+  cellId: CellId,
+  notebook: NotebookState = getNotebook(),
+): string {
+  const view = notebook.cellHandles[cellId]?.current?.editorView;
+  return view
+    ? getCellCode(view.state)
+    : (notebook.cellData[cellId]?.code ?? "");
+}
+
 /**
  * Write a cell's Python source. A mounted editor takes the update as an edit
  * so selection and history survive; otherwise the notebook document does.
@@ -103,7 +118,7 @@ export function writeCellCode(
   } = {},
 ): void {
   const { userEvent, effects, initialize } = options;
-  const view = getNotebook().cellHandles[cellId]?.current?.editorViewOrNull;
+  const view = getNotebook().cellHandles[cellId]?.current?.editorView;
   if (!view) {
     if (getNotebook().cellData[cellId]?.code !== code) {
       store.set(setCellCodeAtom, { cellId, code });

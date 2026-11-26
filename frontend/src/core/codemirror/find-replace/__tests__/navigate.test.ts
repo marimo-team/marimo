@@ -134,7 +134,7 @@ describe("navigate", () => {
 
       // Check that state was updated
       const state = store.get(findReplaceAtom);
-      expect(state.currentView?.view).toBe(view1);
+      expect(state.currentView?.cellId).toBe(cell1);
       expect(state.currentView?.range).toEqual({ from: 0, to: 5 });
     });
 
@@ -154,7 +154,7 @@ describe("navigate", () => {
       expect(view1.dispatch).toHaveBeenCalled();
 
       const state = store.get(findReplaceAtom);
-      expect(state.currentView?.view).toBeDefined();
+      expect(state.currentView?.cellId).toBeDefined();
     });
 
     it("should wrap around to beginning when reaching end", () => {
@@ -171,7 +171,7 @@ describe("navigate", () => {
       invariant(result, "findNext should return a result");
       // Should wrap back to view1
       const state = store.get(findReplaceAtom);
-      expect(state.currentView?.view).toBe(view1);
+      expect(state.currentView?.cellId).toBe(cell1);
     });
 
     it("should return false when no matches found", () => {
@@ -309,7 +309,7 @@ describe("navigate", () => {
       invariant(result, "findNext should return a result");
       // Should find match in view2 or wrap to view1
       const state = store.get(findReplaceAtom);
-      expect([view1, view2]).toContain(state.currentView?.view);
+      expect([cell1, cell2]).toContain(state.currentView?.cellId);
     });
 
     it("should return false when no previous matches", () => {
@@ -601,8 +601,8 @@ describe("navigate", () => {
       const isDifferentMatch =
         firstMatchRange?.from !== secondMatchRange?.from ||
         firstMatchRange?.to !== secondMatchRange?.to ||
-        stateAfterFirst.currentView?.view !==
-          stateAfterSecond.currentView?.view;
+        stateAfterFirst.currentView?.cellId !==
+          stateAfterSecond.currentView?.cellId;
 
       expect(isDifferentMatch).toBe(true);
     });
