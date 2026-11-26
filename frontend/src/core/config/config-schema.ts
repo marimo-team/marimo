@@ -185,7 +185,9 @@ export const UserConfigSchema = z
           .prefault("ask"),
         inline_tooltip: z.boolean().prefault(false),
         allow_provider_config: z.boolean().prefault(true),
-        open_ai: AiConfigSchema.optional(),
+        open_ai: AiConfigSchema.extend({
+          model: z.string().optional(),
+        }).optional(),
         github: AiConfigSchema.optional(),
         anthropic: AiConfigSchema.optional(),
         google: AiConfigSchema.optional(),

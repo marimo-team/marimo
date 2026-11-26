@@ -803,9 +803,13 @@ def _google_ai_config():
 
 
 @pytest.mark.requires("openai", "pydantic_ai")
+@pytest.mark.parametrize("effort", [None, "high"])
 @pytest.mark.parametrize("mode", [None, "manual", "ask", "agent"])
 def test_chat_without_code(
-    client: TestClient, temp_marimo_file: str, mode: CopilotMode | None
+    client: TestClient,
+    temp_marimo_file: str,
+    mode: CopilotMode | None,
+    effort: str | None,
 ) -> None:
     @with_session(SESSION_ID)
     @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
@@ -841,7 +845,10 @@ def test_chat_without_code(
                     "includeOtherCode": "",
                     "context": {},
                     "id": "123",
-                    "options": {"webSearch": True},
+                    "options": {
+                        "webSearch": True,
+                        **({"reasoningEffort": effort} if effort else {}),
+                    },
                 },
             )
             assert response.status_code == 200, response.text
@@ -858,6 +865,11 @@ def test_chat_without_code(
             assert (
                 mock_stream_completion.call_args.kwargs["enable_capabilities"]
                 is True
+            )
+
+            assert (
+                mock_stream_completion.call_args.kwargs["reasoning_effort"]
+                == effort
             )
 
     check_chat(client, temp_marimo_file)
@@ -928,60 +940,71 @@ def _openai_config_code_mode() -> MarimoConfig:
     return config
 
 
+@pytest.mark.parametrize("effort", [None, "none", "minimal", "xhigh", "max"])
 @pytest.mark.requires("openai", "pydantic_ai")
-@with_session(SESSION_ID)
-@patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
-@patch("marimo._server.ai.providers.OpenAIProvider.stream_completion_harness")
 def test_chat_code_mode_routes_to_harness(
     client: TestClient,
-    mock_harness: MagicMock,
-    mock_stream_completion: MagicMock,
+    temp_marimo_file: str,
+    effort: str | None,
 ) -> None:
-    """In code mode the chat endpoint routes to the code-mode harness
-    (which can execute code) instead of the plain completion stream."""
-    user_config_manager = get_session_config_manager(client)
-
-    from starlette.responses import StreamingResponse
-
-    async def mock_stream():
-        yield b"done"
-
-    mock_harness.return_value = StreamingResponse(
-        content=mock_stream(),
-        media_type="text/event-stream",
+    @with_session(SESSION_ID)
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_completion_harness"
     )
+    def check_chat(
+        client: TestClient,
+        mock_harness: MagicMock,
+        mock_stream_completion: MagicMock,
+    ) -> None:
+        """In code mode the chat endpoint routes to the code-mode harness
+        (which can execute code) instead of the plain completion stream."""
+        user_config_manager = get_session_config_manager(client)
 
-    with patch.object(
-        user_config_manager,
-        "get_config",
-        return_value=_openai_config_code_mode(),
-    ):
-        response = client.post(
-            "/api/ai/chat",
-            headers=HEADERS,
-            json={
-                "messages": _create_messages("Add a cell"),
-                "uiMessages": _create_messages("Add a cell"),
-                "model": "gpt-4-turbo",
-                "variables": [],
-                "includeOtherCode": "",
-                "context": {},
-                "id": "123",
-                "options": {"webSearch": True},
-            },
+        from starlette.responses import StreamingResponse
+
+        async def mock_stream():
+            yield b"done"
+
+        mock_harness.return_value = StreamingResponse(
+            content=mock_stream(),
+            media_type="text/event-stream",
         )
 
-    assert response.status_code == 200, response.text
-    mock_harness.assert_called_once()
-    mock_stream_completion.assert_not_called()
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config_code_mode(),
+        ):
+            response = client.post(
+                "/api/ai/chat",
+                headers=HEADERS,
+                json={
+                    "messages": _create_messages("Add a cell"),
+                    "uiMessages": _create_messages("Add a cell"),
+                    "model": "gpt-4-turbo",
+                    "variables": [],
+                    "includeOtherCode": "",
+                    "context": {},
+                    "id": "123",
+                    "options": {"webSearch": True, "reasoningEffort": effort},
+                },
+            )
 
-    # The harness receives the live session and the assembled system prompt
-    # (which embeds the marimo-pair skill; building it also exercises the
-    # skill-loading path).
-    kwargs = mock_harness.call_args.kwargs
-    assert kwargs["session"] is not None
-    assert kwargs["enable_capabilities"] is True
-    assert "how to work with marimo" in kwargs["system_prompt"]
+        assert response.status_code == 200, response.text
+        mock_harness.assert_called_once()
+        mock_stream_completion.assert_not_called()
+
+        # The harness receives the live session and the assembled system prompt
+        # (which embeds the marimo-pair skill; building it also exercises the
+        # skill-loading path).
+        kwargs = mock_harness.call_args.kwargs
+        assert kwargs["session"] is not None
+        assert kwargs["enable_capabilities"] is True
+        assert kwargs["reasoning_effort"] == effort
+        assert "how to work with marimo" in kwargs["system_prompt"]
+
+    check_chat(client, temp_marimo_file)
 
 
 # Tool invocation tests (provider-agnostic)

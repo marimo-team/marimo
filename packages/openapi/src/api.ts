@@ -4083,6 +4083,10 @@ export interface components {
      * @description Used to configure capabilities of the AI agent.
      */
     ChatOptions: {
+      /** @default null */
+      reasoningEffort?:
+        | ("high" | "low" | "max" | "medium" | "minimal" | "none" | "xhigh")
+        | null;
       /** @default false */
       webSearch?: boolean;
     };
