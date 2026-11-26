@@ -1,4 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+/* Colors mirror core/codemirror/theme/{light,dark}.ts so building the editor does not recolor the code. */
 .mo-code-placeholder {
   cursor: text;
   padding: 8px 29px 8px 10px;
@@ -8,16 +10,45 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   tab-size: 4;
+  color: light-dark(#000, #abb2bf);
 }
+
 .mo-code-placeholder .tok-keyword {
-  color: var(--cm-keyword, #708);
+  color: light-dark(#708, #c678dd);
+  font-weight: 500;
 }
-.mo-code-placeholder .tok-string {
-  color: var(--cm-string, #a11);
+
+.mo-code-placeholder .tok-string,
+.mo-code-placeholder .tok-string2 {
+  color: light-dark(#a11, #98c379);
 }
+
+.mo-code-placeholder .tok-number {
+  color: light-dark(#164, #d19a66);
+}
+
+.mo-code-placeholder .tok-bool,
+.mo-code-placeholder .tok-atom {
+  color: light-dark(#219, #d19a66);
+}
+
+.mo-code-placeholder .tok-operator {
+  color: light-dark(#a2f, #56b6c2);
+  font-weight: 500;
+}
+
+.mo-code-placeholder .tok-className {
+  color: light-dark(#00f, #61afef);
+}
+
+.mo-code-placeholder .tok-typeName {
+  color: light-dark(#085, #56b6c2);
+}
+
+.mo-code-placeholder .tok-propertyName {
+  color: light-dark(#05a, #e5c07b);
+}
+
 .mo-code-placeholder .tok-comment {
   color: var(--cm-comment);
-}
-.mo-code-placeholder .tok-number {
-  color: var(--cm-number, #164);
 }

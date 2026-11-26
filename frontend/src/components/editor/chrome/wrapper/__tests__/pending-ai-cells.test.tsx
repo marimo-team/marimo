@@ -17,19 +17,16 @@ import { PendingAICells } from "../pending-ai-cells";
 import { PendingAIChangesBadge } from "../pending-ai-changes-badge";
 
 const deleteCell = vi.hoisted(() => vi.fn());
-const setCellCode = vi.hoisted(() => vi.fn());
+const writeCellCode = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/editor/cell/useDeleteCell", () => ({
   useDeleteCellCallback: () => deleteCell,
 }));
 
-vi.mock("@/core/cells/cells", () => ({
-  getCellEditorView: vi.fn(),
-}));
+vi.mock("@/core/codemirror/cell-documents", () => ({ writeCellCode }));
 vi.mock("@/core/cells/actions", () => ({
   useCellActions: () => ({
     createCell: vi.fn(),
-    setCellCode,
   }),
 }));
 
@@ -243,8 +240,8 @@ it("clears the panel badge when all pending changes are accepted", () => {
   expect(screen.queryByText("1 pending AI change")).not.toBeInTheDocument();
 });
 
-it("discards an edit to a cell whose editor is not mounted", () => {
-  setCellCode.mockClear();
+it("restores the previous code when an edit is discarded", () => {
+  writeCellCode.mockClear();
   const store = createStore();
   const collapsed = cellId("collapsed-cell");
   store.set(
@@ -257,9 +254,8 @@ it("discards an edit to a cell whose editor is not mounted", () => {
     </Provider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "Discard" }));
-  expect(setCellCode).toHaveBeenCalledWith({
-    cellId: collapsed,
-    code: "x = 1",
+  expect(writeCellCode).toHaveBeenCalledWith(collapsed, "x = 1", {
+    initialize: true,
   });
   expect(store.get(stagedAICellsAtom).size).toBe(0);
 });

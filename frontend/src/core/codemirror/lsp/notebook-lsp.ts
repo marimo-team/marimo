@@ -2,7 +2,6 @@
 
 import type { EditorView } from "@codemirror/view";
 import type * as LSP from "vscode-languageserver-protocol";
-import { setCellCodeAtom } from "@/core/cells/actions";
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
@@ -11,9 +10,9 @@ import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import { Objects } from "@/utils/objects";
 import { isRecord } from "@/utils/records";
+import { writeCellCode } from "../cell-documents";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { topologicalCodesAtom } from "../copilot/getCodes";
-import { prepareCellCodeUpdate } from "../language/cell-code";
 import { getEditorCodeAsPython } from "../language/utils";
 import { createNotebookLens, type NotebookLens } from "./lens";
 import { normalizeLspDocumentation } from "./normalize-markdown-math";
@@ -757,19 +756,12 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
         continue;
       }
 
-      if (!ev) {
-        store.set(setCellCodeAtom, { cellId: currentCellId, code: newCode });
-        updatedCount++;
-        continue;
-      }
-
       // Only update if it has changed
-      const code = getEditorCodeAsPython(ev);
+      const code = ev
+        ? getEditorCodeAsPython(ev)
+        : getNotebook().cellData[currentCellId]?.code;
       if (code !== newCode) {
-        const update = prepareCellCodeUpdate(ev.state, newCode);
-        if (update) {
-          ev.dispatch(update);
-        }
+        writeCellCode(currentCellId, newCode);
         updatedCount++;
       }
     }

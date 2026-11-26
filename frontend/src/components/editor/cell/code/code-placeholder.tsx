@@ -5,7 +5,7 @@ import { pythonLanguage } from "@codemirror/lang-python";
 import { SQLDialect } from "@codemirror/lang-sql";
 import { classHighlighter, highlightTree } from "@lezer/highlight";
 import { useMemo, type ReactNode } from "react";
-import { languageAdapterFromCode } from "@/core/codemirror/language/extension";
+import { parseCellCode } from "@/core/codemirror/language/cell-code";
 import { cn } from "@/utils/cn";
 
 interface CodePlaceholderProps {
@@ -21,8 +21,7 @@ const parsers = {
 
 export const CodePlaceholder = ({ code, className }: CodePlaceholderProps) => {
   const content = useMemo(() => {
-    const adapter = languageAdapterFromCode(code);
-    const [text] = adapter.transformIn(code);
+    const { adapter, text } = parseCellCode(code);
     const parser = parsers[adapter.type];
     const nodes: ReactNode[] = [];
     let position = 0;

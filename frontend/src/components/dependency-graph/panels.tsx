@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import React, { memo, useId } from "react";
 import { type Edge, Panel } from "reactflow";
-import { getCellEditorView } from "@/core/cells/cells";
+import { ensureCellEditorView } from "@/core/cells/cells";
 import { useCellActions } from "@/core/cells/actions";
 import type { CellId } from "@/core/cells/ids";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
@@ -133,7 +133,7 @@ export const GraphSelectionPanel: React.FC<{
 
   // Highlight the variable in the cell editor
   const highlightInCell = (cellId: CellId, variableName: string) => {
-    const editorView = getCellEditorView(cellId);
+    const editorView = ensureCellEditorView(cellId);
     if (editorView) {
       goToVariableDefinition(editorView, variableName);
     }

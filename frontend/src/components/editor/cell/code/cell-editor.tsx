@@ -376,6 +376,14 @@ const CellEditorInternal = ({
     }
   }, [handleReconfigureEditor, extensions, editorViewRef]);
 
+  // An AI edit applies to the editor, which a dormant cell does not have yet.
+  const isAiCompletionTarget = aiCompletionCell?.cellId === cellId;
+  useEffect(() => {
+    if (isAiCompletionTarget) {
+      promote();
+    }
+  }, [isAiCompletionTarget, promote]);
+
   const navigationProps = useCellEditorNavigationProps(cellId, editorViewRef);
 
   const isCollapsed = isMarkdown && hidden && hasOutput;
@@ -385,7 +393,7 @@ const CellEditorInternal = ({
   } else if (hidden) {
     // Shortens the editor and hides the cell panels
     editorClassName =
-      "opacity-20 h-8 [&>div.cm-editor]:h-full [&>div.cm-editor]:overflow-hidden [&_.cm-panels]:hidden";
+      "opacity-20 h-8 overflow-hidden [&>div.cm-editor]:h-full [&_.cm-panels]:hidden";
   }
 
   return (
@@ -427,14 +435,18 @@ const CellEditorInternal = ({
         {...navigationProps}
         onPointerDownCapture={promote}
         onFocusCapture={promote}
+        onDoubleClick={(e) => {
+          if (hidden) {
+            e.stopPropagation();
+            showHiddenCode({ focus: true });
+          }
+        }}
       >
         {isEditorMounted ? (
           <CellCodeMirrorEditor
             className={editorClassName}
             editorView={editorViewRef.current}
             ref={editorViewParentRef}
-            hidden={hidden}
-            showHiddenCode={showHiddenCode}
           />
         ) : (
           !isCollapsed && (
@@ -462,12 +474,10 @@ const CellCodeMirrorEditor = React.forwardRef(
     props: {
       className?: string;
       editorView: EditorView | null;
-      hidden?: boolean;
-      showHiddenCode?: (opts?: { focus?: boolean }) => void;
     },
     ref?: React.Ref<HTMLDivElement>,
   ) => {
-    const { className, editorView, hidden, showHiddenCode } = props;
+    const { className, editorView } = props;
     const internalRef = useRef<HTMLDivElement>(null);
 
     // If this gets unmounted/remounted, we need to re-append the editorView
@@ -487,12 +497,6 @@ const CellCodeMirrorEditor = React.forwardRef(
     return (
       <div
         className={cn("cm mathjax_ignore", className)}
-        onDoubleClick={(e) => {
-          if (hidden && showHiddenCode) {
-            e.stopPropagation();
-            showHiddenCode({ focus: true });
-          }
-        }}
         ref={(r) => {
           if (ref) {
             mergeRefs(ref, internalRef)(r);

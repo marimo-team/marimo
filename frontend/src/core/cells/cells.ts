@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { EditorView } from "@codemirror/view";
 import type * as Protocol from "@marimo-team/client/protocol";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
@@ -325,15 +326,16 @@ const {
     };
   },
   foldAll: (state) => {
-    const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView,
+    // A cell without an editor starts unfolded, so folding needs every editor.
+    const targets = Object.keys(state.cellHandles).map((cellId) =>
+      ensureCellEditorView(cellId as CellId),
     );
     foldAllBulk(targets);
     return state;
   },
   unfoldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView,
+      (handle) => handle.current?.editorViewOrNull,
     );
     unfoldAllBulk(targets);
     return state;
@@ -623,18 +625,23 @@ export const getAllEditorViews = () => {
     .filter(Boolean);
 };
 
-export const getCellEditorView = (cellId: CellId) => {
-  editorMountScheduler.promote(cellId);
+/** The cell's editor if it has been built; never builds one. */
+export const getCellEditorView = (cellId: CellId): EditorView | undefined => {
   const { cellHandles } = store.get(notebookAtom);
-  return cellHandles[cellId]?.current?.editorView;
+  return cellHandles[cellId]?.current?.editorView ?? undefined;
 };
 
 /**
- * Get the cell's editor view. When the view's build is still queued in the
- * progressive-mount scheduler, build it synchronously first. This lets user
- * actions target a cell whose editor is not mounted yet.
+ * The cell's editor, built synchronously first if it is still dormant. Use it
+ * for explicit user actions that target one cell. A freshly built editor is
+ * not attached to the page until React renders, so wait before focusing it.
  */
-export const ensureCellEditorView = getCellEditorView;
+export const ensureCellEditorView = (
+  cellId: CellId,
+): EditorView | undefined => {
+  editorMountScheduler.promote(cellId);
+  return getCellEditorView(cellId);
+};
 
 /** The document's cells with their runtime state and what each shows. */
 export const renderedNotebookCellsAtom = atom((get): RuntimeCell[] =>

@@ -200,7 +200,7 @@ print(mymodule)`;
     // The defining cell's editor build still waits in the mount queue, the
     // state right after a large notebook opens.
     const handle: { current: CellHandle | null } = { current: null };
-    editorMountScheduler.request(definingCell, () => {
+    editorMountScheduler.register(definingCell, () => {
       handle.current = {
         editorView: definingView,
         editorViewOrNull: definingView,

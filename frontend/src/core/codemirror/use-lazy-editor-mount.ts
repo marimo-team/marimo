@@ -17,7 +17,11 @@ const observeEditor = createSharedIntersectionObserver({
   threshold: 0,
 });
 
-/** Owns registration, viewport eligibility, and the editor's entire lifetime. */
+/**
+ * Owns registration, viewport eligibility, and the editor's entire lifetime.
+ * `build` must assign `editorViewRef`; construct inside it so a deferred
+ * editor starts from the latest code and configuration.
+ */
 export function useLazyEditorMount({
   cellId,
   editorViewRef,
@@ -40,7 +44,7 @@ export function useLazyEditorMount({
 
   useEffect(() => {
     setMounted(false);
-    const cancel = editorMountScheduler.request(cellId, buildLatest, true);
+    const cancel = editorMountScheduler.register(cellId, buildLatest);
     return () => {
       cancel();
       editorViewRef.current?.destroy();

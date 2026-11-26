@@ -18,6 +18,13 @@ import { LanguageAdapters } from "./LanguageAdapters";
 import { sqlDialectEffect } from "./languages/sql/sql";
 import { languageMetadataField, setLanguageMetadata } from "./metadata";
 
+/** What an editor would show for cell source: the language and its text. */
+export function parseCellCode(source: string) {
+  const adapter = languageAdapterFromCode(source);
+  const [text, , metadata] = adapter.transformIn(source);
+  return { adapter, text, metadata };
+}
+
 /** The Python source represented by the editor's text and language metadata. */
 export function getCellCode(state: EditorState): string {
   const text = state.doc.toString();

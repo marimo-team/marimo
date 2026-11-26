@@ -1,5 +1,4 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { languageAdapterFromCode } from "@/core/codemirror/language/extension";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
@@ -32,6 +31,8 @@ import { isOutputEmpty } from "@/core/cells/outputs";
 import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { clearCellBreakpoints } from "@/core/codemirror/cells/debugger-state";
+import { parseCellCode } from "@/core/codemirror/language/cell-code";
+import { languageAdapterFromCode } from "@/core/codemirror/language/extension";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { CSSClasses } from "@/core/constants";
 import { canCollapseOutline } from "@/core/dom/outline";
@@ -51,6 +52,7 @@ import type { CellConfig } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
 import {
+  ensureCellEditorView,
   useCellData,
   useCellHandle,
   useCellRuntime,
@@ -93,6 +95,7 @@ import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { cellDomProps } from "./common";
 import { SqlValidationErrorBanner } from "./errors/sql-validation-errors";
+import { focusEditor } from "./navigation/focus-utils";
 import { useCellNavigationProps } from "./navigation/navigation";
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
@@ -164,12 +167,10 @@ function useCellHiddenLogic({
   cellId,
   cellConfig,
   languageAdapter,
-  editorView,
 }: {
   cellId: CellId;
   cellConfig: CellConfig;
   languageAdapter: LanguageAdapterType | undefined;
-  editorView: React.RefObject<EditorView | null>;
   editorViewParentRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const showsHiddenCode = useShowsHiddenCode(cellId);
@@ -193,7 +194,10 @@ function useCellHiddenLogic({
     showHiddenCodeNow({ cellId });
 
     if (focus) {
-      editorView.current?.focus();
+      const editor = ensureCellEditorView(cellId);
+      if (editor) {
+        focusEditor(editor);
+      }
     }
 
     // Undoing happens in editor/focus/focus.ts, when the cell is blurred.
@@ -408,12 +412,11 @@ const EditableCellComponent = ({
   const answerPrompt = useAnswerPrompt(cellId);
   const isPendingCut = useIsPendingCut(cellId);
 
-  const [editorLanguageAdapter, setLanguageAdapter] = useState<
-    LanguageAdapterType | undefined
-  >(() => languageAdapterFromCode(cellData.code).type);
-  const languageAdapter = editorView.current
-    ? editorLanguageAdapter
-    : languageAdapterFromCode(cellData.code).type;
+  // The editor reports its language once built; until then it follows the code.
+  const [editorLanguageAdapter, setLanguageAdapter] =
+    useState<LanguageAdapterType>();
+  const languageAdapter =
+    editorLanguageAdapter ?? languageAdapterFromCode(cellData.code).type;
 
   const uninstantiated = isUninstantiated(execution);
 
@@ -467,7 +470,6 @@ const EditableCellComponent = ({
     cellId,
     cellConfig: cellData.config,
     languageAdapter,
-    editorView,
     editorViewParentRef,
   });
 
@@ -492,10 +494,9 @@ const EditableCellComponent = ({
   const [isCellStatusInline, setIsCellStatusInline] = useState(false);
   const [isCellButtonsInline, setIsCellButtonsInline] = useState(false);
 
-  // For markdown cells, get the inner content directly from the editor
-  // (editorView.state.doc contains the transformed markdown, not the mo.md(...) wrapper)
+  // The notebook code wraps markdown in mo.md(...); emptiness is about its content.
   const isEmptyMarkdownContent =
-    isMarkdown && editorView.current?.state.doc.toString().trim() === "";
+    isMarkdown && parseCellCode(cellData.code).text.trim() === "";
 
   useResizeObserver({
     ref: cellContainerRef,
@@ -1016,7 +1017,6 @@ const SetupCellComponent = ({
     cellId,
     cellConfig: cellData.config,
     languageAdapter: "python",
-    editorView,
     editorViewParentRef,
   });
 

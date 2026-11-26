@@ -4,7 +4,7 @@ import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { invariant } from "@/utils/invariant";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { cellActionsState, cellIdState } from "./cells/state";
-import { formatEditorViews, formattingChangeEffect } from "./format";
+import { formatCells, formattingChangeEffect } from "./format";
 import {
   getCurrentLanguageAdapter,
   toggleToLanguage,
@@ -20,7 +20,7 @@ export function formatKeymapExtension(hotkeys: HotkeyProvider) {
       preventDefault: true,
       run: (ev) => {
         const cellId = ev.state.facet(cellIdState);
-        formatEditorViews({ [cellId]: ev });
+        formatCells([cellId]);
         return true;
       },
     },
