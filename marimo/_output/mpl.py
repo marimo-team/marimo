@@ -34,8 +34,14 @@ FigureCanvas = FigureCanvasAgg
 
 
 def close_figures() -> None:
-    if Gcf.get_all_fig_managers():
-        plt.close("all")
+    for manager in Gcf.get_all_fig_managers():
+        figure = manager.canvas.figure
+        canvas = figure.canvas
+        Gcf.destroy(manager)
+        # Closing the pyplot manager resets figure.canvas in Matplotlib 3.11+.
+        # A live view may already have attached its own canvas.
+        if canvas is not manager.canvas:
+            figure.set_canvas(canvas)
 
 
 def _extract_png_dimensions(png_bytes: bytes) -> tuple[int, int]:

@@ -1,11 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  type Data,
-  MatplotlibRenderer,
-  type MatplotlibState,
+import { Deferred } from "@/utils/Deferred";
+import { Model } from "../../anywidget/model";
+import { modelProxy } from "../../anywidget/model-proxy";
+import widget, {
+  BrushOverlay,
   visibleForTesting,
-} from "../matplotlib-renderer";
+} from "../../../../../../marimo/_plugins/ui/_impl/mpl_widget.js";
 
 const {
   pixelToData,
@@ -16,13 +17,53 @@ const {
   isInAxes,
 } = visibleForTesting;
 
+it("sends the latest brush selection once the previous save finishes", async () => {
+  vi.useFakeTimers();
+  const controller = new AbortController();
+  try {
+    const response = new Deferred<void>();
+    const sendUpdate = vi.fn().mockReturnValueOnce(response.promise);
+    const model = new Model(
+      { selection: 0 },
+      {
+        sendUpdate,
+        sendCustomMessage: vi.fn(),
+      },
+    );
+    widget.initialize({
+      model: modelProxy<{ selection: number }>(model, controller.signal),
+      signal: controller.signal,
+    });
+    model.set("selection", 1);
+    model.set("selection", 2);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sendUpdate.mock.calls).toEqual([[{ selection: 2 }]]);
+
+    model.set("selection", 3);
+    model.set("selection", 4);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sendUpdate).toHaveBeenCalledTimes(1);
+    sendUpdate.mockResolvedValue(undefined);
+    response.resolve();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sendUpdate.mock.calls).toEqual([
+      [{ selection: 2 }],
+      [{ selection: 4 }],
+    ]);
+    model.set("selection", 5);
+    controller.abort();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(sendUpdate).toHaveBeenCalledTimes(2);
+  } finally {
+    controller.abort();
+    vi.useRealTimers();
+  }
+});
+
 // A simple axes geometry for testing:
 // axes occupy pixels [100, 50] to [500, 350] (400px wide, 300px tall)
 // data range x: [0, 10], y: [0, 100]
-const LINEAR_AXES: Pick<
-  Data,
-  "axesPixelBounds" | "xBounds" | "xScale" | "yBounds" | "yScale"
-> = {
+const LINEAR_AXES = {
   axesPixelBounds: [100, 50, 500, 350],
   xBounds: [0, 10],
   yBounds: [0, 100],
@@ -30,10 +71,7 @@ const LINEAR_AXES: Pick<
   yScale: "linear",
 };
 
-const LOG_AXES: Pick<
-  Data,
-  "axesPixelBounds" | "xBounds" | "xScale" | "yBounds" | "yScale"
-> = {
+const LOG_AXES = {
   axesPixelBounds: [100, 50, 500, 350],
   xBounds: [1, 1000],
   yBounds: [1, 1000],
@@ -191,12 +229,11 @@ describe("isInAxes", () => {
 });
 
 // A 100x100 chart whose axes fill the whole figure.
-function createState(): MatplotlibState {
+function createState() {
   return {
     ...LINEAR_AXES,
     axesPixelBounds: [0, 0, 100, 100],
     yBounds: [0, 10],
-    chartBase64: "first",
     width: 100,
     height: 100,
     selectionColor: "blue",
@@ -208,53 +245,13 @@ function createState(): MatplotlibState {
   };
 }
 
-// jsdom has no matchMedia, no animation frames and no canvas context.
-function stubBrowser(ctx: Partial<CanvasRenderingContext2D> | null = null) {
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn(() => ({ addEventListener: vi.fn() })),
-  );
-  const requestAnimationFrame = vi.fn(() => 1);
-  vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
-  vi.stubGlobal("cancelAnimationFrame", vi.fn());
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-    ctx as CanvasRenderingContext2D | null,
-  );
-  return { requestAnimationFrame };
-}
-
-// jsdom does not fetch images; resolve them synchronously instead.
-function stubSyncImage() {
-  vi.stubGlobal(
-    "Image",
-    class {
-      public onload: (() => void) | null = null;
-      public set src(_value: string) {
-        this.onload?.();
-      }
-    },
-  );
-}
-
-function createRecordingContext() {
-  return {
-    setTransform: vi.fn(),
-    clearRect: vi.fn(),
-    drawImage: vi.fn(),
-    save: vi.fn(),
-    restore: vi.fn(),
-  };
-}
-
-describe("MatplotlibRenderer", () => {
+describe("BrushOverlay", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it("restores a new selection when the chart changes", () => {
-    stubBrowser();
-
+  it("restores a new selection from widget state", () => {
     const value = {
       type: "box",
       has_selection: true,
@@ -263,153 +260,55 @@ describe("MatplotlibRenderer", () => {
     const state = createState();
     const container = document.createElement("div");
     const controller = new AbortController();
-    const renderer = new MatplotlibRenderer(container, {
+    const renderer = new BrushOverlay(container, {
       state,
       signal: controller.signal,
     });
 
-    // Cell reruns reuse the renderer, updating the chart and initial value together.
-    renderer.update({ ...state, chartBase64: "second", value });
+    renderer.update({ ...state, value });
 
-    const canvas = container.querySelector("canvas");
-    expect(canvas).not.toBeNull();
-    if (!canvas) {
+    const surface = container.querySelector("svg");
+    expect(surface).not.toBeNull();
+    if (!surface) {
       return;
     }
-    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue(
+    vi.spyOn(surface, "getBoundingClientRect").mockReturnValue(
       DOMRect.fromRect({ width: 100, height: 100 }),
     );
-    canvas.dispatchEvent(
+    surface.dispatchEvent(
       new MouseEvent("pointermove", { clientX: 30, clientY: 70 }),
     );
 
-    expect(canvas.style.cursor).toBe("move");
+    expect(surface.style.cursor).toBe("move");
     controller.abort();
   });
 
-  // Safari only fires resize on zoom, not the resolution query (#10625).
-  it("re-syncs the backing store on resize, without matchMedia firing", () => {
-    stubBrowser();
-    vi.stubGlobal("devicePixelRatio", 2);
-
+  it("keeps the selection in plot coordinates as the overlay resizes", () => {
     const container = document.createElement("div");
     const controller = new AbortController();
-    new MatplotlibRenderer(container, {
-      state: createState(),
-      signal: controller.signal,
-    });
-    const canvas = container.querySelector("canvas");
-    expect(canvas?.width).toBe(200);
-
-    vi.stubGlobal("devicePixelRatio", 1);
-    window.dispatchEvent(new Event("resize"));
-
-    expect(canvas?.width).toBe(100);
-    controller.abort();
-  });
-
-  // Re-sizing clears the buffer a frame before the repaint, so an over-eager
-  // guard flickers. 700 * 1.1 is the case a truncating comparison misses.
-  it("leaves the backing store alone when resize fires at an unchanged DPR", () => {
-    const { requestAnimationFrame } = stubBrowser();
-    vi.stubGlobal("devicePixelRatio", 1.1);
-
-    const container = document.createElement("div");
-    const controller = new AbortController();
-    new MatplotlibRenderer(container, {
-      state: { ...createState(), width: 700 },
-      signal: controller.signal,
-    });
-    const canvas = container.querySelector("canvas");
-    expect(canvas?.width).toBe(770);
-
-    requestAnimationFrame.mockClear();
-    window.dispatchEvent(new Event("resize"));
-
-    expect(canvas?.width).toBe(770);
-    expect(requestAnimationFrame).not.toHaveBeenCalled();
-    controller.abort();
-  });
-
-  it("draws with the backing-store scale, not the current devicePixelRatio", () => {
-    const ctx = createRecordingContext();
-    stubBrowser(ctx);
-    stubSyncImage();
-    vi.stubGlobal("devicePixelRatio", 2);
-
     const state = createState();
-    const container = document.createElement("div");
-    const controller = new AbortController();
-    const renderer = new MatplotlibRenderer(container, {
-      state,
+    const value = {
+      type: "box",
+      has_selection: true,
+      data: { x_min: 2, x_max: 4, y_min: 2, y_max: 4 },
+    };
+    const overlay = new BrushOverlay(container, {
+      state: { ...state, value },
       signal: controller.signal,
     });
-    expect(container.querySelector("canvas")?.width).toBe(200);
-
-    // Zoom with nothing re-syncing the buffer: it still holds the old DPR, so
-    // the redraw must too, or the image lands scaled by dpr_new / dpr_old.
-    vi.stubGlobal("devicePixelRatio", 1);
-    ctx.setTransform.mockClear();
-    renderer.update({ ...state, strokeWidth: 4 });
-
-    expect(ctx.setTransform.mock.calls).toEqual([[2, 0, 0, 2, 0, 0]]);
-    expect(ctx.drawImage).toHaveBeenLastCalledWith(
-      expect.anything(),
-      0,
-      0,
-      100,
-      100,
-    );
-    controller.abort();
-  });
-
-  it("clears the whole backing store when a re-run swaps the chart", () => {
-    const ctx = createRecordingContext();
-    stubBrowser(ctx);
-    vi.stubGlobal("devicePixelRatio", 2);
-
-    const state = createState();
-    const container = document.createElement("div");
-    const controller = new AbortController();
-    const renderer = new MatplotlibRenderer(container, {
-      state,
-      signal: controller.signal,
+    const svg = container.querySelector("svg");
+    const path = container.querySelector("path");
+    expect(svg?.getAttribute("viewBox")).toBe("0 0 100 100");
+    expect(path?.getAttribute("d")).toBe("M20 80 H40 V60 H20 Z");
+    overlay.update({
+      ...state,
+      width: 200,
+      axesPixelBounds: [0, 0, 200, 100],
+      value,
     });
-
-    vi.stubGlobal("devicePixelRatio", 1);
-    ctx.setTransform.mockClear();
-    ctx.clearRect.mockClear();
-    renderer.update({ ...state, chartBase64: "second" });
-
-    // A stale scale here would leave the outer 3/4 of the buffer unwiped.
-    expect(ctx.setTransform.mock.calls).toEqual([[2, 0, 0, 2, 0, 0]]);
-    expect(ctx.clearRect.mock.calls).toEqual([[0, 0, 100, 100]]);
+    expect(svg?.getAttribute("viewBox")).toBe("0 0 200 100");
+    expect(path?.getAttribute("d")).toBe("M40 80 H80 V60 H40 Z");
     controller.abort();
-  });
-
-  it("scales each axis by its own backing-store ratio", () => {
-    const ctx = createRecordingContext();
-    stubBrowser(ctx);
-    stubSyncImage();
-    // canvas.width/height are integers, so this truncates the two dimensions
-    // by different fractions: 150 * 1.25 -> 187 (0.5 lost), 500 * 1.25 -> 625
-    // (exact). One shared, width-derived scale would under-cover the buffer
-    // vertically and leave its bottom rows unwiped.
-    vi.stubGlobal("devicePixelRatio", 1.25);
-
-    const state = { ...createState(), width: 150, height: 500 };
-    const container = document.createElement("div");
-    const controller = new AbortController();
-    new MatplotlibRenderer(container, { state, signal: controller.signal });
-
-    const canvas = container.querySelector("canvas");
-    expect(canvas?.width).toBe(187);
-    expect(canvas?.height).toBe(625);
-    // The pre-load clear and the draw each set up their own transform.
-    const transform = [187 / 150, 0, 0, 625 / 500, 0, 0];
-    const rect = [0, 0, 150, 500];
-    expect(ctx.setTransform.mock.calls).toEqual([transform, transform]);
-    expect(ctx.clearRect.mock.calls).toEqual([rect, rect]);
-    controller.abort();
+    expect(container.children).toHaveLength(0);
   });
 });

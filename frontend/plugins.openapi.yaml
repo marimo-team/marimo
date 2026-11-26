@@ -1569,34 +1569,6 @@ paths:
       responses:
         "204":
           description: Accepted.
-  /plugins/marimo-matplotlib/data:
-    summary: marimo-matplotlib data
-    get:
-      operationId: read_marimo_matplotlib_data
-      summary: Read marimo-matplotlib data
-      tags:
-        - plugin-data
-      responses:
-        "200":
-          description: marimo-matplotlib data accepted by a plugin consumer.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/marimo-matplotlib.data"
-    put:
-      operationId: write_marimo_matplotlib_data
-      summary: Write marimo-matplotlib data
-      tags:
-        - plugin-data
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/marimo-matplotlib.data"
-      responses:
-        "204":
-          description: Accepted.
   /plugins/marimo-matrix/data:
     summary: marimo-matrix data
     get:
@@ -4176,72 +4148,6 @@ components:
           type: string
       required:
         - html
-    marimo-matplotlib.data:
-      type: object
-      properties:
-        chartBase64:
-          type: string
-        xBounds:
-          type: array
-          prefixItems:
-            - type: number
-            - type: number
-          items: false
-          minItems: 2
-          maxItems: 2
-        yBounds:
-          type: array
-          prefixItems:
-            - type: number
-            - type: number
-          items: false
-          minItems: 2
-          maxItems: 2
-        axesPixelBounds:
-          type: array
-          prefixItems:
-            - type: number
-            - type: number
-            - type: number
-            - type: number
-          items: false
-          minItems: 4
-          maxItems: 4
-        width:
-          type: number
-        height:
-          type: number
-        selectionColor:
-          default: "#3b82f6"
-          type: string
-        selectionOpacity:
-          default: 0.15
-          type: number
-        strokeWidth:
-          default: 2
-          type: number
-        debounce:
-          type: boolean
-        xScale:
-          default: linear
-          type: string
-          enum:
-            - linear
-            - log
-        yScale:
-          default: linear
-          type: string
-          enum:
-            - linear
-            - log
-      required:
-        - chartBase64
-        - xBounds
-        - yBounds
-        - axesPixelBounds
-        - width
-        - height
-        - debounce
     marimo-matrix.data:
       type: object
       properties:

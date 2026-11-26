@@ -4,11 +4,10 @@ marimo supports most major plotting libraries, including Matplotlib, Seaborn,
 Plotly, Altair, and HoloViews. Just import your plotting library of choice and
 use it as you normally would.
 
-For matplotlib, Altair, and Plotly plots, marimo does something special: wrap
+To make Matplotlib, Altair, and Plotly plots reactive, wrap
 your plot in [`mo.ui.matplotlib`][marimo.ui.matplotlib],
 [`mo.ui.altair_chart`][marimo.ui.altair_chart] or
-[`mo.ui.plotly`][marimo.ui.plotly], then select and filter with your mouse —
-marimo automatically sends the selected data back to Python!
+[`mo.ui.plotly`][marimo.ui.plotly], then make a selection in the plot and use it to filter data in Python.
 
 
 > For a video overview of reactive plots, check out our [YouTube tutorial](https://youtu.be/KFXsm1wr408).
@@ -29,41 +28,39 @@ follow the notebook theme.
 
 ### matplotlib
 
-Use [`mo.ui.matplotlib`][marimo.ui.matplotlib] to make matplotlib plots
-**reactive**: select data on the frontend, then use the selection to filter
-your data in Python.
+Use [`mo.ui.matplotlib`][marimo.ui.matplotlib] to make reactive selections on
+Matplotlib plots. When you select points, cells that use the selection update
+automatically.
 
-Two selection modes are supported:
+Live plots require a Matplotlib version with the anywidget backend.
+Install its widget extra with `pip install 'matplotlib[widget]'`.
 
-- **Box selection** — click and drag to draw a rectangular region.
-- **Lasso selection** — hold <kbd>Shift</kbd> and drag to draw a freehand
-  polygon.
+#### Select points in one subplot
 
-After selecting, use `fig.value.get_mask(x, y)` to get a boolean mask of the
-points inside the selection. When nothing is selected, `fig.value` is falsy and
-`get_mask()` returns an all-`False` array.
-
-#### Example
+Pass a Matplotlib `Axes` (one subplot) to `mo.ui.matplotlib`. Drag to draw a box
+or hold <kbd>Shift</kbd> and drag to draw a lasso. In another cell, use
+`plot.value.get_mask(x, y)` to find the points inside your selection.
 
 /// tab | code
 
 ```python
-import matplotlib.pyplot as plt
 import marimo as mo
+import matplotlib.pyplot as plt
 import numpy as np
 
-x = np.random.randn(500)
-y = np.random.randn(500)
-plt.scatter(x, y)
-# Wrap the Axes in mo.ui.matplotlib to make them reactive ⚡
-ax = mo.ui.matplotlib(plt.gca())
-ax
+hours = np.arange(24)
+temperature = 18 + 5 * np.sin(hours / 4)
+
+fig, ax = plt.subplots()
+ax.scatter(hours, temperature)
+plot = mo.ui.matplotlib(ax)
+plot
 ```
 
 ```python
-# In another cell — filter your data using the selection
-mask = ax.value.get_mask(x, y)
-selected_x, selected_y = x[mask], y[mask]
+# In another cell
+mask = plot.value.get_mask(hours, temperature)
+hours[mask], temperature[mask]
 ```
 
 ///
@@ -79,17 +76,18 @@ def __():
     import matplotlib.pyplot as plt
     import numpy as np
 
-    x = np.random.randn(500)
-    y = np.random.randn(500)
-    plt.scatter(x, y)
-    ax = mo.ui.matplotlib(plt.gca())
-    ax
+    hours = np.arange(24)
+    temperature = 18 + 5 * np.sin(hours / 4)
+    fig, ax = plt.subplots()
+    ax.scatter(hours, temperature)
+    plot = mo.ui.matplotlib(ax)
+    plot
     return
 
 @app.cell
 def __():
-    mask = ax.value.get_mask(x, y)
-    np.column_stack([x[mask], y[mask]])
+    mask = plot.value.get_mask(hours, temperature)
+    np.column_stack([hours[mask], temperature[mask]])
     return
 ```
 
@@ -97,44 +95,55 @@ def __():
 
 ///
 
-#### Debouncing
+Drag inside a selection to move it. Drag an edge or corner of a box to resize
+it. When nothing is selected, `plot.value` is falsy and the mask is all `False`.
 
-By default, the selection streams to Python as you drag. For expensive
-downstream computations or very large datasets, pass `debounce=True` so the
-value is only sent on mouse-up:
+#### Select a range
+
+Pass `brush="x"` or `brush="y"` to select a range along one axis. For a time
+series, an x selection includes every point in the selected time interval.
 
 ```python
-ax = mo.ui.matplotlib(plt.gca(), debounce=True)
+plot = mo.ui.matplotlib(ax, brush="x")
+```
+
+#### Debouncing
+
+By default, the selection streams to Python as you drag. If a downstream cell
+is expensive to run, pass `debounce=True`. The brush still follows your pointer,
+and the cell updates when you release the mouse.
+
+```python
+plot = mo.ui.matplotlib(ax, debounce=True)
 ```
 
 #### Selection types
 
-`ax.value` is one of three types:
+Use `get_mask` to filter data, or read the selection bounds directly.
 
-| Type | When | Attributes |
-|------|------|------------|
-| `EmptySelection` | Nothing selected (falsy) | — |
-| `BoxSelection` | Box drag | `x_min`, `x_max`, `y_min`, `y_max` |
-| `LassoSelection` | <kbd>Shift</kbd>+drag | `vertices` (tuple of `(x, y)` pairs) |
+| Type | Gesture | Attributes |
+|------|---------|------------|
+| `EmptySelection` | Nothing selected | Falsy, with an all-`False` mask |
+| `BoxSelection` | Drag | `x_min`, `x_max`, `y_min`, `y_max` |
+| `LassoSelection` | <kbd>Shift</kbd> and drag | `vertices`, a tuple of `(x, y)` pairs |
+| `RangeSelection` | Drag with `brush="x"` or `brush="y"` | `axis`, `minimum`, `maximum` |
 
-All three have a `get_mask(x, y)` method that returns a boolean NumPy array,
-so you can always write:
-
-```python
-mask = ax.value.get_mask(x, y)
-```
-
-Pass `value` to start with a box selection:
+To start with a box selected on a single Axes, pass its bounds as `value`.
+marimo clips them to the axes and returns an empty selection if they do not overlap.
 
 ```python
-ax = mo.ui.matplotlib(
-    plt.gca(),
-    value={"x": (1, 3), "y": (2, 4)},
-)
+plot = mo.ui.matplotlib(ax, value={"x": (4, 8), "y": (20, 24)})
 ```
 
-The initial selection is clamped to the axes. If it does not overlap the
-axes, `ax.value` is an `EmptySelection`.
+!!! tip "Need more control?"
+
+    `mo.ui.matplotlib` keeps the controls focused on selection.
+    Matplotlib’s anywidget backend draws the figure, and marimo draws the
+    selection in the browser.
+
+    You can also use the backend directly to handle clicks with
+    `fig.canvas.mpl_connect`, or wrap its canvas with your own toolbar using
+    [anywidget composition](https://anywidget.dev/en/afm/#widget-composition).
 
 ### Altair
 

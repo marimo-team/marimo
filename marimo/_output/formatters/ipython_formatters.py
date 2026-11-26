@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import functools
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -11,7 +13,22 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
+
+
+_hidden_display_type: ContextVar[type | None] = ContextVar(
+    "hidden_ipython_display_type", default=None
+)
+
+
+@contextmanager
+def hide_ipython_display(display_type: type) -> Iterator[None]:
+    """Keep a library's auxiliary display out of the current cell output."""
+    token = _hidden_display_type.set(display_type)
+    try:
+        yield
+    finally:
+        _hidden_display_type.reset(token)
 
 
 class IPythonFormatter(FormatterFactory):
@@ -59,7 +76,10 @@ class IPythonFormatter(FormatterFactory):
                 display_id = str(uuid.uuid4())
 
             raw = kwargs.pop("raw", False)
+            hidden_type = _hidden_display_type.get()
             for value in objs:
+                if hidden_type is not None and isinstance(value, hidden_type):
+                    continue
                 # raw means it's a mimebundle, with the key (mime) and value (raw data)
                 if raw and isinstance(value, dict):
                     output_value = ReprMimeBundle(value)
