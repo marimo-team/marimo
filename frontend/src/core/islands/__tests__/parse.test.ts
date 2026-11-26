@@ -295,13 +295,27 @@ describe("extractIslandCodeFromEmbed", () => {
   it("should extract code from editor element if code element not found", () => {
     const element = document.createElement(ISLAND_TAG_NAMES.ISLAND);
     element.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
-    const editor = document.createElement(ISLAND_TAG_NAMES.CODE_EDITOR);
-    editor.setAttribute("data-initial-value", '"print(\\"hello\\")"');
-    element.appendChild(editor);
+    element.innerHTML = `<marimo-ui-element><marimo-code-editor data-initial-value='"print(\\"hello\\")"'></marimo-code-editor></marimo-ui-element>`;
 
     const result = extractIslandCodeFromEmbed(element);
 
     expect(result).toBe('print("hello")');
+  });
+
+  it("should ignore a code editor that is part of the cell output", () => {
+    const element = document.createElement(ISLAND_TAG_NAMES.ISLAND);
+    element.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    element.innerHTML = `
+      <marimo-cell-output>
+        <div data-marimo-element><marimo-code-editor data-initial-value='"console.log(1)"'></marimo-code-editor></div>
+      </marimo-cell-output>
+      <div data-marimo-element><marimo-code-editor data-initial-value='"editor = 1"'></marimo-code-editor></div>
+    `;
+
+    expect(extractIslandCodeFromEmbed(element)).toBe("editor = 1");
+
+    element.lastElementChild?.remove();
+    expect(extractIslandCodeFromEmbed(element)).toBe("");
   });
 
   it("should return empty string if no code elements found", () => {
@@ -1307,6 +1321,33 @@ describe("parseMarimoIslandApps", () => {
         .querySelector(ISLAND_TAG_NAMES.CODE_EDITOR)
         ?.getAttribute("data-initial-value"),
     ).toBe(JSON.stringify('print("payload")'));
+  });
+
+  it("should leave a code editor in the cell output alone", () => {
+    const outputHtml =
+      '<div data-marimo-element><marimo-code-editor data-initial-value="&quot;console.log(1)&quot;"></marimo-code-editor></div>';
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: "editor",
+      innerHTML: outputHtml,
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell({ code: "editor", outputHtml })],
+    });
+
+    parseMarimoIslandApps(container);
+
+    expect(
+      island
+        .querySelector(ISLAND_TAG_NAMES.CODE_EDITOR)
+        ?.getAttribute("data-initial-value"),
+    ).toBe(JSON.stringify("console.log(1)"));
+    expect(extractIslandCodeFromEmbed(island)).toBe("editor");
   });
 
   it("should match duplicate cell ids by occurrence", () => {

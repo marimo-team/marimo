@@ -323,7 +323,7 @@ function materializeIslandPayload(
   code.hidden = true;
   code.textContent = encodeURIComponent(cell.code);
 
-  const editor = embed.querySelector<HTMLElement>(ISLAND_TAG_NAMES.CODE_EDITOR);
+  const editor = findIslandCodeEditor(embed);
   if (editor) {
     editor.setAttribute("data-initial-value", JSON.stringify(cell.code));
   }
@@ -440,6 +440,20 @@ export function parseIslandCode(code: string | undefined | null): string {
   return decodeURIComponent(code).trim();
 }
 
+/**
+ * Finds the editor that shows the island's own code.
+ *
+ * The code editor's wrapper is a direct child of the island. An editor in the
+ * cell's output, such as `mo.ui.code_editor(...)`, is always nested deeper:
+ * inside `<marimo-cell-output>` before render, and inside the output wrapper
+ * after render.
+ */
+export function findIslandCodeEditor(embed: Element): HTMLElement | null {
+  return embed.querySelector<HTMLElement>(
+    `:scope > :not(${ISLAND_TAG_NAMES.CELL_OUTPUT}) > ${ISLAND_TAG_NAMES.CODE_EDITOR}`,
+  );
+}
+
 export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
   const reactive =
     embed.getAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE) === "true";
@@ -456,9 +470,7 @@ export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
     return parseIslandCode(cellCodeElement.textContent);
   }
 
-  const editorCodeElement = embed.querySelector<HTMLElement>(
-    ISLAND_TAG_NAMES.CODE_EDITOR,
-  );
+  const editorCodeElement = findIslandCodeEditor(embed);
   if (editorCodeElement) {
     return parseIslandEditor(
       editorCodeElement.getAttribute("data-initial-value"),
