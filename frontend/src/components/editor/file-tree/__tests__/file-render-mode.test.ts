@@ -6,6 +6,8 @@ import { getFileRenderMode } from "../file-render-mode";
 describe("getFileRenderMode", () => {
   it.each([
     ["text/plain", false, "text"],
+    ["text/markdown", false, "markdown"],
+    ["text/markdown; charset=utf-8", false, "markdown"],
     ["text/x-rust", false, "text"],
     ["application/json", false, "text"],
     ["application/toml", false, "text"],
@@ -27,4 +29,22 @@ describe("getFileRenderMode", () => {
       expect(getFileRenderMode(mimeType, isBase64)).toBe(expected);
     },
   );
+
+  it.each([
+    ["README.md", "text/plain", "markdown"],
+    ["AGENTS.md", "application/octet-stream", "markdown"],
+    ["guide.markdown", "text/plain", "markdown"],
+    ["notes.txt", "text/plain", "text"],
+  ] as const)(
+    "detects Markdown filename %s with MIME %s",
+    (filename, mimeType, expected) => {
+      expect(getFileRenderMode(mimeType, false, filename)).toBe(expected);
+    },
+  );
+
+  it("does not treat base64 Markdown as text", () => {
+    expect(getFileRenderMode("text/markdown", true, "README.md")).toBe(
+      "unsupported",
+    );
+  });
 });

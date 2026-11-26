@@ -25,6 +25,7 @@ import "./markdown-renderer.css";
 const extensions = [EditorView.lineWrapping];
 
 const NotebookInsertionContext = createContext(true);
+const ReadOnlyCodeBlocksContext = createContext(false);
 
 interface CodeBlockProps {
   code: string;
@@ -99,6 +100,7 @@ const InsertCodeBlockButton = ({ code, language }: CodeBlockProps) => {
 const CodeBlock = ({ code, language }: CodeBlockProps) => {
   const { theme } = useTheme();
   const allowNotebookInsertion = useContext(NotebookInsertionContext);
+  const readOnlyCodeBlocks = useContext(ReadOnlyCodeBlocksContext);
   const [value, setValue] = useState(code);
 
   if (value !== code) {
@@ -120,7 +122,9 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
           className="cm border rounded overflow-hidden"
           extensions={extensions}
           value={value}
-          onChange={setValue}
+          readOnly={readOnlyCodeBlocks}
+          editable={!readOnlyCodeBlocks}
+          onChange={readOnlyCodeBlocks ? undefined : setValue}
         />
       </Suspense>
       <div className="flex justify-end mt-3 gap-2">
@@ -212,22 +216,26 @@ export const MarkdownRenderer = memo(
   ({
     content,
     allowNotebookInsertion = true,
+    readOnlyCodeBlocks = false,
   }: {
     content: string;
     allowNotebookInsertion?: boolean;
+    readOnlyCodeBlocks?: boolean;
   }) => {
     const plugins = useMathPlugin();
     return (
-      <NotebookInsertionContext.Provider value={allowNotebookInsertion}>
-        <Streamdown
-          components={COMPONENTS}
-          plugins={plugins}
-          rehypePlugins={REHYPE_PLUGINS}
-          className="mo-markdown-renderer"
-        >
-          {content}
-        </Streamdown>
-      </NotebookInsertionContext.Provider>
+      <ReadOnlyCodeBlocksContext.Provider value={readOnlyCodeBlocks}>
+        <NotebookInsertionContext.Provider value={allowNotebookInsertion}>
+          <Streamdown
+            components={COMPONENTS}
+            plugins={plugins}
+            rehypePlugins={REHYPE_PLUGINS}
+            className="mo-markdown-renderer"
+          >
+            {content}
+          </Streamdown>
+        </NotebookInsertionContext.Provider>
+      </ReadOnlyCodeBlocksContext.Provider>
     );
   },
 );
