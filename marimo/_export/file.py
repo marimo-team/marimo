@@ -703,38 +703,39 @@ async def run_notebook(
         auto_instantiate=True,
     )
 
-    # Run the notebook to completion once
-    session.instantiate(
-        InstantiateNotebookRequest(object_ids=[], values=[]),
-        http_request=None,
-    )
-    await instantiated_event.wait()
-    # Hack: yield to give the session view a chance to process the incoming
-    # console operations.
-    await asyncio.sleep(0.1)
-
-    if options.persist_session:
-        from marimo._export._session_cache import (
-            persist_session_view_to_cache,
+    try:
+        # Run the notebook to completion once
+        session.instantiate(
+            InstantiateNotebookRequest(object_ids=[], values=[]),
+            http_request=None,
         )
+        await instantiated_event.wait()
+        # Hack: yield to give the session view a chance to process the incoming
+        # console operations.
+        await asyncio.sleep(0.1)
 
-        try:
-            persist_session_view_to_cache(
-                view=session.session_view,
-                notebook_path=file_manager.path,
-                cell_ids=file_manager.app.cell_manager.cell_ids(),
-            )
-        except Exception as e:
-            LOGGER.warning(
-                "Failed to persist session snapshot for %s: %s",
-                file_manager.path,
-                e,
+        if options.persist_session:
+            from marimo._export._session_cache import (
+                persist_session_view_to_cache,
             )
 
-    # Stop distributor, terminate kernel process, etc -- all information is
-    # captured by the session view. When exporting caches, close gracefully so
-    # the kernel flushes the cache manifest that bundle_cache_export reads next.
-    session.close(graceful=options.cache_export)
+            try:
+                persist_session_view_to_cache(
+                    view=session.session_view,
+                    notebook_path=file_manager.path,
+                    cell_ids=file_manager.app.cell_manager.cell_ids(),
+                )
+            except Exception as e:
+                LOGGER.warning(
+                    "Failed to persist session snapshot for %s: %s",
+                    file_manager.path,
+                    e,
+                )
+    finally:
+        # Cache exports need the kernel to flush the manifest before it stops.
+        reaper = session.close(graceful=options.cache_export)
+        if reaper is not None:
+            await reaper.wait()
 
     return session.session_view, session_consumer.did_error
 

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._types.ids import CellId_t
+    from marimo._utils.subprocess import ProcessReaper
 
 LOGGER = _loggers.marimo_logger()
 
@@ -312,7 +313,7 @@ class KernelManagerImpl(KernelManager):
                 self.queue_manager.win32_interrupt_queue,
             )
 
-    def close_kernel(self, *, graceful: bool = False) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> ProcessReaper | None:
         assert self.kernel_task is not None, "kernel not started"
 
         if isinstance(self.kernel_task, threading.Thread):
@@ -323,7 +324,7 @@ class KernelManagerImpl(KernelManager):
                 self.queue_manager.put_control_request(
                     commands.StopKernelCommand()
                 )
-            return
+            return None
 
         # Otherwise, we have something that is `ProcessLike`.
         # A graceful shutdown asks the kernel to stop cleanly so it can flush
@@ -352,14 +353,16 @@ class KernelManagerImpl(KernelManager):
         # Give the kernel time for a clean shutdown (flush caches, etc.)
         if graceful and self.kernel_task.is_alive():
             self.kernel_task.join(timeout=5)
+        reaper = None
         try:
-            try_kill_process_and_group(self.kernel_task)
+            reaper = try_kill_process_and_group(self.kernel_task)
         except ProcessLookupError:
             pass
         except Exception as e:
             LOGGER.warning(e)
         if self._read_conn is not None:
             self._read_conn.close()
+        return reaper
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

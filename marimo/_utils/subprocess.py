@@ -5,8 +5,10 @@ import asyncio
 import os
 import signal
 import subprocess
+import time
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from functools import partial
 from typing import (
     IO,
@@ -283,6 +285,31 @@ def safe_popen(
 
 
 _REAP_TASKS: set[asyncio.Task[None]] = set()
+_SIGTERM_GRACE_S = 5.0
+_SIGKILL_WAIT_S = 10.0
+_REAP_POLL_INTERVAL_S = 0.1
+
+
+@dataclass(frozen=True)
+class ProcessReaper:
+    _task: asyncio.Task[None]
+
+    async def wait(self) -> None:
+        """Wait for the reap to finish, deferring cancellation until it does.
+
+        An owner that closes its event loop while the reap is pending
+        cancels the escalation to `SIGKILL` and leaks the process.
+        """
+        cancellation: asyncio.CancelledError | None = None
+        while not self._task.done():
+            try:
+                await asyncio.wait((self._task,))
+            except asyncio.CancelledError as exc:
+                cancellation = exc
+        if cancellation is not None:
+            raise cancellation
+        if not self._task.cancelled() and (error := self._task.exception()):
+            LOGGER.warning("Failed to reap process: %s", error)
 
 
 def _process_finished(process: ProcessLike) -> bool:
@@ -309,10 +336,18 @@ async def cancel_pending_reaps() -> None:
         await asyncio.gather(*tasks, return_exceptions=True)
 
 
+async def _wait_for_exit(process: ProcessLike, timeout_s: float) -> bool:
+    deadline = time.monotonic() + timeout_s
+    while not _process_finished(process):
+        if time.monotonic() >= deadline:
+            return False
+        await asyncio.sleep(_REAP_POLL_INTERVAL_S)
+    return True
+
+
 async def _reap_process_unix(process: ProcessLike, pgid: int | None) -> None:
     pid = process.pid
-    await asyncio.sleep(5.0)
-    if _process_finished(process):
+    if await _wait_for_exit(process, _SIGTERM_GRACE_S):
         return
 
     LOGGER.warning(
@@ -326,20 +361,12 @@ async def _reap_process_unix(process: ProcessLike, pgid: int | None) -> None:
     except ProcessLookupError:
         return
 
-    wait_for_s = 10
-    waited_s = 0
-    while (
-        not (process_finished := _process_finished(process))
-        and waited_s < wait_for_s
-    ):
-        await asyncio.sleep(1.0)
-        waited_s += 1
-
-    if not process_finished:
+    if not await _wait_for_exit(process, _SIGKILL_WAIT_S):
         LOGGER.warning(
-            "Waited for 10s, but process %s has still not quit ...", pid
+            "Waited for %ss, but process %s has still not quit ...",
+            _SIGKILL_WAIT_S,
+            pid,
         )
-        return
 
 
 def interrupt_kernel_process(
@@ -375,20 +402,20 @@ def interrupt_kernel_process(
         pass
 
 
-def try_kill_process_and_group(process: ProcessLike) -> None:
+def try_kill_process_and_group(process: ProcessLike) -> ProcessReaper | None:
     """Attempt to kill the process group to which process belongs.
 
-    Refuses to kill the group if it the current process belongs to it.
+    Refuses to kill the group if the current process belongs to it.
 
     Regardless, tries to kill the process.
 
-    If running in an event loop, starts a task to reap the process on Unix-like
-    systems. If not running in an event loop, it is the caller's responsibility
-    to reap the process.
+    On Unix-like systems, returns a handle to the reap task if one was
+    scheduled on the running loop. Without a loop, the caller must reap
+    the process.
     """
     pid = process.pid
     if pid is None or _process_finished(process):
-        return
+        return None
 
     if is_windows():
         # A launcher such as uv may sit between us and the kernel; kill
@@ -406,7 +433,7 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
                 process.terminate()
         except Exception:
             process.terminate()
-        return
+        return None
 
     pgid = os.getpgid(pid)
     target_pgid: int | None
@@ -421,15 +448,16 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         os.killpg(pgid, signal.SIGTERM)
 
     if _process_finished(process):
-        return
+        return None
 
     try:
         loop = asyncio.get_running_loop()
-        task = loop.create_task(_reap_process_unix(process, target_pgid))
-        _REAP_TASKS.add(task)
-        task.add_done_callback(_REAP_TASKS.discard)
     except RuntimeError:
-        pass
+        return None
+    task = loop.create_task(_reap_process_unix(process, target_pgid))
+    _REAP_TASKS.add(task)
+    task.add_done_callback(_REAP_TASKS.discard)
+    return ProcessReaper(task)
 
 
 def kill_subprocess(

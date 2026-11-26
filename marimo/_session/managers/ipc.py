@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     from marimo._runtime.commands import AppMetadata
     from marimo._runtime.virtual_file.storage import VirtualFileStorageType
     from marimo._types.ids import CellId_t
+    from marimo._utils.subprocess import ProcessReaper
 
 LOGGER = _loggers.marimo_logger()
 
@@ -696,7 +697,8 @@ class IPCKernelManagerImpl(KernelManager):
                 self.queue_manager.win32_interrupt_queue,
             )
 
-    def close_kernel(self, *, graceful: bool = False) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> ProcessReaper | None:
+        reaper = None
         if self._process is not None:
             if self.is_alive():
                 self.queue_manager.request_kernel_stop()
@@ -736,7 +738,7 @@ class IPCKernelManagerImpl(KernelManager):
                     except (ProcessLookupError, PermissionError):
                         pass
                 try:
-                    try_kill_process_and_group(self.kernel_task)
+                    reaper = try_kill_process_and_group(self.kernel_task)
                 except ProcessLookupError:
                     pass
                 except Exception as e:
@@ -745,6 +747,7 @@ class IPCKernelManagerImpl(KernelManager):
         # Always attempt cleanup, even if _process is None
         if self._notebook_sandbox is not None:
             self._notebook_sandbox.close()
+        return reaper
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

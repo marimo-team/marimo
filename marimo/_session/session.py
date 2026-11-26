@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._session.app_host import AppHostContext
     from marimo._session.requests import InstantiateNotebookRequest
+    from marimo._utils.subprocess import ProcessReaper
 
 LOGGER = _loggers.marimo_logger()
 
@@ -497,7 +498,7 @@ class SessionImpl(Session):
         self._event_bus.emit_notification_sent(self, notification)
         self.room.broadcast(notification, except_consumer=from_consumer_id)
 
-    def close(self, *, graceful: bool = False) -> None:
+    def close(self, *, graceful: bool = False) -> ProcessReaper | None:
         """
         Close the session.
 
@@ -507,7 +508,7 @@ class SessionImpl(Session):
         before killing it (see `KernelManager.close_kernel`).
         """
         if self._closed:
-            return
+            return None
 
         self._closed = True
 
@@ -515,9 +516,10 @@ class SessionImpl(Session):
         self._detach_extensions()
         # Close the room
         self.room.close()
-        self._kernel_manager.close_kernel(graceful=graceful)
+        reaper = self._kernel_manager.close_kernel(graceful=graceful)
         if self._notebook_sandbox is not None:
             self._notebook_sandbox.close()
+        return reaper
 
     def instantiate(
         self,
