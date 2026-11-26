@@ -152,14 +152,17 @@ metadata works for local sandboxes and WASM exports. See also
 
 **For notebooks exported to WASM HTML.**
 To include data files in notebooks [exported to WASM
-HTML](exporting/webassembly_html.md), place them
-in a `public/` folder in the same directory as your notebook. When you
-export to WASM HTML, the public folder will be copied to the export directory.
+HTML](exporting/webassembly_html.md), place them in a `public/` folder next to
+your notebook. The export copies this folder and serves it over HTTP alongside
+the notebook ([single-file
+exports](exporting/webassembly_html.md#sharing-a-single-file) don't include
+it). These files aren't on the notebook's file system, so they don't appear in
+the file explorer and `open()` can't read them.
 
-In order to access data both locally and when an exported notebook runs via
-WebAssembly (e.g., hosted on GitHub Pages), use
-[`mo.notebook_location()`][marimo.notebook_location] to construct the path to
-your data:
+Instead, use [`mo.notebook_location()`][marimo.notebook_location], which
+returns the notebook's URL in WebAssembly and its directory locally. Libraries
+that accept URLs, such as polars and pandas, can read from it once converted
+with `str()`:
 
 ```python
 import polars as pl
@@ -168,6 +171,23 @@ path_to_csv = mo.notebook_location() / "public" / "data.csv"
 df = pl.read_csv(str(path_to_csv))
 df.head()
 ```
+
+To read a file with plain Python, fetch its URL when running in WebAssembly:
+
+```python
+import sys
+import urllib.request
+
+path = mo.notebook_location() / "public" / "notes.txt"
+if sys.platform == "emscripten":
+    with urllib.request.urlopen(str(path)) as response:
+        text = response.read().decode()
+else:
+    text = path.read_text()
+```
+
+If your code needs a file on disk, write the fetched bytes to a local file
+first.
 
 **Fetching data files from the web.**
 Instead of bundling data files with your notebook, you can host data files on
