@@ -22,10 +22,7 @@ import { replaceEditorContent } from "./replace-editor-content";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
-/**
- * Format cells via the marimo server and write back the cells that changed.
- * Cells without an editor are formatted from the notebook document.
- */
+/** Cells without an editor are formatted from the notebook document. */
 export async function formatCells(cellIds: readonly CellId[]) {
   const allCodes = store.get(notebookCellCodes);
   const codes = Objects.fromEntries(

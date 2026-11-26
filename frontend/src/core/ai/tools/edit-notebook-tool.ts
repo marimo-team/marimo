@@ -297,7 +297,6 @@ export class EditNotebookTool implements AiTool<
     cellId: CellId,
     notebook: NotebookState,
   ): EditorView {
-    // A cell the user has not scrolled to has no editor until it is built.
     editorMountScheduler.promote(cellId);
     const editorView = notebook.cellHandles[cellId]?.current?.editorView;
     if (!editorView) {

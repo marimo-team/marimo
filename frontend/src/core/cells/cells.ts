@@ -633,8 +633,7 @@ export const getCellEditorView = (cellId: CellId): EditorView | undefined => {
 
 /**
  * The cell's editor, built synchronously first if it is still dormant. Use it
- * for explicit user actions that target one cell. A freshly built editor is
- * not attached to the page until React renders, so wait before focusing it.
+ * for explicit user actions that target one cell.
  */
 export const ensureCellEditorView = (
   cellId: CellId,

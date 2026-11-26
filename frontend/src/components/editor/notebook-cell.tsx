@@ -229,7 +229,6 @@ export type CellComponentActions = Pick<
  * Imperative interface of the cell.
  */
 export interface CellHandle {
-  /** The CodeMirror editor view, or null until it is built. */
   editorView: EditorView | null;
 }
 

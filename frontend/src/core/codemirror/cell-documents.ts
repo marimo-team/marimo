@@ -25,7 +25,6 @@ import {
  */
 export interface CellDocument {
   cellId: CellId;
-  /** The mounted editor, if the cell has one. */
   view: EditorView | null;
   /** The editor's state, or the state an editor would start from. */
   state: EditorState;
@@ -33,7 +32,6 @@ export interface CellDocument {
   code: string;
   /** Build the editor now. Reserved for explicit navigation or editing. */
   ensureView: () => EditorView | undefined;
-  /** Apply changes to `state` and write the result back to the cell. */
   applyChanges: (changes: ChangeSpec, userEvent: string) => void;
 }
 
@@ -51,7 +49,6 @@ function parsedCodeOf(cellId: CellId, code: string): ParsedCode {
   return parsed;
 }
 
-/** The documents of cells on the page, in notebook order. */
 export function getCellDocuments(): CellDocument[] {
   const { cellIds, cellData, cellHandles } = getNotebook();
   const present = new Set(cellIds);

@@ -49,8 +49,7 @@ export function focusAndScrollCellIntoView({
     // https://github.com/marimo-team/marimo/issues/2940
     tryFocus(element);
   } else {
-    // Build this cell's editor now if it is still dormant, so focus can land
-    // in it instead of the placeholder.
+    // Focus must land in the editor, not the placeholder.
     editorMountScheduler.promote(cellId);
     const editor = cell.current?.editorView;
     if (!editor) {

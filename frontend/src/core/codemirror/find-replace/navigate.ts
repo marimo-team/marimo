@@ -163,7 +163,6 @@ export const replaceNext = searchCommand(({ query }) => {
 export const getMatches = searchCommand(({ query }) => {
   let count = 0;
 
-  // Position in the document, keyed by cell and then by to:from
   const position = new Map<CellId, Map<string, number>>();
   for (const { cellId, state } of getCellDocuments()) {
     const matches = query.matchAll(state, 1e9) || [];

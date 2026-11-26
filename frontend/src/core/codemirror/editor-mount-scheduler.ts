@@ -7,19 +7,12 @@ import {
 type BuildFn = () => void;
 
 export interface EditorMountScheduler {
-  /**
-   * Register a cell's editor build. It stays dormant until the cell is
-   * prioritized or promoted. Returns a disposer for this registration only.
-   */
+  /** Returns a disposer for this registration only. */
   register(cellId: string, build: BuildFn): () => void;
-  /** Build a registered cell's editor synchronously, right now (e.g. on focus). */
+  /** Builds now, synchronously. */
   promote(cellId: string): void;
-  /**
-   * Queue a registered cell to build on a future task, keeping the
-   * one-build-per-task pacing (e.g. when the cell scrolls into view).
-   */
+  /** Builds on a later task, one per task. */
   prioritize(cellId: string): void;
-  /** Drop a cell's queued build, leaving it registered (e.g. when it scrolls away). */
   deprioritize(cellId: string): void;
 }
 
