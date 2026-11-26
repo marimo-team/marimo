@@ -161,7 +161,7 @@ from marimo._runtime.runner.hooks import (
     Priority,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._runtime.state import State
+from marimo._runtime.state import CACHE_LOADER_STATE_CONTEXT, State
 from marimo._runtime.win32_interrupt_handler import (
     Win32InterruptHandler,
     ignore_console_ctrl_c,
@@ -202,6 +202,7 @@ if TYPE_CHECKING:
 
     from marimo._plugins.ui._core.ui_element import UIElement
     from marimo._runtime.virtual_file import VirtualFileStorageType
+    from marimo._save.loaders.loader import Loader
 
 LOGGER = _loggers.marimo_logger()
 _NOT_IMPORTED = object()
@@ -522,6 +523,9 @@ class CellMetadata:
     # Retain validated source even when a syntax error prevents registration.
     code: str | None = None
     code_fingerprint: str | None = None
+    carried_cache_loaders: dict[Name, State[Loader]] = dataclasses.field(
+        default_factory=dict
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1117,11 +1121,18 @@ class Kernel:
                 cell_id, code, carried_imports=carried_imports, stale=stale
             )
             if error is None:
-                workspace = self.graph.cells[cell_id].import_workspace
+                new_cell = self.graph.cells[cell_id]
+                workspace = new_cell.import_workspace
                 workspace.carried_values = {
                     name: carried_values[name]
                     for name in workspace.imported_defs
                     if name in carried_values
+                }
+                metadata = self.cell_metadata[cell_id]
+                metadata.carried_cache_loaders = {
+                    name: state
+                    for name, state in metadata.carried_cache_loaders.items()
+                    if name in new_cell.defs or name in new_cell.temporaries
                 }
             if error is not None and previous_cell is not None:
                 # A registration error keeps the previous cell in the graph,
@@ -1272,19 +1283,26 @@ class Kernel:
         temporaries = {
             name: [VariableData(kind="variable")] for name in cell.temporaries
         }
-        self._delete_variables(
-            {**cell.variable_data, **temporaries},
-            exclude_defs if exclude_defs is not None else set(),
-        )
+        variables = {**cell.variable_data, **temporaries}
+        exclude_defs = exclude_defs if exclude_defs is not None else set()
+        ctx = get_context()
+        if metadata := self.cell_metadata.get(cell_id):
+            # Removing a cached function drops its reference to the loader.
+            # Keep the loader alive until the cell can recreate the function.
+            for name in variables:
+                if name in exclude_defs:
+                    continue
+                state: State[Loader] | None = ctx.state_registry.lookup(
+                    name, CACHE_LOADER_STATE_CONTEXT
+                )
+                if state is not None:
+                    metadata.carried_cache_loaders[name] = state
+        self._delete_variables(variables, exclude_defs)
 
         cell.set_output(None)
-        get_context().cell_lifecycle_registry.dispose(
-            cell_id, deletion=deletion
-        )
+        ctx.cell_lifecycle_registry.dispose(cell_id, deletion=deletion)
         for descendent in self.graph.descendants(cell_id):
-            get_context().cell_lifecycle_registry.dispose(
-                descendent, deletion=deletion
-            )
+            ctx.cell_lifecycle_registry.dispose(descendent, deletion=deletion)
         broadcast_notification(RemoveUIElementsNotification(cell_id=cell_id))
 
     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -1909,20 +1927,21 @@ class Kernel:
                     self._invalidate_cell_state(cid)
                     workspace.carried_values = carried
 
-        def note_time_of_interruption(
+        def finish_cell_execution(
             cell_impl: CellImpl,
             ctx: hook_context.PostExecutionHookContext,
             run_result: cell_runner.RunResult,
         ) -> None:
-            del cell_impl
             del ctx
+            if metadata := self.cell_metadata.get(cell_impl.cell_id):
+                metadata.carried_cache_loaders.clear()
             if isinstance(run_result.exception, MarimoInterrupt):
                 self.last_interrupt_timestamp = time.time()
 
         # Copy hooks and add run-specific hooks
         run_hooks = self._hooks.copy()
         run_hooks.add_preparation(invalidate_state)
-        run_hooks.add_post_execution(note_time_of_interruption, Priority.LATE)
+        run_hooks.add_post_execution(finish_cell_execution, Priority.LATE)
         run_hooks.add_on_finish(self.packages_callbacks.missing_packages_hook)
         run_hooks.add_on_finish(self._propagate_kernel_errors)
 
