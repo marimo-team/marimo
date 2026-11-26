@@ -1641,6 +1641,8 @@ except NameError:
             str(k.globals["loc"] / "public" / "data.csv")
             == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
         )
+        # A URL, not a filesystem path; docs/guides/wasm.md relies on this.
+        assert not isinstance(k.globals["loc"], pathlib.Path)
 
     async def test_notebook_dir_for_unnamed_notebook(
         self, tmp_path: pathlib.Path, exec_req: ExecReqProvider

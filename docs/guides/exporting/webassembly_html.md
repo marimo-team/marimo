@@ -326,8 +326,24 @@ python -m http.server
 
 ## Including data files
 
-See the docs for [mo.notebook_location][marimo.notebook_location] to learn how
-to include data files in exported WASM HTML notebooks.
+Place data files in a `public/` folder next to your notebook. When you
+export to WASM HTML, marimo copies this folder to the output directory, and it
+is served alongside your notebook.
+
+In the browser, read these files using
+[`mo.notebook_location()`][marimo.notebook_location], which returns the URL of
+the page when running in WebAssembly:
+
+```python
+import polars as pl
+
+df = pl.read_csv(str(mo.notebook_location() / "public" / "data.csv"))
+```
+
+Because this location is a URL, Python's `open()` and relative paths such as
+`open("public/data.csv")` do not work in WebAssembly. See [Including
+data](../wasm.md#including-data) in the WebAssembly guide for how to read
+files with the standard library.
 
 ## Exporting multiple notebooks
 
