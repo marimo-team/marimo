@@ -43,11 +43,13 @@ from marimo._code_mode._context import (
     StaleCellError,
     get_context,
 )
+from marimo._code_mode._packages import PackageResult
 
 __all__ = [
     "AsyncCodeModeContext",
     "CellStatusType",
     "NotebookCell",
+    "PackageResult",
     "StaleCellError",
     "capabilities",
     "get_context",

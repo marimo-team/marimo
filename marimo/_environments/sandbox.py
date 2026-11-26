@@ -124,7 +124,7 @@ class BackendAdapter(Protocol):
     def add(
         self,
         target: MaterializedScript,
-        package: str,
+        packages: list[str],
         *,
         upgrade: bool,
         on_output: LogCallback | None,
@@ -133,7 +133,7 @@ class BackendAdapter(Protocol):
     def remove(
         self,
         target: MaterializedScript,
-        package: str,
+        packages: list[str],
         *,
         on_output: LogCallback | None,
     ) -> None: ...
@@ -381,12 +381,12 @@ class NotebookSandbox:
 
     def add(
         self,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool = False,
         on_output: LogCallback | None = None,
     ) -> None:
-        """Add or refresh a direct Manifest dependency and synchronize.
+        """Add or refresh direct Manifest dependencies and synchronize once.
 
         A bare requirement (`polars`, `duckdb[spatial]`) is pinned to the
         version the synchronized Environment resolved (`polars==1.2.3`),
@@ -396,55 +396,66 @@ class NotebookSandbox:
         marimo itself is never pinned: its version belongs to the
         launching runtime.
         """
+        packages = [package] if isinstance(package, str) else package
+        if not packages:
+            return
         self._adapter.ensure_available()
-        bare = _bare_requirement(package)
-        if bare is not None and not bare.extras:
-            # Re-adding a package without extras must not silently remove
-            # extras already declared by the notebook when the resolved
-            # version is pinned below.
-            bare = self._declared_bare(bare) or bare
-        request = package
-        if bare is not None and upgrade:
-            # Both managers leave an existing Manifest entry alone when a
-            # bare name is re-added, so a pin written by an earlier add
-            # would hold the version forever. Reopen it to `>=current`;
-            # the pin below then records what the new solve chose.
-            reopened = self._reopened_requirement(bare)
-            if reopened is not None:
-                bare, request = reopened
+        requests: list[str] = []
+        bare_requirements: list[_BareRequirement] = []
+        for requirement in packages:
+            bare = _bare_requirement(requirement)
+            if bare is not None and not bare.extras:
+                # Preserve extras already declared when re-adding a bare name.
+                bare = self._declared_bare(bare) or bare
+            request = requirement
+            if bare is not None and upgrade:
+                reopened = self._reopened_requirement(bare)
+                if reopened is not None:
+                    bare, request = reopened
+            requests.append(request)
+            if bare is not None:
+                bare_requirements.append(bare)
         with script_metadata.metadata_transaction(self._source):
             with script_metadata.materialized_for_edit(self._source) as target:
                 self._adapter.add(
                     target,
-                    request,
+                    requests,
                     upgrade=upgrade,
                     on_output=on_output,
                 )
             # Pixi can resolve a newer version than the installed one. Pin
             # that resolution before syncing so success means the final
             # manifest, not an intermediate constraint, was installed.
-            if bare is not None:
-                self._pin(bare)
+            self._pin_many(bare_requirements)
             self._sync(
                 on_output=on_output, active_environment=self._environment
             )
 
     def remove(
         self,
-        package: str,
+        package: str | list[str],
         *,
         on_output: LogCallback | None = None,
     ) -> None:
-        """Remove a direct Manifest dependency and synchronize."""
-        package = _normalize_dependency_name(package)
-        if package == "marimo":
+        """Remove direct Manifest dependencies together and synchronize once."""
+        packages = [package] if isinstance(package, str) else package
+        if not packages:
+            return
+        packages = [
+            _normalize_dependency_name(requirement) for requirement in packages
+        ]
+        if "marimo" in packages:
             raise script_metadata.ScriptMetadataError(
                 "marimo is managed by the sandbox runtime and cannot be removed"
             )
         self._adapter.ensure_available()
         with script_metadata.metadata_transaction(self._source):
             with script_metadata.materialized_for_edit(self._source) as target:
-                self._adapter.remove(target, package, on_output=on_output)
+                self._adapter.remove(
+                    target,
+                    packages,
+                    on_output=on_output,
+                )
             self._sync(
                 on_output=on_output, active_environment=self._environment
             )
@@ -490,7 +501,7 @@ class NotebookSandbox:
         with script_metadata.materialized_for_edit(self._source) as target:
             for requirement in requirements:
                 self._adapter.add(
-                    target, requirement, upgrade=False, on_output=None
+                    target, [requirement], upgrade=False, on_output=None
                 )
 
     def packages(
@@ -580,17 +591,29 @@ class NotebookSandbox:
             return []
         return [str(dependency) for dependency in dependencies]
 
-    def _pin(self, bare: _BareRequirement) -> None:
-        """Record the resolved version before synchronizing the Manifest."""
-        version = self._resolved_version(bare.name)
-        if version is None:
-            # Not resolved on this platform (e.g. excluded by a marker);
-            # the open requirement stands.
+    def _pin_many(self, requirements: list[_BareRequirement]) -> None:
+        if not requirements:
+            return
+        with script_metadata.materialized_for_environment(
+            self._source
+        ) as target:
+            state = self._adapter.packages(target, self._environment)
+        versions = {
+            _normalize_dependency_name(package.name): package.version
+            for package in state.packages
+        }
+        pins = [
+            f"{bare.text}=={versions[bare.name]}"
+            for bare in requirements
+            if versions.get(bare.name)
+        ]
+        if not pins:
+            # Requirements excluded on this platform retain their constraints.
             return
         with script_metadata.materialized_for_edit(self._source) as target:
             self._adapter.add(
                 target,
-                f"{bare.text}=={version}",
+                pins,
                 upgrade=False,
                 on_output=None,
             )

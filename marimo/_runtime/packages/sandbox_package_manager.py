@@ -70,7 +70,7 @@ class SandboxPackageManager(PypiPackageManager):
 
     async def _install(
         self,
-        package: str,
+        package: str | list[str],
         *,
         upgrade: bool,
         group: str | None = None,
@@ -80,34 +80,43 @@ class SandboxPackageManager(PypiPackageManager):
         self.last_error = None
         self._restart_required = False
         try:
-            for requirement in split_packages(package):
-                try:
-                    await asyncio.to_thread(
-                        self._sandbox.add,
-                        requirement,
-                        upgrade=upgrade,
-                        on_output=log_callback,
-                    )
-                except SandboxRestartRequired as error:
-                    self._restart_required = True
-                    if log_callback is not None:
-                        log_callback(str(error) + "\n")
+            requirements = split_packages(package)
+            try:
+                await asyncio.to_thread(
+                    self._sandbox.add,
+                    requirements[0]
+                    if len(requirements) == 1
+                    else requirements,
+                    upgrade=upgrade,
+                    on_output=log_callback,
+                )
+            except SandboxRestartRequired as error:
+                self._restart_required = True
+                if log_callback is not None:
+                    log_callback(str(error) + "\n")
             return not self.restart_required
         except EnvironmentManagerError as error:
             self._restart_required = False
             self._report(error, log_callback)
             return False
 
-    async def uninstall(self, package: str, group: str | None = None) -> bool:
+    async def uninstall(
+        self, package: str | list[str], group: str | None = None
+    ) -> bool:
         del group
         self.last_error = None
         self._restart_required = False
         try:
-            for requirement in split_packages(package):
-                try:
-                    await asyncio.to_thread(self._sandbox.remove, requirement)
-                except SandboxRestartRequired:
-                    self._restart_required = True
+            requirements = split_packages(package)
+            try:
+                await asyncio.to_thread(
+                    self._sandbox.remove,
+                    requirements[0]
+                    if len(requirements) == 1
+                    else requirements,
+                )
+            except SandboxRestartRequired:
+                self._restart_required = True
             return not self.restart_required
         except EnvironmentManagerError as error:
             self._restart_required = False
