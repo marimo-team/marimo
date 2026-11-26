@@ -2,17 +2,13 @@
 
 import { keymap } from "@codemirror/view";
 import { useAtomValue } from "jotai";
-import {
-  AlertTriangleIcon,
-  CopyIcon,
-  ExternalLinkIcon,
-  SaveIcon,
-} from "lucide-react";
+import { AlertTriangleIcon, ExternalLinkIcon, SaveIcon } from "lucide-react";
 import type React from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { disableFileDownloadsAtom, hotkeysAtom } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
@@ -21,7 +17,6 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { copyToClipboard } from "@/utils/copy";
 import { downloadFile } from "./download";
 import { FilePreviewHeader } from "./file-header";
 import { FilePreviewMetadata } from "./file-preview-metadata";
@@ -47,7 +42,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   // undefined value means not modified yet
   const [internalValue, setInternalValue] = useState<string>("");
 
-  const { data, isPending, error, setData, refetch } =
+  const { data, isPending, isFetching, error, setData, refetch } =
     useAsyncData(async () => {
       const details = await sendFileDetails({
         path: file.path,
@@ -56,7 +51,12 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       const mode = getFileRenderMode(details.mimeType, details.isBase64);
       if (!details.isTooLarge && mode === "text") {
         const contents = details.contents || "";
-        setInternalValue(unsavedContentsForFile.get(file.path) ?? contents);
+        // Refreshing the file being edited must not discard its draft.
+        const isEditingLoadedFile =
+          data?.file.path === file.path && internalValue !== data.contents;
+        if (!isEditingLoadedFile) {
+          setInternalValue(unsavedContentsForFile.get(file.path) ?? contents);
+        }
       }
       return details;
     }, [file.path]);
@@ -155,6 +155,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     <FilePreviewHeader
       filename={data.file.name}
       onRefresh={refetch}
+      isRefreshing={isFetching}
       onDownload={disableFileDownloads ? undefined : handleDownload}
       actions={
         <>
@@ -172,17 +173,16 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
           )}
           {isText && (
             <>
-              <Tooltip content="Copy contents to clipboard">
-                <Button
-                  variant="text"
-                  size="xs"
-                  onClick={async () => {
-                    await copyToClipboard(internalValue);
-                  }}
-                >
-                  <CopyIcon className="h-3.5 w-3.5" />
-                </Button>
-              </Tooltip>
+              <CopyClipboardIcon
+                value={internalValue}
+                tooltip="Copy contents to clipboard"
+                ariaLabel="Copy contents to clipboard"
+                className="h-3.5 w-3.5"
+                buttonClassName={buttonVariants({
+                  variant: "text",
+                  size: "xs",
+                })}
+              />
               <Tooltip content={renderShortcut("global.save")}>
                 <Button
                   variant="text"

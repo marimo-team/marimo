@@ -195,4 +195,93 @@ describe("FileViewer bounded previews", () => {
       expect(reopened.value).toBe("draft");
     });
   });
+
+  describe("header actions", () => {
+    const textResponse: FileDetailsResponse = {
+      file: {
+        ...file,
+        name: "notes.txt",
+        path: "/workspace/notes.txt",
+        size: 5,
+      },
+      contents: "hello",
+      mimeType: "text/plain",
+      isBase64: false,
+      isTooLarge: false,
+    };
+
+    beforeEach(() => {
+      Object.assign(navigator, {
+        clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+      });
+    });
+
+    it("shows a copied tick after copying the contents", async () => {
+      renderViewer(textResponse);
+      const copy = await screen.findByRole("button", {
+        name: "Copy contents to clipboard",
+      });
+      expect(copy.querySelector("svg.lucide-check")).toBeNull();
+
+      fireEvent.click(copy);
+
+      await waitFor(() => {
+        expect(copy.querySelector("svg.lucide-check")).not.toBeNull();
+      });
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("hello");
+    });
+
+    it("spins the refresh icon only while refetching and keeps the editor mounted", async () => {
+      let resolveRefetch: ((response: FileDetailsResponse) => void) | undefined;
+      const sendFileDetails = vi
+        .fn<() => Promise<FileDetailsResponse>>()
+        .mockResolvedValueOnce(textResponse)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveRefetch = resolve;
+          }),
+        );
+      store.set(
+        requestClientAtom,
+        MockRequestClient.create({ sendFileDetails }),
+      );
+      render(<FileViewer file={textResponse.file} />, { wrapper });
+
+      const refresh = await screen.findByRole("button", { name: "Refresh" });
+      const spinner = () => refresh.querySelector("svg");
+      expect(spinner()).not.toHaveClass("animate-spin");
+
+      fireEvent.click(refresh);
+
+      await waitFor(() => expect(spinner()).toHaveClass("animate-spin"));
+      expect(screen.getByTestId("code-editor")).toBeInTheDocument();
+
+      resolveRefetch?.(textResponse);
+      await waitFor(() => expect(spinner()).not.toHaveClass("animate-spin"));
+    });
+
+    it("keeps unsaved edits when refreshing", async () => {
+      store.set(
+        requestClientAtom,
+        MockRequestClient.create({
+          sendFileDetails: vi.fn().mockResolvedValue(textResponse),
+        }),
+      );
+      render(<FileViewer file={textResponse.file} />, { wrapper });
+      const editor =
+        await screen.findByTestId<HTMLTextAreaElement>("code-editor");
+      fireEvent.change(editor, { target: { value: "draft" } });
+
+      fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Refresh" }).querySelector("svg"),
+        ).not.toHaveClass("animate-spin");
+      });
+      expect(screen.getByTestId<HTMLTextAreaElement>("code-editor").value).toBe(
+        "draft",
+      );
+    });
+  });
 });

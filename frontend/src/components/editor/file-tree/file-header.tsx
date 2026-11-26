@@ -3,12 +3,14 @@
 import { ArrowLeftIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { cn } from "@/utils/cn";
 
 interface FilePreviewHeaderProps {
   filename?: string;
   filenameIcon?: React.ReactNode;
   onBack?: () => void;
   onRefresh?: () => void;
+  isRefreshing?: boolean;
   onDownload?: () => void;
   /** Extra action buttons placed before the download button. */
   actions?: React.ReactNode;
@@ -19,6 +21,7 @@ export const FilePreviewHeader: React.FC<FilePreviewHeaderProps> = ({
   filenameIcon,
   onBack,
   onRefresh,
+  isRefreshing = false,
   onDownload,
   actions,
 }) => {
@@ -42,8 +45,15 @@ export const FilePreviewHeader: React.FC<FilePreviewHeaderProps> = ({
       <div className="flex items-center gap-0.5 shrink-0">
         {onRefresh && (
           <Tooltip content="Refresh">
-            <Button variant="text" size="xs" onClick={onRefresh}>
-              <RefreshCwIcon className="h-3.5 w-3.5" />
+            <Button
+              variant="text"
+              size="xs"
+              aria-label="Refresh"
+              onClick={onRefresh}
+            >
+              <RefreshCwIcon
+                className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")}
+              />
             </Button>
           </Tooltip>
         )}
