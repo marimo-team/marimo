@@ -6,29 +6,28 @@ import { expect, it, vi } from "vitest";
 import { Deferred } from "../Deferred";
 import { reactLazyWithPreload } from "../lazy";
 
-it("shares the loaded component between preloading and lazy rendering", async () => {
+it("shares one import between preloading and both components", async () => {
   const Page = ({ name }: { name: string }) => <div>{name}</div>;
   const module = { default: Page };
   const deferred = new Deferred<typeof module>();
   const factory = vi.fn(() => deferred.promise);
   const lazy = reactLazyWithPreload(factory);
 
-  expect(lazy.loadedComponent).toBeUndefined();
   const first = lazy.preload();
   const second = lazy.preload();
-  expect(lazy.loadedComponent).toBeUndefined();
-  expect(factory).toHaveBeenCalledExactlyOnceWith();
+  expect(first).toBe(second);
 
   deferred.resolve(module);
   expect(await first).toBe(module);
-  expect(await second).toBe(module);
-  expect(lazy.loadedComponent).toBe(Page);
+
+  render(<lazy.NonSuspendingComponent name="Eager page" />);
+  expect(screen.getByText("Eager page")).toBeVisible();
 
   render(
     <Suspense fallback="Loading">
-      <lazy.Component name="Loaded page" />
+      <lazy.Component name="Lazy page" />
     </Suspense>,
   );
-  expect(await screen.findByText("Loaded page")).toBeVisible();
+  expect(await screen.findByText("Lazy page")).toBeVisible();
   expect(factory).toHaveBeenCalledExactlyOnceWith();
 });

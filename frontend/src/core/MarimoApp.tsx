@@ -10,7 +10,6 @@ import { TailwindIndicator } from "@/components/debug/indicator";
 import { useFullScreenClass } from "@/components/ui/fullscreen";
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import { getInitialAppMode } from "@/core/mode";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { CssVariables } from "@/theme/ThemeProvider";
 import { reactLazyWithPreload } from "@/utils/lazy";
 import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
@@ -56,19 +55,6 @@ export function preloadPage(mode: string) {
   }
 }
 
-function PreloadedRunPage(
-  props: React.ComponentProps<typeof LazyRunPage.Component>,
-) {
-  // Load through state to avoid Suspense's initial retry throttle.
-  const result = useAsyncData(LazyRunPage.preload, []);
-  if (result.status === "error") {
-    throw result.error;
-  }
-  // A completed preload can render on the first commit, before the effect runs.
-  const RunPage = result.data?.default ?? LazyRunPage.loadedComponent;
-  return RunPage ? <RunPage {...props} /> : null;
-}
-
 /**
  * The root component of the Marimo app.
  */
@@ -87,7 +73,7 @@ export const MarimoApp: React.FC = memo(() => {
       return <LazyGalleryPage.Component />;
     }
     if (initialMode === "read") {
-      return <PreloadedRunPage appConfig={appConfig} />;
+      return <LazyRunPage.NonSuspendingComponent appConfig={appConfig} />;
     }
     return (
       <LazyEditPage.Component userConfig={userConfig} appConfig={appConfig} />
