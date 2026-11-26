@@ -684,16 +684,56 @@ def test_initial_row_selection_happy_path() -> None:
     assert table.value == {"a": [1, 2], "b": [4, 5]}
 
 
-def test_initial_cell_selection_happy_path() -> None:
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"a": [1, 2, 3], "b": [4, 5, 6]},
+        {"a": (1, 2, 3), "b": (4, 5, 6)},
+        {"a": [1, 2, 3], "b": (4, 5, 6)},
+        [{"a": 1, "b": 4}, {"a": 2, "b": 5}, {"a": 3, "b": 6}],
+        ({"a": 1, "b": 4}, {"a": 2, "b": 5}, {"a": 3, "b": 6}),
+    ],
+)
+def test_initial_cell_selection_happy_path(data: TableData) -> None:
     """Test that initial cell selection works with valid coordinates"""
     table = ui.table(
-        data={"a": [1, 2, 3], "b": [4, 5, 6]},
+        data=data,
         selection="multi-cell",
         initial_selection=[("0", "a"), ("1", "b")],
     )
     assert table.value == [
         TableCell(row="0", column="a", value=1),
         TableCell(row="1", column="b", value=5),
+    ]
+    assert table._convert_value([{"rowId": "2", "columnName": "b"}]) == [
+        TableCell(row="2", column="b", value=6)
+    ]
+
+
+@pytest.mark.parametrize("data", [[1, 2, 3], (1, 2, 3)])
+def test_cell_selection_single_column(data: TableData) -> None:
+    table = ui.table(
+        data,
+        selection="single-cell",
+        initial_selection=[("1", "value")],
+    )
+    assert table.value == [TableCell(row="1", column="value", value=2)]
+    assert table._convert_value([{"rowId": "2", "columnName": "value"}]) == [
+        TableCell(row="2", column="value", value=3)
+    ]
+
+
+def test_cell_selection_mismatched_tuple_columns() -> None:
+    data = {"a": (2,), "b": (10, 20, 30)}
+    table = ui.table(data, selection="multi-cell")
+    assert table._convert_value(
+        [
+            {"rowId": "2", "columnName": "a"},
+            {"rowId": "2", "columnName": "b"},
+        ]
+    ) == [
+        TableCell(row="2", column="a", value=None),
+        TableCell(row="2", column="b", value=30),
     ]
 
 
