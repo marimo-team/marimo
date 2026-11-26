@@ -49,8 +49,7 @@ export function preloadPage(mode: string) {
       LazyGalleryPage.preload();
       break;
     case "read":
-      // The read-page loader reports import failures through the error boundary.
-      void LazyRunPage.preload().catch(() => undefined);
+      LazyRunPage.preload();
       break;
     default:
       LazyEditPage.preload();

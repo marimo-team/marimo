@@ -19,12 +19,15 @@ export const reactLazyWithPreload = <T>(
   let component: Promise<{ default: React.ComponentType<T> }> | null = null;
   let loadedComponent: React.ComponentType<T> | undefined;
 
-  const preload = async () => {
+  const preload = () => {
     if (!component) {
       component = factory().then((module) => {
         loadedComponent = module.default;
         return module;
       });
+      // Fire-and-forget preloads must not surface as unhandled rejections;
+      // rendering the component reports the failure through an error boundary.
+      component.catch(() => undefined);
     }
     return component;
   };

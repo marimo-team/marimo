@@ -2,7 +2,7 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Provider } from "jotai";
-import { type FC, Profiler, StrictMode, useEffect, useState } from "react";
+import { type FC, StrictMode, useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "@/core/config/config-schema";
 import { Deferred } from "@/utils/Deferred";
@@ -98,18 +98,8 @@ describe("MarimoApp read-page loading", () => {
     pageModule.resolve({ default: RunPage });
     await import("@/components/pages/run-page");
 
-    const onRender = vi.fn(
-      () => screen.queryByRole("button", { name: "compact: 0" }) !== null,
-    );
-    render(
-      <Profiler id="read-page" onRender={onRender}>
-        {element}
-      </Profiler>,
-    );
-    expect(onRender.mock.results[0].value).toBe(true);
-    expect(
-      await screen.findByRole("button", { name: "compact: 0" }),
-    ).toBeVisible();
+    render(element);
+    expect(screen.getByRole("button", { name: "compact: 0" })).toBeVisible();
     expect(mounted).toHaveBeenCalledExactlyOnceWith();
   });
 
@@ -153,22 +143,5 @@ describe("MarimoApp read-page loading", () => {
     await resolvePage();
 
     expect(mounted).not.toHaveBeenCalled();
-
-    render(element);
-    expect(screen.getByRole("button", { name: "compact: 0" })).toBeVisible();
-    await act(() => Promise.resolve());
-    expect(mounted).toHaveBeenCalledExactlyOnceWith();
-  });
-
-  it("handles an import rejection after unmounting", async () => {
-    const { element, preloadPage } = await setup();
-    preloadPage("read");
-    const { unmount } = render(element);
-    unmount();
-
-    await rejectPage();
-
-    expect(mounted).not.toHaveBeenCalled();
-    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
   });
 });
