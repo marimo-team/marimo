@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { expect, test, vi } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import type { IPlugin } from "../../types";
 import { TextInputPlugin } from "../TextInputPlugin";
 import { TextAreaPlugin } from "../TextAreaPlugin";
@@ -107,6 +107,51 @@ for (const kind of ["text", "password", "email", "url"] as const) {
     expect(control).toHaveAttribute("maxlength", "30");
   });
 }
+
+describe("email validation with debounce=true", () => {
+  const plugin = new TextInputPlugin();
+  const props = (value: string) => ({
+    host: document.createElement("div"),
+    value,
+    setValue: vi.fn(),
+    functions: {},
+    data: plugin.validator.parse({
+      initialValue: "",
+      placeholder: "",
+      label: "Email",
+      kind: "email",
+      debounce: true,
+    }),
+  });
+
+  test("marks an invalid email once it is committed on blur", () => {
+    const { rerender } = render(plugin.render(props("")));
+    const control = screen.getByLabelText("Email");
+    fireEvent.change(control, { target: { value: "not-an-email" } });
+    fireEvent.blur(control);
+    rerender(plugin.render(props("not-an-email")));
+    expect(control).toHaveClass("border-destructive");
+  });
+
+  test("marks an invalid email once it is committed with Enter", () => {
+    const first = props("");
+    const { rerender } = render(plugin.render(first));
+    const control = screen.getByLabelText("Email");
+    fireEvent.change(control, { target: { value: "not-an-email" } });
+    fireEvent.keyDown(control, { key: "Enter" });
+    expect(first.setValue).toHaveBeenCalledWith("not-an-email");
+    rerender(plugin.render(props("not-an-email")));
+    expect(control).toHaveClass("border-destructive");
+  });
+
+  test("clears the error once the email is corrected", () => {
+    const { rerender } = render(plugin.render(props("not-an-email")));
+    const control = screen.getByLabelText("Email");
+    expect(control).toHaveClass("border-destructive");
+    rerender(plugin.render(props("me@example.com")));
+    expect(control).not.toHaveClass("border-destructive");
+  });
+});
 
 function testMultipleInstances<D>(plugin: IPlugin<string, D>) {
   test(`${plugin.tagName} keeps repeated labels independently associated`, () => {
