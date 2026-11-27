@@ -59,8 +59,14 @@ def python_print_pandas(
         elif operator == "ends_with":
             result = f'{col}.fillna("").str.endswith({_as_literal(value)})'
         elif operator == "in" or operator == "not_in":
-            expr = f"{col}.isin({_list_of_strings(value)})"
-            result = expr if operator == "in" else f"~{expr}"
+            result = _null_aware_membership_clause(
+                operator,
+                value,
+                where.negate,
+                isin_template=f"{col}.isin({_MEMBERS})",
+                is_null=f"{col}.isna()",
+                not_null=f"{col}.notna()",
+            )
         elif operator == "is_null":
             result = f"{col}.isna()"
         elif operator == "is_not_null":
@@ -77,11 +83,16 @@ def python_print_pandas(
                     f"between requires RangeValue, got {type(value)}"
                 )
         elif operator == "is_empty":
-            result = f"({col} == '')"
+            result = _null_aware_is_empty_clause(
+                col,
+                where.negate,
+                is_null=f"{col}.isna()",
+                not_null=f"{col}.notna()",
+            )
         else:
             raise ValueError(f"Unknown operator: {operator}")
 
-        if where.negate:
+        if where.negate and operator not in NULL_AWARE_OPERATORS:
             result = f"~({result})"
             if operator in {"contains", "regex", "starts_with", "ends_with"}:
                 result = f"({result} & {col}.notna())"
@@ -331,8 +342,14 @@ def python_print_polars(
         elif operator == "ends_with":
             result = f'{col}.fill_null("").str.ends_with({_as_literal(value)})'
         elif operator == "in" or operator == "not_in":
-            expr = f"{col}.is_in({_list_of_strings(value)})"
-            result = expr if operator == "in" else f"~{expr}"
+            result = _null_aware_membership_clause(
+                operator,
+                value,
+                where.negate,
+                isin_template=f"{col}.is_in({_MEMBERS})",
+                is_null=f"{col}.is_null()",
+                not_null=f"{col}.is_not_null()",
+            )
         elif operator == "is_null":
             result = f"{col}.is_null()"
         elif operator == "is_not_null":
@@ -349,11 +366,16 @@ def python_print_polars(
                     f"between requires RangeValue, got {type(value)}"
                 )
         elif operator == "is_empty":
-            result = f'({col} == "")'
+            result = _null_aware_is_empty_clause(
+                col,
+                where.negate,
+                is_null=f"{col}.is_null()",
+                not_null=f"{col}.is_not_null()",
+            )
         else:
             raise ValueError(f"Unknown operator: {operator}")
 
-        if where.negate:
+        if where.negate and operator not in NULL_AWARE_OPERATORS:
             result = f"~({result})"
             if operator in {"contains", "regex", "starts_with", "ends_with"}:
                 result = f"({result} & {col}.is_not_null())"
@@ -603,8 +625,14 @@ def python_print_ibis(
         elif operator == "ends_with":
             result = f'({col}.fill_null("").endswith({_as_literal(value)}))'
         elif operator == "in" or operator == "not_in":
-            expr = f"({col}.isin({_list_of_strings(value)}))"
-            result = expr if operator == "in" else f"~{expr}"
+            result = _null_aware_membership_clause(
+                operator,
+                value,
+                where.negate,
+                isin_template=f"({col}.isin({_MEMBERS}))",
+                is_null=f"{col}.isnull()",
+                not_null=f"{col}.notnull()",
+            )
         elif operator == "is_null":
             result = f"({col}.isnull())"
         elif operator == "is_not_null":
@@ -621,11 +649,16 @@ def python_print_ibis(
                     f"between requires RangeValue, got {type(value)}"
                 )
         elif operator == "is_empty":
-            result = f'({col} == "")'
+            result = _null_aware_is_empty_clause(
+                col,
+                where.negate,
+                is_null=f"{col}.isnull()",
+                not_null=f"{col}.notnull()",
+            )
         else:
             raise ValueError(f"Unknown operator: {operator}")
 
-        if where.negate:
+        if where.negate and operator not in NULL_AWARE_OPERATORS:
             result = f"~({result})"
             if operator in {"contains", "regex", "starts_with", "ends_with"}:
                 result = f"({result} & {col}.notnull())"
@@ -771,6 +804,57 @@ def python_print_ibis(
         return f"{pivot_code}\n{rename_code}"
 
     assert_never(transform.type)
+
+
+def _null_aware_membership_clause(
+    operator: str,
+    value: Any,
+    negate: bool,
+    *,
+    isin_template: str,
+    is_null: str,
+    not_null: str,
+) -> str:
+    """Build an ``in`` / ``not_in`` clause with the widget's null handling.
+
+    Mirrors ``NarwhalsTransformHandler._evaluate_condition`` so the printed
+    code keeps the same rows as the widget, whatever the backend's null
+    semantics for ``isin`` / ``is_in``. A null in the selected values is
+    matched with an explicit null check rather than passed to ``isin``,
+    since SQL backends such as Ibis treat ``NOT IN (..., NULL)`` as null
+    for every row.
+    """
+    values = list(value) if isinstance(value, (list, tuple)) else value
+    has_null = isinstance(values, list) and None in values
+    if has_null:
+        values = [v for v in values if v is not None]
+    isin = isin_template.replace(_MEMBERS, _list_of_strings(values))
+    if operator == "in":
+        if has_null:
+            return (
+                f"(~{isin} & {not_null})"
+                if negate
+                else f"({isin} | {is_null})"
+            )
+        return f"(~{isin} | {is_null})" if negate else isin
+    # not_in
+    if has_null:
+        return f"({isin} | {is_null})" if negate else f"(~{isin} & {not_null})"
+    return isin if negate else f"(~{isin} | {is_null})"
+
+
+def _null_aware_is_empty_clause(
+    col: str, negate: bool, *, is_null: str, not_null: str
+) -> str:
+    """Build an ``is_empty`` clause that never matches null rows."""
+    if negate:
+        return f'(({col} != "") | {is_null})'
+    return f'(({col} == "") & {not_null})'
+
+
+NULL_AWARE_OPERATORS = {"in", "not_in", "is_empty"}
+# Placeholder for the member list in an ``isin`` / ``is_in`` expression.
+_MEMBERS = "\x00members\x00"
 
 
 def _as_literal(value: Any) -> str:

@@ -276,7 +276,7 @@ def _assert_string_filter_matches_runtime(
     backend: str,
     strings: list[str | None],
     operator: Operator,
-    value: str,
+    value: str | list[str | None] | None,
     negate: bool,
     operation: Literal["keep_rows", "remove_rows"],
 ) -> None:
@@ -382,6 +382,122 @@ def test_print_code_string_filters_with_generated_nulls(
     _assert_string_filter_matches_runtime(
         backend, strings, operator, value, negate, operation
     )
+
+
+@pytest.mark.parametrize(
+    "backend", ["pandas-object", "pandas-string", "polars", "ibis"]
+)
+@pytest.mark.parametrize("operator", ["in", "not_in"])
+@pytest.mark.parametrize(
+    "value", [["abc"], ["abc", None], ["abc", ""], [None], ["missing"]]
+)
+@pytest.mark.parametrize("negate", [False, True])
+@pytest.mark.parametrize("operation", ["keep_rows", "remove_rows"])
+def test_print_code_membership_filters_with_nulls(
+    backend: str,
+    operator: Operator,
+    value: list[str | None],
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    _assert_string_filter_matches_runtime(
+        backend,
+        [None, "", "abc", "a.c", "cba", "zzz"],
+        operator,
+        value,
+        negate,
+        operation,
+    )
+
+
+@pytest.mark.parametrize(
+    "backend", ["pandas-object", "pandas-string", "polars", "ibis"]
+)
+@pytest.mark.parametrize("negate", [False, True])
+@pytest.mark.parametrize("operation", ["keep_rows", "remove_rows"])
+def test_print_code_is_empty_filter_with_nulls(
+    backend: str,
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    _assert_string_filter_matches_runtime(
+        backend,
+        [None, "", "abc", "", None, "zzz"],
+        "is_empty",
+        None,
+        negate,
+        operation,
+    )
+
+
+@pytest.mark.parametrize(
+    "backend", ["pandas-object", "pandas-string", "polars", "ibis"]
+)
+@given(
+    strings=st.lists(
+        st.one_of(st.none(), st.sampled_from(["", "a", "b", "ab"])),
+        min_size=1,
+        max_size=10,
+    ),
+    operator=st.sampled_from(["in", "not_in", "is_empty"]),
+    value=st.lists(
+        st.one_of(st.none(), st.sampled_from(["", "a", "b", "ab"])),
+        min_size=1,
+        max_size=3,
+    ),
+    negate=st.booleans(),
+    operation=st.sampled_from(["keep_rows", "remove_rows"]),
+)
+@settings(deadline=None)
+def test_print_code_null_aware_filters_with_generated_nulls(
+    backend: str,
+    strings: list[str | None],
+    operator: Operator,
+    value: list[str | None],
+    negate: bool,
+    operation: Literal["keep_rows", "remove_rows"],
+) -> None:
+    _assert_string_filter_matches_runtime(
+        backend,
+        strings,
+        operator,
+        None if operator == "is_empty" else value,
+        negate,
+        operation,
+    )
+
+
+@pytest.mark.parametrize("operator", ["in", "not_in"])
+def test_print_code_membership_filter_with_braces_in_column_name(
+    operator: Operator,
+) -> None:
+    pl = pytest.importorskip("polars")
+    column = "a{0}b"
+    df = pl.DataFrame({column: ["x", None, "y"]})
+    transform = FilterRowsTransform(
+        type=TransformType.FILTER_ROWS,
+        operation="keep_rows",
+        where=FilterGroup(
+            operator="and",
+            children=[
+                FilterCondition(
+                    column_id=column, operator=operator, value=["x", None]
+                )
+            ],
+        ),
+    )
+    expected = _apply_transforms(
+        nw.from_native(df).lazy(),
+        NarwhalsTransformHandler(),
+        Transformations([transform]),
+    ).collect()
+    code = python_print_transforms(
+        "df", [column], [transform], python_print_polars
+    )
+    namespace = {"pl": pl, "df": df}
+    exec(code, namespace)
+    actual = nw.from_native(namespace["df_next"]).lazy().collect()
+    assert actual.to_dict(as_series=False) == expected.to_dict(as_series=False)
 
 
 def _validate_code(code: str):
