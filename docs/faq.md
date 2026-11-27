@@ -241,6 +241,28 @@ Import `marimo` (as `mo`) in a notebook, and use the `mo.md` function.
 Learn more in the [outputs guide](guides/outputs.md#markdown)
 or by running `marimo tutorial markdown`.
 
+<a name="faq-logging"></a>
+
+### How do I use logging in marimo?
+
+You can use Python's standard
+[`logging`](https://docs.python.org/3/library/logging.html) module. In the editor,
+messages appear below the cell and in **Logs** in the
+[developer panel](guides/editor_features/panels.md). Configure logging levels in
+Python to control which messages are emitted:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logging.info("Loading data")
+logging.warning("Some rows contain missing values")
+```
+
+For apps served with `marimo run`, console output goes to the invoking terminal
+by default. Pass the `--redirect-console-to-browser` CLI flag to `marimo run`
+to send console output to the browser instead.
+
 <a name="faq-plots"></a>
 
 ### How do I display plots?
