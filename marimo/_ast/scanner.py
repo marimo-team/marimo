@@ -208,12 +208,16 @@ def _try_tokenize(
         for tok in tokenize_mod.generate_tokens(readline):
             tokens.append(tok)  # noqa: PERF402
     except tokenize_mod.TokenError as e:
+        from marimo._ast.parse import split_source_lines
+
         return tokens, (
-            e.args[1][0] if len(e.args) > 1 else len(source.splitlines()),
+            e.args[1][0] if len(e.args) > 1 else len(split_source_lines(source)),
             e,
         )
     except IndentationError as e:
-        line = e.lineno or len(source.splitlines())
+        from marimo._ast.parse import split_source_lines
+
+        line = e.lineno or len(split_source_lines(source))
         return tokens, (line, e)
     return tokens, None
 
@@ -234,7 +238,9 @@ def scan_notebook(source: str) -> ScanResult:
     if not source.strip():
         return ScanResult(preamble="", cells=[], run_guard_line=None)
 
-    lines = source.splitlines(keepends=True)
+    from marimo._ast.parse import split_source_lines_keepends
+
+    lines = split_source_lines_keepends(source)
     total_lines = len(lines)
 
     # Collect all boundaries by processing chunks
@@ -401,12 +407,13 @@ def _extract_body_code(cell_source: str, kind: str) -> str:
     Used when a cell fails ast.parse() to get the body for UnparsableCell.
     """
     from marimo._ast.dedent import fixed_dedent
+    from marimo._ast.parse import split_source_lines_keepends
 
     if kind == "unparsable":
         # Already app._unparsable_cell(...) — return as-is
         return cell_source
 
-    lines = cell_source.splitlines(keepends=True)
+    lines = split_source_lines_keepends(cell_source)
     body_start = _find_body_start(lines, kind)
 
     if body_start >= len(lines):

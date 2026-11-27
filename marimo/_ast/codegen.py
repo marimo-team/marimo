@@ -148,13 +148,15 @@ def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
     code_lines = code.rstrip().count("\n") + 1
     if isinstance(last_stmt, (ast.Import, ast.ImportFrom)):
         return last_stmt.end_lineno == code_lines
+    from marimo._ast.parse import split_source_lines
+
     return any(
         isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
         and node.end_lineno == last_stmt.end_lineno
         and all(
             not line.strip()
             or len(line) - len(line.lstrip()) > node.col_offset
-            for line in code.splitlines()[node.end_lineno :]
+            for line in split_source_lines(code)[node.end_lineno :]
         )
         for node in ast.walk(last_stmt)
     )
@@ -291,9 +293,11 @@ def build_setup_section(setup_cell: CellImpl | None) -> str:
         return ""
     prefix = "" if not setup_cell.is_coroutine() else "async "
 
+    from marimo._ast.parse import split_source_lines
+
     has_only_comments = all(
         not line.strip() or line.strip().startswith("#")
-        for line in setup_cell.code.splitlines()
+        for line in split_source_lines(setup_cell.code)
     )
     # Fails otherwise
     if has_only_comments:

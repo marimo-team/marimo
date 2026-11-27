@@ -52,8 +52,10 @@ class FullFormatter(DiagnosticFormatter):
         # If code_lines is None, try to read from file
         if code_lines is None and diagnostic.line and os.path.exists(filename):
             try:
+                from marimo._ast.parse import split_source_lines
+
                 with open(filename, encoding="utf-8") as f:
-                    code_lines = f.read().splitlines()
+                    code_lines = split_source_lines(f.read())
             except (OSError, UnicodeDecodeError):
                 # If we can't read the file, just return header
                 return header

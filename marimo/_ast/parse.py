@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import io
+import re
 import token as token_types
 import warnings
 from pathlib import Path
@@ -62,6 +63,14 @@ def split_source_lines(text: str) -> list[str]:
     `\x1c`-`\x1e` separators, and Unicode line separators.
     """
     return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
+
+_LINE_KEEPENDS_RE = re.compile(r"[^\r\n]*(?:\r\n|\r|\n)|[^\r\n]+")
+
+
+def split_source_lines_keepends(text: str) -> list[str]:
+    r"""Split source into lines preserving endings, only on `\n`, `\r`, `\r\n`."""
+    return _LINE_KEEPENDS_RE.findall(text)
 
 
 def unwrap_cell_body(formatted: str) -> str:

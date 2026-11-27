@@ -39,8 +39,10 @@ class LintContext:
         stdout: str = "",
         logs: list[logging.LogRecord] | None = None,
     ):
+        from marimo._ast.parse import split_source_lines
+
         self.notebook = notebook
-        self.contents = contents.splitlines()
+        self.contents = split_source_lines(contents)
         self._diagnostics: list[tuple[int, int, Diagnostic]] = []
         self._graph: DirectedGraph | None = None
         self._graph_lock = threading.Lock()

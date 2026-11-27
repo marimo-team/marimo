@@ -176,7 +176,9 @@ class EmptyCellRule(UnsafeFixRule):
         Returns:
             True if the code contains only comments and whitespace
         """
-        lines = code.splitlines()
+        from marimo._ast.parse import split_source_lines
+
+        lines = split_source_lines(code)
 
         for line in lines:
             stripped_line = line.strip()

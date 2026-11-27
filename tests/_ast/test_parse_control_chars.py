@@ -63,3 +63,39 @@ def test_marimo_check_does_not_crash_on_control_chars(
         )
     assert result is not None
     assert len(result.files) == 1
+
+
+def test_control_chars_preserved_across_ast_and_lint_helpers() -> None:
+    from marimo._ast.codegen import build_setup_section
+    from marimo._ast.compiler import cache
+    from marimo._ast.parse import split_source_lines_keepends
+    from marimo._ast.scanner import _extract_body_code, scan_notebook
+    from marimo._lint.context import LintContext
+    from marimo._lint.rules.formatting.empty_cells import EmptyCellRule
+
+    # Form-feed (\x0c) and Unicode line separator (\u2028) must not split lines.
+    assert split_source_lines_keepends("a\x0cb\u2028c\nd\r\ne") == [
+        "a\x0cb\u2028c\n",
+        "d\r\n",
+        "e",
+    ]
+    assert split_source_lines_keepends("") == []
+
+    # Fallback scanner recovers cell without corrupting line offsets when \x0c appears before a syntax error.
+    malformed = '@app.cell\ndef _():\n    x = "a\x0cb"\n    (\n'
+    scan = scan_notebook(malformed)
+    assert len(scan.cells) == 1
+    assert 'x = "a\x0cb"' in _extract_body_code(malformed, "cell")
+
+    # Compiler linecache keeps exact Python line count.
+    cache("<test_control_char>", 'x = "a\x0cb"\ny = 1')
+
+    # LintContext & EmptyCellRule agree with AST line counts on \x0c / \u2028.
+    ctx = LintContext(notebook=parse_notebook(NOTEBOOK_FORMFEED_ASSERT), contents=NOTEBOOK_FORMFEED_ASSERT)
+    assert ctx.contents[0] == "import marimo"
+    assert EmptyCellRule()._is_only_comments('# comment\x0cstill comment\n# line2')
+
+    setup = parse_notebook('import marimo\napp = marimo.App()\nwith app.setup:\n    # a\x0cb\n    x = 1\n').cells[0]
+    from marimo._ast.compiler import compile_cell
+    setup_cell = compile_cell(setup.code, cell_id="setup")
+    assert "with app.setup:" in build_setup_section(setup_cell)

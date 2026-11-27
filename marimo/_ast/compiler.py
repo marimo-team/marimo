@@ -102,11 +102,13 @@ def contains_only_tests(tree: ast.Module) -> bool:
 
 
 def cache(filename: str, code: str) -> None:
+    from marimo._ast.parse import split_source_lines
+
     # Generate a cache entry in Python's linecache
     linecache.cache[filename] = (
         len(code),
         None,
-        [line + "\n" for line in code.splitlines()],
+        [line + "\n" for line in split_source_lines(code)],
         filename,
     )
 
@@ -293,8 +295,10 @@ def compile_cell(
         const.col_offset = final_expr.end_col_offset or 0
         const.end_col_offset = final_expr.end_col_offset
         expr = ast.Expression(const)
+        from marimo._ast.parse import split_source_lines
+
         # use code over body since lineno corresponds to source
-        const.lineno = len(code.splitlines()) + 1
+        const.lineno = len(split_source_lines(code)) + 1
         expr.lineno = const.lineno  # type: ignore[attr-defined]
     # Creating an expression clears source info, so it needs to be set back
     expr.col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
