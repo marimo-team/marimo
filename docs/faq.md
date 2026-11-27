@@ -259,21 +259,9 @@ logging.info("Loading data")
 logging.warning("Some rows contain missing values")
 ```
 
-Within a cell, call [`mo.output.clear_console()`][marimo.output.clear_console]
-after logging to clear the console below that cell while retaining its messages
-in **Logs**:
-
-```python
-import marimo as mo
-
-logging.warning("Some rows contain missing values")
-mo.output.clear_console()
-```
-
-This also clears the cell's `print()` output, without affecting its visual output
-or other cells' consoles. Messages can appear before the clear call. For apps
-served with `marimo run`, console output goes to the invoking terminal by default.
-Pass `--redirect-console-to-browser` to send it to the browser instead.
+For apps served with `marimo run`, console output goes to the invoking terminal
+by default. Pass the `--redirect-console-to-browser` CLI flag to `marimo run`
+to send console output to the browser instead.
 
 <a name="faq-plots"></a>
 
