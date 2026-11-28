@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
 from marimo._core import backend as be, protocol
-from marimo._core.errors import NoRuntime
+from marimo._core.errors import Conflict
 from marimo._messaging.input import InputReply
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
@@ -400,7 +400,7 @@ class SessionBackend(SessionConsumer):
     def reply_input(self, input_id: protocol.ItemId, value: str) -> None:
         session = self.session
         if session is None:
-            raise NoRuntime("The runtime waiting for input has ended")
+            raise Conflict("The runtime waiting for input has ended")
         session.reply_input(InputReply(input_id, value))
 
     def interrupt(self) -> None:
