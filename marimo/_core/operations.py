@@ -14,13 +14,8 @@ import msgspec
 from marimo._core import protocol
 from marimo._core.errors import (
     Conflict,
-    DecisionRequired,
     Forbidden,
-    HostError,
     Invalid,
-    NoRuntime,
-    NotFound,
-    PreconditionFailed,
     Unsupported,
 )
 from marimo._core.host import Host
@@ -91,37 +86,6 @@ def problem(kind: PlainKind, detail: str | None = None) -> protocol.Problem:
         case "internal":
             return protocol.InternalProblem(detail=text)
     assert_never(kind)
-
-
-def problem_for(error: HostError) -> protocol.Problem:
-    """Describe a failed command the same way on every transport."""
-    detail = str(error)
-    match error:
-        case NoRuntime():
-            return problem("no-runtime", detail)
-        case DecisionRequired():
-            return protocol.DecisionRequiredProblem(
-                detail=detail,
-                decisions=error.decisions,
-            )
-        case PreconditionFailed():
-            return protocol.PreconditionFailedProblem(
-                detail=detail,
-                index=error.index,
-                cell=error.cell,
-                document=error.document,
-            )
-        case Conflict():
-            return problem("conflict", detail)
-        case Invalid():
-            return problem("invalid-request", detail)
-        case NotFound():
-            return problem("not-found", detail)
-        case Forbidden():
-            return problem("forbidden", detail)
-        case Unsupported():
-            return problem("unsupported-operation", detail)
-    return problem("internal", "The host failed")
 
 
 @dataclass

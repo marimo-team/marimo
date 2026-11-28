@@ -1,40 +1,59 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Exceptions raised by host and notebook commands."""
+"""Errors of host and notebook commands."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from marimo._core import protocol
+from marimo._core import protocol
 
 
 class HostError(Exception):
     """Base exception for host and notebook commands."""
 
+    def problem(self) -> protocol.Problem:
+        """The protocol's problem for this error."""
+        return protocol.InternalProblem(detail="The host failed")
+
 
 class NotFound(HostError):
     """The requested object does not exist."""
+
+    def problem(self) -> protocol.NotFoundProblem:
+        return protocol.NotFoundProblem(detail=str(self))
 
 
 class Conflict(HostError):
     """The command cannot run in the current state."""
 
+    def problem(self) -> protocol.ConflictProblem:
+        return protocol.ConflictProblem(detail=str(self))
 
-class NoRuntime(Conflict):
+
+class NoRuntime(HostError):
     """The command requires a runtime, but the notebook has none."""
+
+    def problem(self) -> protocol.NoRuntimeProblem:
+        return protocol.NoRuntimeProblem(detail=str(self))
 
 
 class Invalid(HostError):
     """The request could not apply to any state."""
 
+    def problem(self) -> protocol.InvalidRequestProblem:
+        return protocol.InvalidRequestProblem(detail=str(self))
+
 
 class Forbidden(HostError):
     """The notebook does not allow the command."""
 
+    def problem(self) -> protocol.ForbiddenProblem:
+        return protocol.ForbiddenProblem(detail=str(self))
+
 
 class Unsupported(HostError):
     """The host does not offer the command."""
+
+    def problem(self) -> protocol.UnsupportedOperationProblem:
+        return protocol.UnsupportedOperationProblem(detail=str(self))
 
 
 class PreconditionFailed(HostError):
@@ -57,8 +76,16 @@ class PreconditionFailed(HostError):
         self.cell = cell
         self.document = document
 
+    def problem(self) -> protocol.PreconditionFailedProblem:
+        return protocol.PreconditionFailedProblem(
+            detail=str(self),
+            index=self.index,
+            cell=self.cell,
+            document=self.document,
+        )
 
-class DecisionRequired(Conflict):
+
+class DecisionRequired(HostError):
     """The command needs a choice from the client before it can proceed.
 
     Carries the decisions to put to the client, which repeats the
@@ -70,3 +97,8 @@ class DecisionRequired(Conflict):
     ) -> None:
         super().__init__(message)
         self.decisions = decisions
+
+    def problem(self) -> protocol.DecisionRequiredProblem:
+        return protocol.DecisionRequiredProblem(
+            detail=str(self), decisions=self.decisions
+        )

@@ -112,7 +112,7 @@ def _mutation(
             except HTTPException as e:
                 return status_problem(e.status_code, e.detail)
             except HostError as e:
-                failure = operations.problem_for(e)
+                failure = e.problem()
                 return _response(failure.status, failure)
             return _response(status, body)
 

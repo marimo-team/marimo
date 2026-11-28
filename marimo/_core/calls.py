@@ -16,7 +16,7 @@ import msgspec
 
 from marimo._core import protocol
 from marimo._core.errors import Conflict, HostError, NotFound
-from marimo._core.operations import Reply, problem_for
+from marimo._core.operations import Reply
 
 if TYPE_CHECKING:
     from marimo._core.backend import RequestInfo
@@ -348,7 +348,7 @@ async def dispatch(
             call=serve,
         )
     except HostError as e:
-        failure = problem_for(e)
+        failure = e.problem()
         return failure.status, failure
 
 
