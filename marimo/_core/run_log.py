@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from math import isfinite
 from typing import TYPE_CHECKING
 
-from marimo._core import protocol, protocol_events
+from marimo._core import protocol
 from marimo._core.stream import RoutedEvent, removal, snapshot_event
 
 if TYPE_CHECKING:
@@ -192,7 +192,7 @@ class RunLog:
                 assert isinstance(
                     output.event, (protocol.OutputEvent, protocol.ConsoleEvent)
                 )
-                body = protocol_events.body(output.event)
+                body = output.event.record
                 events.append(self._removal(entry, type(body), body.id))
             events.append(
                 self._removal(entry, protocol.Execution, execution_id)
@@ -217,7 +217,7 @@ class RunLog:
     def _removal(
         self,
         entry: _Run,
-        record_type: type[protocol_events.RemovableBody],
+        record_type: type[protocol.events.RemovableBody],
         object_id: str,
     ) -> RoutedEvent:
         return removal(
@@ -229,9 +229,9 @@ class RunLog:
         )
 
     def _snapshot_event(self, event: RoutedEvent, entry: _Run) -> RoutedEvent:
-        assert isinstance(event.event, protocol_events.RecordEvent)
-        body = protocol_events.body(event.event)
-        assert isinstance(body, protocol_events.SnapshotBody)
+        assert isinstance(event.event, protocol.events.RecordEvent)
+        body = event.event.record
+        assert isinstance(body, protocol.events.SnapshotBody)
         return snapshot_event(
             body,
             request_id=(

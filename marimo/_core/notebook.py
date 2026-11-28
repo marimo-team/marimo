@@ -35,7 +35,7 @@ if TYPE_CHECKING:
         DocumentCell,
     )
     from marimo._core.executions import Change
-    from marimo._core.protocol_events import Body, RemovableBody, SnapshotBody
+    from marimo._core.protocol.events import Body, RemovableBody, SnapshotBody
     from marimo._core.stream import Sink
 
 

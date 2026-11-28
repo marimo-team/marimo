@@ -13,8 +13,8 @@ and follow execution through HTTP requests and event streams.
 ## Change a contract
 
 Edit the definitions in [`packages/host-protocol`](../../packages/host-protocol/README.md).
-The Python models and TypeScript bindings are generated from them and checked
-in. They should not be edited by hand.
+The Python and TypeScript bindings are generated from them and checked in.
+They should not be edited by hand.
 
 Keep the [specification](spec.md), implementation, and relevant fixtures or
 tests in step with the change. After the repository
@@ -37,8 +37,7 @@ connection, use the [live conformance suite](conformance/README.md#check-a-runni
 
 ## Get the OpenAPI document
 
-No OpenAPI file is checked in. The package prints the document as JSON, and
-the generators above read it from a pipe.
+No OpenAPI file is checked in. The package prints the document as JSON.
 
 ```sh
 node packages/host-protocol/scripts/openapi.ts                 # the stable protocol

@@ -8,7 +8,7 @@ from typing import get_args
 import msgspec
 import pytest
 
-from marimo._core import backend as be, protocol, protocol_events
+from marimo._core import backend as be, protocol
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
 from marimo._core.stream import (
@@ -105,7 +105,7 @@ def test_a_record_is_shared_by_the_log_its_listeners_and_its_readers() -> None:
     published = stream.publish(original)
 
     assert isinstance(published.event, protocol.ProjectEvent)
-    assert published.event.data.project is original
+    assert published.event.record is original
     assert delivered == [published]
     assert delivered[0] is published
     replay = stream.since(0)
@@ -218,7 +218,7 @@ def test_custom_events_are_on_the_notebook_stream_only(
 
 
 def test_every_body_has_a_kind_a_stream_and_a_typed_event() -> None:
-    for body_type in get_args(protocol_events.Body):
+    for body_type in get_args(protocol.events.Body):
         kind = body_type.__name__.lower()
         event = Stream().publish(
             _blank(body_type),
@@ -233,7 +233,7 @@ def test_every_body_has_a_kind_a_stream_and_a_typed_event() -> None:
         }
         assert event.wanted({kind})
         assert not event.wanted({"unknown"})
-        assert protocol_events.body(event.event) == _blank(body_type)
+        assert event.event.record == _blank(body_type)
         assert event.visible_in(None) == (
             kind in {"host", "project", "notebook", "runtime", "attachment"}
         )
@@ -242,10 +242,10 @@ def test_every_body_has_a_kind_a_stream_and_a_typed_event() -> None:
 
 
 @pytest.mark.parametrize(
-    "record_type", get_args(protocol_events.RemovableBody)
+    "record_type", get_args(protocol.events.RemovableBody)
 )
 def test_removals_preserve_scope_and_type_filters(
-    record_type: type[protocol_events.RemovableBody],
+    record_type: type[protocol.events.RemovableBody],
 ) -> None:
     kind = record_type.__name__.lower()
     event = removal(record_type, "item", notebook_id=protocol.NotebookId("n1"))

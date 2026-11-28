@@ -12,7 +12,7 @@ from inline_snapshot import snapshot
 from msgspec import UNSET
 from msgspec.structs import replace
 
-from marimo._core import backend as be, protocol, protocol_events
+from marimo._core import backend as be, protocol
 from marimo._core.document import Document, DocumentCell
 from marimo._core.errors import (
     Conflict,
@@ -1257,7 +1257,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     notebook.observe(be.Done(run.id, "succeeded"))
     initial = host.events(notebook_id=notebook.id)
     assert [
-        protocol_events.body(event.event)
+        event.event.record
         for event in initial
         if isinstance(event.event, protocol.ConsoleEvent)
     ] == [first_console, first_display, second_console, second_display]
@@ -1288,7 +1288,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     assert [
         (event_name(event.event), event.event.data.id)
         for event in live
-        if isinstance(event.event, protocol_events.RemovalEvent)
+        if isinstance(event.event, protocol.events.RemovalEvent)
     ] == [
         ("console.removed", first_console.id),
         ("console.removed", first_display.id),
@@ -1309,7 +1309,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     assert all(
         ("execution", first) not in state
         for event, state in zip(live, snapshots, strict=True)
-        if isinstance(event.event, protocol_events.RemovalEvent)
+        if isinstance(event.event, protocol.events.RemovalEvent)
     )
 
 
@@ -1455,7 +1455,7 @@ def test_restoration_preserves_revisions_and_outputs(
     assert notebook.executions.current(CellId("c1")) == retained
     assert backend.calls == []
     outputs = [
-        protocol_events.body(e.event)
+        e.event.record
         for e in notebook._snapshot()
         if isinstance(e.event, protocol.ConsoleEvent)
     ]

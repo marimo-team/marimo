@@ -484,7 +484,6 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
-"protocols/host/generate.py" = ["T201"]
 "protocols/host/conformance/test_*.py" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "marimo/_runtime/patches.py" = ["T100"]
 # Prefer multi-line "\n".join([...]) expected strings in codegen tests.

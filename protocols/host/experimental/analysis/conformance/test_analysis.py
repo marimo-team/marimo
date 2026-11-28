@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from contract import Frame, Watch, frames
-from generate import openapi
+from contract import Frame, Watch, frames, openapi
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"

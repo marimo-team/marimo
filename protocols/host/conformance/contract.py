@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from generate import openapi
 from jsonschema import Draft202012Validator, FormatChecker
 
 if TYPE_CHECKING:
@@ -20,6 +20,22 @@ if TYPE_CHECKING:
     import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
+OPENAPI = (
+    ROOT.parents[1] / "packages" / "host-protocol" / "scripts" / "openapi.ts"
+)
+
+
+def openapi(*, experimental: bool = False) -> dict[str, Any]:
+    """Ask the host protocol package for its OpenAPI document."""
+    printed = subprocess.run(
+        ["node", str(OPENAPI), *(["--experimental"] if experimental else [])],
+        check=True,
+        capture_output=True,
+    )
+    document: dict[str, Any] = json.loads(printed.stdout)
+    return document
+
+
 SPEC = openapi()
 KINDS = (
     "host",
