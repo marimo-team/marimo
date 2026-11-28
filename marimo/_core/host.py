@@ -6,7 +6,6 @@ from __future__ import annotations
 import asyncio
 import inspect
 from collections.abc import Awaitable, Callable, Mapping
-from copy import deepcopy
 from dataclasses import dataclass
 from time import monotonic
 from typing import TYPE_CHECKING
@@ -70,13 +69,13 @@ class _NotebookSink(Sink):
 
 
 class _NotebookRecords(Mapping[str, protocol.Notebook]):
-    """Catalog records copied on read."""
+    """The catalog's records, read but not replaced."""
 
     def __init__(self, records: Mapping[str, protocol.Notebook]) -> None:
         self._records = records
 
     def __getitem__(self, key: str) -> protocol.Notebook:
-        return deepcopy(self._records[key])
+        return self._records[key]
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._records)
@@ -129,7 +128,7 @@ class Host:
         """Store a project and publish an event if it changed."""
         if self._projects.get(project.id) == project:
             return
-        self._projects[project.id] = deepcopy(project)
+        self._projects[project.id] = project
         self._stream.publish(project, request_id=request_id)
 
     def add_notebook(
@@ -146,7 +145,7 @@ class Host:
             raise ValueError(
                 f"project {record.project_id} is not in the catalog"
             )
-        self._records[record.id] = deepcopy(record)
+        self._records[record.id] = record
         self._entries[record.id] = _NotebookEntry(
             initialize, RunLog(lambda: self.clock())
         )
@@ -166,7 +165,7 @@ class Host:
             )
         if self._records[record.id] == record:
             return
-        self._records[record.id] = deepcopy(record)
+        self._records[record.id] = record
         self._stream.publish(
             record, notebook_id=record.id, request_id=request_id
         )
@@ -230,9 +229,7 @@ class Host:
     ) -> Notebook:
         try:
             sink = _NotebookSink(self._stream, entry.log)
-            result = entry.initialize(
-                deepcopy(self._records[notebook_id]), sink
-            )
+            result = entry.initialize(self._records[notebook_id], sink)
             notebook = await result if inspect.isawaitable(result) else result
             if self._entries.get(notebook_id) is not entry:
                 raise NotFound(f"no notebook {notebook_id}")

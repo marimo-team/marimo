@@ -17,7 +17,6 @@ from marimo._core.stream import (
     Stream,
     event_name,
     removal,
-    utcnow,
 )
 from tests._core.conftest import ScriptedBackend, names, project
 
@@ -97,43 +96,21 @@ def test_readers_cannot_change_other_readers_or_replay() -> None:
     assert reread[0].event.data.project == project()
 
 
-@pytest.mark.parametrize("external", [False, True])
-@pytest.mark.parametrize("via_notebook", [False, True])
-def test_mutable_payloads_are_isolated_from_callers_and_listeners(
-    host: Host, notebook: Notebook, external: bool, via_notebook: bool
-) -> None:
-    stream = host._stream if via_notebook else Stream()
-    sink = notebook.sink if via_notebook else stream
-    cursor = stream.last_id
-    payload = protocol.Custom(type="example", data={"values": [1]})
+def test_a_record_is_shared_by_the_log_its_listeners_and_its_readers() -> None:
+    stream = Stream()
     delivered: list[RoutedEvent] = []
-
-    def mutate(event: RoutedEvent) -> None:
-        assert isinstance(event.event, protocol.CustomEvent)
-        event.event.data.custom.data["values"].append(2)
-
-    stream.subscribe(mutate)
     stream.subscribe(delivered.append)
-    if external:
-        event = RoutedEvent(
-            protocol.CustomEvent(
-                protocol.CustomMessage(custom=payload, time=utcnow())
-            ),
-        )
-        published = sink.append(event)
-    else:
-        published = sink.publish(payload)
-    payload.data["values"].append(3)
-    assert isinstance(published.event, protocol.CustomEvent)
-    published.event.data.custom.data["values"].append(4)
-    replay = stream.since(cursor)
+    original = project()
+
+    published = stream.publish(original)
+
+    assert isinstance(published.event, protocol.ProjectEvent)
+    assert published.event.data.project is original
+    assert delivered == [published]
+    assert delivered[0] is published
+    replay = stream.since(0)
     assert replay is not None
-    assert [
-        event.event.data.custom.data for event in [*delivered, *replay]
-    ] == [
-        {"values": [1]},
-        {"values": [1]},
-    ]
+    assert replay[0] is published
 
 
 def test_deferred_events_join_history_before_delivery() -> None:
@@ -217,7 +194,9 @@ def test_custom_events_are_on_the_notebook_stream_only(
     cursor = ready.event.id
     assert isinstance(cursor, str)
     assert cursor is not None
-    notebook.emit("marimo.test", {"hello": 1})
+    payload: dict[str, protocol.JsonValue] = {"hello": 1}
+    notebook.emit("marimo.test", payload)
+    payload["hello"] = 2
 
     assert names(host.events(cursor, notebook_id=notebook.id)) == [
         "custom",
@@ -233,6 +212,9 @@ def test_custom_events_are_on_the_notebook_stream_only(
     replayed = host._stream.since(ready.position or 0)
     assert replayed is not None
     assert names(replayed) == ["custom"]
+    event = replayed[0].event
+    assert isinstance(event, protocol.CustomEvent)
+    assert event.data.custom.data == {"hello": 1}
 
 
 def test_every_body_has_a_kind_a_stream_and_a_typed_event() -> None:

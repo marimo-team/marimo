@@ -747,10 +747,12 @@ class Notebook:
         self._require_open()
         if not type:
             raise ValueError("type must be a non-empty string")
-        # Validate before delivering to subscribers.
-        msgspec.json.encode(data)
         custom = protocol.Custom(type=type, data=data)
-        self._publish(custom, request_id)
+        # Validate and detach the stream's payload from the producer's data.
+        published = msgspec.json.decode(
+            msgspec.json.encode(custom), type=protocol.Custom
+        )
+        self._publish(published, request_id)
         return custom
 
     # ---- stream --------------------------------------------------------
