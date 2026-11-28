@@ -37,6 +37,15 @@ class Envelope(Struct, Generic[_DataT], frozen=True):
     ) = UNSET
 
 
+_IdT = TypeVar("_IdT", bound=str)
+
+
+class RemovedMessage(Struct, Generic[_IdT], frozen=True):
+    id: _IdT
+    request_id: _RequestId | UnsetType = UNSET
+    time: _Time | UnsetType = UNSET
+
+
 _RequestId: TypeAlias = Annotated[
     str,
     Meta(
@@ -140,6 +149,15 @@ class AttachmentEvent(
     @property
     def record(self) -> Attachment:
         return self.data.attachment
+
+
+class AttachmentRemovedEvent(
+    Envelope[RemovedMessage[AttachmentId]],
+    frozen=True,
+    tag_field="event",
+    tag="attachment.removed",
+):
+    pass
 
 
 class CancelledOutcome(Struct, frozen=True, tag_field="kind", tag="cancelled"):
@@ -307,6 +325,15 @@ class CellEvent(
     @property
     def record(self) -> Cell:
         return self.data.cell
+
+
+class CellRemovedEvent(
+    Envelope[RemovedMessage[CellId]],
+    frozen=True,
+    tag_field="event",
+    tag="cell.removed",
+):
+    pass
 
 
 class CellVersion(Struct, frozen=True):
@@ -819,6 +846,15 @@ class ExecutionQueued(Struct, frozen=True, tag_field="status", tag="queued"):
     pass
 
 
+class ExecutionRemovedEvent(
+    Envelope[RemovedMessage[ExecutionId]],
+    frozen=True,
+    tag_field="event",
+    tag="execution.removed",
+):
+    pass
+
+
 class ExecutionRunning(Struct, frozen=True, tag_field="status", tag="running"):
     started_at: Annotated[
         Timestamp, Meta(description="When the code started executing.")
@@ -1013,6 +1049,15 @@ else:
     )
 
 
+class ConsoleRemovedEvent(
+    Envelope[RemovedMessage[ItemId]],
+    frozen=True,
+    tag_field="event",
+    tag="console.removed",
+):
+    pass
+
+
 if TYPE_CHECKING:
     JsonValue: TypeAlias = (
         str
@@ -1138,6 +1183,15 @@ class NotebookEvent(
         return self.data.notebook
 
 
+class NotebookRemovedEvent(
+    Envelope[RemovedMessage[NotebookId]],
+    frozen=True,
+    tag_field="event",
+    tag="notebook.removed",
+):
+    pass
+
+
 ObjectKind: TypeAlias = Annotated[
     Literal[
         "host",
@@ -1197,6 +1251,15 @@ class OutputEvent(
     @property
     def record(self) -> Output:
         return self.data.output
+
+
+class OutputRemovedEvent(
+    Envelope[RemovedMessage[ItemId]],
+    frozen=True,
+    tag_field="event",
+    tag="output.removed",
+):
+    pass
 
 
 class Position(Struct, frozen=True):
@@ -1314,6 +1377,15 @@ class ProjectEvent(
         return self.data.project
 
 
+class ProjectRemovedEvent(
+    Envelope[RemovedMessage[ProjectId]],
+    frozen=True,
+    tag_field="event",
+    tag="project.removed",
+):
+    pass
+
+
 ProjectStatus: TypeAlias = Annotated[
     Literal["indexing", "indexed", "partial"],
     Meta(
@@ -1355,77 +1427,6 @@ class Related(Struct, frozen=True):
         Annotated[Range, Meta(description="Where in that cell, when known.")]
         | None
     )
-
-
-class RemovedMessage(Struct, frozen=True):
-    id: Annotated[
-        str, Meta(description="The id of the object that was removed.")
-    ]
-    request_id: _RequestId | UnsetType = UNSET
-    time: _Time | UnsetType = UNSET
-
-
-class AttachmentRemovedEvent(
-    Envelope[RemovedMessage],
-    frozen=True,
-    tag_field="event",
-    tag="attachment.removed",
-):
-    pass
-
-
-class CellRemovedEvent(
-    Envelope[RemovedMessage],
-    frozen=True,
-    tag_field="event",
-    tag="cell.removed",
-):
-    pass
-
-
-class ConsoleRemovedEvent(
-    Envelope[RemovedMessage],
-    frozen=True,
-    tag_field="event",
-    tag="console.removed",
-):
-    pass
-
-
-class ExecutionRemovedEvent(
-    Envelope[RemovedMessage],
-    frozen=True,
-    tag_field="event",
-    tag="execution.removed",
-):
-    pass
-
-
-class NotebookRemovedEvent(
-    Envelope[RemovedMessage],
-    frozen=True,
-    tag_field="event",
-    tag="notebook.removed",
-):
-    pass
-
-
-class OutputRemovedEvent(
-    Envelope[RemovedMessage],
-    frozen=True,
-    tag_field="event",
-    tag="output.removed",
-):
-    pass
-
-
-class ProjectRemovedEvent(
-    Envelope[RemovedMessage],
-    frozen=True,
-    tag_field="event",
-    tag="project.removed",
-):
-    pass
 
 
 class ReplaceCell(
@@ -1584,7 +1585,10 @@ class RunQueued(Struct, frozen=True, tag_field="status", tag="queued"):
 
 
 class RunRemovedEvent(
-    Envelope[RemovedMessage], frozen=True, tag_field="event", tag="run.removed"
+    Envelope[RemovedMessage[RunId]],
+    frozen=True,
+    tag_field="event",
+    tag="run.removed",
 ):
     pass
 
@@ -1699,7 +1703,7 @@ class RuntimeReady(Struct, frozen=True, tag_field="status", tag="ready"):
 
 
 class RuntimeRemovedEvent(
-    Envelope[RemovedMessage],
+    Envelope[RemovedMessage[RuntimeId]],
     frozen=True,
     tag_field="event",
     tag="runtime.removed",
@@ -1977,7 +1981,7 @@ class VariableEvent(
 
 
 class VariableRemovedEvent(
-    Envelope[RemovedMessage],
+    Envelope[RemovedMessage[ItemId]],
     frozen=True,
     tag_field="event",
     tag="variable.removed",

@@ -259,10 +259,13 @@ def test_removals_preserve_scope_and_type_filters(
 
 
 def test_extension_type_filters_preserve_the_full_wire_name() -> None:
+    class Removed(msgspec.Struct, frozen=True):
+        id: str
+
     class Extension(ExtensionEvent, tag="extension.removed"):
         pass
 
-    event = RoutedEvent(Extension(protocol.RemovedMessage(id="item")))
+    event = RoutedEvent(Extension(Removed(id="item")))
     assert [
         event.wanted(kinds)
         for kinds in (None, {"extension.removed"}, {"extension"})

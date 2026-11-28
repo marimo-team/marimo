@@ -20,13 +20,21 @@ export interface RecordEvent {
   readonly timed: boolean;
 }
 
+export interface Removal extends RecordEvent {
+  readonly id: string;
+}
+
 /**
  * The events of the document's `Event` union that carry a record, and those
  * that say one was removed.
  */
 export function carried(document: unknown): {
   readonly records: ReadonlyArray<RecordEvent>;
-  readonly removals: ReadonlyArray<RecordEvent>;
+  readonly removals: ReadonlyArray<Removal>;
+  /** One message for every removal, when they differ only in their id. */
+  readonly removed:
+    | { readonly name: string; readonly like: string }
+    | undefined;
 } {
   const components = isNode(document) ? document.components : undefined;
   const schemas = isNode(components) ? components.schemas : undefined;
@@ -115,14 +123,33 @@ export function carried(document: unknown): {
     });
   }
 
-  const removals = removed.map(([kind, event, message]): RecordEvent => {
+  const removals = removed.map(([kind, event, message]): Removal => {
     const record = records.get(kind);
-    if (record === undefined) {
+    const id = reference(properties(message).id);
+    if (record === undefined || id === undefined) {
       throw new Error(`${event} has no corresponding record event`);
     }
-    return { ...record, event, message };
+    return { ...record, event, message, id };
   });
-  return { records: [...records.values()], removals };
+  const shape = (message: string) =>
+    JSON.stringify({
+      ...schema(message),
+      description: undefined,
+      properties: { ...properties(message), id: undefined },
+    });
+  const alike =
+    removals.length > 1 &&
+    !("RemovedMessage" in schemas) &&
+    removals.every(
+      (removal) => shape(removal.message) === shape(removals[0].message),
+    );
+  return {
+    records: [...records.values()],
+    removals,
+    removed: alike
+      ? { name: "RemovedMessage", like: removals[0].message }
+      : undefined,
+  };
 }
 
 /** Write the module for the document's `Event` union. */
@@ -130,7 +157,7 @@ export function events(
   document: unknown,
   options: { readonly command: string },
 ): string {
-  const { records: all, removals } = carried(document);
+  const { records: all, removals, removed } = carried(document);
   const union = (names: ReadonlyArray<string>) =>
     names.map((name) => `protocol.${name}`).join(" | ");
 
@@ -190,7 +217,9 @@ ${removals
   .map(
     (removal) => `    if record_type is protocol.${removal.body}:
         return protocol.${removal.event}(
-            protocol.${removal.message}(id=object_id, request_id=request_id, time=time)
+            protocol.${removed?.name ?? removal.message}(
+                id=protocol.${removal.id}(object_id), request_id=request_id, time=time
+            )
         )`,
   )
   .join("\n")}

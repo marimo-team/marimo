@@ -1536,7 +1536,7 @@ export const CustomEvent = zod
 export type CustomEvent = zod.input<typeof CustomEvent>;
 export type CustomEventOutput = zod.output<typeof CustomEvent>;
 
-export const RemovedMessage = zod
+export const ProjectRemovedMessage = zod
   .object({
     request_id: zod
       .string()
@@ -1547,14 +1547,16 @@ export const RemovedMessage = zod
     time: Timestamp.optional().describe(
       "When the host published this event. Present on live and replayed events; omitted on snapshots.",
     ),
-    id: zod.string().describe("The id of the object that was removed."),
+    id: ProjectId,
   })
   .describe(
-    "The data of an event ending in `.removed`. The event name identifies the kind of object to delete from the client's view. Removing a notebook also removes its document and cells, and removing an execution removes its inputs. Clients discard these child records when they receive the parent's removal event.",
+    "The data of the `project.removed` event. The id of the project to delete from the client's view.",
   );
 
-export type RemovedMessage = zod.input<typeof RemovedMessage>;
-export type RemovedMessageOutput = zod.output<typeof RemovedMessage>;
+export type ProjectRemovedMessage = zod.input<typeof ProjectRemovedMessage>;
+export type ProjectRemovedMessageOutput = zod.output<
+  typeof ProjectRemovedMessage
+>;
 
 export const ProjectRemovedEvent = zod
   .object({
@@ -1564,12 +1566,34 @@ export const ProjectRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: ProjectRemovedMessage,
   })
   .describe("The `project.removed` event, carried by the catalog stream.");
 
 export type ProjectRemovedEvent = zod.input<typeof ProjectRemovedEvent>;
 export type ProjectRemovedEventOutput = zod.output<typeof ProjectRemovedEvent>;
+
+export const NotebookRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: NotebookId,
+  })
+  .describe(
+    "The data of the `notebook.removed` event. The id of the notebook to delete from the client's view.",
+  );
+
+export type NotebookRemovedMessage = zod.input<typeof NotebookRemovedMessage>;
+export type NotebookRemovedMessageOutput = zod.output<
+  typeof NotebookRemovedMessage
+>;
 
 export const NotebookRemovedEvent = zod
   .object({
@@ -1579,7 +1603,7 @@ export const NotebookRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: NotebookRemovedMessage,
   })
   .describe(
     "The `notebook.removed` event, carried by the catalog and notebook streams.",
@@ -1590,6 +1614,26 @@ export type NotebookRemovedEventOutput = zod.output<
   typeof NotebookRemovedEvent
 >;
 
+export const CellRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: CellId,
+  })
+  .describe(
+    "The data of the `cell.removed` event. The id of the cell to delete from the client's view.",
+  );
+
+export type CellRemovedMessage = zod.input<typeof CellRemovedMessage>;
+export type CellRemovedMessageOutput = zod.output<typeof CellRemovedMessage>;
+
 export const CellRemovedEvent = zod
   .object({
     event: zod.enum(["cell.removed"]),
@@ -1598,12 +1642,34 @@ export const CellRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage.extend({ id: CellId }),
+    data: CellRemovedMessage,
   })
   .describe("The `cell.removed` event, carried by the notebook stream.");
 
 export type CellRemovedEvent = zod.input<typeof CellRemovedEvent>;
 export type CellRemovedEventOutput = zod.output<typeof CellRemovedEvent>;
+
+export const RuntimeRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: RuntimeId,
+  })
+  .describe(
+    "The data of the `runtime.removed` event. The id of the runtime to delete from the client's view.",
+  );
+
+export type RuntimeRemovedMessage = zod.input<typeof RuntimeRemovedMessage>;
+export type RuntimeRemovedMessageOutput = zod.output<
+  typeof RuntimeRemovedMessage
+>;
 
 export const RuntimeRemovedEvent = zod
   .object({
@@ -1613,7 +1679,7 @@ export const RuntimeRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: RuntimeRemovedMessage,
   })
   .describe(
     "The `runtime.removed` event, carried by the catalog and notebook streams.",
@@ -1621,6 +1687,30 @@ export const RuntimeRemovedEvent = zod
 
 export type RuntimeRemovedEvent = zod.input<typeof RuntimeRemovedEvent>;
 export type RuntimeRemovedEventOutput = zod.output<typeof RuntimeRemovedEvent>;
+
+export const AttachmentRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: AttachmentId,
+  })
+  .describe(
+    "The data of the `attachment.removed` event. The id of the attachment to delete from the client's view.",
+  );
+
+export type AttachmentRemovedMessage = zod.input<
+  typeof AttachmentRemovedMessage
+>;
+export type AttachmentRemovedMessageOutput = zod.output<
+  typeof AttachmentRemovedMessage
+>;
 
 export const AttachmentRemovedEvent = zod
   .object({
@@ -1630,7 +1720,7 @@ export const AttachmentRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: AttachmentRemovedMessage,
   })
   .describe(
     "The `attachment.removed` event, carried by the catalog and notebook streams.",
@@ -1641,6 +1731,26 @@ export type AttachmentRemovedEventOutput = zod.output<
   typeof AttachmentRemovedEvent
 >;
 
+export const RunRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: RunId,
+  })
+  .describe(
+    "The data of the `run.removed` event. The id of the run to delete from the client's view.",
+  );
+
+export type RunRemovedMessage = zod.input<typeof RunRemovedMessage>;
+export type RunRemovedMessageOutput = zod.output<typeof RunRemovedMessage>;
+
 export const RunRemovedEvent = zod
   .object({
     event: zod.enum(["run.removed"]),
@@ -1649,12 +1759,34 @@ export const RunRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage.extend({ id: RunId }),
+    data: RunRemovedMessage,
   })
   .describe("The `run.removed` event, carried by the notebook stream.");
 
 export type RunRemovedEvent = zod.input<typeof RunRemovedEvent>;
 export type RunRemovedEventOutput = zod.output<typeof RunRemovedEvent>;
+
+export const ExecutionRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: ExecutionId,
+  })
+  .describe(
+    "The data of the `execution.removed` event. The id of the execution to delete from the client's view.",
+  );
+
+export type ExecutionRemovedMessage = zod.input<typeof ExecutionRemovedMessage>;
+export type ExecutionRemovedMessageOutput = zod.output<
+  typeof ExecutionRemovedMessage
+>;
 
 export const ExecutionRemovedEvent = zod
   .object({
@@ -1664,13 +1796,35 @@ export const ExecutionRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: ExecutionRemovedMessage,
   })
   .describe("The `execution.removed` event, carried by the notebook stream.");
 
 export type ExecutionRemovedEvent = zod.input<typeof ExecutionRemovedEvent>;
 export type ExecutionRemovedEventOutput = zod.output<
   typeof ExecutionRemovedEvent
+>;
+
+export const OutputRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: ItemId,
+  })
+  .describe(
+    "The data of the `output.removed` event. The id of the output to delete from the client's view.",
+  );
+
+export type OutputRemovedMessage = zod.input<typeof OutputRemovedMessage>;
+export type OutputRemovedMessageOutput = zod.output<
+  typeof OutputRemovedMessage
 >;
 
 export const OutputRemovedEvent = zod
@@ -1681,12 +1835,34 @@ export const OutputRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: OutputRemovedMessage,
   })
   .describe("The `output.removed` event, carried by the notebook stream.");
 
 export type OutputRemovedEvent = zod.input<typeof OutputRemovedEvent>;
 export type OutputRemovedEventOutput = zod.output<typeof OutputRemovedEvent>;
+
+export const ConsoleRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: ItemId,
+  })
+  .describe(
+    "The data of the `console.removed` event. The id of the console to delete from the client's view.",
+  );
+
+export type ConsoleRemovedMessage = zod.input<typeof ConsoleRemovedMessage>;
+export type ConsoleRemovedMessageOutput = zod.output<
+  typeof ConsoleRemovedMessage
+>;
 
 export const ConsoleRemovedEvent = zod
   .object({
@@ -1696,12 +1872,34 @@ export const ConsoleRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: ConsoleRemovedMessage,
   })
   .describe("The `console.removed` event, carried by the notebook stream.");
 
 export type ConsoleRemovedEvent = zod.input<typeof ConsoleRemovedEvent>;
 export type ConsoleRemovedEventOutput = zod.output<typeof ConsoleRemovedEvent>;
+
+export const VariableRemovedMessage = zod
+  .object({
+    request_id: zod
+      .string()
+      .optional()
+      .describe(
+        "The `Idempotency-Key` of the request that caused this event. Omitted when no request did, and on snapshots unless that request's work is still in progress.",
+      ),
+    time: Timestamp.optional().describe(
+      "When the host published this event. Present on live and replayed events; omitted on snapshots.",
+    ),
+    id: ItemId,
+  })
+  .describe(
+    "The data of the `variable.removed` event. The id of the variable to delete from the client's view.",
+  );
+
+export type VariableRemovedMessage = zod.input<typeof VariableRemovedMessage>;
+export type VariableRemovedMessageOutput = zod.output<
+  typeof VariableRemovedMessage
+>;
 
 export const VariableRemovedEvent = zod
   .object({
@@ -1711,7 +1909,7 @@ export const VariableRemovedEvent = zod
       .min(1)
       .optional()
       .describe("The resume cursor. Omitted on snapshot and reset events."),
-    data: RemovedMessage,
+    data: VariableRemovedMessage,
   })
   .describe("The `variable.removed` event, carried by the notebook stream.");
 
@@ -2448,3 +2646,10 @@ export type CreateNotebookRequest = zod.input<typeof CreateNotebookRequest>;
 export type CreateNotebookRequestOutput = zod.output<
   typeof CreateNotebookRequest
 >;
+
+/** The shared removal payload used by earlier clients. */
+export const RemovedMessage = ProjectRemovedMessage.extend({
+  id: zod.string(),
+});
+export type RemovedMessage = zod.input<typeof RemovedMessage>;
+export type RemovedMessageOutput = zod.output<typeof RemovedMessage>;

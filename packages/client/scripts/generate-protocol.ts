@@ -187,25 +187,18 @@ try {
     /^export const JsonValue = zod\.unknown\(\)/m,
     "export const JsonValue = zod.json()",
   );
-  // Brand IDs when decoding their enclosing records. Removal envelopes
-  // share a schema, so their event kind identifies the corresponding ID.
-  for (const kind of ["Cell", "Run"]) {
-    const id = `${kind}Id`;
+  // Brand IDs when decoding the records and removal messages that name them.
+  for (const id of ["CellId", "RunId"]) {
     const scalar = new RegExp(
       `export (const ${id} = [\\s\\S]*?);\\s*export type ${id} = zod\\.input<typeof ${id}>;`,
     );
-    const removal = new RegExp(
-      `(export const ${kind}RemovedEvent = [\\s\\S]*?"data":\\s*)RemovedMessage\\b`,
-    );
-    if (!scalar.test(generated) || !removal.test(generated)) {
-      throw new Error(`Expected schemas for ${id} and ${kind}RemovedEvent`);
+    if (!scalar.test(generated)) {
+      throw new Error(`Expected a schema for ${id}`);
     }
-    generated = generated
-      .replace(
-        scalar,
-        `$1.brand("${id}");\ntype ${id} = zod.output<typeof ${id}>;\nexport type { ${id} };`,
-      )
-      .replace(removal, `$1RemovedMessage.extend({ id: ${id} })`);
+    generated = generated.replace(
+      scalar,
+      `$1.brand("${id}");\ntype ${id} = zod.output<typeof ${id}>;\nexport type { ${id} };`,
+    );
   }
   for (const [name, schema] of Object.entries(schemas)) {
     if (
@@ -221,6 +214,14 @@ try {
       }
       generated = generated.replace(declaration, "$1strictObject(");
     }
+  }
+  if ("ProjectRemovedMessage" in schemas && !("RemovedMessage" in schemas)) {
+    generated += `
+/** The shared removal payload used by earlier clients. */
+export const RemovedMessage = ProjectRemovedMessage.extend({ id: zod.string() });
+export type RemovedMessage = zod.input<typeof RemovedMessage>;
+export type RemovedMessageOutput = zod.output<typeof RemovedMessage>;
+`;
   }
   NodeFs.writeFileSync(output, header + generated);
   const table = NodePath.join(temporary, "operations-table.ts");

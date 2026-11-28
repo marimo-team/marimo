@@ -87,7 +87,8 @@ class Frame:
         elif self.event in KINDS:
             validate(f"{self.event.title()}Message", value)
         elif self.event in REMOVAL_EVENTS:
-            validate("RemovedMessage", value)
+            kind = self.event.removesuffix(".removed")
+            validate(f"{kind.title()}RemovedMessage", value)
         return value
 
 

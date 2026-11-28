@@ -12,14 +12,24 @@ import { Attachment, Runtime } from "./model/Runtime.ts";
 /** The catalog stream is `/events`. A notebook stream is `/notebooks/{notebook_id}/events`. */
 export type StreamName = "catalog" | "notebook";
 
-export interface ObjectDefinition {
+interface Published {
   /** Names the object's event and its field in that event's data. */
   readonly kind: string;
   readonly schema: Schema.Constraint;
   readonly streams: ReadonlyArray<StreamName>;
-  /** Whether the object has a `<kind>.removed` event. */
-  readonly removable: boolean;
 }
+
+/** An object with a `<kind>.removed` event, which names the object by its `id`. */
+export interface RemovableObjectDefinition extends Published {
+  readonly schema: Schema.Constraint & {
+    readonly fields: { readonly id: Schema.Constraint };
+  };
+  readonly removable: true;
+}
+
+export type ObjectDefinition =
+  | RemovableObjectDefinition
+  | (Published & { readonly removable: false });
 
 const catalog = ["catalog"] as const;
 const notebook = ["notebook"] as const;

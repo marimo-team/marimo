@@ -669,6 +669,16 @@ def test_identifier_constraints(name: str) -> None:
         msgspec.json.decode(b'""', type=identifier)
 
 
+def test_removal_message_id_constraints() -> None:
+    with pytest.raises(msgspec.ValidationError, match="Expected `str`"):
+        msgspec.json.decode(b'{"id":4}', type=protocol.RemovedMessage)
+    with pytest.raises(msgspec.ValidationError, match="length"):
+        msgspec.json.decode(
+            b'{"event":"cell.removed","data":{"id":""}}',
+            type=protocol.CellRemovedEvent,
+        )
+
+
 @pytest.mark.parametrize("field", ["run_id", "runtime_id", "caused_by_id"])
 def test_required_nullable_fields(field: str) -> None:
     wire = json.loads(
