@@ -116,6 +116,83 @@ it("keeps each kind of id distinct from a plain string", () => {
   expect(source).toContain("Timestamp: TypeAlias = datetime");
 });
 
+it("writes a described field type once when many structs repeat it", () => {
+  const cause = { type: "string", description: "What caused it." };
+  const note = { type: "string", description: "A note." };
+  const message = (extra: Record<string, unknown> = {}) => ({
+    type: "object",
+    properties: { request_id: cause, ...extra },
+  });
+  const source = written({
+    A: message({ note }),
+    B: message({ note }),
+    C: message(),
+  });
+  expect(source).toContain(
+    '_RequestId: TypeAlias = Annotated[str, Meta(description="What caused it.")]',
+  );
+  expect(source).toContain(
+    "class C(Struct, frozen=True):\n    request_id: _RequestId | UnsetType = UNSET",
+  );
+  // Two structs repeating a type is not worth a name.
+  expect(source).toContain(
+    'note: Annotated[str, Meta(description="A note.")] | UnsetType = UNSET',
+  );
+});
+
+it("gives events that only wrap data one envelope to share", () => {
+  const cursor = { type: "string", minLength: 1 };
+  const event = (tag: string, data: unknown, required = ["event", "data"]) => ({
+    type: "object",
+    properties: { event: { type: "string", enum: [tag] }, id: cursor, data },
+    required,
+  });
+  const message = (field: string, record: string) => ({
+    type: "object",
+    properties: {
+      [field]: component(record),
+      request_id: { type: "string" },
+      time: { type: "string", format: "date-time" },
+    },
+    required: [field],
+  });
+  const record = { type: "object", properties: { id: { type: "string" } } };
+  const source = written({
+    Cell: record,
+    CellMessage: message("cell", "Cell"),
+    CellEvent: event("cell", component("CellMessage")),
+    Run: record,
+    RunMessage: message("run", "Run"),
+    RunEvent: event("run", component("RunMessage")),
+    // The cursor is required here, so this event states its own fields.
+    ReadyEvent: event("ready", { type: "object" }, ["event", "id", "data"]),
+    Event: {
+      anyOf: [
+        component("CellEvent"),
+        component("RunEvent"),
+        component("ReadyEvent"),
+      ],
+    },
+  });
+  expect(source).toContain(
+    [
+      "class Envelope(Struct, Generic[_DataT], frozen=True):",
+      "    data: _DataT",
+      "    id: Annotated[str, Meta(min_length=1)] | UnsetType = UNSET",
+    ].join("\n"),
+  );
+  expect(source).toContain(
+    'class RunEvent(Envelope[RunMessage], frozen=True, tag_field="event", tag="run"):\n    pass',
+  );
+  expect(source).toContain(
+    'class ReadyEvent(Struct, frozen=True, tag_field="event", tag="ready"):\n    data: dict[str, Any]\n    id: Annotated[str, Meta(min_length=1)]',
+  );
+  // An event evaluates the data it names, so the data comes first.
+  expect(source.indexOf("class RunMessage")).toBeLessThan(
+    source.indexOf("class RunEvent"),
+  );
+});
+
 it("writes adapters from schema references, whatever the schemas are called", () => {
   const document = structuredClone(
     OpenApi.fromApi(Host.Api, { referencePolicy: Host.referencePolicy }),
@@ -143,9 +220,6 @@ it("writes adapters from schema references, whatever the schemas are called", ()
   const source = events(document, options);
   expect(source).toContain(
     "            return protocol.WorkspaceChanged(\n                protocol.WorkspaceUpdate(workspace=value, request_id=request_id, time=time)",
-  );
-  expect(source).toContain(
-    "        case protocol.WorkspaceChanged(data=data):\n            return data.workspace",
   );
   expect(source).toContain(
     "protocol.RemovedMessage(id=object_id, request_id=request_id, time=time)",

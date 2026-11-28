@@ -199,10 +199,57 @@ function tags(schemas: Readonly<Record<string, Node>>) {
   return found;
 }
 
+/** A field's type, apart from whether the field may be null. */
+const present = (expression: string) => expression.replace(/ \| None$/, "");
+
+const shareable = (field: string, expression: string) =>
+  `${field}: ${expression}`;
+
+/**
+ * Name the described field types that many structs repeat.
+ *
+ * A field such as the `request_id` of every message is the same long
+ * annotation each time. It is written once, under a private name, and the
+ * structs refer to it.
+ */
+function shared(
+  schemas: Readonly<Record<string, Node>>,
+  written: (name: string) => boolean,
+) {
+  const counts = new Map<string, Map<string, number>>();
+  for (const [name, node] of Object.entries(schemas)) {
+    if (!isStruct(node) || !written(name)) {
+      continue;
+    }
+    for (const [field, value] of Object.entries(node.properties as Node)) {
+      const { default: _, ...property } = value as Node;
+      const expression = present(type(property));
+      if (expression.includes("Meta(")) {
+        const seen = counts.get(field) ?? new Map<string, number>();
+        seen.set(expression, (seen.get(expression) ?? 0) + 1);
+        counts.set(field, seen);
+      }
+    }
+  }
+  const named = new Map<string, { name: string; expression: string }>();
+  for (const [field, seen] of counts) {
+    const [expression, count] = [...seen].toSorted(([, a], [, b]) => b - a)[0];
+    if (count >= 3) {
+      const name = `_${field
+        .split("_")
+        .map((part) => part[0].toUpperCase() + part.slice(1))
+        .join("")}`;
+      named.set(shareable(field, expression), { name, expression });
+    }
+  }
+  return named;
+}
+
 function struct(
   name: string,
   node: Node,
   tag: { field: string; tag: string } | undefined,
+  names: ReadonlyMap<string, { name: string }>,
 ): string {
   const properties = node.properties as Node;
   const required = new Set<string>();
@@ -226,13 +273,15 @@ function struct(
             ? "UNSET"
             : undefined
           : literal(preset);
+      const written = type(property);
+      const expression = present(written);
+      const annotation =
+        names.get(shareable(field, expression))?.name ?? expression;
       return {
         value,
         // A union reads best with `None` last.
-        line: `${field}: ${
-          optional
-            ? type(property).replace(/( \| None)?$/, " | UnsetType$1")
-            : type(property)
+        line: `${field}: ${annotation}${optional ? " | UnsetType" : ""}${
+          written === expression ? "" : " | None"
         }${value === undefined ? "" : ` = ${value}`}`,
       };
     })
@@ -272,6 +321,45 @@ else:
     # msgspec cannot decode recursive aliases. Its JSON decoder returns JSON values.
     JsonValue = object`;
 
+/**
+ * The events that only wrap some data, by the data each one wraps.
+ *
+ * They all carry the same optional cursor, so one generic struct holds it and
+ * each event names only its tag and its data.
+ */
+function envelopes(
+  schemas: Readonly<Record<string, Node>>,
+  told: ReadonlyMap<string, { field: string; tag: string }>,
+) {
+  const wrapped = new Map<string, string>();
+  let cursor: Node | undefined;
+  for (const member of nodes(schemas.Event?.anyOf)) {
+    const name = referenced(member);
+    const node = schemas[name];
+    const properties = node.properties as Node;
+    const required = Array.isArray(node.required) ? node.required : [];
+    const fields = Object.keys(properties)
+      .filter((field) => field !== told.get(name)?.field)
+      .toSorted();
+    const { data, id } = properties;
+    if (
+      fields.join() !== "data,id" ||
+      !required.includes("data") ||
+      required.includes("id") ||
+      node.additionalProperties === false ||
+      !isNode(data) ||
+      !isNode(id) ||
+      Object.keys(data).join() !== "$ref" ||
+      JSON.stringify(cursor ?? id) !== JSON.stringify(id)
+    ) {
+      continue;
+    }
+    cursor = id;
+    wrapped.set(name, referenced(data));
+  }
+  return { cursor, wrapped };
+}
+
 /** The names a schema needs defined before it, which a struct never does. */
 function needs(node: Node): ReadonlyArray<string> {
   if (isStruct(node)) {
@@ -304,6 +392,15 @@ export function models(
   }
   const all = schemas as Readonly<Record<string, Node>>;
   const told = tags(all);
+  const { cursor, wrapped } = envelopes(all, told);
+  // An event in an envelope writes no fields of its own.
+  const names = shared(all, (name) => !wrapped.has(name));
+  const aliases = new Map(
+    [...names.values()].map(({ name, expression }) => [name, expression]),
+  );
+  if (cursor !== undefined && "Envelope" in all) {
+    throw new Error("A schema is already named Envelope");
+  }
 
   const definition = (name: string): string => {
     const node = all[name];
@@ -313,8 +410,13 @@ export function models(
       }
       return JSON_VALUE;
     }
+    const data = wrapped.get(name);
+    const tag = told.get(name);
+    if (data !== undefined && tag !== undefined) {
+      return `class ${name}(Envelope[${data}], frozen=True, tag_field=${literal(tag.field)}, tag=${literal(tag.tag)}):\n    pass`;
+    }
     if (isStruct(node)) {
-      return struct(name, node, told.get(name));
+      return struct(name, node, tag, names);
     }
     // An id is a string that only its own kind of object may be named by.
     if (
@@ -333,17 +435,46 @@ export function models(
   };
 
   // Each name comes after the names its definition evaluates.
-  const pending = new Set(Object.keys(all).toSorted());
+  // A shared field type comes as soon as the names it uses are defined.
+  const uses = (name: string): ReadonlyArray<string> => {
+    const expression = aliases.get(name);
+    return expression === undefined
+      ? needs(all[name])
+      : Object.keys(all).filter((other) =>
+          new RegExp(`\\b${other}\\b`).test(expression),
+        );
+  };
+  const pending = new Set([...aliases.keys(), ...Object.keys(all).toSorted()]);
   const definitions: Array<string> = [];
   while (pending.size > 0) {
+    // Naming an envelope's data evaluates it, as an alias evaluates its members.
     const ready = [...pending].find((name) =>
-      needs(all[name]).every((need) => !pending.has(need)),
+      [...uses(name), ...(wrapped.has(name) ? [wrapped.get(name)] : [])].every(
+        (need) => need === undefined || !pending.has(need),
+      ),
     );
     if (ready === undefined) {
       throw new Error(`These schemas refer to each other: ${[...pending]}`);
     }
     pending.delete(ready);
-    definitions.push(definition(ready));
+    const expression = aliases.get(ready);
+    definitions.push(
+      expression === undefined
+        ? definition(ready)
+        : `${ready}: TypeAlias = ${expression}`,
+    );
+  }
+  if (cursor !== undefined) {
+    definitions.unshift(
+      [
+        '_DataT = TypeVar("_DataT")',
+        "",
+        "",
+        "class Envelope(Struct, Generic[_DataT], frozen=True):",
+        "    data: _DataT",
+        `    id: ${type(cursor)} | UnsetType = UNSET`,
+      ].join("\n"),
+    );
   }
   const body = definitions.join("\n\n\n");
 
@@ -356,7 +487,9 @@ export function models(
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated${/\bAny\b/.test(body) ? ", Any" : ""}, Literal, NewType, TypeAlias
+from typing import TYPE_CHECKING, Annotated${/\bAny\b/.test(body) ? ", Any" : ""}${
+    cursor === undefined ? "" : ", Generic"
+  }, Literal, NewType, TypeAlias${cursor === undefined ? "" : ", TypeVar"}
 
 from msgspec import UNSET, Meta, Struct, UnsetType
 
