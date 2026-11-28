@@ -19,13 +19,13 @@ from datetime import UTC, datetime
 import msgspec
 from msgspec import UNSET
 
-from marimo._core import protocol, protocol_events
+from marimo._core import protocol
 
 LOGGER = logging.getLogger(__name__)
 
 
 def snapshot_event(
-    body: protocol_events.SnapshotBody,
+    body: protocol.events.SnapshotBody,
     *,
     notebook_id: protocol.NotebookId | None = None,
     run_id: protocol.RunId | None = None,
@@ -33,7 +33,7 @@ def snapshot_event(
 ) -> RoutedEvent:
     """Wrap current state in an event without an emission time or cursor."""
     return RoutedEvent(
-        protocol_events.record(
+        protocol.events.record(
             body,
             request_id=UNSET if request_id is None else request_id,
         ),
@@ -47,7 +47,7 @@ def utcnow() -> datetime:
 
 
 def removal(
-    record_type: type[protocol_events.RemovableBody],
+    record_type: type[protocol.events.RemovableBody],
     object_id: str,
     *,
     notebook_id: protocol.NotebookId | None = None,
@@ -56,7 +56,7 @@ def removal(
 ) -> RoutedEvent:
     """Return an event announcing an object's removal."""
     return RoutedEvent(
-        protocol_events.removed(
+        protocol.events.removed(
             record_type,
             object_id,
             request_id=UNSET if request_id is None else request_id,
@@ -135,7 +135,7 @@ class RoutedEvent:
             return True
         if kinds is not None:
             kind = event_name(self.event)
-            if isinstance(self.event, protocol_events.RemovalEvent):
+            if isinstance(self.event, protocol.events.RemovalEvent):
                 kind = kind.removesuffix(".removed")
             if kind not in kinds:
                 return False
@@ -158,7 +158,7 @@ class Sink(ABC):
 
     def publish(
         self,
-        body: protocol_events.Body,
+        body: protocol.events.Body,
         *,
         notebook_id: protocol.NotebookId | None = None,
         request_id: str | None = None,
@@ -167,7 +167,7 @@ class Sink(ABC):
         """Publish a new or updated object."""
         return self._append(
             RoutedEvent(
-                protocol_events.record(
+                protocol.events.record(
                     body,
                     request_id=UNSET if request_id is None else request_id,
                     time=utcnow(),
@@ -179,7 +179,7 @@ class Sink(ABC):
 
     def remove(
         self,
-        record_type: type[protocol_events.RemovableBody],
+        record_type: type[protocol.events.RemovableBody],
         object_id: str,
         *,
         notebook_id: protocol.NotebookId | None = None,

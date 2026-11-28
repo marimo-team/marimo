@@ -12,7 +12,7 @@ on:
       - "package.json"
       - "tsconfig.json"
       - ".github/actions/install/**"
-      - "marimo/_core/protocol.py"
+      - "marimo/_core/protocol/**"
       - "tests/_core/test_protocol.py"
       - "tests/_core/test_calls.py"
       - "tests/_lint/test_host_protocol_documents.py"

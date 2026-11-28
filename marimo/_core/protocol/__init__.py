@@ -2415,3 +2415,5 @@ NotebookStreamEvent: TypeAlias = Annotated[
     | ReadyEvent,
     Meta(description="Any event a notebook stream carries."),
 ]
+
+from marimo._core.protocol import events as events  # noqa: E402

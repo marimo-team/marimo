@@ -13,7 +13,10 @@ import { Api as StableApi, referencePolicy } from "../src/Host.ts";
 import { events } from "./python/events.ts";
 import { models } from "./python/models.ts";
 
-const CORE = NodePath.resolve(import.meta.dirname, "../../../marimo/_core");
+const PACKAGE = NodePath.resolve(
+  import.meta.dirname,
+  "../../../marimo/_core/protocol",
+);
 const options = { command: "make host-protocol-codegen" };
 
 const args = NodeUtil.parseArgs({
@@ -29,8 +32,11 @@ const document = args.values.experimental
   : OpenApi.fromApi(StableApi, { referencePolicy });
 
 const modules = {
-  "protocol.py": models(document, options),
-  "protocol_events.py": events(document, options),
+  // The package is its records, and it loads the module that builds on them.
+  "__init__.py": `${models(document, options)}
+from marimo._core.protocol import events as events  # noqa: E402
+`,
+  "events.py": events(document, options),
 };
 
 let stale = false;
@@ -40,7 +46,7 @@ for (const [name, source] of Object.entries(modules)) {
     ["ruff@0.16.4", "format", "--isolated", "--line-length", "79", "-"],
     { input: source, encoding: "utf8" },
   );
-  const target = NodePath.join(CORE, name);
+  const target = NodePath.join(PACKAGE, name);
   const current = NodeFs.existsSync(target)
     ? NodeFs.readFileSync(target, "utf8")
     : undefined;
@@ -49,7 +55,7 @@ for (const [name, source] of Object.entries(modules)) {
   }
   stale = true;
   if (!args.values.check) {
-    NodeFs.mkdirSync(CORE, { recursive: true });
+    NodeFs.mkdirSync(PACKAGE, { recursive: true });
     NodeFs.writeFileSync(target, formatted);
   }
 }

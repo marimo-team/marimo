@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import msgspec
 import pytest
 
-from marimo._core import backend as be, protocol, protocol_events
+from marimo._core import backend as be, protocol
 from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
 from marimo._core.executions import CellExecution, Executions
@@ -320,7 +320,7 @@ def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
                 protocol.ConsoleEvent,
             ),
         ):
-            body = protocol_events.body(event)
+            body = protocol.events.body(event)
             state[event_name(event), body.id] = body
         elif isinstance(
             event,
