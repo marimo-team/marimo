@@ -290,7 +290,11 @@ def _make_fails(var: str, e: Exception) -> Callable[..., NoReturn]:
 
 @dataclass(frozen=True)
 class _CellTarget:
-    """A test or fixture defined by a cell, resolved by running the cell."""
+    """A test or fixture defined by a cell, resolved by running the cell.
+
+    Hooks are built as closures, not bound methods: `functools.wraps` must set
+    attributes on them, and in test classes they must bind the test instance.
+    """
 
     var: str
     run: Callable[
