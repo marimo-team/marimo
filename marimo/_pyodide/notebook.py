@@ -13,7 +13,6 @@ import msgspec
 
 from marimo import _loggers
 from marimo._core import backend as be, protocol
-from marimo._core.calls import OperationCall, dispatch
 from marimo._core.document import Document
 from marimo._core.errors import (
     Conflict,
@@ -22,6 +21,7 @@ from marimo._core.errors import (
     PreconditionFailed,
 )
 from marimo._core.executions import Executions
+from marimo._core.handlers import HostHandlers, NotebookHandlers, dispatch
 from marimo._core.host import Host
 from marimo._core.ids import mint
 from marimo._core.notebook import Notebook
@@ -571,17 +571,20 @@ class PyodideNotebook:
         status: int
         body: msgspec.Struct | None
         try:
-            call = msgspec.json.decode(raw, type=OperationCall)
+            call = msgspec.json.decode(raw, type=protocol.api.Call)
         except msgspec.DecodeError as e:
             failure = problem("invalid-request", str(e))
             status, body = failure.status, failure
         else:
             status, body = await dispatch(
                 self.mutations,
-                self,
+                protocol.api.Api(
+                    host=HostHandlers(),
+                    notebook=NotebookHandlers(
+                        self, allow_input=self._allow_input
+                    ),
+                ),
                 call,
-                request=None,
-                allow_input=self._allow_input,
             )
         return msgspec.json.encode({"status": status, "body": body}).decode()
 

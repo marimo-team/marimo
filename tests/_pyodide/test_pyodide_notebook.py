@@ -15,7 +15,8 @@ if TYPE_CHECKING:
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._core.calls import EditCall, dispatch
+from marimo._core import protocol
+from marimo._core.handlers import HostHandlers, NotebookHandlers, dispatch
 from marimo._messaging.notebook import CreateCell, Transaction
 from marimo._messaging.notification import (
     ModelLifecycleNotification,
@@ -152,9 +153,12 @@ async def test_snapshot_edit_and_retry(bridge):
     # A call dispatched directly shares the worker's retry receipts.
     direct = await dispatch(
         bridge.notebook.mutations,
-        bridge.notebook,
-        msgspec.json.decode(json.dumps(request), type=EditCall),
-        request=None,
+        protocol.api.Api(
+            host=HostHandlers(), notebook=NotebookHandlers(bridge.notebook)
+        ),
+        msgspec.json.decode(
+            json.dumps(request), type=protocol.api.Notebook.Edit.Call
+        ),
     )
     assert msgspec.json.decode(msgspec.json.encode(direct)) == [
         response["status"],

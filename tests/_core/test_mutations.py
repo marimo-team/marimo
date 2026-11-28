@@ -7,40 +7,38 @@ import msgspec
 import pytest
 
 from marimo._core import protocol
-from marimo._core.calls import (
-    EditCall,
-    EmitCall,
-    MutationHeaders,
-    NotebookParams,
-    OperationCall,
-    SaveCall,
-    SaveHeaders,
-    StopCall,
-    dispatch,
-)
+from marimo._core.handlers import HostHandlers, NotebookHandlers, dispatch
 from marimo._core.operations import Mutations, Reply
 from tests._core.test_notebook_document import create, replace_cell
 
+api = protocol.api
 NOTEBOOK = protocol.NotebookId("n1")
-PARAMS = NotebookParams(NOTEBOOK)
 
 
-def edit(key: str, *changes: protocol.Change) -> EditCall:
-    return EditCall(
-        PARAMS, MutationHeaders(key), protocol.EditRequest(changes)
+def edit(key: str, *changes: protocol.Change) -> api.Notebook.Edit.Call:
+    return api.Notebook.Edit.Call(
+        api.Notebook.Edit.Params(NOTEBOOK),
+        api.Notebook.Edit.Headers(key),
+        protocol.EditRequest(changes),
     )
 
 
-def save(key: str, if_match: str | None = None) -> SaveCall:
-    return SaveCall(PARAMS, SaveHeaders(key, if_match), protocol.SaveRequest())
+def save(key: str, if_match: str | None = None) -> api.Notebook.Save.Call:
+    return api.Notebook.Save.Call(
+        api.Notebook.Save.Params(NOTEBOOK),
+        api.Notebook.Save.Headers(key, if_match),
+        protocol.SaveRequest(),
+    )
 
 
 @pytest.fixture
 def serve(bridge):
     mutations = Mutations(bridge.host)
 
-    async def serve(call: OperationCall) -> Reply:
-        return await dispatch(mutations, bridge, call, request=None)
+    served = api.Api(host=HostHandlers(), notebook=NotebookHandlers(bridge))
+
+    async def serve(call: api.Call) -> Reply:
+        return await dispatch(mutations, served, call)
 
     return serve
 
@@ -117,7 +115,9 @@ async def test_rejected_calls_do_not_reserve_keys(serve):
 
 
 async def test_calls_check_capabilities_and_keys(bridge, serve):
-    stop = StopCall(PARAMS, MutationHeaders("stop"))
+    stop = api.Notebook.Stop.Call(
+        api.Notebook.Stop.Params(NOTEBOOK), api.Notebook.Stop.Headers("stop")
+    )
     assert kind(await serve(stop)) == "unsupported-operation"
     assert kind(await serve(edit(""))) == "invalid-request"
     bridge.host.update_notebook(
@@ -128,9 +128,9 @@ async def test_calls_check_capabilities_and_keys(bridge, serve):
 
 
 async def test_emit_permission_is_independent_of_editing(bridge, serve):
-    call = EmitCall(
-        PARAMS,
-        MutationHeaders("emit"),
+    call = api.Notebook.Emit.Call(
+        api.Notebook.Emit.Params(NOTEBOOK),
+        api.Notebook.Emit.Headers("emit"),
         protocol.EmitRequest(type="example.message", data=None),
     )
     for operations, expected in [

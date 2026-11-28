@@ -21,13 +21,15 @@ from marimo._core.errors import (
     Unsupported,
 )
 from marimo._core.host import Host
-from marimo._core.result import Result
+from marimo._core.result import Ok, Result
 from marimo._core.stream import RoutedEvent
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence
 
 Reply = tuple[int, msgspec.Struct | None]
+Outcome = Result[Reply, protocol.Problem]
+"""A reply, or the problem the operation answered with."""
 """A status and body, for a transport to encode."""
 
 
@@ -98,7 +100,7 @@ class CachedMutation:
     """An accepted request, including its in-flight or completed result."""
 
     fingerprint: str
-    task: asyncio.Future[Reply]
+    task: asyncio.Future[Outcome]
     run: protocol.Run | None = None
     expires_at: float | None = None
 
@@ -151,9 +153,9 @@ class Mutations:
         notebook_id: str | None,
         key: str,
         payload: object,
-        call: Callable[[], Awaitable[Reply]],
-    ) -> Reply:
-        """Run `call` once per idempotency key, and answer retries with its reply."""
+        call: Callable[[], Awaitable[Outcome]],
+    ) -> Outcome:
+        """Run `call` once per idempotency key; a problem does not reserve it."""
         capabilities = (
             {"runtime.run", "runtime.execute"}
             if operation in {"runtime.interrupt", "runtime.cancel"}
@@ -179,7 +181,9 @@ class Mutations:
                 )
             reply = await asyncio.shield(remembered.task)
             # A retried run answers with the run as it is now.
-            return reply if remembered.run is None else (202, remembered.run)
+            return (
+                reply if remembered.run is None else Ok((202, remembered.run))
+            )
 
         task = asyncio.ensure_future(call())
         mutation = CachedMutation(fingerprint, task)
@@ -213,13 +217,18 @@ class Mutations:
                 request_id=key,
             )
 
-        def completed(task: asyncio.Future[Reply]) -> None:
-            if task.cancelled() or task.exception() is not None:
+        def completed(task: asyncio.Future[Outcome]) -> None:
+            outcome = (
+                None
+                if task.cancelled() or task.exception() is not None
+                else task.result()
+            )
+            if outcome is None or not outcome.ok:
                 self.replies.pop(key, None)
                 if unsubscribe is not None:
                     unsubscribe()
             elif lifecycle_accepted is not None:
-                lifecycle_accepted(task.result())
+                lifecycle_accepted(outcome.value)
             elif mutation.expires_at is None and (
                 mutation.run is None
                 or isinstance(mutation.run.state, protocol.RunCompleted)
