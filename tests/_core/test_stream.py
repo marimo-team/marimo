@@ -131,7 +131,7 @@ def test_subscribers_act_after_the_command_reaches_the_backend(
 ) -> None:
     def stop_on_starting(event: RoutedEvent) -> None:
         if isinstance(event.event, protocol.RuntimeEvent):
-            notebook.stop()
+            notebook.stop().unwrap()
 
     host.subscribe(stop_on_starting, kinds={"runtime"})
 
@@ -147,7 +147,7 @@ def test_subscribers_cannot_interrupt_a_restart(
 ) -> None:
     runtime, _ = notebook.start()
     notebook.observe(be.Running(runtime.id))
-    replacement = notebook.restart()
+    replacement = notebook.restart().unwrap()
     backend.calls.clear()
     started: list[tuple[protocol.Runtime, bool]] = []
 

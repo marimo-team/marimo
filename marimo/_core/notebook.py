@@ -23,6 +23,7 @@ from marimo._core.errors import (
 )
 from marimo._core.executions import Executions, InputChanged, Released, Removed
 from marimo._core.ids import mint
+from marimo._core.result import Err, Ok, Result
 from marimo._core.stream import RoutedEvent, snapshot_event, utcnow
 
 if TYPE_CHECKING:
@@ -126,20 +127,25 @@ class Notebook:
         """The document revision the store holds, if known."""
         return self._saved_etag
 
-    def require_revision(self, etags: Sequence[str]) -> None:
+    def require_revision(
+        self, etags: Sequence[str]
+    ) -> Result[None, PreconditionFailed]:
         """Check that the document is at one of `etags`.
 
-        Raises:
-            PreconditionFailed: If it is not, carrying the document as it is.
+        Returns `PreconditionFailed` if it is not, carrying the document as
+        it is.
         """
         self._require_open()
         if self.document.etag not in etags:
-            raise PreconditionFailed(
-                "The document has changed since it was read",
-                index=0,
-                cell=None,
-                document=self._document_record,
+            return Err(
+                PreconditionFailed(
+                    "The document has changed since it was read",
+                    index=0,
+                    cell=None,
+                    document=self._document_record,
+                )
             )
+        return Ok(None)
 
     @property
     def _document_record(self) -> protocol.Document:
@@ -211,11 +217,13 @@ class Notebook:
 
     def edit(
         self, changes: Sequence[protocol.Change], *, request_id: str
-    ) -> protocol.EditResponse:
+    ) -> Result[protocol.EditResponse, PreconditionFailed]:
         """Apply an edit as one unit and publish its effects.
 
+        Returns `PreconditionFailed` if a precondition is stale, and applies
+        nothing.
+
         Raises:
-            PreconditionFailed: If a precondition is stale. Nothing is applied.
             Invalid: If a change could not apply to any state.
         """
         self._require_open()
@@ -226,22 +234,28 @@ class Notebook:
                 if result.cell_id is None
                 else self._document.cell(result.cell_id)
             )
-            raise PreconditionFailed(
-                f"change {result.change} names a state the document no "
-                "longer has",
-                index=result.change,
-                cell=None if cell is None else self._cell_record(cell),
-                document=self._document_record,
+            return Err(
+                PreconditionFailed(
+                    f"change {result.change} names a state the document no "
+                    "longer has",
+                    index=result.change,
+                    cell=None if cell is None else self._cell_record(cell),
+                    document=self._document_record,
+                )
             )
         self._document, applied = result
         with self.sink.deferred():
             self._publish_changed(applied.changed, request_id)
-            return protocol.EditResponse(
-                document=self._document_record,
-                cells={
-                    cell_id: None if cell is None else self._cell_version(cell)
-                    for cell_id, cell in applied.cells.items()
-                },
+            return Ok(
+                protocol.EditResponse(
+                    document=self._document_record,
+                    cells={
+                        cell_id: None
+                        if cell is None
+                        else self._cell_version(cell)
+                        for cell_id, cell in applied.cells.items()
+                    },
+                )
             )
 
     def mark_saved(
@@ -370,32 +384,44 @@ class Notebook:
             self.backend.start(runtime.id)
             return runtime, True
 
-    def stop(self, *, request_id: str | None = None) -> protocol.Runtime:
+    def stop(
+        self, *, request_id: str | None = None
+    ) -> Result[protocol.Runtime, NoRuntime]:
         """Stop the runtime and retain its results.
 
-        The runtime ends once the backend reports its exit.
+        The runtime ends once the backend reports its exit. Returns
+        `NoRuntime` if the notebook has none.
         """
         with self.sink.deferred():
             self._require_open()
-            runtime = self._require_runtime()
+            live = self._require_runtime()
+            if not live.ok:
+                return live
+            runtime = live.value
             self._runtime_request = request_id
             self._replacement = None
             if isinstance(runtime.state, protocol.RuntimeStopping):
-                return runtime
+                return Ok(runtime)
             stopping = replace(runtime, state=protocol.RuntimeStopping())
             self._set_runtime(stopping)
             self._apply(self.executions.cancel_inputs(), request_id=request_id)
             self.backend.stop(runtime.id)
-            return stopping
+            return Ok(stopping)
 
-    def restart(self, *, request_id: str | None = None) -> protocol.Runtime:
+    def restart(
+        self, *, request_id: str | None = None
+    ) -> Result[protocol.Runtime, NoRuntime]:
         """Stop a ready runtime and return its replacement.
 
-        The replacement starts after the old runtime exits.
+        The replacement starts after the old runtime exits. Returns
+        `NoRuntime` if the notebook has none.
         """
         with self.sink.deferred():
             self._require_open()
-            runtime = self._require_runtime()
+            live = self._require_runtime()
+            if not live.ok:
+                return live
+            runtime = live.value
             if not isinstance(runtime.state, protocol.RuntimeReady):
                 raise Conflict(
                     f"the runtime is {_status(runtime)}; only a ready one restarts"
@@ -408,7 +434,7 @@ class Notebook:
             )
             self._apply(self.executions.cancel_inputs(), request_id=request_id)
             self.backend.stop(runtime.id)
-            return replacement
+            return Ok(replacement)
 
     # TODO: Remove once sessions start their runtime through `start`.
     # Browser sessions create kernels outside the notebook.
@@ -429,13 +455,15 @@ class Notebook:
             attach(runtime.id)
             return runtime
 
-    def _require_runtime(self) -> protocol.Runtime:
+    def _require_runtime(self) -> Result[protocol.Runtime, NoRuntime]:
         runtime = self.live_runtime
         if runtime is None:
-            raise NoRuntime(
-                f"notebook {self.id} has no runtime; start one first."
+            return Err(
+                NoRuntime(
+                    f"notebook {self.id} has no runtime; start one first."
+                )
             )
-        return runtime
+        return Ok(runtime)
 
     def _set_runtime(self, runtime: protocol.Runtime) -> None:
         self._runtime = runtime
@@ -482,7 +510,7 @@ class Notebook:
         request_id: str,
         request: be.RequestInfo | None,
         allow_input: bool = False,
-    ) -> protocol.Run: ...
+    ) -> Result[protocol.Run, NoRuntime]: ...
 
     @overload
     def run(
@@ -492,7 +520,7 @@ class Notebook:
         request_id: str,
         request: be.RequestInfo | None,
         allow_input: bool = False,
-    ) -> protocol.Run: ...
+    ) -> Result[protocol.Run, NoRuntime | PreconditionFailed]: ...
 
     def run(
         self,
@@ -502,7 +530,7 @@ class Notebook:
         request_id: str,
         request: be.RequestInfo | None,
         allow_input: bool = False,
-    ) -> protocol.Run:
+    ) -> Result[protocol.Run, NoRuntime | PreconditionFailed]:
         """Queue scratch code, or cells of the document, on the runtime.
 
         Runs start in acceptance order, one at a time, each with the
@@ -516,9 +544,10 @@ class Notebook:
         Raises:
             Invalid: If the request does not select exactly one of code
                 and cells, or selects an empty cell sequence.
-            NoRuntime: If the notebook has no runtime.
             Conflict: If the runtime is not running.
-            PreconditionFailed: If a requested cell is missing or has changed.
+
+        Returns `NoRuntime` if the notebook has no runtime, and
+        `PreconditionFailed` if a requested cell is missing or has changed.
         """
         if (code is None) == (cells is None):
             raise Invalid("a run names code or cells, not both")
@@ -526,25 +555,33 @@ class Notebook:
             raise Invalid("a cell run names at least one cell")
         with self.sink.deferred():
             self._require_open()
-            runtime = self._require_runtime()
+            live = self._require_runtime()
+            if not live.ok:
+                return live
+            runtime = live.value
             if not isinstance(runtime.state, protocol.RuntimeReady):
                 raise Conflict(f"the runtime is {_status(runtime)}.")
             targets: list[protocol.CellId] = []
             for index, requested in enumerate(cells or ()):
                 cell = self._document.cell(requested.id)
                 if cell is None:
-                    raise PreconditionFailed(
-                        f"cell {requested.id} is not in the document.",
-                        index=index,
-                        cell=None,
-                        document=self._document_record,
+                    return Err(
+                        PreconditionFailed(
+                            f"cell {requested.id} is not in the document.",
+                            index=index,
+                            cell=None,
+                            document=self._document_record,
+                        )
                     )
                 if requested.etag is not UNSET and requested.etag != cell.etag:
-                    raise PreconditionFailed(
-                        f"cell {requested.id} has changed since it was read.",
-                        index=index,
-                        cell=self._cell_record(cell),
-                        document=self._document_record,
+                    return Err(
+                        PreconditionFailed(
+                            f"cell {requested.id} has changed since it was "
+                            "read.",
+                            index=index,
+                            cell=self._cell_record(cell),
+                            document=self._document_record,
+                        )
                     )
                 targets.append(cell.id)
             run = protocol.Run(
@@ -570,26 +607,32 @@ class Notebook:
                     request=request,
                     allow_input=allow_input,
                 )
-            return run
+            return Ok(run)
 
-    def interrupt(self, *, request_id: str | None = None) -> protocol.Runtime:
+    def interrupt(
+        self, *, request_id: str | None = None
+    ) -> Result[protocol.Runtime, NoRuntime]:
         """Request interruption of the runtime's active work and queued runs.
 
         The runtime stays alive, and work outside a run is interrupted too.
         Runs and executions report their outcomes once they settle.
 
+        Returns `NoRuntime` if the notebook has none.
+
         Raises:
-            NoRuntime: If the notebook has no runtime.
             Conflict: If the runtime is not ready.
         """
         self._require_open()
-        runtime = self._require_runtime()
+        live = self._require_runtime()
+        if not live.ok:
+            return live
+        runtime = live.value
         if not isinstance(runtime.state, protocol.RuntimeReady):
             raise Conflict(f"the runtime is {_status(runtime)}.")
         with self.sink.deferred():
             self._apply(self.executions.cancel_inputs(), request_id=request_id)
             self.backend.interrupt()
-        return runtime
+        return Ok(runtime)
 
     def cancel(
         self, run_id: str, *, request_id: str | None = None

@@ -14,11 +14,14 @@ import msgspec
 from marimo._core import protocol
 from marimo._core.errors import (
     Conflict,
+    DecisionRequired,
     Forbidden,
     Invalid,
+    PreconditionFailed,
     Unsupported,
 )
 from marimo._core.host import Host
+from marimo._core.result import Result
 from marimo._core.stream import RoutedEvent
 
 if TYPE_CHECKING:
@@ -38,7 +41,7 @@ class NotebookBridge(Protocol):
         changes: Sequence[protocol.Change],
         *,
         request_id: str,
-    ) -> protocol.EditResponse: ...
+    ) -> Result[protocol.EditResponse, PreconditionFailed]: ...
 
     async def save(
         self,
@@ -47,7 +50,9 @@ class NotebookBridge(Protocol):
         if_match: Sequence[str] | None,
         decisions: Mapping[str, str],
         request_id: str,
-    ) -> protocol.EditResponse: ...
+    ) -> Result[
+        protocol.EditResponse, PreconditionFailed | DecisionRequired
+    ]: ...
 
 
 PlainKind = Literal[

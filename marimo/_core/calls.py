@@ -61,11 +61,12 @@ class EditCall(_Call, frozen=True, tag="notebook.edit"):
     async def handle(
         self, bridge: NotebookBridge
     ) -> tuple[Literal[200], protocol.EditResponse]:
-        return 200, await bridge.edit(
+        edited = await bridge.edit(
             self.params.notebook_id,
             self.body.changes,
             request_id=self.headers.idempotency_key,
         )
+        return 200, edited.unwrap()
 
 
 class EmitCall(_Call, frozen=True, tag="notebook.emit"):
@@ -104,12 +105,13 @@ class SaveCall(_Call, frozen=True, tag="notebook.save"):
         self, bridge: NotebookBridge
     ) -> tuple[Literal[200], protocol.EditResponse]:
         decisions = self.body.decisions
-        return 200, await bridge.save(
+        saved = await bridge.save(
             self.params.notebook_id,
             if_match=_if_match(self.headers.if_match),
             decisions={} if decisions is msgspec.UNSET else decisions,
             request_id=self.headers.idempotency_key,
         )
+        return 200, saved.unwrap()
 
 
 class StartCall(_Call, frozen=True, tag="runtime.start"):
@@ -145,7 +147,9 @@ class StopCall(_Call, frozen=True, tag="runtime.stop"):
         self, bridge: NotebookBridge
     ) -> tuple[Literal[202], protocol.Runtime]:
         notebook = await bridge.host.notebook(self.params.notebook_id)
-        return 202, notebook.stop(request_id=self.headers.idempotency_key)
+        return 202, notebook.stop(
+            request_id=self.headers.idempotency_key
+        ).unwrap()
 
 
 class RestartCall(_Call, frozen=True, tag="runtime.restart"):
@@ -161,7 +165,9 @@ class RestartCall(_Call, frozen=True, tag="runtime.restart"):
         self, bridge: NotebookBridge
     ) -> tuple[Literal[202], protocol.Runtime]:
         notebook = await bridge.host.notebook(self.params.notebook_id)
-        return 202, notebook.restart(request_id=self.headers.idempotency_key)
+        return 202, notebook.restart(
+            request_id=self.headers.idempotency_key
+        ).unwrap()
 
 
 class RunCall(_Call, frozen=True, tag="runtime.run"):
@@ -187,7 +193,7 @@ class RunCall(_Call, frozen=True, tag="runtime.run"):
             request_id=self.headers.idempotency_key,
             request=request,
             allow_input=allow_input,
-        )
+        ).unwrap()
 
 
 class ExecuteCall(_Call, frozen=True, tag="runtime.execute"):
@@ -213,7 +219,7 @@ class ExecuteCall(_Call, frozen=True, tag="runtime.execute"):
             request_id=self.headers.idempotency_key,
             request=request,
             allow_input=allow_input,
-        )
+        ).unwrap()
 
 
 class InterruptCall(_Call, frozen=True, tag="runtime.interrupt"):
@@ -229,7 +235,9 @@ class InterruptCall(_Call, frozen=True, tag="runtime.interrupt"):
         self, bridge: NotebookBridge
     ) -> tuple[Literal[202], protocol.Runtime]:
         notebook = await bridge.host.notebook(self.params.notebook_id)
-        return 202, notebook.interrupt(request_id=self.headers.idempotency_key)
+        return 202, notebook.interrupt(
+            request_id=self.headers.idempotency_key
+        ).unwrap()
 
 
 class CancelCall(_Call, frozen=True, tag="runtime.cancel"):

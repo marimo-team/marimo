@@ -1074,7 +1074,7 @@ async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
 async def test_run_filter_over_http(harness: Harness) -> None:
     nid = await harness.running()
     notebook = await harness.host.notebook(nid)
-    first = notebook.run("1", request_id="first", request=None)
+    first = notebook.run("1", request_id="first", request=None).unwrap()
     notebook.observe(
         be.Planned(
             first.id,
@@ -1085,7 +1085,7 @@ async def test_run_filter_over_http(harness: Harness) -> None:
         be.Completed(protocol.ExecutionId("e1"), protocol.SucceededOutcome())
     )
     notebook.observe(be.Done(first.id, "succeeded"))
-    notebook.run("2", request_id="second", request=None)
+    notebook.run("2", request_id="second", request=None).unwrap()
     response, task, disconnect = request(
         harness.app,
         "GET",
@@ -1127,7 +1127,7 @@ async def test_interrupting_an_unstarted_run_after_shutdown(
     run_id = accepted.json()["id"]
     notebook = await harness.host.notebook(nid)
     runtime_id = runtime_id_of(notebook)
-    notebook.stop()
+    notebook.stop().unwrap()
     notebook.observe(be.Exited(runtime_id))
 
     def snapshot_unavailable(*_args: object, **_kwargs: object) -> None:

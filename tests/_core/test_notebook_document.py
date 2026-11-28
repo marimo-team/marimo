@@ -472,7 +472,7 @@ class TestNotebookRecords:
         response = notebook.edit(
             [replace_cell("c3", "x = 22", c3.etag), delete("k7f2", k7f2.etag)],
             request_id="e",
-        )
+        ).unwrap()
 
         # Changed cells take the new document version; others keep theirs.
         assert response.document.version == 2
@@ -487,7 +487,7 @@ class TestNotebookRecords:
         same = notebook.edit(
             [replace_cell("c1", "import marimo as mo", cells[0].etag)],
             request_id="n",
-        )
+        ).unwrap()
         assert same.document.version == 2
         assert same.cells["c1"] == protocol.CellVersion(
             etag=cells[0].etag,
@@ -513,7 +513,7 @@ class TestNotebookRecords:
             notebook.edit(
                 [replace_cell("c3", "x = 22", "0000000000000000")],
                 request_id="e",
-            )
+            ).unwrap()
 
         assert raised.value.index == 0
         assert raised.value.cell == c3
@@ -545,13 +545,13 @@ class TestNotebook:
                     if remove
                     else replace_cell("c1", "2", "*")
                 )
-                notebook.edit([change], request_id="second")
+                notebook.edit([change], request_id="second").unwrap()
 
         host.subscribe(change_again, notebook_id=notebook.id)
         if method == "edit":
             response = notebook.edit(
                 [replace_cell("c1", "1", "*")], request_id="first"
-            )
+            ).unwrap()
         else:
             response = notebook.replace(
                 [cell("c1", "1")], {}, request_id="first"
@@ -678,7 +678,7 @@ class TestNotebook:
                 delete("k7f2", k7f2.etag),
             ],
             request_id="edit-1",
-        )
+        ).unwrap()
 
         assert names(log) == ["cell", "cell.removed", "document"]
         assert request_ids(log) == ["edit-1"] * 3
@@ -793,7 +793,7 @@ class TestAnalysis:
         await asyncio.sleep(0)
 
         log.clear()
-        notebook.edit([create("c9", "z = 1")], request_id="edit-1")
+        notebook.edit([create("c9", "z = 1")], request_id="edit-1").unwrap()
         analyzed, result = await analyzer.next_request()
         assert analyzed is notebook.document
         assert ids(analyzed) == ["c1", "c3", "k7f2", "c9"]

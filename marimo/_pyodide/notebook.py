@@ -15,12 +15,18 @@ from marimo import _loggers
 from marimo._core import backend as be, protocol
 from marimo._core.calls import OperationCall, dispatch
 from marimo._core.document import Document
-from marimo._core.errors import Conflict, Invalid, NotFound
+from marimo._core.errors import (
+    Conflict,
+    Invalid,
+    NotFound,
+    PreconditionFailed,
+)
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.ids import mint
 from marimo._core.notebook import Notebook
 from marimo._core.operations import Mutations, problem
+from marimo._core.result import Ok, Result
 from marimo._messaging.input import InputReply
 from marimo._messaging.notebook.outputs import scratchpad_snapshot
 from marimo._messaging.notification import (
@@ -585,11 +591,12 @@ class PyodideNotebook:
         changes: Sequence[protocol.Change],
         *,
         request_id: str,
-    ) -> protocol.EditResponse:
+    ) -> Result[protocol.EditResponse, PreconditionFailed]:
         notebook = await self.host.notebook(notebook_id)
         self.refresh()
         result = notebook.edit(changes, request_id=request_id)
-        self._apply_to_session(notebook, notify=True)
+        if result.ok:
+            self._apply_to_session(notebook, notify=True)
         return result
 
     def _apply_to_session(self, notebook: Notebook, *, notify: bool) -> None:
@@ -655,7 +662,7 @@ class PyodideNotebook:
         if_match: Sequence[str] | None,
         decisions: Mapping[str, str],
         request_id: str,
-    ) -> protocol.EditResponse:
+    ) -> Result[protocol.EditResponse, PreconditionFailed]:
         notebook = await self.host.notebook(notebook_id)
         async with self._save_lock:
             if decisions:
@@ -663,7 +670,9 @@ class PyodideNotebook:
             if self._persist is None:
                 raise Conflict("Notebook persistence is unavailable")
             if if_match is not None:
-                notebook.require_revision(if_match)
+                current = notebook.require_revision(if_match)
+                if not current.ok:
+                    return current
             revision = notebook.document
             manager = self._session.app_manager
             path = Path(manager.filename or "notebook.py")
@@ -682,7 +691,7 @@ class PyodideNotebook:
             document = notebook.mark_saved(
                 revision.etag, request_id=request_id
             )
-            return protocol.EditResponse(document=document, cells={})
+            return Ok(protocol.EditResponse(document=document, cells={}))
 
     def close(self) -> None:
         self._closed = True
