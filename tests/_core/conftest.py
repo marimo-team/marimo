@@ -320,7 +320,7 @@ def fold(events: list[RoutedEvent], initial: dict | None = None) -> dict:
                 protocol.ConsoleEvent,
             ),
         ):
-            body = protocol.events.body(event)
+            body = event.record
             state[event_name(event), body.id] = body
         elif isinstance(
             event,

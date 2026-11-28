@@ -2,6 +2,8 @@
 
 /** Python records, from the OpenAPI document's schemas. */
 
+import { carried } from "./events.ts";
+
 type Json =
   | null
   | boolean
@@ -393,6 +395,13 @@ export function models(
   const all = schemas as Readonly<Record<string, Node>>;
   const told = tags(all);
   const { cursor, wrapped } = envelopes(all, told);
+  // An event that carries a record gives it directly, past its message.
+  const records = new Map(
+    ("Event" in all ? carried(document).records : []).map((record) => [
+      record.event,
+      record,
+    ]),
+  );
   // An event in an envelope writes no fields of its own.
   const names = shared(all, (name) => !wrapped.has(name));
   const aliases = new Map(
@@ -413,7 +422,17 @@ export function models(
     const data = wrapped.get(name);
     const tag = told.get(name);
     if (data !== undefined && tag !== undefined) {
-      return `class ${name}(Envelope[${data}], frozen=True, tag_field=${literal(tag.field)}, tag=${literal(tag.tag)}):\n    pass`;
+      const record = records.get(name);
+      return [
+        `class ${name}(Envelope[${data}], frozen=True, tag_field=${literal(tag.field)}, tag=${literal(tag.tag)}):`,
+        ...(record === undefined
+          ? ["    pass"]
+          : [
+              "    @property",
+              `    def record(self) -> ${record.body}:`,
+              `        return self.data.${record.field}`,
+            ]),
+      ].join("\n");
     }
     if (isStruct(node)) {
       return struct(name, node, tag, names);

@@ -70,7 +70,9 @@ class AnalysisMessage(Struct, frozen=True):
 class AnalysisEvent(
     Envelope[AnalysisMessage], frozen=True, tag_field="event", tag="analysis"
 ):
-    pass
+    @property
+    def record(self) -> Analysis:
+        return self.data.analysis
 
 
 class Attachment(Struct, frozen=True):
@@ -135,7 +137,9 @@ class AttachmentEvent(
     tag_field="event",
     tag="attachment",
 ):
-    pass
+    @property
+    def record(self) -> Attachment:
+        return self.data.attachment
 
 
 class CancelledOutcome(Struct, frozen=True, tag_field="kind", tag="cancelled"):
@@ -300,7 +304,9 @@ class CellMessage(Struct, frozen=True):
 class CellEvent(
     Envelope[CellMessage], frozen=True, tag_field="event", tag="cell"
 ):
-    pass
+    @property
+    def record(self) -> Cell:
+        return self.data.cell
 
 
 class CellVersion(Struct, frozen=True):
@@ -368,7 +374,9 @@ class ConsoleMessage(Struct, frozen=True):
 class ConsoleEvent(
     Envelope[ConsoleMessage], frozen=True, tag_field="event", tag="console"
 ):
-    pass
+    @property
+    def record(self) -> Console:
+        return self.data.console
 
 
 class ConsoleText(Struct, frozen=True, tag_field="kind", tag="text"):
@@ -445,7 +453,9 @@ class CustomMessage(Struct, frozen=True):
 class CustomEvent(
     Envelope[CustomMessage], frozen=True, tag_field="event", tag="custom"
 ):
-    pass
+    @property
+    def record(self) -> Custom:
+        return self.data.custom
 
 
 class Decision(Struct, frozen=True):
@@ -567,7 +577,9 @@ class DocumentMessage(Struct, frozen=True):
 class DocumentEvent(
     Envelope[DocumentMessage], frozen=True, tag_field="event", tag="document"
 ):
-    pass
+    @property
+    def record(self) -> Document:
+        return self.data.document
 
 
 class EditRequest(Struct, frozen=True, forbid_unknown_fields=True):
@@ -798,7 +810,9 @@ class ExecutionMessage(Struct, frozen=True):
 class ExecutionEvent(
     Envelope[ExecutionMessage], frozen=True, tag_field="event", tag="execution"
 ):
-    pass
+    @property
+    def record(self) -> Execution:
+        return self.data.execution
 
 
 class ExecutionQueued(Struct, frozen=True, tag_field="status", tag="queued"):
@@ -869,7 +883,9 @@ class HostMessage(Struct, frozen=True):
 class HostEvent(
     Envelope[HostMessage], frozen=True, tag_field="event", tag="host"
 ):
-    pass
+    @property
+    def record(self) -> Host:
+        return self.data.host
 
 
 class HostRecord(Struct, frozen=True):
@@ -939,7 +955,9 @@ class InputMessage(Struct, frozen=True):
 class InputEvent(
     Envelope[InputMessage], frozen=True, tag_field="event", tag="input"
 ):
-    pass
+    @property
+    def record(self) -> Input:
+        return self.data.input
 
 
 class InputReplyRequest(Struct, frozen=True, forbid_unknown_fields=True):
@@ -1115,7 +1133,9 @@ class NotebookMessage(Struct, frozen=True):
 class NotebookEvent(
     Envelope[NotebookMessage], frozen=True, tag_field="event", tag="notebook"
 ):
-    pass
+    @property
+    def record(self) -> Notebook:
+        return self.data.notebook
 
 
 ObjectKind: TypeAlias = Annotated[
@@ -1174,7 +1194,9 @@ class OutputMessage(Struct, frozen=True):
 class OutputEvent(
     Envelope[OutputMessage], frozen=True, tag_field="event", tag="output"
 ):
-    pass
+    @property
+    def record(self) -> Output:
+        return self.data.output
 
 
 class Position(Struct, frozen=True):
@@ -1287,7 +1309,9 @@ class ProjectMessage(Struct, frozen=True):
 class ProjectEvent(
     Envelope[ProjectMessage], frozen=True, tag_field="event", tag="project"
 ):
-    pass
+    @property
+    def record(self) -> Project:
+        return self.data.project
 
 
 ProjectStatus: TypeAlias = Annotated[
@@ -1550,7 +1574,9 @@ class RunMessage(Struct, frozen=True):
 class RunEvent(
     Envelope[RunMessage], frozen=True, tag_field="event", tag="run"
 ):
-    pass
+    @property
+    def record(self) -> Run:
+        return self.data.run
 
 
 class RunQueued(Struct, frozen=True, tag_field="status", tag="queued"):
@@ -1663,7 +1689,9 @@ class RuntimeMessage(Struct, frozen=True):
 class RuntimeEvent(
     Envelope[RuntimeMessage], frozen=True, tag_field="event", tag="runtime"
 ):
-    pass
+    @property
+    def record(self) -> Runtime:
+        return self.data.runtime
 
 
 class RuntimeReady(Struct, frozen=True, tag_field="status", tag="ready"):
@@ -1943,7 +1971,9 @@ class VariableMessage(Struct, frozen=True):
 class VariableEvent(
     Envelope[VariableMessage], frozen=True, tag_field="event", tag="variable"
 ):
-    pass
+    @property
+    def record(self) -> Variable:
+        return self.data.variable
 
 
 class VariableRemovedEvent(

@@ -1257,7 +1257,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     notebook.observe(be.Done(run.id, "succeeded"))
     initial = host.events(notebook_id=notebook.id)
     assert [
-        protocol.events.body(event.event)
+        event.event.record
         for event in initial
         if isinstance(event.event, protocol.ConsoleEvent)
     ] == [first_console, first_display, second_console, second_display]
@@ -1455,7 +1455,7 @@ def test_restoration_preserves_revisions_and_outputs(
     assert notebook.executions.current(CellId("c1")) == retained
     assert backend.calls == []
     outputs = [
-        protocol.events.body(e.event)
+        e.event.record
         for e in notebook._snapshot()
         if isinstance(e.event, protocol.ConsoleEvent)
     ]

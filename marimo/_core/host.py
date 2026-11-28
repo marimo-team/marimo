@@ -86,7 +86,7 @@ class _NotebookRecords(Mapping[str, protocol.Notebook]):
 
 def _identity(event: RoutedEvent) -> tuple[type[Body], str]:
     assert isinstance(event.event, protocol.events.RecordEvent)
-    body = protocol.events.body(event.event)
+    body = event.event.record
     assert not isinstance(body, (protocol.Host, protocol.Custom))
     if isinstance(body, (protocol.Document, protocol.Analysis)):
         return type(body), body.notebook_id

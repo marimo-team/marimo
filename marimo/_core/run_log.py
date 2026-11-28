@@ -192,7 +192,7 @@ class RunLog:
                 assert isinstance(
                     output.event, (protocol.OutputEvent, protocol.ConsoleEvent)
                 )
-                body = protocol.events.body(output.event)
+                body = output.event.record
                 events.append(self._removal(entry, type(body), body.id))
             events.append(
                 self._removal(entry, protocol.Execution, execution_id)
@@ -230,7 +230,7 @@ class RunLog:
 
     def _snapshot_event(self, event: RoutedEvent, entry: _Run) -> RoutedEvent:
         assert isinstance(event.event, protocol.events.RecordEvent)
-        body = protocol.events.body(event.event)
+        body = event.event.record
         assert isinstance(body, protocol.events.SnapshotBody)
         return snapshot_event(
             body,

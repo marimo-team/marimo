@@ -11,7 +11,7 @@ const isNode = (value: unknown): value is Node =>
 
 const PREFIX = "#/components/schemas/";
 
-interface RecordEvent {
+export interface RecordEvent {
   readonly event: string;
   readonly message: string;
   readonly body: string;
@@ -20,11 +20,14 @@ interface RecordEvent {
   readonly timed: boolean;
 }
 
-/** Write the module for the document's `Event` union. */
-export function events(
-  document: unknown,
-  options: { readonly command: string },
-): string {
+/**
+ * The events of the document's `Event` union that carry a record, and those
+ * that say one was removed.
+ */
+export function carried(document: unknown): {
+  readonly records: ReadonlyArray<RecordEvent>;
+  readonly removals: ReadonlyArray<RecordEvent>;
+} {
   const components = isNode(document) ? document.components : undefined;
   const schemas = isNode(components) ? components.schemas : undefined;
   if (!isNode(schemas)) {
@@ -119,8 +122,15 @@ export function events(
     }
     return { ...record, event, message };
   });
+  return { records: [...records.values()], removals };
+}
 
-  const all = [...records.values()];
+/** Write the module for the document's `Event` union. */
+export function events(
+  document: unknown,
+  options: { readonly command: string },
+): string {
+  const { records: all, removals } = carried(document);
   const union = (names: ReadonlyArray<string>) =>
     names.map((name) => `protocol.${name}`).join(" | ");
 
@@ -132,7 +142,7 @@ export function events(
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias, overload
+from typing import TYPE_CHECKING, TypeAlias
 
 from msgspec import UNSET, UnsetType
 
@@ -146,18 +156,6 @@ SnapshotBody: TypeAlias = ${union(all.filter((record) => !record.timed).map((rec
 RecordEvent: TypeAlias = ${union(all.map((record) => record.event))}
 RemovableBody: TypeAlias = ${union(removals.map((removal) => removal.body))}
 RemovalEvent: TypeAlias = ${union(removals.map((removal) => removal.event))}
-
-${all
-  .map(
-    (record) => `@overload
-def record(
-    value: protocol.${record.body}, *,
-    request_id: str | UnsetType = UNSET,
-    time: datetime${record.timed ? "" : " | UnsetType = UNSET"},
-) -> protocol.${record.event}: ...
-`,
-  )
-  .join("\n")}
 
 def record(
     value: Body, *,
@@ -181,37 +179,6 @@ ${all
   )
   .join("\n")}
     raise TypeError(f"Unsupported record type: {type(value)}")
-
-${all
-  .map(
-    (record) => `@overload
-def body(event: protocol.${record.event}) -> protocol.${record.body}: ...
-`,
-  )
-  .join("\n")}
-
-def body(event: RecordEvent) -> Body:
-    """Read a record payload without copying it."""
-    match event:
-${all
-  .map(
-    (record) => `        case protocol.${record.event}(data=data):
-            return data.${record.field}`,
-  )
-  .join("\n")}
-    raise TypeError(f"Not a record event: {type(event)}")
-
-${removals
-  .map(
-    (removal) => `@overload
-def removed(
-    record_type: type[protocol.${removal.body}], object_id: str, *,
-    request_id: str | UnsetType = UNSET,
-    time: datetime | UnsetType = UNSET,
-) -> protocol.${removal.event}: ...
-`,
-  )
-  .join("\n")}
 
 def removed(
     record_type: type[RemovableBody], object_id: str, *,

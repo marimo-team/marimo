@@ -181,8 +181,14 @@ it("gives events that only wrap data one envelope to share", () => {
       "    id: Annotated[str, Meta(min_length=1)] | UnsetType = UNSET",
     ].join("\n"),
   );
+  // An event that carries a record gives it directly, past its message.
   expect(source).toContain(
-    'class RunEvent(Envelope[RunMessage], frozen=True, tag_field="event", tag="run"):\n    pass',
+    [
+      'class RunEvent(Envelope[RunMessage], frozen=True, tag_field="event", tag="run"):',
+      "    @property",
+      "    def record(self) -> Run:",
+      "        return self.data.run",
+    ].join("\n"),
   );
   expect(source).toContain(
     'class ReadyEvent(Struct, frozen=True, tag_field="event", tag="ready"):\n    data: dict[str, Any]\n    id: Annotated[str, Meta(min_length=1)]',

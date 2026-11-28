@@ -105,7 +105,7 @@ def test_a_record_is_shared_by_the_log_its_listeners_and_its_readers() -> None:
     published = stream.publish(original)
 
     assert isinstance(published.event, protocol.ProjectEvent)
-    assert published.event.data.project is original
+    assert published.event.record is original
     assert delivered == [published]
     assert delivered[0] is published
     replay = stream.since(0)
@@ -233,7 +233,7 @@ def test_every_body_has_a_kind_a_stream_and_a_typed_event() -> None:
         }
         assert event.wanted({kind})
         assert not event.wanted({"unknown"})
-        assert protocol.events.body(event.event) == _blank(body_type)
+        assert event.event.record == _blank(body_type)
         assert event.visible_in(None) == (
             kind in {"host", "project", "notebook", "runtime", "attachment"}
         )

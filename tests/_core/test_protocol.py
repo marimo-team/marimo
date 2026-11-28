@@ -244,11 +244,11 @@ def test_produced_events_match_wire_fixtures(path: Path) -> None:
                 time=wire.data.time,
             )
         else:
-            value = protocol.events.body(wire)
+            value = wire.record
             produced = protocol.events.record(
                 value, request_id=wire.data.request_id, time=wire.data.time
             )
-            assert protocol.events.body(produced) is value
+            assert produced.record is value
         # The stream assigns cursors independently of constructing envelopes.
         encoded = msgspec.json.encode(
             msgspec.structs.replace(produced, id=wire.id)
