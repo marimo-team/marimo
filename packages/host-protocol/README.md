@@ -2,8 +2,8 @@
 
 [`Host.Api`](src/Host.ts) defines the [host protocol](../../protocols/host/spec.md)
 with Effect's `HttpApi`. The same definition gives server handler types, an
-Effect HTTP client, and the [OpenAPI document](../../protocols/host/README.md#get-the-openapi-document)
-that the Python and TypeScript generators read.
+Effect HTTP client, the [OpenAPI document](../../protocols/host/README.md#get-the-openapi-document),
+and marimo's Python bindings, which [scripts/python.ts](scripts/python.ts) writes.
 
 [Objects.ts](src/Objects.ts) lists the objects a host publishes and the streams
 that carry them. To include all experimental objects and notebook endpoints,

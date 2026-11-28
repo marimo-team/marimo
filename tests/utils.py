@@ -85,13 +85,26 @@ def host_openapi(*, experimental: bool = False) -> dict[str, Any]:
 
     Skips the test where the JavaScript workspace is not installed.
     """
+    import json
+    import subprocess
+    from pathlib import Path
+
     import pytest
 
-    from protocols.host.generate import OPENAPI, openapi
-
-    if not (OPENAPI.parents[1] / "node_modules").exists():
+    package = Path(__file__).parents[1] / "packages" / "host-protocol"
+    if not (package / "node_modules").exists():
         pytest.skip(
             "needs the host protocol package, run "
             "pnpm install --filter @marimo-team/host-protocol --prod"
         )
-    return openapi(experimental=experimental)
+    printed = subprocess.run(
+        [
+            "node",
+            str(package / "scripts" / "openapi.ts"),
+            *(["--experimental"] if experimental else []),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    document: dict[str, Any] = json.loads(printed.stdout)
+    return document
