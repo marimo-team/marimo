@@ -16,20 +16,20 @@ from marimo._core.errors import (
     Conflict,
     DecisionRequired,
     Forbidden,
-    HostError,
     Invalid,
-    NoRuntime,
-    NotFound,
     PreconditionFailed,
     Unsupported,
 )
 from marimo._core.host import Host
+from marimo._core.result import Ok, Result
 from marimo._core.stream import RoutedEvent
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence
 
 Reply = tuple[int, msgspec.Struct | None]
+Outcome = Result[Reply, protocol.Problem]
+"""A reply, or the problem the operation answered with."""
 """A status and body, for a transport to encode."""
 
 
@@ -43,7 +43,7 @@ class NotebookBridge(Protocol):
         changes: Sequence[protocol.Change],
         *,
         request_id: str,
-    ) -> protocol.EditResponse: ...
+    ) -> Result[protocol.EditResponse, PreconditionFailed]: ...
 
     async def save(
         self,
@@ -52,7 +52,9 @@ class NotebookBridge(Protocol):
         if_match: Sequence[str] | None,
         decisions: Mapping[str, str],
         request_id: str,
-    ) -> protocol.EditResponse: ...
+    ) -> Result[
+        protocol.EditResponse, PreconditionFailed | DecisionRequired
+    ]: ...
 
 
 PlainKind = Literal[
@@ -93,43 +95,12 @@ def problem(kind: PlainKind, detail: str | None = None) -> protocol.Problem:
     assert_never(kind)
 
 
-def problem_for(error: HostError) -> protocol.Problem:
-    """Describe a failed command the same way on every transport."""
-    detail = str(error)
-    match error:
-        case NoRuntime():
-            return problem("no-runtime", detail)
-        case DecisionRequired():
-            return protocol.DecisionRequiredProblem(
-                detail=detail,
-                decisions=error.decisions,
-            )
-        case PreconditionFailed():
-            return protocol.PreconditionFailedProblem(
-                detail=detail,
-                index=error.index,
-                cell=error.cell,
-                document=error.document,
-            )
-        case Conflict():
-            return problem("conflict", detail)
-        case Invalid():
-            return problem("invalid-request", detail)
-        case NotFound():
-            return problem("not-found", detail)
-        case Forbidden():
-            return problem("forbidden", detail)
-        case Unsupported():
-            return problem("unsupported-operation", detail)
-    return problem("internal", "The host failed")
-
-
 @dataclass
 class CachedMutation:
     """An accepted request, including its in-flight or completed result."""
 
     fingerprint: str
-    task: asyncio.Future[Reply]
+    task: asyncio.Future[Outcome]
     run: protocol.Run | None = None
     expires_at: float | None = None
 
@@ -182,9 +153,9 @@ class Mutations:
         notebook_id: str | None,
         key: str,
         payload: object,
-        call: Callable[[], Awaitable[Reply]],
-    ) -> Reply:
-        """Run `call` once per idempotency key, and answer retries with its reply."""
+        call: Callable[[], Awaitable[Outcome]],
+    ) -> Outcome:
+        """Run `call` once per idempotency key; a problem does not reserve it."""
         capabilities = (
             {"runtime.run", "runtime.execute"}
             if operation in {"runtime.interrupt", "runtime.cancel"}
@@ -210,7 +181,9 @@ class Mutations:
                 )
             reply = await asyncio.shield(remembered.task)
             # A retried run answers with the run as it is now.
-            return reply if remembered.run is None else (202, remembered.run)
+            return (
+                reply if remembered.run is None else Ok((202, remembered.run))
+            )
 
         task = asyncio.ensure_future(call())
         mutation = CachedMutation(fingerprint, task)
@@ -244,13 +217,18 @@ class Mutations:
                 request_id=key,
             )
 
-        def completed(task: asyncio.Future[Reply]) -> None:
-            if task.cancelled() or task.exception() is not None:
+        def completed(task: asyncio.Future[Outcome]) -> None:
+            outcome = (
+                None
+                if task.cancelled() or task.exception() is not None
+                else task.result()
+            )
+            if outcome is None or not outcome.ok:
                 self.replies.pop(key, None)
                 if unsubscribe is not None:
                     unsubscribe()
             elif lifecycle_accepted is not None:
-                lifecycle_accepted(task.result())
+                lifecycle_accepted(outcome.value)
             elif mutation.expires_at is None and (
                 mutation.run is None
                 or isinstance(mutation.run.state, protocol.RunCompleted)

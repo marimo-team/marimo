@@ -16,7 +16,7 @@ from tests._core.conftest import ScriptedBackend, finish, plan
 def prompt(notebook: Notebook) -> tuple[protocol.Run, protocol.Input]:
     runtime, _ = notebook.start()
     notebook.observe(be.Running(runtime.id))
-    run = notebook.run("input()", request_id="run", request=None)
+    run = notebook.run("input()", request_id="run", request=None).unwrap()
     execution_id = plan(notebook, run, "execution")
     item = protocol.Input(
         execution_id=execution_id,
@@ -75,11 +75,11 @@ def test_pending_inputs_cancel_before_execution_ends(
     if ending == "cancel":
         notebook.cancel(run.id, request_id="cancel")
     elif ending == "interrupt":
-        notebook.interrupt(request_id="cancel")
+        notebook.interrupt(request_id="cancel").unwrap()
     elif ending == "stop":
-        notebook.stop(request_id="cancel")
+        notebook.stop(request_id="cancel").unwrap()
     elif ending == "restart":
-        notebook.restart(request_id="cancel")
+        notebook.restart(request_id="cancel").unwrap()
     elif ending == "exit":
         assert notebook.runtime is not None
         notebook.observe(be.Exited(notebook.runtime.id, "kernel died"))

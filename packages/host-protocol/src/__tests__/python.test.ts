@@ -1,8 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { OpenApi } from "effect/http-api";
+import { HttpApi, OpenApi } from "effect/http-api";
 import { expect, it } from "vitest";
 import * as Host from "../Host.ts";
+import { calls } from "../../scripts/python/calls.ts";
 import { events } from "../../scripts/python/events.ts";
 import { models } from "../../scripts/python/models.ts";
 
@@ -229,5 +230,49 @@ it("writes adapters from schema references, whatever the schemas are called", ()
   );
   expect(source).toContain(
     "protocol.RemovedMessage(id=object_id, request_id=request_id, time=time)",
+  );
+});
+
+it("gives each operation its call, its result, and a handler in its group", () => {
+  const source = calls((visit) => HttpApi.reflect(Host.Api, visit), options);
+  expect(source).toContain(
+    "MutationProblem: TypeAlias = CommonProblem | protocol.ConflictProblem | protocol.UnsupportedOperationProblem",
+  );
+  expect(source).toContain(
+    [
+      "    class Start:",
+      '        """Start the notebook\'s runtime, or find the one it has."""',
+      "",
+      '        ID: Final = "runtime.start"',
+      '        METHOD: Final = "PUT"',
+      '        PATH: Final = "/notebooks/{notebook_id}/runtime"',
+    ].join("\n"),
+  );
+  expect(source).toContain(
+    "async def start(self, call: Notebook.Start.Call) -> Notebook.Start.Result:",
+  );
+  // A stream is not a single result, so it has no call.
+  expect(source).not.toContain("class Events:");
+});
+
+it("has a handler name the status only where it chooses one", () => {
+  const source = calls((visit) => HttpApi.reflect(Host.Api, visit), options);
+  // Starting a runtime answers 202, or 200 when the notebook already has one.
+  expect(source).toContain(
+    "Result: TypeAlias = result.Result[tuple[Literal[200, 202], protocol.Runtime], MutationProblem | protocol.DecisionRequiredProblem]",
+  );
+  expect(source).toContain(
+    "case Notebook.Start.Call():\n                return await self._notebook.start(call)",
+  );
+  // Stopping one only ever answers 202, which the dispatcher supplies.
+  expect(source).toContain(
+    "Result: TypeAlias = result.Result[protocol.Runtime, MutationProblem | protocol.NoRuntimeProblem]",
+  );
+  expect(source).toContain(
+    "case Notebook.Stop.Call():\n                return _answered(202, await self._notebook.stop(call))",
+  );
+  // An operation with nothing to answer gives nothing.
+  expect(source).toContain(
+    "Result: TypeAlias = result.Result[None, MutationProblem]",
   );
 });

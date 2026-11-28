@@ -159,7 +159,7 @@ async def test_deleted_file_keeps_its_runtime_until_stopped(
     # Its next session starts untitled, and belongs to the same notebook.
     assert index.untitled(index.file_key(record.id)).id == record.id
 
-    notebook.stop()
+    notebook.stop().unwrap()
     notebook.observe(be.Exited(runtime_id_of(notebook)))
     index.refresh()
 

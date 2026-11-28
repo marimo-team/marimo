@@ -100,7 +100,7 @@ def running(notebook: Notebook, backend: ScriptedBackend) -> Runtime:
 
 
 def scratch(notebook: Notebook, run_id: str = "run-1") -> Run:
-    run = notebook.run("3 * 3", request_id=run_id, request=None)
+    run = notebook.run("3 * 3", request_id=run_id, request=None).unwrap()
     notebook.observe(
         be.Planned(
             run.id,
@@ -121,7 +121,7 @@ class TestStart:
         with pytest.raises(AttributeError):
             notebook.runtime = replace(runtime, state=protocol.RuntimeReady())
         with pytest.raises(Conflict, match="starting"):
-            notebook.run("1", request_id="too-early", request=None)
+            notebook.run("1", request_id="too-early", request=None).unwrap()
 
         for events in (
             host.events(notebook_id=notebook.id),
@@ -221,8 +221,8 @@ class TestStop:
         log: list[RoutedEvent],
     ) -> None:
         runtime = running(notebook, backend)
-        notebook.restart(request_id="restart")
-        notebook.stop(request_id="stop")
+        notebook.restart(request_id="restart").unwrap()
+        notebook.stop(request_id="stop").unwrap()
         log.clear()
 
         notebook.observe(be.Exited(runtime.id))
@@ -238,7 +238,7 @@ class TestStop:
 
     def test_needs_a_runtime(self, notebook: Notebook) -> None:
         with pytest.raises(NoRuntime):
-            notebook.stop()
+            notebook.stop().unwrap()
 
     def test_stops_then_ends_once_the_kernel_is_gone(
         self,
@@ -249,7 +249,7 @@ class TestStop:
         running(notebook, backend)
         log.clear()
 
-        runtime = notebook.stop(request_id="req-stop")
+        runtime = notebook.stop(request_id="req-stop").unwrap()
         assert runtime.state == protocol.RuntimeStopping()
         assert backend.calls == [("stop", runtime.id)]
 
@@ -274,7 +274,7 @@ class TestStop:
         notebook.observe(be.Produced(console("o1", "e1", "hi\n")))
         log.clear()
 
-        notebook.stop()
+        notebook.stop().unwrap()
         notebook.observe(be.Exited(runtime_id_of(notebook)))
 
         assert names(log) == [
@@ -313,7 +313,7 @@ class TestStop:
         log.clear()
 
         with pytest.raises(NoRuntime):
-            notebook.stop()
+            notebook.stop().unwrap()
 
         assert backend.calls == []
         assert log == []
@@ -332,7 +332,7 @@ class TestStop:
         notebook.observe(be.Done(run.id, "succeeded"))
         log.clear()
 
-        notebook.stop(request_id="stop")
+        notebook.stop(request_id="stop").unwrap()
         notebook.observe(be.Exited(runtime_id_of(notebook)))
 
         assert names(log) == ["runtime", "runtime"]
@@ -351,10 +351,10 @@ class TestStop:
 class TestRestart:
     def test_only_a_ready_runtime_restarts(self, notebook: Notebook) -> None:
         with pytest.raises(NoRuntime):
-            notebook.restart()
+            notebook.restart().unwrap()
         notebook.start()
         with pytest.raises(Conflict):
-            notebook.restart()
+            notebook.restart().unwrap()
 
     def test_replaces_the_runtime_and_keeps_old_results(
         self,
@@ -367,7 +367,7 @@ class TestRestart:
         backend.calls.clear()
         log.clear()
 
-        response = notebook.restart(request_id="req-restart")
+        response = notebook.restart(request_id="req-restart").unwrap()
         assert response.id != before.id
         assert response.state == protocol.RuntimeStarting(message=None)
         assert notebook.runtime is not None
@@ -410,7 +410,7 @@ class TestRestart:
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         before = running(notebook, backend)
-        replacement = notebook.restart()
+        replacement = notebook.restart().unwrap()
         notebook.observe(be.Exited(before.id))
 
         notebook.observe(be.Exited(before.id))
@@ -498,7 +498,9 @@ class TestAdoption:
             "ready",
         ]
         assert backend.calls == []
-        run = notebook.run("1", request_id="after-relaunch", request=None)
+        run = notebook.run(
+            "1", request_id="after-relaunch", request=None
+        ).unwrap()
         assert backend.calls == [("run", run.id, "1")]
 
     def test_a_kernel_that_dies_on_its_own_fails_and_keeps_results(
@@ -531,7 +533,7 @@ class TestAdoption:
         self, host: Host, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         runtime = running(notebook, backend)
-        run = notebook.run("1", request_id="queued", request=None)
+        run = notebook.run("1", request_id="queued", request=None).unwrap()
         observed: list[tuple[protocol.RunOutcome, Runtime | None]] = []
 
         def on_run(event: RoutedEvent) -> None:
@@ -577,7 +579,7 @@ class TestRun:
             live.append, notebook_id=notebook.id, run_id=run.id
         )
 
-        notebook.run("2", request_id="next", request=None)
+        notebook.run("2", request_id="next", request=None).unwrap()
         notebook.attach()
         # Completed scratch outputs live in the host history; late reports
         # cannot recreate notebook state.
@@ -597,10 +599,10 @@ class TestRun:
 
     def test_needs_a_running_runtime(self, notebook: Notebook) -> None:
         with pytest.raises(NoRuntime):
-            notebook.run("1", request_id="r", request=None)
+            notebook.run("1", request_id="r", request=None).unwrap()
         notebook.start()
         with pytest.raises(Conflict, match="starting"):
-            notebook.run("1", request_id="r", request=None)
+            notebook.run("1", request_id="r", request=None).unwrap()
 
     def test_a_scratch_run_from_queued_to_completed(
         self,
@@ -613,7 +615,7 @@ class TestRun:
         log.clear()
         key = "7c1e9a3f"
 
-        run = notebook.run("3 * 3", request_id=key, request=None)
+        run = notebook.run("3 * 3", request_id=key, request=None).unwrap()
         assert run.state == protocol.RunQueued()
 
         notebook.observe(
@@ -741,11 +743,11 @@ class TestRun:
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
-        first = notebook.run("1", request_id="same", request=None)
-        second = notebook.run("1", request_id="same", request=None)
+        first = notebook.run("1", request_id="same", request=None).unwrap()
+        second = notebook.run("1", request_id="same", request=None).unwrap()
         assert second.id != first.id
         notebook.observe(be.Done(first.id, "succeeded"))
-        third = notebook.run("2", request_id="same", request=None)
+        third = notebook.run("2", request_id="same", request=None).unwrap()
         assert third.id not in (first.id, second.id)
         # A completed run with no executions is released at once.
         assert backend.calls == [
@@ -763,8 +765,8 @@ class TestRun:
     ) -> None:
         running(notebook, backend)
         log.clear()
-        first = notebook.run("1", request_id="first", request=None)
-        second = notebook.run("2", request_id="second", request=None)
+        first = notebook.run("1", request_id="first", request=None).unwrap()
+        second = notebook.run("2", request_id="second", request=None).unwrap()
 
         assert second.id != first.id
         assert first.state == second.state == protocol.RunQueued()
@@ -873,7 +875,9 @@ class TestRunCompletion:
         outcome: protocol.RunOutcome,
     ) -> None:
         running(notebook, backend)
-        run = notebook.run("pass", request_id="never-started", request=None)
+        run = notebook.run(
+            "pass", request_id="never-started", request=None
+        ).unwrap()
         assert run.state == protocol.RunQueued()
         notebook.observe(be.Done(run.id, ending))
         final = next(
@@ -982,7 +986,7 @@ class TestInterrupt:
         scratch(notebook)
         backend.calls.clear()
 
-        assert notebook.interrupt() == runtime
+        assert notebook.interrupt().unwrap() == runtime
 
         assert backend.calls == [("interrupt",)]
         assert notebook.runtime == runtime
@@ -992,7 +996,7 @@ class TestInterrupt:
     ) -> None:
         runtime = running(notebook, backend)
 
-        assert notebook.interrupt() == runtime
+        assert notebook.interrupt().unwrap() == runtime
 
         assert backend.calls == [("interrupt",)]
 
@@ -1000,10 +1004,10 @@ class TestInterrupt:
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         with pytest.raises(NoRuntime):
-            notebook.interrupt()
+            notebook.interrupt().unwrap()
         notebook.start()
         with pytest.raises(Conflict, match="starting"):
-            notebook.interrupt()
+            notebook.interrupt().unwrap()
         assert ("interrupt",) not in backend.calls
 
 
@@ -1042,7 +1046,7 @@ class TestCellResults:
         same_run: bool,
     ) -> None:
         running(notebook, backend)
-        first = notebook.run("pass", request_id="first", request=None)
+        first = notebook.run("pass", request_id="first", request=None).unwrap()
         old, new = ExecutionId("old"), ExecutionId("new")
         notebook.observe(
             be.Planned(first.id, (be.PlannedExecution(old, "cell", "h1"),))
@@ -1072,7 +1076,9 @@ class TestCellResults:
             second = first
         else:
             notebook.observe(be.Done(first.id, "failed"))
-            second = notebook.run("pass", request_id="second", request=None)
+            second = notebook.run(
+                "pass", request_id="second", request=None
+            ).unwrap()
         log.clear()
         notebook.observe(
             be.Planned(second.id, (be.PlannedExecution(new, "cell", "h2"),))
@@ -1105,7 +1111,7 @@ class TestCellResults:
         self, notebook: Notebook, backend: ScriptedBackend
     ) -> None:
         running(notebook, backend)
-        run = notebook.run("pass", request_id="first", request=None)
+        run = notebook.run("pass", request_id="first", request=None).unwrap()
         notebook.observe(
             be.Planned(
                 run.id,
@@ -1217,7 +1223,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
 ) -> None:
     clock = Clock()
     host, notebook = await host_at(clock)
-    run = notebook.run("code", request_id="request", request=None)
+    run = notebook.run("code", request_id="request", request=None).unwrap()
     first = plan(notebook, run, "first", "a" if cleanup != "expire" else None)
     second = plan(
         notebook, run, "second", "b" if cleanup != "expire" else None
@@ -1280,7 +1286,7 @@ async def test_outputs_follow_their_execution_through_updates_and_removal(
     elif cleanup == "replace":
         replacement = notebook.run(
             "code", request_id="replacement", request=None
-        )
+        ).unwrap()
         plan(notebook, replacement, "new", "a")
     else:
         host.remove_notebook(notebook.id)
@@ -1345,7 +1351,7 @@ async def test_initial_results_are_published_and_replaced_by_live_execution(
 
     notebook.start()
     notebook.observe(be.Running(runtime_id_of(notebook)))
-    run = notebook.run("42", request_id="run", request=None)
+    run = notebook.run("42", request_id="run", request=None).unwrap()
     execution_id = plan(notebook, run, "new", cell="c1")
     state = fold(host.events(notebook_id=notebook.id))
     assert set(state) == {("run", run.id), ("execution", execution_id)}
@@ -1355,7 +1361,7 @@ async def test_initial_results_are_published_and_replaced_by_live_execution(
 async def test_current_cell_results_can_seed_another_notebook() -> None:
     _, notebook = await host_at(Clock())
     notebook.replace([DocumentCell(CellId("c1"), "code")], {})
-    run = notebook.run("code", request_id="request", request=None)
+    run = notebook.run("code", request_id="request", request=None).unwrap()
     execution = plan(notebook, run, "cell", "c1")
     notebook.observe(
         be.Produced(
@@ -1508,7 +1514,7 @@ async def test_restoration_excludes_live_work_and_cleans_up_deleted_active_cells
     _, notebook = await host_at(Clock())
     notebook.replace([DocumentCell(CellId("c1"), "code")], {})
     notebook.attach()
-    run = notebook.run("code", request_id="request", request=None)
+    run = notebook.run("code", request_id="request", request=None).unwrap()
     execution = plan(notebook, run, "active", "c1")
     notebook.observe(
         be.Produced(
@@ -1551,7 +1557,7 @@ async def test_source_edits_keep_live_results_until_the_cell_is_deleted() -> (
 ):
     host, notebook = await host_at(Clock())
     notebook.replace([DocumentCell("c1", "42")], {})
-    run = notebook.run("42", request_id="run", request=None)
+    run = notebook.run("42", request_id="run", request=None).unwrap()
     execution = plan(notebook, run, "result", "c1")
     notebook.observe(
         be.Produced(
@@ -1589,7 +1595,7 @@ async def test_deleting_an_active_cell_releases_its_result_when_the_run_ends() -
 ):
     host, notebook = await host_at(Clock())
     notebook.replace([DocumentCell("c1", "42")], {})
-    run = notebook.run("42", request_id="run", request=None)
+    run = notebook.run("42", request_id="run", request=None).unwrap()
     execution = plan(notebook, run, "result", "c1")
     notebook.replace([], {})
     notebook.observe(
@@ -1622,7 +1628,7 @@ async def test_running_cells_hands_the_backend_the_document() -> None:
         cells=[protocol.RequestedCell(id=CellId("c1"), etag=c1.etag)],
         request_id="run-1",
         request=None,
-    )
+    ).unwrap()
 
     assert run.state == protocol.RunQueued()
     assert notebook.backend.calls[-1] == (  # type: ignore[attr-defined]
@@ -1666,7 +1672,7 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
             ],
             request_id="run-1",
             request=None,
-        )
+        ).unwrap()
     assert stale.value.index == 0
     assert stale.value.cell is not None
     assert stale.value.cell.etag == replacement.etag
@@ -1681,7 +1687,7 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
             ],
             request_id="run-2",
             request=None,
-        )
+        ).unwrap()
     assert missing.value.index == 1
     assert missing.value.cell is None
     assert missing.value.document.etag == notebook.document.etag
@@ -1693,9 +1699,9 @@ async def test_running_a_cell_whose_content_changed_is_a_conflict(
 async def test_a_run_names_code_or_cells() -> None:
     _, notebook = await host_at(Clock())
     with pytest.raises(Invalid):
-        notebook.run(request_id="run-1", request=None)  # type: ignore[call-overload]
+        notebook.run(request_id="run-1", request=None).unwrap()  # type: ignore[call-overload]
     with pytest.raises(Invalid):
-        notebook.run("1", cells=[], request_id="run-2", request=None)  # type: ignore[call-overload]
+        notebook.run("1", cells=[], request_id="run-2", request=None).unwrap()  # type: ignore[call-overload]
 
 
 @pytest.mark.parametrize("cells", [[], ()])
@@ -1706,7 +1712,7 @@ async def test_a_cell_run_needs_at_least_one_target(
     calls = list(notebook.backend.calls)  # type: ignore[attr-defined]
 
     with pytest.raises(Invalid, match="at least one cell"):
-        notebook.run(cells=cells, request_id="empty", request=None)
+        notebook.run(cells=cells, request_id="empty", request=None).unwrap()
 
     assert notebook.backend.calls == calls  # type: ignore[attr-defined]
     assert notebook.executions.active() is None
@@ -1721,7 +1727,7 @@ def test_an_accepted_cell_run_records_its_cells(
         cells=[protocol.RequestedCell(id=CellId("c1"))],
         request_id="cells",
         request=None,
-    )
+    ).unwrap()
     assert run.origin == protocol.RunCellsOrigin(cell_ids=(CellId("c1"),))
-    scratch = notebook.run("1", request_id="scratch", request=None)
+    scratch = notebook.run("1", request_id="scratch", request=None).unwrap()
     assert scratch.origin == protocol.RunCodeOrigin(code="1")

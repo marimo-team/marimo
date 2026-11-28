@@ -187,7 +187,7 @@ async def test_restarting_an_untitled_notebook_keeps_one_notebook(
     notebook = await bridge.host.notebook(notebook_id)
 
     replacement = manager.next_session = FakeSession(path=None)
-    await running(bridge, notebook.restart())
+    await running(bridge, notebook.restart().unwrap())
 
     assert list(bridge.host.notebooks) == [notebook_id]
     assert bridge._backends[notebook_id].session is replacement
@@ -299,7 +299,7 @@ async def test_a_subscriber_can_stop_an_adopted_session(
         ) and event.event.data.runtime.state == protocol.RuntimeStarting(
             message=None
         ):
-            notebook.stop()
+            notebook.stop().unwrap()
 
     bridge.host.subscribe(stop_on_starting, kinds={"runtime"})
 
@@ -573,23 +573,25 @@ async def test_host_edits_reach_the_session_as_one_transaction(
     events: list[RoutedEvent] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
-    response = await bridge.edit(
-        record.id,
-        [
-            protocol.ReplaceCell(
-                base_etag="*",
-                cell=protocol.CellInput(
-                    id=protocol.CellId(existing_id), code="x = 2"
+    response = (
+        await bridge.edit(
+            record.id,
+            [
+                protocol.ReplaceCell(
+                    base_etag="*",
+                    cell=protocol.CellInput(
+                        id=protocol.CellId(existing_id), code="x = 2"
+                    ),
                 ),
-            ),
-            protocol.CreateCell(
-                cell=protocol.CellInput(
-                    id=protocol.CellId(new_id), code="y = x"
+                protocol.CreateCell(
+                    cell=protocol.CellInput(
+                        id=protocol.CellId(new_id), code="y = x"
+                    ),
                 ),
-            ),
-        ],
-        request_id="edit-1",
-    )
+            ],
+            request_id="edit-1",
+        )
+    ).unwrap()
 
     assert session.notifications == [
         NotebookDocumentTransactionNotification(
@@ -655,17 +657,19 @@ async def test_edit_response_includes_app_config_mirrored_from_the_session(
             "width": "full"
         }
 
-        response = await bridge.edit(
-            record.id,
-            [
-                protocol.CreateCell(
-                    cell=protocol.CellInput(
-                        id=protocol.CellId("new"), code="y = 2"
-                    ),
-                )
-            ],
-            request_id="edit-1",
-        )
+        response = (
+            await bridge.edit(
+                record.id,
+                [
+                    protocol.CreateCell(
+                        cell=protocol.CellInput(
+                            id=protocol.CellId("new"), code="y = 2"
+                        ),
+                    )
+                ],
+                request_id="edit-1",
+            )
+        ).unwrap()
 
         assert response.document.app_config == {"width": "full"}
         assert response.document.etag == notebook.document.etag
@@ -724,17 +728,19 @@ async def test_a_new_session_adopts_unsaved_host_edits(
     document = notebook.document
     session = FakeSession(str(tmp_path / "a.py"))
     session.document = NotebookDocument(editor_cell(c) for c in document)
-    await bridge.edit(
-        record.id,
-        [
-            protocol.CreateCell(
-                cell=protocol.CellInput(
-                    id=protocol.CellId("new"), code="unsaved = 42"
-                ),
-            )
-        ],
-        request_id="edit-before-session",
-    )
+    (
+        await bridge.edit(
+            record.id,
+            [
+                protocol.CreateCell(
+                    cell=protocol.CellInput(
+                        id=protocol.CellId("new"), code="unsaved = 42"
+                    ),
+                )
+            ],
+            request_id="edit-before-session",
+        )
+    ).unwrap()
 
     await manager.event_bus.emit_session_created(session)  # type: ignore[arg-type]
 
@@ -895,28 +901,30 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     assert record is not None
     first, second = (await bridge.host.notebook(record.id)).document
 
-    await bridge.edit(
-        record.id,
-        [
-            protocol.ReplaceCell(
-                base_etag=first.etag,
-                cell=protocol.CellInput(
-                    id=first.id,
-                    code=first.code,
-                    config=protocol.CellConfigInput(disabled=True),
+    (
+        await bridge.edit(
+            record.id,
+            [
+                protocol.ReplaceCell(
+                    base_etag=first.etag,
+                    cell=protocol.CellInput(
+                        id=first.id,
+                        code=first.code,
+                        config=protocol.CellConfigInput(disabled=True),
+                    ),
                 ),
-            ),
-            protocol.DeleteCell(id=second.id, base_etag=second.etag),
-            protocol.CreateCell(
-                cell=protocol.CellInput(
-                    id=protocol.CellId("new"),
-                    code="z = 1",
-                    config=protocol.CellConfigInput(hide_code=True),
+                protocol.DeleteCell(id=second.id, base_etag=second.etag),
+                protocol.CreateCell(
+                    cell=protocol.CellInput(
+                        id=protocol.CellId("new"),
+                        code="z = 1",
+                        config=protocol.CellConfigInput(hide_code=True),
+                    ),
                 ),
-            ),
-        ],
-        request_id="edit-1",
-    )
+            ],
+            request_id="edit-1",
+        )
+    ).unwrap()
 
     default = {
         "column": None,
@@ -936,20 +944,22 @@ async def test_an_edit_reaches_the_kernel_as_one_command(
     ]
 
     # Changed code reaches the kernel without a run.
-    await bridge.edit(
-        record.id,
-        [
-            protocol.ReplaceCell(
-                base_etag="*",
-                cell=protocol.CellInput(
-                    id=protocol.CellId("new"),
-                    code="z = 2",
-                    config=protocol.CellConfigInput(hide_code=True),
-                ),
-            )
-        ],
-        request_id="edit-2",
-    )
+    (
+        await bridge.edit(
+            record.id,
+            [
+                protocol.ReplaceCell(
+                    base_etag="*",
+                    cell=protocol.CellInput(
+                        id=protocol.CellId("new"),
+                        code="z = 2",
+                        config=protocol.CellConfigInput(hide_code=True),
+                    ),
+                )
+            ],
+            request_id="edit-2",
+        )
+    ).unwrap()
     assert session.commands[1:] == [
         EditCellsCommand(codes={"new": "z = 2"}, configs={}, delete_ids=[])
     ]
@@ -991,9 +1001,11 @@ async def test_watched_file_updates_the_saved_revision(
         assert cell.code == "x = 2"
         assert notebook.saved_etag == notebook.document.etag
 
-        edited = await bridge.edit(
-            record.id, [replace_code(cell, "x = 3")], request_id="edit"
-        )
+        edited = (
+            await bridge.edit(
+                record.id, [replace_code(cell, "x = 3")], request_id="edit"
+            )
+        ).unwrap()
         assert edited.document.saved_etag != edited.document.etag
 
         # The file now matches the editor, so the reload has no cell changes.
@@ -1022,19 +1034,27 @@ async def test_save_writes_the_cells_and_keeps_the_app_config(
     events: list[RoutedEvent] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
-    edited = await bridge.edit(
-        record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
-    )
+    edited = (
+        await bridge.edit(
+            record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
+        )
+    ).unwrap()
     assert edited.document.saved_etag != edited.document.etag
 
     with pytest.raises(PreconditionFailed) as stale:
-        await bridge.save(record.id, if_match=["stale"], request_id="save-0")
+        (
+            await bridge.save(
+                record.id, if_match=["stale"], request_id="save-0"
+            )
+        ).unwrap()
     assert stale.value.index == 0
     assert "x = 2" not in path.read_text()
 
-    saved = await bridge.save(
-        record.id, if_match=[edited.document.etag], request_id="save-1"
-    )
+    saved = (
+        await bridge.save(
+            record.id, if_match=[edited.document.etag], request_id="save-1"
+        )
+    ).unwrap()
 
     assert (
         saved.document.saved_etag
@@ -1093,13 +1113,15 @@ async def test_saving_keeps_an_edit_made_while_the_file_is_written(
     )
     try:
         await asyncio.wait_for(started.wait(), 5)
-        edited = await bridge.edit(
-            record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
-        )
+        edited = (
+            await bridge.edit(
+                record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
+            )
+        ).unwrap()
         version = session.document.version if session is not None else None
     finally:
         release.set()
-    saved = await asyncio.wait_for(saving, 5)
+    saved = (await asyncio.wait_for(saving, 5)).unwrap()
 
     # The file has the snapshot; the host keeps the edit, unsaved.
     assert saved.document.etag == edited.document.etag
@@ -1137,10 +1159,14 @@ async def test_save_with_a_session_writes_through_the_editors_file_manager(
     events: list[RoutedEvent] = []
     bridge.host.subscribe(events.append, notebook_id=record.id)
 
-    edited = await bridge.edit(
-        record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
-    )
-    saved = await bridge.save(record.id, if_match=None, request_id="save-1")
+    edited = (
+        await bridge.edit(
+            record.id, [replace_code(cell, "x = 2")], request_id="edit-1"
+        )
+    ).unwrap()
+    saved = (
+        await bridge.save(record.id, if_match=None, request_id="save-1")
+    ).unwrap()
 
     assert saved.document.saved_etag == edited.document.etag
     text = path.read_text()
@@ -1240,12 +1266,16 @@ async def test_the_editor_saving_marks_the_host_document_saved(
     # and the file as the editor left it is what the host compares to.
     manager.close_session("browser-1")
     assert session.app_file_manager.on_persisted is None
-    saved = await bridge.save(record.id, if_match=None, request_id="save-1")
+    saved = (
+        await bridge.save(record.id, if_match=None, request_id="save-1")
+    ).unwrap()
     assert saved.document.saved_etag == saved.document.etag
     assert "x = 1" in path.read_text()
     path.write_text(path.read_text().replace("x = 1", "x = 3"))
     with pytest.raises(DecisionRequired):
-        await bridge.save(record.id, if_match=None, request_id="save-2")
+        (
+            await bridge.save(record.id, if_match=None, request_id="save-2")
+        ).unwrap()
     bridge.close()
 
 
@@ -1274,7 +1304,11 @@ async def test_save_refuses_to_overwrite_when_the_file_cannot_be_read(
     monkeypatch.setattr("marimo._server.host.bridge._read_text", unreadable)
     try:
         with pytest.raises(Conflict, match="could not be read"):
-            await bridge.save(record.id, if_match=None, request_id="save-1")
+            (
+                await bridge.save(
+                    record.id, if_match=None, request_id="save-1"
+                )
+            ).unwrap()
         assert path.read_text() == external
         assert notebook.document == before
     finally:
@@ -1297,15 +1331,21 @@ async def test_save_without_a_file_baseline_requires_a_decision(
     path.write_text(external)
     try:
         with pytest.raises(DecisionRequired):
-            await bridge.save(record.id, if_match=None, request_id="save-1")
+            (
+                await bridge.save(
+                    record.id, if_match=None, request_id="save-1"
+                )
+            ).unwrap()
         assert path.read_text() == external
 
-        reloaded = await bridge.save(
-            record.id,
-            if_match=None,
-            decisions={"file": "reload"},
-            request_id="save-2",
-        )
+        reloaded = (
+            await bridge.save(
+                record.id,
+                if_match=None,
+                decisions={"file": "reload"},
+                request_id="save-2",
+            )
+        ).unwrap()
         assert reloaded.document.saved_etag == reloaded.document.etag
         assert path.read_text() == external
         assert bridge._file_texts[record.id] == external
@@ -1349,14 +1389,16 @@ async def test_reloading_refuses_to_drop_an_edit_made_while_reading(
     )
     try:
         await asyncio.wait_for(started.wait(), 5)
-        edited = await bridge.edit(
-            record.id, [replace_code(cell, "x = 3")], request_id="edit-1"
-        )
+        edited = (
+            await bridge.edit(
+                record.id, [replace_code(cell, "x = 3")], request_id="edit-1"
+            )
+        ).unwrap()
     finally:
         release.set()
 
     with pytest.raises(PreconditionFailed) as conflict:
-        await asyncio.wait_for(reloading, 5)
+        (await asyncio.wait_for(reloading, 5)).unwrap()
     assert conflict.value.document == edited.document
     assert notebook.document.cell(cell.id).code == "x = 3"  # type: ignore[union-attr]
     bridge.close()
@@ -1472,7 +1514,9 @@ async def test_bridge_supplies_metadata_for_the_current_session(
     await bridge.open()
     notebook = bridge.notebook_for_session(session)  # type: ignore[arg-type]
     assert notebook is not None
-    run = notebook.run("print(1)", request_id="metadata-test", request=None)
+    run = notebook.run(
+        "print(1)", request_id="metadata-test", request=None
+    ).unwrap()
     await session.submitted.wait()
     assert session.commands[-1].request.meta == {
         "file": str(tmp_path / "a.py"),

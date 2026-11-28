@@ -12,9 +12,11 @@ import pytest
 from marimo._core import backend as be, protocol
 from marimo._core.code import code_fingerprint
 from marimo._core.document import Document, DocumentCell
+from marimo._core.errors import PreconditionFailed
 from marimo._core.executions import CellExecution, Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
+from marimo._core.result import Result
 from marimo._core.run_log import RetentionPolicy
 from marimo._core.stream import RoutedEvent, Sink, event_name
 
@@ -216,7 +218,7 @@ class RecordingBridge:
         changes: Sequence[protocol.Change],
         *,
         request_id: str,
-    ) -> protocol.EditResponse:
+    ) -> Result[protocol.EditResponse, PreconditionFailed]:
         self.edits += 1
         self.started.set()
         await self.release.wait()
@@ -230,7 +232,7 @@ class RecordingBridge:
         if_match: Sequence[str] | None,
         decisions: Mapping[str, str],
         request_id: str,
-    ) -> protocol.EditResponse:
+    ) -> Result[protocol.EditResponse, PreconditionFailed]:
         del decisions
         self.preconditions.append(if_match)
         notebook = await self.host.notebook(notebook_id)

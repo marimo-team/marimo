@@ -23,7 +23,11 @@ from marimo._core.protocol import ProjectMessage
 from marimo._core.run_log import RetentionPolicy
 from marimo._core.stream import RoutedEvent, event_name
 from marimo._messaging.notification import CompletedRunNotification
-from marimo._server.host import HOST_API_PATH, api as api_module
+from marimo._server.host import (
+    HOST_API_PATH,
+    api as api_module,
+    notebook_api,
+)
 from marimo._server.host.bridge import SessionBridge
 from marimo._server.host.context import HostContext
 from marimo._server.host.events import MarimoEvent, MarimoMessage
@@ -343,10 +347,8 @@ async def test_a_call_reads_only_its_own_parts(harness: Harness) -> None:
         harness.app,
         "DELETE",
         f"/notebooks/{nid}/runtime",
-        # A header cannot stand in for a path parameter, and a call without
-        # a body ignores the one it is sent.
+        # A header cannot stand in for a path parameter.
         headers={**key("stop"), "Notebook-Id": "missing", "Params": "{}"},
-        body=b"not json",
     )
     assert stopped.status == 202, stopped.body
     assert stopped.json()["notebook_id"] == nid
@@ -1074,7 +1076,7 @@ async def test_noop_and_rejected_lifecycle_requests_release_their_listeners(
 async def test_run_filter_over_http(harness: Harness) -> None:
     nid = await harness.running()
     notebook = await harness.host.notebook(nid)
-    first = notebook.run("1", request_id="first", request=None)
+    first = notebook.run("1", request_id="first", request=None).unwrap()
     notebook.observe(
         be.Planned(
             first.id,
@@ -1085,7 +1087,7 @@ async def test_run_filter_over_http(harness: Harness) -> None:
         be.Completed(protocol.ExecutionId("e1"), protocol.SucceededOutcome())
     )
     notebook.observe(be.Done(first.id, "succeeded"))
-    notebook.run("2", request_id="second", request=None)
+    notebook.run("2", request_id="second", request=None).unwrap()
     response, task, disconnect = request(
         harness.app,
         "GET",
@@ -1127,7 +1129,7 @@ async def test_interrupting_an_unstarted_run_after_shutdown(
     run_id = accepted.json()["id"]
     notebook = await harness.host.notebook(nid)
     runtime_id = runtime_id_of(notebook)
-    notebook.stop()
+    notebook.stop().unwrap()
     notebook.observe(be.Exited(runtime_id))
 
     def snapshot_unavailable(*_args: object, **_kwargs: object) -> None:
@@ -1597,6 +1599,16 @@ async def test_create_update_and_delete_notebooks(harness: Harness) -> None:
     assert repeated.status == 204
     assert repeated.body == deleted.body == b""
 
+    invalid = await finished(
+        app,
+        "DELETE",
+        f"/notebooks/{record['id']}",
+        headers=key("d1"),
+        body=b'{"extra": true}',
+    )
+    assert invalid.status == 400
+    assert invalid.json()["type"].endswith(":invalid-request")
+
     await harness.running()
     busy = await finished(
         app, "DELETE", f"/notebooks/{harness.notebook_id}", headers=key("d2")
@@ -1621,7 +1633,7 @@ async def test_open_selects_the_notebook_outside_the_working_directory(
         opened.append(url)
         ready.set()
 
-    monkeypatch.setattr(api_module, "open_url_in_browser", open_browser)
+    monkeypatch.setattr(notebook_api, "open_url_in_browser", open_browser)
     response = await finished(
         harness.app,
         "POST",

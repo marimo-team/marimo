@@ -14,7 +14,7 @@ on:
       - ".github/actions/install/**"
       - "marimo/_core/protocol/**"
       - "tests/_core/test_protocol.py"
-      - "tests/_core/test_calls.py"
+      - "tests/_core/test_handlers.py"
       - "tests/_lint/test_host_protocol_documents.py"
       - "pyproject.toml"
       - "Makefile"
@@ -43,7 +43,7 @@ jobs:
       - name: Check Python binding generation and portable fixtures
         run: make host-protocol-check
       - name: Check generated Python bindings against fixtures
-        run: uv run --group test pytest tests/_core/test_protocol.py tests/_core/test_calls.py tests/_lint/test_host_protocol_documents.py
+        run: uv run --group test pytest tests/_core/test_protocol.py tests/_core/test_handlers.py tests/_lint/test_host_protocol_documents.py
       - name: Lint protocol tooling
         run: |
           uv run ruff check protocols

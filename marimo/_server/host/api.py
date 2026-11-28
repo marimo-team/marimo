@@ -4,15 +4,11 @@
 from __future__ import annotations
 
 import asyncio
-import threading
 from contextlib import contextmanager
-from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import quote
 
 import msgspec
 from anyio import create_task_group
-from starlette.exceptions import HTTPException
 from starlette.responses import Response, StreamingResponse
 from starlette.routing import Route, Router, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -23,14 +19,12 @@ from marimo._core.errors import (
     Conflict,
     NotFound,
 )
-from marimo._core.operations import Reply
-from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
+from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionRejection,
     parse_connection_params,
 )
-from marimo._server.api.utils import format_url_host, open_url_in_browser
 from marimo._server.host import (
     ATTACHMENT_IDENTITY,
     ATTACHMENT_KIND,
@@ -41,15 +35,12 @@ from marimo._server.host import (
 from marimo._server.host.events import serialize_event, serialize_sse_event
 from marimo._server.host.notebook_api import (
     _context,
-    _decode,
-    _mutation,
     editor_notebook_routes,
-    notebook_routes,
+    operation_routes,
     problem,
 )
 from marimo._server.host.session import SessionEventStream
 from marimo._server.sse import SSE_HEADERS
-from marimo._server.tokens import AuthToken
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
@@ -81,11 +72,6 @@ def build_app() -> Router:
     """Build the host API router."""
     routes = [
         Route("/events", _events, methods=["GET"]),
-        Route("/notebooks", _create_notebook, methods=["POST"]),
-        Route("/notebooks/{notebook_id}", _update_notebook, methods=["PATCH"]),
-        Route(
-            "/notebooks/{notebook_id}", _delete_notebook, methods=["DELETE"]
-        ),
         Route(
             "/notebooks/{notebook_id}/events",
             _notebook_events,
@@ -94,10 +80,7 @@ def build_app() -> Router:
         WebSocketRoute(
             "/notebooks/{notebook_id}/events/ws", _notebook_events_ws
         ),
-        Route(
-            "/notebooks/{notebook_id}/open", _open_notebook, methods=["POST"]
-        ),
-        *notebook_routes(),
+        *operation_routes(),
     ]
     for route in routes:
         # Starlette implies HEAD for every GET route, but a HEAD here would
@@ -125,15 +108,6 @@ async def _notebook(request: HTTPConnection) -> Notebook:
     return await _context(request).bridge.host.notebook(
         request.path_params["notebook_id"]
     )
-
-
-def _record(request: Request) -> protocol.Notebook:
-    notebook_id = request.path_params["notebook_id"]
-    host = _context(request).bridge.host
-    record = host.notebooks.get(notebook_id)
-    if record is None:
-        raise NotFound(f"no notebook {notebook_id}")
-    return record
 
 
 # ---- streams -------------------------------------------------------------------
@@ -479,104 +453,6 @@ def _stream(
 def _frame(event: RoutedEvent) -> bytes:
     """Encode an event as an SSE frame."""
     return serialize_sse_event(event).encode()
-
-
-# ---- notebooks -----------------------------------------------------------------
-
-
-def _inside_project(path: str) -> Path:
-    if "\x00" in path:
-        raise HTTPException(400, "path must not contain NUL")
-    relative = Path(path)
-    if relative.is_absolute() or ".." in relative.parts:
-        raise HTTPException(400, "path must stay in the project")
-    return relative
-
-
-@_mutation("notebook.create")
-async def _create_notebook(request: Request) -> Reply:
-    """Create an empty notebook in the project."""
-    context = _context(request)
-    key = request.headers["Idempotency-Key"]
-    body = await _decode(request, protocol.CreateNotebookRequest)
-
-    index = context.bridge.index
-    if index.root is None or body.project_id != index.project_id:
-        raise HTTPException(404, f"No project {body.project_id}")
-    if body.path is msgspec.UNSET:
-        raise HTTPException(400, "path is required")
-    relative = _inside_project(body.path)
-    file = index.root / relative
-    notebook = await context.bridge.create(
-        file,
-        name=None if body.name is msgspec.UNSET else body.name,
-        request_id=key,
-    )
-    return 201, notebook
-
-
-@_mutation("notebook.update")
-async def _update_notebook(request: Request) -> Reply:
-    """Change a notebook's path or display name, preserving its runtime."""
-    context = _context(request)
-    key = request.headers["Idempotency-Key"]
-    record = _record(request)
-    body = await _decode(request, protocol.UpdateNotebookRequest)
-
-    if body.path is msgspec.UNSET and body.name is msgspec.UNSET:
-        raise HTTPException(400, "path or name is required")
-    index = context.bridge.index
-    target = None
-    if body.path is not msgspec.UNSET:
-        if index.root is None:
-            raise HTTPException(409, "The notebook has no file to move")
-        relative = _inside_project(body.path)
-        target = index.root / relative
-    notebook = await context.bridge.update(
-        record.id,
-        target=target,
-        name=None if body.name is msgspec.UNSET else body.name,
-        request_id=key,
-    )
-    return 200, notebook
-
-
-@_mutation("notebook.delete")
-async def _delete_notebook(request: Request) -> Reply:
-    """Delete the notebook and its file if it has no runtime."""
-    context = _context(request)
-    key = request.headers["Idempotency-Key"]
-    await context.bridge.delete(_record(request).id, request_id=key)
-    return 204, None
-
-
-@_mutation("notebook.open")
-async def _open_notebook(request: Request) -> Reply:
-    """Open the notebook in the configured browser."""
-    record = _record(request)
-    file = _context(request).bridge.index.file_of(record.id)
-    if file is None:
-        raise HTTPException(409, "The notebook has no file to open")
-
-    state = AppStateBase.from_app(request.app)
-    authority = f"{format_url_host(state.host, state.port)}:{state.port}"
-    url = f"http://{authority}{state.base_url}/?file={quote(str(file))}"
-    auth_token = state.session_manager.auth_token
-    if not AuthToken.is_empty(auth_token):
-        url += f"&{TOKEN_QUERY_PARAM}={quote(str(auth_token))}"
-    browser = state.config_manager.get_config().server.browser
-    # Keep blocking browser discovery off the event loop.
-    threading.Thread(
-        target=_open_quietly, args=(browser, url), daemon=True
-    ).start()
-    return 200, protocol.OpenNotebookResponse(url=url)
-
-
-def _open_quietly(browser: str, url: str) -> None:
-    try:
-        open_url_in_browser(browser, url)
-    except Exception as e:
-        LOGGER.warning("Could not open the notebook in a browser: %s", e)
 
 
 # ---- runtimes ------------------------------------------------------------------

@@ -17,10 +17,12 @@ from marimo._core.errors import (
     DecisionRequired,
     Invalid,
     NotFound,
+    PreconditionFailed,
 )
 from marimo._core.executions import Executions
 from marimo._core.host import Host
 from marimo._core.notebook import Notebook
+from marimo._core.result import Err, Ok, Result
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.host import OPERATIONS, document as documents
 from marimo._server.host.analysis import HostAnalyzer
@@ -279,7 +281,7 @@ class SessionBridge(SessionEventListener):
         if_match: Sequence[str] | None,
         decisions: Mapping[str, str] | None = None,
         request_id: str,
-    ) -> protocol.EditResponse:
+    ) -> Result[protocol.EditResponse, PreconditionFailed | DecisionRequired]:
         """Write the document to its file and record the revision written.
 
         With a session attached, the session's own file manager writes
@@ -316,15 +318,19 @@ class SessionBridge(SessionEventListener):
                 raise Conflict("The notebook has no file to save to")
             # Check and snapshot only after waiting for the file lock.
             if if_match is not None:
-                notebook.require_revision(if_match)
+                current = notebook.require_revision(if_match)
+                if not current.ok:
+                    return current
             revision = notebook.document
             session = self.session_for_notebook(notebook.id)
             if session is None and await self._file_changed(notebook.id, file):
                 answer = (decisions or {}).get(_FILE_CHANGED.id)
                 if answer is None:
-                    raise DecisionRequired(
-                        "The file changed outside marimo",
-                        decisions=(_FILE_CHANGED,),
+                    return Err(
+                        DecisionRequired(
+                            "The file changed outside marimo",
+                            decisions=(_FILE_CHANGED,),
+                        )
                     )
                 if answer == "reload":
                     return await self._reload(
@@ -355,7 +361,7 @@ class SessionBridge(SessionEventListener):
             if session is None:
                 self._file_texts[notebook.id] = text
             document = notebook.mark_saved(etag, request_id=request_id)
-            return protocol.EditResponse(document=document, cells={})
+            return Ok(protocol.EditResponse(document=document, cells={}))
 
     def _write(
         self,
@@ -404,17 +410,24 @@ class SessionBridge(SessionEventListener):
         file: Path,
         before: protocol.Etag,
         request_id: str,
-    ) -> protocol.EditResponse:
+    ) -> Result[protocol.EditResponse, PreconditionFailed]:
         """Replace the document with the file's contents as the saved revision."""
         loaded = await self._load(file)
         if loaded is None:
             raise Conflict("The notebook file could not be loaded")
         # An edit may have landed while the file was read. Replacing the
         # document now would lose it.
-        notebook.require_revision([before])
+        current = notebook.require_revision([before])
+        if not current.ok:
+            return current
         self._file_texts[notebook.id] = loaded.text
-        return notebook.replace(
-            loaded.cells, loaded.app_config, saved=True, request_id=request_id
+        return Ok(
+            notebook.replace(
+                loaded.cells,
+                loaded.app_config,
+                saved=True,
+                request_id=request_id,
+            )
         )
 
     async def edit(
@@ -423,31 +436,37 @@ class SessionBridge(SessionEventListener):
         changes: Sequence[protocol.Change],
         *,
         request_id: str,
-    ) -> protocol.EditResponse:
+    ) -> Result[protocol.EditResponse, PreconditionFailed]:
         """Apply an edit to the document, and to the session when there is one.
 
         The file is not written. The session mirrors the edit back with
         its own app config, so the response carries the document as it
         stands after that, which is the one the client reads next.
 
+        Returns `PreconditionFailed` if a precondition is stale.
+
         Raises:
-            PreconditionFailed: If a precondition is stale.
             Invalid: If a change could not apply to any state.
         """
         notebook = await self.host.notebook(notebook_id)
-        response = notebook.edit(changes, request_id=request_id)
+        edited = notebook.edit(changes, request_id=request_id)
+        if not edited.ok:
+            return edited
+        response = edited.value
         session = self.session_for_notebook(notebook.id)
         if session is None:
-            return response
+            return edited
         self._mirrored.pop(notebook.id, None)
         documents.apply_to_session(
             session, notebook.document, self._put_for(notebook.id)
         )
         mirrored = self._mirrored.pop(notebook.id, None)
         if mirrored is None:
-            return response
-        return protocol.EditResponse(
-            cells=response.cells, document=mirrored.document
+            return edited
+        return Ok(
+            protocol.EditResponse(
+                cells=response.cells, document=mirrored.document
+            )
         )
 
     def session_snapshot(
