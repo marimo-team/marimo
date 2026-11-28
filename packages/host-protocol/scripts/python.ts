@@ -6,10 +6,11 @@ import * as NodeChildProcess from "node:child_process";
 import * as NodeFs from "node:fs";
 import * as NodePath from "node:path";
 import * as NodeUtil from "node:util";
-import { OpenApi } from "effect/http-api";
+import { HttpApi, OpenApi } from "effect/http-api";
 import { Api as ExperimentalApi } from "../src/experimental/Host.ts";
 import { Api as StableApi, referencePolicy } from "../src/Host.ts";
 
+import { calls } from "./python/calls.ts";
 import { events } from "./python/events.ts";
 import { models } from "./python/models.ts";
 
@@ -27,16 +28,24 @@ const args = NodeUtil.parseArgs({
   },
 });
 
-const document = args.values.experimental
-  ? OpenApi.fromApi(ExperimentalApi, { referencePolicy })
-  : OpenApi.fromApi(StableApi, { referencePolicy });
+// Operations need the groups and names that the OpenAPI document drops.
+const [document, api] = args.values.experimental
+  ? [
+      OpenApi.fromApi(ExperimentalApi, { referencePolicy }),
+      calls((visit) => HttpApi.reflect(ExperimentalApi, visit), options),
+    ]
+  : [
+      OpenApi.fromApi(StableApi, { referencePolicy }),
+      calls((visit) => HttpApi.reflect(StableApi, visit), options),
+    ];
 
 const modules = {
-  // The package is its records, and it loads the module that builds on them.
+  // The package is its records, and it loads the modules that build on them.
   "__init__.py": `${models(document, options)}
-from marimo._core.protocol import events as events  # noqa: E402
+from marimo._core.protocol import api as api, events as events  # noqa: E402
 `,
   "events.py": events(document, options),
+  "api.py": api,
 };
 
 let stale = false;
