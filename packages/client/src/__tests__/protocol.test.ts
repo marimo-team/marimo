@@ -78,6 +78,14 @@ describe("host protocol fixtures", () => {
 });
 
 describe("host protocol bindings", () => {
+  it("keeps the shared removal decoder compatible with string IDs", () => {
+    const input: Protocol.RemovedMessage = { id: "" };
+    const removed = Protocol.RemovedMessage.parse(input);
+    expect(removed).toEqual(input);
+    expectTypeOf(removed).toEqualTypeOf<Protocol.RemovedMessageOutput>();
+    expectTypeOf(removed.id).toEqualTypeOf<string>();
+  });
+
   it("brands parsed cell IDs and accepts string IDs in requests", () => {
     const cell = Protocol.Cell.parse(readFixture("cell.json"));
     expectTypeOf<"CellId">().not.toExtend<keyof typeof Protocol>();

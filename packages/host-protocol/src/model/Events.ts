@@ -5,7 +5,11 @@
 import { Schema } from "effect";
 import { Cursor, event, message } from "../internal/events.ts";
 import { Timestamp } from "./Ids.ts";
-import type { ObjectDefinition, StreamName } from "../Objects.ts";
+import type {
+  ObjectDefinition,
+  RemovableObjectDefinition,
+  StreamName,
+} from "../Objects.ts";
 
 const list = new Intl.ListFormat("en", { type: "conjunction" });
 const title = (kind: string) => kind[0].toUpperCase() + kind.slice(1);
@@ -33,22 +37,22 @@ function changed<
   });
 }
 
-const RemovedMessage = message({
-  id: Schema.String.annotateKey({
-    description: "The id of the object that was removed.",
-  }),
-}).annotate({
-  description:
-    "The data of an event ending in `.removed`. The event name identifies the kind of object to delete from the client's view. Removing a notebook also removes its document and cells, and removing an execution removes its inputs. Clients discard these child records when they receive the parent's removal event.",
-  identifier: "RemovedMessage",
-});
-
-function removed<const Kind extends string>(object: {
+function removed<
+  const Kind extends string,
+  Id extends Schema.Constraint,
+>(object: {
   readonly kind: Kind;
+  readonly schema: { readonly fields: { readonly id: Id } };
   readonly streams: ReadonlyArray<StreamName>;
 }) {
   const name = `${object.kind}.removed` as const;
-  return event(name, RemovedMessage, {
+  const data = message({
+    id: object.schema.fields.id,
+  }).annotate({
+    description: `The data of the \`${name}\` event. The id of the ${object.kind} to delete from the client's view.`,
+    identifier: `${title(object.kind)}RemovedMessage`,
+  });
+  return event(name, data, {
     id: Schema.optionalKey(Cursor),
   }).annotate({
     description: `The \`${name}\` event, ${carriers(object.streams)}.`,
@@ -112,8 +116,8 @@ const ReadyEvent = event("ready", Schema.Record(Schema.String, Schema.Never), {
 type Changed<O> = O extends ObjectDefinition
   ? ReturnType<typeof changed<O["kind"], O["schema"]>>
   : never;
-type Removed<O> = O extends ObjectDefinition & { readonly removable: true }
-  ? ReturnType<typeof removed<O["kind"]>>
+type Removed<O> = O extends RemovableObjectDefinition
+  ? ReturnType<typeof removed<O["kind"], O["schema"]["fields"]["id"]>>
   : never;
 type CarriedBy<O, Stream extends StreamName> = O extends ObjectDefinition
   ? Stream extends O["streams"][number]

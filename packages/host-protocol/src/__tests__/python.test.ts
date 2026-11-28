@@ -200,6 +200,30 @@ it("gives events that only wrap data one envelope to share", () => {
   );
 });
 
+it("gives removals one message, generic in the id each names", () => {
+  const document = OpenApi.fromApi(Host.Api, {
+    referencePolicy: Host.referencePolicy,
+  });
+  const source = models(document, options);
+  expect(source).toContain(
+    [
+      "class RemovedMessage(Struct, Generic[_IdT], frozen=True):",
+      "    id: _IdT",
+      "    request_id: _RequestId | UnsetType = UNSET",
+      "    time: _Time | UnsetType = UNSET",
+    ].join("\n"),
+  );
+  expect(source).toContain(
+    'class RunRemovedEvent(Envelope[RemovedMessage[RunId]], frozen=True, tag_field="event", tag="run.removed"):',
+  );
+  // The messages the document names per kind are not written.
+  expect(source).not.toContain("class RunRemovedMessage");
+  // The id is evaluated where the event is defined, so it comes first.
+  expect(source.indexOf('RunId = NewType("RunId"')).toBeLessThan(
+    source.indexOf("class RunRemovedEvent"),
+  );
+});
+
 it("writes adapters from schema references, whatever the schemas are called", () => {
   const document = structuredClone(
     OpenApi.fromApi(Host.Api, { referencePolicy: Host.referencePolicy }),
@@ -218,18 +242,22 @@ it("writes adapters from schema references, whatever the schemas are called", ()
   delete schemas.ProjectEvent;
   event.properties.data = component("WorkspaceUpdate");
   schemas.WorkspaceChanged = event;
-  schemas.Event.anyOf = schemas.Event.anyOf.map((member: { $ref: string }) =>
-    member.$ref.endsWith("/ProjectEvent")
-      ? component("WorkspaceChanged")
-      : member,
-  );
+  for (const union of Object.values(schemas)) {
+    if (Array.isArray(union.anyOf)) {
+      union.anyOf = union.anyOf.map((member: { $ref?: string }) =>
+        member.$ref?.endsWith("/ProjectEvent")
+          ? component("WorkspaceChanged")
+          : member,
+      );
+    }
+  }
 
   const source = events(document, options);
   expect(source).toContain(
     "            return protocol.WorkspaceChanged(\n                protocol.WorkspaceUpdate(workspace=value, request_id=request_id, time=time)",
   );
   expect(source).toContain(
-    "protocol.RemovedMessage(id=object_id, request_id=request_id, time=time)",
+    "            protocol.RemovedMessage(\n                id=protocol.ProjectId(object_id), request_id=request_id, time=time",
   );
 });
 

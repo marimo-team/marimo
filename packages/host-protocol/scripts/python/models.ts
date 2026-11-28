@@ -395,15 +395,19 @@ export function models(
   const all = schemas as Readonly<Record<string, Node>>;
   const told = tags(all);
   const { cursor, wrapped } = envelopes(all, told);
+  const events = "Event" in all ? carried(document) : undefined;
   // An event that carries a record gives it directly, past its message.
   const records = new Map(
-    ("Event" in all ? carried(document).records : []).map((record) => [
-      record.event,
-      record,
-    ]),
+    (events?.records ?? []).map((record) => [record.event, record]),
+  );
+  const removed = events?.removed;
+  const ids = new Map(
+    removed === undefined
+      ? []
+      : events?.removals.map((removal) => [removal.message, removal.id]),
   );
   // An event in an envelope writes no fields of its own.
-  const names = shared(all, (name) => !wrapped.has(name));
+  const names = shared(all, (name) => !wrapped.has(name) && !ids.has(name));
   const aliases = new Map(
     [...names.values()].map(({ name, expression }) => [name, expression]),
   );
@@ -423,8 +427,11 @@ export function models(
     const tag = told.get(name);
     if (data !== undefined && tag !== undefined) {
       const record = records.get(name);
+      const id = ids.get(data);
       return [
-        `class ${name}(Envelope[${data}], frozen=True, tag_field=${literal(tag.field)}, tag=${literal(tag.tag)}):`,
+        `class ${name}(Envelope[${
+          id === undefined ? data : `${removed?.name}[${id}]`
+        }], frozen=True, tag_field=${literal(tag.field)}, tag=${literal(tag.tag)}):`,
         ...(record === undefined
           ? ["    pass"]
           : [
@@ -463,12 +470,22 @@ export function models(
           new RegExp(`\\b${other}\\b`).test(expression),
         );
   };
-  const pending = new Set([...aliases.keys(), ...Object.keys(all).toSorted()]);
+  // An event needs its data, or its removal's id, defined first.
+  const evaluated = (event: string) => {
+    const data = wrapped.get(event);
+    return data === undefined ? undefined : (ids.get(data) ?? data);
+  };
+  const pending = new Set([
+    ...aliases.keys(),
+    ...Object.keys(all)
+      .filter((name) => !ids.has(name))
+      .toSorted(),
+  ]);
   const definitions: Array<string> = [];
   while (pending.size > 0) {
     // Naming an envelope's data evaluates it, as an alias evaluates its members.
     const ready = [...pending].find((name) =>
-      [...uses(name), ...(wrapped.has(name) ? [wrapped.get(name)] : [])].every(
+      [...uses(name), ...(wrapped.has(name) ? [evaluated(name)] : [])].every(
         (need) => need === undefined || !pending.has(need),
       ),
     );
@@ -482,6 +499,22 @@ export function models(
         ? definition(ready)
         : `${ready}: TypeAlias = ${expression}`,
     );
+  }
+  if (removed !== undefined) {
+    const like = all[removed.like];
+    const message = struct(
+      removed.name,
+      {
+        ...like,
+        properties: {
+          ...(like.properties as Node),
+          id: { $ref: `${PREFIX}_IdT` },
+        },
+      },
+      undefined,
+      names,
+    ).replace("(Struct, ", "(Struct, Generic[_IdT], ");
+    definitions.unshift(`_IdT = TypeVar("_IdT", bound=str)\n\n\n${message}`);
   }
   if (cursor !== undefined) {
     definitions.unshift(

@@ -205,61 +205,71 @@ def removed(
     if record_type is protocol.Attachment:
         return protocol.AttachmentRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.AttachmentId(object_id),
+                request_id=request_id,
+                time=time,
             )
         )
     if record_type is protocol.Cell:
         return protocol.CellRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.CellId(object_id), request_id=request_id, time=time
             )
         )
     if record_type is protocol.Console:
         return protocol.ConsoleRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.ItemId(object_id), request_id=request_id, time=time
             )
         )
     if record_type is protocol.Execution:
         return protocol.ExecutionRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.ExecutionId(object_id),
+                request_id=request_id,
+                time=time,
             )
         )
     if record_type is protocol.Notebook:
         return protocol.NotebookRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.NotebookId(object_id),
+                request_id=request_id,
+                time=time,
             )
         )
     if record_type is protocol.Output:
         return protocol.OutputRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.ItemId(object_id), request_id=request_id, time=time
             )
         )
     if record_type is protocol.Project:
         return protocol.ProjectRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.ProjectId(object_id),
+                request_id=request_id,
+                time=time,
             )
         )
     if record_type is protocol.Run:
         return protocol.RunRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.RunId(object_id), request_id=request_id, time=time
             )
         )
     if record_type is protocol.Runtime:
         return protocol.RuntimeRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.RuntimeId(object_id),
+                request_id=request_id,
+                time=time,
             )
         )
     if record_type is protocol.Variable:
         return protocol.VariableRemovedEvent(
             protocol.RemovedMessage(
-                id=object_id, request_id=request_id, time=time
+                id=protocol.ItemId(object_id), request_id=request_id, time=time
             )
         )
     raise TypeError(f"No removal event for {record_type}")
