@@ -13,7 +13,6 @@ from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable, Collection, Iterator
 from contextlib import AbstractContextManager, contextmanager
-from copy import deepcopy
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
@@ -32,10 +31,10 @@ def snapshot_event(
     run_id: protocol.RunId | None = None,
     request_id: str | None = None,
 ) -> RoutedEvent:
-    """Copy current state into an event without an emission time or cursor."""
+    """Wrap current state in an event without an emission time or cursor."""
     return RoutedEvent(
         protocol_events.record(
-            deepcopy(body),
+            body,
             request_id=UNSET if request_id is None else request_id,
         ),
         notebook_id=notebook_id,
@@ -155,7 +154,7 @@ class Sink(ABC):
 
     def append(self, event: RoutedEvent) -> RoutedEvent:
         """Record an event without requiring a public protocol type."""
-        return self._append(deepcopy(event))
+        return self._append(event)
 
     def publish(
         self,
@@ -169,7 +168,7 @@ class Sink(ABC):
         return self._append(
             RoutedEvent(
                 protocol_events.record(
-                    deepcopy(body),
+                    body,
                     request_id=UNSET if request_id is None else request_id,
                     time=utcnow(),
                 ),
@@ -204,18 +203,14 @@ class Sink(ABC):
 
     @abstractmethod
     def _append(self, event: RoutedEvent) -> RoutedEvent:
-        """Record an owned event and return an isolated copy as recorded.
-
-        The event must already be isolated from the caller. Forward it to
-        another sink's `_append` without copying it again.
-        """
+        """Record an event and return it as recorded."""
 
 
 class Stream(Sink):
     """An ordered event log with bounded history and live subscriptions.
 
-    Callers serialize access on one thread. Published objects and returned
-    events are copied so readers cannot mutate the log or each other's data.
+    Callers serialize access on one thread. A record is not changed once it
+    is published.
     """
 
     def __init__(self, *, history: int = 1000) -> None:
@@ -268,13 +263,11 @@ class Stream(Sink):
         assert oldest is not None
         if position < oldest - 1:
             return None
-        return deepcopy(
-            [
-                e
-                for e in self._history
-                if e.position is not None and e.position > position
-            ]
-        )
+        return [
+            e
+            for e in self._history
+            if e.position is not None and e.position > position
+        ]
 
     def subscribe(self, listener: Listener) -> Callable[[], None]:
         """Subscribe to future events and return an unsubscribe function.
@@ -317,7 +310,7 @@ class Stream(Sink):
         self._pending.append((stamped, tuple(self._listeners)))
         if not self._dispatching:
             self._drain()
-        return deepcopy(stamped)
+        return stamped
 
     def _drain(self) -> None:
         self._dispatching = True
@@ -326,7 +319,7 @@ class Stream(Sink):
                 pending, listeners = self._pending.popleft()
                 for listener in listeners:
                     try:
-                        listener(deepcopy(pending))
+                        listener(pending)
                     except Exception:
                         LOGGER.exception("Error delivering host event")
         finally:
