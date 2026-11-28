@@ -4,6 +4,8 @@ __generated_with = "0.18.4"
 app = marimo.App(width="medium")
 
 with app.setup:
+    import tempfile
+
     import pytest
 
     test_cases = [(1, 2), (1, 3), (1, 5)]
@@ -15,6 +17,10 @@ with app.setup:
     @pytest.fixture
     def setup_data():
         return [1, 2, 3]
+
+    def open_temp_file():
+        with tempfile.NamedTemporaryFile() as f:
+            yield f
 
 
 @app.cell
@@ -58,6 +64,69 @@ def collection_of_tests():
 
         def test_uses_fixture(self, example):
             assert example == "value"
+
+
+@app.function
+@pytest.fixture
+def top_level_temp_file():
+    with tempfile.NamedTemporaryFile() as f:
+        yield f
+
+
+@app.cell
+def yield_fixtures():
+    @pytest.fixture
+    def temp_file():
+        import tempfile
+
+        with tempfile.NamedTemporaryFile() as f:
+            yield f
+
+    @pytest.fixture
+    def delegated_temp_file():
+        yield from open_temp_file()
+
+    @pytest.fixture
+    async def async_items():
+        items = [1]
+        yield items
+        items.clear()
+
+    @pytest.fixture
+    def returns_generator():
+        def generator():
+            yield 2
+
+        return generator
+
+    def test_yield_fixture(temp_file):
+        temp_file.write(b"hello")
+        temp_file.seek(0)
+        assert temp_file.read() == b"hello"
+
+    def test_yield_from_fixture(delegated_temp_file):
+        assert not delegated_temp_file.closed
+
+    def test_top_level_yield_fixture(top_level_temp_file):
+        top_level_temp_file.write(b"hello")
+        top_level_temp_file.seek(0)
+        assert top_level_temp_file.read() == b"hello"
+
+    async def test_async_yield_fixture(async_items):
+        assert async_items == [1]
+
+    def test_nested_yield_is_not_a_yield_fixture(returns_generator):
+        assert list(returns_generator()) == [2]
+
+    class TestYieldFixtureMethod:
+        @pytest.fixture
+        def method_items(self):
+            items = [3]
+            yield items
+            items.clear()
+
+        def test_uses_fixture(self, method_items):
+            assert method_items == [3]
 
 
 @app.cell
